@@ -4,6 +4,7 @@ from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.resolution.closeout.ownerless.effect as ownerless_effect
+import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.attempt as receipt_attempt
 import ethos.adapters.mutation.resolution.closeout.recovery as recovery
 from ethos.adapters.mutation.resolution.closeout.effect import OwnerlessCloseoutError
 from ethos_core.contracts.resolution.lane import LaneObservation
@@ -191,7 +192,7 @@ def test_preserve_retire_rechecks_target_then_chronicle_immediately_before_retir
         assert events == ["observe", *(["retire"] if not expected_gap else [])]
 
 
-def test_claim_effect_attempt_preserves_every_fail_closed_claim_gap(
+def test_resolution_effect_attempt_preserves_every_fail_closed_claim_gap(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     observation = _observation(tmp_path)
@@ -205,54 +206,57 @@ def test_claim_effect_attempt_preserves_every_fail_closed_claim_gap(
     }
     with monkeypatch.context() as patch, ExitStack() as stack:
         patch.setattr(
-            recovery,
+            receipt_attempt,
             "claim_receipt_reservation",
             lambda *_args, **_kwargs: (False, None, "lane_resolution_receipt_path_exists"),
         )
-        assert recovery._claim_effect_attempt(  # noqa: SLF001, RUF100
+        assert receipt_attempt.claim_resolution_effect_attempt(
             stack=stack, **inputs, recover=True
-        ) == (None, None, ("lane_resolution_receipt_path_exists",))
+        ) == (None, None, None, ("lane_resolution_receipt_path_exists",))
 
     with monkeypatch.context() as patch, ExitStack() as stack:
         patch.setattr(
-            recovery, "claim_receipt_reservation", lambda *_args, **_kwargs: (True, 7, "")
+            receipt_attempt,
+            "claim_receipt_reservation",
+            lambda *_args, **_kwargs: (True, 7, ""),
         )
         patch.setattr(
-            recovery,
-            "ownerless_receipt_reservation_token",
+            receipt_attempt,
+            "ownerless_receipt_reservation_context",
             lambda **_kwargs: (_ for _ in ()).throw(ValueError("lane_resolution_receipt_invalid")),
         )
-        assert recovery._claim_effect_attempt(  # noqa: SLF001, RUF100
+        assert receipt_attempt.claim_resolution_effect_attempt(
             stack=stack, **inputs, recover=True
-        ) == (None, 7, ("lane_resolution_receipt_invalid",))
+        ) == (None, 7, None, ("lane_resolution_receipt_invalid",))
 
     with monkeypatch.context() as patch, ExitStack() as stack:
         patch.setattr(
-            recovery,
+            receipt_attempt,
             "pre_admit_ownerless_lane",
             lambda **_kwargs: (None, "lane_resolution_ownerless_executor_required"),
         )
-        assert recovery._claim_effect_attempt(  # noqa: SLF001, RUF100
+        assert receipt_attempt.claim_resolution_effect_attempt(
             stack=stack, **inputs, recover=False
-        ) == (None, None, ("lane_resolution_ownerless_executor_required",))
+        ) == (None, None, None, ("lane_resolution_ownerless_executor_required",))
 
     with monkeypatch.context() as patch, ExitStack() as stack:
-        patch.setattr(recovery, "pre_admit_ownerless_lane", lambda **_kwargs: (object(), ""))
+        patch.setattr(receipt_attempt, "pre_admit_ownerless_lane", lambda **_kwargs: (object(), ""))
         patch.setattr(
-            recovery,
+            receipt_attempt,
             "claim_effect_receipt_reservation",
-            lambda *_args, **_kwargs: (None, 7, "lane_resolution_receipt_invalid"),
+            lambda *_args, **_kwargs: (None, 7, None, "lane_resolution_receipt_invalid"),
         )
         patch.setattr(
-            recovery.cleanup,
+            receipt_attempt.cleanup,
             "release_receipt_reservation",
             lambda **_kwargs: "lane_resolution_receipt_reservation_release_failed",
         )
-        assert recovery._claim_effect_attempt(  # noqa: SLF001, RUF100
+        assert receipt_attempt.claim_resolution_effect_attempt(
             stack=stack, **inputs, recover=False
         ) == (
             None,
             7,
+            None,
             (
                 "lane_resolution_receipt_invalid",
                 "lane_resolution_receipt_reservation_release_failed",

@@ -64,7 +64,7 @@ def test_public_admission_translates_an_unclassified_failure(
     def unexpected(**_kwargs: object) -> object:
         raise RuntimeError
 
-    monkeypatch.setattr(admission, "_admit", unexpected)
+    monkeypatch.setattr(admission, "admit_ownerless_closeout_facts", unexpected)
 
     _assert_admission_gap(
         lambda: admission.admit_ownerless_closeout(
@@ -92,7 +92,7 @@ def test_native_admission_maps_untyped_decision_snapshot_failure(
     monkeypatch.setattr(admission.validation, "admit_ownerless_decision_snapshot", invalid_snapshot)
 
     _assert_admission_gap(
-        lambda: admission._admit(  # noqa: SLF001, RUF100
+        lambda: admission.admit_ownerless_closeout_facts(
             root=tmp_path,
             decision_path=tmp_path / "decision.json",
             decision={},
@@ -122,7 +122,7 @@ def test_native_admission_reports_the_exact_stale_observation_field(
     monkeypatch.setattr(admission, "_git_observation", lambda *_args: facts)
 
     _assert_admission_gap(
-        lambda: admission._admit(  # noqa: SLF001, RUF100
+        lambda: admission.admit_ownerless_closeout_facts(
             root=tmp_path,
             decision_path=tmp_path / "decision.json",
             decision={},
@@ -166,7 +166,7 @@ def test_native_admission_rejects_a_competing_fence_without_a_retry_reservation(
     monkeypatch.setattr(admission, "_state", lambda *_args: ("present", None))
 
     _assert_admission_gap(
-        lambda: admission._admit(  # noqa: SLF001, RUF100
+        lambda: admission.admit_ownerless_closeout_facts(
             root=tmp_path,
             decision_path=tmp_path / "decision.json",
             decision={},

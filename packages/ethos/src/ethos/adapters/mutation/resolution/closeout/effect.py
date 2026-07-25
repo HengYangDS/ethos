@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,10 +21,13 @@ from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import
     OwnerlessCloseoutAdmissionError,
 )
 from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
-    admit_ownerless_closeout,
+    reobserve_ownerless_closeout_facts,
 )
 from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
     reobserve_ownerless_closeout_under_fence,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.runtime import (
+    admit_ownerless_effect_target,
 )
 from ethos.adapters.mutation.resolution.closeout.retry import reset_reserved_no_effect_retry
 from ethos.adapters.mutation.resolution.receipts import canonical_resolution_decision_snapshot
@@ -48,7 +50,7 @@ from ethos_core.contracts.resolution.lane import LaneObservation
 
 if TYPE_CHECKING:
     from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
-        OwnerlessReceiptReservationToken,
+        OwnerlessReceiptReservationContext,
     )
 
 _OWNERLESS_ACCEPTED_HEAD_STALE = "lane_resolution_ownerless_accepted_head_stale"
@@ -63,61 +65,6 @@ def _ownerless_gap(suffix: str) -> str:
     return f"lane_resolution_ownerless_{suffix}"
 
 
-def admit_clean_ownerless_lane(
-    *,
-    root: Path,
-    decision_path: Path,
-    decision: dict[str, Any],
-    executor_ref: str,
-    receipt_reservation_token: OwnerlessReceiptReservationToken | None = None,
-) -> OwnerlessCloseoutAdmission:
-    try:
-        return admit_ownerless_closeout(
-            root=root,
-            decision_path=decision_path,
-            decision=decision,
-            executor_ref=executor_ref,
-            receipt_reservation_token=receipt_reservation_token,
-        )
-    except OwnerlessCloseoutAdmissionError as error:
-        raise OwnerlessCloseoutError(error.gap) from error
-
-
-def pre_admit_ownerless_lane(  # noqa: PLR0913, RUF100 - exact pre-admission facts
-    *,
-    root: Path,
-    decision_path: Path,
-    decision: dict[str, Any],
-    observation: LaneObservation,
-    disposition: str,
-    receipt_reservation_token: OwnerlessReceiptReservationToken | None = None,
-) -> tuple[OwnerlessCloseoutAdmission | None, str]:
-    """Admit an ownerless candidate with no sidecar or one exact locked token."""
-    if (
-        disposition != "retire"
-        or observation.dirty
-        or not observation.orphan
-        or observation.holder_ref
-    ):
-        return None, ""
-    executor_ref = os.environ.get("ETHOS_ACTOR", "").strip()
-    if not executor_ref:
-        return None, _ownerless_gap("executor_required")
-    try:
-        return (
-            admit_clean_ownerless_lane(
-                root=root,
-                decision_path=decision_path,
-                decision=decision,
-                executor_ref=executor_ref,
-                receipt_reservation_token=receipt_reservation_token,
-            ),
-            "",
-        )
-    except OwnerlessCloseoutError as error:
-        return None, str(error)
-
-
 def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect bindings
     *,
     root: Path,
@@ -126,14 +73,16 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect binding
     executor_ref: str,
     artifact_root: Path | None = None,
     admission: OwnerlessCloseoutAdmission | None = None,
+    receipt_reservation: OwnerlessReceiptReservationContext | None = None,
 ) -> dict[str, object]:
     """Admit, fence, reobserve, reserve, retire, and bind one exact target."""
     if admission is None:
-        admission = admit_clean_ownerless_lane(
+        admission = admit_ownerless_effect_target(
             root=root,
             decision_path=decision_path,
             decision=decision,
             executor_ref=executor_ref,
+            receipt_reservation=receipt_reservation,
         )
     record_root = artifact_root or current_record_root(admission.root)
     database = state_database(admission.root)
@@ -156,17 +105,27 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect binding
         admission = replace(
             admission,
             existing_reservation=None,
-            retry_fence_acquisition_id=None,
         )
     fence = _acquire_fresh_fence(admission, database)
     try:
-        admission = reobserve_ownerless_closeout_under_fence(
-            admission=admission,
-            fence=fence,
+        admission = (
+            reobserve_ownerless_closeout_facts(
+                admission=admission,
+                fence=fence,
+                receipt_reservation=receipt_reservation,
+            )
+            if receipt_reservation is not None
+            else reobserve_ownerless_closeout_under_fence(
+                admission=admission,
+                fence=fence,
+            )
         )
     except OwnerlessCloseoutAdmissionError as error:
         _release_unreserved_fence(admission, database, fence)
         raise OwnerlessCloseoutError(error.gap) from error
+    except Exception as error:
+        _release_unreserved_fence(admission, database, fence)
+        raise OwnerlessCloseoutError(_ownerless_gap("admission_unverifiable")) from error
     reservation = _reservation(admission, fence)
     try:
         reserve_ownerless_closeout_target(

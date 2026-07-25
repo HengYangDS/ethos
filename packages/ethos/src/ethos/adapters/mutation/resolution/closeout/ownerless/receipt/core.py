@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.resolution.records.inventory as inventory
@@ -38,6 +37,17 @@ class OwnerlessReceiptReservationToken:
     path: Path
     raw: bytes
     identity: posix.FileIdentity
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerlessReceiptReservationContext:
+    """Locally held descriptor and exact sidecar identity for one effect attempt."""
+
+    control_root: Path
+    artifact_root: Path
+    decision_id: str
+    descriptor: int
+    token: OwnerlessReceiptReservationToken
 
 
 class OwnerlessReceiptReservationError(ValueError):
@@ -82,8 +92,13 @@ def claim_effect_receipt_reservation(  # noqa: PLR0913, RUF100 - exact sidecar c
     *,
     mode: Literal["create", "recover"],
     admission: OwnerlessCloseoutAdmission | None,
-) -> tuple[OwnerlessCloseoutAdmission | None, int | None, str]:
-    """Claim one effect writer and bind its exact ownerless sidecar when needed."""
+) -> tuple[
+    OwnerlessCloseoutAdmission | None,
+    int | None,
+    OwnerlessReceiptReservationContext | None,
+    str,
+]:
+    """Claim one effect writer and return its locally held exact sidecar context."""
     claimed, descriptor, gap = claim_receipt_reservation(
         stack,
         control_root,
@@ -92,14 +107,19 @@ def claim_effect_receipt_reservation(  # noqa: PLR0913, RUF100 - exact sidecar c
         mode=mode,
     )
     if gap or not claimed or descriptor is None:
-        return None, descriptor, gap
-    bound, bind_gap = bind_ownerless_receipt_reservation_or_gap(
-        admission=admission,
-        control_root=control_root,
-        artifact_root=artifact_root,
-        descriptor=descriptor,
-    )
-    return bound, descriptor, bind_gap
+        return None, descriptor, None, gap
+    if admission is None:
+        return None, descriptor, None, ""
+    try:
+        context = ownerless_receipt_reservation_context(
+            control_root=control_root,
+            artifact_root=artifact_root,
+            decision_id=decision_id,
+            descriptor=descriptor,
+        )
+    except (OSError, TypeError, ValueError) as error:
+        return None, descriptor, None, transition_gap(error, "lane_resolution_receipt_invalid")
+    return admission, descriptor, context, ""
 
 
 def ownerless_receipt_reservation_token(
@@ -129,61 +149,69 @@ def ownerless_receipt_reservation_token(
     return token
 
 
-def bind_ownerless_receipt_reservation(
+def ownerless_receipt_reservation_context(
     *,
-    admission: OwnerlessCloseoutAdmission,
     control_root: Path,
     artifact_root: Path,
+    decision_id: str,
     descriptor: int,
-) -> OwnerlessCloseoutAdmission:
-    """Bind the exact locked self-sidecar as an immutable admission fact."""
+) -> OwnerlessReceiptReservationContext:
+    """Build one local context from an already claimed exact receipt sidecar."""
+    control = control_root.absolute()
+    records = artifact_root.absolute()
     token = ownerless_receipt_reservation_token(
-        control_root=control_root,
-        artifact_root=artifact_root,
-        decision_id=admission.decision.decision_id,
+        control_root=control,
+        artifact_root=records,
+        decision_id=decision_id,
         descriptor=descriptor,
     )
-    return replace(admission, receipt_reservation_token=token)
+    return OwnerlessReceiptReservationContext(
+        control_root=control,
+        artifact_root=records,
+        decision_id=decision_id,
+        descriptor=descriptor,
+        token=token,
+    )
 
 
-def bind_ownerless_receipt_reservation_or_gap(
-    *,
-    admission: OwnerlessCloseoutAdmission | None,
-    control_root: Path,
-    artifact_root: Path,
-    descriptor: int,
-) -> tuple[OwnerlessCloseoutAdmission | None, str]:
-    """Bind one exact sidecar or return its stable blocking gap."""
-    if admission is None:
-        return None, ""
+def require_ownerless_receipt_reservation_context(
+    context: OwnerlessReceiptReservationContext,
+) -> None:
+    """Require the exact context descriptor, bytes, and identity to remain current."""
     try:
-        return (
-            bind_ownerless_receipt_reservation(
-                admission=admission,
-                control_root=control_root,
-                artifact_root=artifact_root,
-                descriptor=descriptor,
-            ),
-            "",
+        require_locked_record_identity(
+            context.token.path,
+            context.descriptor,
+            record_root=context.artifact_root,
+        )
+        require_ownerless_receipt_reservation_token(
+            token=context.token,
+            control_root=context.control_root,
+            artifact_root=context.artifact_root,
+            decision_id=context.decision_id,
+        )
+        require_locked_record_identity(
+            context.token.path,
+            context.descriptor,
+            record_root=context.artifact_root,
         )
     except (OSError, TypeError, ValueError) as error:
-        return None, transition_gap(error, "lane_resolution_receipt_invalid")
+        raise OwnerlessReceiptReservationError(_OWNERLESS_RESERVATION_COMPETING) from error
 
 
 @contextmanager
 def ownerless_receipt_reservation_guard(
-    admission: OwnerlessCloseoutAdmission,
+    context: OwnerlessReceiptReservationContext | None,
 ) -> Iterator[None]:
-    """Probe one exact self-sidecar before and after fence-held re-observation."""
-    token = admission.receipt_reservation_token
-    if token is None:
+    """Probe one locally held exact sidecar before and after fence-held work."""
+    if context is None:
         yield
         return
-    _require_admission_token(admission, token)
+    require_ownerless_receipt_reservation_context(context)
     try:
         yield
     finally:
-        _require_admission_token(admission, token)
+        require_ownerless_receipt_reservation_context(context)
 
 
 def ownerless_reservation_admission_or_gap(  # noqa: PLR0913, RUF100 - exact retry binding
@@ -193,17 +221,18 @@ def ownerless_reservation_admission_or_gap(  # noqa: PLR0913, RUF100 - exact ret
     decision_path: Path,
     decision_sha256: str,
     expected: OwnerlessCloseoutReservation,
-    token: OwnerlessReceiptReservationToken | None,
+    receipt_reservation: OwnerlessReceiptReservationContext | None,
 ) -> tuple[OwnerlessCloseoutReservation | None, str]:
     """Classify a typed retry reservation with exact self-sidecar awareness."""
     try:
-        if token is not None:
-            require_ownerless_receipt_reservation_token(
-                token=token,
-                control_root=root,
-                artifact_root=record_root,
+        if receipt_reservation is not None:
+            _require_ownerless_receipt_reservation_scope(
+                context=receipt_reservation,
+                root=root,
+                record_root=record_root,
                 decision_id=expected.decision_id,
             )
+            require_ownerless_receipt_reservation_context(receipt_reservation)
         return (
             inventory.ownerless_closeout_reservation_admission(
                 root=root,
@@ -211,12 +240,29 @@ def ownerless_reservation_admission_or_gap(  # noqa: PLR0913, RUF100 - exact ret
                 decision_path=decision_path,
                 decision_sha256=decision_sha256,
                 expected=expected,
-                receipt_reservation_decision_id=(expected.decision_id if token else None),
+                receipt_reservation_decision_id=(
+                    expected.decision_id if receipt_reservation is not None else None
+                ),
             ),
             "",
         )
     except (OSError, TypeError, ValueError) as error:
         return None, transition_gap(error, _OWNERLESS_RESERVATION_COMPETING)
+
+
+def _require_ownerless_receipt_reservation_scope(
+    *,
+    context: OwnerlessReceiptReservationContext,
+    root: Path,
+    record_root: Path,
+    decision_id: str,
+) -> None:
+    if (
+        context.control_root != root.absolute()
+        or context.artifact_root != record_root.absolute()
+        or context.decision_id != decision_id
+    ):
+        raise ValueError(_OWNERLESS_RESERVATION_COMPETING)
 
 
 def require_ownerless_receipt_reservation_token(
@@ -245,21 +291,6 @@ def require_ownerless_receipt_reservation_token(
         or raw != token.raw
     ):
         raise ValueError(_OWNERLESS_RESERVATION_COMPETING)
-
-
-def _require_admission_token(
-    admission: OwnerlessCloseoutAdmission,
-    token: OwnerlessReceiptReservationToken,
-) -> None:
-    try:
-        require_ownerless_receipt_reservation_token(
-            token=token,
-            control_root=admission.root,
-            artifact_root=admission.decision_path.parents[1],
-            decision_id=admission.decision.decision_id,
-        )
-    except (OSError, TypeError, ValueError) as error:
-        raise OwnerlessReceiptReservationError(_OWNERLESS_RESERVATION_COMPETING) from error
 
 
 def _reservation_path(control_root: Path, artifact_root: Path, decision_id: str) -> Path:

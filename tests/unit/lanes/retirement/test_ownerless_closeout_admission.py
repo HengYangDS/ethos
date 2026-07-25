@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import subprocess
@@ -215,10 +216,17 @@ def test_native_admission_is_frozen_slots_only_fact_state(tmp_path: Path) -> Non
         "accepted_head",
         "target_digest",
         "target_binding_digest",
-        "retry_fence_acquisition_id",
         "existing_reservation",
-        "receipt_reservation_token",
     )
+    assert tuple(inspect.signature(native_admission.admit_ownerless_closeout).parameters) == (
+        "root",
+        "decision_path",
+        "decision",
+        "executor_ref",
+    )
+    assert tuple(
+        inspect.signature(native_admission.reobserve_ownerless_closeout_under_fence).parameters
+    ) == ("admission", "fence")
     assert not hasattr(admission, "__dict__")
     assert not any(callable(getattr(admission, field.name)) for field in fields(admission))
     assert admission.decision.to_payload() == scenario.decision
@@ -614,13 +622,14 @@ def test_fence_reobservation_allows_exact_retry_reservation_reset(tmp_path: Path
         decision_id=retry.decision.decision_id,
         target_binding_digest=str(old_fence["target_binding_digest"]),
     )
-    fresh_fence = _native_acquire_fence(scenario, retry)
+    reset = replace(retry, existing_reservation=None)
+    fresh_fence = _native_acquire_fence(scenario, reset)
 
     observed = native_admission.reobserve_ownerless_closeout_under_fence(
-        admission=retry, fence=fresh_fence
+        admission=reset, fence=fresh_fence
     )
 
-    assert observed == replace(retry, retry_fence_acquisition_id=None, existing_reservation=None)
+    assert observed == reset
 
 
 def test_registration_token_drift_blocks_even_when_observation_is_unchanged(
@@ -678,7 +687,7 @@ def test_after_fence_probe_runs_from_finally_for_every_exception_path(
         raise KeyboardInterrupt
 
     monkeypatch.setattr(module.state_closeout, "probe_closeout_fence", probe)
-    monkeypatch.setattr(module, "_admit", fail)
+    monkeypatch.setattr(module, "admit_ownerless_closeout_facts", fail)
     if error_kind == "base":
         with pytest.raises(KeyboardInterrupt):
             module.reobserve_ownerless_closeout_under_fence(admission=admission, fence=fence)
@@ -711,7 +720,7 @@ def test_after_fence_mismatch_overrides_a_pending_reobservation_error(
         raise RuntimeError(module.__name__)
 
     monkeypatch.setattr(module.state_closeout, "probe_closeout_fence", probe)
-    monkeypatch.setattr(module, "_admit", fail)
+    monkeypatch.setattr(module, "admit_ownerless_closeout_facts", fail)
     _native_gap(
         lambda: module.reobserve_ownerless_closeout_under_fence(admission=admission, fence=fence),
         "lane_resolution_ownerless_fence_mismatch",

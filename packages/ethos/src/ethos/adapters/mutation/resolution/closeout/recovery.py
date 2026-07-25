@@ -15,19 +15,15 @@ from ethos.adapters.mutation.resolution._effects import retire_lane
 from ethos.adapters.mutation.resolution._shared import accepted_preserve_retire_chronicle
 from ethos.adapters.mutation.resolution._shared import transition_gap
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.closeout.effect import pre_admit_ownerless_lane
+from ethos.adapters.mutation.resolution.closeout.ownerless.effect import (
+    OwnerlessCloseoutEffectContext,
+)
 from ethos.adapters.mutation.resolution.closeout.ownerless.effect import (
     is_ownerless_closeout_candidate,
 )
 from ethos.adapters.mutation.resolution.closeout.ownerless.effect import retire_ownerless_resolution
-from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
-    claim_effect_receipt_reservation,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
-    claim_receipt_reservation,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
-    ownerless_receipt_reservation_token,
+from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.attempt import (
+    claim_resolution_effect_attempt,
 )
 from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos.adapters.mutation.resolution.receipts import chronicle_event
@@ -39,10 +35,6 @@ from ethos_core.contracts.resolution.lane import LaneObservation
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
-        OwnerlessCloseoutAdmission,
-    )
 
 _OWNERLESS_RECEIPT_FIELDS = tuple(OwnerlessCloseoutBinding.model_fields)
 _PRESERVED_RETIREMENT_BLOCKED_REASONS = {
@@ -152,7 +144,12 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect inputs
         return
     decision_id = str(decision.get("decision_id") or "")
     reservation_stack = ExitStack()
-    ownerless_admission, reservation_descriptor, claim_gaps = _claim_effect_attempt(
+    (
+        ownerless_admission,
+        reservation_descriptor,
+        receipt_reservation,
+        claim_gaps,
+    ) = claim_resolution_effect_attempt(
         stack=reservation_stack,
         control_root=control_root,
         artifact_root=artifact_root,
@@ -161,6 +158,10 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect inputs
         observation=observation,
         disposition=disposition,
         recover=recover_receipt_reservation,
+    )
+    ownerless_effect_context = OwnerlessCloseoutEffectContext(
+        admission=ownerless_admission,
+        receipt_reservation=receipt_reservation,
     )
     if claim_gaps or reservation_descriptor is None:
         reservation_stack.close()
@@ -189,7 +190,7 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect inputs
             observation=observation,
             disposition=disposition,
             artifact_root=artifact_root,
-            ownerless_admission=ownerless_admission,
+            ownerless_effect_context=ownerless_effect_context,
         )
         release_descriptor = None if retain_reservation else reservation_descriptor
         requires_ownerless_binding = _attach_ownerless_receipt_binding(
@@ -263,83 +264,6 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect inputs
                 cleanup_gap,
                 state="partial_transition" if receipt_written else "blocked",
             )
-
-
-def _claim_effect_attempt(  # noqa: PLR0913, RUF100 - exact claim/admission inputs
-    *,
-    stack: ExitStack,
-    control_root: Path,
-    artifact_root: Path,
-    decision_path: Path,
-    decision: dict[str, Any],
-    observation: LaneObservation,
-    disposition: str,
-    recover: bool,
-) -> tuple[OwnerlessCloseoutAdmission | None, int | None, tuple[str, ...]]:
-    decision_id = str(decision.get("decision_id") or "")
-    if recover:
-        claimed, descriptor, gap = claim_receipt_reservation(
-            stack,
-            control_root,
-            artifact_root,
-            decision_id,
-            mode="recover",
-        )
-        if gap or not claimed or descriptor is None:
-            return None, descriptor, (gap or "lane_resolution_receipt_invalid",)
-        try:
-            token = ownerless_receipt_reservation_token(
-                control_root=control_root,
-                artifact_root=artifact_root,
-                decision_id=decision_id,
-                descriptor=descriptor,
-            )
-        except (OSError, TypeError, ValueError) as error:
-            return (
-                None,
-                descriptor,
-                (transition_gap(error, "lane_resolution_receipt_invalid"),),
-            )
-        admission, admission_gap = pre_admit_ownerless_lane(
-            root=control_root,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            disposition=disposition,
-            receipt_reservation_token=token,
-        )
-        return admission, descriptor, ((admission_gap,) if admission_gap else ())
-    admission, admission_gap = pre_admit_ownerless_lane(
-        root=control_root,
-        decision_path=decision_path,
-        decision=decision,
-        observation=observation,
-        disposition=disposition,
-        receipt_reservation_token=None,
-    )
-    if admission_gap:
-        return None, None, (admission_gap,)
-    admission, descriptor, claim_gap = claim_effect_receipt_reservation(
-        stack,
-        control_root,
-        artifact_root,
-        decision_id,
-        mode="create",
-        admission=admission,
-    )
-    if not claim_gap:
-        return admission, descriptor, ()
-    release_gap = (
-        cleanup.release_receipt_reservation(
-            control_root=control_root,
-            artifact_root=artifact_root,
-            decision_id=decision_id,
-            locked_descriptor=descriptor,
-        )
-        if descriptor is not None
-        else ""
-    )
-    return None, descriptor, tuple(gap for gap in (claim_gap, release_gap) if gap)
 
 
 def _resolution_roots(root: Path) -> tuple[Path | None, Path | None, str]:
@@ -475,7 +399,7 @@ def _retire_resolution(  # noqa: PLR0913, RUF100 - exact resolution context
     observation: LaneObservation,
     disposition: str,
     artifact_root: Path,
-    ownerless_admission: OwnerlessCloseoutAdmission | None = None,
+    ownerless_effect_context: OwnerlessCloseoutEffectContext | None = None,
 ) -> tuple[bool, str, dict[str, object]]:
     if disposition not in {"retire", "preserve-retire"}:
         return False, "", {}
@@ -493,7 +417,7 @@ def _retire_resolution(  # noqa: PLR0913, RUF100 - exact resolution context
             decision_path=decision_path,
             decision=decision,
             artifact_root=artifact_root,
-            ownerless_admission=ownerless_admission,
+            effect_context=ownerless_effect_context,
         )
     try:
         retire_lane(

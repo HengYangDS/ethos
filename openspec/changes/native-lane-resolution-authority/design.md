@@ -283,6 +283,12 @@ including current Claims, Chronicle, active plans, canonical specs, and archived
 OpenSpec carriers. Dates, actions, decisions, evidence digests, limitations, and
 chronology remain. Git history and local predecessor records are untouched.
 
+When a dated current retention projection contains the retired identifier only
+as a historical branch label, it is normalized rather than deleted: the
+replacement retains the exact heads, commits, dispositions, original blob and
+digest provenance, and its new Claim-bound digest. The original Git objects and
+local predecessor records remain untouched.
+
 Focused tests precede each slice. Full gates, generic parity, and exact-HEAD
 executed proof run on a stable signed HEAD. Official OpenSpec archive changes
 HEAD, so validation and executed proof run again after archive.

@@ -1,10 +1,12 @@
 schema_version = 1
 paths = [
   ".config/checks/ruff/ratchet.toml",
+  "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md",
   "docs/plans/native-lane-resolution-authority-design-20260724.md",
   "docs/plans/native-lane-resolution-authority-implementation-plan-20260724.md",
   "docs/plans/ownerless-closeout-admission-design-20260722.md",
   "docs/plans/ownerless-closeout-admission-implementation-plan-20260722.md",
+  "docs/plans/release-0-1-0a2-implementation-plan-20260724.md",
   "docs/reference/command-plane.md",
   "evidence/claims/native-lane-resolution-authority-20260724.toml",
   "evidence/claims/ownerless-closeout-effect-fence-20260722.toml",

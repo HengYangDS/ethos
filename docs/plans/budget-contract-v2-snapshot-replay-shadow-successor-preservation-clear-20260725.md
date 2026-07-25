@@ -5,7 +5,7 @@ state: active
 relations:
   source_decision: lane-decision:f912ef18-c897-481b-b3b1-d8e48de61e2e
   source_claim: budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725
-  change: openspec/changes/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear
+  change: openspec/changes/archive/2026-07-25-budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear
 ---
 
 # Snapshot-Replay Shadow Successor Preservation Clear — 2026-07-25

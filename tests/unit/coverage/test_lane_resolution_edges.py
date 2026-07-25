@@ -161,8 +161,13 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
     with monkeypatch.context() as scoped:
         scoped.setattr(
             resolution_recovery,
-            "claim_effect_receipt_reservation",
-            lambda *_args, **_kwargs: (None, None, "lane_resolution_receipt_invalid"),
+            "claim_resolution_effect_attempt",
+            lambda *_args, **_kwargs: (
+                None,
+                None,
+                None,
+                ("lane_resolution_receipt_invalid",),
+            ),
         )
         invalid_reservation = resolution.apply_lane_resolution(**apply_request)
     assert invalid_reservation["required_gaps"] == ["lane_resolution_receipt_invalid"]

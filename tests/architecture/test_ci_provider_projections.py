@@ -191,6 +191,30 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     )
 
 
+def test_github_repository_proof_executes_one_full_test_graph() -> None:
+    providers = {str(entry["provider"]): entry for entry in _projection_entries()}
+    direct_test_runner = "tools/ci/scripts/run-python-tests.sh"
+    proof_runner = "tools/ci/scripts/run-head-bound-proof.sh"
+
+    assert direct_test_runner not in providers["github"]["required_owner_scripts"]
+    assert direct_test_runner in providers["gitlab"]["required_owner_scripts"]
+    assert proof_runner in providers["github"]["required_owner_scripts"]
+
+    for relative_path in (
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".github/workflows/ci.yml",
+    ):
+        github = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8"))
+        commands = [
+            str(step.get("run", ""))
+            for step in github["jobs"]["verify"]["steps"]
+            if isinstance(step, dict)
+        ]
+
+        assert direct_test_runner not in commands, relative_path
+        assert commands.count(proof_runner) == 1, relative_path
+
+
 def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
     tmp_path: Path,
 ) -> None:

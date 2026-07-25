@@ -37,6 +37,11 @@ def known_commands() -> tuple[str, ...]:
     return KNOWN_COMMANDS
 
 
+def known_root_command_names() -> frozenset[str]:
+    """Return root command tokens from the canonical command declaration."""
+    return frozenset(command.name for command in _DECLARATION.group("root"))
+
+
 def _command_surface_policy(root: Path) -> dict[str, object]:
     path = root / "rules" / "ethos" / "command-surface.toml"
     if not path.exists():

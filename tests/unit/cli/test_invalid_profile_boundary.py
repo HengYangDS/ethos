@@ -6,11 +6,26 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.cli import _command
 from ethos.cli import main
 from tests.support.contract_helpers import init_repo_with_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (["--root", "status", "plan", "--json"], "plan"),
+        (["--root", "openspec", "status", "--json"], "status"),
+        (["quality", "status", "--json"], "ethos"),
+    ],
+)
+def test_invalid_profile_command_detection_uses_declared_root_commands(
+    argv: list[str], expected: str
+) -> None:
+    assert _command(argv) == expected
 
 
 @pytest.mark.parametrize("command", ["status", "plan", "openspec"])

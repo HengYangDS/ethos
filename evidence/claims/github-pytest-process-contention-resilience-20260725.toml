@@ -7,7 +7,7 @@ summary = "ETHOS closes two accepted Markdown list-boundary violations and bound
 
 [evidence]
 dated = "evidence/chronicle/github-pytest-process-contention-resilience-20260725/2026-07-25.md"
-sha256 = "afde5b2b96b08eae9e63750b5c4121f93b624d9ed01e297d89da51f17603e4bb"
+sha256 = "b036acb00e1a9391082edb0be47ac31c21d7bac18a8811dd83c5322ddd93364a"
 evidence_ids = ["evidence:github-pytest-process-contention-resilience-20260725"]
 binding = "The two accepted Markdown failures, two incompatible GitHub failure sets, complete pre-Claim two-worker diagnostic, canonical provider projection, RED/GREEN architecture contract, OpenSpec carrier, and dated Chronicle bind this bounded publication-resilience claim."
 verifier = "digest_only"
@@ -30,7 +30,7 @@ owner = "quality"
 scope = "Two exact blank-line insertions in the accepted snapshot replay absorption plan plus the GitHub self-hosted macOS repository-proof worker count, canonical template, generated projection, provider contract, current quality spec, and bounded evidence only; no prose rewrite, GitLab mutation or observation, global pytest-default change, product worker-resource change, per-test timeout relaxation, automatic retry, foreign Work Lane action, or dual-remote completion claim."
 
 [carriers]
-openspec = "openspec/changes/github-pytest-process-contention-resilience"
+openspec = "openspec/changes/archive/2026-07-25-github-pytest-process-contention-resilience"
 fallback = "Restore the prior four-worker GitHub projection only as a rollback of this patch and keep hosted readiness blocked; rollback does not establish the prior projection as healthy."
 kill_signal = "The Markdown patch changes prose, two-worker exact-SHA proof still exhibits nondeterministic process or Git contention, the timeout inputs weaken or disappear, GitLab or product resource policy changes, a failed rerun is accepted as passing, or dual-remote success is claimed while GitLab remains unreachable."
 
@@ -42,7 +42,7 @@ targets = [
   "tests/architecture/test_ci_provider_projections.py",
   "openspec/specs/quality/spec.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/github-pytest-process-contention-resilience",
+  "openspec/changes/archive/2026-07-25-github-pytest-process-contention-resilience",
   "evidence/chronicle/github-pytest-process-contention-resilience-20260725/2026-07-25.md",
   "evidence/claims/github-pytest-process-contention-resilience-20260725.toml",
 ]

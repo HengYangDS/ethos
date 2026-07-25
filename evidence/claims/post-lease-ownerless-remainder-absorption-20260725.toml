@@ -7,9 +7,9 @@ summary = "Four exact post-lease ownerless lanes receive a bounded disposition: 
 
 [evidence]
 dated = "evidence/chronicle/post-lease-ownerless-remainder-absorption-20260725/2026-07-25.md"
-sha256 = "c9a55a183add2e6ab0d8c98eef3ccc816713469260cf9ea80e63ae54ee83ff41"
+sha256 = "f5fc6e8c09353a80d7f5a713692b31ef3039770b5c19b98ac7e07e27a6eb7577"
 evidence_ids = ["evidence:post-lease-ownerless-remainder-absorption-20260725"]
-binding = "This Claim binds only the four exact branches and heads named in the Chronicle, disposition record SHA-256 756def66a7b535c20d8a5364649d912837b64c7af13a3fd1829fe39974a4a929, accepted analysis head a8e53eedd0bcc8240f5d14a1589ff2cd788aee47, lane-specific judged outcomes without valid-owner takeover, three later native retire decisions, and one later exact preserve-retire decision."
+binding = "This Claim binds only the four exact branches and heads named in the Chronicle, disposition record SHA-256 cdda7934404d5a358a9f1a18032bb6b6ea80e254cb6fd3194ba7b0a06c996fcf, accepted analysis head a8e53eedd0bcc8240f5d14a1589ff2cd788aee47, lane-specific judged outcomes without valid-owner takeover, three later native retire decisions, and one later exact preserve-retire decision."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",

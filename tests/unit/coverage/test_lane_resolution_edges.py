@@ -280,15 +280,11 @@ def test_resolution_preserve_inventory_and_retire_failures(tmp_path: Path, monke
     package = tmp_path / "package"
     package.mkdir()
 
-    def fixed_git(_root: Path, *args: str, **_kwargs: object):
+    def fixed_git_bytes(_root: Path, *args: str):
         if args[:2] == ("bundle", "create"):
             (package / "repository.bundle").write_bytes(b"bundle")
-        return subprocess.CompletedProcess(["git", *args], 0, stdout="", stderr="")
-
-    def fixed_git_bytes(_root: Path, *args: str):
         return subprocess.CompletedProcess(["git", *args], 0, stdout=b"patch", stderr=b"")
 
-    monkeypatch.setattr(resolution_preservation, "run_git", fixed_git)
     monkeypatch.setattr(resolution_preservation, "run_git_bytes", fixed_git_bytes)
     monkeypatch.setattr(resolution_effects, "untracked_files", lambda _source: None)
     with pytest.raises(ValueError, match="lane_resolution_untracked_inventory_failed"):

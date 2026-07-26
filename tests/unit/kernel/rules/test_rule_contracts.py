@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ethos.contracts.rules import PolicyException
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleAttestation
 from ethos.contracts.rules import RuleEvalRequest
 from ethos.contracts.rules import RuleSet
+from ethos.domain.plan import matching_rule_gates
+from ethos.repository.policy.rules.check import rules_check_report
+from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.schema import validate_schema_instance
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_rule_contract_schemas_validate_minimal_payloads() -> None:
@@ -142,3 +150,38 @@ def test_contract_dataclasses_serialize_to_schema_payloads() -> None:
     assert request.to_fact_snapshot(head="abc123").to_dict()["facts"]["changed_paths"]["value"] == [
         "docs/index.md"
     ]
+
+
+def test_compile_rules_rejects_v1_keys_without_normalization(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "rules.toml").write_text(
+        """
+[[rule]]
+id = "legacy.docs"
+risk = "docs"
+paths = ["docs/**"]
+requires = ["docs-registry"]
+evidence = ["rule-evaluation"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    compiled = compile_rules(tmp_path)
+    checked = rules_check_report(tmp_path)
+
+    assert any(
+        gap.startswith("rule_schema_invalid:legacy.docs:") for gap in compiled["compile_gaps"]
+    )
+    assert checked["ok"] is False
+    assert any(
+        gap.startswith("rule_schema_invalid:legacy.docs:") for gap in checked["required_gaps"]
+    )
+
+
+def test_compiled_rule_matching_treats_trailing_glob_as_its_directory(
+    tmp_path: Path,
+) -> None:
+    matched_rules, _, gaps = matching_rule_gates(tmp_path, ("docs",))
+
+    assert gaps == []
+    assert any(rule["id"] == "starter.docs" for rule in matched_rules)

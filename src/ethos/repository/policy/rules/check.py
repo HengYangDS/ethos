@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.repository.policy.rules.compile import compile_rules
-from ethos.repository.policy.rules.config import legacy_state
 from ethos.repository.policy.rules.config import load_rules_config
 from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.exceptions import rules_docs_manifest_report
@@ -19,7 +18,6 @@ def rules_check_report(root: Path) -> dict[str, object]:
     """Report rule-set integrity: parse errors, duplicate ids, unknown gates, owners."""
     config = load_rules_config(root)
     compiled = compile_rules(root)
-    legacy = legacy_state(root, config=config)
     required_gaps: list[str] = []
     if "_parse_error" in config:
         required_gaps.append(f"rules_config_parse_error:{config['_parse_error']}")
@@ -51,11 +49,10 @@ def rules_check_report(root: Path) -> dict[str, object]:
         "rule_set_digest": compiled["rule_set_digest"],
         "compiled_policy_digest": compiled["compiled_policy_digest"],
         "source_refs": compiled["source_refs"],
-        "legacy": legacy,
         "required_gaps": required_gaps,
         "next_action_contract": []
         if not required_gaps
-        else ["ethos rules explain <gap>", "ethos rules migrate --apply"],
+        else ["repair .ethos/rules.toml", "ethos rules explain <gap>"],
     }
 
 

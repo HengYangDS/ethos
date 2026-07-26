@@ -1,0 +1,38 @@
+[claim]
+id = "ownerless-budget-source-admission-predecessor-20260726"
+subject = "ethos:work-lane:work/20260724-20260724-budget-contract-v2-changed-scope-source-admission"
+state = "active"
+summary = "The clean ownerless RED predecessor is retained by five valid-owner descendant heads and is eligible only for one exact native direct-retire decision after accepted Chronicle admission."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-housekeeping-closeout-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md"
+sha256 = "7df58d40f7225ec8d3fa0b11d58ecb65f53f868ea62b23c47c4150c769d21dd8"
+evidence_ids = ["evidence:ownerless-budget-source-admission-predecessor-20260726"]
+binding = "This digest-only Claim binds only work/20260724-20260724-budget-contract-v2-changed-scope-source-admission at 8afc80fd78a3d2c80144ae3d93d4045a004f3f54, accepted df5ee833af27c1441aa07083e2c9a97909c799b3, its exact merge base/tree, clean missing-lease observation, and exact ancestry into the five named valid-owner descendants. It authorizes one later native lane_resolution/retire decision and no mutation of those descendants."
+verifier = "digest_only"
+tests = [
+  "git -C <accepted-root> merge-base --is-ancestor 8afc80fd78a3d2c80144ae3d93d4045a004f3f54 <each-named-descendant-head>",
+  "git -C <source-worktree> status --porcelain --untracked-files=all",
+  "openspec validate ownerless-housekeeping-closeout --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean missing-lease predecessor, read-only descendant-containment evidence, and one native direct-retire attempt. No valid-owner takeover, semantic completion claim, preserve-retire fallback, remote mutation, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/ownerless-housekeeping-closeout"
+fallback = "Keep the exact source branch and linked worktree when any head, lease, Claim, dirtiness, registration, accepted head, descendant containment, Chronicle, or native effect predicate differs."
+kill_signal = "A valid-owner descendant is mutated, source history is replayed as a whole, a no-effect direct-retire result is hidden, or housekeeping is called retirement authority."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-budget-source-admission-predecessor-20260726.toml",
+  "evidence/chronicle/ownerless-housekeeping-closeout-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md",
+  "openspec/changes/ownerless-housekeeping-closeout",
+]

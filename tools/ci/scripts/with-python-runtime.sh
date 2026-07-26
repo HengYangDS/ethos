@@ -14,6 +14,8 @@ mkdir -p "${UV_CACHE_DIR}"; export ETHOS_RUNTIME_ROOT="${repo_root}"
 # Bootstrap only the default checkout interpreter; explicit Python overrides remain caller-owned.
 semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"
 if [[ "$1" == "${semantic_python}" ]]; then
+  if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" == "1" && -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" ]]; then exec "$@"; fi
+  if [[ -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" && ! -f "${repo_root}/pyproject.toml" ]]; then exec "$@"; fi
   # Nested worktrees must not wait on the outer uv cache lock. Scope the
   # replacement cache to that outer runtime, so sibling worktrees reuse one
   # content-addressed cache rather than repeatedly cold-bootstrapping it.
@@ -21,10 +23,8 @@ if [[ "$1" == "${semantic_python}" ]]; then
   if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then
     nested_cache_key="$(printf '%s' "${inherited_runtime_root}" | cksum | awk '{print $1}')"
     bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"
-    mkdir -p "${bootstrap_cache_dir}"
   fi
-  if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" == "1" && -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" ]]; then exec "$@"; fi
-  if [[ -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" && ! -f "${repo_root}/pyproject.toml" ]]; then exec "$@"; fi
+  mkdir -p "${bootstrap_cache_dir}"
   if [[ -x "${semantic_python}" ]] && \
     UV_CACHE_DIR="${bootstrap_cache_dir}" uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; then
     exec "$@"

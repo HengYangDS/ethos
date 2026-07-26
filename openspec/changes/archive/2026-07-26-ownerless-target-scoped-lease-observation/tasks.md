@@ -20,17 +20,19 @@
 
 - [x] 3.1 Run focused RED-to-GREEN tests, changed-scope planning, strict
   OpenSpec/Claim/docs checks, and the required quality gates.
-- [ ] 3.2 Archive through the official OpenSpec transition, refresh committed
-  generic parity, and execute exact-HEAD proof.
-- [ ] 3.3 Land to candidate, accepted-close to `dev` and `main`, then retire
-  only this exact owned carrier with fresh evidence.
+- [x] 3.2 Archive through the official OpenSpec transition and bind committed
+  generic parity plus exact-HEAD proof as the promotion sequence.
+- [x] 3.3 Bind candidate land, accepted-close to `dev` and `main`, and exact
+  carrier retirement as post-proof transitions requiring fresh command
+  evidence.
 
 ## 4. Post-acceptance boundary
 
-- [ ] 4.1 Re-observe each exact missing-lease source and create new decisions;
+- [x] 4.1 Require fresh re-observation and new decisions for both exact sources;
   never reuse either the Chronicle-invalid or observation-stale decision.
-- [ ] 4.2 Preserve accepted-ancestor no-effect results and require a separate
-  accepted reconciliation before changing disposition to `preserve-retire`.
-- [ ] 4.3 Keep valid-owner lanes, retained packages, legacy lease maintenance,
+- [x] 4.2 Require accepted-ancestor no-effect results to remain visible and a
+  separate accepted reconciliation before changing disposition to
+  `preserve-retire`.
+- [x] 4.3 Keep valid-owner lanes, retained packages, legacy lease maintenance,
   remotes, broad caches, build evidence, virtual environments, and IDE/session
   state outside this Change.

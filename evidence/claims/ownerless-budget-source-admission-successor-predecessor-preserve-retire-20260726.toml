@@ -25,7 +25,7 @@ owner = "ethos-repository"
 scope = "One exact clean ownerless source, one immutable direct-retire no-effect record, and one later target-bound preserve-retire bridge. No feature acceptance, valid-owner mutation, package clear, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/ownerless-budget-source-admission-preserve-retire-reconciliation"
+openspec = "openspec/changes/archive/2026-07-26-ownerless-budget-source-admission-preserve-retire-reconciliation"
 fallback = "Keep the exact source and all records unchanged when any branch, head, lease, Claim, dirtiness, registration, accepted head, Chronicle, package, receipt, or inventory fact differs."
 kill_signal = "A retire decision is reused or rewritten, accepted ancestry is bypassed, a valid-owner descendant is mutated, the source is hand-deleted, or a preservation package is cleared without later accepted exact-manifest authority."
 
@@ -33,5 +33,5 @@ kill_signal = "A retire decision is reused or rewritten, accepted ancestry is by
 targets = [
   "evidence/claims/ownerless-budget-source-admission-successor-predecessor-preserve-retire-20260726.toml",
   "evidence/chronicle/ownerless-budget-source-admission-preserve-retire-reconciliation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md",
-  "openspec/changes/ownerless-budget-source-admission-preserve-retire-reconciliation",
+  "openspec/changes/archive/2026-07-26-ownerless-budget-source-admission-preserve-retire-reconciliation",
 ]

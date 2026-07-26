@@ -4030,6 +4030,23 @@ package, and it SHALL grant no authority over the valid-owner lane.
 - **AND** the outcome SHALL remain a bounded blocker rather than a cleanup
   success claim.
 
+#### Scenario: exact ancestry refusal requires a new target-bound recoverable decision
+
+- **GIVEN** an exact clean predecessor is retained by a valid-owner descendant
+- **AND** a fresh direct-retire decision reaches only
+  `lane_resolution_ownerless_target_not_accepted_ancestor` with no package,
+  receipt, reservation, fence, ref, or worktree effect
+- **WHEN** a later accepted reconciliation selects `preserve-retire` for the
+  same exact branch and HEAD
+- **THEN** ETHOS SHALL require a new decision ID and one accepted target-bound
+  `lane_resolution/preserve-retire` Chronicle while preserving the prior
+  `retire` decision as immutable no-effect history
+- **AND** the clean bridge package SHALL contain empty tracked and index patches,
+  bind the exact target history in its repository bundle, and remain retained
+  for any later exact-manifest clear decision
+- **AND** the bridge SHALL NOT claim feature acceptance or authority over the
+  valid-owner descendant.
+
 ### Requirement: Direct-retire Chronicle authority is effect-admissible before retry
 
 ETHOS governance SHALL require a successor accepted Chronicle before retrying a

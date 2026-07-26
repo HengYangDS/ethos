@@ -3,7 +3,8 @@
 ### Requirement: Ownerless closeout admission is consumed at the effect boundary
 
 ETHOS SHALL retire a clean linked ownerless Work Lane only when the effect
-executor validates every WCP admission binding, atomically fences the exact
+executor validates every admission binding returned by the retired external
+verifier, atomically fences the exact
 target against lease acquisition, re-observes the admitted target after the
 fence is held, and executes an accepted-ref-bound exact deletion CAS without a
 force flag. It SHALL issue a completion receipt only after all native
@@ -13,7 +14,8 @@ postconditions are verified.
 
 - **GIVEN** an accepted clean ownerless work/* lane and immutable resolution
   decision name the same branch, head, path, Chronicle, and observation
-- **AND** WCP returns the same executor, accepted head, decision digest,
+- **AND** the retired external verifier returns the same executor, accepted
+  head, decision digest,
   coordination binding, accepted-ancestor relation, and clear occupancy
 - **WHEN** ETHOS atomically acquires the exact target fence and all bindings
   remain unchanged
@@ -27,7 +29,8 @@ postconditions are verified.
 
 - **GIVEN** effect or completed-effect recovery already admitted decision
   payload A
-- **WHEN** the decision path contains a different valid payload B before WCP,
+- **WHEN** the decision path contains a different valid payload B before the
+  retired external verifier,
   fence acquisition, or recovery postcondition verification
 - **THEN** ETHOS SHALL reject the effect before Git, worktree, fence, or
   reservation mutation
@@ -36,7 +39,7 @@ postconditions are verified.
 
 #### Scenario: late coordination or competing decision blocks zero-effect
 
-- **GIVEN** WCP returned an ownerless admission
+- **GIVEN** the retired external verifier returned an ownerless admission
 - **WHEN** a lease, Claim, accepted-head drift, decision drift, path drift, or
   another target reservation wins before ETHOS acquires or consumes the fence
 - **THEN** ETHOS SHALL perform no Git or worktree effect
@@ -81,7 +84,8 @@ postconditions are verified.
 - **THEN** ETHOS SHALL validate the receipt schema and exact
   decision/lane/head/ownerless binding, re-verify effect postconditions, and
   perform only idempotent cleanup
-- **AND** it SHALL NOT rerun WCP, repeat a Git/worktree effect, recreate effect
+- **AND** it SHALL NOT rerun the retired external verifier, repeat a
+  Git/worktree effect, recreate effect
   authority, or rewrite the immutable receipt
 - **AND** a mismatched receipt, different fence, or unverifiable fence state
   SHALL block.
@@ -122,9 +126,10 @@ postconditions are verified.
 - **AND** the exception SHALL become transition_unknown with explicit
   reconciliation required.
 
-#### Scenario: published WCP coordination shape is exact
+#### Scenario: published retired external-verifier coordination shape is exact
 
-- **GIVEN** WCP returns the currently published ownerless coordination object
+- **GIVEN** the retired external verifier returns the currently published
+  ownerless coordination object
 - **WHEN** a required coordination field is missing, has the wrong type or
   value, or an unpublished field such as lease_id, holder_ref, or lease is
   present

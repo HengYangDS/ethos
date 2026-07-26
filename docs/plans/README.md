@@ -31,6 +31,9 @@ claims, or evidence.
 - [Artifact-Topology Detached Residue Absorption Design](artifact-topology-detached-residue-absorption-design-20260724.md)
 - [Artifact-Topology Detached Residue Absorption Implementation](artifact-topology-detached-residue-absorption-implementation-plan-20260724.md)
 - [Artifact-Topology Detached Residue Preservation Clear](artifact-topology-detached-residue-preservation-clear-20260725.md)
+- [Snapshot-Replay Shadow Successor Absorption Design](budget-contract-v2-snapshot-replay-shadow-successor-absorption-design-20260725.md)
+- [Snapshot-Replay Shadow Successor Absorption Implementation](budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md)
+- [Snapshot-Replay Shadow Successor Preservation Clear](budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725.md)
 
 ## Archived Plans
 

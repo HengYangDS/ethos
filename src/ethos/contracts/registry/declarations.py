@@ -73,6 +73,9 @@ class CouplingBinding(BaseModel):
     config_keys: tuple[str, ...] = ()
     commands: tuple[str, ...] = ()
     forbidden_workflow_state: tuple[str, ...] = ()
+    mandatory_paths: tuple[str, ...] = ()
+    declared_executables: tuple[str, ...] = ()
+    audit_root_bound: bool = False
     not_a_second_command_plane: bool = False
     not_product_substrate: bool = False
     required_for: tuple[str, ...] = Field(min_length=1)
@@ -93,6 +96,18 @@ class CouplingBinding(BaseModel):
             _raise_declaration_error("adapter binding admission missing")
         if not is_adapter and self.admission is not None:
             _raise_declaration_error("binding admission outside adapter layer")
+        return self
+
+    @model_validator(mode="after")
+    def validate_executable_audit_boundary(self) -> Self:
+        """Require one closed active or inactive executable-audit state."""
+        if self.audit_root_bound:
+            if not self.mandatory_paths:
+                _raise_declaration_error("executable audit root requires mandatory paths")
+        elif self.mandatory_paths or self.declared_executables:
+            _raise_declaration_error(
+                "inactive executable audit cannot declare paths or executables"
+            )
         return self
 
     def projection(self) -> dict[str, object]:

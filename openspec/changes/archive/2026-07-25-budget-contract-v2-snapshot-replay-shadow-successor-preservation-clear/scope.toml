@@ -1,0 +1,10 @@
+schema_version = 1
+paths = [
+  "docs/plans/README.md",
+  "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md",
+  "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725.md",
+  "evidence/claims/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725.toml",
+  "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725/**",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear/**",
+  "openspec/specs/repository-governance/spec.md",
+]

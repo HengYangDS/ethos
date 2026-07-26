@@ -1,0 +1,10 @@
+schema_version = 1
+paths = [
+  "evidence/claims/runtime-bootstrap-lock-reentry-20260726.toml",
+  "evidence/chronicle/runtime-bootstrap-lock-reentry-20260726/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/runtime-bootstrap-lock-reentry/**",
+  "openspec/specs/repository-governance/spec.md",
+  "tests/unit/governance/test_generated_artifact_runtime.py",
+  "tools/ci/scripts/with-python-runtime.sh",
+]

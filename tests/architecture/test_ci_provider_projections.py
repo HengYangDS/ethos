@@ -13,8 +13,6 @@ import yaml
 
 from tests.support.architecture import tool_block
 
-# fmt: off
-
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_CONFIG = ROOT / ".config/checks/ci/templates.toml"
 
@@ -129,9 +127,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "tools/ci/scripts/run-actionlint.sh" in gitlab
     assert "tools/ci/scripts/run-product-boundary.sh" in github
     assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
-    assert (
-        "uv build --out-dir build/artifacts/python --clear --no-create-gitignore"
-    ) in combined
+    assert ("uv build --out-dir build/artifacts/python --clear --no-create-gitignore") in combined
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in combined
     assert "uv run --no-project --with import-linter lint-imports" not in combined
     assert "image: node:24" not in combined
@@ -167,9 +163,7 @@ def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
 
     assert runner in providers["gitlab"]["required_owner_scripts"]
     assert runner not in providers["github"]["required_owner_scripts"]
-    assert gitlab[".python_setup"]["before_script"] == [
-        "tools/ci/scripts/bootstrap-python.sh"
-    ]
+    assert gitlab[".python_setup"]["before_script"] == ["tools/ci/scripts/bootstrap-python.sh"]
     assert matrix == [{"NODE_VERSION": policy["compatibility_versions"]}]
     assert npm_job["script"] == [bootstrap, "tools/ci/scripts/install-node.sh", runner]
     assert npm_package_job["script"][:2] == [bootstrap, "tools/ci/scripts/install-node.sh"]
@@ -177,11 +171,12 @@ def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
     assert "NODE_VERSION" not in npm_package_job
     assert "npm run test:npm" in npm_package_job["script"]
 
+
 def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
 
     assert github["jobs"]["verify"]["env"] == {
-        "ETHOS_TEST_WORKERS": "4",
+        "ETHOS_TEST_WORKERS": "2",
         "ETHOS_TEST_TIMEOUT_SECONDS": "300",
         "ETHOS_TEST_TIMEOUT_METHOD": "signal",
     }
@@ -206,6 +201,30 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     )
 
 
+def test_github_repository_proof_executes_one_full_test_graph() -> None:
+    providers = {str(entry["provider"]): entry for entry in _projection_entries()}
+    direct_test_runner = "tools/ci/scripts/run-python-tests.sh"
+    proof_runner = "tools/ci/scripts/run-head-bound-proof.sh"
+
+    assert direct_test_runner not in providers["github"]["required_owner_scripts"]
+    assert direct_test_runner in providers["gitlab"]["required_owner_scripts"]
+    assert proof_runner in providers["github"]["required_owner_scripts"]
+
+    for relative_path in (
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".github/workflows/ci.yml",
+    ):
+        github = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8"))
+        commands = [
+            str(step.get("run", ""))
+            for step in github["jobs"]["verify"]["steps"]
+            if isinstance(step, dict)
+        ]
+
+        assert direct_test_runner not in commands, relative_path
+        assert commands.count(proof_runner) == 1, relative_path
+
+
 def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
     tmp_path: Path,
 ) -> None:
@@ -227,8 +246,7 @@ def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
     host_key.write_text("host-global-key\n", encoding="utf-8")
     host_config = tmp_path / "host.gitconfig"
     host_config.write_text(
-        "[user]\n"
-        f"\tsigningkey = {host_key}\n",
+        f"[user]\n\tsigningkey = {host_key}\n",
         encoding="utf-8",
     )
     runtime_tmp = tmp_path / "runtime-tmp"
@@ -297,7 +315,7 @@ def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
         ],
     }
     assert "ethos audit --json" in script
-    assert "ethos status --json" in script
+    assert "ethos report --json" in script
     assert "ethos prove --execute --expect-head" in script
     assert "executed-proof.json" in script
     assert "ethos_hosted_readiness_receipt" in script
@@ -305,10 +323,125 @@ def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
     assert "proof_evidence_digest" in script
 
 
+def test_hosted_proof_receipt_reports_post_execution_readiness(tmp_path: Path) -> None:
+    runner = ROOT / "tools/ci/scripts/run-head-bound-proof.sh"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  *"ethos audit --json")
+    printf '%s\\n' audit >>"${ETHOS_FAKE_CALLS}"
+    printf '%s\\n' '{"ok":true,"state":"clean"}'
+    ;;
+  *"ethos prove --execute --expect-head ${ETHOS_FAKE_EXPECTED_HEAD} --json")
+    printf '%s\\n' prove >>"${ETHOS_FAKE_CALLS}"
+    printf '%s\\n' proven >"${ETHOS_FAKE_STATE}"
+    printf '{"ok":true,"state":"proven","data":{"expected_head":{"current":"%s","ok":true}},"summary":{"gate_count":1,"evidence_digest":"fake-digest"}}\\n' "${ETHOS_FAKE_EXPECTED_HEAD}"
+    ;;
+  *"ethos report --json")
+    printf '%s\\n' report >>"${ETHOS_FAKE_CALLS}"
+    if [[ -f "${ETHOS_FAKE_STATE}" ]]; then
+      printf '%s\\n' '{"ok":true,"state":"ready"}'
+    else
+      printf '%s\\n' '{"ok":false,"state":"gapped"}'
+    fi
+    ;;
+  *)
+    printf 'unexpected fake uv command: %s\\n' "$*" >&2
+    exit 64
+    ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    fake_uv.chmod(fake_uv.stat().st_mode | stat.S_IXUSR)
+    expected_head = "1111111111111111111111111111111111111111"
+    calls = tmp_path / "calls.log"
+    env = os.environ.copy()
+    env.update(
+        {
+            "ETHOS_FAKE_CALLS": str(calls),
+            "ETHOS_FAKE_EXPECTED_HEAD": expected_head,
+            "ETHOS_FAKE_STATE": str(tmp_path / "proof-state"),
+            "ETHOS_PROOF_EVIDENCE_DIR": str(tmp_path / "proof"),
+            "ETHOS_READINESS_EVIDENCE_DIR": str(tmp_path / "readiness"),
+            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
+        }
+    )
+
+    completed = subprocess.run(
+        [str(runner), expected_head],
+        cwd=ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert calls.read_text(encoding="utf-8").splitlines() == [
+        "audit",
+        "prove",
+        "report",
+    ]
+    receipt = json.loads(completed.stdout)
+    assert receipt["ok"] is True
+    assert receipt["head"] == expected_head
+    assert receipt["head_matches_expected"] is True
+    assert receipt["report_state"] == "ready"
+    assert receipt["proof_state"] == "proven"
+
+
+def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(("git", "init", "-q", "-b", "dev"), cwd=repo, check=True)
+    (repo / "pyproject.toml").write_text(
+        "[project]\nname = 'runtime-test'\nversion = '0.0.0'\n",
+        encoding="utf-8",
+    )
+    python = repo / "build/runtime/venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("#!/bin/sh\nprintf 'semantic-runtime\\n'\n", encoding="utf-8")
+    python.chmod(0o755)
+    (python.parent.parent / "pyvenv.cfg").write_text("home = test\n", encoding="utf-8")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    uv_calls = tmp_path / "uv-calls"
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(f"#!/bin/sh\ntouch {uv_calls}\nexit 97\n", encoding="utf-8")
+    fake_uv.chmod(0o755)
+    env = os.environ.copy()
+    env.update(
+        {
+            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
+            "XDG_CACHE_HOME": str(tmp_path / "cache"),
+        }
+    )
+
+    completed = subprocess.run(
+        [str(ROOT / "tools/ci/scripts/with-python-runtime.sh"), "--", str(python)],
+        cwd=repo,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.splitlines() == ["semantic-runtime"]
+    assert not uv_calls.exists()
+
+
 def test_local_ci_fails_on_python_warnings() -> None:
-    assert "export PYTHONWARNINGS=error" in (
-        ROOT / "tools/ci/scripts/run-local-ci.sh"
-    ).read_text(encoding="utf-8")
+    assert "export PYTHONWARNINGS=error" in (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
@@ -616,8 +749,7 @@ def test_local_emulator_run_ignores_declarative_warning_pattern_text(
             "returncode": 0,
             "ok": True,
             "stdout": (
-                '"forbidden_log_patterns": '
-                '["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]'
+                '"forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]'
             ),
             "stderr": "",
         },
@@ -773,5 +905,3 @@ def test_tool_catalog_contains_only_active_provider_gates() -> None:
 
     tool_catalog = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
     assert ".config/ci/emulators/" not in tool_catalog
-
-# fmt: on

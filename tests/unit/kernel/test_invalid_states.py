@@ -43,6 +43,10 @@ _NON_GAP_TOKENS = {
         "missing_required_state_count missing_required_state_paths role_root_mismatch_count "
         "role_root_mismatches physical_target_homes_present projection_drift adapter_bypass "
         "extra_gaps effect_complete_receipt_missing"
+        " accepted_drift accepted_head_stale chronicle_invalid chronicle_stale"
+        " decision_invalid decision_stale executor_required fence_mismatch file_missing"
+        " identity_mismatch observation_stale policy_invalid reobservation_stale root_invalid"
+        " target_drift target_not_accepted_ancestor target_role_invalid"
     )
     .strip()
     .split(),
@@ -137,6 +141,14 @@ def test_classify_all_groups_in_chain_order() -> None:
 def test_archive_preflight_raw_failure_families_reduce_to_carrier_invalid() -> None:
     assert classify("workspace_missing") == "carrier_invalid"
     assert classify("official_archive_result_invalid") == "carrier_invalid"
+
+
+def test_mandatory_executable_path_missing_reduces_to_commitment() -> None:
+    assert (
+        classify("mandatory_executable_path_missing:work_lane_lifecycle_command_contract:path.py")
+        == "commitment_missing"
+    )
+    assert classify("mandatory_executable_shell_true:binding:path.py:42") == "commitment_missing"
 
 
 def test_longest_prefix_wins_on_overlap() -> None:

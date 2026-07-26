@@ -7,6 +7,7 @@ import os
 import sqlite3
 import subprocess
 from copy import deepcopy
+from contextlib import closing
 from dataclasses import FrozenInstanceError
 from dataclasses import dataclass
 from dataclasses import fields
@@ -603,7 +604,7 @@ def test_native_admission_and_fenced_reobservation_ignore_unrelated_legacy_lease
         holder_ref="agent:test:case:unrelated-legacy",
         ttl_seconds=-1,
     )
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection, connection:
         connection.execute(
             "update leases set payload_json = ? where subject = ?",
             (json.dumps({"branch": unrelated, "path": "/tmp/legacy"}), unrelated),
@@ -631,7 +632,7 @@ def test_fenced_reobservation_rejects_malformed_exact_subject_lease(tmp_path: Pa
     )
     admission = _native_admit(scenario)
     fence = _native_acquire_fence(scenario, admission)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection, connection:
         connection.execute(
             "update leases set payload_json = ? where subject = ?",
             (

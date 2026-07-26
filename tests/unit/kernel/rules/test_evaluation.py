@@ -100,6 +100,19 @@ def test_rule_eval_request_snapshot_requires_prewrite_source_fact(
     assert "fact_unavailable:prewrite" in report["required_gaps"]
 
 
+def test_rule_evaluation_matches_trailing_directory_glob(tmp_path: Path) -> None:
+    report = rules_evaluation_report(
+        tmp_path,
+        phase="plan",
+        changed_paths=("docs",),
+        fact_snapshot=complete_snapshot(changed_paths=("docs",)),
+    )
+
+    assert report["state"] == "advisory"
+    assert report["required_gates"] == ["docs-registry"]
+    assert any(match["rule_id"] == "starter.docs" for match in report["surface_matches"])
+
+
 def test_rule_evaluation_helper_edges(tmp_path: Path) -> None:
     gaps = fact_gaps(
         RuleFactSnapshot(

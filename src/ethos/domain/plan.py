@@ -8,7 +8,6 @@ surface→domain→... layering acyclic.
 
 from __future__ import annotations
 
-import fnmatch
 import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
@@ -27,6 +26,7 @@ from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
 from ethos.repository.openspec.audit import tasks_complete
 from ethos.repository.policy.rules.compile import compile_rules
+from ethos.repository.policy.rules.config import path_matches
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -201,25 +201,15 @@ def matching_rule_gates(
     seen_gate_ids: set[str] = set()
     for rule in rules:
         patterns = tuple(str(pattern) for pattern in cast("list[object]", rule["path_globs"]))
-        matched_paths = [
-            path
-            for path in paths
-            if any(
-                (path == pattern[:-3] or fnmatch.fnmatchcase(path, pattern))
-                if pattern.endswith("/**")
-                else fnmatch.fnmatchcase(path, pattern)
-                for pattern in patterns
-            )
-        ]
+        matched_paths = [path for path in paths if path_matches(path, patterns)]
         if not matched_paths:
             continue
         rule_gates: list[dict[str, object]] = []
         for gate_id in cast("list[object]", rule["required_gates"]):
             gate_name = str(gate_id)
-            gate = gate_definitions.get(
-                gate_name,
-                {"id": gate_name, "command": "", "blocking": True},
-            )
+            gate = gate_definitions.get(gate_name)
+            if gate is None:
+                continue
             rule_gates.append(gate)
             if gate_name not in seen_gate_ids:
                 required_gates.append(gate)

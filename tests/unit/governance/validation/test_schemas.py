@@ -252,7 +252,7 @@ def test_evolution_ledger_schema_requires_structural_entry_refs() -> None:
                 "claim": "claim",
                 "challenge": "challenge",
                 "transition": "shape -> canonize",
-                "proof_refs": ["ethos quality evidence-freshness --json"],
+                "proof_refs": ["ethos prove --gate evidence-freshness --json"],
                 "review_refs": ["tests/unit/governance/test_evolution_ledger.py"],
                 "decision_refs": ["docs/governance/evolution-campaign.md"],
                 "retirement_conditions": ["refs resolve"],
@@ -286,7 +286,7 @@ def test_evolution_ledger_schema_allows_campaign_entries_without_refs() -> None:
                 "claim": "claim",
                 "challenge": "challenge",
                 "transition": "shape -> canonize",
-                "proof_refs": ["ethos quality evidence-freshness --json"],
+                "proof_refs": ["ethos prove --gate evidence-freshness --json"],
                 "review_refs": ["tests/unit/governance/test_evolution_ledger.py"],
                 "decision_refs": ["docs/governance/evolution-campaign.md"],
                 "retirement_conditions": ["refs resolve"],
@@ -309,8 +309,8 @@ def test_evolution_ledger_schema_allows_campaign_entries_without_refs() -> None:
 
 def test_proof_run_schema_uses_trust_bearing_lattice() -> None:
     payload = {
-        "action_id": "proof-policy",
-        "command": ["ethos", "quality", "proof-policy", "--json"],
+        "action_id": "unit-architecture",
+        "command": ["ethos", "prove", "--execute", "--gate", "unit-architecture", "--json"],
         "exit_code": 0,
         "stdout": "{}",
         "stderr": "",
@@ -330,7 +330,7 @@ def test_proof_run_schema_uses_trust_bearing_lattice() -> None:
 def test_proof_run_schema_rejects_proven_without_trust_bearing() -> None:
     payload = {
         "action_id": "claims",
-        "command": ["ethos", "quality", "claims", "--json"],
+        "command": ["ethos", "prove", "--execute", "--gate", "claims", "--json"],
         "exit_code": 0,
         "stdout": "{}",
         "stderr": "",
@@ -350,7 +350,7 @@ def test_proof_run_schema_rejects_proven_without_trust_bearing() -> None:
 def test_proof_run_schema_rejects_trust_bearing_non_proven_state() -> None:
     payload = {
         "action_id": "claims",
-        "command": ["ethos", "quality", "claims", "--json"],
+        "command": ["ethos", "prove", "--gate", "claims", "--json"],
         "exit_code": None,
         "stdout": "",
         "stderr": "",

@@ -60,7 +60,7 @@ executed. Product or domain roots such as `docs/architecture/`,
 ## Audit
 
 ```bash
-ethos quality docs-topology --json
+ethos prove --gate docs-topology --json
 ```
 
 The same strict audit may be selected explicitly in proof:

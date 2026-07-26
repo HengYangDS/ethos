@@ -35,6 +35,7 @@ from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy.gates import gate_policy_digest
 from tests.support.contract_helpers import conformant_proof_run
+from tests.support.contract_helpers import write_publication_topology
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
@@ -229,6 +230,7 @@ def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
     g("config", "user.name", "t")
     g("config", "user.email", "t@e.x")
     adoption_plan(tmp_path, apply=True)
+    write_publication_topology(tmp_path)
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8")
@@ -695,8 +697,8 @@ def test_push_admission_requires_local_closeout_before_protected_publication(
     assert admitted["required_gaps"] == []
 
 
-def test_push_admission_leaves_work_lane_push_untouched(tmp_path: Path) -> None:
-    """A push to a non-accepted (work-lane) ref carries no candidate-train topology."""
+def test_push_admission_rejects_remote_work_lane(tmp_path: Path) -> None:
+    """Work lanes are local-only and never enter either remote publication plane."""
     repo, base = _accepted_boundary_repo(tmp_path)
     git(repo, "checkout", "-q", "-b", "work/x")
     head = _advance_candidate(repo, "w")
@@ -705,4 +707,5 @@ def test_push_admission_leaves_work_lane_push_untouched(tmp_path: Path) -> None:
         root=repo, target_ref="refs/heads/work/x", pushed_head=head, remote_head=base
     )
 
-    assert report["ok"] is True
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["publication_remote_branch_forbidden:work/x"]

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
+from ethos.adapters.admission.closeout_intent.core import MarkerExpectation
 from ethos.adapters.admission.closeout_intent.core import execute_closeout_effect
 from ethos.adapters.admission.closeout_intent.core import sweep_stale_closeout_intents
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
@@ -31,18 +33,21 @@ from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
+from ethos.contracts.lifecycle.reducer import TransitionDecision
+from ethos.contracts.lifecycle.reducer import TransitionFacts
+from ethos.contracts.lifecycle.reducer import TransitionRequest
+from ethos.contracts.lifecycle.reducer import reduce_transition
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.transition import TransitionDecision
-from ethos.contracts.transition import TransitionFacts
-from ethos.contracts.transition import TransitionRequest
-from ethos.contracts.transition import reduce_transition
-from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.repository.policy.gates import gate_policy_digest
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import Attestation
 
 
 def _transition_policy(root: Path, identifier: str):
-    return load_workflow_contract_declaration(root).policy(identifier)
+    return load_lifecycle_declaration(root).policy(identifier)
 
 
 def proof_gaps(root, current_head):
@@ -370,16 +375,20 @@ def _apply_candidate_promotion(*, root, policy, status, heads, context):
         {f"refs/heads/{policy.candidate_branch}": candidate_head},
     )
     permissions = tuple(str(item) for item in proof["plan"].get("permissions", ()))
-    attestation, error = _execute_closeout_effect(
-        root, effect, first_leg, evidence_digest, policy_digest, permissions
+    attestation = _attempt_closeout_effect(
+        root=root,
+        effect=effect,
+        transitions=first_leg,
+        expectation=MarkerExpectation(evidence_digest, policy_digest),
+        permissions=permissions,
     )
-    if error:
+    if isinstance(attestation, str):
         return _accepted_block(
             policy,
             current_head,
             ["accepted_atomic_update_rejected"],
             candidate_head=candidate_head,
-            stderr=error,
+            stderr=attestation,
         )
     sync_blocker = _accepted_sync_blocker(root, policy, current_head, candidate_head, attestation)
     if sync_blocker:
@@ -443,10 +452,14 @@ def _mirror_bootstrap_result(*, root, policy, candidate_head, transitions, conte
             f"refs/heads/{policy.candidate_branch}": candidate_head,
         },
     )
-    mirror_attestation, error = _execute_closeout_effect(
-        root, mirror_effect, (release,), evidence_digest, policy_digest, permissions
+    mirror_attestation = _attempt_closeout_effect(
+        root=root,
+        effect=mirror_effect,
+        transitions=(release,),
+        expectation=MarkerExpectation(evidence_digest, policy_digest),
+        permissions=permissions,
     )
-    if error:
+    if isinstance(mirror_attestation, str):
         return (
             _accepted_block(
                 policy,
@@ -454,7 +467,7 @@ def _mirror_bootstrap_result(*, root, policy, candidate_head, transitions, conte
                 ["release_mirror_bootstrap_incomplete"],
                 candidate_head=candidate_head,
                 accepted_advanced=True,
-                stderr=error,
+                stderr=mirror_attestation,
                 attestation=attestation.model_dump(mode="json"),
             ),
             attestations,
@@ -523,25 +536,24 @@ def _accepted_sync_blocker(root, policy, current_head, candidate_head, attestati
     )
 
 
-def _execute_closeout_effect(
-    root,
-    effect,
-    transitions,
-    evidence_digest,
-    policy_digest,
-    permissions,
-):
+def _attempt_closeout_effect(
+    *,
+    root: Path,
+    effect: GitEffect,
+    transitions: tuple[CloseoutTransition, ...],
+    expectation: MarkerExpectation,
+    permissions: tuple[str, ...],
+) -> Attestation | str:
     try:
         return execute_closeout_effect(
             root=root,
             effect=effect,
             transitions=transitions,
-            evidence_digest=evidence_digest,
-            gate_policy_digest=policy_digest,
+            expectation=expectation,
             permissions=permissions,
-        ), ""
+        )
     except ValueError as error:
-        return None, str(error)
+        return str(error)
 
 
 def _accepted_block(policy, current, gaps, **extra):

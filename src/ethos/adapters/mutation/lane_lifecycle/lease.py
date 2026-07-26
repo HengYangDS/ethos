@@ -18,17 +18,17 @@ from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.transition import TransitionDecision
-from ethos.contracts.transition import TransitionFacts
-from ethos.contracts.transition import TransitionRequest
-from ethos.contracts.transition import reduce_transition
-from ethos.contracts.workflow import load_workflow_contract_declaration
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
+from ethos.contracts.lifecycle.reducer import TransitionDecision
+from ethos.contracts.lifecycle.reducer import TransitionFacts
+from ethos.contracts.lifecycle.reducer import TransitionRequest
+from ethos.contracts.lifecycle.reducer import reduce_transition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from ethos.contracts.workflow import LeaseTransitionDeclaration
+    from ethos.contracts.lifecycle.declaration import LeaseTransitionDeclaration
 
 _LEASE_EFFECTS: dict[str, Callable[..., dict[str, Any]]] = {
     "renew": renew_lease,
@@ -187,7 +187,7 @@ def _lease_effect_binding(
 ]:
     """Bind one declared operation to its exact local effect capability."""
     try:
-        transitions = load_workflow_contract_declaration(repo).lease_transition
+        transitions = load_lifecycle_declaration(repo).lease_transition
     except (OSError, ValueError):
         return None, None, ("lease_transition_contract_invalid",)
     transition = next((item for item in transitions if item.id == operation), None)

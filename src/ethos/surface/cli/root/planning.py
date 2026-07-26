@@ -6,22 +6,24 @@ from datetime import UTC
 from datetime import datetime
 
 from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.repo.change_contract import load_proof_contract
+from ethos.adapters.repo.change_contract import load_repository_contract
 from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.core import workspace_status
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 from ethos.contracts.semantic import RepositoryFacts
-from ethos.contracts.workflow import load_workflow_contract_declaration
-from ethos.domain.plan import load_proof_contract
-from ethos.domain.plan import load_repository_contract
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.context import context_for_root
 from ethos.result import EthosResult
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 
 
+@app.command
 def plan(
     *,
     changed: bool = False,
@@ -84,7 +86,7 @@ def plan(
             }
         }
     )
-    plan = load_workflow_contract_declaration(repo).plan(
+    plan = load_lifecycle_declaration(repo).plan(
         contract=contract,
         facts=facts,
         node_ids=("status", "plan", "prove"),
@@ -92,9 +94,7 @@ def plan(
     plan_gaps = tuple(
         gap
         for gap in plan.gaps()
-        if not (
-            lifecycle_gaps and gap == "workflow_external_requirement_missing:plan:openspec_carrier"
-        )
+        if not (lifecycle_gaps and gap == "lifecycle_external_fact_missing:plan:openspec_carrier")
     )
     required_gaps = tuple(dict.fromkeys((*plan_gaps, *lifecycle_gaps, *rule_validation_gaps)))
     ok = plan.ok and bool(openspec_lifecycle.get("ok")) and not rule_validation_gaps

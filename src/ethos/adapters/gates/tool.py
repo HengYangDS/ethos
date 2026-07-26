@@ -10,7 +10,9 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.git import git_files
 from ethos.repository.evidence.core import trim_output
+from ethos.repository.policy.layout.report import module_layout_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -64,3 +66,31 @@ def quality_tool_report(
         "stderr": trim_output(completed.stderr),
         "required_gaps": [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"],
     }
+
+
+def markdown_links_report(root: Path) -> dict[str, object]:
+    """Check tracked Markdown links without a command-shaped ETHOS loopback."""
+    files = [
+        path
+        for path in git_files(root, "*.md")
+        if not path.startswith(("evidence/", "docs/archive/"))
+    ]
+    return quality_tool_report(
+        root=root,
+        gate_id="markdown-links",
+        tool="lychee",
+        command=[
+            "lychee",
+            "--config",
+            ".config/checks/lychee/lychee.toml",
+            "--no-progress",
+            *files,
+        ],
+        files=files,
+    )
+
+
+def module_layout_gate_report(root: Path) -> dict[str, object]:
+    """Audit only Git-owned Python carriers through the pure layout policy."""
+    files = tuple(root / path for path in git_files(root, "*.py") if (root / path).is_file())
+    return module_layout_report(root, files=files)

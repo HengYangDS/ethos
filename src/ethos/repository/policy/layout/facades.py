@@ -10,10 +10,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def private_alias_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def private_alias_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Find imports renamed to private compatibility aliases."""
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         rel = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         for node in ast.walk(tree):
@@ -24,10 +28,14 @@ def private_alias_findings(root: Path, policy: dict[str, Any]) -> list[dict[str,
     return findings
 
 
-def package_init_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def package_init_facade_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Find package `__init__.py` files that act as runtime facades."""
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         if path.name != "__init__.py":
             continue
         rel = path.relative_to(root).as_posix()
@@ -40,10 +48,14 @@ def package_init_facade_findings(root: Path, policy: dict[str, Any]) -> list[dic
     return findings
 
 
-def module_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def module_facade_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Find ordinary modules that only re-export imported symbols."""
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         if path.name == "__init__.py":
             continue
         rel = path.relative_to(root).as_posix()
@@ -56,10 +68,14 @@ def module_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str,
     return findings
 
 
-def dynamic_compat_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def dynamic_compat_facade_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Find modules that hide compatibility exports behind module `__getattr__`."""
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         if path.name == "__init__.py":
             continue
         rel = path.relative_to(root).as_posix()

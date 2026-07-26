@@ -67,6 +67,29 @@ def start_adopted_work_lane(
     return WorkLaneFixture(repo, candidate, worktree)
 
 
+def lane_start_arguments(
+    repository: Path,
+    worktree: Path,
+    *,
+    name: str = "feature",
+    holder_ref: str = "agent:test:case:agent-test",
+) -> tuple[str, ...]:
+    """Build canonical CLI arguments for an applied test Work Lane start."""
+    return (
+        "lane",
+        "start",
+        name,
+        "--root",
+        repository.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--holder-ref",
+        holder_ref,
+        "--apply",
+        "--json",
+    )
+
+
 def commit_fixture_file(root: Path, relative: str, content: str, message: str) -> str:
     """Write and commit a fixture file, returning the resulting HEAD."""
     path = root / relative
@@ -195,6 +218,7 @@ def adopt_and_commit(repo: Path) -> None:
     plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
     _declare_minimal_code_correctness(repo)
+    write_publication_topology(repo)
     git(repo, "add", ".")
     git(
         repo,
@@ -205,6 +229,25 @@ def adopt_and_commit(repo: Path) -> None:
         "commit",
         "-m",
         "adopt ethos governance",
+    )
+
+
+def write_publication_topology(
+    repo: Path, *, gitlab_remote: str = "origin", github_remote: str = "github"
+) -> None:
+    """Declare the canonical independent GitLab and GitHub test remotes."""
+    release = repo / ".ethos" / "release.toml"
+    release.parent.mkdir(parents=True, exist_ok=True)
+    release.write_text(
+        "\n".join(
+            (
+                "[publication]",
+                f'gitlab_remote = "{gitlab_remote}"',
+                f'github_remote = "{github_remote}"',
+                "",
+            )
+        ),
+        encoding="utf-8",
     )
 
 

@@ -133,7 +133,7 @@ from source/package metadata rather than promoted as truth.
 ## Audit
 
 ```bash
-ethos quality generated-artifacts --json
+ethos prove --gate generated-artifacts --json
 ```
 
 The audit reports the path router contract, lifecycle classes, entrypoint
@@ -189,7 +189,7 @@ reviewed and promoted.
 `ethos fleet retirement-readiness --target <repo> --root <product> --json`
 consumes this same audit before it can approve an embedded-backend retirement. A
 retirement candidate must be clean under
-`ethos quality generated-artifacts --root <repo> --json`; generated drift in repo
+`ethos prove --gate generated-artifacts --root <repo> --json`; generated drift in repo
 root, `.config/`, semantic docs truth, or source trees remains a blocking
 adoption/rollback gap until moved to ignored runtime/build homes or promoted as
 curated evidence.

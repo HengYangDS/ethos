@@ -72,7 +72,11 @@ only active implementation carrier for that design.
 9. **Terminal budget over local ratchets.** Intermediate growth is allowed.
    Terminal ELOC, output, warning, suppression, coverage, mutation, and semantic
    ownership constraints are hard and cannot be converted into advisories or
-   scores.
+   scores. Authoring admission derives per-coordinate deltas from the exact
+   merge-base through the same direct measurement owner, so non-increasing work
+   is not blocked by unrelated historical debt and no coordinate can borrow
+   another coordinate's reduction. The former source-admission command,
+   declaration fixed point, replay, worker, and shadow stack are rejected.
 10. **Ecosystem last.** Language-neutral schemas, TCK, data/subprocess packs,
     MCP/A2A adapters, and optional Copier/Jinja scaffolds ship only after the
     kernel passes three adopter profiles.
@@ -96,7 +100,10 @@ only active implementation carrier for that design.
     real consumer proves that need. Checkpoint, CAS, journal, resume, and
     evaluation mechanisms are useful, while external contract, acceptance,
     phase, task, and artifact models must not duplicate ChangeContract, PlanIR,
-    or Attestation.
+    or Attestation. `system/lifecycle.toml` is the singular declaration for
+    transition policy, lease operations, PlanIR actions, and campaign CEL;
+    workflow-run schemas and runtime read models are deleted rather than kept
+    as compatibility surfaces.
 
 ## Risks / Trade-offs
 

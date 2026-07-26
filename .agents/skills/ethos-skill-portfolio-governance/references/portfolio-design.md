@@ -68,6 +68,6 @@ Then run the repository gates:
 
 ```bash
 ethos playbooks check --mode v2-strict --json
-ethos quality projection-drift --json
+ethos prove --gate playbooks-v2 --json
 ethos playbooks route --changed --json
 ```

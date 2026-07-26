@@ -9,16 +9,36 @@ from ethos.adapters.openspec.archive.query import archive_query_report
 from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.normalization.core import string_mapping
 from ethos.normalization.core import string_sequence
+from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.result import EthosResult
 from ethos.state.invalid import UNCLASSIFIED
 from ethos.state.invalid import explain_gap
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
+from ethos.surface.cli._base import load_command_groups
 from ethos.surface.cli._base import resolve_root
 
 
+def _live_cyclopts_command(tokens: list[str]) -> str:
+    """Return an unknown command path using the loaded Cyclopts operation tree."""
+    command_chain, apps, remaining = app.parse_commands(tokens)
+    if not command_chain:
+        return " ".join(("ethos", *(token for token in tokens if not token.startswith("-"))))
+    if apps[-1].default_command is None and remaining and not remaining[0].startswith("-"):
+        return " ".join(("ethos", *command_chain, remaining[0]))
+    return ""
+
+
+def docs_registry_report(root: Path) -> dict[str, object]:
+    """Validate docs metadata and examples against the live command surface."""
+    load_command_groups([])
+    return docs_health_report(root, command_validator=_live_cyclopts_command)
+
+
+@app.command(show=False)
 def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
     """Explain a governance gap or advisory signal as a read-only invalid-state projection."""
     data = string_mapping(explain_gap(gap_or_signal))
@@ -33,6 +53,7 @@ def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
     emit(result, json_output=json_output, enforce=False)
 
 
+@app.command(show=False)
 def docs(
     topic: str = "index",
     *,
@@ -64,6 +85,7 @@ def docs(
     emit(result, json_output=json_output, enforce=False)
 
 
+@app.command(show=False)
 def audit(
     *,
     mode: str = "deep",
@@ -96,6 +118,7 @@ def audit(
     emit(result, json_output=json_output, enforce=False)
 
 
+@app.command(show=False)
 def openspec(
     *,
     change: str | None = None,

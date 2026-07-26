@@ -1,25 +1,6 @@
 #!/usr/bin/env bash
-# Run product-boundary and contributor-policy gates through the ETHOS command plane.
-# This keeps active product surfaces and release metadata neutral, while
-# historical evidence remains classified as historical instead of product default.
+# Execute the product-boundary gate through the singular proof surface.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
-  exec "${script_dir}/with-python-runtime.sh" -- \
-    uv run env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
-fi
-
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-cd "${repo_root}"
-
-export PYTHONPATH="${repo_root}/src${PYTHONPATH:+:${PYTHONPATH}}"
-
-run_ethos_quality() {
-  local check="$1"
-  uv run python -m ethos.cli quality "${check}" --json
-}
-
-run_ethos_quality product-boundary
-run_ethos_quality contributor-policy
-run_ethos_quality governance-kernel
+exec "${script_dir}/with-python-runtime.sh" -- uv run ethos prove --execute --gate product-boundary --json

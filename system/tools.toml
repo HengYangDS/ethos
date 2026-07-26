@@ -38,7 +38,7 @@ concern = "python_typing"
 tool = "ty"
 config = ".config/checks/ty/"
 profile = "product"
-gate = "ethos quality types --json"
+gate = "ethos prove --gate python-types --json"
 
 [[tool]]
 concern = "import_boundaries"
@@ -59,7 +59,7 @@ concern = "links"
 tool = "lychee"
 config = ".config/checks/lychee/"
 profile = "product"
-gate = "ethos quality markdown-links"
+gate = "ethos prove --gate markdown-links"
 
 [[tool]]
 concern = "coverage"
@@ -225,7 +225,7 @@ profile = "security"
 
 [[tool]]
 concern = "sbom"
-tool = "ethos quality sbom"
+tool = "ethos-sbom-projection"
 config = ".config/release/supply-chain.toml"
 artifacts = "build/evidence/release/"
 gate = "tools/ci/scripts/run-release-supply-chain.sh"
@@ -233,7 +233,7 @@ profile = "release"
 
 [[tool]]
 concern = "attestation"
-tool = "ethos quality release-attestation"
+tool = "ethos-release-attestation"
 config = ".config/release/supply-chain.toml"
 artifacts = "build/evidence/release/"
 gate = "tools/ci/scripts/run-release-supply-chain.sh"
@@ -296,7 +296,7 @@ concern = "generated_artifact_topology"
 tool = "cel-expr-python + ethos-generated-artifacts"
 config = "system/policies/generated-artifact-topology.toml + src/ethos/contracts/artifacts/topology.py"
 artifacts = "build/evidence/generated-artifacts/"
-gate = "ethos quality generated-artifacts --json"
+gate = "ethos prove --gate generated-artifacts --json"
 profile = "product"
 
 [[tool]]
@@ -343,4 +343,4 @@ concern = "source_budget"
 tool = "scc + ethos.measure"
 config = ".config/checks/format/selection.toml"
 profile = "product"
-gate = "ethos quality source-budget --json"
+gate = "ethos prove --gate source-budget --json"

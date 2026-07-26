@@ -14,7 +14,7 @@ from pathlib import Path
 from ethos._resources import declaration_text
 
 # The machine governance kernel's declarative contracts under system/.
-RESOURCE_BACKED_SYSTEM_CONTRACTS = {"workflows": "data/workflows.toml"}
+RESOURCE_BACKED_SYSTEM_CONTRACTS = {"lifecycle": "data/lifecycle.toml"}
 
 SYSTEM_CONTRACTS = (
     "authority",
@@ -22,7 +22,7 @@ SYSTEM_CONTRACTS = (
     "routing",
     "surfaces",
     "tools",
-    "workflows",
+    "lifecycle",
     "evidence_boundaries",
     "invalid_states",
 )
@@ -31,10 +31,9 @@ SYSTEM_CONTRACTS = (
 def load_system_contract(root: Path, name: str) -> dict[str, object]:
     """Load system/<name>.toml, falling back to product resources when declared.
 
-    Most system contracts are root-owned and must fail closed when missing. Workflow
-    runtime projection is product-owned: adopter repositories may not carry
-    ``system/workflows.toml``, but the product runner still needs the declared public
-    lifecycle graph to compile plan projections.
+    Most system contracts are root-owned and must fail closed when missing. The
+    lifecycle declaration is product-owned so adopters compile the same PlanIR
+    and transition policies without copying product repository files.
     """
     path = root / "system" / f"{name}.toml"
     if path.exists():

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
+import stat
 from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
 
 from ethos.adapters.mutation.lane_lifecycle.handoff import package as handoff_package
+from ethos.adapters.repo.dirty import core as dirty_core
 from ethos.contracts.coordination import CrossHostHandoff
 from ethos.contracts.coordination import HolderRef
 
@@ -195,13 +198,134 @@ def test_dirty_content_digest_frames_path_and_content(
 ) -> None:
     (tmp_path / "a").write_bytes(b"bc")
     (tmp_path / "ab").write_bytes(b"c")
-    monkeypatch.setattr(
-        handoff_package,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=""),
-    )
-    monkeypatch.setattr(handoff_package, "_git_lines", lambda *_args: ["a"])
-    first = handoff_package.dirty_content_sha256(tmp_path)
-    monkeypatch.setattr(handoff_package, "_git_lines", lambda *_args: ["ab"])
 
-    assert handoff_package.dirty_content_sha256(tmp_path) != first
+    selected = b"a\0"
+
+    def run_git(_root, *args, **kwargs):
+        assert kwargs["text"] is False
+        return SimpleNamespace(stdout=b"" if args[0] == "diff" else selected)
+
+    monkeypatch.setattr(dirty_core, "run_git", run_git)
+    first = dirty_core.dirty_content_sha256(tmp_path)
+    selected = b"ab\0"
+
+    assert dirty_core.dirty_content_sha256(tmp_path) != first
+
+
+def test_dirty_content_digest_rejects_an_untracked_symlink(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outside = tmp_path.parent / "outside"
+    outside.write_bytes(b"external")
+    (tmp_path / "link").symlink_to(outside)
+
+    monkeypatch.setattr(
+        dirty_core,
+        "run_git",
+        lambda _root, *args, **_kwargs: SimpleNamespace(
+            stdout=b"" if args[0] == "diff" else b"link\0"
+        ),
+    )
+
+    with pytest.raises(ValueError, match="dirty_content_unsafe_path:link"):
+        dirty_core.dirty_content_sha256(tmp_path)
+
+
+@pytest.mark.parametrize("drift", ["patch", "inventory"])
+def test_dirty_content_digest_rejects_snapshot_drift(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, drift: str
+) -> None:
+    (tmp_path / "file").write_bytes(b"content")
+    calls = {"diff": 0, "ls-files": 0}
+
+    def run_git(_root, *args, **_kwargs):
+        command = args[0]
+        calls[command] += 1
+        if command == "diff":
+            changed = drift == "patch" and calls[command] == 2
+            return SimpleNamespace(stdout=b"changed" if changed else b"")
+        changed = drift == "inventory" and calls[command] == 2
+        return SimpleNamespace(stdout=b"other\0" if changed else b"file\0")
+
+    monkeypatch.setattr(dirty_core, "run_git", run_git)
+
+    with pytest.raises(ValueError, match="dirty_content_snapshot_drift"):
+        dirty_core.dirty_content_sha256(tmp_path)
+
+
+def test_dirty_content_digest_rejects_a_symlinked_root(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_root = tmp_path / "real"
+    real_root.mkdir()
+    (real_root / "file").write_bytes(b"content")
+    linked_root = tmp_path / "linked"
+    linked_root.symlink_to(real_root, target_is_directory=True)
+    monkeypatch.setattr(
+        dirty_core,
+        "run_git",
+        lambda _root, *args, **_kwargs: SimpleNamespace(
+            stdout=b"" if args[0] == "diff" else b"file\0"
+        ),
+    )
+
+    with pytest.raises(ValueError, match="dirty_content_unsafe_path:file"):
+        dirty_core.dirty_content_sha256(linked_root)
+
+
+def test_dirty_content_digest_rejects_path_replacement_after_read(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "file"
+    target.write_bytes(b"content")
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"outside")
+    monkeypatch.setattr(
+        dirty_core,
+        "run_git",
+        lambda _root, *args, **_kwargs: SimpleNamespace(
+            stdout=b"" if args[0] == "diff" else b"file\0"
+        ),
+    )
+    original_fstat = dirty_core.os.fstat
+    regular_fstat_calls = 0
+
+    def replace_after_read(descriptor: int):
+        nonlocal regular_fstat_calls
+        observed = original_fstat(descriptor)
+        if stat.S_ISREG(observed.st_mode):
+            regular_fstat_calls += 1
+            if regular_fstat_calls == 2:
+                target.unlink()
+                target.symlink_to(outside)
+        return observed
+
+    monkeypatch.setattr(dirty_core.os, "fstat", replace_after_read)
+
+    with pytest.raises(ValueError, match="dirty_content_unstable_path:file"):
+        dirty_core.dirty_content_sha256(tmp_path)
+
+
+def test_dirty_content_digest_opens_special_files_nonblocking(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fifo = tmp_path / "fifo"
+    os.mkfifo(fifo)
+    monkeypatch.setattr(
+        dirty_core,
+        "run_git",
+        lambda _root, *args, **_kwargs: SimpleNamespace(
+            stdout=b"" if args[0] == "diff" else b"fifo\0"
+        ),
+    )
+    original_open = dirty_core.os.open
+
+    def guarded_open(path, flags, *args, **kwargs):
+        if path == "fifo":
+            assert flags & os.O_NONBLOCK
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(dirty_core.os, "open", guarded_open)
+
+    with pytest.raises(ValueError, match="dirty_content_unsafe_path:fifo"):
+        dirty_core.dirty_content_sha256(tmp_path)

@@ -266,7 +266,7 @@ def _rule_attestation_input_gaps(
         (snapshot.get("digest") == evaluation.get("fact_snapshot_digest"), "input_snapshot"),
         (snapshot == evaluation.get("input_snapshot"), "input"),
     )
-    gaps = [f"rule_attestation_mismatch:{name}" for valid, name in checks if not valid]
+    gaps: list[str] = [f"rule_attestation_mismatch:{name}" for valid, name in checks if not valid]
     facts = snapshot.get("facts")
     if not isinstance(facts, dict):
         return gaps
@@ -285,8 +285,9 @@ def _rule_attestation_output_gaps(evaluation: dict[str, Any], output: object) ->
         ("required_gaps", "output_required_gaps"),
         ("required_gates", "output_required_gates"),
     )
-    return [
+    gaps: list[str] = [
         f"rule_attestation_mismatch:{gap}"
         for key, gap in checks
         if output.get(key) != evaluation.get(key)
     ]
+    return gaps

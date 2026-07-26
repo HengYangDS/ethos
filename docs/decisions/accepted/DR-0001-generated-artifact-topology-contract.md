@@ -32,7 +32,7 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping a small shared docs kernel across governed repositories. |
 | Decision | Promote the Generated Artifact Topology Contract, producer-entrypoint routing audit, lifecycle classes, and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
 | Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; ignored tool runtime caches live under `build/runtime/tool-cache/<tool>/`, provider scratch state lives under `build/runtime/work/<provider>/`, local package artifacts live under `build/artifacts/<kind>/`; adopter-specific product roots are rejected; retired `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
-| Proof or Evidence | `ethos quality generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
+| Proof or Evidence | `ethos prove --gate generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
 | Revisit Trigger | Reopen only if a governed adopter cannot express its path policy through `.config/ethos/` or equivalent declarative config without product-owned adopter-specific roots. |
 
 See also: [Generated Artifact Topology](../../architecture/generated-artifact-topology.md), [Decision Index](../decision-index.md), and [Command Plane](../../reference/command-plane.md).
@@ -109,7 +109,7 @@ general governance prose or become mandatory truth lanes.
 
 - [Generated Artifact Topology](../../architecture/generated-artifact-topology.md)
 - [Decision Index](../decision-index.md)
-- `ethos quality generated-artifacts --json` (path topology plus producer-entrypoint routing)
+- `ethos prove --gate generated-artifacts --json` (path topology plus producer-entrypoint routing)
 - `uv run --group dev pytest tests/unit/governance/test_generated_artifact_topology.py tests/unit/cli/test_generated_artifact_topology_cli.py tests/architecture/test_generated_artifact_topology_docs.py -q`
 - `ethos prove --execute --expect-head <head> --json`
 

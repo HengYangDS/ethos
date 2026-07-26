@@ -90,7 +90,7 @@ redundant, unsafe, false, stale, misbounded, or overreaching incumbent. Rejectio
 keeps a candidate as bounded learning without promotion. Archive preserves
 judged learning after the carrier no longer participates in active governance.
 
-`ethos quality evidence-freshness --json` checks the ledger as part of the
+`ethos prove --gate evidence-freshness --json` checks the ledger as part of the
 evidence freshness read model. Active hypotheses must cite resolvable proof,
 review, and decision references. Proof references may be known ETHOS command
 references; review and decision references are repository paths. Reviewed

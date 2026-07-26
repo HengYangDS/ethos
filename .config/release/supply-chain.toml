@@ -4,12 +4,7 @@ runner = "tools/ci/scripts/run-release-supply-chain.sh"
 summary = "Release-profile evidence uses ETHOS-native SBOM, attestation, and policy envelopes before optional external signing adapters."
 output = "build/evidence/release/supply-chain.json"
 
-commands = [
-  "uv run ethos quality sbom --json",
-  "uv run ethos quality release-attestation --json",
-  "uv run ethos quality release-policy --json",
-]
-
+commands = ["uv run python tools/ci/release_supply_chain.py"]
 [boundary]
 claim = "local release evidence envelope generated"
 not_claimed = [

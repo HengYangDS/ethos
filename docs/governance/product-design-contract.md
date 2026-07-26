@@ -51,7 +51,6 @@ Advanced workflows stay under `ethos ...` as maintainer/reference surfaces:
 ```bash
 ethos campaign
 ethos intake
-ethos quality
 ethos assistants
 ethos playbooks
 ethos fleet
@@ -315,7 +314,7 @@ profile or adapter bindings. Git belongs to product semantics. OpenSpec belongs
 to mandatory governance. JSON Schema, command JSON, TOML, JSONL, and ignored
 SQLite local state are native protocols. The current Python, uv, Hatchling,
 pytest, Ruff, and build workflow proves ETHOS itself but is not adopter ontology.
-`ethos quality coupling-audit --json` exposes these classifications as a
+`ethos prove --gate repository-audit --json` exposes these classifications as a
 `binding_registry` so product hard bindings, mandatory dependencies, native
 protocols, product-toolchain tools, adapters, historical evidence, and fixtures are
 auditable without binding ETHOS to a specific host or model provider. Adapter and

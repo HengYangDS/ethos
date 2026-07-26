@@ -39,10 +39,10 @@ tools/ci/scripts/run-python-lint.sh
 tools/ci/scripts/run-config-lint.sh
 tools/ci/scripts/run-shell-lint.sh
 .agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .
-ethos quality types --json
-ethos quality docstrings --json
+ethos prove --gate python-types --json
+ethos prove --gate docstrings --json
 # After `tools/ci/scripts/run-python-tests.sh` has produced coverage.xml:
-ethos quality coverage --json
+ethos prove --gate unit-architecture --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ```
 

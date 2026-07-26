@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.domain.plan import load_change_contract
-from ethos.domain.plan import load_proof_contract
-from ethos.domain.plan import load_repository_contract
+from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.change_contract import load_proof_contract
+from ethos.adapters.repo.change_contract import load_repository_contract
 
 if TYPE_CHECKING:
     from pathlib import Path

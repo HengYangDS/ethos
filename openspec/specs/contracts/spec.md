@@ -3,7 +3,7 @@
 ## Purpose
 
 ETHOS SHALL define provider-neutral schemas, result envelopes, adapter
-interfaces, policy records, evidence contracts, and command registry contracts
+interfaces, policy records, evidence contracts, and operation or gate contracts
 before provider implementations.
 ## Requirements
 ### Requirement: Provider-neutral Contracts
@@ -158,8 +158,9 @@ so OpenSpec proposal routing can be validated without hardcoded domain terms.
 
 ### Requirement: PlanIR Transition Contract
 ETHOS SHALL compile provider-neutral ChangeContract and RepositoryFacts inputs
-into one deterministic PlanIR. A parallel workflow-runtime read model, event
-stream, or external orchestration store MUST NOT own lifecycle truth.
+through one strict lifecycle declaration into deterministic PlanIR. A parallel
+run-state read model, event stream, or external orchestration store MUST NOT own
+lifecycle truth.
 
 #### Scenario: A transition plan is inspected
 - **WHEN** ETHOS compiles a governed change

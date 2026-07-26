@@ -12,17 +12,20 @@ from ethos.repository.registry.docs.registry import VISIBLE_SECTION_LABELS
 from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import allowed_states
 from ethos.repository.registry.docs.registry import build_docs_registry
-from ethos.surface.cli._base import app
-from ethos.surface.cli._base import load_command_groups
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 OBSERVATIONAL_DOC_PREFIXES = ("evidence/", "docs/archive/")
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
-def docs_health_report(root: Path) -> dict[str, object]:
+def docs_health_report(
+    root: Path,
+    *,
+    command_validator: Callable[[list[str]], str] | None = None,
+) -> dict[str, object]:
     """Report docs metadata, structure, and live-command-example health."""
     registry = build_docs_registry(root)
     missing = [
@@ -50,7 +53,9 @@ def docs_health_report(root: Path) -> dict[str, object]:
         if len(paths) > 1
     ]
     visible_section_gaps = visible_section_gaps_for_registry(root, registry)
-    invalid_command_examples = command_example_gaps(root, registry)
+    invalid_command_examples = (
+        command_example_gaps(root, registry, command_validator) if command_validator else []
+    )
     required_gaps = (
         missing
         + invalid_state
@@ -96,7 +101,11 @@ def requires_visible_sections(entry: dict[str, str]) -> bool:
     return entry["state"] in {"canonical", "active"}
 
 
-def command_example_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
+def command_example_gaps(
+    root: Path,
+    registry: list[dict[str, str]],
+    command_validator: Callable[[list[str]], str],
+) -> list[str]:
     """Return active-doc examples absent from the live Cyclopts operation tree."""
     active_paths = {entry["path"] for entry in registry if requires_visible_sections(entry)}
     gaps: list[str] = []
@@ -105,9 +114,7 @@ def command_example_gaps(root: Path, registry: list[dict[str, str]]) -> list[str
         if relative_path not in active_paths:
             continue
         for lineno, command in shell_commands(path):
-            if (tokens := ethos_command_tokens(command)) and (
-                invalid := live_cyclopts_command(tokens)
-            ):
+            if (tokens := ethos_command_tokens(command)) and (invalid := command_validator(tokens)):
                 gaps.append(f"unknown_ethos_command_example:{relative_path}:{lineno}:{invalid}")
     return gaps
 
@@ -162,14 +169,3 @@ def ethos_command_tokens(command: str) -> list[str]:
     if command_tokens[:3] == ["python", "-m", "ethos.cli"]:
         return command_tokens[3:]
     return []
-
-
-def live_cyclopts_command(tokens: list[str]) -> str:
-    """Return an unknown command path using the loaded Cyclopts operation tree."""
-    load_command_groups([])
-    command_chain, apps, remaining = app.parse_commands(tokens)
-    if not command_chain:
-        return " ".join(("ethos", *(token for token in tokens if not token.startswith("-"))))
-    if apps[-1].default_command is None and remaining and not remaining[0].startswith("-"):
-        return " ".join(("ethos", *command_chain, remaining[0]))
-    return ""

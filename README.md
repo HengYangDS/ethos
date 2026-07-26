@@ -120,20 +120,20 @@ maintainer/reference commands:
 ```bash
 ethos audit
 ethos campaign hypotheses
-ethos quality docs-registry
-ethos quality provenance
-ethos quality release
+ethos prove --gate docs-registry --json
+ethos prove --json
+ethos publish --json
 ethos assistants mcp-manifest
 ```
 
-The same evidence, docs, schema, and command registry rules used for adopter
+The same evidence, docs, schema, and proof-gate rules used for adopter
 repositories apply to ETHOS product changes.
 
 ## Release Readiness
 
 GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 `CHANGELOG.md`, `.gitlab-ci.yml`, and GitLab templates. Use
-`ethos quality release --json` before publishing.
+`ethos prove --full --execute --json` and `ethos publish --json` before publishing.
 
 ## Development
 

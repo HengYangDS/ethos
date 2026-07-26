@@ -2,34 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
-from pydantic import Field
+
+if TYPE_CHECKING:
+    from ethos.contracts.lifecycle.declaration import TransitionPolicy
 
 
 class LifecycleModel(BaseModel):
     """Strict immutable base for lifecycle facts and declarations."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
-
-
-class TransitionPolicy(LifecycleModel):
-    """One declaration-owned policy interpreted only by ``reduce_transition``."""
-
-    id: str = Field(min_length=1)
-    applied_state: str = Field(min_length=1)
-    planned_state: str = "planned"
-    current_state: str = ""
-    required_role: str = ""
-    role_gap: str = ""
-    dirty_gap: str = ""
-    authorization_required: bool = False
-    expected_head_required: bool = False
-    head_mismatch_gap: str = "expect_head_mismatch"
-    untracked_gap: str = ""
-    dry_run_commands: tuple[str, ...] = Field(default=(), strict=False)
 
 
 class TransitionRequest(LifecycleModel):

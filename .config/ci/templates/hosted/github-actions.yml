@@ -42,7 +42,9 @@ jobs:
       - name: Python lint
         run: tools/ci/scripts/run-python-lint.sh
       - name: Type policy
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos quality types --json
+        run: >-
+          tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --execute
+          --gate python-types --expect-head "$(git rev-parse HEAD)" --json
       - name: Import boundaries
         run: tools/ci/scripts/run-import-linter.sh
       - name: Dependency hygiene

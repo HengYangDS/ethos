@@ -74,7 +74,7 @@ ethos prove --json
 ethos status --json
 ethos assistants doctor --json
 ethos playbooks route --changed --json
-ethos quality command-surface --json
+ethos --help
 ethos land --json
 ethos publish --json
 ```
@@ -109,7 +109,7 @@ This gate reads the adopter's `.ethos/profile.toml`, rejects product-core
 adopter directories declared forbidden by that profile, checks tracked/live
 shadow parity, requires `external>=embedded`, validates the profile-declared backend control manifest, requires the embedded backend to be frozen as
 fallback/reference, runs the same generated artifact topology audit used by
-product proof (`ethos quality generated-artifacts --root <repo> --json`), and
+product proof (`ethos prove --gate generated-artifacts --root <repo> --json`), and
 verifies a generic `[rollback_window]` evidence manifest with completed
 `proof_report`, `work_lane_closeout`, `domain_gate`, and `assistant_playbook`
 scenarios before accepting a `retirement_ready` backend state. The manifest must

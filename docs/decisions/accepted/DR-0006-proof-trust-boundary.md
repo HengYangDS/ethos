@@ -28,7 +28,7 @@ and [Accepted Decisions](README.md).
 | Class | architecture / security |
 | Scope | What a local executed-proof record does and does not guarantee; where the genuine anti-forgery trust root lives; the optional verification adapter interface. |
 | Supersedes | none |
-| Depends on | DR-0005 (declarative runtime spine) |
+| Depends on | DR-0005 (declarative lifecycle spine) |
 
 ## Context
 

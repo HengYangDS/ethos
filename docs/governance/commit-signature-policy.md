@@ -23,9 +23,8 @@ requirement, signing format, identity mode, and the allowed human, team, and bot
 identities. Multi-contributor repositories extend that policy with additional
 role-based human, team, reviewer, contributor, service, or bot identities rather
 than by hardcoding a product author. Commit subjects follow Conventional
-Commits in this repository. `ethos quality commits --json` checks local identity
-membership and signing configuration; `ethos quality commits --enforce-head
---json` additionally requires the current HEAD subject and signature to pass
+Commits in this repository. `tools/ci/scripts/run-head-bound-proof.sh` checks local identity
+membership and signing configuration; `tools/ci/scripts/run-head-bound-proof.sh` additionally requires the current HEAD subject and signature to pass
 release policy.
 
 A governed checkout may also enable a local, repository-scoped pre-push identity

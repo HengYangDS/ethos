@@ -14,6 +14,25 @@ Source measurement MUST use scc, canonical formatters, and Python AST/tokenize c
 - **WHEN** canonical counters differ outside the declared tolerance
 - **THEN** the budget verdict blocks with the disagreement evidence rather than selecting a favorable count
 
+### Requirement: Monotone Changed-scope Admission
+Intermediate authoring admission MUST compare the current tree with its exact
+merge-base through the same direct measurement owner. A non-increasing measured
+change MUST NOT be blocked only by unrelated historical debt, while terminal
+closeout MUST still satisfy every hard repository budget.
+
+#### Scenario: A change deletes measured source while the repository exceeds its terminal limit
+- **WHEN** each governed metric coordinate is unchanged or reduced from the exact merge-base
+- **THEN** authoring admission allows the change to continue
+- **AND** terminal proof remains blocked until the repository itself meets every limit
+
+#### Scenario: A change attempts to borrow an unrelated surplus
+- **WHEN** one category or metric grows and another category or metric shrinks
+- **THEN** the growing coordinate is not compensated by the unrelated reduction
+
+#### Scenario: The baseline or inventory drifts
+- **WHEN** merge-base, current tree, measured inventory, or metric ownership cannot be reproduced
+- **THEN** changed-scope admission resolves to block or unknown and performs no write
+
 ### Requirement: Singular Quality Ownership
 Ruff, Pyright strict, rumdl, dprint, shfmt/ShellCheck, ast-grep, and import-linter MUST be the sole terminal owners of their declared properties; all warnings and production suppressions MUST be hard failures.
 
@@ -30,7 +49,7 @@ Global branch coverage MUST be at least 95%, authority/CAS/transition reducers M
 
 ## MODIFIED Requirements
 
-### Requirement: Python Module Layout Gate
+### Requirement: Semantic And Physical Isomorphism
 
 ETHOS SHALL gate repository-owned Python as semantic architecture rather than as
 a file-count topology. Every module and package MUST state one narrow concept,
@@ -44,9 +63,18 @@ irreducible kernel or report aggregator. CLI commands MUST have one declaration
 owner, and compatibility facades MUST NOT satisfy this requirement. File count,
 directory width, ELOC, and punctuation MUST NOT mint a semantic split or waiver.
 
+#### Scenario: A generic module has no closed semantic contract
+
+- **WHEN** the module-layout gate observes `core`, `common`, `shared`, `utils`,
+  `helpers`, `base`, `manager`, `service`, or another configured ambiguous name
+- **THEN** the module must be absorbed, precisely renamed, split on a real
+  semantic axis, or deleted
+- **AND** splitting only to satisfy ELOC or retaining the old path as a facade is
+  not remediation
+
 #### Scenario: Semantic module layout is reported and enforced
 
-- **WHEN** `ethos quality module-layout --json` runs
+- **WHEN** `ethos prove --gate module-layout --json` runs
 - **THEN** ETHOS scans tracked and non-ignored untracked Python across the whole
   repository while excluding deleted and ignored runtime files
 - **AND** it reports ambiguous module and package names, multiple command owners,

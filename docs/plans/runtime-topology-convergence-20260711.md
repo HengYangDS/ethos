@@ -143,7 +143,7 @@ unknown writer.
 
 - [x] Mark OpenSpec tasks only after the implementation and test evidence exists.
 - [x] Run OpenSpec strict validation and archive the complete carrier.
-- [x] Run all focused tests and `ethos quality generated-artifacts --json` at a
+- [x] Run all focused tests and `ethos prove --gate generated-artifacts --json` at a
   stable lane HEAD.
 - [ ] Run final HEAD-bound proof and land only this lane to `candidate/dev` if it
   remains current and the recorded provider-projection dependency has been

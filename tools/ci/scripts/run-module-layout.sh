@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Enforce semantic subpackage and module-layout policy.
-#
-# Policy lives in .config/checks/module-layout/policy.toml; this owner script is
-# the reusable execution surface for local CI, hosted CI, pre-commit, and proof.
+# Execute the module-layout gate through the singular proof surface.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-exec "${script_dir}/with-python-runtime.sh" -- uv run ethos quality module-layout --json
+exec "${script_dir}/with-python-runtime.sh" -- uv run ethos prove --execute --gate module-layout --json

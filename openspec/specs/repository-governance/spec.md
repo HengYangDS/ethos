@@ -108,7 +108,7 @@ coupling registry. Profile or adapter bindings SHALL carry explicit admission
 metadata before they can participate in the registry.
 
 #### Scenario: Binding registry is audited
-- **WHEN** `ethos quality coupling-audit --json` runs
+- **WHEN** `ethos prove --gate repository-audit --json` runs
 - **THEN** the output includes `binding_registry`
 - **AND** Git repository substrate and configured branch roles are classified as
   product-semantic hard bindings
@@ -140,7 +140,7 @@ ETHOS SHALL adopt mature standards through adapters with explicit lifecycle,
 input contract, output contract, fallback, and exit strategy.
 
 #### Scenario: Standards are checked
-- **WHEN** `ethos quality standards --json` runs
+- **WHEN** `ethos audit --mode deep --json` runs
 - **THEN** every standard adapter declares boundary, lifecycle, contracts,
   fallback, and retirement behavior
 
@@ -223,7 +223,7 @@ shall refresh and commit its parity evidence before it executes proof or lands.
 - **GIVEN** a Work Lane has committed a parity-relevant source or contract change
 - **AND** its tracked generic parity evidence no longer matches the resulting
   parity-relevant semantic tree
-- **WHEN** `ethos quality evidence-freshness --json` or executed proof evaluates
+- **WHEN** `ethos prove --gate evidence-freshness --json` or executed proof evaluates
   the Work Lane
 - **THEN** ETHOS reports the parity evidence invalidity as a required gap
 - **AND** it returns the Work-Lane-owned parity refresh package
@@ -285,7 +285,7 @@ than by `current`/`future` directory names.
 
 #### Scenario: Common docs kernel is audited
 
-- **WHEN** `ethos quality docs-topology --json` runs
+- **WHEN** `ethos prove --gate docs-topology --json` runs
 - **THEN** ETHOS requires the common docs kernel: `docs/README.md`,
   `docs/decisions/`, `docs/evidence/`, `docs/history/`, and `docs/reference/`
 - **AND** the required kernel is invariant across single-repository, monorepo,
@@ -354,7 +354,7 @@ declared by that topology.
 
 #### Scenario: Release policy is complete
 
-- **WHEN** `ethos quality release-policy --json` runs in the ETHOS repository
+- **WHEN** `ethos publish --json` runs in the ETHOS repository
 - **THEN** the result reports no required gaps for release files, hosted profile
   templates, protected refs, version alignment, attestation formats,
   publication topology, and local command owners
@@ -381,7 +381,7 @@ ETHOS SHALL emit deterministic release attestation and SBOM projections without
 publishing them as independent truth.
 
 #### Scenario: Attestation is generated
-- **WHEN** `ethos quality release-attestation --json` runs
+- **WHEN** `tools/ci/scripts/run-release-supply-chain.sh` runs
 - **THEN** the result includes an in-toto-shaped statement with SLSA-style
   builder facts and an SPDX-lite SBOM projection derived from repository
   metadata
@@ -392,7 +392,7 @@ service-side verification status without requiring tracked historical alias
 metadata.
 
 #### Scenario: Current commit policy is audited
-- **WHEN** `ethos quality commits --enforce-head --json` runs
+- **WHEN** `tools/ci/scripts/run-head-bound-proof.sh` runs
 - **THEN** the result reports local identity, subject, and signature gaps
   without inferring GitLab verification from local Git output
 
@@ -1308,18 +1308,7 @@ precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
 
 Publication SHALL comprise local verification/install plus independent GitLab
 organization and GitHub public targets. The remotes have equal `repository`,
-`ci_cd`, and `publication` capability and no authority ordering. The required
-`[publication]` declaration SHALL contain only non-empty, valid, distinct named
-scalars `gitlab_remote` and `github_remote`; absent, unknown, compact-list, or
-verbose-record forms SHALL fail closed. Admission always enforces that topology
-and permits only `dev`, `main`, and `proposal/*`; local branches remain excluded.
-`ethos publish` only observes targets and rejects positional arguments.
-
-#### Scenario: explicit remote admission preserves local candidate isolation
-
-- **WHEN** pre-push admission receives a named declared target and `candidate/dev`
-- **THEN** it SHALL reject the destination before proof admission
-- **AND** it SHALL emit `publication_candidate_branch_remote_forbidden:candidate/dev`.
+`ci_cd`, and `publication` capability and no authority ordering.
 
 #### Scenario: independent remote observations remain no-push
 
@@ -1327,6 +1316,19 @@ and permits only `dev`, `main`, and `proposal/*`; local branches remain excluded
 - **THEN** it SHALL expose each target separately
 - **AND** `remote_push` SHALL remain `not_performed`
 - **AND** hosted CI status SHALL remain unclaimed.
+
+### Requirement: Strict remote publication admission
+
+The required `[publication]` declaration SHALL contain only non-empty, valid,
+distinct named scalars `gitlab_remote` and `github_remote`. Admission SHALL
+permit only `dev`, `main`, and `proposal/*`; local branches remain excluded.
+`ethos publish` SHALL only observe targets and reject positional arguments.
+
+#### Scenario: explicit remote admission preserves local candidate isolation
+
+- **WHEN** pre-push admission receives a named declared target and `candidate/dev`
+- **THEN** it SHALL reject the destination before proof admission
+- **AND** it SHALL emit `publication_candidate_branch_remote_forbidden:candidate/dev`.
 
 #### Scenario: non-canonical declaration fails closed
 
@@ -2717,7 +2719,7 @@ authorize protected publication or a terminal-completion claim.
 - **WHEN** Campaign publication projection selects local continuation or
   protected publication
 - **THEN** the domain projection returns a stable action identifier
-- **AND** CLI command text is resolved through `system/commands.toml`.
+- **AND** CLI command text is derived from concrete Cyclopts operation declarations.
 
 #### Scenario: Filtered Campaign status preserves repository scope
 

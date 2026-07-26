@@ -28,7 +28,7 @@ budget = [
 extensions = [".svg", ".png"]
 carrier = "Brand presentation asset"
 owner = "assets/brand/"
-execution = "ethos quality asset-policy --json"
+execution = "tools/ci/scripts/run-format-selection.sh"
 truth_boundary = "repository-owned public presentation projection"
 
 [[format]]

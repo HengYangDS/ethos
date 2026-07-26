@@ -9,13 +9,12 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.contracts.workflow import CampaignWorkflowDeclaration
-from ethos.contracts.workflow import load_workflow_contract_declaration
+from ethos.contracts.lifecycle.declaration import CampaignLifecycleDeclaration
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 from ethos.repository.adoption.practice.selection import selection_ref_gaps
 from ethos.repository.adoption.practice.selection import selection_summary
+from ethos.repository.context import LIFECYCLE_COMMANDS
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos.repository.registry.docs.commands import KNOWN_ETHOS_COMMANDS
-from ethos.repository.registry.docs.commands import best_ethos_command_key
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -101,8 +100,7 @@ def _proof_ref_resolves(root: Path, ref: str) -> bool:
 
 
 def _known_ethos_command_ref(ref: str) -> bool:
-    key = best_ethos_command_key(ref)
-    return bool(key and key in KNOWN_ETHOS_COMMANDS)
+    return any(ref == command or ref.startswith(f"{command} ") for command in LIFECYCLE_COMMANDS)
 
 
 def _path_like(ref: str) -> bool:
@@ -120,7 +118,7 @@ def campaign_report(root: Path, *, campaign_id: str | None = None) -> dict[str, 
     return {"ok": not gaps, "campaign_count": len(campaigns), "active_count": len(active), "required_gaps": gaps, "campaigns": campaigns}
 
 
-def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: CampaignWorkflowDeclaration) -> tuple[list[dict[str, Any]], list[str]]:
+def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: CampaignLifecycleDeclaration) -> tuple[list[dict[str, Any]], list[str]]:
     campaigns_root = _campaigns_root(root)
     if not campaigns_root.exists():
         return [], []
@@ -152,7 +150,7 @@ def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: Campaign
     return campaigns, gaps
 
 
-def _campaign_payload(root: Path, path: Path, payload: dict[str, Any], *, policy: CampaignWorkflowDeclaration) -> dict[str, Any]:
+def _campaign_payload(root: Path, path: Path, payload: dict[str, Any], *, policy: CampaignLifecycleDeclaration) -> dict[str, Any]:
     steps = [_step_payload(item) for item in _list_items(payload.get("step"))]
     publication = payload.get("publication")
     return {"id": str(payload["id"]), "state": str(payload["state"]), "owner": str(payload["owner"]), "objective": str(payload["objective"]), "claim_id": str(payload["claim_id"]), "publication": {"mode": str(publication.get("mode") or "") if isinstance(publication, dict) else ""}, "path": path.relative_to(root).as_posix(), "steps": steps, "step_summary": _step_summary(steps, policy=policy), "lane_topology": _lane_topology(steps, policy=policy)}
@@ -165,14 +163,14 @@ def _step_payload(item: dict[str, Any]) -> dict[str, Any]:
     return {**{field: str(item.get(field) or default) for field, default in (("id", ""), ("title", ""), ("state", "planned"))}, "ordinal": ordinal, "depends_on": [str(value) for value in item.get("depends_on", [])], **{field: str(item.get(field) or "") for field in ("openspec_change", "work_lane", "claim_id")}, "closeout": {**{field: str(closeout.get(field) or default) for field, default in (("state", "planned"), ("accepted_head", ""), ("candidate_head", ""))}, "evidence": [str(value) for value in closeout.get("evidence", [])]}}
 
 
-def _lane_topology(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration) -> dict[str, Any]:
+def _lane_topology(steps: list[dict[str, Any]], *, policy: CampaignLifecycleDeclaration) -> dict[str, Any]:
     active_states = set(policy.step_execution_states) | set(policy.step_archived_states)
     planned_states = set(policy.step_planned_states)
     active = [step["id"] for step in steps if step["state"] in active_states]
     return {"kind": policy.topology_kind, "mode": policy.topology_mode, "step_count": len(steps), "active_step": active[0] if len(active) == 1 else "", "active_steps": active, "next_planned_step": next((step["id"] for step in steps if step["state"] in planned_states), ""), "edges": [{"from": dependency, "to": step["id"], "rule": policy.dependency_rule} for step in steps for dependency in step["depends_on"]]}
 
 
-def _step_summary(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration) -> dict[str, int]:
+def _step_summary(steps: list[dict[str, Any]], *, policy: CampaignLifecycleDeclaration) -> dict[str, int]:
     planned = set(policy.step_planned_states)
     active = set(policy.step_execution_states) | set(policy.step_archived_states)
     terminal, closeout_terminal = set(policy.step_terminal_states), set(policy.closeout_terminal_states)
@@ -219,7 +217,7 @@ def evolution_candidates(root: Path) -> dict[str, object]:
 
 def _audit_signal_candidates() -> list[dict[str, Any]]:
     return [
-        {"id": "release-readiness-ratchet", "campaign": "ethos-release-hardening", "state": "ready", "owner": "ethos-maintainers", "claim": "Release readiness should keep gaining deterministic checks.", "challenge": "A clean report can still hide unmodeled ecosystem drift.", "transition": "observe -> shape", "proof_refs": ["ethos quality release-policy --json"], "review_refs": ["tests/unit/test_release_policy_and_attestation.py"], "decision_refs": ["docs/governance/release-governance.md"], "retirement_conditions": ["release policy emits no advisory gaps"]},
+        {"id": "release-readiness-ratchet", "campaign": "ethos-release-hardening", "state": "ready", "owner": "ethos-maintainers", "claim": "Release readiness should keep gaining deterministic checks.", "challenge": "A clean report can still hide unmodeled ecosystem drift.", "transition": "observe -> shape", "proof_refs": ["ethos publish --json"], "review_refs": ["tests/unit/test_release_policy_and_attestation.py"], "decision_refs": ["docs/governance/release-governance.md"], "retirement_conditions": ["release policy emits no advisory gaps"]},
     ]
 
 
@@ -227,9 +225,5 @@ def _list_items(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
 
-def campaign_policy(root: Path) -> CampaignWorkflowDeclaration:
-    policy = load_workflow_contract_declaration(root).campaign
-    if policy is None:
-        message = "campaign workflow policy missing"
-        raise ValueError(message)
-    return policy
+def campaign_policy(root: Path) -> CampaignLifecycleDeclaration:
+    return load_lifecycle_declaration(root).campaign

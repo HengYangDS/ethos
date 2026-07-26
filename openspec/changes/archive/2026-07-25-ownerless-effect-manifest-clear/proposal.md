@@ -1,8 +1,8 @@
 ## Why
 
 Three clean ownerless lanes were semantically absorbed, then removed through
-transient exact preservation because direct WCP retirement correctly failed
-closed on diverged history. Their branches and worktrees are absent, while the
+transient exact preservation because direct retirement correctly failed closed
+on diverged history. Their branches and worktrees are absent, while the
 three verified packages remain. Those packages are recovery bridges rather than
 product archives and now require a separate accepted exact-manifest clearance
 carrier.

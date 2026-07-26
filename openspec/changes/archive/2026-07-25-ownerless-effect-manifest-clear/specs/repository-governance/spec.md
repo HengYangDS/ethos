@@ -19,17 +19,18 @@ lane-specific semantic judgment before any native retirement effect.
 - **AND** any renewed owner, identity drift, Chronicle drift, or occupancy SHALL
   block the effect.
 
-#### Scenario: diverged clean source uses a transient exact bridge after WCP no-effect
+#### Scenario: diverged clean source uses a transient exact bridge after direct-retirement no-effect
 
 - **GIVEN** accepted semantic evidence selects direct retire for an exact clean
   ownerless lane
-- **AND** WCP rejects the effect without mutation because the diverged source is
-  not an accepted ancestor
+- **AND** direct-retirement admission rejects the effect without mutation because
+  the diverged source is not an accepted ancestor
 - **WHEN** a later accepted reconciliation selects
   `lane_resolution/preserve-retire` for that same exact branch and head
 - **THEN** the package SHALL be a transient content-addressed effect bridge and
   SHALL NOT reverse the semantic absorption judgment
-- **AND** no WCP bypass, raw Git deletion, or valid-owner takeover is authorized
+- **AND** no direct-retirement-admission bypass, raw Git deletion, or valid-owner
+  takeover is authorized
 - **AND** package clear SHALL require a later accepted binding to the exact
   decision ID and manifest SHA-256.
 
@@ -57,7 +58,7 @@ lane-specific semantic judgment before any native retirement effect.
 
 - **GIVEN** accepted reconciliation authorized transient
   `lane_resolution/preserve-retire` for exact clean ownerless lanes only after
-  direct retirement reached a WCP no-effect boundary
+  direct retirement reached a no-effect boundary
 - **AND** native effects removed the exact branches and worktrees while retaining
   verified packages with empty tracked and index patches
 - **WHEN** a separate accepted successor binds each exact decision ID,

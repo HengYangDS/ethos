@@ -156,6 +156,174 @@ def test_annotated_known_module_and_function_aliases_are_audited(
     ("source", "kind", "suffix"),
     [
         (
+            "import subprocess\n"
+            "import os\n"
+            "process = subprocess\n"
+            "process = os\n"
+            "process.system('git status')\n",
+            "mandatory_executable_shell_true",
+            "",
+        ),
+        (
+            "import os\n"
+            "import subprocess\n"
+            "process = os\n"
+            "process = subprocess\n"
+            "process.run(['tar', '--version'])\n",
+            "mandatory_executable_undeclared",
+            ":tar",
+        ),
+        (
+            "import os\ninvoke = os.execv\ninvoke = os.system\ninvoke('git')\n",
+            "mandatory_executable_shell_true",
+            "",
+        ),
+        (
+            "import subprocess\n"
+            "import os\n"
+            "process: object = subprocess\n"
+            "process: object = os\n"
+            "process.system('git status')\n",
+            "mandatory_executable_shell_true",
+            "",
+        ),
+        (
+            "import os\ninvoke: object = os.execv\ninvoke: object = os.system\ninvoke('git')\n",
+            "mandatory_executable_shell_true",
+            "",
+        ),
+    ],
+)
+def test_rebound_known_execution_aliases_fail_closed(
+    tmp_path: Path,
+    source: str,
+    kind: str,
+    suffix: str,
+) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, kind, relative)
+    assert gaps[0].endswith(suffix)
+
+
+def test_execution_aliases_are_resolved_at_each_call_site(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "import os\n"
+        "import subprocess\n"
+        "process = os\n"
+        "process.system('git status')\n"
+        "process = subprocess\n"
+        "process.run(['tar', '--version'])\n",
+    )
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    assert f"mandatory_executable_shell_true:{_BINDING_ID}:{relative}:4" in gaps
+    assert f"mandatory_executable_undeclared:{_BINDING_ID}:{relative}:6:tar" in gaps
+
+
+@pytest.mark.parametrize(
+    ("source", "kind", "suffix"),
+    [
+        (
+            "import os\n"
+            "import subprocess\n"
+            "if condition:\n"
+            "    process = subprocess\n"
+            "else:\n"
+            "    process = os\n"
+            "process.run(['tar', '--version'])\n",
+            "mandatory_executable_undeclared",
+            ":tar",
+        ),
+        (
+            "import os\n"
+            "import subprocess\n"
+            "if condition:\n"
+            "    process = subprocess\n"
+            "else:\n"
+            "    process = os\n"
+            "process.system('git status')\n",
+            "mandatory_executable_shell_true",
+            "",
+        ),
+        (
+            "import os\n"
+            "import subprocess\n"
+            "try:\n"
+            "    process = subprocess\n"
+            "except RuntimeError:\n"
+            "    process = os\n"
+            "process.run(['tar', '--version'])\n",
+            "mandatory_executable_undeclared",
+            ":tar",
+        ),
+    ],
+)
+def test_control_flow_rebound_aliases_fail_closed(
+    tmp_path: Path,
+    source: str,
+    kind: str,
+    suffix: str,
+) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, kind, relative)
+    assert gaps[0].endswith(suffix)
+
+
+def test_function_call_uses_late_global_execution_binding(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "def execute():\n"
+        "    process.run(['tar', '--version'])\n"
+        "import subprocess as process\n"
+        "execute()\n",
+    )
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, "mandatory_executable_undeclared", relative)
+    assert gaps[0].endswith(":tar")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import subprocess\nvalue: subprocess.run(['tar', '--version'])\n",
+        "import subprocess\n"
+        "def execute(value: subprocess.run(['tar', '--version'])):\n"
+        "    return value\n",
+        "import subprocess\n"
+        "def execute() -> subprocess.run(['tar', '--version']):\n"
+        "    return None\n",
+    ],
+)
+def test_evaluated_execution_annotations_are_audited(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, "mandatory_executable_undeclared", relative)
+    assert gaps[0].endswith(":tar")
+
+
+@pytest.mark.parametrize(
+    ("source", "kind", "suffix"),
+    [
+        (
             "import subprocess\ngetattr(subprocess, 'run')(['tar', '--version'])\n",
             "mandatory_executable_undeclared",
             ":tar",
@@ -219,6 +387,54 @@ def test_literal_getattr_outside_known_execution_apis_is_not_audited(
     _write(tmp_path, relative, source)
 
     assert _gaps(tmp_path, _declaration(relative)) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import asyncio.subprocess as proc\nproc.create_subprocess_exec('tar', '--version')\n",
+        "from asyncio import subprocess as proc\nproc.create_subprocess_exec('tar', '--version')\n",
+        "from asyncio.subprocess import create_subprocess_exec as invoke\n"
+        "invoke('tar', '--version')\n",
+        "import asyncio.subprocess\n"
+        "asyncio.subprocess.create_subprocess_exec('tar', '--version')\n",
+        "from asyncio import subprocess\nsubprocess.create_subprocess_exec('tar', '--version')\n",
+        "from asyncio.subprocess import create_subprocess_exec\n"
+        "create_subprocess_exec('tar', '--version')\n",
+        "import asyncio.subprocess as proc\n"
+        "getattr(proc, 'create_subprocess_exec')('tar', '--version')\n",
+        "from asyncio import subprocess as proc\n"
+        "getattr(proc, 'create_subprocess_exec')('tar', '--version')\n",
+    ],
+)
+def test_public_asyncio_subprocess_imports_are_audited(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, "mandatory_executable_undeclared", relative)
+    assert gaps[0].endswith(":tar")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import asyncio.subprocess as proc\nproc.create_subprocess_shell('git status')\n",
+        "from asyncio import subprocess\nsubprocess.create_subprocess_shell('git status')\n",
+        "from asyncio.subprocess import create_subprocess_shell\n"
+        "create_subprocess_shell('git status')\n",
+    ],
+)
+def test_public_asyncio_subprocess_shell_imports_are_audited(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_shell_true",
+        relative,
+    )
 
 
 @pytest.mark.parametrize(
@@ -327,6 +543,8 @@ def test_reassigned_execution_alias_terminates_and_fails_closed(tmp_path: Path) 
     [
         "import subprocess\ninvoke = subprocess.run\ninvoke(['git', 'status'])\n",
         "import asyncio\nasyncio.create_subprocess_exec('git', 'status')\n",
+        "import asyncio.subprocess\nasyncio.subprocess.create_subprocess_exec('git', 'status')\n",
+        "from asyncio import subprocess\nsubprocess.create_subprocess_exec('git', 'status')\n",
     ],
 )
 def test_declared_literal_git_is_allowed_through_new_execution_boundaries(
@@ -681,3 +899,19 @@ def test_empty_executable_allowlist_is_an_active_deny_all_contract(tmp_path: Pat
 
     _assert_gap(gaps, "mandatory_executable_undeclared", relative)
     assert gaps[0].endswith(":git")
+
+
+def test_os_executable_keyword_fallbacks_are_audited(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "import os\n"
+        "os.execv(file='tar', args=['tar', '--version'])\n"
+        "os.execv(args=['git', 'status'])\n",
+    )
+
+    assert _gaps(tmp_path, _declaration(relative)) == [
+        f"mandatory_executable_dynamic_argv0:{_BINDING_ID}:{relative}:3",
+        f"mandatory_executable_undeclared:{_BINDING_ID}:{relative}:2:tar",
+    ]

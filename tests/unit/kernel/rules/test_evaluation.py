@@ -164,7 +164,9 @@ def test_rule_evaluation_blocks_timeout_nondeterminism_and_conflicts(
     assert "fact_unresolved_conflicts:merge" in report["required_gaps"]
 
 
-def test_rule_evaluation_blocks_embedded_source_fact_gaps(tmp_path: Path) -> None:
+def test_rule_evaluation_ignores_non_authoritative_claim_and_registry_facts(
+    tmp_path: Path,
+) -> None:
     snapshot = complete_snapshot(phase="prove")
     snapshot.facts.update(
         {
@@ -176,15 +178,20 @@ def test_rule_evaluation_blocks_embedded_source_fact_gaps(tmp_path: Path) -> Non
                 {"ok": False, "stale": ["evidence/rules.md"]},
                 owner="ethos-repository.claims",
             ),
+            "command_registry": fact(
+                {"ok": False, "required_gaps": ["parallel_command_truth"]},
+                owner="ethos-repository.command-registry",
+            ),
         }
     )
 
     report = rules_evaluation_report(tmp_path, phase="prove", fact_snapshot=snapshot)
 
-    assert report["state"] == "block"
-    assert "fact_required_gap:claim_state:claim_digest_mismatch:rules" in report["required_gaps"]
-    assert "fact_not_ok:evidence_freshness" in report["required_gaps"]
-    assert "fact_stale_ref:evidence_freshness:evidence/rules.md" in report["required_gaps"]
+    assert not any(
+        name in gap
+        for gap in report["required_gaps"]
+        for name in ("claim_state", "evidence_freshness", "command_registry")
+    )
 
 
 def test_rule_evaluation_blocks_worktree_gaps_for_publish(tmp_path: Path) -> None:

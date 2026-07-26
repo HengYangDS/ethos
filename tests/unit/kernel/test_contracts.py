@@ -81,6 +81,25 @@ def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None
     assert facts.model_config["frozen"] is True
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ("/absolute",),
+        ("docs/../secrets",),
+        (r"docs\\windows",),
+        ("docs/**", "docs/**"),
+    ],
+)
+def test_change_contract_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None:
+    with pytest.raises(ValueError, match=r"change_scope_invalid|change_scope_duplicate"):
+        ChangeContract(
+            id="change:invalid-scope",
+            intent="Reject ambiguous scope.",
+            subjects=("repository:test",),
+            scope=scope,
+        )
+
+
 def test_repository_facts_digest_ignores_observation_time() -> None:
     facts = RepositoryFacts(
         repository="repository:ethos",

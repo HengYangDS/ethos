@@ -217,10 +217,11 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, m
 def test_adopt_rolls_back_profile_when_contract_write_fails(tmp_path: Path, monkeypatch) -> None:
     contract = tmp_path / ".ethos" / "contract.toml"
     original_replace = Path.replace
+    message = "contract replace failed"
 
     def fail_contract(path: Path, destination: Path) -> Path:
         if destination == contract:
-            raise OSError("contract replace failed")
+            raise OSError(message)
         return original_replace(path, destination)
 
     monkeypatch.setattr(Path, "replace", fail_contract)

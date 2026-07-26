@@ -54,7 +54,6 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos quality generated-artifacts",
     "ethos quality docs",
     "ethos quality docs-topology",
-    "ethos quality enterprise-readiness",
     "ethos quality markdown-links",
     "ethos quality shell",
     "ethos quality toml",

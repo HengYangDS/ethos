@@ -20,3 +20,14 @@ PlanIR ordering MUST use the standard-library graphlib implementation directly a
 #### Scenario: Plan dependencies contain a cycle
 - **WHEN** the compiled PlanIR dependency graph is cyclic
 - **THEN** planning blocks with a cycle diagnostic and executes zero effects
+
+### Requirement: Current Facts Exclude Historical Ledgers
+RuleFactSnapshot and PlanIR MUST derive current verdicts from Git, worktree,
+OpenSpec, host readiness, policy, and projection facts. Claims, Chronicle, and a
+parallel command registry MAY remain historical projections but MUST NOT be
+required current facts.
+
+#### Scenario: A historical claim or registry projection is stale
+- **WHEN** current repository facts and the ChangeContract are valid
+- **THEN** the historical projection does not block planning or proof
+- **AND** it cannot make a blocked current transition pass

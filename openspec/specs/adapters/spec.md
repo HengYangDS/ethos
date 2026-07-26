@@ -301,8 +301,9 @@ change is explicitly selected.
 - **WHEN** `ethos openspec --lifecycle --json` runs without `--change`
 - **THEN** lifecycle output includes every active change reported by official
   OpenSpec list output
-- **AND** each change is checked for carriers, claim binding, proposal metadata,
+- **AND** each change is checked for carriers, ChangeContract validity, proposal metadata,
   capability profile health, and out-of-scope boundaries.
+- **AND** only non-complete active Changes participate in material-write coverage
 
 ### Requirement: Optional tool adapters remain replaceable
 ETHOS SHALL expose optional adapter boundaries for environment runners, graph

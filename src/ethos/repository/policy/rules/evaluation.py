@@ -27,16 +27,10 @@ REQUIRED_CORE_FACTS = (
     "worktree",
     "prewrite",
     "openspec_state",
-    "claim_state",
-    "evidence_freshness",
     "host_readiness",
-    "command_registry",
     "projection_drift",
 )
 ALWAYS_FAIL_CLOSED_VALUE_FACTS = {
-    "claim_state",
-    "evidence_freshness",
-    "command_registry",
     "projection_drift",
     "openspec_state",
 }

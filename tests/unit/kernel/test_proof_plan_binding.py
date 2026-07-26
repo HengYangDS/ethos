@@ -141,6 +141,46 @@ def test_proof_plan_identity_changes_with_contract_head_or_policy(tmp_path: Path
     assert len({first.digest(), contract_changed.digest(), policy_changed.digest()}) == 3
 
 
+def test_proof_plan_selects_one_change_when_multiple_active_contracts_exist(
+    tmp_path: Path,
+) -> None:
+    repo, _head = _adopted_repo(tmp_path / "repo")
+    second = repo / "openspec" / "changes" / "second"
+    second.mkdir()
+    (second / "contract.toml").write_text(
+        'schema_version = 1\nid = "change:second"\nintent = "Second change."\n'
+        'subjects = ["repository:self"]\nscope = ["**"]\n',
+        encoding="utf-8",
+    )
+    head = _commit(repo, "add second change")
+
+    with pytest.raises(ValueError, match="change_contract_ambiguous"):
+        proof_plan(repo, head=head)
+
+    selected = proof_plan(repo, head=head, change_id="proof-binding")
+
+    assert selected.facts["values"]["change_id"] == "proof-binding"
+
+
+def test_proof_plan_ignores_complete_contract_at_committed_head(tmp_path: Path) -> None:
+    repo, _head = _adopted_repo(tmp_path / "repo")
+    active_tasks = repo / "openspec" / "changes" / "proof-binding" / "tasks.md"
+    active_tasks.write_text("- [ ] Prove\n", encoding="utf-8")
+    complete = repo / "openspec" / "changes" / "complete"
+    complete.mkdir()
+    (complete / "contract.toml").write_text(
+        'schema_version = 1\nid = "change:complete"\nintent = "Complete."\n'
+        'subjects = ["repository:self"]\nscope = ["**"]\n',
+        encoding="utf-8",
+    )
+    (complete / "tasks.md").write_text("- [x] Done\n", encoding="utf-8")
+    head = _commit(repo, "add complete historical change")
+
+    assert proof_plan(repo, head=head).facts["values"]["change_id"] == "proof-binding"
+    with pytest.raises(ValueError, match="change_contract_complete:complete"):
+        proof_plan(repo, head=head, change_id="complete")
+
+
 def test_record_executed_proof_requires_the_exact_executed_plan(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
 

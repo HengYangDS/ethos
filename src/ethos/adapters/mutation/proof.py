@@ -158,14 +158,15 @@ def proof_plan(
     root: Path,
     *,
     head: str,
+    change_id: str | None = None,
     gate_ids: tuple[str, ...] = (),
-    full: bool = False,
     changed_paths: tuple[str, ...] = (),
 ) -> PlanIR:
     """Compile the exact contract-, fact-, and policy-bound proof plan."""
-    contract = load_proof_contract(root, tree_ref=head)
+    contract = load_proof_contract(root, change_id=change_id, tree_ref=head)
     repository = load_repository_contract(root, tree_ref=head)
-    nodes, validation_issues = gate_nodes(gate_ids, full=full, root=root, tree_ref=head)
+    selected_change_id = contract.id.removeprefix("change:") if contract.id != repository.id else ""
+    nodes, validation_issues = gate_nodes(gate_ids, root=root, tree_ref=head)
     facts = RepositoryFacts(
         repository=repository.id,
         head=head,
@@ -173,6 +174,7 @@ def proof_plan(
         observed_at=datetime.now().astimezone(),
         values={
             "changed_paths": changed_paths,
+            "change_id": selected_change_id,
             "gate_ids": tuple(node.id for node in nodes),
         },
         source_refs=("git:HEAD", "git:HEAD^{tree}"),
@@ -385,10 +387,12 @@ def _proof_plan_matches(root: Path, head: str, plan: PlanIR) -> bool:
     changed_paths = (
         tuple(str(path) for path in changed) if isinstance(changed, list | tuple) else ()
     )
+    change_id = str(values.get("change_id") or "") if isinstance(values, dict) else ""
     try:
         expected = proof_plan(
             root,
             head=head,
+            change_id=change_id or None,
             gate_ids=tuple(node.id for node in plan.nodes),
             changed_paths=changed_paths,
         )

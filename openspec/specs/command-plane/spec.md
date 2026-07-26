@@ -17,11 +17,11 @@ ETHOS SHALL keep the normal user workflow under five public commands:
 - **AND** maintainer/reference commands are not counted as advanced public
   workflow commands
 
-#### Scenario: Workflow runtime projection is reported
-- **WHEN** `ethos plan --json` or `ethos status --json` projects workflow runtime state
-- **THEN** the projection is nested under existing command payloads
-- **AND** it does not add a new public lifecycle command
-- **AND** it references the same transition commands, guards, and evidence boundaries as the ETHOS command plane
+#### Scenario: PlanIR is the single transition projection
+- **WHEN** `ethos plan --json` compiles the current ChangeContract, repository
+  facts, and declared nodes
+- **THEN** it returns one deterministic `plan_ir`
+- **AND** no parallel workflow-runtime or domain-contract read model is emitted
 
 #### Scenario: Default payloads stay bounded
 - **WHEN** `ethos status --json` or `ethos plan --json` would exceed its declared
@@ -96,7 +96,7 @@ centered on `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 - **THEN** the payload includes official OpenSpec doctor, status, and strict
   validation results
 - **AND** it includes ETHOS lifecycle carrier review for proposal, design,
-  tasks, delta specs, capability profiles, claim bindings, evidence refs, and
+  tasks, delta specs, capability profiles, ChangeContract validity, evidence refs, and
   live-spec diff guards
 
 #### Scenario: OpenSpec adapter does not become a second public command plane
@@ -105,8 +105,8 @@ centered on `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 - **AND** raw OpenSpec CLI commands remain adapter implementation detail or
   maintainer reference rather than the adopter first-hour workflow
 
-#### Scenario: Runtime adoption uses OpenSpec as carrier
-- **WHEN** workflow runtime semantics are changed
+#### Scenario: Lifecycle semantics use OpenSpec as carrier
+- **WHEN** lifecycle or transition semantics are changed
 - **THEN** an OpenSpec change carrier records the intent and deltas
 - **AND** official OpenSpec validation remains carrier validation rather than runtime authority
 

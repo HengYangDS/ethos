@@ -40,11 +40,12 @@ SHALL NOT turn that text into a subsystem, feature map, or low-level implementat
 - **AND** derived axiom files remain subordinate to product docs and do not create
   a new truth center
 
-#### Scenario: Workflow runtime stays below the kernel
-- **WHEN** ETHOS evaluates workflow runtime state, handoff state, or skill eval metadata
-- **THEN** the runtime facts are expressible through the kernel chain
-- **AND** lifecycle truth is still derived from authority, subject, commitment, change, evidence, claim, and chronicle facts
-- **AND** generated runtime state does not outrank source, tests, schemas, docs, OpenSpec records, claims, evidence, or command JSON
+#### Scenario: Workflow declarations compile directly into PlanIR
+- **WHEN** ETHOS evaluates lifecycle, handoff, or skill-evaluation metadata
+- **THEN** tracked declarations and current facts compile directly into PlanIR
+- **AND** no parallel workflow-runtime read model or state store is required
+- **AND** generated projections do not outrank source, tests, schemas, docs,
+  OpenSpec records, attestations, evidence, or command JSON
 
 ### Requirement: Kernel Result Contract
 ETHOS SHALL emit stable JSON result envelopes with `ok`, `summary`,

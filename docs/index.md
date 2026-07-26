@@ -24,7 +24,6 @@ Start with [Start](start/quickstart.md), then read
 [Complete Implementation Roadmap](plans/complete-implementation-roadmap.md),
 [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
-[Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
 [Repository Profile Contract](governance/repository-profile-contract.md),
 [Optional Independent Verification Adoption](governance/independent-verification-adoption.md),
@@ -32,7 +31,6 @@ Start with [Start](start/quickstart.md), then read
 [Post-Publication Governance Plan](plans/post-publication-governance-plan.md),
 [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md),
 [Distribution](architecture/distribution.md),
-[Workflow Runtime](architecture/workflow-runtime.md),
 [Declarative Governance Compiler](architecture/declarative-governance-compiler.md),
 [PlanIR](architecture/plan-ir.md), and
 [Evolution](governance/evolution-campaign.md). Product gaps captured
@@ -79,7 +77,6 @@ or maintainer break-glass evidence.
 - Rule system: [Rules System](../rules/README.md)
 - Skills: [Skills](../.agents/skills/README.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
-- Enterprise readiness: [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
 - Optional independent verification: [Independent Verification Adoption](governance/independent-verification-adoption.md)
@@ -88,7 +85,6 @@ or maintainer break-glass evidence.
 - Post-publication governance: [Post-Publication Governance Plan](plans/post-publication-governance-plan.md)
 - Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
 - Distribution: [Distribution](architecture/distribution.md)
-- Workflow runtime: [Workflow Runtime](architecture/workflow-runtime.md)
 - Protocol contracts: [Protocol Contracts](architecture/protocol-contracts.md)
 - Agent projections: [Agent Projections](architecture/agent-projections.md)
 - Adoption profiles: [Adoption Profiles](architecture/adoption-profiles.md)

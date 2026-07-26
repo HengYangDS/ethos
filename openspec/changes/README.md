@@ -4,7 +4,7 @@ Active Change folders are ETHOS case carriers. Their `<change-id>` is a
 date-free lower-kebab identifier beginning with a letter; a terminal
 `YYYYMMDD` suffix is not part of the logical identity. They record intended change and
 review state; they do not supersede source, tests, schemas, governed docs,
-accepted specs, claims, or evidence until closeout promotes those surfaces.
+accepted specs or evidence until closeout promotes those surfaces.
 
 Create a new folder for non-trivial governance semantics. Do not reuse an
 archived or complete change as the default container for new work.
@@ -16,22 +16,23 @@ A complete active change must contain:
   product-shape changes, or cross-surface governance changes.
 - `tasks.md` with review-sized checklist items.
 - `specs/<capability>/spec.md` deltas using official OpenSpec sections.
-- an active trust-bearing claim whose `carriers.openspec` points at the change.
+- `contract.toml` with the governed repository subject and bounded scope.
 
-When an adopter declares material paths, add the ETHOS-owned companion:
+Declare active material coverage in the same ChangeContract:
 
 ```toml
-# openspec/changes/<change-id>/scope.toml
+# openspec/changes/<change-id>/contract.toml
 schema_version = 1
-paths = ["docs/governance/**", "openspec/changes/<change-id>/**"]
+id = "change:<change-id>"
+intent = "Describe the intended outcome."
+subjects = ["repository:self"]
+scope = ["docs/governance/**", "openspec/changes/<change-id>/**"]
 ```
 
-The companion binds material changed paths to the official active or archiving
-Change selection; it does not alter the official OpenSpec workflow schema.
-Create the Change with the official `openspec new change <change-id>` command
-first. Prewrite may bootstrap only that exact absent companion. Thereafter it
-must validate and cover itself as well as all material writes; no whole Change
-directory is exempt from admission.
+The contract binds material paths to the official active Change selection; it
+does not alter the official OpenSpec workflow schema. Create the Change with the
+official `openspec new change <change-id>` command, then add its contract before
+material writes. No parallel scope carrier or bootstrap exception exists.
 
 Use `template.md` as the authoring scaffold and validate with:
 

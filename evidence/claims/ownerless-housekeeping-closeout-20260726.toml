@@ -1,8 +1,8 @@
 [claim]
 id = "ownerless-housekeeping-closeout-20260726"
 subject = "ethos:work-lane-cohort:ownerless-housekeeping-closeout"
-state = "active"
-summary = "This active Claim bounds one accepted authority carrier for three exact clean missing-lease lanes and explicitly excludes seven valid-owner lanes, network actions, and raw cleanup."
+state = "superseded"
+summary = "This accepted cohort Claim is superseded by ownerless-retire-chronicle-repair-20260726 after the first budget direct-retire decision exposed an effect-side Chronicle contract gap. Its completed release preservation and original authority boundary remain historical evidence."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-housekeeping-closeout-20260726/2026-07-26.md"

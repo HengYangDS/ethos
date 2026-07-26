@@ -10,7 +10,7 @@ receipt="${out}/executed-proof.json"; stderr="${out}/executed-proof.stderr.log";
 mkdir -p "${out}" "${readiness}"; rm -f "${receipt}" "${stderr}" "${audit}" "${report}"
 uv run ethos audit --json >"${audit}"
 set +e; uv run ethos prove --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"; proof_status=$?; set -e
-uv run ethos report --json >"${report}"
+uv run ethos status --json >"${report}"
 set +e
 python3 - "${audit}" "${report}" "${receipt}" <<'PY'
 import hashlib, json, sys

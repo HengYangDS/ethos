@@ -71,19 +71,6 @@ material_paths = [
 unknown fields and invalid types; the loaded declaration is frozen. Omitted
 sections use contract-owned defaults rather than repeated generated text.
 
-### Former Profile Envelope
-
-ETHOS accepts one explicit former envelope while adopters migrate: the complete
-`schema_version = 1`, `profile_version = "1"`,
-`ethos_contract_version = "1"`, and two-field `[repository]` metadata block.
-Those retired fields are removed before the current strict declaration is
-validated. When, and only when, that complete envelope also contains the former
-`roots.rules = "."` workaround, ETHOS removes that invalid root value and derives
-`normative_sources = ["guidelines.md"]` only if the profile did not already declare
-normative sources. This is a bounded migration bridge, not permission for current
-profiles to use `.` as a root. Partial, malformed, extended, or current-profile
-uses of the workaround remain `adopter_profile_invalid:.ethos/profile.toml`.
-
 ### Normative Sources
 
 `roots.rules` remains a safe repository-relative root; it is not the repository

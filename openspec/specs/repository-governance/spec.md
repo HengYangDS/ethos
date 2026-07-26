@@ -3136,29 +3136,19 @@ external receipt.
 - **THEN** accepted closeout requires an external control-replacement receipt outside the candidate tree
 - **AND** the receipt binds exact accepted and candidate heads, control paths, both control digests, verifier digest, and executed-proof digest
 
-### Requirement: Adopter profile is a strict, migratable repository binding
-ETHOS SHALL validate adopter profiles through one typed current binding. It may
-accept only explicitly enumerated historical fields needed for deterministic
-normalization. Normalization discards only retired metadata and translates former
-`roots.rules = "."` only with its complete historical envelope; unknown,
-malformed, or incompatible data SHALL fail.
+### Requirement: Adopter profile is a strict current repository binding
+ETHOS SHALL validate adopter profiles directly through one typed current binding.
+Unknown, malformed, or incompatible data SHALL fail without normalization,
+reinterpretation, or synthesized declarations.
 
-#### Scenario: Former profile normalizes to the current contract
-- **WHEN** an adopter profile contains the historical version metadata and
-  repository metadata with their declared historical values, including the
-  former `roots.rules = "."` workaround for one root-level normative file
-- **THEN** ETHOS SHALL load the profile as valid current contract data
-- **AND** it SHALL preserve current typed roots, proof gates, and OpenSpec
-  material paths
-- **AND THEN** it SHALL derive `normative_sources = ["guidelines.md"]` only
-  when that former declaration did not already declare normative sources.
-
-#### Scenario: Unsupported legacy data remains blocked
-- **WHEN** an adopter profile contains an unknown field, an invalid path, a
-  malformed retired field, or a current-profile use of `roots.rules = "."`
+#### Scenario: Former envelope and invalid root remain blocked
+- **WHEN** an adopter profile contains former envelope fields, including
+  `schema_version`, `profile_version`, `ethos_contract_version`, or
+  `[repository]`, or declares `roots.rules = "."`
 - **THEN** ETHOS SHALL report
   `adopter_profile_invalid:.ethos/profile.toml`
-- **AND** it SHALL not silently ignore or reinterpret the data.
+- **AND** it SHALL not silently ignore, normalize, or reinterpret the data
+- **AND** it SHALL not synthesize `normative_sources`.
 
 ### Requirement: Normative files remain distinct from directory roots
 ETHOS SHALL allow an adopter profile to declare one or more repository-relative

@@ -215,53 +215,13 @@ def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> Repos
     declaration = None
     if exists:
         with suppress(tomllib.TOMLDecodeError, ValidationError):
-            declaration = RepositoryProfileDeclaration.model_validate(
-                _normalize_legacy_profile_payload(tomllib.loads(text))
-            )
+            declaration = RepositoryProfileDeclaration.model_validate(tomllib.loads(text))
     return RepositoryProfile(
         root=repo,
         exists=exists,
         source=".ethos/profile.toml" if exists else "",
         declaration=declaration,
     )
-
-
-def _normalize_legacy_profile_payload(payload: object) -> object:
-    """Normalize the one explicit former profile declaration before validation.
-
-    The former envelope carried version and repository-identification metadata
-    that no longer participates in the typed binding.  Its former root-level
-    rules workaround is normalized only with that complete historical shape;
-    partial or malformed legacy data remains invalid under the strict validator.
-    """
-    if not isinstance(payload, dict):
-        return payload
-    retired = ("schema_version", "profile_version", "ethos_contract_version", "repository")
-    if not any(key in payload for key in retired):
-        return payload
-    repository = payload.get("repository")
-    repository_fields = repository if isinstance(repository, dict) else {}
-    kind = repository_fields.get("kind")
-    root_subject = repository_fields.get("root_subject")
-    expected = (
-        payload.get("schema_version") == 1
-        and payload.get("profile_version") == "1"
-        and payload.get("ethos_contract_version") == "1"
-        and set(repository_fields) == {"kind", "root_subject"}
-        and isinstance(kind, str)
-        and bool(kind)
-        and isinstance(root_subject, str)
-        and bool(root_subject)
-    )
-    if not expected:
-        return payload
-    normalized = {key: value for key, value in payload.items() if key not in retired}
-    roots = normalized.get("roots")
-    if isinstance(roots, dict) and roots.get("rules") == ".":
-        normalized["roots"] = {key: value for key, value in roots.items() if key != "rules"}
-        if normalized.get("normative_sources") is None:
-            normalized["normative_sources"] = ["guidelines.md"]
-    return normalized
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:

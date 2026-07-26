@@ -3652,190 +3652,6 @@ ledger conflicts through the generic semantic ledger path.
 - **THEN** ETHOS does not auto-resolve it from the historical Claim or archive
 - **AND** the generic current conflict rules either resolve it or fail closed.
 
-### Requirement: Ownerless closeout admission is consumed at the effect boundary
-
-ETHOS SHALL retire a clean linked ownerless Work Lane only when the effect
-executor validates every admission binding returned by the retired external
-verifier, atomically fences the exact
-target against lease acquisition, re-observes the admitted target after the
-fence is held, and executes an accepted-ref-bound exact deletion CAS without a
-force flag. It SHALL issue a completion receipt only after all native
-postconditions are verified.
-
-#### Scenario: exact ownerless target is retired
-
-- **GIVEN** an accepted clean ownerless work/* lane and immutable resolution
-  decision name the same branch, head, path, Chronicle, and observation
-- **AND** the retired external verifier returns the same executor, accepted
-  head, decision digest,
-  coordination binding, accepted-ancestor relation, and clear occupancy
-- **WHEN** ETHOS atomically acquires the exact target fence and all bindings
-  remain unchanged
-- **THEN** ETHOS SHALL prepare accepted-ref verification plus exact target-ref
-  deletion, remove the registered worktree without force, and commit
-- **AND** it SHALL verify explicit ref absence, worktree registration absence,
-  path absence, accepted head, coordination, decision, and fence postconditions
-  before writing a fully bound receipt.
-
-#### Scenario: decision snapshot replacement is rejected
-
-- **GIVEN** effect or completed-effect recovery already admitted decision
-  payload A
-- **WHEN** the decision path contains a different valid payload B before the
-  retired external verifier,
-  fence acquisition, or recovery postcondition verification
-- **THEN** ETHOS SHALL reject the effect before Git, worktree, fence, or
-  reservation mutation
-- **AND** every later binding SHALL derive from one strictly parsed decision
-  snapshot.
-
-#### Scenario: late coordination or competing decision blocks zero-effect
-
-- **GIVEN** the retired external verifier returned an ownerless admission
-- **WHEN** a lease, Claim, accepted-head drift, decision drift, path drift, or
-  another target reservation wins before ETHOS acquires or consumes the fence
-- **THEN** ETHOS SHALL perform no Git or worktree effect
-- **AND** it SHALL report the exact blocking binding without minting ownership.
-
-#### Scenario: worktree-remove failure is re-observed
-
-- **GIVEN** the ref transaction is prepared for one exact target
-- **WHEN** git worktree remove returns non-zero
-- **THEN** ETHOS SHALL re-read the target ref, worktree registration, and path
-- **AND** it SHALL retain reserved_no_effect only when all three remain
-  unchanged
-- **AND** it SHALL otherwise record worktree_removed_ref_present or
-  transition_unknown for explicit reconciliation.
-
-#### Scenario: zero-effect retry is rebound after accepted history advances
-
-- **GIVEN** one exact reservation remains in reserved_no_effect for the same
-  decision, target, and executor, and no Git or worktree effect occurred
-- **WHEN** a fresh external-verifier admission accepts the unchanged target
-  against an accepted head that is
-  equal to or a descendant of the reservation's accepted head
-- **THEN** ETHOS SHALL re-verify the decision, observation, coordination,
-  accepted ancestry, and exact old fence when present
-- **AND** it SHALL release the old fence through exact CAS before exact
-  compare-and-delete of the old reservation, then acquire a fresh fence and
-  reservation before any effect
-- **AND** an explicitly absent old fence MAY converge only as the crash window
-  after exact fence release and before reservation unlink, with the same fresh
-  external-verifier admission and zero-effect proof
-- **AND** a divergent accepted head, different or unverifiable fence, executor
-  drift, target drift, decision drift, or coordination drift SHALL block without
-  Git or worktree effect.
-
-#### Scenario: target-ref inspection is three state
-
-- **GIVEN** ownerless effect postconditions are being verified
-- **WHEN** the exact target ref is present, explicitly absent, or cannot be
-  inspected
-- **THEN** only explicit absence SHALL satisfy the postcondition
-- **AND** an inspection error or exception SHALL fail closed rather than being
-  treated as absence.
-
-#### Scenario: destructive partial transition remains visible and recoverable
-
-- **GIVEN** the target fence and visible ownerless target reservation exist for
-  one exact decision
-- **WHEN** worktree removal, ref commit, postcondition verification, receipt
-  persistence, or cleanup becomes partial or uncertain
-- **THEN** inventory SHALL expose the target, decision, phase, and observed
-  recovery state
-- **AND** ETHOS SHALL retain visible evidence until the same decision safely
-  completes or a separate explicit reconciliation transition resolves it.
-
-#### Scenario: receipt-present cleanup retry converges
-
-- **GIVEN** the exact immutable completion receipt is durable and cleanup is
-  incomplete after a crash, whether the visible ownerless reservation remains
-  or its unlink already completed
-- **WHEN** the same decision retries
-- **THEN** ETHOS SHALL validate the receipt schema and exact
-  decision/lane/head/ownerless binding, re-verify effect postconditions, and
-  perform only idempotent cleanup
-- **AND** it SHALL NOT rerun the retired external verifier, repeat a
-  Git/worktree effect, recreate effect
-  authority, or rewrite the immutable receipt
-- **AND** a mismatched receipt, different fence, or unverifiable fence state
-  SHALL block.
-
-#### Scenario: closeout-fence inspection is three state
-
-- **GIVEN** pre-effect or receipt-present recovery inspects the exact target fence
-- **WHEN** the fence is exactly present, explicitly absent, or cannot be verified
-- **THEN** pre-effect SHALL require the exact present fence
-- **AND** zero-effect retry reset MAY accept explicit absence only with the exact
-  reserved_no_effect record, a fresh external-verifier admission, and
-  unchanged target proof
-- **AND** completed-effect recovery MAY accept explicit absence only with the
-  exact immutable receipt and matching non-fence postconditions
-- **AND** an unreadable, malformed, missing-store, or otherwise unverifiable
-  fence state SHALL fail closed.
-
-#### Scenario: successful cleanup preserves ordering
-
-- **GIVEN** an exact completion receipt has been persisted
-- **WHEN** ETHOS cleans ownerless coordination
-- **THEN** it SHALL release the SQLite target fence through exact CAS before
-  deleting the visible ownerless target reservation
-- **AND** a fence-release failure SHALL retain the visible reservation.
-
-#### Scenario: effect-complete recovery precedes ordinary observation
-
-- **GIVEN** the reservation state is effect_complete_receipt_missing
-- **WHEN** the same decision retries
-- **THEN** ETHOS SHALL recover or validate the exact completion receipt before
-  ordinary lane observation
-- **AND** it SHALL NOT depend on observing a worktree already removed by the
-  completed effect.
-
-#### Scenario: dangling path and post-CAS exception fail closed
-
-- **GIVEN** ownerless effect or postconditions are being evaluated
-- **WHEN** the target path is a dangling symlink or an ordinary exception occurs
-  after the CAS boundary
-- **THEN** the path SHALL remain present for safety evaluation
-- **AND** the exception SHALL become transition_unknown with explicit
-  reconciliation required.
-
-#### Scenario: published retired external-verifier coordination shape is exact
-
-- **GIVEN** the retired external verifier returns the currently published
-  ownerless coordination object
-- **WHEN** a required coordination field is missing, has the wrong type or
-  value, or an unpublished field such as lease_id, holder_ref, or lease is
-  present
-- **THEN** ETHOS SHALL reject the admission with a stable field-specific gap
-- **AND** it SHALL NOT infer compatibility with an unversioned future shape.
-
-#### Scenario: canonical and legacy reservations disagree
-
-- **GIVEN** canonical and legacy artifact roots contain valid reservations for
-  the same decision
-- **WHEN** any validated field differs, including phase, recovery_state, or
-  postcondition_digest
-- **THEN** inventory SHALL report a blocking record conflict
-- **AND** it SHALL NOT select one root as authoritative for effect recovery.
-
-#### Scenario: receipt compatibility is one way
-
-- **GIVEN** historical unversioned completion receipts may remain readable
-- **WHEN** ETHOS writes a new completion receipt
-- **THEN** the writer SHALL emit schema_version = 2
-- **AND** explicit receipt versions other than 2 SHALL be invalid
-- **AND** ownerless executor references SHALL satisfy the canonical
-  provider-neutral HolderRef wire contract.
-
-#### Scenario: damaged fence payload preserves independent lease truth
-
-- **GIVEN** the lease table and closeout-fence table schemas are current
-- **WHEN** one closeout-fence payload cannot be decoded as a JSON object
-- **THEN** state inventory SHALL report the closeout-fence projection invalid
-- **AND** it SHALL continue to report the independently validated lease schema
-  as current.
-
 ### Requirement: Post-lease ownerless remainders receive lane-specific semantic absorption
 
 ETHOS SHALL resolve post-lease ownerless remainder lanes through exact
@@ -3905,3 +3721,218 @@ lane-specific semantic judgment before any native retirement effect.
   emit a durable clear receipt
 - **AND** a changed manifest, duplicate package, missing receipt, wildcard clear,
   raw deletion, fourth package, or valid-owner mutation SHALL remain blocked.
+
+### Requirement: Native ownerless closeout authority is consumed at the effect boundary
+
+ETHOS SHALL retire a clean linked ownerless Work Lane only when its native effect
+executor validates the immutable decision and Chronicle, configured Work Lane
+role, exact Git worktree registration and incarnation, clean ownerless
+coordination state, accepted ancestry, and a complete fence-held re-observation.
+It SHALL execute a no-force worktree removal and accepted-ref-bound exact target
+deletion CAS, verify all postconditions, and only then issue a provider-neutral
+completion receipt. No external verifier, adapter response, predecessor record
+root, or compatibility alias SHALL be required for current authority.
+
+#### Scenario: exact ownerless target is retired natively
+
+- **GIVEN** an immutable decision and Chronicle name one clean ownerless Work
+  Lane whose branch has the configured Work Lane role
+- **AND** Git registration, path, HEAD, incarnation, accepted ancestry, lease,
+  Claim, holder, and target digests match the decision
+- **WHEN** ETHOS acquires the exact target fence and the complete observation
+  remains unchanged
+- **THEN** ETHOS SHALL verify the accepted ref, remove the registered worktree
+  without force, delete the exact target ref through CAS, and verify explicit
+  ref, registration, path, coordination, decision, and fence postconditions
+- **AND** it SHALL write the immutable completion receipt only after those
+  postconditions pass.
+
+#### Scenario: decision or Chronicle replacement is rejected
+
+- **GIVEN** effect or completed-effect recovery admitted one decision snapshot
+  and its bound Chronicle
+- **WHEN** either file bytes, digest, disposition, lane identity, or observation
+  binding changes before effect or recovery verification
+- **THEN** ETHOS SHALL reject the transition before any new Git, worktree,
+  fence, reservation, cleanup, or receipt effect.
+
+### Requirement: Preserve-retire consumes one accepted target-bound Chronicle
+
+For `lane_resolution/preserve-retire`, ETHOS SHALL read the Chronicle from the
+configured accepted control checkout, not the invoking Work Lane. Its root-bound
+working bytes SHALL be byte-identical to the exact accepted-tree regular blob and
+to the decision digest. Its UTF-8 front matter SHALL contain exactly one
+`event: lane_resolution/preserve-retire`, exactly one `target_head` equal to the
+observed target HEAD, and exactly one target selector: either `target_branch`
+equal to the observed branch or `target_branch_sha256` equal to the SHA-256 of
+that branch's UTF-8 bytes. ETHOS SHALL revalidate those facts before receipt
+reservation or preservation and again after package verification before worktree
+or ref removal.
+
+#### Scenario: one accepted preserve-retire Chronicle binds one target
+
+- **GIVEN** a caller requests `preserve-retire` for one exact Work Lane
+- **WHEN** the Chronicle lacks, replaces, duplicates, or mismatches its required
+  event, selector, target HEAD, accepted bytes, or decision digest
+- **THEN** ETHOS SHALL block the decision or apply before destructive retirement
+- **AND** the Chronicle SHALL NOT authorize another branch or HEAD.
+
+#### Scenario: post-preservation Chronicle drift blocks removal
+
+- **GIVEN** ETHOS has verified one preservation package for an admitted target
+- **WHEN** the target-bound Chronicle or target observation differs before
+  worktree or ref removal
+- **THEN** ETHOS SHALL retain the source branch and worktree
+- **AND** it SHALL retain the verified package as governed recovery material
+- **AND** it SHALL write only a `preserved_retirement_blocked` receipt with the
+  exact permitted blocker and SHALL NOT record retirement.
+
+#### Scenario: configured Work Lane role is authoritative
+
+- **GIVEN** repository policy configures a Work Lane branch prefix other than
+  the product default
+- **WHEN** an exact registered branch satisfies that configured role
+- **THEN** ownerless admission SHALL accept the role without hard-coded branch
+  spelling
+- **AND** a branch outside the configured role SHALL be rejected.
+
+#### Scenario: late coordination or accepted drift blocks zero effect
+
+- **GIVEN** native preflight observed an ownerless target
+- **WHEN** a lease, Claim, holder, accepted-head change, decision change, path
+  change, target change, or competing reservation wins before the fence-held
+  observation is consumed
+- **THEN** ETHOS SHALL perform no Git or worktree effect and SHALL report the
+  exact blocking binding without minting ownership.
+
+#### Scenario: accepted ancestry is required
+
+- **GIVEN** the exact target and accepted HEAD are observable
+- **WHEN** the target HEAD is not an ancestor of the accepted HEAD or ancestry
+  cannot be verified
+- **THEN** ETHOS SHALL reject ownerless retirement before effect.
+
+#### Scenario: worktree-remove and ref inspection are three state
+
+- **GIVEN** the exact ref transaction is prepared
+- **WHEN** worktree removal, target-ref inspection, or fence inspection reports
+  present, absent, or unverifiable state
+- **THEN** only the state required by the current phase SHALL pass
+- **AND** an error, malformed payload, or exception SHALL remain visible as a
+  partial or unknown transition rather than being treated as absence.
+
+#### Scenario: worktree-remove failure is classified by re-observation
+
+- **GIVEN** the exact ref transaction is prepared for one target
+- **WHEN** no-force worktree removal returns non-zero
+- **THEN** ETHOS SHALL re-read the exact target ref, worktree registration, and
+  path
+- **AND** it SHALL retain `reserved_no_effect` only when all three remain
+  unchanged, classify removed-registration with a present ref as
+  `worktree_removed_ref_present`, and classify any other uncertain combination
+  as `transition_unknown`.
+
+#### Scenario: zero-effect retry may rebind a descendant accepted head
+
+- **GIVEN** one exact reservation remains `reserved_no_effect`, the same
+  decision, executor, target, registration token, and coordination bindings still
+  hold, and no Git or worktree effect occurred
+- **WHEN** exact pre-fence admission classifies that reservation as the same
+  zero-effect retry and the current accepted HEAD equals or descends from the
+  reserved accepted HEAD
+- **THEN** ETHOS SHALL release the old exact fence and reservation, acquire a
+  fresh exact fence, and complete the full under-fence re-observation before
+  persisting a new reservation or starting effect
+- **AND** divergence, target drift, decision drift, registration drift, or
+  unverifiable state SHALL block without effect.
+
+#### Scenario: current record authority is isolated from history
+
+- **GIVEN** predecessor records remain in historical accepted or worktree roots
+- **WHEN** ETHOS decides, applies, recovers, writes a receipt, clears, or
+  inventories current lane-resolution state
+- **THEN** it SHALL access only the versioned current record root
+- **AND** history SHALL NOT create a conflict, authorize an effect, or be
+  deleted by current cleanup.
+
+#### Scenario: decision-only records are visible
+
+- **GIVEN** a valid current decision exists without a manifest, receipt, clear
+  record, or reservation
+- **WHEN** current inventory runs
+- **THEN** it SHALL include the decision identifier, report
+  `state=decision_pending`, and increment decision and pending-decision counts.
+
+#### Scenario: invalid current payload blocks
+
+- **GIVEN** any payload is present in the versioned current record root
+- **WHEN** its typed contract, version, canonical bytes, or cross-field
+  invariant is invalid
+- **THEN** current inventory and effect admission SHALL report a blocking
+  integrity gap and SHALL NOT silently ignore the payload.
+
+#### Scenario: current records use explicit provider-neutral versions
+
+- **WHEN** ETHOS writes a new completion receipt, ownerless reservation, or clear
+  receipt
+- **THEN** it SHALL write receipt schema version 3, reservation schema version
+  2, and clear schema version 1
+- **AND** the ownerless binding SHALL contain only executor, decision digest,
+  accepted branch and HEAD, target digest, target-binding digest, and
+  postcondition digest.
+
+#### Scenario: receipt-present cleanup is effect free
+
+- **GIVEN** the exact immutable completion receipt is durable and cleanup is
+  incomplete
+- **WHEN** the same decision retries
+- **THEN** ETHOS SHALL validate the exact decision, lane, head, receipt,
+  postconditions, fence, and reservation binding and perform only idempotent
+  cleanup
+- **AND** it SHALL NOT repeat Git/worktree effect, rewrite the receipt, consult
+  historical roots, or recreate effect authority.
+
+#### Scenario: successful cleanup preserves ordering
+
+- **GIVEN** the exact immutable completion receipt is durable
+- **WHEN** ETHOS cleans ownerless coordination
+- **THEN** it SHALL release the exact SQLite fence through compare-and-swap
+  before deleting the visible ownerless reservation
+- **AND** a failed or unverifiable fence release SHALL retain the visible
+  reservation.
+
+#### Scenario: effect-complete recovery precedes ordinary observation
+
+- **GIVEN** the reservation state is `effect_complete_receipt_missing`
+- **WHEN** the same decision retries
+- **THEN** ETHOS SHALL recover or validate the exact completion receipt before
+  ordinary lane observation
+- **AND** it SHALL NOT depend on observing a worktree already removed by the
+  completed effect.
+
+#### Scenario: dangling path and post-CAS exception fail closed
+
+- **GIVEN** ownerless effect or postconditions are being evaluated
+- **WHEN** the target path is a dangling symlink or an ordinary exception occurs
+  after the CAS boundary
+- **THEN** the path SHALL remain present for safety evaluation
+- **AND** the exception SHALL become `transition_unknown` with explicit
+  reconciliation required.
+
+#### Scenario: damaged fence payload preserves independent lease truth
+
+- **GIVEN** the lease and closeout-fence stores are independently current
+- **WHEN** one fence payload cannot be decoded or validated
+- **THEN** state inventory SHALL report the fence projection as unverifiable
+- **AND** it SHALL continue to report independently validated lease facts rather
+  than rewriting the lease schema state as invalid.
+
+#### Scenario: undeclared external lifecycle execution is rejected
+
+- **GIVEN** the Work Lane lifecycle declares its allowed executable and state
+  bindings
+- **WHEN** a mandatory admission or effect path invokes an undeclared external
+  executable
+- **THEN** generic coupling audit SHALL fail before proof or land
+- **AND** optional explicitly configured semantic-attestation and policy adapters
+  outside lane-resolution effect authority SHALL remain unaffected.

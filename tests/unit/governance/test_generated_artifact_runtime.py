@@ -184,6 +184,32 @@ def test_checkout_python_requires_successful_locked_check(repo: Path, tmp_path: 
     ]
 
 
+def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(repo: Path, tmp_path: Path) -> None:
+    capture = tmp_path / "uv-calls.txt"
+    uv = _uv(
+        tmp_path,
+        '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" > "$UV_CAPTURE"\nexit 97\n',
+    )
+    python = _executable(
+        repo / "build/runtime/venv/bin/python",
+        "#!/usr/bin/env bash\nprintf 'semantic-runtime\\n'\n",
+    )
+    (repo / "build/runtime/venv/pyvenv.cfg").write_text("home = test\n", encoding="utf-8")
+    (repo / "pyproject.toml").write_text(
+        "[project]\nname = 'runtime-test'\nversion = '0.0.0'\n",
+        encoding="utf-8",
+    )
+    env = _env(
+        uv,
+        ETHOS_RUNTIME_BOOTSTRAPPED="1",
+        ETHOS_RUNTIME_ROOT=str(tmp_path / "outer"),
+        UV_CAPTURE=str(capture),
+    )
+
+    assert _run(repo, env, str(python), "-m", "ethos.cli", "hook") == ["semantic-runtime"]
+    assert capture.exists() is False
+
+
 def test_owner_script_detaches_from_uv_sync_lock(repo: Path, tmp_path: Path) -> None:
     uv = _uv(
         tmp_path,

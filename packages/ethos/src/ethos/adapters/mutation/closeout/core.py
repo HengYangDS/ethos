@@ -4,6 +4,14 @@
 
 from __future__ import annotations
 
+import ctypes
+import errno
+import hashlib
+import json
+import os
+import re
+import stat
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -38,6 +46,7 @@ class CloseoutDependencies:
 
 
 _DEFAULT_DEPENDENCIES = CloseoutDependencies()
+_HEAD = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +59,21 @@ class CloseoutRequest:
     candidate_head: str
     candidate_path: Path
     worktrees: list[dict[str, object]]
+
+
+@dataclass(frozen=True, slots=True)
+class CloseoutWorktreeRecoveryRequest:
+    """Exact inputs for one interrupted accepted-worktree sync recovery."""
+
+    root: Path
+    policy: BranchRolePolicy
+    current_head: str
+    candidate_head: str
+    candidate_path: Path
+    failure_receipt: Path | None
+    expected_failure_receipt_sha256: str
+    expected_index_lock_sha256: str
+    lock_quarantine: Path | None
 
 
 def promote_candidate_to_accepted(request: CloseoutRequest, *, dependencies: CloseoutDependencies = _DEFAULT_DEPENDENCIES) -> dict[str, object]:
@@ -111,7 +135,7 @@ def _advance_and_sync_accepted(request, dependencies, transitions, evidence_dige
     if update.returncode:
         dependencies.discard_proof(request.root, request.candidate_head)
         return _ref_transaction_failure(request, transitions[0], update, dependencies.run_git)
-    synced, attempts = _sync(request.root, request.candidate_head, dependencies.run_git)
+    synced, attempts = sync_worktree_to_head(request.root, request.candidate_head, dependencies.run_git)
     if synced.returncode:
         return _blocked(request.policy, request.current_head, ["accepted_worktree_sync_failed"], candidate_head=request.candidate_head, stderr=synced.stderr.strip(), sync_attempts=attempts)
     checked = dependencies.run_git(request.root, "status", "--short", check=False)
@@ -160,7 +184,8 @@ def _transition(root, branch, head, run_git):
     return CloseoutTransition(f"refs/heads/{branch}", run_git(root, "rev-parse", "--verify", branch).stdout.strip(), head, head)
 
 
-def _sync(root, head, run_git):
+def sync_worktree_to_head(root, head, run_git):
+    """Synchronize one checkout to an already selected head with one lock retry."""
     result = run_git(root, "reset", "--hard", head, check=False)
     if not result.returncode or not any(token in result.stderr.lower() for token in ("index.lock", "could not lock index")):
         return result, 1
@@ -175,7 +200,7 @@ def sync_release_mirror(transition, worktrees, head, previous, run_git):
     result = {"mode": RELEASE_MIRROR_ACCEPTED_FF, "branch": branch, "previous_head": previous, "head": head, "worktree_sync": "not_linked" if root is None else "synced"}
     if root is None:
         return result
-    reset, attempts = _sync(root, head, run_git)
+    reset, attempts = sync_worktree_to_head(root, head, run_git)
     if reset.returncode:
         return {**result, "worktree_sync": "failed", "sync_attempts": attempts, "stderr": reset.stderr.strip()}
     status = run_git(root, "status", "--short", check=False)
@@ -206,4 +231,335 @@ def proof_carry_failure(request: CloseoutRequest, proof: object) -> dict[str, ob
     if proof.get("ok") is not True:
         return _blocked(request.policy, request.current_head, proof_required_gaps(proof), proof_carry=proof)
     return None
+
+
+def inspect_accepted_worktree_sync_recovery(
+    request: CloseoutWorktreeRecoveryRequest,
+    *,
+    dependencies: CloseoutDependencies = _DEFAULT_DEPENDENCIES,
+) -> dict[str, object]:
+    """Read the exact residue shape; this inspection never relocates the lock."""
+    receipt, receipt_gaps = _recovery_receipt(request)
+    previous = str(receipt.get("previous_head") or "")
+    candidate = str(receipt.get("candidate_head") or "")
+    heads = _recovery_heads(request, dependencies)
+    gaps = [*receipt_gaps]
+    if not previous:
+        gaps.append("recovery_previous_head_missing")
+    if not candidate:
+        gaps.append("recovery_candidate_head_missing")
+    if candidate and candidate != request.current_head:
+        gaps.append("recovery_receipt_candidate_head_mismatch")
+    if heads["head"] != request.current_head or heads["accepted"] != request.current_head:
+        gaps.append("recovery_promoted_refs_mismatch")
+    observed_candidate = heads["candidate"]
+    if not observed_candidate or not dependencies.is_ancestor(request.root, request.current_head, observed_candidate):
+        gaps.append("recovery_candidate_not_descendant")
+    if previous and _HEAD.fullmatch(previous) and _HEAD.fullmatch(request.current_head):
+        if not dependencies.is_ancestor(request.root, previous, request.current_head):
+            gaps.append("recovery_previous_head_not_ancestor")
+    elif previous:
+        gaps.append("recovery_previous_head_invalid")
+    residue_gaps = _recovery_residue_gaps(request.root, previous, dependencies.run_git)
+    gaps.extend(residue_gaps)
+    lock_path, lock_path_gap = _index_lock_path(request.root, dependencies.run_git)
+    if lock_path_gap:
+        gaps.append(lock_path_gap)
+    lock, lock_gaps = _lock_fact(lock_path, request.expected_index_lock_sha256)
+    gaps.extend(lock_gaps)
+    quarantine, quarantine_gaps = _quarantine_fact(
+        request.lock_quarantine,
+        root=request.root,
+        candidate_path=request.candidate_path,
+        lock=lock,
+    )
+    gaps.extend(quarantine_gaps)
+    ordered = list(dict.fromkeys(gaps))
+    return {
+        "ok": not ordered,
+        "state": "ready" if not ordered else "blocked",
+        "previous_head": previous,
+        "candidate_head": candidate,
+        "heads": heads,
+        "receipt": receipt,
+        "index_lock": lock,
+        "lock_quarantine": quarantine,
+        "residue_exact": not residue_gaps,
+        "required_gaps": ordered,
+    }
+
+
+def recover_accepted_worktree_sync(
+    request: CloseoutWorktreeRecoveryRequest,
+    *,
+    dependencies: CloseoutDependencies = _DEFAULT_DEPENDENCIES,
+) -> dict[str, object]:
+    """Quarantine one proven stale lock and synchronize only the accepted checkout."""
+    inspected = inspect_accepted_worktree_sync_recovery(request, dependencies=dependencies)
+    if not inspected["ok"]:
+        return _recovery_blocked(request, inspected)
+    lock, quarantine = inspected["index_lock"], inspected["lock_quarantine"]
+    observation_invalid = not isinstance(lock, dict) or not isinstance(quarantine, dict)
+    fingerprint = lock.get("fingerprint") if isinstance(lock, dict) else None
+    if observation_invalid or not isinstance(fingerprint, dict):
+        gap = "recovery_observation_invalid" if observation_invalid else "recovery_index_lock_fingerprint_invalid"
+        return _recovery_blocked(request, {**inspected, "required_gaps": [gap]})
+    lock_path = Path(str(lock["path"]))
+    quarantine_path = Path(str(quarantine["path"]))
+    lock_digest = str(lock.get("sha256") or "")
+    quarantine_gap = _quarantine_lock(lock_path, quarantine_path, fingerprint, lock_digest)
+    if quarantine_gap:
+        return _recovery_blocked(request, {**inspected, "required_gaps": [quarantine_gap]})
+    synced, attempts = sync_worktree_to_head(request.root, request.current_head, dependencies.run_git)
+    if synced.returncode:
+        return _recovery_blocked(
+            request,
+            {
+                **inspected,
+                "required_gaps": ["recovery_worktree_sync_failed"],
+                "sync_attempts": attempts,
+                "stderr": synced.stderr.strip(),
+                "lock_quarantined": quarantine_path.as_posix(),
+            },
+        )
+    post_gaps = _post_recovery_gaps(
+        request,
+        lock=lock,
+        quarantine=quarantine_path,
+        run=dependencies.run_git,
+    )
+    if post_gaps:
+        return _recovery_blocked(
+            request,
+            {
+                **inspected,
+                "required_gaps": post_gaps,
+                "sync_attempts": attempts,
+                "lock_quarantined": quarantine_path.as_posix(),
+            },
+        )
+    return {
+        "ok": True,
+        "state": "accepted_worktree_recovered",
+        "branch": request.policy.accepted_branch,
+        "source_branch": request.policy.candidate_branch,
+        "head": request.current_head,
+        "candidate_head": request.candidate_head,
+        "previous_head": inspected["previous_head"],
+        "receipt": inspected["receipt"],
+        "index_lock": {**lock, "quarantined_to": quarantine_path.as_posix()},
+        "sync_attempts": attempts,
+        "required_gaps": [],
+    }
+
+
+def _recovery_blocked(request, observation):
+    return {
+        "ok": False,
+        "state": "blocked",
+        "branch": request.policy.accepted_branch,
+        "source_branch": request.policy.candidate_branch,
+        "head": request.current_head,
+        "candidate_head": request.candidate_head,
+        "previous_head": str(observation.get("previous_head") or ""),
+        "receipt": observation.get("receipt", {}),
+        "index_lock": observation.get("index_lock", {}),
+        "lock_quarantine": observation.get("lock_quarantine", {}),
+        "sync_attempts": observation.get("sync_attempts", 0),
+        "stderr": observation.get("stderr", ""),
+        "required_gaps": list(observation.get("required_gaps", [])),
+    }
+
+
+def _recovery_receipt(request):
+    path = request.failure_receipt
+    gaps = []
+    if path is None:
+        return {}, ["recovery_failure_receipt_required"]
+    if not path.is_absolute() or not path.is_file() or _inside(path, request.root) or _inside(path, request.candidate_path):
+        return {}, ["recovery_failure_receipt_invalid"]
+    try:
+        raw = path.read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        payload = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {}, ["recovery_failure_receipt_invalid"]
+    if not _sha256(request.expected_failure_receipt_sha256):
+        gaps.append("recovery_failure_receipt_digest_invalid")
+    elif digest != request.expected_failure_receipt_sha256:
+        gaps.append("recovery_failure_receipt_digest_mismatch")
+    data = payload.get("data") if isinstance(payload, dict) else None
+    update = data.get("accepted_update") if isinstance(data, dict) else None
+    if not (isinstance(payload, dict) and payload.get("ok") is False and payload.get("state") == "blocked" and isinstance(update, dict)):
+        return {"path": path.as_posix(), "sha256": digest}, [*gaps, "recovery_failure_receipt_shape_invalid"]
+    required = update.get("required_gaps")
+    if not isinstance(required, list) or "accepted_worktree_sync_failed" not in required:
+        gaps.append("recovery_failure_receipt_not_sync_failure")
+    previous, candidate = str(update.get("previous_head") or ""), str(update.get("candidate_head") or "")
+    if update.get("branch") != request.policy.accepted_branch or update.get("source_branch") != request.policy.candidate_branch:
+        gaps.append("recovery_failure_receipt_branch_mismatch")
+    if update.get("head") != previous or not _HEAD.fullmatch(previous) or not _HEAD.fullmatch(candidate):
+        gaps.append("recovery_failure_receipt_head_invalid")
+    return {"path": path.as_posix(), "sha256": digest, "previous_head": previous, "candidate_head": candidate, "sync_attempts": update.get("sync_attempts", 0)}, gaps
+
+
+def _recovery_heads(request, dependencies):
+    return {
+        "head": _git_text(request.root, dependencies.run_git, "rev-parse", "--verify", "HEAD"),
+        "accepted": _git_text(request.root, dependencies.run_git, "rev-parse", "--verify", request.policy.accepted_branch),
+        "candidate": _git_text(request.root, dependencies.run_git, "rev-parse", "--verify", request.policy.candidate_branch),
+    }
+
+
+def _recovery_residue_gaps(root, previous, run):
+    if not previous:
+        return ["recovery_previous_head_missing"]
+    checks = (
+        ("recovery_index_not_previous_head", run(root, "diff-index", "--cached", "--quiet", previous, "--", check=False)),
+        ("recovery_worktree_not_index", run(root, "diff-files", "--quiet", check=False)),
+        ("recovery_untracked_content_present", run(root, "ls-files", "--others", "--exclude-standard", check=False)),
+        ("recovery_conflict_entries_present", run(root, "ls-files", "-u", check=False)),
+    )
+    return [gap for gap, result in checks if result.returncode or result.stdout.strip()]
+
+
+def _index_lock_path(root, run):
+    raw = _git_text(root, run, "rev-parse", "--git-path", "index.lock")
+    if not raw:
+        return None, "recovery_index_lock_path_unavailable"
+    path = Path(raw)
+    return (path if path.is_absolute() else root / path), ""
+
+
+def _lock_fact(path, expected_digest):
+    if path is None or not _sha256(expected_digest):
+        return {}, ["recovery_index_lock_digest_invalid"]
+    try:
+        before = path.lstat()
+        if path.is_symlink() or not stat.S_ISREG(before.st_mode):
+            return {}, ["recovery_index_lock_type_invalid"]
+        raw = path.read_bytes()
+        after = path.lstat()
+    except OSError:
+        return {}, ["recovery_index_lock_missing"]
+    fingerprint = _fingerprint(before)
+    if fingerprint != _fingerprint(after):
+        return {}, ["recovery_index_lock_drift"]
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != expected_digest:
+        return {"path": path.as_posix(), "sha256": digest, "fingerprint": fingerprint}, ["recovery_index_lock_digest_mismatch"]
+    return {"path": path.as_posix(), "sha256": digest, "fingerprint": fingerprint}, []
+
+
+def _quarantine_fact(path, *, root, candidate_path, lock):
+    if path is None or not path.is_absolute() or _inside(path, root) or _inside(path, candidate_path):
+        return {}, ["recovery_lock_quarantine_invalid"]
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return {}, ["recovery_lock_quarantine_invalid"]
+    else:
+        return {}, ["recovery_lock_quarantine_exists"]
+    try:
+        parent = path.parent.resolve(strict=True)
+        lock_path = Path(str(lock.get("path") or ""))
+        source = lock_path.lstat()
+    except (OSError, ValueError):
+        return {}, ["recovery_lock_quarantine_invalid"]
+    if not parent.is_dir() or parent.stat().st_dev != source.st_dev:
+        return {}, ["recovery_lock_quarantine_cross_device"]
+    return {"path": path.as_posix(), "parent": parent.as_posix()}, []
+
+
+def _quarantine_lock(lock, quarantine, fingerprint, digest):
+    current, gaps = _lock_fact(lock, digest)
+    if gaps or current.get("fingerprint") != fingerprint:
+        return "recovery_index_lock_drift"
+    try:
+        _atomic_rename_no_replace(lock, quarantine)
+    except FileExistsError:
+        return "recovery_lock_quarantine_exists"
+    except OSError:
+        return "recovery_lock_quarantine_move_failed"
+    current, gaps = _lock_fact(quarantine, digest)
+    if gaps or not _same_lock_identity(current.get("fingerprint"), fingerprint):
+        return "recovery_lock_quarantine_drifted"
+    if lock.exists():
+        return "recovery_index_lock_present_after_quarantine"
+    return ""
+
+
+def _atomic_rename_no_replace(source, target):
+    library = ctypes.CDLL(None, use_errno=True)
+    if sys.platform == "darwin":
+        operation = getattr(library, "renameatx_np", None)
+        flags = 4  # RENAME_EXCL
+    elif sys.platform.startswith("linux"):
+        operation = getattr(library, "renameat2", None)
+        flags = 1  # RENAME_NOREPLACE
+    else:
+        operation = None
+        flags = 0
+    if operation is None:
+        raise OSError(errno.ENOTSUP, "atomic no-replace rename is unavailable")
+    operation.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    operation.restype = ctypes.c_int
+    if operation(-2, os.fsencode(source), -2, os.fsencode(target), flags) == 0:
+        return
+    error = ctypes.get_errno()
+    if error == errno.EEXIST:
+        raise FileExistsError(error, os.strerror(error), target)
+    raise OSError(error, os.strerror(error), target)
+
+
+def _post_recovery_gaps(request, *, lock, quarantine, run):
+    lock_path = Path(str(lock["path"]))
+    fingerprint = lock["fingerprint"]
+    digest = str(lock["sha256"])
+    gaps = []
+    heads = _recovery_heads(request, CloseoutDependencies(run_git=run))
+    if heads["head"] != request.current_head or heads["accepted"] != request.current_head:
+        gaps.append("recovery_promoted_refs_drifted")
+    if not heads["candidate"] or not is_ancestor(request.root, request.current_head, heads["candidate"]):
+        gaps.append("recovery_candidate_drifted")
+    status = run(request.root, "status", "--short", check=False)
+    if status.returncode or status.stdout.strip():
+        gaps.append("recovery_worktree_dirty_after_sync")
+    if lock_path.exists():
+        gaps.append("recovery_index_lock_present_after_sync")
+    try:
+        recovered = _lock_fact(quarantine, digest)[0]
+    except OSError:
+        recovered = {}
+    if not _same_lock_identity(recovered.get("fingerprint"), fingerprint):
+        gaps.append("recovery_lock_quarantine_drifted")
+    return gaps
+
+
+def _git_text(root, run, *args):
+    result = run(root, *args, check=False)
+    return result.stdout.strip() if not result.returncode else ""
+
+
+def _fingerprint(value):
+    return {"dev": value.st_dev, "ino": value.st_ino, "mode": value.st_mode, "size": value.st_size, "mtime_ns": value.st_mtime_ns, "ctime_ns": value.st_ctime_ns}
+
+
+def _same_lock_identity(left, right):
+    return isinstance(left, dict) and isinstance(right, dict) and all(left.get(name) == right.get(name) for name in ("dev", "ino", "mode", "size", "mtime_ns"))
+
+
+def _inside(path, root):
+    try:
+        path.resolve(strict=False).is_relative_to(root.resolve(strict=False))
+    except OSError:
+        return True
+    else:
+        return path.resolve(strict=False).is_relative_to(root.resolve(strict=False))
+
+
+def _sha256(value):
+    return bool(re.fullmatch(r"[0-9a-f]{64}", value))
 # fmt: on

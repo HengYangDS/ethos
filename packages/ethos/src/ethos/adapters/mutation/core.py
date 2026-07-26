@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
@@ -9,7 +10,12 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.closeout.core import CloseoutDependencies
 from ethos.adapters.mutation.closeout.core import CloseoutRequest
+from ethos.adapters.mutation.closeout.core import (
+    CloseoutWorktreeRecoveryRequest as CloseoutSyncRecoveryRequest,
+)
+from ethos.adapters.mutation.closeout.core import inspect_accepted_worktree_sync_recovery
 from ethos.adapters.mutation.closeout.core import promote_candidate_to_accepted
+from ethos.adapters.mutation.closeout.core import recover_accepted_worktree_sync
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.proof import carry_executed_proof_record
@@ -27,11 +33,23 @@ from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import branch_role_policy_from_text
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
+from ethos_core.contracts.lifecycle.core import CLOSEOUT_WORKTREE_RECOVERY_MUTATION
 from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
+from ethos_core.contracts.lifecycle.core import CloseoutWorktreeRecoveryRequest
 from ethos_core.contracts.lifecycle.core import MutationEvaluation
 from ethos_core.contracts.lifecycle.core import MutationFacts
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_mutation
+
+
+@dataclass(frozen=True, slots=True)
+class CloseoutWorktreeRecoveryInputs:
+    """Receipt and forensic bindings supplied to the recovery adapter."""
+
+    failure_receipt: Path | None
+    expect_failure_receipt_sha256: str
+    expect_index_lock_sha256: str
+    lock_quarantine: Path | None
 
 
 def proof_gaps(root, current_head):
@@ -148,6 +166,60 @@ def evaluate_closeout_mutation(request, *, root, current_head):
         ),
         transition=CLOSEOUT_MUTATION,
     )
+
+
+def closeout_worktree_sync_recovery_report(
+    *,
+    root: Path,
+    request: CloseoutWorktreeRecoveryRequest,
+    inputs: CloseoutWorktreeRecoveryInputs,
+) -> dict[str, object]:
+    """Plan or apply the only receipt-bound escape from interrupted closeout sync."""
+    current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    policy = load_branch_role_policy(root)
+    status = workspace_status(root, include_foreign_path_scope=False)
+    candidate = cast("dict[str, object]", status.get("candidate", {}))
+    recovery = CloseoutSyncRecoveryRequest(
+        root=root,
+        policy=policy,
+        current_head=current_head,
+        candidate_head=str(candidate.get("head") or ""),
+        candidate_path=Path(str(candidate.get("worktree_path") or root)),
+        failure_receipt=inputs.failure_receipt,
+        expected_failure_receipt_sha256=inputs.expect_failure_receipt_sha256,
+        expected_index_lock_sha256=inputs.expect_index_lock_sha256,
+        lock_quarantine=inputs.lock_quarantine,
+    )
+    observation = inspect_accepted_worktree_sync_recovery(recovery)
+    confirmation_gaps = (
+        ("recovery_stale_index_lock_confirmation_required",)
+        if request.apply and not request.confirm_stale_index_lock
+        else ()
+    ) + (
+        ("recovery_irreversible_confirmation_required",)
+        if request.apply and not request.confirm_irreversible
+        else ()
+    )
+    observed_gaps = observation.get("required_gaps", [])
+    decision = reduce_mutation(
+        request,
+        current_head=current_head,
+        facts=MutationFacts(
+            role=str(status.get("role") or ""),
+            dirty=bool(status.get("dirty")) and not bool(observation.get("residue_exact")),
+            always_gaps=tuple(
+                item for item in (*observed_gaps, *confirmation_gaps) if isinstance(item, str)
+            ),
+        ),
+        transition=CLOSEOUT_WORKTREE_RECOVERY_MUTATION,
+    )
+    base = {"decision": decision.model_dump(), "observation": observation}
+    if not decision.ok:
+        return {"ok": False, "state": decision.state, "required_gaps": list(decision.gaps), **base}
+    if not request.apply:
+        return {"ok": True, "state": "planned", "required_gaps": [], **base}
+    effect = recover_accepted_worktree_sync(recovery)
+    return {**effect, **base}
 
 
 def apply_land_to_candidate(

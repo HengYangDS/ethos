@@ -3,7 +3,9 @@ from __future__ import annotations
 import pytest
 
 from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
+from ethos_core.contracts.lifecycle.core import CLOSEOUT_WORKTREE_RECOVERY_MUTATION
 from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
+from ethos_core.contracts.lifecycle.core import CloseoutWorktreeRecoveryRequest
 from ethos_core.contracts.lifecycle.core import LeaseFacts
 from ethos_core.contracts.lifecycle.core import MutationFacts
 from ethos_core.contracts.lifecycle.core import MutationRequest
@@ -93,6 +95,31 @@ def test_closeout_reducer_distinguishes_current_from_ready_and_blocked() -> None
         facts=MutationFacts(role="accepted_root"),
         transition=CLOSEOUT_MUTATION,
     ).gaps == ("expect_head_mismatch",)
+
+
+def test_recovery_reducer_keeps_normal_dirty_closeout_and_unproven_residue_blocked() -> None:
+    normal = reduce_mutation(
+        MutationRequest(command="closeout", apply=False, authorized=False, expect_head="head"),
+        current_head="head",
+        facts=MutationFacts(role="accepted_root", dirty=True),
+        transition=CLOSEOUT_MUTATION,
+    )
+    request = CloseoutWorktreeRecoveryRequest(
+        command="closeout_worktree_recovery",
+        apply=True,
+        authorized=True,
+        expect_head="head",
+        confirm_stale_index_lock=True,
+        confirm_irreversible=True,
+    )
+    recovery = reduce_mutation(
+        request,
+        current_head="head",
+        facts=MutationFacts(role="accepted_root", always_gaps=("recovery_residue_invalid",)),
+        transition=CLOSEOUT_WORKTREE_RECOVERY_MUTATION,
+    )
+    assert normal.gaps == ("accepted_root_dirty",)
+    assert recovery.gaps == ("recovery_residue_invalid",)
 
 
 @pytest.mark.parametrize(

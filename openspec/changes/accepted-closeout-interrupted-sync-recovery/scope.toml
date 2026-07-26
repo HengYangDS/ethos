@@ -1,0 +1,21 @@
+schema_version = 1
+paths = [
+  ".config/checks/ruff/ratchet.toml",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/reference/command-plane.md",
+  "evidence/claims/accepted-closeout-interrupted-sync-recovery-20260726.toml",
+  "evidence/chronicle/accepted-closeout-interrupted-sync-recovery-20260726/2026-07-26.md",
+  "openspec/changes/accepted-closeout-interrupted-sync-recovery/**",
+  "openspec/changes/accepted-closeout-interrupted-sync-recovery-20260726/**",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts/lifecycle/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/closeout/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/core.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "system/invalid_states.toml",
+  "tests/architecture/test_product_boundaries.py",
+  "tests/unit/cli/test_contracts_closeout.py",
+  "tests/unit/coverage/test_closeout_control_recheck_edge.py",
+  "tests/unit/coverage/test_closeout_worktree_recovery_edges.py",
+  "tests/unit/kernel/test_mutation_reducer.py",
+]

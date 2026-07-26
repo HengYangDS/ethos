@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One accepted authority carrier and three exact missing-lease target judgments. No foreign valid-owner mutation, automatic disposition switch, package clear, network operation, provider claim, raw ref/worktree action, SQLite edit, or session/IDE mutation."
 
 [carriers]
-openspec = "openspec/changes/ownerless-housekeeping-closeout"
+openspec = "openspec/changes/archive/2026-07-26-ownerless-housekeeping-closeout"
 fallback = "Leave each source and all valid-owner lanes intact when any target, accepted, lease, Claim, worktree, tree, Chronicle, decision, package, receipt, or descendant-containment fact differs."
 kill_signal = "A visible lane is treated as disposable without accepted target evidence, a valid owner is bypassed, a blocked effect is hand-cleaned, or local readiness is promoted into a network or provider claim."
 
@@ -38,5 +38,5 @@ targets = [
   "evidence/claims/ownerless-budget-source-admission-successor-predecessor-20260726.toml",
   "evidence/claims/ownerless-release-0-1-0a2-20260726.toml",
   "evidence/claims/native-lane-resolution-authority-20260724.toml",
-  "openspec/changes/ownerless-housekeeping-closeout",
+  "openspec/changes/archive/2026-07-26-ownerless-housekeeping-closeout",
 ]

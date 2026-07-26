@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One exact clean missing-lease predecessor, read-only descendant-containment evidence, and one native direct-retire attempt. No valid-owner takeover, semantic completion claim, preserve-retire fallback, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/ownerless-housekeeping-closeout"
+openspec = "openspec/changes/archive/2026-07-26-ownerless-housekeeping-closeout"
 fallback = "Keep the exact source branch and linked worktree when any head, lease, Claim, dirtiness, registration, accepted head, descendant containment, Chronicle, or native effect predicate differs."
 kill_signal = "A valid-owner descendant is mutated, source history is replayed as a whole, a no-effect direct-retire result is hidden, or housekeeping is called retirement authority."
 
@@ -34,5 +34,5 @@ kill_signal = "A valid-owner descendant is mutated, source history is replayed a
 targets = [
   "evidence/claims/ownerless-budget-source-admission-predecessor-20260726.toml",
   "evidence/chronicle/ownerless-housekeeping-closeout-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md",
-  "openspec/changes/ownerless-housekeeping-closeout",
+  "openspec/changes/archive/2026-07-26-ownerless-housekeeping-closeout",
 ]

@@ -2,17 +2,17 @@
 id = "native-lane-resolution-authority-20260724"
 subject = "ethos:worktree-retirement:native-lane-resolution-authority"
 state = "active"
-summary = "The active successor Claim records the implemented ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, versioned-current-record chain, target-bound accepted-Chronicle validation, and explicit preserved-retirement-blocked outcome for later preserve-retire. Its final pre-archive exact-HEAD proof passed; it remains active pending official archive evidence and only then predecessor-Claim supersession."
+summary = "The active successor Claim records the implemented ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, versioned-current-record chain, target-bound accepted-Chronicle validation, and explicit preserved-retirement-blocked outcome for later preserve-retire. Its official OpenSpec archive and canonical-spec fusion are committed; it remains active pending an archive-state exact-HEAD proof and only then predecessor-Claim supersession."
 
 [evidence]
 dated = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md"
-sha256 = "4e59fffbd5064f8044b96eff2d7be86931fb5f2b82bd48ac9ea50a9b476e5399"
+sha256 = "dfc5c8c9007df5cd3d7a65ebbff9f03804c15b51638c88916e2b14daf96c3ab2"
 evidence_ids = ["evidence:native-lane-resolution-authority-20260724"]
-binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and read-only predecessor rollback carrier authorized implementation. The implementation, independent review, failed c9 pre-archive attempt, and signed repair are recorded in the dated Chronicle and review record. After committed generic parity refresh, exact HEAD e3ee55170520e5bd54fc13ec64578820a2e5c7d5 returned state=proven with 21 passing gates and evidence digest f79373b3efe0f2ff7a3cd8c1b287096f7c1b8ddd2916e4acff88b61e2bc42c0e. The checklist/digest commit that records it is evidence-only and does not claim a second proof. The predecessor Claim remains active; this Claim will supersede it only after official archive evidence, archive-state proof, and refreshed Claim/Chronicle binding. This binding does not claim archive, supersession, land, accepted closeout, task-lane retirement, publication, or hosted execution."
+binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, official archived OpenSpec carrier, and read-only predecessor rollback carrier authorized implementation. The implementation, independent review, failed c9 pre-archive attempt, signed repair, final pre-archive exact-HEAD proof, and official 2026-07-26 archive/canonical-fusion receipt are recorded in the dated Chronicle and review record. The official archive is committed at ca30ce8bf307064226612100ed5849d98cc86b1c; its receipt reports archivedAs=2026-07-26-native-lane-resolution-authority and specsUpdated=true. The predecessor Claim remains active; this Claim will supersede it only after a fresh archive-state exact-HEAD proof and refreshed Claim/Chronicle binding. This binding does not claim archive-state proof, supersession, land, accepted closeout, task-lane retirement, publication, or hosted execution."
 verifier = "digest_only"
 tests = [
-  "openspec validate native-lane-resolution-authority --strict --json",
-  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "openspec validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --archive-id native-lane-resolution-authority --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
   "tools/ci/scripts/run-python-tests.sh",
   "tools/ci/scripts/run-python-lint.sh",
@@ -33,7 +33,7 @@ owner = "ethos-repository"
 scope = "Clean linked ownerless Work Lane native admission, effect, current records, recovery, configured-role enforcement, generic undeclared-executable prevention, and later exceptional preserve-retire validation of one accepted-control-root Chronicle with an exact event, target head, and one branch selector before and after preservation, including only the explicit preserved-retirement-blocked outcome when final validation stops source removal; no workspace-key migration, lane-start change, real foreign-lane retirement, predecessor-record mutation, remote publication, hosted mutation, distributed lock, or filesystem-lock claim."
 
 [carriers]
-openspec = "openspec/changes/native-lane-resolution-authority"
+openspec = "openspec/changes/archive/2026-07-26-native-lane-resolution-authority"
 fallback = "Leave the exact lane, ref, worktree registration, path, fence, reservation, decision, and records untouched whenever any native binding or postcondition cannot be proved."
 kill_signal = "Current effect authority consults predecessor records, requires an undeclared external verifier, accepts provider-specific contract fields, skips an invalid current payload, hard-codes the Work Lane prefix, performs an unbound Git/worktree effect, accepts a preserve-retire Chronicle whose accepted-control-root bytes, event, exact selector/head, or decision digest differs, removes a source after post-preservation Chronicle or target drift, or records that blocked outcome as ordinary preserved or retired state without its exact permitted blocker."
 
@@ -42,7 +42,7 @@ targets = [
   { kind = "evidence", path = "evidence/claims/native-lane-resolution-authority-20260724.toml" },
   { kind = "evidence", path = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md" },
   { kind = "evidence", path = "evidence/claims/ownerless-closeout-effect-fence-20260722.toml" },
-  { kind = "openspec", path = "openspec/changes/native-lane-resolution-authority" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-26-native-lane-resolution-authority" },
   { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
   { kind = "docs", path = "docs/plans/native-lane-resolution-authority-design-20260724.md" },
   { kind = "docs", path = "docs/plans/native-lane-resolution-authority-implementation-plan-20260724.md" },

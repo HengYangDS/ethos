@@ -1,0 +1,1 @@
+"""Exact ownerless admission facts."""

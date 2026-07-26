@@ -97,10 +97,8 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: quality
     env:
-      # A single worker protects correctness but exceeds the 120s per-test timeout
-      # on the repository's large isolated lane/closeout test groups. Four workers
-      # preserve the same owner-script coverage gate while isolating test state.
-      ETHOS_TEST_WORKERS: "4"
+      # Two workers bound host pressure while keeping the full proof graph fast.
+      ETHOS_TEST_WORKERS: "2"
       # pytest-timeout thread mode ends a timed-out xdist worker with os._exit(1).
       # This macOS-only projection keeps a finite bound while preserving a normal
       # pytest failure and teardown path for diagnosis.
@@ -124,8 +122,6 @@ jobs:
         run: tools/ci/scripts/configure-git-checkout.sh
       - name: Arm write admission
         run: tools/ci/scripts/with-python-runtime.sh -- uv run ethos hook install --json
-      - name: Unit and architecture tests
-        run: tools/ci/scripts/run-python-tests.sh
       - name: OpenSpec strict validation
         run: openspec validate --all --strict --json
       - name: HEAD-bound proof receipt

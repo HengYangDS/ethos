@@ -1,0 +1,44 @@
+[claim]
+id = "budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725"
+subject = "ethos:work-lane:work/20260724-budget-contract-v2-snapshot-replay-shadow-successor"
+state = "active"
+change_id = "budget-contract-v2-snapshot-replay-shadow-successor-absorption"
+summary = "Current accepted source and canonical specifications absorb the useful behavior of one exact dirty ownerless snapshot-replay successor; a later native preserve-retire may affect only that source lane."
+
+[evidence]
+dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725/2026-07-25.md"
+sha256 = "4f35f4e93186c46195bbc3f09760202b0ad2dcf51382e6b7aa419c76f75a0f02"
+evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725"]
+binding = "This active Claim binds only work/20260724-budget-contract-v2-snapshot-replay-shadow-successor at fb9f8348559c0e881bfe9692988f59c3bf9dd85a, its exact ten-path dirty patch SHA-256 63a72e73f2d9719724f1ce04c39ae451be70789578ed971fac017d546b05dd94, the accepted behavioral replacements named in the Chronicle, signed carrier commits through a8ec28465e71a11538cf2e2c5266d098cd27ffbe, exact-HEAD execution digest f4ca613f7342d7a19abfbcfba425ff8d93d25d635b441c841d28a60e3e361e1c, and one later native preserve-retire transition after archive, current-base proof, land, and accepted closeout."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "openspec validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "uv run --all-packages --group dev pytest -q tests/unit/kernel/test_measure.py tests/unit/adapters/test_config.py tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py tests/unit/ci/source_budget/test_replay.py",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head HEAD --json",
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution decide --branch work/20260724-budget-contract-v2-snapshot-replay-shadow-successor --disposition preserve-retire --chronicle-ref evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725/2026-07-25.md --break-glass --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One dirty missing-lease snapshot-replay successor, one exact diverged head, ten exact dirty paths, one patch digest, current accepted semantic carriers, and one later local native preservation-retirement only."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-25-budget-contract-v2-snapshot-replay-shadow-successor-absorption"
+fallback = "Keep the source branch, linked worktree, dirty bytes, and any later package intact whenever source observation, accepted semantics, Chronicle, proof, manifest, or ownerlessness cannot be proved exactly."
+kill_signal = "Historical implementation is replayed without a current product gap; preservation is called absorption; a valid-owner lane is touched; a raw ref or worktree delete occurs; or a package is cleared without an accepted exact-manifest decision."
+
+[promotion]
+targets = [
+  "docs/plans/README.md",
+  "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-design-20260725.md",
+  "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md",
+  "evidence/claims/budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725.toml",
+  "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725/2026-07-25.md",
+  "openspec/changes/archive/2026-07-25-budget-contract-v2-snapshot-replay-shadow-successor-absorption",
+  "openspec/specs/repository-governance/spec.md",
+]

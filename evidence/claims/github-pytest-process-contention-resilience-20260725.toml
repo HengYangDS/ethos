@@ -1,0 +1,48 @@
+[claim]
+id = "github-pytest-process-contention-resilience-20260725"
+subject = "quality:github-pytest-process-contention-resilience"
+state = "active"
+change_id = "github-pytest-process-contention-resilience"
+summary = "ETHOS closes two accepted Markdown list-boundary violations and bounds subprocess and temporary-Git contention in GitHub macOS repository proof by retaining parallel execution with two workers and the existing finite 300-second signal timeout."
+
+[evidence]
+dated = "evidence/chronicle/github-pytest-process-contention-resilience-20260725/2026-07-25.md"
+sha256 = "b036acb00e1a9391082edb0be47ac31c21d7bac18a8811dd83c5322ddd93364a"
+evidence_ids = ["evidence:github-pytest-process-contention-resilience-20260725"]
+binding = "The two accepted Markdown failures, two incompatible GitHub failure sets, complete pre-Claim two-worker diagnostic, canonical provider projection, RED/GREEN architecture contract, OpenSpec carrier, and dated Chronicle bind this bounded publication-resilience claim."
+verifier = "digest_only"
+tests = [
+  "focused RED/GREEN GitHub provider projection contract",
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "canonical GitHub template drift check and actionlint",
+  "OpenSpec strict validation and lifecycle audit",
+  "complete owner-script Python test gate with two workers and 300-second signal timeout",
+  "generic shadow parity refresh",
+  "exact-HEAD ETHOS proof after official archive",
+  "fresh exact-SHA GitHub dev and main ETHOS CI plus main CodeQL",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Two exact blank-line insertions in the accepted snapshot replay absorption plan plus the GitHub self-hosted macOS repository-proof worker count, canonical template, generated projection, provider contract, current quality spec, and bounded evidence only; no prose rewrite, GitLab mutation or observation, global pytest-default change, product worker-resource change, per-test timeout relaxation, automatic retry, foreign Work Lane action, or dual-remote completion claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-25-github-pytest-process-contention-resilience"
+fallback = "Restore the prior four-worker GitHub projection only as a rollback of this patch and keep hosted readiness blocked; rollback does not establish the prior projection as healthy."
+kill_signal = "The Markdown patch changes prose, two-worker exact-SHA proof still exhibits nondeterministic process or Git contention, the timeout inputs weaken or disappear, GitLab or product resource policy changes, a failed rerun is accepted as passing, or dual-remote success is claimed while GitLab remains unreachable."
+
+[promotion]
+targets = [
+  ".config/ci/templates/hosted/github-actions.yml",
+  ".github/workflows/ci.yml",
+  "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md",
+  "tests/architecture/test_ci_provider_projections.py",
+  "openspec/specs/quality/spec.md",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/archive/2026-07-25-github-pytest-process-contention-resilience",
+  "evidence/chronicle/github-pytest-process-contention-resilience-20260725/2026-07-25.md",
+  "evidence/claims/github-pytest-process-contention-resilience-20260725.toml",
+]

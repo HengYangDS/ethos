@@ -20,7 +20,6 @@ paths = [
   "tests/unit/lanes/retirement/test_ownerless_closeout_fence.py",
   "tests/unit/lanes/retirement/test_ownerless_closeout_records.py",
   "tests/unit/lanes/retirement/test_ownerless_closeout_recovery.py",
-  "tests/unit/lanes/retirement/test_ownerless_closeout_wcp_edges.py",
   "tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py",
   "tests/unit/lanes/test_armed_hook_closeout_e2e.py",
   "tests/unit/lanes/test_lane_resolution.py",

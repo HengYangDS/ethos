@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "evidence/claims/ownerless-effect-manifest-clear-20260725.toml",
+  "evidence/chronicle/ownerless-effect-manifest-clear-20260725/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/ownerless-effect-manifest-clear/**",
+  "openspec/specs/repository-governance/spec.md",
+]

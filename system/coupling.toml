@@ -89,6 +89,22 @@ commands = [
   "ethos lane retire unbound",
 ]
 forbidden_workflow_state = ["raw_git_worktree_add"]
+mandatory_paths = [
+  "src/ethos/adapters/mutation/lane_lifecycle/core.py",
+  "src/ethos/adapters/mutation/resolution/_effects.py",
+  "src/ethos/adapters/mutation/resolution/observation.py",
+  "src/ethos/adapters/mutation/resolution/preservation/core.py",
+  "src/ethos/adapters/mutation/resolution/records/roots.py",
+  "src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/facts/core.py",
+  "src/ethos/adapters/mutation/resolution/closeout/effect.py",
+  "src/ethos/adapters/mutation/resolution/closeout/recovery.py",
+  "src/ethos/adapters/mutation/resolution/closeout/cleanup/core.py",
+  "src/ethos/adapters/mutation/resolution/closeout/ownerless/receipt/core.py",
+  "src/ethos/adapters/mutation/resolution/closeout/retry.py",
+  "src/ethos/adapters/store/state/closeout.py",
+]
+declared_executables = ["git"]
+audit_root_bound = true
 required_for = ["tracked mutation isolation", "local closeout"]
 replaceability = "hard-bound"
 degradation_state = "blocked:protected_root_mutation"

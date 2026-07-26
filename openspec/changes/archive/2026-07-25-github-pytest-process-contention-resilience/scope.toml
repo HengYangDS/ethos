@@ -1,0 +1,12 @@
+schema_version = 1
+paths = [
+  ".config/ci/templates/hosted/github-actions.yml",
+  ".github/workflows/ci.yml",
+  "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md",
+  "evidence/claims/github-pytest-process-contention-resilience-20260725.toml",
+  "evidence/chronicle/github-pytest-process-contention-resilience-20260725/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/github-pytest-process-contention-resilience/**",
+  "openspec/specs/quality/spec.md",
+  "tests/architecture/test_ci_provider_projections.py",
+]

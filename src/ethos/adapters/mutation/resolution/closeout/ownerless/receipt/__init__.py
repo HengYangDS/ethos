@@ -1,0 +1,1 @@
+"""Ownerless closeout receipt internals."""

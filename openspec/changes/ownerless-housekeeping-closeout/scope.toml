@@ -1,6 +1,7 @@
 schema_version = 1
 paths = [
   "evidence/claims/native-lane-resolution-authority-20260724.toml",
+  "evidence/claims/ownerless-housekeeping-closeout-20260726.toml",
   "evidence/claims/ownerless-budget-source-admission-predecessor-20260726.toml",
   "evidence/claims/ownerless-budget-source-admission-successor-predecessor-20260726.toml",
   "evidence/claims/ownerless-release-0-1-0a2-20260726.toml",

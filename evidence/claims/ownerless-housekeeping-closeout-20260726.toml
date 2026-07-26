@@ -1,0 +1,42 @@
+[claim]
+id = "ownerless-housekeeping-closeout-20260726"
+subject = "ethos:work-lane-cohort:ownerless-housekeeping-closeout"
+state = "active"
+summary = "This active Claim bounds one accepted authority carrier for three exact clean missing-lease lanes and explicitly excludes seven valid-owner lanes, network actions, and raw cleanup."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-housekeeping-closeout-20260726/2026-07-26.md"
+sha256 = "a133a96f3fb33d46f5df349c0df5c6cb228b416e45473603d7f534a5132e065d"
+evidence_ids = ["evidence:ownerless-housekeeping-closeout-20260726"]
+binding = "This digest-only Claim binds the exact dated cohort Chronicle, accepted head df5ee833af27c1441aa07083e2c9a97909c799b3, three target-specific Claim and Chronicle pairs, the valid-owner exclusion, and the requirement that each later native decision re-read mutable Git and lease facts. It claims no source effect, network-side transition, provider execution, valid-owner completion, or package clear."
+verifier = "digest_only"
+tests = [
+  "openspec validate ownerless-housekeeping-closeout --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-housekeeping-closeout --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh lane status --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One accepted authority carrier and three exact missing-lease target judgments. No foreign valid-owner mutation, automatic disposition switch, package clear, network operation, provider claim, raw ref/worktree action, SQLite edit, or session/IDE mutation."
+
+[carriers]
+openspec = "openspec/changes/ownerless-housekeeping-closeout"
+fallback = "Leave each source and all valid-owner lanes intact when any target, accepted, lease, Claim, worktree, tree, Chronicle, decision, package, receipt, or descendant-containment fact differs."
+kill_signal = "A visible lane is treated as disposable without accepted target evidence, a valid owner is bypassed, a blocked effect is hand-cleaned, or local readiness is promoted into a network or provider claim."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-housekeeping-closeout-20260726.toml",
+  "evidence/chronicle/ownerless-housekeeping-closeout-20260726/2026-07-26.md",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-20260726.toml",
+  "evidence/claims/ownerless-release-0-1-0a2-20260726.toml",
+  "evidence/claims/native-lane-resolution-authority-20260724.toml",
+  "openspec/changes/ownerless-housekeeping-closeout",
+]

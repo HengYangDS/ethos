@@ -1,5 +1,5 @@
 ---
-subject: ethos:ownerless-budget-source-admission-final-reconciliation-20260726:budget-source-admission-successor-predecessor
+subject: ethos:ownerless-budget-source-admission-preserve-retire-reconciliation-20260726:budget-source-admission-successor-predecessor
 role: evidence
 state: active
 event: lane_resolution/preserve-retire
@@ -19,10 +19,10 @@ lane_resolution/preserve-retire
 On Sunday, July 26, 2026, accepted `dev`, `candidate/dev`, and `main` resolve to
 `3b04f2dfa3638099753bb484bf4f4e1cea19ceaa`. Fresh direct-retire decision
 `lane-decision:6d1a4a1d-4b3e-4cd1-9d2e-303e8688d45e` bound observation
-`64c76ea6527ea01f4001f7a903040fd2b526b3c3761d5b2310815e8f7607e329` for the exact branch and HEAD above. Its apply returned
+`64c76ea6527ea01f4001f7a903040fd2b526b3c3761d5b2310815e8f7607e329` for the exact branch and HEAD above. The session-local command JSON was read as a manual Chronicle judgment: its apply returned
 only `lane_resolution_ownerless_target_not_accepted_ancestor`; no package,
 receipt, reservation, fence, ref, worktree, lease, or accepted-ref effect
-occurred.
+occurred. The digest-only Claim binds these Chronicle bytes; it does not independently attest the runtime result.
 
 ## Semantic boundary
 
@@ -42,3 +42,23 @@ resulting package is a transient recovery bridge; for this clean source its
 tracked and index patches must be empty, while its repository bundle must bind
 the exact target HEAD. The completion receipt, package, and manifest remain
 retained records. Any drift leaves the source unchanged.
+
+## Required apply and postconditions
+
+The later decision must be new, carry `break_glass=true`, and apply only with
+`--confirm-irreversible`. Before effect, record the current-record path and
+SHA-256 and require those bytes to remain unchanged. Success requires all of the
+following for this exact target:
+
+- apply returns `ok=true`, `state=preserved_and_retired`, and no gaps;
+- inventory adds one package and one receipt, reduces pending decisions by one,
+  keeps decision count stable after decision creation, reports the new entry as
+  `retained`, and keeps inflight, partial, and invalid counts at zero;
+- the format-v2 package contains `manifest.json`, `repository.bundle`,
+  `tracked.patch`, and `index.patch`, contains no `untracked.tar` for this clean
+  source, and all manifest and payload SHA-256 values cross-match;
+- the bundle advertises the exact target HEAD, while tracked and index patches
+  are empty;
+- the target ref, worktree registration, and filesystem path are absent;
+- no receipt-reservation sidecar, ownerless reservation, or fence remains; and
+- accepted HEAD plus every non-target ref and worktree remain unchanged.

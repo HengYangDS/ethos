@@ -29,7 +29,7 @@ receipt, reservation, fence, ref, worktree, lease, or accepted-ref mutation.
 
 2. **One accepted Chronicle per exact target.** Each `preserve-retire` Chronicle
    carries one literal branch selector, exact target HEAD, exact event, and its
-   own Claim. The cohort Chronicle cannot substitute for effect admission.
+   own Claim. No aggregate carrier can substitute for effect admission.
 
 3. **Preservation is a transient effect bridge.** The sources are clean, so the
    new package's tracked and index patches must be empty. The repository bundle
@@ -45,6 +45,12 @@ receipt, reservation, fence, ref, worktree, lease, or accepted-ref mutation.
    before observing the second. Any drift preserves the current target and all
    non-target state.
 
+6. **Success is an exact native postcondition set.** Record the new decision
+   current-record path and SHA-256, require `preserved_and_retired`, retained
+   inventory state, exact format-v2 package files and cross-digests, empty clean
+   patches, no `untracked.tar`, absent ref/registration/path, no reservation,
+   fence, or receipt sidecar, and unchanged accepted plus non-target refs.
+
 ## Risks / Trade-offs
 
 - **Target or ownership drift** -> Stop and leave the source intact.
@@ -58,7 +64,7 @@ receipt, reservation, fence, ref, worktree, lease, or accepted-ref mutation.
 
 ## Migration Plan
 
-1. Add the target-bound authority, cohort evidence, and OpenSpec delta.
+1. Add the two target-bound authorities and the OpenSpec delta.
 2. Validate Claims and OpenSpec, archive officially, refresh parity, execute the
    final HEAD-bound proof, land, accepted-close, and retire this carrier.
 3. Create a fresh preserve-retire decision for the first exact target, apply it,

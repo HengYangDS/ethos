@@ -12,8 +12,8 @@
 
 - [x] 2.1 Add one exact `lane_resolution/preserve-retire` Chronicle and Claim per
   target, including branch, HEAD, prior decision, and fallback boundary.
-- [x] 2.2 Add the cohort Claim and Chronicle and supersede only the two consumed
-  target-scoped retry Claims.
+- [x] 2.2 Bind both target Claims to one OpenSpec carrier and supersede only
+  the two consumed target-scoped retry Claims.
 - [x] 2.3 Add the narrow repository-governance delta without product source,
   tests, schemas, dependencies, package initializers, or valid-owner changes.
 
@@ -29,8 +29,10 @@
 
 - [x] 4.1 Require one new preserve-retire decision per target and forbid reuse of
   every prior retire decision.
-- [x] 4.2 Require serial package, bundle, manifest, receipt, ref, worktree, and
-  inventory verification after each apply.
+- [x] 4.2 Require serial current-record digest, `preserved_and_retired`, retained
+  inventory, exact format-v2 package and cross-digest, empty patch, no-untracked
+  archive, receipt, ref, registration, path, reservation, fence, sidecar, and
+  non-target stability checks after each apply.
 - [x] 4.3 Retain recovery packages and exclude package clear, remotes, valid-owner
   mutation, broad caches, build evidence, virtual environments, and IDE/session
   state from this carrier.

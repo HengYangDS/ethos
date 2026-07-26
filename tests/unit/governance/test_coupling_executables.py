@@ -477,6 +477,36 @@ def test_dynamic_module_loading_and_reflection_fail_closed(tmp_path: Path, sourc
 
 
 @pytest.mark.parametrize(
+    "source",
+    [
+        "import builtins\nbuiltins.__import__('subprocess').run(['tar', '--version'])\n",
+        "import builtins\n"
+        "getattr(builtins, '__import__')('subprocess').run(['tar', '--version'])\n",
+        "from builtins import __import__ as load\nload('subprocess').run(['tar', '--version'])\n",
+        "from importlib import import_module as load\n"
+        "load('subprocess').run(['tar', '--version'])\n",
+        "import importlib as modules\n"
+        "load = modules.import_module\n"
+        "load('subprocess').run(['tar', '--version'])\n",
+        "import importlib\n"
+        "getattr(importlib, 'import_module')('subprocess').run(['tar', '--version'])\n",
+        "load = globals\nload()['subprocess'].run(['tar', '--version'])\n",
+        "import sys\nsys.modules['subprocess'].run(['tar', '--version'])\n",
+        "eval(\"__import__('subprocess').run(['tar', '--version'])\")\n",
+    ],
+)
+def test_dynamic_resolution_aliases_and_reflection_fail_closed(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_dynamic_resolution",
+        relative,
+    )
+
+
+@pytest.mark.parametrize(
     "call",
     [
         "os.execv(EXECUTABLE, ['git', 'status'])",

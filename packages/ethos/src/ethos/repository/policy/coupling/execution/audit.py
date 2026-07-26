@@ -62,19 +62,34 @@ def external_execution_calls(tree: ast.AST) -> tuple[tuple[ast.Call, str], ...]:
 def _dynamic_resolution_gaps(tree: ast.AST, relative: str, binding: CouplingBinding) -> list[str]:
     """Fail closed on runtime module loading or namespace reflection in mandatory paths."""
     return [
-        _call_gap(binding, relative, node, "mandatory_executable_dynamic_resolution")
+        _node_gap(binding, relative, node, "mandatory_executable_dynamic_resolution")
         for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and _is_dynamic_resolution_call(node)
+        if _is_dynamic_resolution_node(node)
     ]
 
 
-def _is_dynamic_resolution_call(node: ast.Call) -> bool:
-    """Return whether a call can hide the module or namespace that owns execution."""
-    if isinstance(node.func, ast.Name):
-        return node.func.id in {"__import__", "globals", "locals", "vars", "import_module"}
-    return isinstance(node.func, ast.Attribute) and node.func.attr in {
+def _is_dynamic_resolution_node(node: ast.AST) -> bool:
+    """Return whether syntax can resolve an execution module outside lexical analysis."""
+    if isinstance(node, ast.ImportFrom):
+        return node.module in {"builtins", "importlib"} and any(
+            alias.name in {"__import__", "import_module"} for alias in node.names
+        )
+    if isinstance(node, ast.Name):
+        return node.id in {"__import__", "globals", "locals", "vars", "eval", "exec"}
+    if isinstance(node, ast.Attribute):
+        return node.attr in {"__import__", "import_module", "modules"}
+    return isinstance(node, ast.Call) and _is_dynamic_resolution_getattr(node)
+
+
+def _is_dynamic_resolution_getattr(node: ast.Call) -> bool:
+    """Recognize literal reflection of module-loader and module-map attributes."""
+    if not isinstance(node.func, ast.Name) or node.func.id != "getattr" or len(node.args) < 2:
+        return False
+    name = node.args[1]
+    return isinstance(name, ast.Constant) and name.value in {
         "__import__",
         "import_module",
+        "modules",
     }
 
 
@@ -219,5 +234,10 @@ def _path_gap(binding: CouplingBinding, relative: str, kind: str) -> str:
     return f"{kind}:{binding.id}:{relative}"
 
 
-def _call_gap(binding: CouplingBinding, relative: str, node: ast.Call, kind: str) -> str:
+def _node_gap(binding: CouplingBinding, relative: str, node: ast.AST, kind: str) -> str:
+    """Return one source-location-bound gap for an audited syntax node."""
     return f"{_path_gap(binding, relative, kind)}:{node.lineno}"
+
+
+def _call_gap(binding: CouplingBinding, relative: str, node: ast.Call, kind: str) -> str:
+    return _node_gap(binding, relative, node, kind)

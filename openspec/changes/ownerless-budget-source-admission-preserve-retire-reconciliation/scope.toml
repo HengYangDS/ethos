@@ -1,12 +1,11 @@
 schema_version = 1
 paths = [
-  "evidence/claims/ownerless-budget-source-admission-final-reconciliation-20260726.toml",
   "evidence/claims/ownerless-budget-source-admission-predecessor-preserve-retire-20260726.toml",
   "evidence/claims/ownerless-budget-source-admission-successor-predecessor-preserve-retire-20260726.toml",
   "evidence/claims/ownerless-budget-source-admission-predecessor-target-scoped-retry-20260726.toml",
   "evidence/claims/ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726.toml",
-  "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/**",
+  "evidence/chronicle/ownerless-budget-source-admission-preserve-retire-reconciliation-20260726/**",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/ownerless-budget-source-admission-final-reconciliation/**",
+  "openspec/changes/ownerless-budget-source-admission-preserve-retire-reconciliation/**",
   "openspec/specs/repository-governance/spec.md",
 ]

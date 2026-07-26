@@ -359,3 +359,14 @@ archive HEAD lacks fresh proof, or lane ownership/absorption is not exact.
 
 None. Authority, replay, observation, contract, state-machine, coupling, proof,
 and closeout boundaries are decided.
+
+### Closure evidence boundary (2026-07-26)
+
+Completion evidence distinguishes current reproducible regression behavior from
+unrecorded historical sequencing. Disposable-copy source mutants must make each
+listed regression sentinel fail, and the unmodified committed tree must pass;
+this supports the current contract without retroactively asserting a prior RED
+command. Mandatory execution paths reject lexical dynamic module loading and
+namespace reflection. Terminal WCP removal remains a post-archive claim: the
+active delta is fused only by the official archive, then bound by Claim
+supersession and an archive-HEAD proof.

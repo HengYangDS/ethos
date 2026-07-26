@@ -6,7 +6,7 @@ summary = "This active Claim bounds only the receipt-bound accepted-worktree syn
 
 [evidence]
 dated = "evidence/chronicle/accepted-closeout-interrupted-sync-recovery-20260726/2026-07-26.md"
-sha256 = "bb1409171e6a7e2c38a502b039df344278375f6fc935b03d7a416e8049c63a0b"
+sha256 = "b4ae3db4a27b287e8eef9dde0d031c4b57ff507ced086d68f5d213475c8a1599"
 evidence_ids = ["evidence:accepted-closeout-interrupted-sync-recovery-20260726"]
 binding = "This digest-only Claim links the active Change, dated Chronicle, scoped source and tests, and the stated recovery boundary. It makes no statement about execution, promotion, publication, hosted operation, or remotes."
 verifier = "digest_only"

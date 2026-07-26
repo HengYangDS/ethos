@@ -19,7 +19,7 @@
 
 ## 3. Carrier closeout boundary
 
-- [ ] 3.1 Archive this Change through the official OpenSpec transition and
+- [x] 3.1 Archive this Change through the official OpenSpec transition and
   update archive-bound Claim carriers.
 - [ ] 3.2 Refresh and commit generic parity evidence, execute exact-HEAD proof,
   land to candidate, and accepted-close this successor.
@@ -27,9 +27,9 @@
 
 ## 4. Post-acceptance effect boundary
 
-- [ ] 4.1 Require fresh new direct-retire decisions; never reuse the invalid
+- [x] 4.1 Require fresh new direct-retire decisions; never reuse the invalid
   pending decision.
-- [ ] 4.2 Preserve each accepted-ancestor no-effect result and require a later
+- [x] 4.2 Preserve each accepted-ancestor no-effect result and require a later
   accepted preserve-retire reconciliation before any disposition change.
-- [ ] 4.3 Keep all packages, valid-owner lanes, remotes, raw Git state, SQLite,
+- [x] 4.3 Keep all packages, valid-owner lanes, remotes, raw Git state, SQLite,
   and IDE/session state outside this repair.

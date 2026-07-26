@@ -1,0 +1,37 @@
+[claim]
+id = "ownerless-budget-source-admission-predecessor-preserve-retire-20260726"
+subject = "ethos:work-lane:work/20260724-20260724-budget-contract-v2-changed-scope-source-admission"
+state = "active"
+summary = "Records one exact transient preserve-retire bridge after the clean RED predecessor reached the native accepted-ancestor no-effect boundary."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md"
+sha256 = "5f76e5977d1a11278976aca2a0a41c6fe6df459127f9e02670e691fd2952dd38"
+evidence_ids = ["evidence:ownerless-budget-source-admission-predecessor-preserve-retire-20260726"]
+binding = "This digest-only Claim binds only work/20260724-20260724-budget-contract-v2-changed-scope-source-admission at 8afc80fd78a3d2c80144ae3d93d4045a004f3f54, accepted reconciliation baseline 3b04f2dfa3638099753bb484bf4f4e1cea19ceaa, direct-retire decision lane-decision:4838b832-ce13-4392-913d-99a6ebc3cbbd, observation 96f19134e6b818e70d410cd26dc712b57b5ec568cb6259b3912c12be888c6c9e, the sole no-effect result lane_resolution_ownerless_target_not_accepted_ancestor, and one later fresh target-bound preserve-retire decision."
+verifier = "digest_only"
+tests = [
+  "openspec validate ownerless-budget-source-admission-final-reconciliation --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-budget-source-admission-final-reconciliation --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean ownerless source, one immutable direct-retire no-effect record, and one later target-bound preserve-retire bridge. No feature acceptance, valid-owner mutation, package clear, remote mutation, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/ownerless-budget-source-admission-final-reconciliation"
+fallback = "Keep the exact source and all records unchanged when any branch, head, lease, Claim, dirtiness, registration, accepted head, Chronicle, package, receipt, or inventory fact differs."
+kill_signal = "A retire decision is reused or rewritten, accepted ancestry is bypassed, a valid-owner descendant is mutated, the source is hand-deleted, or a preservation package is cleared without later accepted exact-manifest authority."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-budget-source-admission-predecessor-preserve-retire-20260726.toml",
+  "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md",
+  "openspec/changes/ownerless-budget-source-admission-final-reconciliation",
+]

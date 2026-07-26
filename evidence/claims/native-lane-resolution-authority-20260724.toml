@@ -2,13 +2,13 @@
 id = "native-lane-resolution-authority-20260724"
 subject = "ethos:worktree-retirement:native-lane-resolution-authority"
 state = "active"
-summary = "The active successor Claim authorizes implementation of an ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, versioned-current-record chain, target-bound accepted-Chronicle validation, and explicit preserved-retirement-blocked outcome for later preserve-retire that will supersede the predecessor only after implementation, full proof, and official archive evidence exist."
+summary = "The active successor Claim records the implemented ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, versioned-current-record chain, target-bound accepted-Chronicle validation, and explicit preserved-retirement-blocked outcome for later preserve-retire. It remains active pending fresh exact-HEAD proof, official archive evidence, and only then predecessor-Claim supersession."
 
 [evidence]
 dated = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md"
-sha256 = "3f615da8c5069c2e12109d42419ff7d8971a870b4042be261a1dbcad6b98f2aa"
+sha256 = "c14f47f82370a21b7fc52f9bc1e2b925877e1f10048c2f40ae0a99010d4fb369"
 evidence_ids = ["evidence:native-lane-resolution-authority-20260724"]
-binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and read-only predecessor rollback carrier authorize implementation. The predecessor Claim remains active; this Claim will supersede it only after replacement behavior has implementation evidence, full proof, official archive evidence, and refreshed Claim/Chronicle binding. This initial binding does not claim completed code, passing gates, exact-HEAD proof, archive, supersession, land, accepted closeout, task-lane retirement, publication, or hosted execution."
+binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and read-only predecessor rollback carrier authorized implementation. The implementation and independent review are recorded in the dated Chronicle and review record. The first exact-HEAD pre-archive run at c9c8d1d5e0be168eed0312d8180d9a4231ce4a76 was gapped with evidence digest c2a932cb9539b2a8fc51e02f11907cbe8363adaffc9754cb890405837b859b91; it is negative evidence, not completion. Signed ea730332a402c58cda567498ad68c4cce3fb21f8 repaired its type, lint, and test-size defects without weakening governed gates, and focused verification is recorded in the Chronicle. Fresh generic parity and one new exact-HEAD executed proof remain mandatory. The predecessor Claim remains active; this Claim will supersede it only after that proof, official archive evidence, and refreshed Claim/Chronicle binding. This binding does not claim final proof, archive, supersession, land, accepted closeout, task-lane retirement, publication, or hosted execution."
 verifier = "digest_only"
 tests = [
   "openspec validate native-lane-resolution-authority --strict --json",

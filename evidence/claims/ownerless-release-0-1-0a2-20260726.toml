@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One exact clean unique release-date lane and one local preserve-retire transition. No date acceptance, tag/release publication, remote mutation, hosted claim, package clear, or valid-owner action."
 
 [carriers]
-openspec = "openspec/changes/ownerless-housekeeping-closeout"
+openspec = "openspec/changes/archive/2026-07-26-ownerless-housekeeping-closeout"
 fallback = "Keep the source branch and worktree intact when any head, lease, Claim, dirtiness, tree, registration, Chronicle, package, manifest, or receipt fact differs."
 kill_signal = "Preservation is described as release acceptance, remote publication is inferred, the recovery package is cleared, or native failure is hidden by manual cleanup."
 
@@ -34,5 +34,5 @@ kill_signal = "Preservation is described as release acceptance, remote publicati
 targets = [
   "evidence/claims/ownerless-release-0-1-0a2-20260726.toml",
   "evidence/chronicle/ownerless-housekeeping-closeout-20260726/release-0-1-0a2.md",
-  "openspec/changes/ownerless-housekeeping-closeout",
+  "openspec/changes/archive/2026-07-26-ownerless-housekeeping-closeout",
 ]

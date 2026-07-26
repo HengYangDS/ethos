@@ -27,8 +27,8 @@ def explain_rules_target(root: Path, target: str) -> dict[str, object]:
             ),
             "matched_rules": [],
             "next_action_contract": [
+                "repair .ethos/rules.toml",
                 "ethos rules coverage --changed-path <path>",
-                "ethos rules migrate --apply",
             ],
             "minimal_rule_skeleton": minimal_rule_skeleton(path),
         }

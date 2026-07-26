@@ -13,7 +13,6 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.config import rules_config
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.core import workspace_status
@@ -26,9 +25,8 @@ from ethos.contracts.semantic import ChangeContract
 from ethos.contracts.semantic import load_change_contract_file
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
-from ethos.normalization.core import string_list
 from ethos.repository.openspec.audit import tasks_complete
-from ethos.repository.policy.rules.config import resolve_profile_stack
+from ethos.repository.policy.rules.compile import compile_rules
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -186,75 +184,58 @@ def _change_contract_complete(repo: Path, change_id: str, *, tree_ref: str | Non
     return tasks_complete(text)
 
 
-def path_matches(path: str, pattern: str) -> bool:
-    """Match a path against a rule pattern (supports trailing /** prefix globs)."""
-    if pattern.endswith("/**"):
-        prefix = pattern[:-3]
-        return path == prefix or path.startswith(f"{prefix}/")
-    return fnmatch.fnmatchcase(path, pattern)
-
-
 def matching_rule_gates(
     root: Path,
     paths: tuple[str, ...],
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], list[str]]:
-    """Match paths to rules and gates, returning profile validation gaps."""
-    config = rules_config(root)
-    profile_stack, profile_gaps = resolve_profile_stack(config)
-    if profile_gaps:
-        return [], [], profile_gaps
-    gates = config.get("gates") if isinstance(config.get("gates"), dict) else {}
+    """Match paths against compiled rules and resolve their declared gates."""
+    compiled = compile_rules(root)
+    rules = [rule for rule in cast("list[object]", compiled["rules"]) if isinstance(rule, dict)]
+    gate_definitions = {
+        str(gate_id): dict(gate)
+        for gate_id, gate in cast("dict[str, object]", compiled["gate_definitions"]).items()
+        if isinstance(gate, dict)
+    }
     matched_rules: list[dict[str, object]] = []
     required_gates: list[dict[str, object]] = []
-    active_profiles = set(profile_stack)
-    rules = config.get("rule") if isinstance(config.get("rule"), list) else []
-    for raw_rule in cast("list[object]", rules):
-        if not isinstance(raw_rule, dict):
-            continue
-        profile_layers = string_list(raw_rule.get("profile_layers"))
-        if profile_layers and active_profiles.isdisjoint(profile_layers):
-            continue
+    seen_gate_ids: set[str] = set()
+    for rule in rules:
+        patterns = tuple(str(pattern) for pattern in cast("list[object]", rule["path_globs"]))
         matched_paths = [
             path
             for path in paths
             if any(
-                path_matches(path, pattern)
-                for pattern in string_list(raw_rule.get("path_globs", raw_rule.get("paths")))
+                (path == pattern[:-3] or fnmatch.fnmatchcase(path, pattern))
+                if pattern.endswith("/**")
+                else fnmatch.fnmatchcase(path, pattern)
+                for pattern in patterns
             )
         ]
         if not matched_paths:
             continue
         rule_gates: list[dict[str, object]] = []
-        for gate_id in string_list(raw_rule.get("required_gates", raw_rule.get("requires"))):
-            gate_config = gates.get(gate_id, {}) if isinstance(gates, dict) else {}
-            gate: dict[str, object] = {
-                "id": gate_id,
-                "command": (
-                    str(gate_config.get("command", "")) if isinstance(gate_config, dict) else ""
-                ),
-                "blocking": gate_config.get("blocking", True) is not False
-                if isinstance(gate_config, dict)
-                else True,
-            }
+        for gate_id in cast("list[object]", rule["required_gates"]):
+            gate_name = str(gate_id)
+            gate = gate_definitions.get(
+                gate_name,
+                {"id": gate_name, "command": "", "blocking": True},
+            )
             rule_gates.append(gate)
-            required_gates.append(gate)
+            if gate_name not in seen_gate_ids:
+                required_gates.append(gate)
+                seen_gate_ids.add(gate_name)
         matched_rules.append(
             {
-                "id": str(raw_rule.get("id", "")),
-                "risk": str(
-                    raw_rule.get("risk")
-                    or raw_rule.get("subject")
-                    or raw_rule.get("stop_condition")
-                    or ""
-                ),
+                "id": str(rule["id"]),
+                "subject": str(rule.get("subject", "")),
                 "matched_paths": matched_paths,
                 "required_gates": rule_gates,
-                "evidence": string_list(
-                    raw_rule.get("evidence_requirements", raw_rule.get("evidence"))
+                "evidence_requirements": list(
+                    cast("list[object]", rule.get("evidence_requirements", []))
                 ),
             }
         )
-    return matched_rules, required_gates, []
+    return matched_rules, required_gates, list(cast("list[object]", compiled["compile_gaps"]))
 
 
 def rule_fact(

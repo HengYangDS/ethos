@@ -6,13 +6,8 @@ import ast
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.repository.policy.coupling.execution.aliases.catalog as catalog
 from ethos.repository.policy.coupling.execution.collector import collect_external_execution_calls
-from ethos.repository.policy.coupling.execution.definitions import ASYNCIO_EXEC_FUNCTION
-from ethos.repository.policy.coupling.execution.definitions import DYNAMIC_EXECUTION_FUNCTION_SUFFIX
-from ethos.repository.policy.coupling.execution.definitions import IMPLICIT_SHELL_FUNCTIONS
-from ethos.repository.policy.coupling.execution.definitions import OS_EXECUTABLE_POSITIONS
-from ethos.repository.policy.coupling.execution.definitions import POPEN_EXECUTABLE_POSITION
-from ethos.repository.policy.coupling.execution.definitions import POPEN_SHELL_POSITION
 
 if TYPE_CHECKING:
     from ethos_core.contracts.registry.declarations import CouplingBinding
@@ -66,22 +61,25 @@ def external_execution_calls(tree: ast.AST) -> tuple[tuple[ast.Call, str], ...]:
 def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBinding) -> list[str]:
     if (kind := _immediate_call_gap_kind(node, function)) is not None:
         return [_call_gap(binding, relative, node, kind)]
-    if function == ASYNCIO_EXEC_FUNCTION:
+    if function == catalog.ASYNCIO_EXEC_FUNCTION:
         return _asyncio_exec_gaps(node, relative, binding)
-    if function.startswith("os.") and function.removeprefix("os.") in OS_EXECUTABLE_POSITIONS:
+    if (
+        function.startswith("os.")
+        and function.removeprefix("os.") in catalog.OS_EXECUTABLE_POSITIONS
+    ):
         return _os_executable_gaps(node, function, relative, binding)
     gaps: list[str] = []
     if _unsafe_option(
         node,
         "shell",
-        position=POPEN_SHELL_POSITION,
+        position=catalog.POPEN_SHELL_POSITION,
         safe_values={False, None},
     ):
         gaps.append(_call_gap(binding, relative, node, "mandatory_executable_shell_true"))
     if _unsafe_option(
         node,
         "executable",
-        position=POPEN_EXECUTABLE_POSITION,
+        position=catalog.POPEN_EXECUTABLE_POSITION,
         safe_values={None},
     ):
         gaps.append(_call_gap(binding, relative, node, "mandatory_executable_override"))
@@ -90,13 +88,13 @@ def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBi
 
 
 def _immediate_call_gap_kind(node: ast.Call, function: str) -> str | None:
-    if function in IMPLICIT_SHELL_FUNCTIONS:
+    if function in catalog.IMPLICIT_SHELL_FUNCTIONS:
         return "mandatory_executable_shell_true"
     if any(isinstance(argument, ast.Starred) for argument in node.args):
         return "mandatory_executable_expanded_positionals"
     if any(keyword.arg is None for keyword in node.keywords):
         return "mandatory_executable_expanded_keywords"
-    if function.endswith(DYNAMIC_EXECUTION_FUNCTION_SUFFIX):
+    if function.endswith(catalog.DYNAMIC_EXECUTION_FUNCTION_SUFFIX):
         return "mandatory_executable_dynamic_argv0"
     return None
 
@@ -107,7 +105,7 @@ def _os_executable_gaps(
     relative: str,
     binding: CouplingBinding,
 ) -> list[str]:
-    position = OS_EXECUTABLE_POSITIONS[function.removeprefix("os.")]
+    position = catalog.OS_EXECUTABLE_POSITIONS[function.removeprefix("os.")]
     executable = _argument_at_position_or_keywords(node, position, ("path", "file"))
     return _executable_gaps(executable, node, relative, binding)
 

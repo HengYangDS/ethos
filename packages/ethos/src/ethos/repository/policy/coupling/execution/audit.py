@@ -65,7 +65,8 @@ def _dynamic_resolution_gaps(tree: ast.AST, relative: str, binding: CouplingBind
     return [
         _node_gap(binding, relative, node, "mandatory_executable_dynamic_resolution")
         for node in ast.walk(tree)
-        if _is_dynamic_resolution_node(node, module_aliases)
+        if isinstance(node, ast.expr | ast.stmt)
+        and _is_dynamic_resolution_node(node, module_aliases)
     ]
 
 
@@ -81,7 +82,7 @@ def _dynamic_module_aliases(tree: ast.AST) -> frozenset[str]:
     return frozenset(aliases)
 
 
-def _is_dynamic_resolution_node(node: ast.AST, module_aliases: frozenset[str]) -> bool:
+def _is_dynamic_resolution_node(node: ast.expr | ast.stmt, module_aliases: frozenset[str]) -> bool:
     """Return whether syntax can resolve an execution module outside lexical analysis."""
     if isinstance(node, ast.ImportFrom):
         return node.module in {"builtins", "importlib"} and any(
@@ -100,18 +101,18 @@ def _is_dynamic_resolution_node(node: ast.AST, module_aliases: frozenset[str]) -
 
 def _is_dynamic_resolution_getattr(node: ast.Call, module_aliases: frozenset[str]) -> bool:
     """Recognize literal reflection of module-loader and module-map attributes."""
-    if not isinstance(node.func, ast.Name) or node.func.id != "getattr" or len(node.args) < 2:
+    if not isinstance(node.func, ast.Name) or node.func.id != "getattr":
         return False
-    name = node.args[1]
+    try:
+        target = node.args[0]
+        name = node.args[1]
+    except IndexError:
+        return False
     if not isinstance(name, ast.Constant) or not isinstance(name.value, str):
         return False
     if name.value in {"__import__", "import_module", "modules"}:
         return True
-    return (
-        name.value == "__dict__"
-        and isinstance(node.args[0], ast.Name)
-        and node.args[0].id in module_aliases
-    )
+    return name.value == "__dict__" and isinstance(target, ast.Name) and target.id in module_aliases
 
 
 def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBinding) -> list[str]:
@@ -255,7 +256,7 @@ def _path_gap(binding: CouplingBinding, relative: str, kind: str) -> str:
     return f"{kind}:{binding.id}:{relative}"
 
 
-def _node_gap(binding: CouplingBinding, relative: str, node: ast.AST, kind: str) -> str:
+def _node_gap(binding: CouplingBinding, relative: str, node: ast.expr | ast.stmt, kind: str) -> str:
     """Return one source-location-bound gap for an audited syntax node."""
     return f"{_path_gap(binding, relative, kind)}:{node.lineno}"
 

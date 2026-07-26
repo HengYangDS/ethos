@@ -304,6 +304,57 @@ def test_dynamic_composed_execution_alias_paths_fail_closed(
 
 
 @pytest.mark.parametrize(
+    "source",
+    [
+        "__import__('subprocess').run(['tar', '--version'])\n",
+        "import importlib\nimportlib.import_module('subprocess').run(['tar', '--version'])\n",
+        "import subprocess\nglobals()['subprocess'].run(['tar', '--version'])\n",
+    ],
+)
+def test_dynamic_module_loading_and_reflection_fail_closed(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    gaps = mandatory_executable_gaps(tmp_path, _declaration(relative))
+
+    assert len(gaps) == 1
+    assert gaps[0].startswith(f"mandatory_executable_dynamic_resolution:{_BINDING_ID}:{relative}:")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import builtins\nbuiltins.__import__('subprocess').run(['tar', '--version'])\n",
+        "import builtins\n"
+        "getattr(builtins, '__import__')('subprocess').run(['tar', '--version'])\n",
+        "import builtins\n"
+        "builtins.__dict__['__import__']('subprocess').run(['tar', '--version'])\n",
+        "from builtins import __import__ as load\nload('subprocess').run(['tar', '--version'])\n",
+        "from importlib import import_module as load\n"
+        "load('subprocess').run(['tar', '--version'])\n",
+        "import importlib as modules\n"
+        "load = modules.import_module\n"
+        "load('subprocess').run(['tar', '--version'])\n",
+        "import importlib\n"
+        "getattr(importlib, 'import_module')('subprocess').run(['tar', '--version'])\n",
+        "import importlib\n"
+        "importlib.__dict__['import_module']('subprocess').run(['tar', '--version'])\n",
+        "load = globals\nload()['subprocess'].run(['tar', '--version'])\n",
+        "import sys\nsys.modules['subprocess'].run(['tar', '--version'])\n",
+        "eval(\"__import__('subprocess').run(['tar', '--version'])\")\n",
+    ],
+)
+def test_dynamic_resolution_aliases_and_reflection_fail_closed(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    gaps = mandatory_executable_gaps(tmp_path, _declaration(relative))
+
+    assert len(gaps) == 1
+    assert gaps[0].startswith(f"mandatory_executable_dynamic_resolution:{_BINDING_ID}:{relative}:")
+
+
+@pytest.mark.parametrize(
     ("source", "line"),
     [
         (

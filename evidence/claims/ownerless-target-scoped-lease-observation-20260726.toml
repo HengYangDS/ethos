@@ -1,0 +1,46 @@
+[claim]
+id = "ownerless-target-scoped-lease-observation-20260726"
+subject = "ethos:ownerless-closeout:target-scoped-lease-observation"
+state = "active"
+summary = "Ownerless closeout restricts strict lease interpretation to the exact target row under a canonical schema, and two exact successor authorities bind fresh post-acceptance direct-retire probes without reviving prior decisions."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726/2026-07-26.md"
+sha256 = "4eefe74009c2da9b1d64d600eba7a24d1a7de7d213a0585a48ac94c3c218c34c"
+evidence_ids = ["evidence:ownerless-target-scoped-lease-observation-20260726"]
+binding = "This digest-only Claim binds accepted head b675cd64e79fa4e35000d8efd2b03465a0ab55fb, exact-subject SQL selection, strict exact-row validation, shared read and fence behavior, zero lease-row mutation, immutable decisions lane-decision:6e57ce11-5723-4171-85a8-596452f118fa and lane-decision:97d3e6ae-f0d4-41f0-a236-efa3896383c5, and two target-specific successor Claim and Chronicle pairs. After accepted closeout it authorizes exactly one fresh direct-retire decision for each named target; it does not authorize decision reuse, preserve-retire, lease cleanup, package clearing, valid-owner mutation, or remote work."
+verifier = "digest_only"
+tests = [
+  "openspec validate ownerless-target-scoped-lease-observation --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-target-scoped-lease-observation --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "pytest -q tests/unit/kernel/test_ownerless_state_final_edges.py tests/unit/lanes/retirement/test_ownerless_closeout_fence.py tests/unit/lanes/retirement/test_ownerless_closeout_admission.py",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One private ownerless-closeout state module, three focused test owners, one accepted repair carrier, and one fresh direct-retire probe for each of two exact clean missing-lease targets after acceptance. No public API, schema, dependency, __init__.py, lease migration or deletion, maintenance change, prior-decision reuse, preserve-retire, valid-owner mutation, package clear, remote operation, broad cache cleanup, build-evidence deletion, virtual-environment deletion, or session/IDE mutation."
+
+[carriers]
+openspec = "openspec/changes/ownerless-target-scoped-lease-observation"
+fallback = "If the lease schema, exact target row, target identity, accepted head, Chronicle, decision, or fence is ambiguous, leave the target and all lease rows unchanged."
+kill_signal = "The query is not exact equality, a malformed exact row is ignored, an unrelated row blocks the target, production code mutates lease rows, a prior decision is reused, a target probe bypasses fresh observation, or an accepted-ancestor refusal is converted without later accepted reconciliation."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/store/state/closeout.py",
+  "tests/unit/kernel/test_ownerless_state_final_edges.py",
+  "tests/unit/lanes/retirement/test_ownerless_closeout_fence.py",
+  "tests/unit/lanes/retirement/test_ownerless_closeout_admission.py",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-retire-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-retire-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-target-scoped-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726.toml",
+  "evidence/claims/ownerless-target-scoped-lease-observation-20260726.toml",
+  "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726",
+  "openspec/changes/ownerless-target-scoped-lease-observation",
+]

@@ -1,0 +1,36 @@
+[claim]
+id = "ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726"
+subject = "ethos:work-lane:work/20260725-budget-contract-v2-changed-scope-source-admission-successor"
+state = "active"
+summary = "The exact clean fourteen-commit predecessor receives its first direct-retire probe only after the accepted target-scoped lease observation repair."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md"
+sha256 = "2b745043438026cb7c7b09448b983fb2f7c888d985c7c3c494745b01a72f9ac3"
+evidence_ids = ["evidence:ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726"]
+binding = "This digest-only Claim binds only work/20260725-budget-contract-v2-changed-scope-source-admission-successor at 8d0691b7f84b89f549b211f533c5fa2d017edcfc, accepted repair baseline b675cd64e79fa4e35000d8efd2b03465a0ab55fb, the absence of a prior decision, supersession of the earlier unconsumed retry Claim, and one standalone lane_resolution/retire effect token. It authorizes one first fresh direct-retire decision only after repair acceptance and no feature acceptance claim."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution inventory --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean missing-lease predecessor and one first direct-retire probe after accepted target-scoped repair. No manufactured invalid decision, feature acceptance, preserve-retire, valid-owner mutation, package clear, remote mutation, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/ownerless-target-scoped-lease-observation"
+fallback = "Keep the exact source unchanged when any head, lease, Claim, dirtiness, registration, accepted head, Chronicle, inventory, or descendant containment differs."
+kill_signal = "A known-stale authority is reused, unaccepted feature work is claimed complete, the source is hand-deleted, or an accepted-ancestor block is hidden."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726.toml",
+  "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md",
+  "openspec/changes/ownerless-target-scoped-lease-observation",
+]

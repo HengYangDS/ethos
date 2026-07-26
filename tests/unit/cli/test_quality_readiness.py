@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-import ethos.domain.readiness.enterprise as enterprise_readiness
 import ethos.repository.policy.governance.kernel as governance_kernel_policy
 
 if TYPE_CHECKING:
@@ -16,32 +15,6 @@ from ethos.surface.cli.boundary import readiness as q_readiness
 
 def _json_output(capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
     return json.loads(capsys.readouterr().out)
-
-
-def test_quality_enterprise_readiness_reports_layer_closure(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setattr(
-        enterprise_readiness,
-        "enterprise_readiness_report",
-        lambda _repo: {
-            "ok": True,
-            "state": "clean",
-            "summary": {"layer_count": 9, "closed_layer_count": 9, "gap_count": 0},
-            "required_gaps": [],
-        },
-    )
-
-    q_readiness.enterprise_readiness(root=tmp_path, json_output=True)
-    payload = _json_output(capsys)
-
-    assert payload["command"] == "quality enterprise-readiness"
-    assert payload["state"] == "clean"
-    assert payload["next_actions"] == [
-        "ethos prove --execute --expect-head $(git rev-parse HEAD) --json"
-    ]
 
 
 def test_quality_governance_kernel_reports_single_kernel(
@@ -65,4 +38,4 @@ def test_quality_governance_kernel_reports_single_kernel(
 
     assert payload["command"] == "quality governance-kernel"
     assert payload["state"] == "clean"
-    assert payload["next_actions"] == ["ethos quality enterprise-readiness --json"]
+    assert payload["next_actions"] == ["ethos prove --json"]

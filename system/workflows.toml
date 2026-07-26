@@ -28,9 +28,9 @@ lease_transition = [
 ]
 node = [
   { id = "status", kind = "check", command = "ethos status --json", enforcement = "guarded", produces = ["workspace_status"] },
-  { id = "plan", kind = "decision", command = "ethos plan --json", enforcement = "guarded", requires = ["workspace_status", "openspec_carrier"], produces = ["plan_ir", "workflow_runtime_read_model"] },
-  { id = "prove", kind = "decision", command = "ethos prove --json", enforcement = "guarded", requires = ["plan_ir", "gate_results"], produces = ["proof_evidence"] },
-  { id = "land", kind = "effect", command = "ethos land --json", enforcement = "guarded", requires = ["proof_evidence", "claim_binding"], produces = ["candidate_update"] },
+  { id = "plan", kind = "decision", command = "ethos plan --json", enforcement = "guarded", requires = ["workspace_status", "openspec_carrier"], produces = ["plan_ir"] },
+  { id = "prove", kind = "decision", command = "ethos prove --json", enforcement = "guarded", requires = ["plan_ir"], produces = ["proof_evidence"] },
+  { id = "land", kind = "effect", command = "ethos land --json", enforcement = "guarded", requires = ["proof_evidence", "change_contract"], produces = ["candidate_update"] },
   { id = "publish", kind = "effect", command = "ethos publish --json", enforcement = "evidence-only", requires = ["candidate_update", "release_readiness"], produces = ["publication_readiness"] },
   { id = "handoff", kind = "effect", command = "ethos assistants context-bundle --json", enforcement = "guarded", requires = ["source_refs", "source_digests"], produces = ["handoff_package"] },
 ]

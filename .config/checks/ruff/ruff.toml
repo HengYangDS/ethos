@@ -136,7 +136,6 @@ convention = "google"
 ]
 # C901 cyclomatic-complexity ratchet: pre-existing tangled functions are frozen
 # and decompose during the package/surface split. New code: cap 10.
-"src/ethos/contracts/rules.py" = ["C901"]
 "src/ethos/cli.py" = ["T201", "C901"]
 "src/ethos/adapters/mutation/lanes.py" = ["C901"]
 "src/ethos/adapters/mutation/core.py" = ["C901"]

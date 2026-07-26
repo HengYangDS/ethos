@@ -6,9 +6,7 @@ READY_FACT_OWNERS = {
     "worktree": "ethos-adapters.status",
     "prewrite": "ethos-adapters.prewrite",
     "openspec_state": "ethos-repository.self-audit",
-    "claim_state": "ethos-repository.claims",
     "host_readiness": "ethos-repository.self-audit",
-    "command_registry": "ethos-repository.command-registry",
     "projection_drift": "ethos-assistants.projections",
 }
 
@@ -49,6 +47,5 @@ def complete_snapshot(
             "actor": fact("local", owner="ethos-cli"),
             "scope": fact("repository", owner="ethos-cli"),
             **{name: fact(passed(), owner=owner) for name, owner in READY_FACT_OWNERS.items()},
-            "evidence_freshness": fact({"ok": True, "stale": []}, owner="ethos-repository.claims"),
         },
     )

@@ -20,3 +20,13 @@ A hard policy gap MUST force `ok=false`, a blocking or unknown verdict, and non-
 #### Scenario: Source budget is above the terminal maximum
 - **WHEN** current measurement exceeds a hard source budget
 - **THEN** status, prove, land, and publish cannot report ready, closed-loop, perfect, or successful states
+
+### Requirement: PlanIR Owns Transition Projection
+Plan and proof MUST bind one explicitly selected ChangeContract whenever more
+than one active contract exists. External node requirements MUST be present in
+repository facts or block the PlanIR.
+
+#### Scenario: Multiple active ChangeContracts exist
+- **WHEN** proof is requested without a Change selector
+- **THEN** it reports `change_contract_ambiguous`
+- **AND** `ethos prove --change <id>` binds the selected ID into the PlanIR digest

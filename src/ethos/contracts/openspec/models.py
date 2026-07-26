@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 from typing import Annotated
-from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import BeforeValidator
@@ -12,7 +11,6 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 
-_DUPLICATE_SCOPE_PATHS = "scope paths must be unique"
 _DUPLICATE_MATERIAL_PATHS = "material paths must be unique"
 _INVALID_SCOPE_PATTERN = "scope path must be a non-empty relative POSIX pattern"
 _DOT_SEGMENT_SCOPE_PATTERN = "scope path must not contain dot segments"
@@ -22,22 +20,6 @@ class _OpenSpecScopeModel(BaseModel):
     """Strict immutable base for portable OpenSpec scope declarations."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class ChangeScopeDeclaration(_OpenSpecScopeModel):
-    """ETHOS companion scope for one unarchived OpenSpec Change."""
-
-    schema_version: Literal[1]
-    paths: tuple[str, ...] = Field(min_length=1)
-
-    @field_validator("paths")
-    @classmethod
-    def normalize_paths(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        """Reject ambiguous or escaping repository-relative glob patterns."""
-        normalized = tuple(_scope_pattern(path) for path in value)
-        if len(set(normalized)) != len(normalized):
-            raise ValueError(_DUPLICATE_SCOPE_PATHS)
-        return normalized
 
 
 class AdopterOpenSpecPolicy(BaseModel):

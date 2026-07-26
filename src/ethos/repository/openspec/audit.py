@@ -19,6 +19,22 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
+OPENSPEC_TASK_PATTERN = re.compile(r"- \[( |x|X)\]")
+
+
+def tasks_complete(text: str) -> bool:
+    """Return whether one OpenSpec task checklist is non-empty and complete."""
+    boxes = OPENSPEC_TASK_PATTERN.findall(text)
+    return bool(boxes) and all(box.lower() == "x" for box in boxes)
+
+
+def change_tasks_complete(root: Path, change: str) -> bool:
+    """Return whether one working-tree Change has completed its task checklist."""
+    try:
+        text = (root / "openspec" / "changes" / change / "tasks.md").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return False
+    return tasks_complete(text)
 
 
 def _load_official_config(path: Path) -> dict[str, object]:
@@ -246,8 +262,7 @@ def completed_unarchived_changes(openspec_root: Path) -> list[str]:
         tasks = change_dir / "tasks.md"
         if not tasks.exists():
             continue
-        boxes = re.findall(r"- \[( |x|X)\]", tasks.read_text(encoding="utf-8"))
-        if boxes and all(box.lower() == "x" for box in boxes):
+        if tasks_complete(tasks.read_text(encoding="utf-8")):
             unarchived.append(f"openspec_completed_change_unarchived:{change_dir.name}")
     return unarchived
 

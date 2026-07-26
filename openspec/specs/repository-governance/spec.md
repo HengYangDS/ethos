@@ -42,11 +42,12 @@ evolution proven from static declarations alone.
 ETHOS SHALL keep reviewed evolution records and active hypotheses in one
 repository-truth ledger at `evolution/ledger.toml`.
 
-#### Scenario: workflow runtime bridges to evolution without owning it
-- **WHEN** ETHOS projects workflow runtime readiness for a research, hypothesis, experiment, or campaign-driven change
-- **THEN** the runtime projection references the evolution ledger or campaign manifest when present
-- **AND** hypotheses, experiments, evaluations, canonization, and retirement remain governed by evolution records, OpenSpec carriers, claims, evidence, and Chronicle
-- **AND** runtime state does not replace `ethos campaign hypotheses`, `ethos campaign status`, or `ethos quality evidence-freshness` as evolution governance surfaces
+#### Scenario: Evolution declarations compile without a runtime owner
+- **WHEN** ETHOS plans a research, hypothesis, experiment, or campaign-driven change
+- **THEN** PlanIR may reference the evolution ledger or campaign manifest as current facts
+- **AND** hypotheses, experiments, evaluations, canonization, and retirement remain
+  governed by evolution records, OpenSpec carriers, attestations, and evidence
+- **AND** no workflow runtime or hidden state store becomes an evolution authority
 
 ### Requirement: Practice Selection And Fate
 ETHOS SHALL support governed practice claims, evidence-weighted selection among
@@ -507,38 +508,26 @@ branch as ready for another closeout mutation.
   accepted transaction rather than guessing that a physical ref rewrite is safe
 - **AND** a manual `pack-refs` is not classified as an authorized closeout.
 
-### Requirement: OpenSpec Lifecycle Trust Review
+### Requirement: OpenSpec Lifecycle Contract Review
 
-ETHOS SHALL review OpenSpec lifecycle readiness in addition to official
-OpenSpec CLI validation. An official `no-tasks` Change SHALL be treated as an
-active, non-complete lifecycle carrier: it may bootstrap only its own absent
-untracked `scope.toml` companion through the existing companion guard, but it
-does not satisfy proposal, design, task, delta-spec, claim-binding, validation,
-or proof requirements.
+ETHOS SHALL compose official OpenSpec validation with one ChangeContract per
+active Change. The ChangeContract SHALL own repository subject, intent, scope,
+invariants, acceptance, permissions, and publication policy; no claim or
+`scope.toml` carrier SHALL be required for current lifecycle readiness.
 
-#### Scenario: Active OpenSpec change is lifecycle complete
-- **GIVEN** an active OpenSpec change has proposal, design, tasks, and delta
-  specs
-- **AND** a trust-bearing active claim references that change
+#### Scenario: Active OpenSpec Change is lifecycle complete
+- **GIVEN** an active OpenSpec Change has proposal, design, tasks, delta specs,
+  and a valid `contract.toml`
 - **WHEN** ETHOS audits OpenSpec repository governance in lifecycle mode
-- **THEN** ETHOS reports the change as lifecycle-ready
+- **THEN** ETHOS reports the Change as lifecycle-ready
+- **AND** material paths are covered only by `ChangeContract.scope`.
 
-#### Scenario: Active OpenSpec change lacks claim binding
-- **GIVEN** an active OpenSpec change has valid official OpenSpec syntax
-- **AND** no active trust-bearing claim references that change
-- **WHEN** ETHOS audits OpenSpec repository governance in lifecycle mode
-- **THEN** ETHOS reports `openspec_claim_binding_missing:<change>`
-
-#### Scenario: Newly created official Change bootstraps its scope companion
-- **GIVEN** the official OpenSpec CLI reports one Change as `no-tasks`
-- **AND** that Change has no tracked or malformed `scope.toml` companion
-- **WHEN** prewrite evaluates only that exact Change-local `scope.toml` path
-- **THEN** it treats the Change as active and admits the existing exact-one
-  scope-bootstrap path
-- **AND** an ordinary material path remains blocked until the valid companion
-  declares coverage
-- **AND** an `in-progress` Change remains preferred over `no-tasks`, while an
-  unknown official status remains excluded.
+#### Scenario: Active OpenSpec Change lacks its contract
+- **GIVEN** an active OpenSpec Change has valid official syntax
+- **AND** `contract.toml` is absent or invalid
+- **WHEN** ETHOS audits lifecycle or evaluates a material path
+- **THEN** ETHOS reports a ChangeContract gap
+- **AND** no bootstrap, claim binding, or parallel scope carrier grants authority.
 
 ### Requirement: Promotion Target Readiness
 ETHOS SHALL require trust-bearing claims to identify promoted repository
@@ -2198,14 +2187,15 @@ and hosted CI as separate evidence classes.
 
 ETHOS SHALL require every valid adopter declaration to carry a non-empty
 `[openspec].material_paths` list. For changed paths matching that declaration,
-prewrite, changed planning, and proof SHALL use the same selected-Change companion model.
+prewrite, changed planning, and proof SHALL use the same selected active
+`ChangeContract.scope` set.
 Adoption SHALL emit the complete declaration; no historical profile-write exception remains.
-Completed archive companions MAY participate only when their archive is in
-current Work Lane scope.
+Complete active Changes and archived carriers are historical input only and
+SHALL NOT authorize new material writes.
 
 #### Scenario: covered material path is admitted across all surfaces
 
-- **GIVEN** a material path is covered by a valid selected Change companion
+- **GIVEN** a material path is covered by a valid selected active ChangeContract
 - **WHEN** prewrite, changed planning, or proof evaluates that path
 - **THEN** the scope binding reports the same coverage fact
 - **AND THEN** no material-scope required gap is produced.
@@ -2213,67 +2203,19 @@ current Work Lane scope.
 #### Scenario: uncovered material path is rejected consistently
 
 - **GIVEN** a declared material path lacks coverage by every valid selected
-  companion
+  active ChangeContract
 - **WHEN** any of prewrite, changed planning, or proof evaluates it
 - **THEN** it SHALL report `openspec_material_path_uncovered:<path>`
 - **AND THEN** it SHALL not substitute a proof gate, private schema, or method
   package for Change authority.
 
-#### Scenario: incomplete unrelated companions remain diagnostic
+#### Scenario: ChangeContract coverage is singular
 
-- **GIVEN** one official active or archiving Change has a missing or invalid
-  companion and another selected Change has a valid matching companion
-- **WHEN** a material path covered by the valid companion is evaluated
-- **THEN** the path is covered
-- **AND** incomplete companion details remain advisory diagnostics rather than
-  a global coverage gap.
-
-#### Scenario: declaration and bootstrap fail closed
-
-- **WHEN** an adopter omits, empties, or invalidates `material_paths`
-- **THEN** ETHOS SHALL report a material-path declaration gap
-- **AND WHEN** an official new Change needs its absent companion created
-- **THEN** prewrite MAY admit only that exact untracked Change-local
-  `scope.toml` path
-- **AND THEN** the completed companion SHALL be syntactically valid, cover
-  itself, and cover later material writes.
-
-#### Scenario: existing adopter cannot bootstrap a missing declaration
-
-- **WHEN** a tracked adopter profile lacks `material_paths`
-- **THEN** ETHOS SHALL block the write
-- **AND** it SHALL NOT emit `profile_material_paths_bootstrap` or admit a second
-  profile-write path.
-
-#### Scenario: final archive reconciliation remains covered
-
-- **GIVEN** a completed Change is archived in the current Work Lane change
-  scope and its archive has a valid `scope.toml`
-- **WHEN** prewrite, changed planning, or proof evaluates a material path from
-  that same current scope
-- **THEN** the archive companion may cover declared matching paths
-- **AND THEN** it SHALL cover paths inside that selected archive directory,
-  including the companion itself, only for this reconciliation
-- **AND THEN** it SHALL not cover a path outside that archive unless the
-  companion explicitly matches it
-- **AND** the same scope verdict is returned on all three surfaces.
-
-#### Scenario: historical archive cannot authorize unrelated material work
-
-- **GIVEN** an archive has a valid `scope.toml` but no file from that archive is
-  in the current Work Lane change scope
-- **WHEN** prewrite, changed planning, or proof evaluates a matching material
-  path
-- **THEN** the archive is excluded from scope coverage
+- **GIVEN** one or more active Changes declare strict ChangeContracts
+- **WHEN** prewrite, changed planning, or proof evaluates a material path
+- **THEN** the same selected active Change set and `ChangeContract.scope` decide coverage
+- **AND** historical archives, claims, malformed parallel files, and unrelated Changes do not authorize the write
 - **AND** an uncovered path emits `openspec_material_path_uncovered:<path>`.
-
-#### Scenario: archive companion diagnostics remain carrier-invalid
-
-- **GIVEN** a current archive companion is missing or malformed
-- **WHEN** lifecycle scope reports its diagnostic
-- **THEN** the emitted diagnostic SHALL reduce to the shared carrier-invalid
-  invalid-state category
-- **AND** it SHALL not grant material-path coverage.
 
 ### Requirement: Accepted closeout remains candidate-first and non-self-approving
 

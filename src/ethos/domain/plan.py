@@ -23,12 +23,12 @@ from ethos.contracts.rules import RuleAttestation
 from ethos.contracts.rules import RuleFactSnapshot
 from ethos.contracts.rules import stable_digest
 from ethos.contracts.semantic import ChangeContract
+from ethos.contracts.semantic import load_change_contract_file
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
 from ethos.normalization.core import string_list
-from ethos.repository.evidence.claims import claims_report
+from ethos.repository.openspec.audit import tasks_complete
 from ethos.repository.policy.rules.config import resolve_profile_stack
-from ethos.repository.registry.commands import command_registry_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -75,16 +75,23 @@ def _normalize_contract_payload(payload: dict[str, object]) -> dict[str, object]
 def load_repository_contract(repo: Path, *, tree_ref: str | None = None) -> ChangeContract:
     """Load the stable repository identity and default governance contract."""
     path = repo / ".ethos" / "contract.toml"
-    contract = ChangeContract.model_validate(
-        _normalize_contract_payload(
-            _contract_payload(
-                path,
-                missing_gap="repository_contract_missing:.ethos/contract.toml",
-                root=repo,
-                tree_ref=tree_ref,
+    if tree_ref is None:
+        try:
+            contract = load_change_contract_file(path)
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValueError) as exc:
+            message = "repository_contract_missing:.ethos/contract.toml"
+            raise ValueError(message) from exc
+    else:
+        contract = ChangeContract.model_validate(
+            _normalize_contract_payload(
+                _contract_payload(
+                    path,
+                    missing_gap="repository_contract_missing:.ethos/contract.toml",
+                    root=repo,
+                    tree_ref=tree_ref,
+                )
             )
         )
-    )
     if contract.subjects != (contract.id,):
         message = "repository_contract_identity_mismatch"
         raise ValueError(message)
@@ -105,19 +112,19 @@ def load_change_contract(
             message = f"change_contract_{kind}"
             raise ValueError(message)
         change_id = carriers[0]
-    path = repo / "openspec" / "changes" / change_id / "contract.toml"
-    if _contract_companion_exists(repo, change_id, tree_ref=tree_ref):
-        message = f"change_scope_parallel_truth:{change_id}"
+    elif _change_contract_complete(repo, change_id, tree_ref=tree_ref):
+        message = f"change_contract_complete:{change_id}"
         raise ValueError(message)
+    path = repo / "openspec" / "changes" / change_id / "contract.toml"
     repository_contract = load_repository_contract(repo, tree_ref=tree_ref)
     message = f"change_contract_missing:{change_id}"
+    if tree_ref is None:
+        try:
+            return load_change_contract_file(path, repository_id=repository_contract.id)
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValueError) as exc:
+            raise ValueError(message) from exc
     normalized = _normalize_contract_payload(
-        _contract_payload(
-            path,
-            missing_gap=message,
-            root=repo,
-            tree_ref=tree_ref,
-        )
+        _contract_payload(path, missing_gap=message, root=repo, tree_ref=tree_ref)
     )
     normalized["subjects"] = tuple(
         repository_contract.id if subject == "repository:self" else str(subject)
@@ -144,7 +151,9 @@ def load_proof_contract(
 def _change_contract_ids(repo: Path, *, tree_ref: str | None) -> list[str]:
     if tree_ref is None:
         return sorted(
-            path.parent.name for path in (repo / "openspec" / "changes").glob("*/contract.toml")
+            path.parent.name
+            for path in (repo / "openspec" / "changes").glob("*/contract.toml")
+            if not _change_contract_complete(repo, path.parent.name, tree_ref=None)
         )
     suffix = "/contract.toml"
     return sorted(
@@ -156,16 +165,25 @@ def _change_contract_ids(repo: Path, *, tree_ref: str | None) -> list[str]:
         and path.endswith(suffix)
         and "/archive/" not in path
         and "/" not in path.removeprefix("openspec/changes/").removesuffix(suffix)
+        and not _change_contract_complete(
+            repo,
+            path.removeprefix("openspec/changes/").removesuffix(suffix),
+            tree_ref=tree_ref,
+        )
     )
 
 
-def _contract_companion_exists(repo: Path, change_id: str, *, tree_ref: str | None) -> bool:
-    relative = f"openspec/changes/{change_id}/scope.toml"
-    return (
-        bool(committed_file_text(repo, tree_ref, relative))
-        if tree_ref is not None
-        else (repo / relative).exists()
-    )
+def _change_contract_complete(repo: Path, change_id: str, *, tree_ref: str | None) -> bool:
+    relative = f"openspec/changes/{change_id}/tasks.md"
+    try:
+        text = (
+            committed_file_text(repo, tree_ref, relative)
+            if tree_ref is not None
+            else (repo / relative).read_text(encoding="utf-8")
+        )
+    except (OSError, UnicodeError):
+        return False
+    return tasks_complete(text)
 
 
 def path_matches(path: str, pattern: str) -> bool:
@@ -239,52 +257,6 @@ def matching_rule_gates(
     return matched_rules, required_gates, []
 
 
-def contract_profile_matches(root: Path, paths: tuple[str, ...]) -> list[dict[str, object]]:
-    """Match changed paths against configured adopter/domain contract profiles."""
-    config = rules_config(root)
-    raw_profile_config = config.get("contract_profile")
-    raw_profiles = raw_profile_config if isinstance(raw_profile_config, list) else []
-    matches: list[dict[str, object]] = []
-    for raw_profile in cast("list[object]", raw_profiles):
-        if not isinstance(raw_profile, dict):
-            continue
-        profile_id = str(raw_profile.get("id", ""))
-        policy = raw_profile.get("policy")
-        if not isinstance(policy, str) or not policy:
-            continue
-        policy_path = root / policy
-        if not policy_path.exists():
-            continue
-        policy_data = tomllib.loads(policy_path.read_text(encoding="utf-8"))
-        raw_contracts = (
-            policy_data.get("contract") if isinstance(policy_data.get("contract"), list) else []
-        )
-        for raw_contract in cast("list[object]", raw_contracts):
-            if not isinstance(raw_contract, dict):
-                continue
-            matched_paths = [
-                path
-                for path in paths
-                if any(
-                    path_matches(path, pattern)
-                    for pattern in string_list(raw_contract.get("paths"))
-                )
-            ]
-            if not matched_paths:
-                continue
-            matches.append(
-                {
-                    "profile": profile_id,
-                    "contract": str(raw_contract.get("id", "")),
-                    "surface": str(raw_contract.get("surface", "")),
-                    "matched_paths": matched_paths,
-                    "protects": string_list(raw_contract.get("protects")),
-                    "required_evidence": string_list(raw_contract.get("required_evidence")),
-                }
-            )
-    return matches
-
-
 def rule_fact(
     *,
     owner: str,
@@ -340,11 +312,8 @@ def rule_fact_snapshot(
     source_refs = [
         "ethos-adapters.status",
         "ethos-repository.self-audit",
-        "ethos-repository.claims",
-        "ethos-repository.command-registry",
         "ethos-assistants.projections",
     ]
-    audit_mode = "product"
     try:
         status = status_payload if status_payload is not None else workspace_status(repo)
         facts["worktree"] = rule_fact(
@@ -384,7 +353,6 @@ def rule_fact_snapshot(
         )
     try:
         audit = audit_payload if audit_payload is not None else audit_for_root(repo)
-        audit_mode = str(audit.get("mode", "product"))
         facts["openspec_state"] = rule_fact(
             owner="ethos-repository.self-audit",
             value=audit.get("openspec", {}),
@@ -400,39 +368,6 @@ def rule_fact_snapshot(
     except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
         facts["openspec_state"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
         facts["host_readiness"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
-    try:
-        claims = claims_report(repo, current_head=head, adopter_mode=audit_mode == "adopter")
-        claim_gaps = [str(gap) for gap in cast("list[object]", claims.get("required_gaps", []))]
-        claims_ok = bool(claims.get("ok", False)) or not claim_gaps
-        facts["claim_state"] = rule_fact(
-            owner="ethos-repository.claims",
-            value={
-                "ok": claims_ok,
-                "required_gaps": claim_gaps,
-            },
-        )
-        facts["evidence_freshness"] = rule_fact(
-            owner="ethos-repository.claims",
-            value={
-                "ok": claims_ok,
-                "stale": [gap for gap in claim_gaps if "digest" in str(gap)],
-            },
-        )
-    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["claim_state"] = unavailable_rule_fact("ethos-repository.claims", exc)
-        facts["evidence_freshness"] = unavailable_rule_fact("ethos-repository.claims", exc)
-    try:
-        command_report = command_registry_report(repo)
-        facts["command_registry"] = rule_fact(
-            owner="ethos-repository.command-registry",
-            value={
-                "ok": command_report.get("ok", False),
-                "required_gaps": command_report.get("required_gaps", []),
-                "public_commands": command_report.get("public_commands", []),
-            },
-        )
-    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["command_registry"] = unavailable_rule_fact("ethos-repository.command-registry", exc)
     try:
         projection = projection_contract()
         facts["projection_drift"] = rule_fact(

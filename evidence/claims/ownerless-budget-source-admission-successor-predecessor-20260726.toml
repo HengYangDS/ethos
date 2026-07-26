@@ -1,8 +1,8 @@
 [claim]
 id = "ownerless-budget-source-admission-successor-predecessor-20260726"
 subject = "ethos:work-lane:work/20260725-budget-contract-v2-changed-scope-source-admission-successor"
-state = "active"
-summary = "The clean ownerless fourteen-commit predecessor is retained by five valid-owner descendant heads and is eligible only for one exact native direct-retire decision after accepted Chronicle admission."
+state = "superseded"
+summary = "This accepted target Claim is superseded by ownerless-budget-source-admission-successor-predecessor-retire-retry-20260726 before its first direct-retire effect, because it shared the effect-side Chronicle contract gap observed on the earlier predecessor."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-housekeeping-closeout-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md"

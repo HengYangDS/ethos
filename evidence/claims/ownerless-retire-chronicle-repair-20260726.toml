@@ -1,0 +1,40 @@
+[claim]
+id = "ownerless-retire-chronicle-repair-20260726"
+subject = "ethos:work-lane-cohort:ownerless-retire-chronicle-repair"
+state = "active"
+summary = "This active successor Claim repairs the effect-side accepted Chronicle contract for two exact clean budget predecessors while preserving the first pending decision, the retained release package, and all valid-owner lanes."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-retire-chronicle-repair-20260726/2026-07-26.md"
+sha256 = "c2f4db5307db923c934b2d8a8eaf5785d8f328fd647dfbce93b1203868e6ed24"
+evidence_ids = ["evidence:ownerless-retire-chronicle-repair-20260726"]
+binding = "This digest-only Claim binds accepted head 912d354e9c17c094b7c0cfab92800203fa6e0c33, pending decision lane-decision:6e57ce11-5723-4171-85a8-596452f118fa, its exact chronicle-invalid no-effect outcome, retained release decision lane-decision:17e26f03-0830-42f9-a311-f20d9f199701 and manifest 25eb7515ab708ea3ea977dfafc9fae3409b37c716d9944f066f74b4f8b80bb6e, and two new effect-admissible target Claim and Chronicle pairs. It authorizes only new direct-retire decisions after accepted closeout; it does not authorize decision reuse, preserve-retire, package clear, valid-owner mutation, or remote work."
+verifier = "digest_only"
+tests = [
+  "openspec validate ownerless-retire-chronicle-repair --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-retire-chronicle-repair --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution inventory --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Two exact clean missing-lease budget predecessors, one observed chronicle-invalid pending decision, one unattempted identical authoring shape, and one accepted repair carrier. No product source, valid-owner mutation, preserve-retire, package clear, remote operation, raw Git cleanup, SQLite edit, or session/IDE mutation."
+
+[carriers]
+openspec = "openspec/changes/ownerless-retire-chronicle-repair"
+fallback = "Leave each source, pending decision, retained package, and valid-owner lane unchanged whenever any accepted head, target, Chronicle, Claim, lease, worktree, inventory, or descendant-containment fact differs."
+kill_signal = "A failed decision is rewritten or reused, a known-invalid effect is manufactured for the second target, an accepted-ancestor block is hidden, or a package or valid-owner lane is treated as housekeeping residue."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-retire-chronicle-repair-20260726.toml",
+  "evidence/chronicle/ownerless-retire-chronicle-repair-20260726/2026-07-26.md",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-retire-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-retire-retry-20260726.toml",
+  "openspec/changes/ownerless-retire-chronicle-repair",
+]

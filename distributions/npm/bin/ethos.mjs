@@ -71,9 +71,15 @@ function pythonHasEthos(command) {
 
 const sourceRoot = findSourceRoot(SCRIPT_DIR);
 if (sourceRoot && commandExists("uv")) {
-  const result = run("uv", ["run", "--package", "ethos", "ethos", ...ARGS], {
-    cwd: sourceRoot,
-  });
+  const result = run("uv", [
+    "run",
+    "--project",
+    sourceRoot,
+    "--package",
+    "ethos",
+    "ethos",
+    ...ARGS,
+  ]);
   process.exit(result.status);
 }
 

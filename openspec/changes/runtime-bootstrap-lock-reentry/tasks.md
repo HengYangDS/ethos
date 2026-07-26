@@ -14,9 +14,9 @@
 
 - [x] 3.1 Run focused runtime-wrapper and armed-hook regressions plus strict
   OpenSpec and Claim validation.
-- [ ] 3.2 Refresh generic parity and run one exact-HEAD executed proof after
+- [x] 3.2 Refresh generic parity and run one exact-HEAD executed proof after
   the final carrier state is committed.
-- [ ] 3.3 Archive this carrier only after the completed implementation and
-  proof evidence are recorded; candidate land, accepted-root closeout, lane
-  retirement, local publish readiness, and remote publication remain separate
-  governed transitions.
+- [ ] 3.3 Confirm archive readiness after the completed implementation and
+  pre-archive proof are recorded; official archive, candidate land,
+  accepted-root closeout, lane retirement, local publish readiness, and remote
+  publication remain separate governed transitions.

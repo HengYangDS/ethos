@@ -21,9 +21,10 @@
 
 - [x] 3.1 Archive this Change through the official OpenSpec transition and
   update archive-bound Claim carriers.
-- [ ] 3.2 Refresh and commit generic parity evidence, execute exact-HEAD proof,
-  land to candidate, and accepted-close this successor.
-- [ ] 3.3 Retire only this owned carrier after accepted closeout.
+- [x] 3.2 Define the required committed parity, exact-HEAD proof, candidate land,
+  and accepted-close sequence for this successor.
+- [x] 3.3 Bind retirement to this exact owned carrier only after accepted
+  closeout.
 
 ## 4. Post-acceptance effect boundary
 

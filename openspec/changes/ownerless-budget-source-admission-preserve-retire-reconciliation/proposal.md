@@ -13,8 +13,8 @@ retention does not make them ancestors of accepted truth.
   records; never rewrite or reuse them.
 - Add one accepted target-bound `lane_resolution/preserve-retire` Chronicle and
   digest-only Claim for each exact source branch and HEAD.
-- Add one cohort Claim and Chronicle that bind the two decisions, observation
-  digests, target Chronicle digests, accepted baseline, and serial effect order.
+- Bind both target Claims to this one OpenSpec authority carrier while keeping
+  their effect admission independent and serial.
 - Supersede only the two consumed target-scoped direct-retire Claims.
 - After official archive, exact-HEAD proof, candidate land, and accepted
   closeout, create two new decisions and execute the native effects serially.
@@ -29,17 +29,18 @@ retention does not make them ancestors of accepted truth.
 
 ### Modified Capabilities
 
-- `repository-governance`: subject=ownerless-budget-source-admission-final-reconciliation;
+- `repository-governance`: subject=ownerless-budget-source-admission-preserve-retire-reconciliation;
   reuse=extend; change=modify; facet:lifecycle=resolution,retirement,recovery;
   facet:surface=openspec,claim,chronicle,evidence;
-  facet:authority=accepted-head,chronicle,git,decision. A later accepted
-  reconciliation may select transient preserve-retire only after an exact
-  direct-retire no-effect ancestry refusal.
+  facet:authority=accepted-head,chronicle,git,decision.
+
+A later accepted reconciliation may select transient preserve-retire only after
+an exact direct-retire no-effect ancestry refusal.
 
 ## Impact
 
-- One narrow OpenSpec carrier, one cohort Claim and Chronicle, two target Claims
-  and Chronicles, supersession of two consumed retry Claims, and parity evidence.
+- One narrow OpenSpec carrier, two target Claims and Chronicles, supersession
+  of two consumed retry Claims, and parity evidence.
 - No product source, test, schema, dependency, package API, `__init__.py`,
   valid-owner Work Lane, remote, hosted provider, raw SQLite row, or IDE/session
   change.

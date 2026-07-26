@@ -2,7 +2,7 @@
 id = "ownerless-budget-source-admission-predecessor-target-scoped-retry-20260726"
 subject = "ethos:work-lane:work/20260724-20260724-budget-contract-v2-changed-scope-source-admission"
 state = "superseded"
-summary = "Superseded after fresh direct-retire decision lane-decision:4838b832-ce13-4392-913d-99a6ebc3cbbd reached only the native accepted-ancestor no-effect boundary; later authority is target-bound preserve-retire reconciliation."
+summary = "Superseded after fresh direct-retire decision lane-decision:4838b832-ce13-4392-913d-99a6ebc3cbbd reached only the native accepted-ancestor no-effect boundary; successor Claim ownerless-budget-source-admission-predecessor-preserve-retire-20260726 carries later target-bound authority."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md"

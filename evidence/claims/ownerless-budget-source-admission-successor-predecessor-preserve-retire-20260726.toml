@@ -2,17 +2,17 @@
 id = "ownerless-budget-source-admission-successor-predecessor-preserve-retire-20260726"
 subject = "ethos:work-lane:work/20260725-budget-contract-v2-changed-scope-source-admission-successor"
 state = "active"
-summary = "Records one exact transient preserve-retire bridge after the clean fourteen-commit predecessor reached the native accepted-ancestor no-effect boundary."
+summary = "Authorizes one later exact transient preserve-retire bridge after the clean fourteen-commit predecessor reached the native accepted-ancestor no-effect boundary."
 
 [evidence]
-dated = "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md"
-sha256 = "b8fe110a6c6f997234d1758f593558e8ea400ac3a5656312ab4d69861a2fff46"
+dated = "evidence/chronicle/ownerless-budget-source-admission-preserve-retire-reconciliation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md"
+sha256 = "ae61c3b705a93582ce0fe1cdc45227f8a707473aaf519c2694361119f340cd83"
 evidence_ids = ["evidence:ownerless-budget-source-admission-successor-predecessor-preserve-retire-20260726"]
-binding = "This digest-only Claim binds only work/20260725-budget-contract-v2-changed-scope-source-admission-successor at 8d0691b7f84b89f549b211f533c5fa2d017edcfc, accepted reconciliation baseline 3b04f2dfa3638099753bb484bf4f4e1cea19ceaa, direct-retire decision lane-decision:6d1a4a1d-4b3e-4cd1-9d2e-303e8688d45e, observation 64c76ea6527ea01f4001f7a903040fd2b526b3c3761d5b2310815e8f7607e329, the sole no-effect result lane_resolution_ownerless_target_not_accepted_ancestor, and one later fresh target-bound preserve-retire decision."
+binding = "This digest-only Claim binds only work/20260725-budget-contract-v2-changed-scope-source-admission-successor at 8d0691b7f84b89f549b211f533c5fa2d017edcfc, accepted reconciliation baseline 3b04f2dfa3638099753bb484bf4f4e1cea19ceaa, direct-retire decision lane-decision:6d1a4a1d-4b3e-4cd1-9d2e-303e8688d45e, observation 64c76ea6527ea01f4001f7a903040fd2b526b3c3761d5b2310815e8f7607e329, the manual Chronicle judgment that the sole no-effect result was lane_resolution_ownerless_target_not_accepted_ancestor, and one later fresh target-bound preserve-retire decision."
 verifier = "digest_only"
 tests = [
-  "openspec validate ownerless-budget-source-admission-final-reconciliation --strict --json",
-  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-budget-source-admission-final-reconciliation --lifecycle --json",
+  "openspec validate ownerless-budget-source-admission-preserve-retire-reconciliation --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-budget-source-admission-preserve-retire-reconciliation --lifecycle --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
 ]
@@ -25,13 +25,13 @@ owner = "ethos-repository"
 scope = "One exact clean ownerless source, one immutable direct-retire no-effect record, and one later target-bound preserve-retire bridge. No feature acceptance, valid-owner mutation, package clear, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/ownerless-budget-source-admission-final-reconciliation"
+openspec = "openspec/changes/ownerless-budget-source-admission-preserve-retire-reconciliation"
 fallback = "Keep the exact source and all records unchanged when any branch, head, lease, Claim, dirtiness, registration, accepted head, Chronicle, package, receipt, or inventory fact differs."
 kill_signal = "A retire decision is reused or rewritten, accepted ancestry is bypassed, a valid-owner descendant is mutated, the source is hand-deleted, or a preservation package is cleared without later accepted exact-manifest authority."
 
 [promotion]
 targets = [
   "evidence/claims/ownerless-budget-source-admission-successor-predecessor-preserve-retire-20260726.toml",
-  "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md",
-  "openspec/changes/ownerless-budget-source-admission-final-reconciliation",
+  "evidence/chronicle/ownerless-budget-source-admission-preserve-retire-reconciliation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md",
+  "openspec/changes/ownerless-budget-source-admission-preserve-retire-reconciliation",
 ]

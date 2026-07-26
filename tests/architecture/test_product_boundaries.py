@@ -203,6 +203,27 @@ def test_lane_resolution_declares_native_closeout_authority_and_execution_bounda
     assert all("*" not in relative for relative in binding.mandatory_paths)
 
 
+def test_accepted_worktree_recovery_stays_outside_retired_resolution_and_state() -> None:
+    source = ROOT / "packages/ethos/src/ethos/adapters/mutation/closeout/core.py"
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    modules = {
+        alias.name
+        for node in ast.walk(tree)
+        for alias in (node.names if isinstance(node, ast.Import) else ())
+    } | {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module}
+    forbidden = (
+        "sqlite3",
+        "ethos.adapters.mutation.resolution",
+        "ethos.adapters.store.state",
+    )
+
+    assert all(
+        not (module == prefix or module.startswith(f"{prefix}."))
+        for module in modules
+        for prefix in forbidden
+    )
+
+
 def test_ownerless_admission_core_has_only_canonical_public_functions() -> None:
     core = ROOT / Path(
         "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/core.py"

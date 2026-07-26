@@ -583,6 +583,13 @@ Mutation readiness is explicit:
 ```bash
 ethos land --apply --authorize --expect-head <git-head>
 ethos land --closeout --apply --authorize --expect-head <accepted-head> --root <accepted-root>
+ethos land --closeout --recover-accepted-worktree-sync \
+  --failure-receipt <external-failed-closeout.json> \
+  --expect-failure-receipt-sha256 <sha256> \
+  --expect-index-lock-sha256 <sha256> \
+  --lock-quarantine <external-absent-same-filesystem-path> \
+  --confirm-stale-index-lock --confirm-irreversible \
+  --apply --authorize --expect-head <promoted-accepted-head>
 ethos publish --apply --authorize --expect-head <git-head>
 ```
 
@@ -613,6 +620,18 @@ reports `state = "accepted_current"` and `closeout_bootstrap.state = "current"`;
 the next action is `ethos publish`, not another closeout command. Authorized
 apply mode is a no-op in that state and does not require proof for a head that is
 already accepted.
+
+`--recover-accepted-worktree-sync` is a separate, narrow closeout mode for the
+post-promotion residue recorded as `accepted_worktree_sync_failed`. It requires
+the original external failure receipt and digest, the verified lock digest, an
+absent same-filesystem quarantine path, authorization, and both confirmations.
+The accepted checkout and accepted ref must still equal the receipt's promoted
+head; the candidate runner may equal that head or be its descendant so a newly
+landed runner can perform the repair. It does not retry a normal closeout or
+move any ref. The only intended effect is an atomic no-replace relocation of
+the verified stale index lock followed by a bounded synchronization of the
+accepted checkout; all receipt, Git, quarantine, and post-sync bindings are
+re-observed before success.
 
 `ethos campaign closeout --json` is the campaign-mode local closeout report. It
 does not mutate Git and does not push. `--campaign <id>` narrows its campaign

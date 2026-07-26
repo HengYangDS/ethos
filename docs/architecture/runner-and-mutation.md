@@ -104,6 +104,33 @@ the ETHOS command plane from a current ETHOS runner:
 ethos land --closeout --apply --authorize --expect-head <accepted-head> --root <accepted-root> --json
 ```
 
+If the accepted ref was promoted but that command reported
+`accepted_worktree_sync_failed`, ordinary closeout remains intentionally
+blocked by `accepted_root_dirty`. The only repair is the separate,
+receipt-bound command below, run by the committed candidate runner against the
+accepted root:
+
+```bash
+ethos land --closeout --recover-accepted-worktree-sync \
+  --failure-receipt <external-failed-closeout.json> \
+  --expect-failure-receipt-sha256 <sha256> \
+  --expect-index-lock-sha256 <sha256> \
+  --lock-quarantine <external-absent-same-filesystem-path> \
+  --confirm-stale-index-lock --confirm-irreversible \
+  --apply --authorize --expect-head <promoted-accepted-head> \
+  --root <accepted-root> --json
+```
+
+This is not a retry and never advances a ref. Its `--expect-head` binds the
+already-promoted accepted SHA. The candidate ref may be that SHA or a later
+descendant: the latter lets the candidate's committed runner contain recovery
+code while accepted stays at the interrupted promotion. A divergent candidate,
+arbitrary local work, malformed receipt, lock mismatch, existing/symlink or
+cross-device quarantine, unavailable atomic no-replace move, or postcondition
+drift blocks. The verified regular `index.lock` is atomically relocated without
+replacement; no retired-resolution record, lease, proof record, or SQLite state is
+read or written by this repair.
+
 The command audits the configured candidate worktree first, requires executed
 proof for the candidate head being promoted, and only then fast-forwards the
 accepted branch from the candidate branch. The accepted root's `--expect-head`

@@ -1,6 +1,8 @@
 # fmt: off
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import TYPE_CHECKING
 
 from tests.support.contract_helpers import adopt_and_commit
@@ -42,6 +44,136 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert accepted_update['proof_carry']['mints_proof'] is False
     assert git(repo, 'rev-parse', 'dev') == candidate_head
     assert git(repo, 'rev-parse', 'HEAD') == candidate_head
+
+
+def test_land_closeout_recovers_only_the_receipt_bound_interrupted_sync(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / 'repo')
+    adopt_and_commit(repo)
+    candidate = add_candidate_worktree(repo, tmp_path / 'repo-candidate-dev')
+    commit_fixture_file(candidate, 'README.md', '# candidate recovery\n', 'candidate recovery')
+    previous = git(repo, 'rev-parse', 'HEAD')
+    promoted = git(candidate, 'rev-parse', 'HEAD')
+    git(repo, 'update-ref', 'refs/heads/dev', promoted, previous)
+    commit_fixture_file(candidate, 'runner.txt', 'current recovery runner\n', 'advance recovery runner')
+    runner_head = git(candidate, 'rev-parse', 'HEAD')
+    lock = repo / '.git' / 'index.lock'
+    lock_bytes = b'interrupted-closeout-index-lock\n'
+    lock.write_bytes(lock_bytes)
+    receipt = tmp_path / 'failed-closeout.json'
+    receipt.write_text(json.dumps({
+        'command': 'land',
+        'ok': False,
+        'state': 'blocked',
+        'data': {'accepted_update': {
+            'ok': False,
+            'state': 'blocked',
+            'branch': 'dev',
+            'source_branch': 'candidate/dev',
+            'head': previous,
+            'previous_head': previous,
+            'candidate_head': promoted,
+            'required_gaps': ['accepted_worktree_sync_failed'],
+            'sync_attempts': 2,
+        }},
+    }), encoding='utf-8')
+    quarantine = tmp_path / 'quarantined-index.lock'
+    missing_closeout = run_ethos_blocked(
+        'land', '--recover-accepted-worktree-sync', '--apply', '--authorize',
+        '--expect-head', promoted, '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert missing_closeout['required_gaps'] == ['recovery_closeout_required']
+    unconfirmed = run_ethos_blocked(
+        'land', '--closeout', '--recover-accepted-worktree-sync',
+        '--failure-receipt', receipt.as_posix(),
+        '--expect-failure-receipt-sha256', hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        '--expect-index-lock-sha256', hashlib.sha256(lock_bytes).hexdigest(),
+        '--lock-quarantine', quarantine.as_posix(),
+        '--apply', '--authorize', '--expect-head', promoted,
+        '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert {
+        'recovery_stale_index_lock_confirmation_required',
+        'recovery_irreversible_confirmation_required',
+    } <= set(unconfirmed['required_gaps'])
+    bad_receipt_digest = run_ethos_blocked(
+        'land', '--closeout', '--recover-accepted-worktree-sync',
+        '--failure-receipt', receipt.as_posix(),
+        '--expect-failure-receipt-sha256', '0' * 64,
+        '--expect-index-lock-sha256', hashlib.sha256(lock_bytes).hexdigest(),
+        '--lock-quarantine', quarantine.as_posix(),
+        '--apply', '--authorize', '--confirm-stale-index-lock', '--confirm-irreversible',
+        '--expect-head', promoted, '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert 'recovery_failure_receipt_digest_mismatch' in bad_receipt_digest['required_gaps']
+    assert lock.read_bytes() == lock_bytes
+    assert quarantine.exists() is False
+    ordinary = run_ethos(
+        'land', '--closeout', '--expect-head', promoted,
+        '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert ordinary['ok'] is False
+    assert 'accepted_root_dirty' in ordinary['required_gaps']
+    payload = run_ethos(
+        'land', '--closeout', '--recover-accepted-worktree-sync',
+        '--failure-receipt', receipt.as_posix(),
+        '--expect-failure-receipt-sha256', hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        '--expect-index-lock-sha256', hashlib.sha256(lock_bytes).hexdigest(),
+        '--lock-quarantine', quarantine.as_posix(),
+        '--apply', '--authorize', '--confirm-stale-index-lock', '--confirm-irreversible',
+        '--expect-head', promoted, '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert (payload['ok'], payload['state'], payload['required_gaps']) == (
+        True,
+        'accepted_worktree_recovered',
+        [],
+    )
+    assert git(repo, 'rev-parse', 'HEAD') == promoted
+    assert git(repo, 'rev-parse', 'dev') == promoted
+    assert git(repo, 'rev-parse', 'candidate/dev') == runner_head
+    assert git(repo, 'status', '--short') == ''
+    assert lock.exists() is False
+    assert quarantine.read_bytes() == lock_bytes
+    assert (repo / 'README.md').read_text(encoding='utf-8') == '# candidate recovery\n'
+
+
+def test_land_closeout_recovery_refuses_unstaged_content_without_touching_lock(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / 'repo')
+    adopt_and_commit(repo)
+    candidate = add_candidate_worktree(repo, tmp_path / 'repo-candidate-dev')
+    commit_fixture_file(candidate, 'README.md', '# candidate recovery\n', 'candidate recovery')
+    previous = git(repo, 'rev-parse', 'HEAD')
+    promoted = git(candidate, 'rev-parse', 'HEAD')
+    git(repo, 'update-ref', 'refs/heads/dev', promoted, previous)
+    (repo / 'README.md').write_text('# unsafe local change\n', encoding='utf-8')
+    lock = repo / '.git' / 'index.lock'
+    lock_bytes = b'interrupted-closeout-index-lock\n'
+    lock.write_bytes(lock_bytes)
+    receipt = tmp_path / 'failed-closeout.json'
+    receipt.write_text(json.dumps({
+        'command': 'land', 'ok': False, 'state': 'blocked',
+        'data': {'accepted_update': {
+            'ok': False, 'state': 'blocked', 'branch': 'dev',
+            'source_branch': 'candidate/dev', 'head': previous,
+            'previous_head': previous, 'candidate_head': promoted,
+            'required_gaps': ['accepted_worktree_sync_failed'], 'sync_attempts': 2,
+        }},
+    }), encoding='utf-8')
+    quarantine = tmp_path / 'quarantined-index.lock'
+    payload = run_ethos_blocked(
+        'land', '--closeout', '--recover-accepted-worktree-sync',
+        '--failure-receipt', receipt.as_posix(),
+        '--expect-failure-receipt-sha256', hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        '--expect-index-lock-sha256', hashlib.sha256(lock_bytes).hexdigest(),
+        '--lock-quarantine', quarantine.as_posix(),
+        '--apply', '--authorize', '--confirm-stale-index-lock', '--confirm-irreversible',
+        '--expect-head', promoted, '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert 'recovery_worktree_not_index' in payload['required_gaps']
+    assert lock.read_bytes() == lock_bytes
+    assert quarantine.exists() is False
+    assert (repo / 'README.md').read_text(encoding='utf-8') == '# unsafe local change\n'
 
 def test_land_closeout_defers_control_replacement_without_incumbent_receipt(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')

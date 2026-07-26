@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-26
+goal: Recover only an exact receipt-bound interrupted accepted-worktree sync
+  after native closeout promotion.

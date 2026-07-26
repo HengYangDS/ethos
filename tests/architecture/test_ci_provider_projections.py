@@ -315,7 +315,7 @@ def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
         ],
     }
     assert "ethos audit --json" in script
-    assert "ethos report --json" in script
+    assert "ethos status --json" in script
     assert "ethos prove --execute --expect-head" in script
     assert "executed-proof.json" in script
     assert "ethos_hosted_readiness_receipt" in script
@@ -341,8 +341,8 @@ case "$*" in
     printf '%s\\n' proven >"${ETHOS_FAKE_STATE}"
     printf '{"ok":true,"state":"proven","data":{"expected_head":{"current":"%s","ok":true}},"summary":{"gate_count":1,"evidence_digest":"fake-digest"}}\\n' "${ETHOS_FAKE_EXPECTED_HEAD}"
     ;;
-  *"ethos report --json")
-    printf '%s\\n' report >>"${ETHOS_FAKE_CALLS}"
+  *"ethos status --json")
+    printf '%s\\n' status >>"${ETHOS_FAKE_CALLS}"
     if [[ -f "${ETHOS_FAKE_STATE}" ]]; then
       printf '%s\\n' '{"ok":true,"state":"ready"}'
     else
@@ -386,7 +386,7 @@ esac
     assert calls.read_text(encoding="utf-8").splitlines() == [
         "audit",
         "prove",
-        "report",
+        "status",
     ]
     receipt = json.loads(completed.stdout)
     assert receipt["ok"] is True

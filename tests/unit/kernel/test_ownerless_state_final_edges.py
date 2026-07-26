@@ -5,6 +5,7 @@ import json
 import sqlite3
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -183,6 +184,52 @@ def _replace_lease_payload(db_path: Path, *, subject: str, field: str, value: ob
             "update leases set payload_json = ? where subject = ?",
             (json.dumps(payload, sort_keys=True), subject),
         )
+
+
+def test_ownerless_state_ignores_unrelated_expired_legacy_lease(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    unrelated = "work/target-successor"
+    legacy_payload = json.dumps({"branch": unrelated, "path": "/tmp/legacy"})
+    acquire_lease(
+        db_path,
+        subject=unrelated,
+        holder_ref="agent:test:case:unrelated-legacy",
+        ttl_seconds=-1,
+    )
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (legacy_payload, unrelated),
+        )
+
+    assert closeout.observe_ownerless_closeout_state(db_path, subject="work/target") == (
+        "absent",
+        None,
+    )
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute(
+            "select payload_json from leases where subject = ?", (unrelated,)
+        ).fetchone() == (legacy_payload,)
+
+
+def test_subject_lease_query_uses_bound_exact_equality() -> None:
+    connection = Mock()
+    connection.execute.return_value.fetchall.return_value = []
+    subject = "work/target"
+
+    assert (
+        closeout._validated_subject_lease_rows(  # noqa: SLF001, RUF100
+            connection, subject=subject
+        )
+        == []
+    )
+
+    statement, parameters = connection.execute.call_args.args
+    assert " ".join(statement.split()) == (
+        "select id, subject, owner, expires_at, payload_json from leases "
+        "where subject = ? order by id"
+    )
+    assert parameters == (subject,)
 
 
 @pytest.mark.parametrize(
@@ -381,7 +428,11 @@ def test_ownerless_state_snapshot_and_fence_observation_fail_closed_edges(
     )
 
     with monkeypatch.context() as scoped:
-        scoped.setattr(closeout, "_closeout_state_snapshot", lambda _path: ([], True))
+        scoped.setattr(
+            closeout,
+            "_closeout_state_snapshot",
+            lambda _path, **_kwargs: ([], True),
+        )
         scoped.setattr(
             closeout, "probe_closeout_fence", lambda *_args, **_kwargs: ("unverifiable", None)
         )

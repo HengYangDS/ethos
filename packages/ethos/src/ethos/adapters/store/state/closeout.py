@@ -136,13 +136,11 @@ def _validated_acquisition_id(raw: object, subject: str) -> str:
 def _has_unexpired_lease(connection: sqlite3.Connection, *, subject: str) -> bool:
     """Keep ownerless closeout fenced only by a current, unambiguous lease."""
     try:
-        leases = _validated_lease_rows(connection)
+        leases = _validated_subject_lease_rows(connection, subject=subject)
     except (TypeError, ValueError):
         return True
     now = datetime.now(UTC)
-    return any(
-        lease.lane_ref == subject and expires.astimezone(UTC) > now for lease, expires in leases
-    )
+    return any(expires.astimezone(UTC) > now for _, expires in leases)
 
 
 def _validated_payload(  # noqa: PLR0913, RUF100 - exact durable fence binding
@@ -362,13 +360,13 @@ def observe_ownerless_closeout_state(
     observed_fence: tuple[str, dict[str, object] | None] | None = None,
 ) -> tuple[str, dict[str, object] | None]:
     """Validate raw lease and fence facts without projecting damage as absence."""
-    snapshot = _closeout_state_snapshot(db_path)
+    snapshot = _closeout_state_snapshot(db_path, subject=subject)
     if snapshot is None:
         return "absent", None
     leases, fence_schema = snapshot
     now = datetime.now(UTC)
     for lease, expires in leases:
-        if lease.lane_ref == subject and expires.astimezone(UTC) > now:
+        if expires.astimezone(UTC) > now:
             _state_error("coordinated", "claim" if lease.claim_id else "lease")
     if observed_fence is not None:
         if not fence_schema:
@@ -384,6 +382,8 @@ def observe_ownerless_closeout_state(
 
 def _closeout_state_snapshot(
     db_path: Path,
+    *,
+    subject: str,
 ) -> tuple[list[tuple[LaneLease, datetime]], bool] | None:
     if not os.path.lexists(db_path):
         sidecars = ("-wal", "-shm", "-journal")
@@ -398,7 +398,7 @@ def _closeout_state_snapshot(
             if not validate_current_lease_schema(connection):
                 _state_error("state_unverifiable", "database")
             try:
-                leases = _validated_lease_rows(connection)
+                leases = _validated_subject_lease_rows(connection, subject=subject)
             except (TypeError, ValueError) as error:
                 _state_error("state_unverifiable", "lease", error)
             fence_schema = validate_current_closeout_fence_schema(connection)
@@ -409,11 +409,15 @@ def _closeout_state_snapshot(
     return leases, fence_schema
 
 
-def _validated_lease_rows(
+def _validated_subject_lease_rows(
     connection: sqlite3.Connection,
+    *,
+    subject: str,
 ) -> list[tuple[LaneLease, datetime]]:
     rows = connection.execute(
-        "select id, subject, owner, expires_at, payload_json from leases order by subject, id"
+        """select id, subject, owner, expires_at, payload_json from leases
+        where subject = ? order by id""",
+        (subject,),
     ).fetchall()
     return [_validated_lease(row) for row in rows]
 

@@ -51,6 +51,6 @@ This carrier does not cover the similarly shaped
 dirty lane, any valid or expired lease takeover, broad pruning, GitHub/GitLab
 mutation, hosted-CI claims, or removal of a preservation package.
 
-See also: [History Residue Closeout Implementation](history-residue-closeout-implementation.md),
+See also: [History Residue Closeout archive](../../openspec/changes/archive/2026-07-19-history-residue-closeout/proposal.md),
 [Runner and Mutation](../architecture/runner-and-mutation.md), and
 [Repository Governance OpenSpec](../../openspec/specs/repository-governance/spec.md).

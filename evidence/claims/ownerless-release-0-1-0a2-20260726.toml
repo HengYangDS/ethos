@@ -1,0 +1,38 @@
+[claim]
+id = "ownerless-release-0-1-0a2-20260726"
+subject = "ethos:work-lane:work/20260724-release-0-1-0a2"
+state = "active"
+summary = "The clean ownerless release lane contains one unique unaccepted date correction and must be preserved through one exact native preserve-retire transition before source removal."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-housekeeping-closeout-20260726/release-0-1-0a2.md"
+sha256 = "238c0b27211b84b1d767e5882838531ae530794d8ac64dc5e24af73e058a98fa"
+evidence_ids = ["evidence:ownerless-release-0-1-0a2-20260726"]
+binding = "This digest-only Claim binds only work/20260724-release-0-1-0a2 at a3d5329a4b6d0660d62faa738aaf66a244b9e219, accepted df5ee833af27c1441aa07083e2c9a97909c799b3, its exact merge base/tree, clean missing-lease observation, and the unique three-file 2026-07-25 date alternative. It authorizes preservation and retirement, not acceptance or publication of that date."
+verifier = "digest_only"
+tests = [
+  "git -C <accepted-root> branch --contains a3d5329a4b6d0660d62faa738aaf66a244b9e219",
+  "git -C <source-worktree> status --porcelain --untracked-files=all",
+  "openspec validate ownerless-housekeeping-closeout --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean unique release-date lane and one local preserve-retire transition. No date acceptance, tag/release publication, remote mutation, hosted claim, package clear, or valid-owner action."
+
+[carriers]
+openspec = "openspec/changes/ownerless-housekeeping-closeout"
+fallback = "Keep the source branch and worktree intact when any head, lease, Claim, dirtiness, tree, registration, Chronicle, package, manifest, or receipt fact differs."
+kill_signal = "Preservation is described as release acceptance, remote publication is inferred, the recovery package is cleared, or native failure is hidden by manual cleanup."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-release-0-1-0a2-20260726.toml",
+  "evidence/chronicle/ownerless-housekeeping-closeout-20260726/release-0-1-0a2.md",
+  "openspec/changes/ownerless-housekeeping-closeout",
+]

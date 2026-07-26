@@ -15,6 +15,8 @@ from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
+from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import ROLE_DETACHED
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -348,8 +350,22 @@ def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
         relative = resolved.relative_to(root_path).as_posix()
     except ValueError:
         return _path_report(resolved.as_posix(), reason="path_outside_worktree")
+    topology = path_policy_from_declaration(
+        relative,
+        load_generated_artifact_topology_declaration(
+            root_path / "system/policies/generated-artifact-topology.toml"
+        ),
+    )
     ignored = _is_ignored(root_path, relative)
     tracked = not ignored
+    if topology["decision"] == "deny":
+        return _path_report(
+            resolved.as_posix(),
+            relative_path=relative,
+            ignored=ignored,
+            tracked_candidate=tracked,
+            reason=str(topology.get("required_gap") or "generated_artifact_topology_denied"),
+        )
     protected = role in PROTECTED_WRITE_ROLES and tracked
     return _path_report(
         resolved.as_posix(),
@@ -405,7 +421,7 @@ def _error(
 
 
 def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
-    reasons = {str(path["reason"]) for path in blocked_paths}
+    reasons = [str(path["reason"]) for path in blocked_paths]
     priority = (
         ("path_invalid_control_character", "prewrite_path_invalid_control_character"),
         ("path_invalid_whitespace", "prewrite_path_invalid_whitespace"),
@@ -413,7 +429,10 @@ def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     )
     return next(
         (gap for reason, gap in priority if reason in reasons),
-        "protected_lane_prewrite_blocked" if blocked_paths else "",
+        next(
+            (reason for reason in reasons if reason != "protected_lane_tracked_write"),
+            "protected_lane_prewrite_blocked" if blocked_paths else "",
+        ),
     )
 
 

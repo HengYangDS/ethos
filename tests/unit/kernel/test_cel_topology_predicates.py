@@ -95,6 +95,18 @@ def test_named_cel_helpers_fail_closed_for_missing_rule() -> None:
         topology_contract._cel_rule(load_generated_artifact_topology_declaration(), "missing")
 
 
+def test_external_method_pack_shadow_authority_is_denied() -> None:
+    policy = path_policy_from_declaration(
+        ".superpowers/sdd/tasks/progress.md",
+        load_generated_artifact_topology_declaration(),
+    )
+
+    assert policy["decision"] == "deny"
+    assert policy["required_gap"] == (
+        "external_method_pack_shadow_authority:.superpowers/sdd/tasks/progress.md"
+    )
+
+
 def test_topology_path_policy_reuses_immutable_declaration_decision(monkeypatch) -> None:
     declaration = load_generated_artifact_topology_declaration()
     calls = 0

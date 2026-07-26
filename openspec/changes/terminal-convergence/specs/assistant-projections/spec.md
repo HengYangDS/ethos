@@ -20,3 +20,28 @@ MCP MUST expose resources, prompts, and guarded tools; A2A MUST cover discovery,
 #### Scenario: An agent protocol adapter is uninstalled
 - **WHEN** its files and manifest are removed
 - **THEN** the core lifecycle, repository truth, and other protocol adapters remain intact
+
+### Requirement: Optional Execution Substrates Cannot Own Repository Truth
+External agent hosts, method packs, and execution runtimes MAY execute or
+project OpenSpec and ETHOS contracts, but MUST remain replaceable and MUST NOT
+own repository-local intent, design, task, progress, report, or lifecycle state.
+
+#### Scenario: An ignored method-pack progress tree is written
+- **WHEN** a writer targets `.superpowers/sdd/tasks/progress.md` or another path
+  declared as external shadow authority
+- **THEN** topology policy and prewrite admission block the path even when Git
+  ignores it
+- **AND** the verdict preserves the declared semantic gap
+
+#### Scenario: An execution runtime is absent or uninstalled
+- **WHEN** a coding-agent, graph, durable-service, or method-pack backend is not
+  installed
+- **THEN** OpenSpec lifecycle, PlanIR, admission, proof, and attestations remain
+  complete and executable through another conforming backend
+
+#### Scenario: A runtime backend checkpoints an execution
+- **WHEN** a conforming runtime pauses, resumes, or hands off work
+- **THEN** its checkpoint remains disposable execution state in a declared
+  runtime home
+- **AND** accepted progress is reconstructed only from OpenSpec, Git facts,
+  PlanIR, and attestations

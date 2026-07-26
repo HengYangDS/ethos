@@ -148,6 +148,11 @@ prefix = ".config/ci/scripts"
 boundary = "runner scripts belong under tools/ci/scripts"
 required_gap_prefix = "retired_config_script_home"
 
+[[denied_prefix]]
+prefix = ".superpowers"
+boundary = "external method packs may not own repository-local plan, task, progress, or report state"
+required_gap_prefix = "external_method_pack_shadow_authority"
+
 [[denied_root_cache_prefix]]
 prefix = ".import_linter_cache"
 boundary = "import-linter cache belongs under build/runtime/tool-cache/import-linter"

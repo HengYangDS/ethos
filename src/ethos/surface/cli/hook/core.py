@@ -20,7 +20,6 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.commands import load_command_registry_declaration
 from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.normalization.core import string_sequence
 from ethos.result import EthosResult
@@ -30,7 +29,8 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import hook_app
 from ethos.surface.cli._base import resolve_root
 
-_ACTIONS = load_command_registry_declaration().actions
+_LANE_PREWRITE_ACTION = ("ethos lane prewrite <path>",)
+_HEAD_BOUND_PROOF_ACTION = ("ethos prove --execute --expect-head <head>",)
 
 
 def _report_result(
@@ -106,7 +106,7 @@ def _hook_admit_next_actions(report: dict[str, object]) -> tuple[str, ...]:
     actions = report.get("next_actions")
     if isinstance(actions, list):
         return tuple(str(action) for action in cast("list[object]", actions))
-    return _ACTIONS["lane_prewrite"]
+    return _LANE_PREWRITE_ACTION
 
 
 @hook_app.command
@@ -164,7 +164,7 @@ def pre_push(
                 "remote_publication_admission", "not_evaluated"
             ),
         },
-        _ACTIONS["head_bound_proof"] if not report["ok"] else (),
+        _HEAD_BOUND_PROOF_ACTION if not report["ok"] else (),
     )
     emit(result, json_output=json_output, enforce=True)
 

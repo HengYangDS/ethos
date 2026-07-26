@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import subprocess
 from pathlib import Path
 from typing import cast
 
@@ -26,7 +25,7 @@ def observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
     if not worktree:
         empty = hashlib.sha256(b"").hexdigest()
         object_format = run_git(
-            root, "rev-parse", "--show-object-format", check=False
+            root, "rev-parse", "--show-object-format", check=False, observation=True
         ).stdout.strip()
         return LaneObservation(
             lane_ref=branch or "unknown",
@@ -42,7 +41,7 @@ def observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
         ), ["lane_resolution_target_missing"]
 
     path = Path(worktree["path"])
-    head = run_git(root, "rev-parse", f"refs/heads/{branch}").stdout.strip()
+    head = run_git(root, "rev-parse", f"refs/heads/{branch}", observation=True).stdout.strip()
     lease = leases_by_branch(root).get(branch, {})
     holder = str(lease.get("holder_ref") or "")
     incarnation = str(lease.get("lane_incarnation_id") or "") or (
@@ -55,12 +54,23 @@ def observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
         lane_incarnation_id=incarnation,
         holder_ref=holder,
         path=path.resolve().as_posix(),
-        dirty=bool(run_git(path, "status", "--porcelain", check=False).stdout.strip()),
+        dirty=bool(
+            run_git(path, "status", "--porcelain", check=False, observation=True).stdout.strip()
+        ),
         foreign=not bool(holder),
         orphan=not bool(lease),
         ambiguous=False,
         tracked_digest=hashlib.sha256(
-            run_git(path, "diff", "--binary", "HEAD", "--", check=False).stdout.encode()
+            run_git(
+                path,
+                "diff",
+                "--binary",
+                "HEAD",
+                "--",
+                check=False,
+                text=False,
+                observation=True,
+            ).stdout
         ).hexdigest(),
         untracked_digest=untracked_digest(path),
     ), []
@@ -82,11 +92,15 @@ def untracked_digest(path: Path) -> str:
 
 def untracked_files(path: Path) -> list[bytes] | None:
     """Return sorted non-ignored untracked paths or ``None`` when unavailable."""
-    completed = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
-        cwd=path,
+    completed = run_git(
+        path,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
         check=False,
-        capture_output=True,
+        text=False,
+        observation=True,
     )
     return (
         None

@@ -96,7 +96,7 @@ First validation path:
 ethos status --json
 ethos plan --changed --json
 ethos prove --execute
-ethos quality command-examples
+ethos --help
 ```
 
 For governance and discovery:
@@ -106,10 +106,9 @@ ethos doctor
 ethos adopt --root <repo> --json
 ethos fleet inspect --target .
 ethos playbooks check
-ethos quality docs
-ethos quality schemas
-ethos quality gates
-ethos quality provenance
+ethos prove --gate docs-registry --gate docs-topology
+ethos prove --gate schemas
+ethos prove --json
 ethos assistants doctor
 ethos campaign hypotheses
 ```

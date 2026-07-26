@@ -4,9 +4,11 @@ from typing import TYPE_CHECKING
 
 from ethos.normalization.core import string_mapping
 from ethos.normalization.core import string_sequence
+from ethos.repository.adoption.planner import CONTRACT_PATH
+from ethos.repository.adoption.planner import PROFILE_PATH
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.context import LIFECYCLE_COMMANDS
 from ethos.repository.context import context_for_root
-from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.registry.profiles import governance_profile_report
 
 if TYPE_CHECKING:
@@ -110,7 +112,7 @@ def governance_kernel_report(root: Path) -> dict[str, object]:
             "closed_check_count": sum(1 for check in checks.values() if check.get("ok")),
             "gap_count": len(required_gaps),
             "kernel_chain": KERNEL_CHAIN_TEXT,
-            "transition_command_count": len(PUBLIC_WORKFLOW_COMMANDS),
+            "transition_command_count": len(LIFECYCLE_COMMANDS),
         },
         "required_gaps": required_gaps,
         "checks": checks,
@@ -118,7 +120,7 @@ def governance_kernel_report(root: Path) -> dict[str, object]:
             "kernel": list(KERNEL_CHAIN),
             "subject_kind": "repository",
             "product_and_adopters": "same_kernel_profile_or_adapter_differences_only",
-            "transition_commands": list(PUBLIC_WORKFLOW_COMMANDS),
+            "transition_commands": list(LIFECYCLE_COMMANDS),
             "forbidden": [
                 "second_command_plane",
                 "product_cloning",
@@ -139,12 +141,12 @@ def _runtime_context_check(context: Mapping[str, object]) -> dict[str, object]:
             ),
             *_list_field_gaps(
                 value=context.get("transition_commands"),
-                expected=PUBLIC_WORKFLOW_COMMANDS,
+                expected=LIFECYCLE_COMMANDS,
                 gap="governance_kernel_transition_commands_mismatch",
             ),
             *_list_field_gaps(
                 value=context.get("shared_commands"),
-                expected=PUBLIC_WORKFLOW_COMMANDS,
+                expected=LIFECYCLE_COMMANDS,
                 gap="governance_kernel_shared_commands_mismatch",
             ),
             *([] if context.get("repository") else ["governance_kernel_subject_not_repository"]),
@@ -290,13 +292,16 @@ def _product_docs_check(root: Path) -> dict[str, object]:
 def _minimal_adoption_binding_check(plan: Mapping[str, object]) -> dict[str, object]:
     required_gaps = string_sequence(plan.get("required_gaps"))
     planned_files = set(string_sequence(plan.get("planned_files")))
+    expected_files = {PROFILE_PATH, CONTRACT_PATH}
     if plan.get("applied") is not False:
         required_gaps.append("governance_kernel_adoption_probe_mutated")
-    if ".ethos/profile.toml" not in planned_files:
-        required_gaps.append("governance_kernel_adoption_binding_missing:.ethos/profile.toml")
+    required_gaps.extend(
+        f"governance_kernel_adoption_binding_missing:{path}"
+        for path in sorted(expected_files - planned_files)
+    )
     required_gaps.extend(
         f"governance_kernel_adoption_surface_unexpected:{path}"
-        for path in sorted(planned_files - {".ethos/profile.toml"})
+        for path in sorted(planned_files - expected_files)
     )
     return {
         "ok": not required_gaps,

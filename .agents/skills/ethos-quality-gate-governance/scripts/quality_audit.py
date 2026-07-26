@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -33,7 +32,7 @@ REQUIRED_FILES = (
 ACTIVE_CONCERNS = {
     "python_format_lint": "tools/ci/scripts/run-python-lint.sh",
     "tests": "tools/ci/scripts/run-python-tests.sh",
-    "python_typing": "ethos quality types --json",
+    "python_typing": "ethos prove --gate python-types --json",
     "coverage": "tools/ci/scripts/run-python-tests.sh",
     "python_docstrings": "tools/ci/scripts/run-docstring-coverage.sh",
     "python_module_layout": "tools/ci/scripts/run-module-layout.sh",
@@ -43,32 +42,6 @@ ACTIVE_CONCERNS = {
     "repository_hygiene": "tools/ci/scripts/run-repository-hygiene.sh",
     "json_format": "tools/ci/scripts/run-config-lint.sh",
 }
-
-
-def run_json(root: Path, *args: str) -> dict[str, Any]:
-    completed = subprocess.run(
-        ["uv", "run", "--all-packages", "--group", "dev", "ethos", *args],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        return {
-            "ok": False,
-            "command": ["ethos", *args],
-            "required_gaps": [f"command_failed:{' '.join(args)}"],
-            "stderr": completed.stderr,
-        }
-    try:
-        return json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        return {
-            "ok": False,
-            "command": ["ethos", *args],
-            "required_gaps": [f"command_json_invalid:{' '.join(args)}"],
-            "error": str(exc),
-        }
 
 
 def load_toml(path: Path) -> tuple[dict[str, Any], list[str]]:
@@ -242,34 +215,15 @@ def _quality_reference_gaps(root: Path) -> list[str]:
 
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
-    type_report = run_json(root, "quality", "types", "--json")
-    doc_report = run_json(root, "quality", "docstrings", "--json")
-    layout_report = run_json(root, "quality", "module-layout", "--json")
     gaps = owner_gaps(root)
-    for report in (type_report, doc_report, layout_report):
-        gaps.extend(str(gap) for gap in report.get("required_gaps", []))
     unique_gaps = sorted(dict.fromkeys(gaps))
     payload = {
         "kind": "quality_gate_audit",
         "ok": not unique_gaps,
         "root": str(root),
         "checks": {
-            "types": {
-                "ok": bool(type_report.get("ok")),
-                "state": type_report.get("state"),
-            },
-            "docstrings": {
-                "ok": bool(doc_report.get("ok")),
-                "state": doc_report.get("state"),
-            },
-            "module_layout": {
-                "ok": bool(layout_report.get("ok")),
-                "state": layout_report.get("state"),
-            },
-            "coverage_owner": {
-                "ok": not any(gap.startswith("quality_coverage") for gap in owner_gaps(root))
-            },
-            "owner_shape": {"ok": not owner_gaps(root)},
+            "coverage_owner": {"ok": not any(gap.startswith("quality_coverage") for gap in gaps)},
+            "owner_shape": {"ok": not gaps},
         },
         "required_gaps": unique_gaps,
     }

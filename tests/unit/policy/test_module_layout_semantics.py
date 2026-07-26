@@ -47,7 +47,7 @@ def test_exact_kernel_role_contract_admits_matching_module(tmp_path) -> None:
                 "path": relative,
                 "role": "kernel",
                 "concept": "pure transition decision",
-                "authority_refs": ["system/workflows.toml"],
+                "authority_refs": ["system/lifecycle.toml"],
                 "public_symbols": ["decide"],
                 "max_eloc": 4,
                 "allowed_import_roots": ["ethos.contracts"],
@@ -80,7 +80,7 @@ def extra():
                 "path": relative,
                 "role": "kernel",
                 "concept": "pure transition decision",
-                "authority_refs": ["system/workflows.toml"],
+                "authority_refs": ["system/lifecycle.toml"],
                 "public_symbols": ["decide"],
                 "max_eloc": 8,
                 "allowed_import_roots": ["ethos.contracts"],
@@ -105,11 +105,6 @@ def status():
 def retire():
     pass
 """,
-    )
-    _write(
-        tmp_path,
-        "system/commands.toml",
-        '[[commands]]\nname = "status"\nimport_path = "ethos.surface.cli.lane.core:status"\n',
     )
     policy = {"paths": ["src/ethos"]}
 

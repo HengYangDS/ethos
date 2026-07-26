@@ -23,27 +23,15 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import conformant_proof_run
+from tests.support.contract_helpers import write_publication_topology
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import leased_worktree as create_leased_worktree
 
 
-def _write_equal_remote_topology(repo: Path) -> None:
-    release = repo / ".ethos" / "release.toml"
-    release.parent.mkdir(exist_ok=True)
-    release.write_text(
-        """
-[publication]
-gitlab_remote = "origin"
-github_remote = "github"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-
 def _identity_repo(path: Path) -> Path:
     repo = init_repo(path)
-    _write_equal_remote_topology(repo)
+    write_publication_topology(repo)
     for key, value in (
         ("user.name", "Canonical User"),
         ("user.email", "canonical@example.invalid"),
@@ -79,7 +67,7 @@ def test_push_admission_rejects_candidate_and_undeclared_remote_targets(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    _write_equal_remote_topology(repo)
+    write_publication_topology(repo)
     head = git(repo, "rev-parse", "HEAD")
 
     candidate = push_admission_report(
@@ -127,7 +115,7 @@ def test_push_admission_rejects_legacy_topology_without_enforcement_bypass(tmp_p
 
 def test_push_admission_rejects_work_branch_before_proof_lookup(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    _write_equal_remote_topology(repo)
+    write_publication_topology(repo)
     head = git(repo, "rev-parse", "HEAD")
 
     report = push_admission_report(
@@ -531,7 +519,7 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
         check=True,
     ).stdout.strip()
 
-    _write_equal_remote_topology(tmp_path)
+    write_publication_topology(tmp_path)
 
     # protected accepted root without proof -> blocked
     protected = push_admission_report(root=tmp_path, target_ref="refs/heads/dev", pushed_head=head)

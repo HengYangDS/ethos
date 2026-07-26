@@ -18,15 +18,16 @@ from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.normalization.core import integer
+from ethos.normalization.core import object_sequence
 from ethos.normalization.core import string_sequence
 from ethos.repository.context import context_for_root
 from ethos.repository.context import is_product_root
 from ethos.result import EthosResult
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
-from ethos.surface.cli.quality.reporting import declared_report_result
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -125,6 +126,7 @@ def _status_next_actions(
     return (action,) if action else ()
 
 
+@app.command
 def status(
     *,
     root: RootOption | None = None,
@@ -132,16 +134,44 @@ def status(
 ) -> None:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = resolve_root(root)
-    handler, _report_payload, result = declared_report_result(
-        module_name=__name__, function_name="status", target=repo, group="root"
+    report = _status_report(repo)
+    status_payload = cast("dict[str, object]", report["status"])
+    coordination = cast("dict[str, object]", status_payload["coordination"])
+    result = EthosResult(
+        command="status",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "root": status_payload["root"],
+            "branch": status_payload["branch"],
+            "role": status_payload["role"],
+            "dirty": status_payload["dirty"],
+            "changed_path_count": status_payload["changed_path_count"],
+            "foreign_work_lane_count": coordination["foreign_work_lane_count"],
+            "unbound_work_lane_count": coordination["unbound_work_lane_count"],
+            "missing_lease_count": coordination["missing_lease_count"],
+            "coordination_detail_state": coordination["detail_state"],
+            "coordination_advisory_count": coordination["advisory_count"],
+            "coordination_blocking": coordination["blocking"],
+        },
+        diagnostics=tuple(
+            cast("dict[str, Any]", item)
+            for item in object_sequence(report["diagnostics"])
+            if isinstance(item, dict)
+        ),
+        required_gaps=tuple(string_sequence(report["required_gaps"])),
+        next_actions=tuple(string_sequence(report["next_actions"])),
+        governance_context=cast("dict[str, object]", report["governance_context"]),
+        data=status_payload,
     )
-    emit(result, json_output=json_output, enforce=handler.enforce, artifact_root=repo)
+    emit(result, json_output=json_output, enforce=False, artifact_root=repo)
 
 
 def _count_sequence(value: object) -> int:
     return len(value) if isinstance(value, list | tuple) else 0
 
 
+@app.command(show=False)
 def doctor(
     *,
     root: RootOption | None = None,

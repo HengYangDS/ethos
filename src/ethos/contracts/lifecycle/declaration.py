@@ -1,0 +1,305 @@
+"""Typed declarations for lifecycle policy, PlanIR actions, leases, and campaigns."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Literal
+from typing import Self
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import field_validator
+from pydantic import model_validator
+
+from ethos.contracts.plan import PlanIR
+from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import compile_plan
+from ethos.contracts.policy.cel import evaluate_cel_rules
+from ethos.contracts.policy.cel import validate_cel_expression
+from ethos.contracts.system.contracts import load_system_contract
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import ChangeContract
+    from ethos.contracts.semantic import RepositoryFacts
+
+_LEASE_TRANSITION_MATRIX_INVALID = "lease_transition_matrix_invalid"
+_TRANSITION_POLICY_MATRIX_INVALID = "transition_policy_matrix_invalid"
+_PLAN_ACTION_MATRIX_INVALID = "plan_action_matrix_invalid"
+_LEASE_EFFECT_FIELDS = frozenset(
+    {
+        "holder_ref",
+        "target_holder_ref",
+        "offer_id",
+        "expected_epoch",
+        "expected_expires_at",
+        "expected_payload_sha256",
+        "holder_quiesced",
+        "ttl_seconds",
+    }
+)
+
+
+class _Declaration(BaseModel):
+    """Strict immutable base for lifecycle declarations."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class TransitionPolicy(_Declaration):
+    """One declaration-owned policy interpreted only by the pure reducer."""
+
+    id: str = Field(min_length=1)
+    applied_state: str = Field(min_length=1)
+    planned_state: str = "planned"
+    current_state: str = ""
+    required_role: str = ""
+    role_gap: str = ""
+    dirty_gap: str = ""
+    authorization_required: bool = False
+    expected_head_required: bool = False
+    head_mismatch_gap: str = "expect_head_mismatch"
+    untracked_gap: str = ""
+    dry_run_commands: tuple[str, ...] = Field(default=(), strict=False)
+
+
+class LeaseTransitionDeclaration(TransitionPolicy):
+    """One local lease operation and its exact effect binding."""
+
+    effect_fields: tuple[str, ...] = Field(min_length=1, strict=False)
+    actor_field: Literal["holder_ref", "target_holder_ref"]
+    blocks_contrary_decision: bool = False
+
+    @field_validator("effect_fields")
+    @classmethod
+    def compile_effect_fields(cls, fields: tuple[str, ...]) -> tuple[str, ...]:
+        if any(not field for field in fields) or len(fields) != len(set(fields)):
+            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        return fields
+
+    @model_validator(mode="after")
+    def bind_actor_to_effect(self) -> Self:
+        if self.actor_field not in self.effect_fields:
+            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        return self
+
+
+class PlanAction(_Declaration):
+    """One declared root action compiled into PlanIR."""
+
+    id: str = Field(min_length=1)
+    kind: Literal["check", "decision", "effect"]
+    enforcement: Literal["guarded", "evidence-only"]
+    requires: tuple[str, ...] = ()
+    produces: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_action(self) -> Self:
+        if self.kind == "decision" and self.enforcement == "evidence-only":
+            raise ValueError(_PLAN_ACTION_MATRIX_INVALID)
+        return self
+
+    def to_plan_node(self, producers: dict[str, str]) -> PlanNode:
+        """Compile this action into one PlanIR node."""
+        return PlanNode(
+            id=self.id,
+            kind=self.kind,
+            command=("ethos", self.id, "--json"),
+            depends_on=tuple(
+                dict.fromkeys(
+                    producer
+                    for requirement in self.requires
+                    if (producer := producers.get(requirement)) and producer != self.id
+                )
+            ),
+        )
+
+    def external_requirements(self, producers: dict[str, str]) -> tuple[str, ...]:
+        """Return facts supplied outside this PlanIR action set."""
+        return tuple(
+            dict.fromkeys(
+                requirement for requirement in self.requires if requirement not in producers
+            )
+        )
+
+
+class CampaignRule(_Declaration):
+    """One declaration-owned CEL rule over campaign facts."""
+
+    expression: str
+    gap: str
+
+    @field_validator("expression", "gap")
+    @classmethod
+    def validate_cel(cls, value: str) -> str:
+        return validate_cel_expression(value)
+
+
+class CampaignGapGroup(_Declaration):
+    """One declaration-owned CEL gap-list projection."""
+
+    values: str
+    prefix: str
+
+    @field_validator("values", "prefix")
+    @classmethod
+    def validate_cel(cls, value: str) -> str:
+        return validate_cel_expression(value)
+
+
+class CampaignPublicationDeclaration(_Declaration):
+    """Structural and terminal-progress gap aggregation."""
+
+    gap_groups: tuple[CampaignGapGroup, ...]
+    advisory_gap_groups: tuple[CampaignGapGroup, ...]
+
+
+class CampaignLifecycleDeclaration(_Declaration):
+    """Campaign lifecycle and publication policy."""
+
+    topology_kind: str
+    topology_mode: str
+    dependency_rule: str
+    publication_kind: str
+    publication_scope: str
+    publication_terminal_mode: str
+    admitted_state: str
+    blocked_state: str
+    continuation_action_id: str
+    publication_action_id: str
+    campaign_active_states: tuple[str, ...]
+    campaign_terminal_states: tuple[str, ...]
+    step_planned_states: tuple[str, ...]
+    step_execution_states: tuple[str, ...]
+    step_archived_states: tuple[str, ...]
+    step_terminal_states: tuple[str, ...]
+    step_retired_states: tuple[str, ...]
+    closeout_planned_states: tuple[str, ...]
+    closeout_terminal_states: tuple[str, ...]
+    closeout_retired_states: tuple[str, ...]
+    rules: dict[str, tuple[CampaignRule, ...]] = Field(min_length=1)
+    publication: CampaignPublicationDeclaration
+    publication_projection: str
+
+    @field_validator("publication_projection")
+    @classmethod
+    def validate_cel_projection(cls, value: str) -> str:
+        return validate_cel_expression(value)
+
+    def evaluate(self, scope: str, *, facts: dict[str, object]) -> list[str]:
+        """Evaluate one declared rule group over immutable facts."""
+        return evaluate_cel_rules(
+            self.rules.get(scope, ()),
+            facts=facts,
+            policy=self.model_dump(
+                mode="json",
+                exclude={"rules", "publication", "publication_projection"},
+            ),
+        )
+
+
+class LifecycleContract(_Declaration):
+    """The singular declaration for lifecycle policy and PlanIR compilation."""
+
+    schema_path: str = Field(alias="schema")
+    transition_policy: tuple[TransitionPolicy, ...]
+    lease_transition: tuple[LeaseTransitionDeclaration, ...]
+    node: tuple[PlanAction, ...]
+    campaign: CampaignLifecycleDeclaration
+
+    @field_validator("lease_transition")
+    @classmethod
+    def validate_lease_transitions(
+        cls, value: tuple[LeaseTransitionDeclaration, ...]
+    ) -> tuple[LeaseTransitionDeclaration, ...]:
+        operations = tuple(item.id for item in value)
+        if len(operations) != len(set(operations)) or any(
+            field not in _LEASE_EFFECT_FIELDS
+            for transition in value
+            for field in transition.effect_fields
+        ):
+            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        return value
+
+    @field_validator("transition_policy")
+    @classmethod
+    def validate_transition_policies(
+        cls, value: tuple[TransitionPolicy, ...]
+    ) -> tuple[TransitionPolicy, ...]:
+        identifiers = tuple(item.id for item in value)
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError(_TRANSITION_POLICY_MATRIX_INVALID)
+        return value
+
+    @field_validator("node")
+    @classmethod
+    def validate_plan_actions(cls, value: tuple[PlanAction, ...]) -> tuple[PlanAction, ...]:
+        identifiers = tuple(item.id for item in value)
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError(_PLAN_ACTION_MATRIX_INVALID)
+        return value
+
+    def policy(self, identifier: str) -> TransitionPolicy:
+        """Return one exact transition policy or fail closed."""
+        policy = next((item for item in self.transition_policy if item.id == identifier), None)
+        if policy is None:
+            message = f"transition_policy_unknown:{identifier}"
+            raise ValueError(message)
+        return policy
+
+    def plan(
+        self,
+        *,
+        contract: ChangeContract,
+        facts: RepositoryFacts,
+        node_ids: tuple[str, ...] | None = None,
+    ) -> PlanIR:
+        """Compile the selected lifecycle actions into deterministic PlanIR."""
+        requested = set(node_ids or ())
+        selected = (
+            self.node
+            if node_ids is None
+            else tuple(item for item in self.node if item.id in requested)
+        )
+        selected_ids = {item.id for item in selected}
+        missing = (
+            ()
+            if node_ids is None
+            else tuple(
+                f"lifecycle_plan_action_missing:{identifier}"
+                for identifier in node_ids
+                if identifier not in selected_ids
+            )
+        )
+        producers: dict[str, str] = {}
+        for item in self.node:
+            for fact in item.produces:
+                producers.setdefault(fact, item.id)
+        external_missing = tuple(
+            f"lifecycle_external_fact_missing:{item.id}:{requirement}"
+            for item in selected
+            for requirement in item.external_requirements(producers)
+            if not facts.values.get(requirement)
+        )
+        policy_digest = hashlib.sha256(
+            json.dumps(
+                self.model_dump(mode="json", by_alias=True),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        return compile_plan(
+            contract,
+            facts,
+            tuple(item.to_plan_node(producers) for item in selected),
+            policy_digest=policy_digest,
+            validation_issues=(*missing, *external_missing),
+        )
+
+
+def load_lifecycle_declaration(root: Path | str | None = None) -> LifecycleContract:
+    """Load the source-bound lifecycle declaration."""
+    return LifecycleContract.model_validate(load_system_contract(Path(root or "."), "lifecycle"))

@@ -3,13 +3,16 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
-from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+LIFECYCLE_COMMANDS = tuple(f"ethos {node.id}" for node in load_lifecycle_declaration().node)
 
 
 def _authority_order(root: Path) -> tuple[str, ...]:
@@ -68,8 +71,8 @@ def governance_context(root: Path, *, profile: str) -> dict[str, object]:
         "profile": profile,
         "repository": str(root.resolve()),
         "authority_refs": list(_authority_order(root)),
-        "shared_commands": list(PUBLIC_WORKFLOW_COMMANDS),
-        "transition_commands": list(PUBLIC_WORKFLOW_COMMANDS),
+        "shared_commands": list(LIFECYCLE_COMMANDS),
+        "transition_commands": list(LIFECYCLE_COMMANDS),
         "reader_projection_commands": ["ethos status"],
         "truth_boundary": "repository",
         "profile_boundary": "profile_or_adapter",

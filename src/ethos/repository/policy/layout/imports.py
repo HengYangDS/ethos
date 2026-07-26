@@ -14,11 +14,12 @@ if TYPE_CHECKING:
 def package_root_submodule_import_findings(
     root: Path,
     policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
     """Find `from package import submodule` imports that bypass concrete submodules."""
-    module_names = _module_names(root, policy)
+    module_names = _module_names(root, policy, files)
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         rel = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         for node in ast.walk(tree):
@@ -33,10 +34,11 @@ def package_root_submodule_import_findings(
 def private_from_import_findings(
     root: Path,
     policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
     """Find cross-module private-symbol imports in repository-owned Python."""
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         rel = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         for node in ast.walk(tree):
@@ -48,9 +50,13 @@ def private_from_import_findings(
     return findings
 
 
-def _module_names(root: Path, policy: dict[str, Any]) -> set[str]:
+def _module_names(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None,
+) -> set[str]:
     modules: set[str] = set()
-    for path in package_python_files(root, policy):
+    for path in package_python_files(root, policy, files=files):
         module = _module_name(root, path)
         if module:
             modules.add(module)

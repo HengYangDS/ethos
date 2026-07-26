@@ -40,7 +40,7 @@ SHALL NOT turn that text into a subsystem, feature map, or low-level implementat
 - **AND** derived axiom files remain subordinate to product docs and do not create
   a new truth center
 
-#### Scenario: Workflow declarations compile directly into PlanIR
+#### Scenario: Lifecycle declarations compile directly into PlanIR
 - **WHEN** ETHOS evaluates lifecycle, handoff, or skill-evaluation metadata
 - **THEN** tracked declarations and current facts compile directly into PlanIR
 - **AND** no parallel workflow-runtime read model or state store is required
@@ -114,11 +114,11 @@ ETHOS SHALL retain an event entity only when a tracked production path creates
 it and a tracked consumer, reducer, or evidence boundary uses it. Declaration-
 only streams and unused local event logs SHALL be absent.
 
-#### Scenario: workflow contract is loaded
+#### Scenario: lifecycle declaration is loaded
 
-- **WHEN** the workflow declaration is validated and projected
-- **THEN** it SHALL contain only executable transitions, handoffs, commitments,
-  practice changes, and runtime projections
+- **WHEN** the lifecycle declaration is validated and projected
+- **THEN** it SHALL contain only transition policies, lease operations, PlanIR
+  actions, and campaign CEL consumed by current product behavior
 - **AND** no event model, event count, or event-locality rule without a producer
   and consumer SHALL be emitted.
 

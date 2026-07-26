@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Run the ETHOS public-surface docstring gate.
-# The policy lives in .config/checks/docstrings/policy.toml; keep thresholds there.
+# Execute the docstrings gate through the singular proof surface.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-exec "${script_dir}/with-python-runtime.sh" -- uv run ethos quality docstrings --json
+exec "${script_dir}/with-python-runtime.sh" -- uv run ethos prove --execute --gate docstrings --json

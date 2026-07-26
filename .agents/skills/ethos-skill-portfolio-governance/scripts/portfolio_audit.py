@@ -88,10 +88,8 @@ def skill_frontmatter_name(skill_text: str) -> str:
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
     playbooks = run_json(root, "playbooks", "check", "--mode", "v2-strict", "--json")
-    drift = run_json(root, "quality", "projection-drift", "--json")
     gaps = []
     gaps.extend(str(gap) for gap in playbooks.get("required_gaps", []))
-    gaps.extend(str(gap) for gap in drift.get("required_gaps", []))
     gaps.extend(local_shape_gaps(root))
     report = {
         "ok": not gaps,
@@ -100,7 +98,6 @@ def main() -> int:
         "skill_count": len(skill_dirs(root)),
         "checks": {
             "playbooks_v2": {"ok": bool(playbooks.get("ok")), "state": playbooks.get("state")},
-            "projection_drift": {"ok": bool(drift.get("ok")), "state": drift.get("state")},
             "local_shape": {"ok": not local_shape_gaps(root)},
         },
         "required_gaps": sorted(dict.fromkeys(gaps)),

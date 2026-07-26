@@ -32,7 +32,7 @@ Projection rules:
 - Keep MCP and ACP as protocol adapters over command JSON and docs.
 - Keep skill package manifests authority-thin: they declare package files,
   digest state, required sections, and capability classes, not product truth.
-- Use `ethos quality projection-drift --json` to compare skill package,
+- Use `ethos prove --gate playbooks-v2 --json` to compare skill package,
   registry, and playbook-generator digests before treating projections as fresh.
 - Keep host-local credentials, caches, and session logs out of repository truth.
 - Retire a projection by removing the adapter while preserving kernel schemas,

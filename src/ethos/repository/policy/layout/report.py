@@ -21,22 +21,26 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def module_layout_report(root: Path) -> dict[str, object]:
+def module_layout_report(
+    root: Path,
+    *,
+    files: tuple[Path, ...] | None = None,
+) -> dict[str, object]:
     """Report semantic-boundary violations across repository-owned Python."""
     policy = load_policy(root)
-    finding_groups = {
-        "ambiguous_module_findings": ambiguous_module_findings(root, policy),
-        "ambiguous_package_findings": ambiguous_package_findings(root, policy),
-        "surface_core_command_findings": surface_core_command_findings(root, policy),
-        "multiple_command_owner_findings": multiple_command_owner_findings(root, policy),
-        "private_alias_findings": private_alias_findings(root, policy),
-        "package_init_facade_findings": package_init_facade_findings(root, policy),
-        "module_facade_findings": module_facade_findings(root, policy),
+    finding_groups: dict[str, list[dict[str, object]]] = {
+        "ambiguous_module_findings": ambiguous_module_findings(root, policy, files),
+        "ambiguous_package_findings": ambiguous_package_findings(root, policy, files),
+        "surface_core_command_findings": surface_core_command_findings(root, policy, files),
+        "multiple_command_owner_findings": multiple_command_owner_findings(root, policy, files),
+        "private_alias_findings": private_alias_findings(root, policy, files),
+        "package_init_facade_findings": package_init_facade_findings(root, policy, files),
+        "module_facade_findings": module_facade_findings(root, policy, files),
         "package_root_submodule_import_findings": package_root_submodule_import_findings(
-            root, policy
+            root, policy, files
         ),
-        "dynamic_compat_facade_findings": dynamic_compat_facade_findings(root, policy),
-        "private_from_import_findings": private_from_import_findings(root, policy),
+        "dynamic_compat_facade_findings": dynamic_compat_facade_findings(root, policy, files),
+        "private_from_import_findings": private_from_import_findings(root, policy, files),
     }
     gaps = [str(finding["gap"]) for findings in finding_groups.values() for finding in findings]
     summary = {

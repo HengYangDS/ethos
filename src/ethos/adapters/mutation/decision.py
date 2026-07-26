@@ -10,7 +10,7 @@ from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 
 if TYPE_CHECKING:
-    from ethos.contracts.transition import TransitionRequest
+    from ethos.contracts.lifecycle.reducer import TransitionRequest
 
 MutationVerdict = Literal["allow", "block", "defer"]
 

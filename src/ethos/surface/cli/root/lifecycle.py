@@ -27,8 +27,8 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.transition import TransitionDecision
-from ethos.contracts.transition import TransitionRequest
+from ethos.contracts.lifecycle.reducer import TransitionDecision
+from ethos.contracts.lifecycle.reducer import TransitionRequest
 from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.domain.readiness.quality import adopter_quality_floor_report
 from ethos.domain.readiness.quality import hard_quality_floor_report
@@ -45,6 +45,7 @@ from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import emit_invalid_adopter_profile
 from ethos.surface.cli._base import resolve_root
@@ -290,6 +291,7 @@ def _stable_control_replacement(
     return report, tuple(string_sequence(report.get("required_gaps")))
 
 
+@app.command
 def land(
     *,
     apply: bool = False,
@@ -479,6 +481,7 @@ def land(
     emit(result, json_output=json_output, enforce=apply)
 
 
+@app.command
 def publish(
     options: Annotated[_PublishOptions, Parameter(name="*")] = _DEFAULT_PUBLISH_OPTIONS,
     *,

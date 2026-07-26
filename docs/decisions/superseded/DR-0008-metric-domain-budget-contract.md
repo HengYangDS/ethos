@@ -35,7 +35,7 @@ See also: [Decision Records](../README.md), [Decision Index](../decision-index.m
 | Record Review Date | 2026-10-19 |
 | Supersedes | none |
 | Superseded By | Terminal Governance Product Design and terminal-convergence |
-| Depends on | DR-0005 (declarative runtime spine) |
+| Depends on | DR-0005 (declarative lifecycle spine) |
 | Scope | Repository-source measurement domains, carrier classification, metric versioning, non-compensating policy, per-file ELOC, and agent-token separation. |
 | Boundary | Does not calibrate v2 thresholds, accept DR-0009, authorize cutover, settle debt, or claim compression completion. |
 | Decision | Adopt the metric-domain vector and migration invariants defined below. |

@@ -183,7 +183,7 @@ def test_valid_adopter_plan_and_prove_surface_lifecycle_gap(monkeypatch, tmp_pat
     assert plan["ok"] is False
     assert plan["required_gaps"] == [gap]
     assert plan["data"]["plan_ir"]["required_gaps"] == [
-        "workflow_external_requirement_missing:plan:openspec_carrier"
+        "lifecycle_external_fact_missing:plan:openspec_carrier"
     ]
     assert prove["required_gaps"] == [
         gap,
@@ -271,7 +271,7 @@ def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Pat
 
     monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: blocked)
     monkeypatch.setattr(
-        proof_cli.LocalSubprocessRunner,
+        proof_cli.LocalGateRunner,
         "run",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("runner called")),
     )

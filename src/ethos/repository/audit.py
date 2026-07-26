@@ -17,7 +17,6 @@ from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.authority import authority_graph_report
-from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.release.core import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
@@ -172,7 +171,6 @@ def repository_audit(
         for family in REQUIRED_OPENSPEC_CAPABILITIES
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
-    command_report = command_registry_report(root)
     authority_graph = authority_graph_report(root)
     claim_report = claims_report(root, current_head=current_head)
     schema_report = schema_validation_report(root)
@@ -193,7 +191,6 @@ def repository_audit(
         str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
     ]
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
-    command_gaps = [str(gap) for gap in cast("list[str]", command_report["required_gaps"])]
     authority_graph_gaps = [str(gap) for gap in cast("list[str]", authority_graph["required_gaps"])]
     playbook_report = playbooks_report(root, mode="v2-strict")
     playbook_gaps = [str(gap) for gap in cast("list[str]", playbook_report["required_gaps"])]
@@ -214,7 +211,6 @@ def repository_audit(
         + coupling_gaps
         + design_integrity_gaps
         + openspec_gaps
-        + command_gaps
         + authority_graph_gaps
         + playbook_gaps
         + system_contract_gaps
@@ -251,7 +247,6 @@ def repository_audit(
             "expected": list(REQUIRED_OPENSPEC_CAPABILITIES),
             "missing": openspec_capability_missing,
         },
-        "command_registry": command_report,
         "authority_graph": authority_graph,
         "claims": claim_report,
         "evolution": evolution,

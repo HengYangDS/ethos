@@ -58,7 +58,7 @@ def check_projections(*, json_output: JsonFlag = False) -> None:
         command="assistants check-projections",
         ok=contract["truth"] == ASSISTANT_TRUTH_BOUNDARY,
         state="clean",
-        next_actions=("ethos quality projection-drift",),
+        next_actions=("ethos prove --gate playbooks-v2 --json",),
         data={"contract": contract},
     )
     emit(result, json_output=json_output, enforce=False)

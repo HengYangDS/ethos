@@ -14,12 +14,43 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Literal
+from typing import overload
 
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
 
+if TYPE_CHECKING:
+    from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
+
 _GIT = shutil.which("git") or "git"
+
+
+@overload
+def run_git(
+    root: Path,
+    *args: str,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+    stdin: str | None = None,
+    text: Literal[True] = True,
+    observation: bool = False,
+) -> subprocess.CompletedProcess[str]: ...
+
+
+@overload
+def run_git(
+    root: Path,
+    *args: str,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+    stdin: bytes | None = None,
+    text: Literal[False],
+    observation: bool = False,
+) -> subprocess.CompletedProcess[bytes]: ...
 
 
 def run_git(
@@ -27,18 +58,38 @@ def run_git(
     *args: str,
     check: bool = True,
     env: dict[str, str] | None = None,
-    stdin: str | None = None,
-) -> subprocess.CompletedProcess[str]:
+    stdin: str | bytes | None = None,
+    text: bool = True,
+    observation: bool = False,
+) -> subprocess.CompletedProcess[Any]:
     """Run one Git command and preserve the complete subprocess result."""
-    effective_env = None if env is None else {**os.environ, **env}
+    if observation and env:
+        message = "git_observation_environment_override_forbidden"
+        raise ValueError(message)
+    effective_env = (
+        {
+            "PATH": os.environ.get("PATH", os.defpath),
+            "LC_ALL": "C",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_ATTR_NOSYSTEM": "1",
+        }
+        if observation
+        else None
+        if env is None
+        else {**os.environ, **env}
+    )
     return subprocess.run(
         [_GIT, *args],
         cwd=root,
         check=check,
-        text=True,
+        text=text,
         capture_output=True,
         env=effective_env,
         input=stdin,
+        shell=False,
     )
 
 
@@ -444,7 +495,7 @@ def git_effect_attestations(
 def git_ref_effect(
     effect_id: str,
     plan_digest: str,
-    transitions: tuple[object, ...],
+    transitions: tuple[CloseoutTransition, ...],
     assertions: dict[str, str],
 ) -> GitEffect:
     """Build one exact ref effect from transition-shaped records."""

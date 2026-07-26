@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.contracts.rules import PolicyException
+from ethos.repository.context import is_product_root
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.schema import validate_schema_instance
 
@@ -19,10 +20,6 @@ if TYPE_CHECKING:
 
 def _exceptions_path(root: Path) -> Path:
     return root / "rules" / "ethos" / "policy-exceptions.toml"
-
-
-def _is_product_root(root: Path) -> bool:
-    return (root / "pyproject.toml").exists() and (root / "system" / "commands.toml").exists()
 
 
 def date_or_none(value: str) -> date | None:
@@ -236,7 +233,7 @@ def _policy_exception_date_gaps(
 
 def rules_docs_manifest_report(root: Path) -> dict[str, object]:
     """Report missing doc refs in authority_ref and contract_ref of compiled rules."""
-    product_root = _is_product_root(root)
+    product_root = is_product_root(root)
     refs = sorted(
         {
             str(ref)

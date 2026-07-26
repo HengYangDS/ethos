@@ -31,7 +31,7 @@ ship historical evidence, host-local state, tests, adopter-private records, or
 person attribution metadata as product defaults.
 
 #### Scenario: npm package scope is allowlisted
-- **WHEN** `ethos quality product-boundary --json` audits distribution manifests
+- **WHEN** `ethos prove --gate product-boundary --json` audits distribution manifests
 - **THEN** the root workspace package is non-publishable
 - **AND** the npm distribution manifest declares an explicit `files` allowlist
 - **AND** that allowlist is limited to launcher assets and neutral package docs

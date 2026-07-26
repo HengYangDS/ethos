@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.contracts.semantic import load_change_contract_file
+from ethos.normalization.core import string_sequence
 from ethos.repository.openspec.audit import change_tasks_complete
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -47,7 +48,9 @@ def material_change_scope_report(
     report.update(material_patterns=list(patterns), material_paths=list(material))
     names = _active_change_names(root, active_change_names)
     changes = [change_contract_report(root, name) for name in names]
-    invalid_gaps = [str(gap) for change in changes for gap in change["required_gaps"]]
+    invalid_gaps = [
+        gap for change in changes for gap in string_sequence(change.get("required_gaps"))
+    ]
     if not material:
         report.update(
             ok=not invalid_gaps,
@@ -56,14 +59,14 @@ def material_change_scope_report(
             required_gaps=invalid_gaps,
         )
         return report
-    covered = [
+    covered: list[dict[str, object]] = [
         {
             "path": path,
             "changes": [
-                str(change["name"])
+                str(change.get("name", ""))
                 for change in changes
-                if change["ok"] is True
-                and any(_matches(path, str(pattern)) for pattern in change["scope"])
+                if change.get("ok") is True
+                and any(_matches(path, pattern) for pattern in string_sequence(change.get("scope")))
             ],
         }
         for path in material

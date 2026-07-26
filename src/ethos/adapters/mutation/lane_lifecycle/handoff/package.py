@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.repo.dirty.core import dirty_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.retrieval.common import sha256_bytes
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
@@ -326,19 +327,6 @@ def _verified_package_snapshot(*, package: Path, manifest: dict[str, Any], root:
             holds=not gaps and copied == manifest,
         )
         yield snapshot
-
-
-def dirty_content_sha256(repo: Path) -> str:
-    digest = hashlib.sha256()
-    parts = [
-        run_git(repo, "diff", "--binary", "HEAD", "--").stdout.encode(errors="surrogateescape")
-    ]
-    for relative in _git_lines(repo, "ls-files", "--others", "--exclude-standard", "-z"):
-        parts.extend((relative.encode(errors="surrogateescape"), (repo / relative).read_bytes()))
-    for part in parts:
-        digest.update(len(part).to_bytes(8, "big"))
-        digest.update(part)
-    return digest.hexdigest()
 
 
 def _publish_package(

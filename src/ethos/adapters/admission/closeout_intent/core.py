@@ -31,11 +31,16 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.repo.git import execute_git_effect
 from ethos.adapters.repo.git import git_effect_attestations
 from ethos.adapters.repo.git import git_stdout
+
+if TYPE_CHECKING:
+    from ethos.contracts.plan import GitEffect
+    from ethos.contracts.semantic import Attestation
 
 # Marker TTL: a closeout writes the marker immediately before its CAS, so the live
 # window is sub-second. A minute is a generous ceiling that still expires a crashed
@@ -190,24 +195,23 @@ def sweep_stale_closeout_intents(root: Path, *, now: datetime | None = None) -> 
 def execute_closeout_effect(
     *,
     root: Path,
-    effect: object,
-    transitions: tuple[object, ...],
-    evidence_digest: str,
-    gate_policy_digest: str,
+    effect: GitEffect,
+    transitions: tuple[CloseoutTransition, ...],
+    expectation: MarkerExpectation,
     permissions: tuple[str, ...],
-) -> object:
+) -> Attestation:
     """Execute one effect while its exact closeout intents are live."""
     intents = []
     try:
-        for transition in transitions:
-            intents.append(
-                write_closeout_intent(
-                    root=root,
-                    transition=transition,
-                    evidence_digest=evidence_digest,
-                    gate_policy_digest=gate_policy_digest,
-                )
+        intents.extend(
+            write_closeout_intent(
+                root=root,
+                transition=transition,
+                evidence_digest=expectation.evidence_digest,
+                gate_policy_digest=expectation.gate_policy_digest,
             )
+            for transition in transitions
+        )
         attestation = execute_git_effect(
             root,
             effect,

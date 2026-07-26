@@ -37,7 +37,7 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | Context | `docs/current/` and `docs/future/` encoded lifecycle state as directory structure, while full adoption scaffolding confused optional capability readiness with repository binding. |
 | Decision | When docs-topology is executed, require one repository-form-invariant kernel and reject `current` and `future` as roots or state values. `ethos adopt` writes only `.ethos/profile.toml` and does not activate this capability. |
 | Consequences | Product and adopter repositories may add domain roots, but no compatibility exception or alternate kernel exists. Missing docs carriers block only explicit docs-topology or retirement boundaries, not default adoption proof. |
-| Proof or Evidence | `ethos quality docs-topology --json`, focused strict-topology tests, retirement-readiness tests, and explicit HEAD-bound proof gate execution. |
+| Proof or Evidence | `ethos prove --gate docs-topology --json`, focused strict-topology tests, retirement-readiness tests, and explicit HEAD-bound proof gate execution. |
 | Revisit Trigger | Reopen only if evidence proves that a new minimal semantic recovery root is universally necessary without turning lifecycle state into topology. |
 
 ## Decision

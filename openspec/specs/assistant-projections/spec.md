@@ -74,7 +74,7 @@ context providers, or projections over repository truth.
 
 #### Scenario: projection drift is audited
 
-- **WHEN** `ethos quality projection-drift --json` runs
+- **WHEN** `ethos prove --gate playbooks-v2 --json` runs
 - **THEN** ETHOS reports package, registry, generator, and projection drift
   records without accepting host metadata as authority
 

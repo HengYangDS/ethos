@@ -21,11 +21,9 @@ from cyclopts import Parameter
 
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
-from ethos.surface.cli.quality.registry import register_declared_group
 
 # ---- App objects (one per command group; commands register onto these) ----
 app = App(name="ethos", help="ETHOS command plane.")
-quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
 campaign_app = App(name="campaign", help="Evolution campaign commands.", show=False)
 intake_app = App(name="intake", help="Intake ledger commands.", show=False)
 assistants_app = App(name="assistants", help="Assistant and protocol projections.", show=False)
@@ -45,7 +43,6 @@ parity_app = App(name="parity", help="Capability parity and adopter shadow check
 rules_app = App(name="rules", help="Rules Product Kernel operations.", show=False)
 
 for _sub in (
-    quality_app,
     campaign_app,
     intake_app,
     assistants_app,
@@ -148,11 +145,21 @@ def emit(
 def load_command_groups(argv: list[str]) -> None:
     """Load only the command-group registration needed by this invocation.
 
-    Quality commands compile to Cyclopts lazy import paths from their declaration,
-    so neither help nor registration imports handler modules. Other groups retain
-    bounded decorator registration until their declarations are migrated.
+    Command functions own their Cyclopts declaration. This loader imports only
+    the module selected by the first command token; bare help imports all modules.
     """
-    groups = {
+    modules = {
+        "status": "ethos.surface.cli.root.inspection",
+        "doctor": "ethos.surface.cli.root.inspection",
+        "plan": "ethos.surface.cli.root.planning",
+        "prove": "ethos.surface.cli.root.proof",
+        "land": "ethos.surface.cli.root.lifecycle",
+        "publish": "ethos.surface.cli.root.lifecycle",
+        "adopt": "ethos.surface.cli.root.adoption",
+        "explain": "ethos.surface.cli.root.reference",
+        "docs": "ethos.surface.cli.root.reference",
+        "audit": "ethos.surface.cli.root.reference",
+        "openspec": "ethos.surface.cli.root.reference",
         "fleet": "ethos.surface.cli.fleet",
         "intake": "ethos.surface.cli.intake",
         "rules": "ethos.surface.cli.rules",
@@ -164,20 +171,14 @@ def load_command_groups(argv: list[str]) -> None:
         "hook": "ethos.surface.cli.hook.core",
     }
     token = next((arg for arg in argv if not arg.startswith("-")), "")
-    if token == "quality":
-        register_declared_group(quality_app, "quality")
-        selected: list[str] = []
-    elif token in groups:
-        selected = [token]
+    if token in modules:
+        selected = (modules[token],)
     elif token:
-        # A recognized root command (status/plan/prove/land/...) needs no group.
-        selected = []
+        selected = ()
     else:
-        # No command token (bare `ethos` / `ethos --help`): show the full surface.
-        register_declared_group(quality_app, "quality")
-        selected = list(groups)
-    for name in selected:
-        importlib.import_module(groups[name])
-        if name == "lane":
+        selected = tuple(dict.fromkeys(modules.values()))
+    for module in selected:
+        importlib.import_module(module)
+        if module == modules["lane"]:
             importlib.import_module("ethos.surface.cli.lane.lease")
             importlib.import_module("ethos.surface.cli.lane.resolution")

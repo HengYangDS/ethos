@@ -378,7 +378,7 @@ def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -
         "Rollback Window",
         "Retirement Decision",
         "must not be deleted automatically",
-        "ethos quality generated-artifacts --root <repo> --json",
+        "ethos prove --gate generated-artifacts --root <repo> --json",
         "profile-declared backend control manifest",
     ):
         assert phrase in text

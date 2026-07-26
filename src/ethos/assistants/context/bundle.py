@@ -27,8 +27,8 @@ def context_bundle(
             "governance": [
                 "ethos audit",
                 "ethos campaign hypotheses",
-                "ethos quality release-policy",
-                "ethos quality commits",
+                "ethos prove --full",
+                "ethos publish",
             ],
         },
         "resources": {

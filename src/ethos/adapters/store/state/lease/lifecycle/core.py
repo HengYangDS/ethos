@@ -160,7 +160,7 @@ def _refresh_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves 
 
 
 def expected_current_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    connection: sqlite3.Connection, *, subject: str, holder_ref: str, expected_lease_id: str, expected_epoch: int, expected_head: str, expected_expires_at: str, expected_payload_sha256: str, require_expired: bool
+    connection: sqlite3.Connection, *, subject: str, holder_ref: str, expected_lease_id: str, expected_epoch: int, expected_head: str, expected_expires_at: str, expected_payload_sha256: str, require_expired: bool | None
 ) -> tuple[sqlite3.Row | tuple[Any, ...], dict[str, Any]]:
     initialize_state_connection(connection)
     row = _sole_subject_row(connection, subject)
@@ -174,9 +174,9 @@ def expected_current_lease(  # noqa: PLR0913, RUF100 - exact request envelope pr
     _expect_equal("head", expected_head, str(payload.get("expected_head") or ""))
     expect_exact_lease_candidate(row, {"id": expected_lease_id, "subject": subject, "owner": holder_ref, "expires_at": expected_expires_at, "payload_sha256": expected_payload_sha256})
     expired = _is_expired(str(row[3]))
-    if require_expired and not expired:
+    if require_expired is True and not expired:
         raise ValueError(f"lease_not_expired:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
-    if not require_expired and expired:
+    if require_expired is False and expired:
         raise ValueError(f"lease_expired:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     return row, payload
 

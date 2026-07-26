@@ -30,3 +30,12 @@ and `scope.toml` MUST NOT participate in the current lifecycle verdict.
 - **WHEN** `lane prewrite`, changed planning, or proof selects an active Change
 - **THEN** all three surfaces evaluate the same strict `ChangeContract.scope`
 - **AND** malformed or historical parallel carriers grant no authority
+
+### Requirement: Lifecycle Declaration Contract
+The lifecycle declaration MUST expose only transition policy, lease transition,
+PlanIR action, and campaign policy sections and MUST reject runtime, evaluation,
+evolution, and run-state sections.
+
+#### Scenario: A parallel runtime section is supplied
+- **WHEN** the lifecycle declaration contains a runtime or run-state field
+- **THEN** strict contract and JSON Schema validation reject it before projection

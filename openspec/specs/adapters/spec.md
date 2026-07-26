@@ -315,7 +315,7 @@ ETHOS kernel contract.
 
 #### Scenario: Adapter profile is reported
 
-- **WHEN** `ethos quality tool-profiles --json` reports tool adapters
+- **WHEN** `ethos audit --mode deep --json` reports tool adapters
 - **THEN** Nox, Pixi, Pants, task-ledger, and agent-method-pack entries SHALL be
   visible as adapter-only boundaries
 - **AND** their output SHALL NOT replace ETHOS proof, OpenSpec lifecycle checks,

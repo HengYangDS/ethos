@@ -12,7 +12,7 @@ from cyclopts import Parameter
 import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
-from ethos.adapters.gates.runner import LocalSubprocessRunner
+from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.openspec.core import openspec_governance_report
@@ -32,9 +32,9 @@ from ethos.repository.policy.gates import gate_registry
 from ethos.result import EthosResult
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
-from ethos.surface.cli._gate_runner import run_inprocess_cli_gate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -129,6 +129,7 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
     }
 
 
+@app.command
 def prove(
     options: Annotated[_ProofOptions, Parameter(name="*")] = _DEFAULT_PROOF_OPTIONS,
     *,
@@ -191,11 +192,7 @@ def prove(
         return
     correctness_gaps = adopter_code_correctness_gaps(repo)
     gates_by_id = gate_registry(repo)
-    runner = (
-        LocalSubprocessRunner(inprocess_handler=run_inprocess_cli_gate)
-        if options.execute
-        else DryRunRunner()
-    )
+    runner = LocalGateRunner() if options.execute else DryRunRunner()
     proof_runs = tuple(
         ProofRun.from_adapter_result(
             AdapterProofResult(
@@ -210,7 +207,9 @@ def prove(
                 diagnostics=run_result.diagnostics,
             )
         )
-        for run_result in (runner.run(node, root=repo) for node in plan.ordered_nodes())
+        for run_result in (
+            runner.run(node, gates_by_id[node.id], root=repo) for node in plan.ordered_nodes()
+        )
     )
     evidence = EvidenceSet.from_runs(
         evidence_id=f"ethos:{options.objective}",

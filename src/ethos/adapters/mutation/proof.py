@@ -39,13 +39,13 @@ from itertools import chain
 from pathlib import Path
 from typing import Any
 
+from ethos.adapters.repo.change_contract import load_proof_contract
+from ethos.adapters.repo.change_contract import load_repository_contract
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import RepositoryFacts
-from ethos.domain.plan import load_proof_contract
-from ethos.domain.plan import load_repository_contract
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
 from ethos.repository.policy.gates import committed_product_default_gate_ids
@@ -354,8 +354,11 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     if record is None or record.get("state") != "proven" or record.get("head") != head:
         return None
     evidence = record.get("evidence")
+    plan_payload = record.get("plan")
+    if not isinstance(plan_payload, dict):
+        return None
     try:
-        plan = PlanIR.model_validate_json(_stable_json(record.get("plan")))
+        plan = PlanIR.model_validate_json(_stable_json(plan_payload))
     except ValueError:
         return None
     if plan.facts.get("head") != head:

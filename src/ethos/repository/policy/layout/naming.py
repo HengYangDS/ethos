@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import ast
-import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 from ethos.measure import effective_code_lines
 from ethos.repository.policy.layout.policy import semantic_python_files
@@ -39,7 +39,11 @@ _ROLE_KEYS = frozenset(
 _ROLES = frozenset({"kernel", "report_aggregator"})
 
 
-def ambiguous_module_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def ambiguous_module_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Find ambiguous module names lacking an exact closed role contract."""
     names = {
         str(name)
@@ -48,7 +52,7 @@ def ambiguous_module_findings(root: Path, policy: dict[str, Any]) -> list[dict[s
     }
     roles = _ambiguous_module_roles(root, policy)
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         module = path.stem.lstrip("_")
         if module not in names:
             continue
@@ -68,7 +72,11 @@ def ambiguous_module_findings(root: Path, policy: dict[str, Any]) -> list[dict[s
     return findings
 
 
-def ambiguous_package_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def ambiguous_package_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Find generic package-directory names that conceal semantic ownership."""
     names = {
         str(name)
@@ -77,7 +85,7 @@ def ambiguous_package_findings(root: Path, policy: dict[str, Any]) -> list[dict[
     }
     directories = {
         parent
-        for path in semantic_python_files(root, policy)
+        for path in semantic_python_files(root, policy, files=files)
         for parent in path.parents
         if parent != root and root in parent.parents
     }
@@ -92,17 +100,19 @@ def ambiguous_package_findings(root: Path, policy: dict[str, Any]) -> list[dict[
     ]
 
 
-def surface_core_command_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def surface_core_command_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Reject command definitions and declaration targets in CLI ``core.py`` files."""
-    declared = _declared_command_modules(root)
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         relative = path.relative_to(root).as_posix()
         if path.name != "core.py" or "/surface/cli/" not in f"/{relative}":
             continue
-        module = _module_name(root, path)
         source = path.read_text(encoding="utf-8")
-        if module not in declared and ".command(" not in source:
+        if ".command(" not in source:
             continue
         findings.append(
             {
@@ -113,10 +123,14 @@ def surface_core_command_findings(root: Path, policy: dict[str, Any]) -> list[di
     return findings
 
 
-def multiple_command_owner_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+def multiple_command_owner_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
     """Reject a module that registers commands on multiple Cyclopts apps."""
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy):
+    for path in semantic_python_files(root, policy, files=files):
         relative = path.relative_to(root).as_posix()
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -174,9 +188,10 @@ def _role_reasons(path: Path, role: dict[str, object] | None) -> list[str]:
         reasons.append("size_exceeded")
     if not reasons:
         public = sorted(_public_definitions(path))
-        if public != sorted(str(item) for item in role["public_symbols"]):
+        public_symbols = cast("list[str]", role["public_symbols"])
+        if public != sorted(public_symbols):
             reasons.append("public_drift")
-        allowed = tuple(str(item) for item in role["allowed_import_roots"])
+        allowed = tuple(cast("list[str]", role["allowed_import_roots"]))
         if any(not module.startswith(allowed) for module in _imported_modules(path)):
             reasons.append("import_drift")
     return reasons
@@ -222,25 +237,6 @@ def _imported_modules(path: Path) -> set[str]:
         )
         if module
     }
-
-
-def _declared_command_modules(root: Path) -> set[str]:
-    try:
-        payload = tomllib.loads((root / "system/commands.toml").read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return set()
-    commands = payload.get("commands", [])
-    return {
-        str(command.get("import_path", "")).partition(":")[0]
-        for command in commands
-        if isinstance(command, dict) and command.get("import_path")
-    }
-
-
-def _module_name(root: Path, path: Path) -> str:
-    relative = path.relative_to(root).with_suffix("")
-    parts = relative.parts
-    return ".".join(parts[1:] if parts and parts[0] == "src" else parts)
 
 
 def _command_owner(decorator: ast.expr) -> str:

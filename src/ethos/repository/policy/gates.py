@@ -186,7 +186,7 @@ def _qualifies_for_axis(gate: GateDescriptor, axis: str, vocab: dict[str, frozen
         axis in _gate_axes(gate, vocab)
         and gate.trust_bearing is True
         and gate.evidence_class in TRUST_EVIDENCE_CLASSES
-        and not _command_is_degenerate(gate.command)
+        and (bool(gate.providers) or not _command_is_degenerate(gate.command))
     )
 
 
@@ -395,7 +395,7 @@ def _policy_registry_and_required(
 def _gate_policy_source_digest(
     gate: GateDescriptor, root: Path, tree_ref: str | None = None
 ) -> str:
-    """Digest of a script-type gate's source, or '' for in-process gates.
+    """Digest repository-owned adapter or provider source for one gate.
 
     B12: a gate whose command is a repo-relative script (same path, tampered content)
     must change the policy digest. In-process gates (python -m ethos.cli ...) and the
@@ -410,20 +410,32 @@ def _gate_policy_source_digest(
     hook validating a move to H compute the SAME digest regardless of which worktree runs.
     Falls back to the working tree when no tree_ref is given or the blob is unresolvable.
     """
+    paths = list(_provider_source_paths(gate.providers))
     canonical = canonical_gate_command(gate.command)
-    if not canonical:
-        return ""
-    head = canonical[0]
-    if head in ("python", "ethos") or "/" not in head:
-        return ""
-    if tree_ref is not None:
-        blob = _committed_blob(root, tree_ref, head)
-        if blob is not None:
-            return hashlib.sha256(blob).hexdigest()
-    script = root / head
-    if not script.is_file():
-        return ""
-    return hashlib.sha256(script.read_bytes()).hexdigest()
+    if canonical and canonical[0] not in ("python", "ethos") and "/" in canonical[0]:
+        paths.append(canonical[0])
+    sources: list[bytes] = []
+    for path in paths:
+        blob = _committed_blob(root, tree_ref, path) if tree_ref is not None else None
+        live_path = root / path
+        source = (
+            blob if blob is not None else live_path.read_bytes() if live_path.is_file() else None
+        )
+        if source is not None:
+            sources.append(path.encode("utf-8") + b"\0" + source)
+    return hashlib.sha256(b"\0".join(sources)).hexdigest() if sources else ""
+
+
+def _provider_source_paths(providers: tuple[str, ...]) -> tuple[str, ...]:
+    """Map declared product provider modules to their tracked Python sources."""
+    return tuple(
+        f"src/{reference.partition(':')[0].replace('.', '/')}.py" for reference in providers
+    )
+
+
+def gate_execution_identity(gate: GateDescriptor) -> tuple[str, ...]:
+    """Return the stable executed adapter identity recorded in proof evidence."""
+    return canonical_gate_command(gate.command) if gate.command else ("provider", *gate.providers)
 
 
 def gate_policy_fields(
@@ -432,7 +444,7 @@ def gate_policy_fields(
     """The cross-environment-stable policy identity of a single gate."""
     return {
         "gate_id": gate.id,
-        "canonical_command": list(canonical_gate_command(gate.command)),
+        "execution_identity": list(gate_execution_identity(gate)),
         "trust_bearing": gate.trust_bearing,
         "evidence_class": gate.evidence_class,
         "execution_mode": gate.execution_mode,
@@ -512,7 +524,7 @@ def gate_policy_conformance_gaps(
             else ()
         )
         conforms = (
-            canonical_gate_command(command) == canonical_gate_command(gate.command)
+            canonical_gate_command(command) == gate_execution_identity(gate)
             and run.get("trust_bearing") == gate.trust_bearing
             and run.get("evidence_class") == gate.evidence_class
         )

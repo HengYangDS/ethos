@@ -1,0 +1,13 @@
+schema_version = 1
+paths = [
+  "evidence/claims/ownerless-housekeeping-closeout-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-20260726.toml",
+  "evidence/claims/ownerless-retire-chronicle-repair-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-retire-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-retire-retry-20260726.toml",
+  "evidence/chronicle/ownerless-retire-chronicle-repair-20260726/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/ownerless-retire-chronicle-repair/**",
+  "openspec/specs/repository-governance/spec.md",
+]

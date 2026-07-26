@@ -1,0 +1,38 @@
+[claim]
+id = "ownerless-budget-source-admission-predecessor-retire-retry-20260726"
+subject = "ethos:work-lane:work/20260724-20260724-budget-contract-v2-changed-scope-source-admission"
+state = "active"
+summary = "The exact clean RED predecessor has a new accepted effect-admissible direct-retire Chronicle after its first immutable decision reached no effect at Chronicle validation."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-retire-chronicle-repair-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md"
+sha256 = "2d553914504ea6625708c405f14e67903e0a92eda9e8e2049094465b3d63b77b"
+evidence_ids = ["evidence:ownerless-budget-source-admission-predecessor-retire-retry-20260726"]
+binding = "This digest-only Claim binds only work/20260724-20260724-budget-contract-v2-changed-scope-source-admission at 8afc80fd78a3d2c80144ae3d93d4045a004f3f54, accepted 912d354e9c17c094b7c0cfab92800203fa6e0c33, the exact merge base and tree, five exact valid-owner descendant heads, pending decision lane-decision:6e57ce11-5723-4171-85a8-596452f118fa and its chronicle-invalid no-effect result, and one new standalone lane_resolution/retire effect token. It authorizes a new direct-retire decision only."
+verifier = "digest_only"
+tests = [
+  "git -C <accepted-root> merge-base --is-ancestor 8afc80fd78a3d2c80144ae3d93d4045a004f3f54 <each-named-descendant-head>",
+  "git -C <source-worktree> status --porcelain --untracked-files=all",
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution inventory --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean missing-lease predecessor, its immutable failed decision, read-only descendant containment, and one new direct-retire retry after accepted repair. No decision rewrite, preserve-retire, valid-owner takeover, semantic completion claim, package clear, remote mutation, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/ownerless-retire-chronicle-repair"
+fallback = "Keep the exact source and all records unchanged when any head, lease, Claim, dirtiness, registration, accepted head, Chronicle, inventory, or descendant containment differs."
+kill_signal = "The old decision is reused, the source is hand-deleted, an accepted-ancestor no-effect result is hidden, or valid-owner descendants are treated as mutable receivers."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-budget-source-admission-predecessor-retire-retry-20260726.toml",
+  "evidence/chronicle/ownerless-retire-chronicle-repair-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md",
+  "openspec/changes/ownerless-retire-chronicle-repair",
+]

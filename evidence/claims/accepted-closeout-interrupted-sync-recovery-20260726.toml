@@ -28,7 +28,7 @@ owner = "ethos-repository"
 scope = "One receipt-bound accepted-worktree synchronization recovery after an already-promoted native closeout; it excludes generic dirty-root reset, ref/lease/proof/SQLite mutation, retired-resolution state, remote publication, hosted execution, and foreign-lane action."
 
 [carriers]
-openspec = "openspec/changes/accepted-closeout-interrupted-sync-recovery"
+openspec = "openspec/changes/archive/2026-07-26-accepted-closeout-interrupted-sync-recovery"
 fallback = "Stop and preserve all observed state when any receipt, Git, index, lock, quarantine, runner-ancestry, or postcondition binding differs."
 kill_signal = "Any generic dirty-root bypass, ref movement, unverified lock action, retired-resolution dependency, or claim that local readiness proves land, publication, hosted execution, or remote mutation."
 
@@ -36,7 +36,7 @@ kill_signal = "Any generic dirty-root bypass, ref movement, unverified lock acti
 targets = [
   { kind = "evidence", path = "evidence/claims/accepted-closeout-interrupted-sync-recovery-20260726.toml" },
   { kind = "evidence", path = "evidence/chronicle/accepted-closeout-interrupted-sync-recovery-20260726/2026-07-26.md" },
-  { kind = "openspec", path = "openspec/changes/accepted-closeout-interrupted-sync-recovery" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-26-accepted-closeout-interrupted-sync-recovery" },
   { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
   { kind = "docs", path = "docs/architecture/runner-and-mutation.md" },
   { kind = "docs", path = "docs/reference/command-plane.md" },

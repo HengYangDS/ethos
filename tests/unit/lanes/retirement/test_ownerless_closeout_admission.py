@@ -6,8 +6,8 @@ import json
 import os
 import sqlite3
 import subprocess
-from copy import deepcopy
 from contextlib import closing
+from copy import deepcopy
 from dataclasses import FrozenInstanceError
 from dataclasses import dataclass
 from dataclasses import fields

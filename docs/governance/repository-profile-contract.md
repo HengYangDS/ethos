@@ -102,30 +102,32 @@ relocate, or otherwise redefine their native authority.
 
 Every adopter profile SHALL declare a non-empty `[openspec].material_paths`
 list. These portable repository-relative glob patterns identify edits that
-require an active Change companion. Missing or empty declarations fail with
+require an active ChangeContract. Missing or empty declarations fail with
 `openspec_material_paths_missing`; malformed declarations fail with
 `openspec_material_paths_invalid`. ETHOS does not interpret an empty list as
 an opt-out.
 
 For every changed material path, `ethos lane prewrite`, `ethos plan --changed`,
 and `ethos prove` use the same official-OpenSpec selected Change list and the
-same ETHOS-owned `openspec/changes/<id>/scope.toml` companion read model. A
-valid companion covering the path admits it; otherwise the stable diagnostic
+same `openspec/changes/<id>/contract.toml` scope. A valid contract covering the path admits it; otherwise the stable diagnostic
 is `openspec_material_path_uncovered:<path>`.
 
 ```toml
-# openspec/changes/<change-id>/scope.toml
+# openspec/changes/<change-id>/contract.toml
 schema_version = 1
-paths = [
+id = "change:<change-id>"
+intent = "Describe the intended outcome."
+subjects = ["repository:self"]
+scope = [
   ".ethos/profile.toml",
   "openspec/changes/<change-id>/**",
   "docs/governance/**",
 ]
 ```
 
-Create a Change through the official OpenSpec command before later material
-writes. Adoption itself writes the complete material-path declaration, so no
-historical profile bootstrap exception or second profile-write path remains.
+Create a Change through the official OpenSpec command and add its ChangeContract
+before later material writes. No bootstrap exception or second scope-write path
+exists.
 
 ## Optional Declarations
 

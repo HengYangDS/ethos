@@ -27,3 +27,16 @@ The self profile MUST publish only `main`, `dev`, and `proposal/*`; `candidate/d
 #### Scenario: A local authoring branch is selected for push
 - **WHEN** its role is candidate or work
 - **THEN** publication blocks before any remote mutation
+
+### Requirement: Active OpenSpec Coverage Is Contract-owned
+An adopter's material-path classification MUST be matched only against the
+selected active ChangeContracts. There MUST be no bootstrap, repair, claim
+binding, or archive-carrier exception in the active verdict.
+
+#### Scenario: A legacy scope file exists
+- **WHEN** the active ChangeContract covers the material path
+- **THEN** the contract decides coverage and the legacy file cannot widen it
+
+#### Scenario: A complete Change remains in the active directory
+- **WHEN** a new material write matches its historical scope
+- **THEN** the complete Change is visible to lifecycle review but cannot authorize the write

@@ -5,8 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import tomllib
 from collections.abc import Mapping
+from pathlib import PurePosixPath
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
 from typing import Literal
@@ -20,6 +23,10 @@ from pydantic import Field
 from pydantic import PlainSerializer
 from pydantic import WithJsonSchema
 from pydantic import model_validator
+
+if TYPE_CHECKING:
+    from pathlib import Path
+from pydantic import field_validator
 
 
 def _mutable_json(value: object) -> object:
@@ -98,6 +105,54 @@ class ChangeContract(_SemanticModel):
     collaboration: Literal["cooperative", "competitive", "single"] = "single"
     compatibility: Literal["none", "bounded"] = "none"
     publication: Literal["local", "gitlab", "github", "dual"] = "local"
+
+    @field_validator("scope")
+    @classmethod
+    def validate_scope(cls, scope: tuple[str, ...]) -> tuple[str, ...]:
+        """Keep repository coverage portable, relative, and unambiguous."""
+        for pattern in scope:
+            if (
+                not pattern
+                or pattern.startswith("/")
+                or "\\" in pattern
+                or any(part in {"", ".", ".."} for part in PurePosixPath(pattern).parts)
+            ):
+                message = "change_scope_invalid"
+                raise ValueError(message)
+        if len(scope) != len(set(scope)):
+            message = "change_scope_duplicate"
+            raise ValueError(message)
+        return scope
+
+
+_CHANGE_CONTRACT_TUPLE_FIELDS = {
+    "subjects",
+    "scope",
+    "invariants",
+    "acceptance",
+    "risks",
+    "authority_refs",
+    "permissions",
+    "hypotheses",
+    "dependencies",
+}
+
+
+def load_change_contract_file(path: Path, *, repository_id: str = "") -> ChangeContract:
+    """Load one strict ChangeContract TOML carrier."""
+    payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    normalized = {
+        key: tuple(value)
+        if key in _CHANGE_CONTRACT_TUPLE_FIELDS and isinstance(value, list)
+        else value
+        for key, value in payload.items()
+    }
+    if repository_id:
+        normalized["subjects"] = tuple(
+            repository_id if subject == "repository:self" else subject
+            for subject in normalized.get("subjects", ())
+        )
+    return ChangeContract.model_validate(normalized)
 
 
 class Attestation(_SemanticModel):

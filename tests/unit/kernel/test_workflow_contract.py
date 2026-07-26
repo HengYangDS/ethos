@@ -15,7 +15,6 @@ from ethos.contracts.workflow import WorkflowContract
 from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.contracts.workflow import planned_transition_projection
 from ethos.contracts.workflow import workflow_contract_report
-from ethos.repository.workflow import runtime as workflow_runtime_model
 
 _CONTRACT = ChangeContract(id="change:test", intent="test", subjects=("repository:test",))
 _FACTS = RepositoryFacts(
@@ -47,7 +46,7 @@ def test_workflow_contract_is_frozen_typed_declaration() -> None:
     assert contract.to_report()["node_count"] >= 6
     assert (
         contract.to_projection(contract=_CONTRACT, facts=_facts("docs/a.md"))["plan_ir"]["verdict"]
-        == "pass"
+        == "block"
     )
 
     with pytest.raises(ValidationError) as frozen_error:
@@ -204,7 +203,13 @@ def test_workflow_contract_loader_returns_typed_declaration() -> None:
         change_contract=_CONTRACT,
         repository_facts=_FACTS,
     )["truth_boundary"] == ("derived_repository_projection")
-    assert declaration.plan(contract=_CONTRACT, facts=_FACTS).ok is True
+    assert declaration.plan(contract=_CONTRACT, facts=_FACTS).gaps() == (
+        "workflow_external_requirement_missing:plan:openspec_carrier",
+        "workflow_external_requirement_missing:land:change_contract",
+        "workflow_external_requirement_missing:publish:release_readiness",
+        "workflow_external_requirement_missing:handoff:source_refs",
+        "workflow_external_requirement_missing:handoff:source_digests",
+    )
 
 
 def test_workflow_contract_rejects_invalid_campaign_cel_projection() -> None:
@@ -256,7 +261,7 @@ def test_planned_transition_projection_includes_changed_paths_and_plan_ir() -> N
     assert projection["changed_paths"] == ["docs/a.md"]
     assert projection["transitions"]
     assert any(node["id"] == "handoff" for node in projection["nodes"])
-    assert projection["plan_ir"]["verdict"] == "pass"
+    assert projection["plan_ir"]["verdict"] == "block"
     assert [node["id"] for node in projection["plan_ir"]["nodes"]] == [
         "handoff",
         "status",
@@ -267,8 +272,7 @@ def test_planned_transition_projection_includes_changed_paths_and_plan_ir() -> N
     ]
     assert projection["external_requirements"] == [
         {"node": "plan", "requires": ["openspec_carrier"]},
-        {"node": "prove", "requires": ["gate_results"]},
-        {"node": "land", "requires": ["claim_binding"]},
+        {"node": "land", "requires": ["change_contract"]},
         {"node": "publish", "requires": ["release_readiness"]},
         {"node": "handoff", "requires": ["source_refs", "source_digests"]},
     ]
@@ -279,7 +283,7 @@ def test_plan_ir_from_workflow_contract_compiles_requested_declared_nodes() -> N
 
     plan = WorkflowContract.model_validate(contract).plan(
         contract=_CONTRACT,
-        facts=_FACTS,
+        facts=_FACTS.model_copy(update={"values": {"openspec_carrier": True}}),
         node_ids=("status", "plan", "prove"),
     )
 
@@ -462,34 +466,6 @@ def test_workflow_contract_reports_invalid_transition_node_eval_and_evolution_ed
     } <= set(report["required_gaps"])
 
 
-def test_workflow_runtime_container_helpers_reject_non_container_values() -> None:
-    assert workflow_runtime_model._dict("not-a-dict") == {}
-    assert workflow_runtime_model._dict_items("not-a-list") == []
-
-
-def test_workflow_runtime_report_returns_gap_when_contract_is_unavailable(
-    tmp_path,
-    monkeypatch,
-) -> None:
-    def raise_missing(_root: Path) -> object:
-        raise FileNotFoundError
-
-    monkeypatch.setattr(workflow_runtime_model, "load_workflow_contract_declaration", raise_missing)
-
-    report = workflow_runtime_model.workflow_runtime_report(
-        tmp_path,
-        changed_paths=("docs/a.md",),
-    )
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == ["workflow_contract_unavailable:FileNotFoundError"]
-    assert report["contract"]["required_gaps"] == [
-        "workflow_contract_unavailable:FileNotFoundError"
-    ]
-    assert report["plan"]["changed_paths"] == ["docs/a.md"]
-    assert report["evolution_bridge"]["runtime_owns_evolution"] is False
-
-
 def test_planned_transition_projection_skips_anonymous_nodes_and_self_requirements() -> None:
     projection = planned_transition_projection(
         {
@@ -512,8 +488,10 @@ def test_planned_transition_projection_skips_anonymous_nodes_and_self_requiremen
         repository_facts=_FACTS,
     )
 
-    assert projection["plan_ir"]["verdict"] == "pass"
-    assert projection["plan_ir"]["required_gaps"] == []
+    assert projection["plan_ir"]["verdict"] == "block"
+    assert projection["plan_ir"]["required_gaps"] == [
+        "workflow_external_requirement_missing:consumer:external_fact"
+    ]
     assert [node["id"] for node in projection["plan_ir"]["nodes"]] == [
         "self-contained",
         "consumer",
@@ -522,3 +500,36 @@ def test_planned_transition_projection_skips_anonymous_nodes_and_self_requiremen
     assert projection["external_requirements"] == [
         {"node": "consumer", "requires": ["external_fact"]},
     ]
+
+
+def test_workflow_external_requirement_is_satisfied_only_by_repository_fact() -> None:
+    contract = WorkflowContract.model_validate(
+        {
+            "node": [
+                {
+                    "id": "consumer",
+                    "kind": "decision",
+                    "requires": ["external_fact"],
+                }
+            ]
+        }
+    )
+
+    missing = contract.plan(contract=_CONTRACT, facts=_FACTS)
+    present = contract.plan(
+        contract=_CONTRACT,
+        facts=_FACTS.model_copy(update={"values": {"external_fact": True}}),
+    )
+    false = contract.plan(
+        contract=_CONTRACT,
+        facts=_FACTS.model_copy(update={"values": {"external_fact": False}}),
+    )
+    null = contract.plan(
+        contract=_CONTRACT,
+        facts=_FACTS.model_copy(update={"values": {"external_fact": None}}),
+    )
+
+    assert missing.gaps() == ("workflow_external_requirement_missing:consumer:external_fact",)
+    assert present.verdict == "pass"
+    assert false.gaps() == missing.gaps()
+    assert null.gaps() == missing.gaps()

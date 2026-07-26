@@ -156,19 +156,15 @@ so OpenSpec proposal routing can be validated without hardcoded domain terms.
 - **AND** recommended facets describe local valid values for proposal metadata
 - **AND** aliases remain optional diagnostic metadata rather than routing truth.
 
-### Requirement: Workflow Runtime Contract
-ETHOS SHALL define workflow runtime contracts as provider-neutral schemas and
-TOML declarations over derived repository facts. Event entities are admitted
-only when a tracked production path creates them and a tracked consumer,
-reducer, or evidence boundary uses them.
+### Requirement: PlanIR Transition Contract
+ETHOS SHALL compile provider-neutral ChangeContract and RepositoryFacts inputs
+into one deterministic PlanIR. A parallel workflow-runtime read model, event
+stream, or external orchestration store MUST NOT own lifecycle truth.
 
-#### Scenario: Workflow contract is inspected
-- **WHEN** ETHOS validates `system/workflows.toml`
-- **THEN** the contract exposes lifecycle states, transitions, guard names, required facts, node kinds, enforcement modes, run-state locality, handoff locality, and eval metrics
-- **AND** it does not expose a declaration-only event stream, event count, or event-locality field
-- **AND** every transition references declared states and guards
-- **AND** every blocking invalid-state reference maps to the ETHOS invalid-state taxonomy
-- **AND** no workflow contract requires `.comet`, `.taskmaster`, `.specify`, or another external runtime store as authority
+#### Scenario: A transition plan is inspected
+- **WHEN** ETHOS compiles a governed change
+- **THEN** PlanIR exposes ordered checks, decisions, effects, permissions, and a closed verdict
+- **AND** every dependency is acyclic and every effect is permission-bounded
 
 ### Requirement: Handoff Package Contract
 ETHOS SHALL define digest-bound handoff packages as context projections over

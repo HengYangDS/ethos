@@ -32,9 +32,8 @@ completed, archived, or removed before release.
 
 Lifecycle mode does not replace the official OpenSpec CLI. It composes official
 validation with ETHOS carrier checks. Every active change must have proposal,
-design, tasks, delta specs, and an active trust-bearing claim whose
-`carriers.openspec` points at the change. A syntactically valid change without a
-claim binding reports `openspec_claim_binding_missing:<change>`.
+design, tasks, delta specs, and one strict ChangeContract whose scope owns active
+material coverage.
 
 Lifecycle also asks the configured official CLI to archive each active change
 inside a disposable copy of `openspec/`. This is an archiveability preflight,
@@ -48,23 +47,16 @@ closeout evaluates it against the admitted candidate root.
 For adopters, the official active or archiving Change selection also feeds one
 ETHOS-owned material-scope read model. An adopter declares the material path
 families in `[openspec].material_paths`; an active Change may declare its
-covered paths in `openspec/changes/<id>/scope.toml`. The companion is not an
+covered paths in `openspec/changes/<id>/contract.toml`. The contract is not an
 official OpenSpec workflow-schema extension and cannot replace the official
-lifecycle. `lane prewrite`, `plan --changed`, and `prove` consume the same
-read model. An uncovered material path fails with
+lifecycle. `lane prewrite`, `plan --changed`, and `prove` consume the same scope.
+An uncovered material path fails with
 `openspec_material_path_uncovered:<path>`; lifecycle scope is not a
 code-correctness gate and no method package carries Change authority.
 
-The only bootstrap exception is the exact absent
-`openspec/changes/<id>/scope.toml` for a Change that the official list already
-identifies as active. Once written, that companion must validate and cover
-itself. There is no blanket exemption for an OpenSpec directory, `.ethos/`, or
-a path family; missing or invalid unrelated companions remain diagnostics and
-do not override valid coverage supplied by another selected Change.
-
-Adoption writes the complete material-path declaration. Later material writes
-use ordinary Change-local `scope.toml` coverage; no historical profile-write
-exception remains.
+There is no bootstrap exception or parallel scope carrier. A ChangeContract must
+exist and validate before it can authorize material work. There is no blanket
+exemption for an OpenSpec directory, `.ethos/`, or a path family.
 
 Canonical capability profiles live beside canonical specs as
 `openspec/specs/<capability>/capability.toml`. They are validated by
@@ -78,7 +70,7 @@ canonical docs, claims, and dated evidence.
 OpenSpec changes are ETHOS cases:
 
 ```text
-case = proposal + design + tasks + spec deltas + claim/evidence refs
+case = ChangeContract + proposal + design + tasks + spec deltas
 ```
 
 The active change folder records intended change. It does not supersede current

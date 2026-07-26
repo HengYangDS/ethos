@@ -83,7 +83,6 @@ ethos quality asset-policy
 ethos quality docs
 ethos quality proof-policy
 ethos quality tool-profiles
-ethos quality enterprise-readiness
 ethos quality claims
 ethos quality docs-registry
 ethos quality docs-topology
@@ -125,14 +124,6 @@ ethos explain <gap-or-signal>
 ```
 
 `ethos quality docs-topology --json` audits the Minimal Semantic Documentation Topology Contract. It requires the minimal semantic common docs kernel (`docs/README.md`, `docs/decisions/`, `docs/evidence/`, `docs/history/`, and `docs/reference/`) while forbidding `current`/`future` roots such as `docs/current/` and `docs/future/`. Product or adopter roots such as `docs/architecture/`, `docs/concepts/`, `docs/start/`, `docs/governance/`, `docs/plans/`, and `docs/research/` are extensions, not required kernel lanes. `ethos fleet retirement-readiness --target <repo> --root <product> --json` uses the same audit as a blocking embedded-backend retirement gate.
-
-`ethos quality enterprise-readiness --json` is an aggregate closeout gate for
-general-purpose enterprise use. It composes existing owner gates for product
-boundary neutrality, role-based contributor policy, semantic docs topology,
-generic parity, release/distribution boundaries, claim carriers, governance
-kernel, and the shared governed-repository context. It is read-only: remote
-publication and foreign Work Lane cleanup remain separate states requiring their
-own authority.
 
 `ethos quality governance-kernel --json` is the independent guard for
 Isomorphic Governance. It checks the live `governance_context`, the

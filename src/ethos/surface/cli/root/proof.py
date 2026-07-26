@@ -27,6 +27,7 @@ from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
+from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_registry
 from ethos.result import EthosResult
 from ethos.surface.cli._base import JsonFlag
@@ -49,6 +50,7 @@ class _ProofOptions:
     execute: bool = False
     gate: tuple[str, ...] = ()
     full: bool = False
+    change: str | None = None
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     host: bool = False
     probe: bool = False
@@ -143,15 +145,22 @@ def prove(
         repo, workspace_status(repo, include_foreign_path_scope=False)
     )
     openspec_lifecycle = openspec_governance_report(
-        repo, lifecycle=True, changed_paths=changed_paths, require_workspace=False
+        repo,
+        change=options.change,
+        lifecycle=True,
+        changed_paths=changed_paths,
+        require_workspace=False,
     )
     lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
+    gate_ids = options.gate or (
+        default_gate_ids(full=True, root=repo, tree_ref=current_head) if options.full else ()
+    )
     try:
         plan = proof_plan(
             repo,
             head=current_head,
-            gate_ids=options.gate,
-            full=options.full,
+            change_id=options.change,
+            gate_ids=gate_ids,
             changed_paths=changed_paths,
         )
     except ValueError as exc:

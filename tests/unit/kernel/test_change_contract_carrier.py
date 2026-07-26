@@ -104,6 +104,28 @@ subjects = ["repository:self"]
         load_proof_contract(tmp_path)
 
 
+def test_complete_change_does_not_make_active_contract_selection_ambiguous(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "contract.toml").write_text(
+        'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
+        'subjects = ["repository:test"]\n',
+        encoding="utf-8",
+    )
+    for change_id, task in (("active", "- [ ] Continue\n"), ("complete", "- [x] Done\n")):
+        carrier = tmp_path / "openspec" / "changes" / change_id
+        carrier.mkdir(parents=True)
+        (carrier / "contract.toml").write_text(
+            f'schema_version = 1\nid = "change:{change_id}"\nintent = "{change_id}."\n'
+            'subjects = ["repository:self"]\n',
+            encoding="utf-8",
+        )
+        (carrier / "tasks.md").write_text(task, encoding="utf-8")
+
+    assert load_change_contract(tmp_path).id == "change:active"
+    with pytest.raises(ValueError, match="change_contract_complete:complete"):
+        load_change_contract(tmp_path, change_id="complete")
+
+
 def test_change_contract_missing_fails_closed(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "contract.toml").write_text(
@@ -119,7 +141,7 @@ subjects = ["repository:test"]
         load_change_contract(tmp_path, change_id="terminal-convergence")
 
 
-def test_change_contract_rejects_parallel_scope_companion(tmp_path: Path) -> None:
+def test_change_contract_ignores_legacy_scope_companion(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "contract.toml").write_text(
         """schema_version = 1
@@ -145,8 +167,9 @@ scope = ["src/**"]
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="change_scope_parallel_truth"):
-        load_change_contract(tmp_path, change_id="terminal-convergence")
+    contract = load_change_contract(tmp_path, change_id="terminal-convergence")
+
+    assert contract.scope == ("src/**",)
 
 
 def test_repository_contract_owns_stable_subject_across_worktrees(tmp_path: Path) -> None:

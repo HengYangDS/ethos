@@ -3,7 +3,7 @@ subject: ethos:workflow-runtime-frameworks-20260709
 role: research
 state: active
 relations:
-  informs: docs/architecture/workflow-runtime.md, openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime
+  informed: openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime
 ---
 
 # ETHOS Framework Research Report: Comet, OpenSpec, and Adjacent SDD/Agent Workflow Systems
@@ -280,7 +280,7 @@ OpenSpec remains necessary but insufficient. Comet shows the missing layer ETHOS
 
 This research document is now the active evidence-backed comparison record for
 the workflow-runtime adoption decision. It is not itself a runtime contract. The
-promoted product contract is the combination of `docs/architecture/workflow-runtime.md`,
+historical promoted product contract was the archived OpenSpec change,
 `system/workflows.toml`, schemas under `system/schemas/`, OpenSpec deltas, tests,
 claims, and chronicle evidence.
 
@@ -292,6 +292,6 @@ workflow systems as practice carriers so ETHOS can choose what to introduce,
 compose, refine, supersede, retire, reject, or archive without adopting an
 external lifecycle authority.
 
-See also: [Workflow Runtime](../architecture/workflow-runtime.md),
+See also: [PlanIR](../architecture/plan-ir.md),
 [Evolution Campaign](../governance/evolution-campaign.md), and
 [OpenSpec Governance](../governance/openspec-governance.md).

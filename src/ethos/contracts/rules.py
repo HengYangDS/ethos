@@ -11,10 +11,7 @@ REQUIRED_SOURCE_FACT_NAMES = (
     "worktree",
     "prewrite",
     "openspec_state",
-    "claim_state",
-    "evidence_freshness",
     "host_readiness",
-    "command_registry",
     "projection_drift",
 )
 
@@ -246,39 +243,50 @@ def rule_attestation_gaps(
     for gap_name, (attestation_key, evaluation_key) in checks.items():
         if attestation.get(attestation_key) != evaluation.get(evaluation_key):
             gaps.append(f"rule_attestation_mismatch:{gap_name}")
-    if not attestation.get("runner_identity"):
-        gaps.append("rule_attestation_runner_missing")
-    if not attestation.get("actor"):
-        gaps.append("rule_attestation_actor_missing")
-    if not attestation.get("scope"):
-        gaps.append("rule_attestation_scope_missing")
+    gaps.extend(
+        f"rule_attestation_{name}_missing"
+        for name in ("runner_identity", "actor", "scope")
+        if not attestation.get(name)
+    )
     input_snapshot = attestation.get("input")
-    if not isinstance(input_snapshot, dict):
-        gaps.append("rule_attestation_input_missing")
-    else:
-        input_base = {key: value for key, value in input_snapshot.items() if key != "digest"}
-        if input_snapshot.get("digest") != stable_digest(input_base):
-            gaps.append("rule_attestation_mismatch:input_digest")
-        if input_snapshot.get("digest") != evaluation.get("fact_snapshot_digest"):
-            gaps.append("rule_attestation_mismatch:input_snapshot")
-        if input_snapshot != evaluation.get("input_snapshot"):
-            gaps.append("rule_attestation_mismatch:input")
-        facts = input_snapshot.get("facts")
-        if isinstance(facts, dict):
-            actor_fact = facts.get("actor")
-            if isinstance(actor_fact, dict) and actor_fact.get("value") != attestation.get("actor"):
-                gaps.append("rule_attestation_mismatch:actor")
-            scope_fact = facts.get("scope")
-            if isinstance(scope_fact, dict) and scope_fact.get("value") != attestation.get("scope"):
-                gaps.append("rule_attestation_mismatch:scope")
+    gaps.extend(_rule_attestation_input_gaps(attestation, evaluation, input_snapshot))
     output = attestation.get("output")
-    if not isinstance(output, dict):
-        gaps.append("rule_attestation_output_missing")
-    else:
-        if output.get("state") != evaluation.get("state"):
-            gaps.append("rule_attestation_mismatch:output_state")
-        if output.get("required_gaps") != evaluation.get("required_gaps"):
-            gaps.append("rule_attestation_mismatch:output_required_gaps")
-        if output.get("required_gates") != evaluation.get("required_gates"):
-            gaps.append("rule_attestation_mismatch:output_required_gates")
+    gaps.extend(_rule_attestation_output_gaps(evaluation, output))
     return tuple(gaps)
+
+
+def _rule_attestation_input_gaps(
+    attestation: dict[str, Any], evaluation: dict[str, Any], snapshot: object
+) -> list[str]:
+    if not isinstance(snapshot, dict):
+        return ["rule_attestation_input_missing"]
+    base = {key: value for key, value in snapshot.items() if key != "digest"}
+    checks = (
+        (snapshot.get("digest") == stable_digest(base), "input_digest"),
+        (snapshot.get("digest") == evaluation.get("fact_snapshot_digest"), "input_snapshot"),
+        (snapshot == evaluation.get("input_snapshot"), "input"),
+    )
+    gaps = [f"rule_attestation_mismatch:{name}" for valid, name in checks if not valid]
+    facts = snapshot.get("facts")
+    if not isinstance(facts, dict):
+        return gaps
+    for name in ("actor", "scope"):
+        fact = facts.get(name)
+        if isinstance(fact, dict) and fact.get("value") != attestation.get(name):
+            gaps.append(f"rule_attestation_mismatch:{name}")
+    return gaps
+
+
+def _rule_attestation_output_gaps(evaluation: dict[str, Any], output: object) -> list[str]:
+    if not isinstance(output, dict):
+        return ["rule_attestation_output_missing"]
+    checks = (
+        ("state", "output_state"),
+        ("required_gaps", "output_required_gaps"),
+        ("required_gates", "output_required_gates"),
+    )
+    return [
+        f"rule_attestation_mismatch:{gap}"
+        for key, gap in checks
+        if output.get(key) != evaluation.get(key)
+    ]

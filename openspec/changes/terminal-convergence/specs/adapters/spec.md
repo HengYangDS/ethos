@@ -21,3 +21,11 @@ Extensions MUST use data or subprocess JSON first and MAY use standard-library e
 #### Scenario: A single internal implementation requests a plugin layer
 - **WHEN** no independent extension consumer exists
 - **THEN** the abstraction is rejected and explicit composition remains the terminal implementation
+
+### Requirement: ChangeContract Parsing Fails Closed
+Lifecycle MUST parse every reviewed active `contract.toml` even when the current
+changed-path set has no material path.
+
+#### Scenario: A malformed contract has no matching material path
+- **WHEN** lifecycle review reads the Change
+- **THEN** it reports `change_contract_invalid:<change>` rather than treating file existence as validity

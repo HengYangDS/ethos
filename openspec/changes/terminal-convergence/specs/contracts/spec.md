@@ -20,3 +20,13 @@ A ChangeContract MUST remain immutable and effective intent MUST be derived by f
 #### Scenario: A session is lost after intent changes
 - **WHEN** another actor takes over with the base contract and amendment attestations
 - **THEN** it reconstructs the same effective intent without the original transcript
+
+### Requirement: Singular Active Change Carrier
+Each active OpenSpec Change MUST use `contract.toml` as the sole ETHOS-owned
+carrier for repository subject, intent, and material scope. Claims, Chronicle,
+and `scope.toml` MUST NOT participate in the current lifecycle verdict.
+
+#### Scenario: A material path is evaluated
+- **WHEN** `lane prewrite`, changed planning, or proof selects an active Change
+- **THEN** all three surfaces evaluate the same strict `ChangeContract.scope`
+- **AND** malformed or historical parallel carriers grant no authority

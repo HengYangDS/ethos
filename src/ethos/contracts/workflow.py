@@ -405,6 +405,12 @@ class WorkflowContract(_WorkflowModel):
             )
         )
         producer_by_fact = self.producer_by_fact()
+        external_missing = tuple(
+            f"workflow_external_requirement_missing:{item.id}:{requirement}"
+            for item in selected
+            for requirement in item.external_requirements(producer_by_fact)
+            if not facts.values.get(requirement)
+        )
         nodes = tuple(
             plan_node
             for item in selected
@@ -422,7 +428,7 @@ class WorkflowContract(_WorkflowModel):
             facts,
             nodes,
             policy_digest=policy_digest,
-            validation_issues=missing,
+            validation_issues=(*missing, *external_missing),
         )
 
     def to_report(self) -> dict[str, Any]:

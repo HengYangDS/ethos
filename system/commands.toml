@@ -381,17 +381,9 @@ show = true
 report_handler = { provider = "ethos.repository.policy.boundary.product:contributor_policy_report", next_actions = ["declare role-based humans, teams, and automation identities"], enforce = true, bind_root = true }
 
 [[commands]]
-name = "enterprise-readiness"
-group = "quality"
-import_path = "ethos.surface.cli.boundary.readiness:enterprise_readiness"
-help = "Audit enterprise-neutral readiness across product boundary, docs, identity, and release."
-show = true
-report_handler = { provider = "ethos.domain.readiness.enterprise:enterprise_readiness_report", when_blocked = "resolve enterprise-readiness required gaps, then rerun ethos quality enterprise-readiness --json", when_clean = "ethos prove --execute --expect-head $(git rev-parse HEAD) --json", enforce = true, bind_root = true }
-
-[[commands]]
 name = "governance-kernel"
 group = "quality"
 import_path = "ethos.surface.cli.boundary.readiness:governance_kernel"
 help = "Audit the single kernel shared by product and adopted repositories."
 show = true
-report_handler = { provider = "ethos.repository.policy.governance.kernel:governance_kernel_report", when_blocked = "repair governance kernel, profile/adoption scaffold, and command-plane docs", when_clean = "ethos quality enterprise-readiness --json", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.governance.kernel:governance_kernel_report", when_blocked = "repair governance kernel, profile/adoption scaffold, and command-plane docs", when_clean = "ethos prove --json", enforce = true, bind_root = true }

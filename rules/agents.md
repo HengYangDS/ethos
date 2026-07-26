@@ -26,6 +26,10 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Use repo-local skills from `.agents/skills/` when activation matches.
 - Use official external skills as method packs; do not vendor their runtime
   instructions into repository truth.
+- External method packs and execution runtimes may consume OpenSpec and ETHOS
+  contracts, but may not create repository-local plan, task, progress, report,
+  or lifecycle authority. Persistent intent and task state belong in OpenSpec;
+  runtime checkpoints belong only in declared disposable runtime homes.
 - Before creating, moving, renaming, splitting, importing, or deleting Python,
   read `rules/module_layout.md` and run the module-layout owner gate. Do not use
   file count, directory width, or ELOC as authority for a semantic boundary.

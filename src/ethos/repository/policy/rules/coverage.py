@@ -82,5 +82,5 @@ def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[
         "required_gaps": required_gaps,
         "next_action_contract": []
         if not required_gaps
-        else ["ethos rules explain <path>", "ethos rules migrate --apply"],
+        else ["repair .ethos/rules.toml", "ethos rules explain <path>"],
     }

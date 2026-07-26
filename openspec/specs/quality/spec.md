@@ -1167,26 +1167,6 @@ network, scan history, or write quality evidence.
 - **THEN** it MUST continue through the existing full secret gate and evidence path
 - **AND** the commit-time runner MUST NOT claim that full-tree or history proof occurred.
 
-### Requirement: Rules V2 migration is lossless for active policy
-
-ETHOS SHALL expose the advertised Rules V2 migration through the public command
-plane and SHALL preserve active non-legacy policy, including the complete
-`[quality]` tree, while normalizing legacy rule keys.
-
-#### Scenario: A mixed-generation rules file is migrated
-
-- **WHEN** `ethos rules migrate` evaluates a file containing legacy rules and
-  active quality and gate policy
-- **THEN** dry-run reports the complete target without modifying the file
-- **AND** authorized apply with the expected current HEAD preserves the parsed
-  active policy and converts `paths`, `requires`, and `evidence` to V2 keys.
-
-#### Scenario: Migration input is ambiguous or stale
-
-- **WHEN** the rules file is unparsable, write admission fails, authorization is
-  absent, or expected HEAD does not match
-- **THEN** migration fails closed without rewriting the file.
-
 ### Requirement: Non-authoritative same-machine performance evidence is not a product gate
 
 ETHOS SHALL NOT ship a same-machine timing and token-budget evidence stack as a

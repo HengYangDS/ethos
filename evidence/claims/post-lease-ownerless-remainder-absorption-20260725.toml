@@ -1,0 +1,40 @@
+[claim]
+id = "post-lease-ownerless-remainder-absorption-20260725"
+subject = "ethos:work-lanes:post-lease-ownerless-remainder"
+state = "active"
+change_id = "post-lease-ownerless-remainder-absorption"
+summary = "Four exact post-lease ownerless lanes receive a bounded disposition: three clean lanes may retire, while one dirty compression lane requires exact preserve-retire before cleanup."
+
+[evidence]
+dated = "evidence/chronicle/post-lease-ownerless-remainder-absorption-20260725/2026-07-25.md"
+sha256 = "c9f9f477445dea00f062fa4964417e733b125f8036277e6a3cbfaa158f8cf81b"
+evidence_ids = ["evidence:post-lease-ownerless-remainder-absorption-20260725"]
+binding = "This Claim binds only the four exact immutable source records and heads named in the Chronicle, normalized disposition record SHA-256 8dc20f2edf89125d7c3afbcecf37b724ad8c38df44b1486ac2be6b149a6a4f87, superseding historical disposition blob 47cc9ee0c74d55b8f8e86bcce9cca8855e85f1c1 and SHA-256 cdda7934404d5a358a9f1a18032bb6b6ea80e254cb6fd3194ba7b0a06c996fcf, accepted analysis head a8e53eedd0bcc8240f5d14a1589ff2cd788aee47, lane-specific judged outcomes without valid-owner takeover, three later native retire decisions, and one later exact preserve-retire decision."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "openspec validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head HEAD --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Exactly four missing-lease and missing-Claim Work Lanes observed on 2026-07-25; valid-owner lanes are read-only semantic receivers and no remote publication is authorized."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-25-post-lease-ownerless-remainder-absorption"
+fallback = "Retain any target branch, worktree, dirty byte, or preservation package whenever identity, ownerlessness, semantic absorption, Chronicle, proof, or exact manifest cannot be re-proved."
+kill_signal = "A valid-owner lane is mutated; old code is replayed without a current gap; a clean lane is preserved merely for convenience; dirty bytes are deleted before exact preservation; or a package is cleared without a separate accepted exact-manifest decision."
+
+[promotion]
+targets = [
+  "evidence/claims/post-lease-ownerless-remainder-absorption-20260725.toml",
+  "evidence/chronicle/post-lease-ownerless-remainder-absorption-20260725/2026-07-25.md",
+  "evidence/chronicle/post-lease-ownerless-remainder-absorption-20260725/lane-dispositions.json",
+  "openspec/changes/archive/2026-07-25-post-lease-ownerless-remainder-absorption",
+  "openspec/specs/repository-governance/spec.md",
+]

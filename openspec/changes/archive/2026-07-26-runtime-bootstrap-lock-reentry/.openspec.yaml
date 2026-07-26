@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-26
+goal: Make full proof progress through real armed-hook closeout without relaxing
+  runtime or hook admission.

@@ -8,33 +8,34 @@
 
 ## 2. Red tests
 
-- [x] 2.1 Add parameterized failures for every WCP response binding.
+- [x] 2.1 Add parameterized failures for every retired external-verifier
+  response binding.
 - [x] 2.2 Add late lease/Claim and same-target competing-decision failures.
 - [x] 2.3 Add no-force, accepted-ref CAS, postcondition, receipt-binding, and
   partial-recovery inventory failures.
 
 ## 3. Implementation
 
-- [x] 3.1 Add the strict WCP response adapter.
+- [x] 3.1 Add the strict retired external-verifier response adapter.
 - [x] 3.2 Add the shared-state target fence and make lease acquisition respect it.
 - [x] 3.3 Complete the clean ownerless CAS effect, non-zero-effect
   re-observation, three-state ref probe, and post-effect verifier.
 - [x] 3.4 Complete typed receipt bindings, visible partial reservations, and
   receipt-present idempotent cleanup recovery.
-- [x] 3.5 Split WCP, effect, cleanup, recovery, record, state, and inventory
-  responsibilities into semantic modules while preserving only actual
+- [x] 3.5 Split external-verifier, effect, cleanup, recovery, record, state,
+  and inventory responsibilities into semantic modules while preserving only actual
   pre-existing caller entrypoints.
 - [x] 3.6 Isolate the armed-hook E2E from the caller's writable editable runtime
   and assert that direct_url.json bindings do not drift.
 - [x] 3.7 Close every Critical/Important whole-branch security-review finding
   with RED-to-GREEN regression evidence.
-- [x] 3.8 Update command-plane documentation for clean ownerless WCP, fence,
-  irreversible confirmation, partial states, receipt recovery, and cleanup.
+- [x] 3.8 Update command-plane documentation for clean ownerless
+  external-verifier admission, fence, irreversible confirmation, partial states, receipt recovery, and cleanup.
 
 ## 4. Verification and lifecycle
 
-- [x] 4.1 Fix WCP at main@5137759, verify source/host SHA equality, run 26
-  ownerless plus 4 CLI tests, and record 59ee782 as superseded rather than
+- [x] 4.1 Fix the retired external verifier at `main@5137759`, verify
+  source/host SHA equality, run 26 ownerless plus 4 CLI tests, and record 59ee782 as superseded rather than
   cherry-picked.
 - [x] 4.2 Run the final focused unit, schema, type, lint, security,
   command-contract, module-layout, and code-size gates.
@@ -64,4 +65,4 @@ non-blocking.
 This change authorizes and tests the mechanism. It does not authorize a real
 foreign-lane deletion. A real ownerless effect still requires a separately
 selected exact target, accepted decision/Chronicle, irreversible confirmation,
-fresh WCP admission, and current postconditions.
+fresh retired external-verifier admission, and current postconditions.

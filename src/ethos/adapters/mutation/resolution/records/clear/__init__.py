@@ -1,0 +1,1 @@
+"""Clear-transition record validation."""

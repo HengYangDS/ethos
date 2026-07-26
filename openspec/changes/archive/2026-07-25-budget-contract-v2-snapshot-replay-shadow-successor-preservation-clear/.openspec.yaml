@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-25
+goal: Retain immutable decision and receipts while removing only the exact
+  manifest-bound recovery payload.

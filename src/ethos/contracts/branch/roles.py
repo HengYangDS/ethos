@@ -17,6 +17,19 @@ ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
 
 RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
+_STRICT_BRANCH_ROLE_TABLE_ERROR = "branch_roles table must be complete and exact"
+_STRICT_BRANCH_ROLE_TEXT_ERROR = "branch_roles text fields must be canonical strings"
+_STRICT_BRANCH_ROLE_MIRROR_ERROR = "branch_roles release_mirror is invalid"
+_STRICT_BRANCH_ROLE_FAMILY_ERROR = "branch_roles repository_family_worktrees must be boolean"
+_STRICT_BRANCH_ROLE_FIELDS = {
+    "release_branch",
+    "accepted_branch",
+    "candidate_branch",
+    "work_branch_prefix",
+    "submit_branch_prefix",
+    "release_mirror",
+    "repository_family_worktrees",
+}
 
 PROTECTED_WRITE_ROLES = frozenset(
     {
@@ -149,6 +162,27 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
         else "independent",
         repository_family_worktrees=raw_policy.get("repository_family_worktrees") is True,
     )
+
+
+def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
+    """Parse one complete branch-role table without fallback or coercion."""
+    payload = tomllib.loads(text)
+    raw_policy = payload.get("branch_roles")
+    if type(raw_policy) is not dict or set(raw_policy) != _STRICT_BRANCH_ROLE_FIELDS:
+        raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
+    text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"repository_family_worktrees"}
+    if any(
+        type(raw_policy[field]) is not str
+        or not raw_policy[field]
+        or raw_policy[field] != raw_policy[field].strip()
+        for field in text_fields
+    ):
+        raise ValueError(_STRICT_BRANCH_ROLE_TEXT_ERROR)
+    if raw_policy["release_mirror"] not in {"independent", RELEASE_MIRROR_ACCEPTED_FF}:
+        raise ValueError(_STRICT_BRANCH_ROLE_MIRROR_ERROR)
+    if type(raw_policy["repository_family_worktrees"]) is not bool:
+        raise ValueError(_STRICT_BRANCH_ROLE_FAMILY_ERROR)
+    return BranchRolePolicy(**raw_policy)
 
 
 def load_branch_role_policy(root: Path) -> BranchRolePolicy:

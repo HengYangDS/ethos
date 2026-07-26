@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-25
+goal: Ensure the hosted readiness report executes after the HEAD-bound proof so
+  it observes coverage and proof state produced by that same execution, without
+  restoring duplicate tests or changing GitLab.

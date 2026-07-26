@@ -493,6 +493,40 @@ def test_npm_launcher_runs_source_checkout_command_plane() -> None:
     assert completed.stdout.strip() == "0.1.0a2"
 
 
+def test_npm_launcher_source_checkout_preserves_invocation_cwd(tmp_path: Path) -> None:
+    if not shutil.which("node") or not shutil.which("uv") or not shutil.which("git"):
+        return
+
+    adopter = tmp_path / "sample-adopter"
+    adopter.mkdir()
+    subprocess.run(("git", "init", "-q", "-b", "main"), cwd=adopter, check=True)
+    subprocess.run(("git", "config", "user.name", "Test User"), cwd=adopter, check=True)
+    subprocess.run(
+        ("git", "config", "user.email", "test@example.invalid"),
+        cwd=adopter,
+        check=True,
+    )
+    (adopter / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(("git", "add", "README.md"), cwd=adopter, check=True)
+    subprocess.run(("git", "commit", "-qm", "initial"), cwd=adopter, check=True)
+
+    completed = subprocess.run(
+        (
+            "node",
+            str(ROOT / "distributions/npm/bin/ethos.mjs"),
+            "adopt",
+            "--json",
+        ),
+        cwd=adopter,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout)["data"]["root"] == str(adopter)
+
+
 def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> None:
     node = shutil.which("node")
     if not node:

@@ -1,0 +1,46 @@
+[claim]
+id = "github-proof-report-after-execution-20260725"
+subject = "quality:github-proof-report-after-execution"
+state = "active"
+change_id = "github-proof-report-after-execution"
+summary = "ETHOS makes the hosted readiness report observe coverage and proof state produced by the same single HEAD-bound proof execution."
+
+[evidence]
+dated = "evidence/chronicle/github-proof-report-after-execution-20260725/2026-07-25.md"
+sha256 = "34a03aadc5d189208adbab0fad56affc9a6d030f59029b7fdd6797fc78a3e396"
+evidence_ids = ["evidence:github-proof-report-after-execution-20260725"]
+binding = "GitHub dev run 30172606031, its retained audit/report/proof/JUnit/coverage artifacts, exact source order, the OpenSpec carrier, and the dated Chronicle bind this post-proof reporting claim."
+verifier = "digest_only"
+tests = [
+  "behavioral RED/GREEN owner-script producer-order contract",
+  "complete provider projection test module",
+  "shell lint and quality audit",
+  "strict OpenSpec validation and lifecycle audit",
+  "Claim validation and changed-scope planning",
+  "generic shadow parity refresh when safe",
+  "exact-HEAD ETHOS proof before and after official archive",
+  "fresh exact-SHA GitHub dev/main ETHOS CI and main CodeQL observation",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "The hosted proof owner-script producer order, one behavioral provider contract, one quality requirement, and bounded evidence only; no duplicate test restoration, proof-graph change, timeout weakening, worker change, retry admission, GitLab mutation or observation, foreign Work Lane action, or hosted-green claim without a fresh exact-SHA run."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-25-github-proof-report-after-execution"
+fallback = "Revert the command reorder only if post-proof reporting damages proof evidence; do not restore a separate full-test producer, and keep hosted readiness blocked until re-proven."
+kill_signal = "Report again executes before proof, the proof executes more than once, receipt conjunction weakens, diagnostics or artifacts disappear, GitLab changes, timeouts or coverage weaken, or failed hosted evidence is described as passing."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-head-bound-proof.sh",
+  "tests/architecture/test_ci_provider_projections.py",
+  "openspec/specs/quality/spec.md",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/archive/2026-07-25-github-proof-report-after-execution",
+  "evidence/chronicle/github-proof-report-after-execution-20260725/2026-07-25.md",
+  "evidence/claims/github-proof-report-after-execution-20260725.toml",
+]

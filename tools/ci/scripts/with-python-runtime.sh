@@ -13,6 +13,7 @@ if [[ "${UV_CACHE_DIR}" != /* ]]; then cache_owner_root="${repo_root}"; if [[ -n
 mkdir -p "${UV_CACHE_DIR}"; export ETHOS_RUNTIME_ROOT="${repo_root}"
 # Bootstrap only the default checkout interpreter; explicit Python overrides remain caller-owned.
 semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"; if [[ "$1" == "${semantic_python}" ]]; then
+  if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" == "1" && -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" ]]; then exec "$@"; fi
   if [[ -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" && ! -f "${repo_root}/pyproject.toml" ]]; then exec "$@"; fi
   if [[ -x "${semantic_python}" ]] && uv sync --locked --group dev --check >/dev/null 2>&1; then exec "$@"; fi
   bootstrap_cache_dir="${UV_CACHE_DIR}"

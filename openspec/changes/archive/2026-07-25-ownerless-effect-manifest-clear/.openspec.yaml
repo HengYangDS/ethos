@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-25
+goal: Bind and clear exactly three retained clean ownerless effect-bridge
+  packages after accepted authority, without touching immutable receipts or
+  valid-owner Work Lanes.

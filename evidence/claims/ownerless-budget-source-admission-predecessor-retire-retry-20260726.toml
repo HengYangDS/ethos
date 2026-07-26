@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One exact clean missing-lease predecessor, its immutable failed decision, read-only descendant containment, and one new direct-retire retry after accepted repair. No decision rewrite, preserve-retire, valid-owner takeover, semantic completion claim, package clear, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/ownerless-retire-chronicle-repair"
+openspec = "openspec/changes/archive/2026-07-26-ownerless-retire-chronicle-repair"
 fallback = "Keep the exact source and all records unchanged when any head, lease, Claim, dirtiness, registration, accepted head, Chronicle, inventory, or descendant containment differs."
 kill_signal = "The old decision is reused, the source is hand-deleted, an accepted-ancestor no-effect result is hidden, or valid-owner descendants are treated as mutable receivers."
 
@@ -34,5 +34,5 @@ kill_signal = "The old decision is reused, the source is hand-deleted, an accept
 targets = [
   "evidence/claims/ownerless-budget-source-admission-predecessor-retire-retry-20260726.toml",
   "evidence/chronicle/ownerless-retire-chronicle-repair-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md",
-  "openspec/changes/ownerless-retire-chronicle-repair",
+  "openspec/changes/archive/2026-07-26-ownerless-retire-chronicle-repair",
 ]

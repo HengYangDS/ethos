@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-26
+goal: Retire only the two exact clean ownerless budget predecessor lanes through
+  recoverable native effects while preserving valid-owner lineage and all
+  accepted closeout boundaries.

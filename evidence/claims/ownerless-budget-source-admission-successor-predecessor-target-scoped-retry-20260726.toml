@@ -1,8 +1,8 @@
 [claim]
 id = "ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726"
 subject = "ethos:work-lane:work/20260725-budget-contract-v2-changed-scope-source-admission-successor"
-state = "active"
-summary = "The exact clean fourteen-commit predecessor receives its first direct-retire probe only after the accepted target-scoped lease observation repair."
+state = "superseded"
+summary = "Superseded after fresh direct-retire decision lane-decision:6d1a4a1d-4b3e-4cd1-9d2e-303e8688d45e reached only the native accepted-ancestor no-effect boundary; later authority is target-bound preserve-retire reconciliation."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md"

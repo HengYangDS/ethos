@@ -5,17 +5,16 @@ from __future__ import annotations
 import ast
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.coupling.execution.aliases.keys import alias_key
-from ethos.repository.policy.coupling.execution.aliases.keys import literal_subscript_key
-from ethos.repository.policy.coupling.execution.aliases.keys import static_mapping_items
-from ethos.repository.policy.coupling.execution.definitions import DYNAMIC_EXECUTION_FUNCTION_SUFFIX
-from ethos.repository.policy.coupling.execution.definitions import EXECUTION_FUNCTIONS_BY_MODULE
+import ethos.repository.policy.coupling.execution.aliases.catalog as catalog
+from ethos.repository.policy.coupling.execution.aliases.catalog import alias_key
+from ethos.repository.policy.coupling.execution.aliases.catalog import literal_subscript_key
+from ethos.repository.policy.coupling.execution.aliases.catalog import static_mapping_items
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 _BUILTINS_MODULE = "<builtin>.module"
-_DYNAMIC_REFERENCE = f"execution{DYNAMIC_EXECUTION_FUNCTION_SUFFIX}"
+_DYNAMIC_REFERENCE = f"execution{catalog.DYNAMIC_EXECUTION_FUNCTION_SUFFIX}"
 GETATTR_ALIAS = "<builtin>.getattr"
 SHADOWED_GETATTR_ALIAS = "<builtin>.getattr-shadowed"
 _NON_EXECUTION_CALLABLES = frozenset({GETATTR_ALIAS, SHADOWED_GETATTR_ALIAS})
@@ -31,7 +30,7 @@ def execution_function(
     candidates = execution_reference(node.func, module_aliases, function_aliases)
     if len(candidates) == 1:
         return next(iter(candidates))
-    return f"execution{DYNAMIC_EXECUTION_FUNCTION_SUFFIX}" if candidates else None
+    return f"execution{catalog.DYNAMIC_EXECUTION_FUNCTION_SUFFIX}" if candidates else None
 
 
 def execution_reference(
@@ -123,7 +122,7 @@ def imported_execution_functions(module: str) -> frozenset[str]:
         return frozenset()
     return frozenset(
         f"{canonical_module}.{function}"
-        for function in EXECUTION_FUNCTIONS_BY_MODULE[canonical_module]
+        for function in catalog.EXECUTION_FUNCTIONS_BY_MODULE[canonical_module]
     )
 
 
@@ -132,7 +131,7 @@ def canonical_execution_function(module: str, function: str) -> str | None:
     canonical_module = _canonical_execution_module(module)
     if canonical_module is None:
         return None
-    declared = EXECUTION_FUNCTIONS_BY_MODULE[canonical_module]
+    declared = catalog.EXECUTION_FUNCTIONS_BY_MODULE[canonical_module]
     return f"{canonical_module}.{function}" if function in declared else None
 
 
@@ -441,13 +440,13 @@ def _dynamic_callable_references(modules: frozenset[str]) -> frozenset[str]:
     candidates = frozenset(
         _dynamic_execution_function(module)
         for module in modules
-        if module in EXECUTION_FUNCTIONS_BY_MODULE
+        if module in catalog.EXECUTION_FUNCTIONS_BY_MODULE
     )
     return candidates or frozenset({_DYNAMIC_REFERENCE})
 
 
 def _dynamic_execution_function(module: str) -> str:
-    return f"{module}{DYNAMIC_EXECUTION_FUNCTION_SUFFIX}"
+    return f"{module}{catalog.DYNAMIC_EXECUTION_FUNCTION_SUFFIX}"
 
 
 def _attribute_reference(
@@ -591,4 +590,4 @@ def _canonical_execution_functions(
 def _canonical_execution_module(module: str) -> str | None:
     if module == "asyncio.subprocess":
         return "asyncio"
-    return module if module in EXECUTION_FUNCTIONS_BY_MODULE else None
+    return module if module in catalog.EXECUTION_FUNCTIONS_BY_MODULE else None

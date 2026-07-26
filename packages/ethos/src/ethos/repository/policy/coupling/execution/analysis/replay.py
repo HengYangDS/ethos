@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 
-from ethos.repository.policy.coupling.execution.aliases.keys import alias_key
+from ethos.repository.policy.coupling.execution.aliases.catalog import alias_key
 
 CallableNode = ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
 AliasMap = dict[str, frozenset[str]]

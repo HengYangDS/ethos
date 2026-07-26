@@ -62,6 +62,14 @@ _PYTHON_BOOTSTRAP_EXEMPTIONS = frozenset(
         "tools/ci/scripts/configure-git-checkout.sh",
     }
 )
+_SHELL_ASSIGNMENT_PATTERN = re.compile(
+    r"^\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)=(?P<value>\"[^\"]*\"|'[^']*'|\S+)\s*$"
+)
+_OUT_DIR_PATTERN = re.compile(r"--out-dir\s+(?P<value>\"[^\"]*\"|'[^']*'|\S+)")
+_SHELL_VARIABLE_PATTERN = re.compile(
+    r"^(?:\"|')?\$(?:\{(?P<braced>[A-Za-z_][A-Za-z0-9_]*)\}|(?P<bare>[A-Za-z_][A-Za-z0-9_]*))(?:\"|')?$"
+)
+_PACKAGE_ARTIFACT_DIRECTORY_PATTERN = re.compile(r"(?:^|/)build/artifacts/[^/\s]+(?:/|$)")
 
 
 def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
@@ -389,17 +397,37 @@ def _pytest_runner_findings(rel: str, producer_text: str, full_text: str) -> lis
 
 
 def _package_build_route_findings(rel: str, producer_text: str) -> list[dict[str, str]]:
-    return [
-        _entrypoint_finding(
-            rel,
-            check="package-artifact-routing",
-            boundary="local package builds must route to build/artifacts/<kind>",
-            required_gap=f"generated_artifact_entrypoint_package_artifacts_unrouted:{rel}",
-        )
-        for line in producer_text.splitlines()
-        if ("uv build" in line or "hatch build" in line or "python -m build" in line)
-        and "--out-dir build/artifacts/" not in line
-    ]
+    assignments: dict[str, str] = {}
+    findings: list[dict[str, str]] = []
+    for line in producer_text.splitlines():
+        if assignment := _SHELL_ASSIGNMENT_PATTERN.fullmatch(line):
+            assignments[assignment["name"]] = assignment["value"]
+            continue
+        if (
+            "uv build" in line or "hatch build" in line or "python -m build" in line
+        ) and not _package_build_output_is_routed(line, assignments):
+            findings.append(
+                _entrypoint_finding(
+                    rel,
+                    check="package-artifact-routing",
+                    boundary="local package builds must route to build/artifacts/<kind>",
+                    required_gap=(
+                        f"generated_artifact_entrypoint_package_artifacts_unrouted:{rel}"
+                    ),
+                )
+            )
+    return findings
+
+
+def _package_build_output_is_routed(command: str, assignments: dict[str, str]) -> bool:
+    match = _OUT_DIR_PATTERN.search(command)
+    if match is None:
+        return False
+    output = match["value"]
+    if reference := _SHELL_VARIABLE_PATTERN.fullmatch(output):
+        name = reference["braced"] or reference["bare"]
+        output = assignments.get(name, "")
+    return bool(_PACKAGE_ARTIFACT_DIRECTORY_PATTERN.search(output.strip("\"'")))
 
 
 def _gitlab_local_route_findings(rel: str, producer_text: str) -> list[dict[str, str]]:

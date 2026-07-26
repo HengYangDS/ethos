@@ -6,6 +6,9 @@ import ast
 from typing import TYPE_CHECKING
 from typing import override
 
+from ethos.repository.policy.coupling.execution.aliases.catalog import alias_key
+from ethos.repository.policy.coupling.execution.aliases.catalog import literal_subscript_key
+from ethos.repository.policy.coupling.execution.aliases.catalog import static_mapping_entries
 from ethos.repository.policy.coupling.execution.aliases.core import callable_reference
 from ethos.repository.policy.coupling.execution.aliases.core import canonical_execution_function
 from ethos.repository.policy.coupling.execution.aliases.core import execution_function
@@ -14,9 +17,6 @@ from ethos.repository.policy.coupling.execution.aliases.core import imported_exe
 from ethos.repository.policy.coupling.execution.aliases.core import imported_execution_module
 from ethos.repository.policy.coupling.execution.aliases.core import imported_execution_module_from
 from ethos.repository.policy.coupling.execution.aliases.core import module_reference
-from ethos.repository.policy.coupling.execution.aliases.keys import alias_key
-from ethos.repository.policy.coupling.execution.aliases.keys import literal_subscript_key
-from ethos.repository.policy.coupling.execution.aliases.keys import static_mapping_entries
 from ethos.repository.policy.coupling.execution.analysis.scopes import ExecutionScopeTraversal
 from ethos.repository.policy.coupling.execution.analysis.scopes import pattern_capture_names
 from ethos.repository.policy.coupling.execution.analysis.scopes import single_reference

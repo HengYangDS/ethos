@@ -1,0 +1,43 @@
+[claim]
+id = "runtime-bootstrap-lock-reentry-20260726"
+subject = "ethos:repository-runtime:marked-semantic-python-reentry"
+state = "active"
+change_id = "runtime-bootstrap-lock-reentry"
+summary = "The active carrier bounds one narrow worktree-local runtime bootstrap repair: a marked request for the exact healthy declared Python avoids re-entering the outer uv lock."
+
+[evidence]
+dated = "evidence/chronicle/runtime-bootstrap-lock-reentry-20260726/2026-07-26.md"
+sha256 = "516817f2489f3921c3768fb99b5101b528e98e421e971893a8390621b3520051"
+evidence_ids = ["evidence:runtime-bootstrap-lock-reentry-20260726"]
+binding = "This Claim binds the owned successor Work Lane at f26f806ae6bc8868786e05f1c79a02ec061a308d, the active OpenSpec carrier, one exact declared-runtime guard, its deterministic fake-uv regression, and later local command evidence only. It does not authorize a ref move, candidate land, accepted closeout, lane retirement, remote mutation, or hosted success claim."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change runtime-bootstrap-lock-reentry --lifecycle --json",
+  "openspec validate runtime-bootstrap-lock-reentry --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-python-tests.sh tests/unit/governance/test_generated_artifact_runtime.py tests/unit/lanes/test_armed_hook_closeout_e2e.py",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact marked semantic-Python runtime-bootstrap re-entry path in the owned successor Work Lane, its regression, current repository-governance requirement, Claim, Chronicle, parity evidence, and local proof only."
+
+[carriers]
+openspec = "openspec/changes/runtime-bootstrap-lock-reentry"
+fallback = "Keep the existing bootstrap fallback and stop lifecycle progression if the marker, exact semantic path, runtime health, regression, or proof cannot be verified."
+kill_signal = "A broad marker bypass executes an arbitrary command, an invalid or foreign runtime is trusted, an unmarked request skips uv, reference-transaction authority changes, or a local proof claim is presented as land, publication, or hosted evidence."
+
+[promotion]
+targets = [
+  { kind = "source", path = "tools/ci/scripts/with-python-runtime.sh" },
+  { kind = "tests", path = "tests/unit/governance/test_generated_artifact_runtime.py" },
+  { kind = "openspec", path = "openspec/changes/runtime-bootstrap-lock-reentry" },
+  { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
+  { kind = "evidence", path = "evidence/chronicle/runtime-bootstrap-lock-reentry-20260726/2026-07-26.md" },
+  { kind = "evidence", path = "evidence/claims/runtime-bootstrap-lock-reentry-20260726.toml" },
+  { kind = "evidence", path = "evidence/parity/generic-shadow.json" },
+]

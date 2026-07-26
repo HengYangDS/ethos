@@ -11,7 +11,8 @@ merge_request_template = ".gitlab/merge_request_templates/default.md"
 issue_template = ".gitlab/issue_templates/task.md"
 
 [publication]
-remotes = ["origin", "github"]
+gitlab_remote = "origin"
+github_remote = "github"
 
 [attestation]
 formats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]

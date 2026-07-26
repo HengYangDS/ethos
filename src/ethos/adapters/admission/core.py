@@ -137,7 +137,6 @@ def push_admission_report(
         release_branch=policy.release_branch,
         proposal_branch_prefix=policy.proposal_branch_prefix,
         remote_name=remote_name,
-        enforce=not bool(topology.get("legacy")),
     )
     branch_gaps = list(cast("list[str]", branch_admission["enforcement_gaps"]))
     reconcile = (

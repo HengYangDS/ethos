@@ -70,9 +70,8 @@ class _CloseoutPayload:
 
 @dataclass(frozen=True, slots=True)
 class _PublishOptions:
-    """CLI options for `ethos publish`, including legacy hook metadata."""
+    """CLI options for `ethos publish`."""
 
-    legacy_hook_args: Annotated[tuple[str, ...], Parameter(name="*", show=False)] = ()
     apply: bool = False
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
@@ -242,7 +241,7 @@ def _publish_expected_state(
         "source_ref": f"refs/heads/{branch}",
         "source_head": current_head,
         "target_ref": f"refs/heads/{target_branch}",
-        "remote": str(availability.get("remote") or "origin"),
+        "remote": str(availability.get("remote") or ""),
         "observed_remote_ref": str(sync.get("remote_ref") or ""),
         "observed_remote_head": str(sync.get("remote_head") or ""),
         "remote_availability_state": str(availability.get("state") or "not_probed"),
@@ -264,13 +263,6 @@ def _remote_observations(
         }
         for key, remote in {"gitlab": gitlab_remote, "github": github_remote}.items()
     }
-
-
-def _validate_legacy_publish_hook_args(args: tuple[str, ...]) -> None:
-    """Accept Git pre-push remote metadata from old hook projections only."""
-    if len(args) in {0, 2}:
-        return
-    raise SystemExit(2)
 
 
 def _observed_candidate_head(repo: Path, current_head: str) -> str:
@@ -494,7 +486,6 @@ def publish(
     json_output: JsonFlag = False,
 ) -> None:
     """Report publish readiness without pushing."""
-    _validate_legacy_publish_hook_args(options.legacy_hook_args)
     repo = resolve_root(root)
     governance = context_for_root(repo)
     current_head = git.current_head(repo)
@@ -563,8 +554,8 @@ def publish(
     ok = ok and not topology_gaps
     policy = load_branch_role_policy(repo)
     configured_remotes = topology_remotes(remote_topology)
-    gitlab_remote = configured_remotes.get("gitlab", "origin")
-    github_remote = configured_remotes.get("github", "github")
+    gitlab_remote = configured_remotes["gitlab"]
+    github_remote = configured_remotes["github"]
     branch_admission = publication_branch_admission(
         remote_topology,
         branch=str(branch),

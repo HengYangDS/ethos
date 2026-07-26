@@ -33,31 +33,9 @@ def _write_equal_remote_topology(repo: Path) -> None:
     release.parent.mkdir(exist_ok=True)
     release.write_text(
         """
-[publication.local]
-id = "local"
-mode = "offline"
-verification_command = "tools/ci/scripts/run-local-ci.sh"
-installation_command = "tools/ci/scripts/run-local-install-smoke.sh"
-
-[publication.branch_admission]
-candidate_role = "local_only"
-remote_branches = "accepted_release_proposal_only"
-
-[[publication.remote]]
-id = "gitlab"
-role = "organization_collaboration"
-provider = "gitlab"
-git_remote = "origin"
-ci_surface = ".gitlab-ci.yml"
-capabilities = ["repository", "ci_cd", "publication"]
-
-[[publication.remote]]
-id = "github"
-role = "public_distribution"
-provider = "github"
-git_remote = "github"
-ci_surface = ".github/workflows/ci.yml"
-capabilities = ["repository", "ci_cd", "publication"]
+[publication]
+gitlab_remote = "origin"
+github_remote = "github"
 """.lstrip(),
         encoding="utf-8",
     )
@@ -65,6 +43,7 @@ capabilities = ["repository", "ci_cd", "publication"]
 
 def _identity_repo(path: Path) -> Path:
     repo = init_repo(path)
+    _write_equal_remote_topology(repo)
     for key, value in (
         ("user.name", "Canonical User"),
         ("user.email", "canonical@example.invalid"),
@@ -122,6 +101,28 @@ def test_push_admission_rejects_candidate_and_undeclared_remote_targets(
     )
     assert unknown["ok"] is False
     assert "publication_remote_target_unknown:unknown" in unknown["required_gaps"]
+
+
+def test_push_admission_rejects_legacy_topology_without_enforcement_bypass(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    (repo / ".ethos").mkdir(exist_ok=True)
+    (repo / ".ethos" / "release.toml").write_text(
+        '[publication]\nremotes = ["origin", "github"]\n',
+        encoding="utf-8",
+    )
+    head = git(repo, "rev-parse", "HEAD")
+
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=head,
+        remote_name="origin",
+    )
+
+    assert report["publication_branch_admission"]["enforcement_gaps"] == [
+        "publication_topology_declaration_invalid"
+    ]
+    assert "publication_topology_declaration_invalid" in report["required_gaps"]
 
 
 def test_push_admission_rejects_work_branch_before_proof_lookup(tmp_path: Path) -> None:
@@ -530,18 +531,21 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
         check=True,
     ).stdout.strip()
 
+    _write_equal_remote_topology(tmp_path)
+
     # protected accepted root without proof -> blocked
     protected = push_admission_report(root=tmp_path, target_ref="refs/heads/dev", pushed_head=head)
     assert protected["ok"] is False
     assert protected["state"] == "blocked"
     assert any("not_proven" in str(g) or "proof" in str(g) for g in protected["required_gaps"])
 
-    # unprotected work lane -> admitted untouched
+    # work lanes remain local-only even with a canonical remote declaration
     lane = push_admission_report(
         root=tmp_path, target_ref="refs/heads/work/feature", pushed_head=head
     )
-    assert lane["ok"] is True
-    assert lane["state"] == "admitted"
+    assert lane["ok"] is False
+    assert lane["state"] == "blocked"
+    assert "publication_remote_branch_forbidden:work/feature" in lane["required_gaps"]
 
 
 @pytest.mark.parametrize(("identity", "allowed"), [("Canonical User", True), ("Codex", False)])
@@ -555,18 +559,16 @@ def test_push_identity_policy_matches_configured_user(
     policy = push_identity_policy_report(repo, pushed_head, remote_head)
     report = push_admission_report(
         root=repo,
-        target_ref="refs/heads/work/feature",
+        target_ref="refs/heads/work/identity",
         pushed_head=pushed_head,
         remote_head=remote_head,
     )
-    assert (policy["ok"], policy["checked_commit_count"], report["ok"]) == (
-        expected,
-        1,
-        expected,
-    )
+
+    assert (policy["ok"], policy["checked_commit_count"]) == (expected, 1)
+    assert report["identity_policy"] == policy
     assert bool(policy["violations"]) is not expected
+    assert "publication_remote_branch_forbidden:work/identity" in report["required_gaps"]
     if not expected:
-        assert report["decision"]["reason"] == "pushed_commit_identity_not_allowed"
         assert all(
             f"pushed_commit_{kind}_not_configured_identity:{pushed_head}" in report["required_gaps"]
             for kind in ("author", "committer")

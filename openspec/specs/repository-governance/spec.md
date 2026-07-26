@@ -1308,10 +1308,12 @@ precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
 
 Publication SHALL comprise local verification/install plus independent GitLab
 organization and GitHub public targets. The remotes have equal `repository`,
-`ci_cd`, and `publication` capability and no authority ordering. Admission
-permits only `dev`, `main`, and `proposal/*`; local branches remain excluded.
-`ethos publish` only observes targets. Compact declarations SHALL still accept
-valid former verbose remote records.
+`ci_cd`, and `publication` capability and no authority ordering. The required
+`[publication]` declaration SHALL contain only non-empty, valid, distinct named
+scalars `gitlab_remote` and `github_remote`; absent, unknown, compact-list, or
+verbose-record forms SHALL fail closed. Admission always enforces that topology
+and permits only `dev`, `main`, and `proposal/*`; local branches remain excluded.
+`ethos publish` only observes targets and rejects positional arguments.
 
 #### Scenario: explicit remote admission preserves local candidate isolation
 
@@ -1326,11 +1328,13 @@ valid former verbose remote records.
 - **AND** `remote_push` SHALL remain `not_performed`
 - **AND** hosted CI status SHALL remain unclaimed.
 
-#### Scenario: valid verbose declaration remains accepted
+#### Scenario: non-canonical declaration fails closed
 
-- **WHEN** an adopter supplies valid `[[publication.remote]]` records
-- **THEN** ETHOS SHALL resolve the same named GitLab and GitHub targets
-- **AND** it SHALL retain equal capability and explicit-admission validation.
+- **WHEN** an adopter omits `[publication]` or supplies an unknown, compact-list,
+  or verbose-record declaration
+- **THEN** ETHOS SHALL reject publication topology admission
+- **AND** it SHALL NOT infer `origin`, preserve a legacy state, or bypass branch
+  enforcement.
 
 ### Requirement: Tool adoption remains profile and adapter scoped
 

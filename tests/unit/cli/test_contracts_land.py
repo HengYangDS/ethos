@@ -22,6 +22,26 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 if TYPE_CHECKING:
     from pathlib import Path
 
+
+def _write_publication_topology(repo: Path) -> None:
+    release = repo / ".ethos" / "release.toml"
+    release.parent.mkdir(exist_ok=True)
+    release.write_text(
+        '[publication]\ngitlab_remote = "origin"\ngithub_remote = "github"\n',
+        encoding="utf-8",
+    )
+    git(repo, "add", release.as_posix())
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "configure publication topology",
+    )
+
 def test_land_dry_run_reports_dirty_work_lane_gap(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / 'repo-work-feature'
@@ -149,6 +169,7 @@ def test_land_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path) -
 def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
+    _write_publication_topology(repo)
     head = git(repo, 'rev-parse', 'HEAD')
     seed_executed_proof(repo, head)
     payload = run_ethos('publish', '--json', cwd=repo)
@@ -172,6 +193,7 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
 def test_product_publish_blocks_current_hard_quality_gap(tmp_path: Path, monkeypatch) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
+    _write_publication_topology(repo)
     head = git(repo, 'rev-parse', 'HEAD')
     seed_executed_proof(repo, head)
     gap = 'generated_artifact_root_cache_drift:.ruff_cache'
@@ -185,9 +207,28 @@ def test_product_publish_blocks_current_hard_quality_gap(tmp_path: Path, monkeyp
     assert payload['summary']['local_readiness'] is False
     assert payload['data']['hard_quality_floor'] == floor
 
-def test_publish_apply_defers_when_remote_transition_is_not_performed(tmp_path: Path) -> None:
+def test_publish_apply_defers_when_remote_transition_is_not_performed(
+    monkeypatch, tmp_path: Path
+) -> None:
     _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
+    lease_head = git(worktree, 'rev-parse', 'HEAD')
+    _write_publication_topology(worktree)
     head = git(worktree, 'rev-parse', 'HEAD')
+    monkeypatch.setenv('ETHOS_ACTOR', 'agent:test:case:agent-test')
+    hook = run_ethos(
+        'hook',
+        'ref-transaction',
+        'refs/heads/work/feature',
+        lease_head,
+        head,
+        '--phase',
+        'committed',
+        '--root',
+        worktree.as_posix(),
+        '--json',
+        cwd=worktree,
+    )
+    assert hook['ok'] is True
     seed_executed_proof(worktree, head)
     payload = run_ethos_blocked('publish', '--apply', '--authorize', '--expect-head', head, '--json', cwd=worktree)
     assert payload['ok'] is False
@@ -197,16 +238,15 @@ def test_publish_apply_defers_when_remote_transition_is_not_performed(tmp_path: 
     assert payload['summary']['remote_push'] == 'not_performed'
     assert payload['data']['mutation']['decision']['verdict'] == 'defer'
 
-def test_publish_tolerates_git_pre_push_remote_arguments(tmp_path: Path) -> None:
+def test_publish_rejects_hidden_pre_push_positional_arguments(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
-    head = git(repo, 'rev-parse', 'HEAD')
-    seed_executed_proof(repo, head)
-    payload = run_ethos('publish', '--json', 'origin', 'ssh://git@example.invalid/group/repo.git', cwd=repo)
-    assert payload['ok'] is True
-    assert payload['state'] == 'local_publish_ready'
-    assert payload['required_gaps'] == []
-    assert payload['summary']['remote_push'] == 'not_performed'
+
+    completed = run_ethos_raw(
+        'publish', '--json', 'origin', 'ssh://git@example.invalid/group/repo.git', cwd=repo
+    )
+
+    assert completed.returncode != 0
 
 def test_publish_rejects_non_hook_positional_arguments(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
@@ -217,6 +257,7 @@ def test_publish_rejects_non_hook_positional_arguments(tmp_path: Path) -> None:
 def test_publish_dry_run_blocks_release_root_active_openspec_residue(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
+    _write_publication_topology(repo)
     git(repo, 'checkout', '-b', 'main')
     leak = repo / 'openspec' / 'changes' / 'release-leak'
     leak.mkdir(parents=True)
@@ -234,6 +275,7 @@ def test_publish_dry_run_blocks_release_root_active_openspec_residue(tmp_path: P
 def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
+    _write_publication_topology(repo)
     git(repo, 'branch', 'integration', 'dev')
     git(repo, 'checkout', 'integration')
     write_role_policy(repo, release_branch='release', accepted_branch='integration', candidate_branch='stage/integration', work_branch_prefix='lane/', proposal_branch_prefix='review/')
@@ -305,6 +347,22 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp
     assert retire_payload['summary'] == {'landed_lane_count': 1, 'selected_branch': 'lane/configured', 'selected_retire_ready': True, 'selected_blockers': []}
     assert retire_payload['data']['mutation']['request']['expect_head'] == work_head
 
+def test_publish_invalid_topology_does_not_infer_origin_remote(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / 'repo')
+    adopt_and_commit(repo)
+    _write_publication_topology(repo)
+    head = git(repo, 'rev-parse', 'HEAD')
+    seed_executed_proof(repo, head)
+    (repo / '.ethos' / 'release.toml').write_text('[publication]\n', encoding='utf-8')
+
+    payload = run_ethos('publish', '--json', cwd=repo)
+
+    assert 'publication_topology_gitlab_remote_missing' in payload['required_gaps']
+    expected_state = payload['data']['mutation']['decision']['subject']['expected_state']
+    assert expected_state['remote'] == ''
+    assert [target['remote'] for target in expected_state['remote_targets']] == ['', '']
+
+
 def test_publish_apply_requires_authorization_and_expected_head(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     payload = run_ethos_blocked('publish', '--apply', '--json', cwd=repo)
@@ -324,6 +382,7 @@ def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path
 def test_publish_reports_current_local_ci_fallback_evidence_when_manifest_matches_head(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
+    _write_publication_topology(repo)
     head = git(repo, 'rev-parse', 'HEAD')
     seed_executed_proof(repo, head)
     manifest = repo / 'build' / 'evidence' / 'local-ci' / 'fallback.json'
@@ -342,6 +401,7 @@ def test_publish_reports_current_local_ci_fallback_evidence_when_manifest_matche
 def test_publish_reports_stale_local_ci_fallback_evidence_when_manifest_head_differs(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
+    _write_publication_topology(repo)
     head = git(repo, 'rev-parse', 'HEAD')
     seed_executed_proof(repo, head)
     manifest = repo / 'build' / 'evidence' / 'local-ci' / 'fallback.json'

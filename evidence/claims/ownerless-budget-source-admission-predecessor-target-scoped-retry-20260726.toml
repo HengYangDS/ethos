@@ -24,7 +24,7 @@ owner = "ethos-repository"
 scope = "One exact clean missing-lease predecessor, two immutable prior no-effect decisions, and one fresh direct-retire probe after accepted target-scoped repair. No decision reuse, preserve-retire, valid-owner mutation, package clear, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/ownerless-target-scoped-lease-observation"
+openspec = "openspec/changes/archive/2026-07-26-ownerless-target-scoped-lease-observation"
 fallback = "Keep the exact source and all records unchanged when any head, lease, Claim, dirtiness, registration, accepted head, Chronicle, inventory, or descendant containment differs."
 kill_signal = "A prior decision is reused, the source is hand-deleted, a fresh observation is bypassed, an accepted-ancestor no-effect result is hidden, or valid-owner descendants are treated as mutable receivers."
 
@@ -32,5 +32,5 @@ kill_signal = "A prior decision is reused, the source is hand-deleted, a fresh o
 targets = [
   "evidence/claims/ownerless-budget-source-admission-predecessor-target-scoped-retry-20260726.toml",
   "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md",
-  "openspec/changes/ownerless-target-scoped-lease-observation",
+  "openspec/changes/archive/2026-07-26-ownerless-target-scoped-lease-observation",
 ]

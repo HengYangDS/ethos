@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One private ownerless-closeout state module, three focused test owners, one accepted repair carrier, and one fresh direct-retire probe for each of two exact clean missing-lease targets after acceptance. No public API, schema, dependency, __init__.py, lease migration or deletion, maintenance change, prior-decision reuse, preserve-retire, valid-owner mutation, package clear, remote operation, broad cache cleanup, build-evidence deletion, virtual-environment deletion, or session/IDE mutation."
 
 [carriers]
-openspec = "openspec/changes/ownerless-target-scoped-lease-observation"
+openspec = "openspec/changes/archive/2026-07-26-ownerless-target-scoped-lease-observation"
 fallback = "If the lease schema, exact target row, target identity, accepted head, Chronicle, decision, or fence is ambiguous, leave the target and all lease rows unchanged."
 kill_signal = "The query is not exact equality, a malformed exact row is ignored, an unrelated row blocks the target, production code mutates lease rows, a prior decision is reused, a target probe bypasses fresh observation, or an accepted-ancestor refusal is converted without later accepted reconciliation."
 
@@ -42,5 +42,5 @@ targets = [
   "evidence/claims/ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726.toml",
   "evidence/claims/ownerless-target-scoped-lease-observation-20260726.toml",
   "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726",
-  "openspec/changes/ownerless-target-scoped-lease-observation",
+  "openspec/changes/archive/2026-07-26-ownerless-target-scoped-lease-observation",
 ]

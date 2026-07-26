@@ -156,10 +156,14 @@
   coupling, Claim, docs, OpenSpec, residue, and diff gates on one stable HEAD.
 - [x] 11.2 Execute generic shadow parity in the admitted successor, commit the
   evidence, and close only checklist items backed by fresh gate/parity evidence.
-- [ ] 11.3 After every implementation and parity input is committed, execute the
+- [x] 11.3 After every implementation and parity input is committed, execute the
   final exact-HEAD pre-archive proof, confirm isolated archive preflight is ready,
   and close this checklist in an evidence-only commit. This item does not claim a
-  second self-referential proof for the checklist-only commit.
+  second self-referential proof for the checklist-only commit. Exact HEAD
+  `e3ee55170520e5bd54fc13ec64578820a2e5c7d5` returned `state=proven` across
+  21 gates with evidence digest
+  `f79373b3efe0f2ff7a3cd8c1b287096f7c1b8ddd2916e4acff88b61e2bc42c0e`; the
+  isolated archive preflight returned `state=ready`.
 
 ## Post-archive transition boundary
 

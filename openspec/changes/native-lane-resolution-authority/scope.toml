@@ -24,7 +24,7 @@ paths = [
   "evidence/parity/generic-shadow.json",
   "openspec/changes/native-lane-resolution-authority/**",
   "openspec/changes/native-lane-resolution-authority/scope.toml",
-  "openspec/changes/archive/2026-07-25-native-lane-resolution-authority/**",
+  "openspec/changes/archive/2026-07-26-native-lane-resolution-authority/**",
   "openspec/changes/archive/2026-07-23-ownerless-closeout-effect-fence/**",
   "openspec/changes/archive/2026-07-25-ownerless-effect-reconciliation/**",
   "openspec/changes/archive/2026-07-25-ownerless-effect-manifest-clear/design.md",

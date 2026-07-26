@@ -12,6 +12,9 @@
   test, document, and evidence dependency while preserving native fail-closed
   lane authority.
 - [ ] 1.4 Measure and record product/test/tool/document/config deletion by canonical ELOC ownership class.
+- [x] 1.5 Block repository-local shadow plan/task/progress/report authority from
+  optional method packs and runtimes, including ignored paths, and remove the
+  observed `.superpowers` residue after preserving any unique OpenSpec intent.
 
 ## 2. Semantic Kernel Cutover
 
@@ -28,6 +31,12 @@
 - [ ] 3.4 Implement adaptive backpressure, parallel proof scheduling, candidate queue policy, and a short serialized candidate CAS update.
 - [ ] 3.5 Replace submit roles with proposal roles across config, source, schemas, tests, docs, hooks, CI, and release policy without compatibility aliases.
 - [ ] 3.6 Prove lifecycle and race invariants with Hypothesis state machines and Quint models.
+- [ ] 3.7 Define the minimal execution-runtime adapter contract and conformance
+  kit, then compare the native-host baseline with COMET Native as the first
+  local coding-agent candidate. Admit graph or durable-service candidates only
+  on proven consumer need. Require pause/resume/handoff, token and time gain,
+  authority isolation, uninstall cleanliness, and zero shadow state before any
+  runtime becomes a recommended backend.
 
 ## 4. Quality, Formatting, And Supply Chain
 

@@ -74,6 +74,55 @@ def test_pre_tool_hook_rejects_invalid_path_tokens(
     assert f"prewrite_path_invalid_{kind}" in report["required_gaps"]
 
 
+def test_pre_tool_hook_blocks_ignored_external_method_pack_shadow_authority(
+    worktree: Path,
+) -> None:
+    shadow_path = worktree / ".superpowers/sdd/tasks/progress.md"
+    shadow_path.parent.mkdir(parents=True)
+    (worktree / ".superpowers/sdd/.gitignore").write_text("*\n", encoding="utf-8")
+
+    report = hook_admission_report(
+        HookAdmissionRequest(
+            root=worktree,
+            layer="pre-tool",
+            paths=[shadow_path],
+            editor_root=worktree,
+            require_editor_root=True,
+        )
+    )
+
+    gap = "external_method_pack_shadow_authority:.superpowers/sdd/tasks/progress.md"
+    assert report["ok"] is False
+    assert report["decision"] == {"action": "block", "reason": gap}
+    assert report["admission"]["error"] == gap
+    assert report["admission"]["paths"][0]["ignored"] is True
+    assert report["admission"]["paths"][0]["tracked_candidate"] is False
+    assert report["admission"]["paths"][0]["reason"] == gap
+
+
+def test_pre_tool_hook_admits_ignored_runtime_home(worktree: Path) -> None:
+    runtime_path = worktree / "build/runtime/work/provider/session.json"
+    runtime_path.parent.mkdir(parents=True)
+    runtime_path.write_text("{}\n", encoding="utf-8")
+    (worktree / ".gitignore").write_text("build/\n", encoding="utf-8")
+
+    report = hook_admission_report(
+        HookAdmissionRequest(
+            root=worktree,
+            layer="pre-tool",
+            paths=[runtime_path],
+            editor_root=worktree,
+            require_editor_root=True,
+        )
+    )
+
+    assert report["ok"] is True
+    assert report["admission"]["paths"][0]["ignored"] is True
+    assert report["admission"]["paths"][0]["tracked_candidate"] is False
+    assert report["admission"]["paths"][0]["allowed"] is True
+    assert report["admission"]["paths"][0]["reason"] == "allowed"
+
+
 def test_hook_admit_cli_preserves_control_character_path_token(
     worktree: Path,
 ) -> None:

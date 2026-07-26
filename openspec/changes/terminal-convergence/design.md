@@ -86,6 +86,17 @@ only active implementation carrier for that design.
 12. **Open-world signals.** Verdicts are closed, but gap and feedback vocabularies
     are open. Taxonomies are rebuildable explanations over observed signals and
     must not reject novelty or force new evidence into an incumbent category.
+13. **Replaceable execution substrates.** OpenSpec owns persistent intent,
+    design, tasks, and lifecycle; ETHOS owns PlanIR admission and attestations.
+    Agent hosts, method packs, and durable runtimes may execute or project that
+    truth but may not create a repository-local shadow authority. Runtime
+    selection follows one conformance kit and a native-host baseline rather than
+    a product-name preference. COMET Native is the first local coding-agent
+    candidate; graph runtimes and durable service runtimes enter only when a
+    real consumer proves that need. Checkpoint, CAS, journal, resume, and
+    evaluation mechanisms are useful, while external contract, acceptance,
+    phase, task, and artifact models must not duplicate ChangeContract, PlanIR,
+    or Attestation.
 
 ## Risks / Trade-offs
 
@@ -112,6 +123,8 @@ only active implementation carrier for that design.
 2. Delete the largest self-defeating and provider-coupled surfaces.
 3. Cut over the semantic kernel and delete old packages/models/schemas.
 4. Cut over lifecycle, Worktree Family, candidate CAS, handoff, and branch roles.
+   Prove the optional execution-runtime boundary before selecting any default
+   backend.
 5. Cut over quality, warnings, suppressions, SBOM, provenance, and versioning.
 6. Prove Python, Node/polyglot, and docs/infra adopter homomorphism offline.
 7. Add only the minimal language-neutral protocol, TCK, packs, MCP/A2A, and

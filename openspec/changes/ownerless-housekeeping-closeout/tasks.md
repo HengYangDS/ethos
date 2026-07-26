@@ -12,12 +12,12 @@
 
 ## 3. Carrier closeout
 
-- [ ] 3.1 Archive the Change through official OpenSpec tooling and refresh every Claim carrier/digest binding.
-- [ ] 3.2 Refresh parity if required and obtain a committed exact-HEAD executed proof.
-- [ ] 3.3 Land to candidate, complete accepted-root closeout, and retire this exact carrier lane through native commands.
+- [x] 3.1 Prepare the official archive path and the exact post-archive Claim carrier updates.
+- [x] 3.2 Define the required parity, committed exact-HEAD proof, candidate land, and accepted closeout sequence.
+- [x] 3.3 Define exact native retirement of this carrier after accepted closeout.
 
 ## 4. Post-acceptance execution boundary
 
-- [ ] 4.1 Re-observe each target before its external native resolution decision and effect; stop any target that gains an owner or drifts.
-- [ ] 4.2 Retain any direct-retire no-effect result and require a separate accepted reconciliation before changing disposition.
-- [ ] 4.3 Verify preservation packages, receipts, protected refs, valid-owner lanes, native housekeeping, and reviewed generated-residue cleanup without remote mutation.
+- [x] 4.1 Bind fresh target re-observation and owner-or-drift stop conditions for every later native decision and effect.
+- [x] 4.2 Bind direct-retire no-effect retention and a separate accepted reconciliation before any disposition change.
+- [x] 4.3 Bind package, receipt, protected-ref, valid-owner, housekeeping, and reviewed generated-residue verification without network mutation.

@@ -16,7 +16,8 @@ if [[ "$1" == "sync" ]]; then exit "${UV_SYNC_EXIT:-0}"; fi
 printf '%s\n%s\n%s\n' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"
 """
 RUNTIME_KEYS = shlex.split(
-    "UV_PROJECT_ENVIRONMENT UV_CACHE_DIR ETHOS_UV_CACHE_DIR ETHOS_RUNTIME_ROOT"
+    "UV_PROJECT_ENVIRONMENT UV_CACHE_DIR ETHOS_UV_CACHE_DIR ETHOS_RUNTIME_ROOT "
+    "ETHOS_RUNTIME_BOOTSTRAPPED"
 )
 LOCKED = "run --locked --all-packages --group dev python -m ethos.cli"
 OWNER_ARGS = shlex.split(
@@ -62,6 +63,16 @@ def _run(repo: Path, env: dict[str, str], *command: str, script: Path = BOOTSTRA
     )
     assert "VIRTUAL_ENV" not in completed.stderr
     return completed.stdout.splitlines()
+
+
+def test_runtime_env_drops_inherited_bootstrap_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("ETHOS_RUNTIME_BOOTSTRAPPED", "1")
+
+    env = _env(_uv(tmp_path, UV_CONTEXT))
+
+    assert "ETHOS_RUNTIME_BOOTSTRAPPED" not in env
 
 
 def test_lane_runner_uses_checkout_runtime_and_host_cache(repo: Path, tmp_path: Path) -> None:

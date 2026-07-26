@@ -458,6 +458,25 @@ def test_dynamic_getattr_on_known_execution_modules_fails_closed(
 
 
 @pytest.mark.parametrize(
+    "source",
+    [
+        "__import__('subprocess').run(['tar', '--version'])\n",
+        "import importlib\nimportlib.import_module('subprocess').run(['tar', '--version'])\n",
+        "import subprocess\nglobals()['subprocess'].run(['tar', '--version'])\n",
+    ],
+)
+def test_dynamic_module_loading_and_reflection_fail_closed(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_dynamic_resolution",
+        relative,
+    )
+
+
+@pytest.mark.parametrize(
     "call",
     [
         "os.execv(EXECUTABLE, ['git', 'status'])",

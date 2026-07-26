@@ -48,6 +48,7 @@ def _source_gaps(path: Path, relative: str, binding: CouplingBinding) -> list[st
     except (OSError, SyntaxError, UnicodeError):
         return [_path_gap(binding, relative, "mandatory_executable_source_unavailable")]
     gaps: list[str] = []
+    gaps.extend(_dynamic_resolution_gaps(tree, relative, binding))
     for node, function in external_execution_calls(tree):
         gaps.extend(_call_gaps(node, function, relative, binding))
     return gaps
@@ -56,6 +57,25 @@ def _source_gaps(path: Path, relative: str, binding: CouplingBinding) -> list[st
 def external_execution_calls(tree: ast.AST) -> tuple[tuple[ast.Call, str], ...]:
     """Return external execution calls paired with canonical or fail-closed names."""
     return collect_external_execution_calls(tree)
+
+
+def _dynamic_resolution_gaps(tree: ast.AST, relative: str, binding: CouplingBinding) -> list[str]:
+    """Fail closed on runtime module loading or namespace reflection in mandatory paths."""
+    return [
+        _call_gap(binding, relative, node, "mandatory_executable_dynamic_resolution")
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and _is_dynamic_resolution_call(node)
+    ]
+
+
+def _is_dynamic_resolution_call(node: ast.Call) -> bool:
+    """Return whether a call can hide the module or namespace that owns execution."""
+    if isinstance(node.func, ast.Name):
+        return node.func.id in {"__import__", "globals", "locals", "vars", "import_module"}
+    return isinstance(node.func, ast.Attribute) and node.func.attr in {
+        "__import__",
+        "import_module",
+    }
 
 
 def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBinding) -> list[str]:

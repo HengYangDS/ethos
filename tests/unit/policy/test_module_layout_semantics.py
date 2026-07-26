@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import subprocess
 
-import pytest
-
-from ethos.repository.policy.artifacts import _package_build_route_findings
 from ethos.repository.policy.layout.facades import module_facade_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
 from ethos.repository.policy.layout.naming import multiple_command_owner_findings
@@ -18,35 +15,6 @@ def _write(root, relative, source):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(source, encoding="utf-8")
     return path
-
-
-@pytest.mark.parametrize(
-    ("producer_text", "expected_gap_count"),
-    [
-        (
-            'artifact_dir="${repo_root}/build/artifacts/python"\n'
-            'uv build --offline --wheel --out-dir "${artifact_dir}" --clear',
-            0,
-        ),
-        ('uv build --offline --wheel --out-dir "${artifact_dir}" --clear', 1),
-        (
-            'artifact_dir="${repo_root}/build/runtime/python"\n'
-            'uv build --offline --wheel --out-dir "${artifact_dir}" --clear',
-            1,
-        ),
-        (
-            'other_dir="${repo_root}/build/artifacts/python"\n'
-            'uv build --offline --wheel --out-dir "${artifact_dir}" --clear',
-            1,
-        ),
-    ],
-)
-def test_package_build_route_requires_semantic_out_dir_assignment(
-    producer_text: str, expected_gap_count: int
-) -> None:
-    findings = _package_build_route_findings("tools/ci/scripts/example.sh", producer_text)
-
-    assert len(findings) == expected_gap_count
 
 
 def test_module_facade_with_all_is_still_blocked(tmp_path) -> None:

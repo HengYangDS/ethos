@@ -95,6 +95,26 @@ def test_land_closeout_recovers_only_the_receipt_bound_interrupted_sync(tmp_path
         'recovery_stale_index_lock_confirmation_required',
         'recovery_irreversible_confirmation_required',
     } <= set(unconfirmed['required_gaps'])
+    unauthorised = run_ethos_blocked(
+        'land', '--closeout', '--recover-accepted-worktree-sync',
+        '--failure-receipt', receipt.as_posix(),
+        '--expect-failure-receipt-sha256', hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        '--expect-index-lock-sha256', hashlib.sha256(lock_bytes).hexdigest(),
+        '--lock-quarantine', quarantine.as_posix(),
+        '--apply', '--confirm-stale-index-lock', '--confirm-irreversible',
+        '--expect-head', promoted, '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert 'authorization_required' in unauthorised['required_gaps']
+    missing_head = run_ethos_blocked(
+        'land', '--closeout', '--recover-accepted-worktree-sync',
+        '--failure-receipt', receipt.as_posix(),
+        '--expect-failure-receipt-sha256', hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        '--expect-index-lock-sha256', hashlib.sha256(lock_bytes).hexdigest(),
+        '--lock-quarantine', quarantine.as_posix(),
+        '--apply', '--authorize', '--confirm-stale-index-lock', '--confirm-irreversible',
+        '--root', repo.as_posix(), '--json', cwd=candidate,
+    )
+    assert 'expect_head_required' in missing_head['required_gaps']
     bad_receipt_digest = run_ethos_blocked(
         'land', '--closeout', '--recover-accepted-worktree-sync',
         '--failure-receipt', receipt.as_posix(),

@@ -4,6 +4,7 @@ import hashlib
 import inspect
 import json
 import os
+import sqlite3
 import subprocess
 from copy import deepcopy
 from dataclasses import FrozenInstanceError
@@ -588,6 +589,64 @@ def test_native_admission_distinguishes_current_lease_claim_and_expired_lease(
         payload={"claim_id": "claim:expired"},
     )
     assert _native_admit(expired).existing_reservation is None
+
+
+def test_native_admission_and_fenced_reobservation_ignore_unrelated_legacy_lease(
+    tmp_path: Path,
+) -> None:
+    scenario = _native_new_scenario(tmp_path)
+    db_path = state_database(scenario.repo)
+    unrelated = f"{scenario.branch}-successor"
+    acquire_lease(
+        db_path,
+        subject=unrelated,
+        holder_ref="agent:test:case:unrelated-legacy",
+        ttl_seconds=-1,
+    )
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (json.dumps({"branch": unrelated, "path": "/tmp/legacy"}), unrelated),
+        )
+
+    admission = _native_admit(scenario)
+    fence = _native_acquire_fence(scenario, admission)
+
+    assert (
+        native_admission_api.reobserve_ownerless_closeout_under_fence(
+            admission=admission, fence=fence
+        )
+        == admission
+    )
+
+
+def test_fenced_reobservation_rejects_malformed_exact_subject_lease(tmp_path: Path) -> None:
+    scenario = _native_new_scenario(tmp_path)
+    db_path = state_database(scenario.repo)
+    acquire_lease(
+        db_path,
+        subject=scenario.branch,
+        holder_ref="agent:test:case:malformed-exact",
+        ttl_seconds=-1,
+    )
+    admission = _native_admit(scenario)
+    fence = _native_acquire_fence(scenario, admission)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (
+                json.dumps({"branch": scenario.branch, "path": "/tmp/legacy"}),
+                scenario.branch,
+            ),
+        )
+
+    _native_gap(
+        lambda: native_admission_api.reobserve_ownerless_closeout_under_fence(
+            admission=admission, fence=fence
+        ),
+        "lane_resolution_ownerless_state_unverifiable",
+        "lease",
+    )
 
 
 def test_fence_held_reobservation_returns_the_same_fact_snapshot(tmp_path: Path) -> None:

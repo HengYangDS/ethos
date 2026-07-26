@@ -1,8 +1,8 @@
 [claim]
 id = "ownerless-budget-source-admission-predecessor-retire-retry-20260726"
 subject = "ethos:work-lane:work/20260724-20260724-budget-contract-v2-changed-scope-source-admission"
-state = "active"
-summary = "The exact clean RED predecessor has a new accepted effect-admissible direct-retire Chronicle after its first immutable decision reached no effect at Chronicle validation."
+state = "superseded"
+summary = "This first retry Claim is superseded by ownerless-budget-source-admission-predecessor-target-scoped-retry-20260726 after its decision reached exact lease-state unverifiability and its observation later became stale."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-retire-chronicle-repair-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md"

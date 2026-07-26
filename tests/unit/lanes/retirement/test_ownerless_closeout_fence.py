@@ -121,6 +121,47 @@ def test_closeout_fence_allows_an_expired_lease_residue(tmp_path: Path) -> None:
     assert _acquire(db_path)["subject"] == "work/target"
 
 
+def test_closeout_fence_ignores_unrelated_expired_legacy_lease(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    unrelated = "work/target-successor"
+    legacy_payload = '{"branch":"work/target-successor","path":"/tmp/legacy"}'
+    acquire_lease(
+        db_path,
+        subject=unrelated,
+        holder_ref="agent:test:case:unrelated-legacy",
+        ttl_seconds=-1,
+    )
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (legacy_payload, unrelated),
+        )
+
+    assert _acquire(db_path)["subject"] == "work/target"
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute(
+            "select payload_json from leases where subject = ?", (unrelated,)
+        ).fetchone() == (legacy_payload,)
+
+
+def test_closeout_fence_rejects_malformed_exact_subject_lease(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    acquire_lease(
+        db_path,
+        subject="work/target",
+        holder_ref="agent:test:case:malformed-exact",
+        ttl_seconds=-1,
+    )
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            ('{"branch":"work/target","path":"/tmp/legacy"}', "work/target"),
+        )
+
+    with pytest.raises(ValueError, match="lane_closeout_coordinated:work/target"):
+        _acquire(db_path)
+
+
 @pytest.mark.parametrize("expiry", ["not-a-time", "2026-07-22T16:57:22"])
 def test_closeout_fence_blocks_a_lease_with_ambiguous_expiry(tmp_path: Path, expiry: str) -> None:
     db_path = tmp_path / "state.sqlite"

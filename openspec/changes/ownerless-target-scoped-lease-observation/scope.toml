@@ -1,0 +1,16 @@
+schema_version = 1
+paths = [
+  "packages/ethos/src/ethos/adapters/store/state/closeout.py",
+  "tests/unit/kernel/test_ownerless_state_final_edges.py",
+  "tests/unit/lanes/retirement/test_ownerless_closeout_fence.py",
+  "tests/unit/lanes/retirement/test_ownerless_closeout_admission.py",
+  "evidence/claims/ownerless-target-scoped-lease-observation-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-retire-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-retire-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-target-scoped-retry-20260726.toml",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-target-scoped-retry-20260726.toml",
+  "evidence/chronicle/ownerless-target-scoped-lease-observation-20260726/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/ownerless-target-scoped-lease-observation/**",
+  "openspec/specs/repository-governance/spec.md",
+]

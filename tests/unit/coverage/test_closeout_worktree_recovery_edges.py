@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 from subprocess import CompletedProcess
+from types import SimpleNamespace
 
 import pytest
 
@@ -25,11 +26,14 @@ def _internal(name: str):
 
 atomic_rename_no_replace = _internal("_atomic_rename_no_replace")
 fingerprint = _internal("_fingerprint")
+index_lock_path = _internal("_index_lock_path")
+inside = _internal("_inside")
 lock_fact = _internal("_lock_fact")
 post_recovery_gaps = _internal("_post_recovery_gaps")
 quarantine_fact = _internal("_quarantine_fact")
 quarantine_lock = _internal("_quarantine_lock")
 recovery_head_drift_gaps = _internal("_recovery_head_drift_gaps")
+recovery_residue_gaps = _internal("_recovery_residue_gaps")
 recovery_receipt = _internal("_recovery_receipt")
 
 
@@ -392,3 +396,346 @@ def test_recovery_report_blocks_malformed_observation_before_effect(
     )
 
     assert report["required_gaps"] == ["recovery_observation_invalid"]
+
+
+def test_recovery_inspection_reports_each_forensic_precondition(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Inspection accumulates each failed receipt, head, and lock binding."""
+    current = "a" * 40
+
+    def inspect(
+        receipt: dict[str, object],
+        heads: dict[str, str],
+        is_ancestor,
+        lock_gap: str = "",
+    ) -> dict[str, object]:
+        monkeypatch.setattr(closeout, "_recovery_receipt", lambda *_args: (receipt, []))
+        monkeypatch.setattr(closeout, "_recovery_heads", lambda *_args: heads)
+        monkeypatch.setattr(closeout, "_recovery_residue_gaps", lambda *_args: [])
+        monkeypatch.setattr(closeout, "_index_lock_path", lambda *_args: (None, lock_gap))
+        monkeypatch.setattr(closeout, "_lock_fact", lambda *_args: ({}, []))
+        monkeypatch.setattr(closeout, "_quarantine_fact", lambda *_args, **_kwargs: ({}, []))
+        return closeout.inspect_accepted_worktree_sync_recovery(
+            _request(tmp_path),
+            dependencies=closeout.CloseoutDependencies(is_ancestor=is_ancestor),
+        )
+
+    missing = inspect(
+        {},
+        {"head": "wrong", "accepted": "wrong", "candidate": ""},
+        lambda *_args: False,
+        "recovery_index_lock_path_unavailable",
+    )
+    assert missing["required_gaps"] == [
+        "recovery_previous_head_missing",
+        "recovery_candidate_head_missing",
+        "recovery_promoted_refs_mismatch",
+        "recovery_candidate_not_descendant",
+        "recovery_index_lock_path_unavailable",
+    ]
+
+    previous, receipt_candidate, observed_candidate = "c" * 40, "b" * 40, "d" * 40
+    drifted = inspect(
+        {"previous_head": previous, "candidate_head": receipt_candidate},
+        {"head": current, "accepted": current, "candidate": observed_candidate},
+        lambda _root, left, right: (left, right) == (current, observed_candidate),
+    )
+    assert drifted["required_gaps"] == [
+        "recovery_receipt_candidate_head_mismatch",
+        "recovery_previous_head_not_ancestor",
+    ]
+
+    invalid_previous = inspect(
+        {"previous_head": "not-a-head", "candidate_head": current},
+        {"head": current, "accepted": current, "candidate": current},
+        lambda *_args: True,
+    )
+    assert invalid_previous["required_gaps"] == ["recovery_previous_head_invalid"]
+
+
+def test_recovery_effect_rejects_invalid_inspection_and_post_sync_gaps(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Effect execution cannot pass malformed, raced, or post-sync observations."""
+    lock = tmp_path / "index.lock"
+    quarantine = tmp_path / "quarantine.lock"
+    lock.write_bytes(b"stale lock\n")
+    digest = hashlib.sha256(lock.read_bytes()).hexdigest()
+    request = _request(tmp_path, expected_lock_sha256=digest, quarantine=quarantine)
+    lock_data = lock_fact(lock, digest)[0]
+
+    monkeypatch.setattr(
+        closeout,
+        "inspect_accepted_worktree_sync_recovery",
+        lambda *_args, **_kwargs: {"ok": False, "required_gaps": ["recovery_not_ready"]},
+    )
+    not_ready = closeout.recover_accepted_worktree_sync(request)
+    assert not_ready["required_gaps"] == ["recovery_not_ready"]
+
+    for lock_observation, expected_gap in (
+        ([], "recovery_observation_invalid"),
+        ({"fingerprint": []}, "recovery_index_lock_fingerprint_invalid"),
+    ):
+        monkeypatch.setattr(
+            closeout,
+            "inspect_accepted_worktree_sync_recovery",
+            lambda *_args, lock_observation=lock_observation, **_kwargs: {
+                "ok": True,
+                "index_lock": lock_observation,
+                "lock_quarantine": {},
+                "required_gaps": [],
+            },
+        )
+        report = closeout.recover_accepted_worktree_sync(request)
+        assert report["required_gaps"] == [expected_gap]
+
+    inspected = {
+        "ok": True,
+        "previous_head": "e" * 40,
+        "receipt": {},
+        "index_lock": lock_data,
+        "lock_quarantine": {"path": quarantine.as_posix()},
+        "required_gaps": [],
+    }
+    monkeypatch.setattr(
+        closeout,
+        "inspect_accepted_worktree_sync_recovery",
+        lambda *_args, **_kwargs: inspected,
+    )
+    monkeypatch.setattr(closeout, "_quarantine_lock", lambda *_args: "recovery_index_lock_drift")
+    raced = closeout.recover_accepted_worktree_sync(request)
+    assert raced["required_gaps"] == ["recovery_index_lock_drift"]
+    assert "lock_quarantined" not in raced
+
+    monkeypatch.setattr(closeout, "_quarantine_lock", lambda *_args: "")
+    monkeypatch.setattr(closeout, "_recovery_head_drift_gaps", lambda *_args: [])
+    monkeypatch.setattr(closeout, "sync_worktree_to_head", lambda *_args: (_completed(), 1))
+    monkeypatch.setattr(
+        closeout,
+        "_post_recovery_gaps",
+        lambda *_args, **_kwargs: ["recovery_postcondition_failed"],
+    )
+    post_sync = closeout.recover_accepted_worktree_sync(request)
+    assert post_sync["required_gaps"] == ["recovery_postcondition_failed"]
+    assert post_sync["lock_quarantine"] == {"path": quarantine.as_posix()}
+
+
+def test_recovery_private_helpers_fail_closed_on_unreadable_forensic_inputs(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Private forensic helpers reject every unreadable or racing input state."""
+    request = _request(tmp_path)
+    assert recovery_receipt(request) == ({}, ["recovery_failure_receipt_required"])
+
+    inside_receipt = request.root / "receipt.json"
+    inside_receipt.parent.mkdir()
+    inside_receipt.write_text("{}", encoding="utf-8")
+    _fact, gaps = recovery_receipt(_request(tmp_path, receipt=inside_receipt))
+    assert gaps == ["recovery_failure_receipt_invalid"]
+
+    external_receipt = tmp_path / "receipt.json"
+    external_receipt.write_text("{}", encoding="utf-8")
+    _fact, gaps = recovery_receipt(
+        _request(
+            tmp_path,
+            receipt=external_receipt,
+            expected_receipt_sha256="not-a-digest",
+        )
+    )
+    assert gaps == [
+        "recovery_failure_receipt_digest_invalid",
+        "recovery_failure_receipt_shape_invalid",
+    ]
+
+    assert recovery_residue_gaps(tmp_path, "", lambda *_args, **_kwargs: _completed()) == [
+        "recovery_previous_head_missing"
+    ]
+    assert index_lock_path(tmp_path, lambda *_args, **_kwargs: _completed(returncode=1)) == (
+        None,
+        "recovery_index_lock_path_unavailable",
+    )
+
+    lock = tmp_path / "index.lock"
+    lock.write_bytes(b"stale lock\n")
+    assert lock_fact(lock, "not-a-digest")[1] == ["recovery_index_lock_digest_invalid"]
+    missing_lock = tmp_path / "missing.lock"
+    assert lock_fact(missing_lock, "a" * 64)[1] == ["recovery_index_lock_missing"]
+    lock_data = lock_fact(lock, hashlib.sha256(lock.read_bytes()).hexdigest())[0]
+    quarantine = tmp_path / "quarantine.lock"
+
+    original_lstat = Path.lstat
+    with monkeypatch.context() as patch:
+        def unreadable_quarantine(path: Path):
+            if path == quarantine:
+                raise PermissionError
+            return original_lstat(path)
+
+        patch.setattr(
+            Path,
+            "lstat",
+            unreadable_quarantine,
+        )
+        _fact, gaps = quarantine_fact(
+            quarantine,
+            root=request.root,
+            candidate_path=request.candidate_path,
+            lock=lock_data,
+        )
+    assert gaps == ["recovery_lock_quarantine_invalid"]
+
+    _fact, gaps = quarantine_fact(
+        quarantine,
+        root=request.root,
+        candidate_path=request.candidate_path,
+        lock={"path": (tmp_path / "missing-source.lock").as_posix()},
+    )
+    assert gaps == ["recovery_lock_quarantine_invalid"]
+
+    digest = hashlib.sha256(lock.read_bytes()).hexdigest()
+    assert quarantine_lock(lock, quarantine, {"ino": -1}, digest) == "recovery_index_lock_drift"
+    with monkeypatch.context() as patch:
+        patch.setattr(closeout, "_atomic_rename_no_replace", lambda *_args: None)
+        assert (
+            quarantine_lock(lock, quarantine, lock_data["fingerprint"], digest)
+            == "recovery_lock_quarantine_drifted"
+        )
+    with monkeypatch.context() as patch:
+        def stable_lock_fact(path: Path, expected: str):
+            return {
+                "path": path.as_posix(),
+                "sha256": expected,
+                "fingerprint": lock_data["fingerprint"],
+            }, []
+
+        patch.setattr(
+            closeout,
+            "_atomic_rename_no_replace",
+            lambda source, target: target.write_bytes(source.read_bytes()),
+        )
+        patch.setattr(closeout, "_lock_fact", stable_lock_fact)
+        assert (
+            quarantine_lock(lock, quarantine, lock_data["fingerprint"], digest)
+            == "recovery_index_lock_present_after_quarantine"
+        )
+
+
+@pytest.mark.parametrize("platform", ["darwin", "linux", "win32"])
+def test_atomic_no_replace_rejects_unsupported_platform_bindings(
+    tmp_path: Path,
+    monkeypatch,
+    platform: str,
+) -> None:
+    """Every unsupported native binding blocks before moving a forensic lock."""
+    library = SimpleNamespace(renameatx_np=None, renameat2=None)
+    monkeypatch.setattr(closeout.sys, "platform", platform)
+    monkeypatch.setattr(closeout.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+
+    with pytest.raises(OSError, match="atomic no-replace rename is unavailable"):
+        atomic_rename_no_replace(tmp_path / "source", tmp_path / f"{platform}.lock")
+
+
+def test_atomic_no_replace_reports_native_nonexist_errors(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """A native error other than target existence remains fail-closed."""
+    class NativeOperation:
+        argtypes = None
+        restype = None
+
+        def __call__(self, *_args) -> int:
+            return -1
+
+    monkeypatch.setattr(closeout.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        closeout.ctypes,
+        "CDLL",
+        lambda *_args, **_kwargs: SimpleNamespace(renameatx_np=NativeOperation()),
+    )
+    monkeypatch.setattr(closeout.ctypes, "get_errno", lambda: errno.EIO)
+
+    with pytest.raises(OSError, match="Errno 5") as error:
+        atomic_rename_no_replace(tmp_path / "source", tmp_path / "target")
+
+    assert error.value.errno == errno.EIO
+
+
+def test_recovery_postconditions_and_path_checks_fail_closed_on_os_errors(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Unreadable quarantines and path resolution faults remain visible blockers."""
+    lock = tmp_path / "index.lock"
+    quarantine = tmp_path / "quarantine.lock"
+    lock.write_bytes(b"stale lock\n")
+    digest = hashlib.sha256(lock.read_bytes()).hexdigest()
+    lock_data = lock_fact(lock, digest)[0]
+    request = _request(tmp_path)
+    lock.unlink()
+
+    with monkeypatch.context() as patch:
+        patch.setattr(closeout, "_recovery_head_drift_gaps", lambda *_args: [])
+        patch.setattr(closeout, "_lock_fact", lambda *_args: (_ for _ in ()).throw(OSError()))
+        gaps = post_recovery_gaps(
+            request,
+            lock=lock_data,
+            quarantine=quarantine,
+            run=lambda *_args, **_kwargs: _completed(),
+        )
+    assert gaps == ["recovery_lock_quarantine_drifted"]
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "resolve", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError()))
+        assert inside(tmp_path / "path", tmp_path) is True
+
+
+def test_recovery_report_plans_a_valid_residue_without_running_effect(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """A verified dry run returns the recovery plan without touching the lock."""
+    head = "a" * 40
+    candidate = tmp_path / "candidate"
+    monkeypatch.setattr(mutation, "run_git", lambda *_args, **_kwargs: _completed(stdout=head))
+    monkeypatch.setattr(mutation, "load_branch_role_policy", lambda *_args: BranchRolePolicy())
+    monkeypatch.setattr(
+        mutation,
+        "workspace_status",
+        lambda *_args, **_kwargs: {
+            "role": "accepted_root",
+            "dirty": True,
+            "candidate": {"head": head, "worktree_path": candidate.as_posix()},
+        },
+    )
+    monkeypatch.setattr(
+        mutation,
+        "inspect_accepted_worktree_sync_recovery",
+        lambda *_args, **_kwargs: {"ok": True, "residue_exact": True, "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        mutation,
+        "recover_accepted_worktree_sync",
+        lambda *_args, **_kwargs: pytest.fail("dry run reached recovery effect"),
+    )
+
+    report = mutation.closeout_worktree_sync_recovery_report(
+        root=tmp_path,
+        request=RecoveryMutationRequest(
+            command="closeout_worktree_recovery",
+            apply=False,
+            authorized=False,
+            expect_head=head,
+        ),
+        inputs=CloseoutWorktreeRecoveryInputs(
+            failure_receipt=None,
+            expect_failure_receipt_sha256="",
+            expect_index_lock_sha256="",
+            lock_quarantine=None,
+        ),
+    )
+
+    assert (report["ok"], report["state"], report["required_gaps"]) == (True, "planned", [])

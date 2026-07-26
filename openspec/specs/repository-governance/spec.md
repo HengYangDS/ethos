@@ -3893,7 +3893,7 @@ lane-specific semantic judgment before any native retirement effect.
 
 - **GIVEN** accepted reconciliation authorized transient
   `lane_resolution/preserve-retire` for exact clean ownerless lanes only after
-  direct retirement reached a WCP no-effect boundary
+  direct retirement reached a no-effect boundary
 - **AND** native effects removed the exact branches and worktrees while retaining
   verified packages with empty tracked and index patches
 - **WHEN** a separate accepted successor binds each exact decision ID,

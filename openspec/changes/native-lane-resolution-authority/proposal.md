@@ -31,10 +31,10 @@ control plane.
   implementation, full proof, and official archive evidence. Normalize retired
   provider vocabulary from the current tracked tree while preserving chronology
   and meaning.
-- Normalize the final dated historical-retention projection that still spells a
-  retired control-plane identifier. Preserve its exact heads, commits,
-  dispositions, and source blob/digest provenance in the current projection;
-  do not rewrite the historical Git objects.
+- Normalize the remaining dated historical-retention projection and archived
+  OpenSpec wording that still spell retired-provider identifiers. Preserve exact
+  heads, commits, dispositions, and source blob/digest provenance in the
+  current projection; do not rewrite historical Git objects.
 
 ## Capabilities
 

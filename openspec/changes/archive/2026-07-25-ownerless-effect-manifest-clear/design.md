@@ -1,7 +1,7 @@
 ## Context
 
 The accepted reconciliation carrier authorized a transient preservation bridge
-for three exact clean ownerless lanes after direct retire reached a correct WCP
+for three exact clean ownerless lanes after direct retirement reached a correct
 no-effect boundary. Native effects have now removed all three exact branches and
 worktrees while retaining content-addressed packages with valid bundles and
 empty tracked/index patches.

@@ -1,0 +1,54 @@
+[claim]
+id = "accepted-closeout-interrupted-sync-recovery-20260726"
+subject = "ethos:accepted-closeout-worktree-recovery"
+state = "active"
+summary = "This active Claim bounds only the receipt-bound accepted-worktree sync recovery Change and its stated local failure boundary."
+
+[evidence]
+dated = "evidence/chronicle/accepted-closeout-interrupted-sync-recovery-20260726/2026-07-26.md"
+sha256 = "bb1409171e6a7e2c38a502b039df344278375f6fc935b03d7a416e8049c63a0b"
+evidence_ids = ["evidence:accepted-closeout-interrupted-sync-recovery-20260726"]
+binding = "This digest-only Claim links the active Change, dated Chronicle, scoped source and tests, and the stated recovery boundary. It makes no statement about execution, promotion, publication, hosted operation, or remotes."
+verifier = "digest_only"
+tests = [
+  "openspec validate accepted-closeout-interrupted-sync-recovery --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/cli/test_contracts_closeout.py tests/unit/coverage/test_closeout_control_recheck_edge.py tests/unit/coverage/test_closeout_worktree_recovery_edges.py tests/unit/kernel/test_mutation_reducer.py tests/architecture/test_product_boundaries.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One receipt-bound accepted-worktree synchronization recovery after an already-promoted native closeout; it excludes generic dirty-root reset, ref/lease/proof/SQLite mutation, retired-resolution state, remote publication, hosted execution, and foreign-lane action."
+
+[carriers]
+openspec = "openspec/changes/accepted-closeout-interrupted-sync-recovery"
+fallback = "Stop and preserve all observed state when any receipt, Git, index, lock, quarantine, runner-ancestry, or postcondition binding differs."
+kill_signal = "Any generic dirty-root bypass, ref movement, unverified lock action, retired-resolution dependency, or claim that local readiness proves land, publication, hosted execution, or remote mutation."
+
+[promotion]
+targets = [
+  { kind = "evidence", path = "evidence/claims/accepted-closeout-interrupted-sync-recovery-20260726.toml" },
+  { kind = "evidence", path = "evidence/chronicle/accepted-closeout-interrupted-sync-recovery-20260726/2026-07-26.md" },
+  { kind = "openspec", path = "openspec/changes/accepted-closeout-interrupted-sync-recovery" },
+  { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
+  { kind = "docs", path = "docs/architecture/runner-and-mutation.md" },
+  { kind = "docs", path = "docs/reference/command-plane.md" },
+  { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts/lifecycle/core.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/closeout/core.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/core.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/root/lifecycle.py" },
+  { kind = "schema", path = ".config/checks/ruff/ratchet.toml" },
+  { kind = "schema", path = "system/invalid_states.toml" },
+  { kind = "tests", path = "tests/architecture/test_product_boundaries.py" },
+  { kind = "tests", path = "tests/unit/cli/test_contracts_closeout.py" },
+  { kind = "tests", path = "tests/unit/coverage/test_closeout_control_recheck_edge.py" },
+  { kind = "tests", path = "tests/unit/coverage/test_closeout_worktree_recovery_edges.py" },
+  { kind = "tests", path = "tests/unit/kernel/test_mutation_reducer.py" },
+]

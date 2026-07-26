@@ -36,6 +36,13 @@ class MutationRequest(LifecycleModel):
         }
 
 
+class CloseoutWorktreeRecoveryRequest(MutationRequest):
+    """Explicit confirmations for one receipt-bound accepted-worktree recovery."""
+
+    confirm_stale_index_lock: bool = False
+    confirm_irreversible: bool = False
+
+
 class MutationEvaluation(LifecycleModel):
     """Pure lifecycle decision; the public contract remains ``AdmissionDecision``."""
 
@@ -149,6 +156,13 @@ CLOSEOUT_MUTATION = MutationTransition(
     role_gap="accepted_root_required",
     dirty_gap="accepted_root_dirty",
     current_state="current",
+)
+
+CLOSEOUT_WORKTREE_RECOVERY_MUTATION = MutationTransition(
+    id="accepted_closeout_worktree_recovery",
+    required_role="accepted_root",
+    role_gap="accepted_root_required",
+    dirty_gap="recovery_residue_invalid",
 )
 
 

@@ -185,11 +185,11 @@ def test_sync_cli_and_hook_edges(  # noqa: PLR0915, RUF100 - related closeout ed
         assert advance(dependencies=deps, **common)["required_gaps"] == ["accepted_atomic_update_rejected"]  # fmt: skip
     for synced, status, gap in ((cp(stderr="sync", returncode=1), cp(), "accepted_worktree_sync_failed"), (cp(), cp(stdout="M"), "accepted_worktree_dirty_after_sync")):  # fmt: skip
         with monkeypatch.context() as patch:
-            _patch(patch, closeout, _write_intents=lambda *_args: [], _clear_intents=lambda *_args: None, _ref_transaction=lambda *_args, **_kwargs: cp(), _sync=lambda *_args, synced=synced: (synced, 1))  # fmt: skip
+            _patch(patch, closeout, _write_intents=lambda *_args: [], _clear_intents=lambda *_args: None, _ref_transaction=lambda *_args, **_kwargs: cp(), sync_worktree_to_head=lambda *_args, synced=synced: (synced, 1))  # fmt: skip
             deps = closeout.CloseoutDependencies(run_git=lambda *_args, status=status, **_kwargs: status)  # fmt: skip
             assert advance(dependencies=deps, **common)["required_gaps"] == [gap]
     assert (closeout.proof_required_gaps(None), closeout.proof_carry_failure(request, None)["required_gaps"]) == (["proof_invalid"], ["proof_invalid"])  # fmt: skip
-    sync = closeout._sync  # noqa: SLF001, RUF100 - retry edge
+    sync = closeout.sync_worktree_to_head
     assert sync(tmp_path, "h", _runner(cp(stderr="index.lock", returncode=1), cp()))[1] == 2
     release = closeout.CloseoutTransition("refs/heads/main", "old", "new", "new")
     trees = [{"branch": "main", "path": str(tmp_path), "worktree_binding": "linked"}]
@@ -250,3 +250,7 @@ def test_sync_cli_and_hook_edges(  # noqa: PLR0915, RUF100 - related closeout ed
     _patch(monkeypatch, hook_cli.git_adapter, set_hooks_path=lambda *_args: True, set_config=lambda *_args: False)  # fmt: skip
     hook_cli.install(root=tmp_path)
     assert set(emitted[-1].required_gaps) == {"hook_config_write_failed:ethos.acceptedBranch", "hook_config_write_failed:gc.packRefs"}  # fmt: skip
+
+
+def test_interrupted_accepted_sync_has_a_native_recovery_surface() -> None:
+    assert callable(getattr(closeout, "recover_accepted_worktree_sync", None))

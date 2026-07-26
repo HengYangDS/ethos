@@ -19,9 +19,11 @@ import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
+from ethos.adapters.mutation.core import CloseoutWorktreeRecoveryInputs
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import candidate_base_report
+from ethos.adapters.mutation.core import closeout_worktree_sync_recovery_report
 from ethos.adapters.mutation.core import evaluate_closeout_mutation
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.core import proof_readiness_report
@@ -44,6 +46,7 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import emit_invalid_adopter_profile
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.lifecycle.core import CloseoutWorktreeRecoveryRequest
 from ethos_core.contracts.lifecycle.core import MutationEvaluation
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.normalization.core import string_mapping
@@ -67,6 +70,71 @@ class _CloseoutPayload:
     gaps: tuple[str, ...]
     ok: bool
     control_replacement: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _CloseoutRecoveryPayload:
+    repo: Path
+    mutation: CloseoutWorktreeRecoveryRequest
+    report: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _CloseoutRecoveryOptions:
+    apply: bool
+    authorize: bool
+    expect_head: str | None
+    closeout: bool
+    failure_receipt: Path | None
+    expect_failure_receipt_sha256: str
+    expect_index_lock_sha256: str
+    lock_quarantine: Path | None
+    confirm_stale_index_lock: bool
+    confirm_irreversible: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _LandOptions:
+    apply: bool = False
+    authorize: bool = False
+    expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    closeout: bool = False
+    recover_accepted_worktree_sync: Annotated[
+        bool,
+        Parameter(name="--recover-accepted-worktree-sync"),
+    ] = False
+    failure_receipt: Annotated[Path | None, Parameter(name="--failure-receipt")] = None
+    expect_failure_receipt_sha256: Annotated[
+        str,
+        Parameter(name="--expect-failure-receipt-sha256"),
+    ] = ""
+    expect_index_lock_sha256: Annotated[
+        str,
+        Parameter(name="--expect-index-lock-sha256"),
+    ] = ""
+    lock_quarantine: Annotated[Path | None, Parameter(name="--lock-quarantine")] = None
+    confirm_stale_index_lock: Annotated[
+        bool,
+        Parameter(name="--confirm-stale-index-lock"),
+    ] = False
+    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False
+    control_verifier_receipt: Annotated[
+        Path | None,
+        Parameter(name="--control-verifier-receipt"),
+    ] = None
+
+
+_DEFAULT_LAND_OPTIONS = _LandOptions()
+
+
+@dataclass(frozen=True, slots=True)
+class _PublishExpectedStateOptions:
+    repo: Path
+    branch: str
+    current_head: str
+    publication: Mapping[str, object]
+    remote_observations: Mapping[str, object]
+    branch_admission: Mapping[str, object]
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +194,67 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
     )
 
 
+def _closeout_recovery_result(payload: _CloseoutRecoveryPayload) -> EthosResult:
+    gaps = tuple(string_sequence(payload.report.get("required_gaps")))
+    ok = bool(payload.report.get("ok"))
+    next_actions = (
+        (f"ethos land --closeout --root {payload.repo.resolve().as_posix()} --json",)
+        if ok and payload.mutation.apply
+        else ("ethos land --closeout --recover-accepted-worktree-sync --json",)
+    )
+    return EthosResult(
+        command="land",
+        ok=ok,
+        state=str(payload.report.get("state") or "blocked"),
+        required_gaps=gaps,
+        next_actions=next_actions,
+        governance_context=context_for_root(payload.repo),
+        data={
+            "accepted_worktree_recovery": payload.report,
+            "mutation": mutation_envelope(
+                payload.mutation,
+                action="accepted.worktree_recover",
+                resource=f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}",
+                expected_state={"root": payload.repo.resolve().as_posix(), "accepted_head": git.current_head(payload.repo)},
+                verdict="allow" if ok else "block",
+                required_gaps=gaps,
+                next_actions=next_actions,
+                state=str(payload.report.get("state") or "blocked"),
+            ),
+        },
+    )
+
+
+def _closeout_recovery_payload(
+    *,
+    repo: Path,
+    options: _CloseoutRecoveryOptions,
+) -> _CloseoutRecoveryPayload:
+    request = CloseoutWorktreeRecoveryRequest(
+        command="closeout_worktree_recovery",
+        apply=options.apply,
+        authorized=options.authorize,
+        expect_head=options.expect_head,
+        confirm_stale_index_lock=options.confirm_stale_index_lock,
+        confirm_irreversible=options.confirm_irreversible,
+    )
+    report = (
+        closeout_worktree_sync_recovery_report(
+            root=repo,
+            request=request,
+            inputs=CloseoutWorktreeRecoveryInputs(
+                failure_receipt=options.failure_receipt,
+                expect_failure_receipt_sha256=options.expect_failure_receipt_sha256,
+                expect_index_lock_sha256=options.expect_index_lock_sha256,
+                lock_quarantine=options.lock_quarantine,
+            ),
+        )
+        if options.closeout
+        else {"ok": False, "state": "blocked", "required_gaps": ["recovery_closeout_required"]}
+    )
+    return _CloseoutRecoveryPayload(repo=repo, mutation=request, report=report)
+
+
 def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[str, ...]:
     """Return top-level publish actions without hiding publication work."""
     if not ok:
@@ -154,9 +283,9 @@ def _object_mapping(value: object) -> dict[str, object]:
     return cast("dict[str, object]", value) if isinstance(value, dict) else {}
 
 
-def _publish_expected_state(*, repo: Path, branch: str, current_head: str, publication: Mapping[str, object], remote_observations: Mapping[str, object], branch_admission: Mapping[str, object]) -> dict[str, object]:
-    target_branch = str(publication.get("submit_branch") or branch)
-    observations = {key: _object_mapping(value) for key, value in remote_observations.items()}
+def _publish_expected_state(options: _PublishExpectedStateOptions) -> dict[str, object]:
+    target_branch = str(options.publication.get("submit_branch") or options.branch)
+    observations = {key: _object_mapping(value) for key, value in options.remote_observations.items()}
     primary = observations.get("gitlab", {})
     availability = _object_mapping(primary.get("availability"))
     sync = _object_mapping(primary.get("sync"))
@@ -164,9 +293,9 @@ def _publish_expected_state(*, repo: Path, branch: str, current_head: str, publi
         {"id": key, "remote": str(_object_mapping(data.get("availability")).get("remote") or ""), "availability_state": str(_object_mapping(data.get("availability")).get("state") or "not_probed"), "sync_state": str(_object_mapping(data.get("sync")).get("state") or "not_checked"), "observed_remote_ref": str(_object_mapping(data.get("sync")).get("remote_ref") or ""), "observed_remote_head": str(_object_mapping(data.get("sync")).get("remote_head") or "")} for key, data in observations.items()
     ]
     return {
-        "root": repo.resolve().as_posix(),
-        "source_ref": f"refs/heads/{branch}",
-        "source_head": current_head,
+        "root": options.repo.resolve().as_posix(),
+        "source_ref": f"refs/heads/{options.branch}",
+        "source_head": options.current_head,
         "target_ref": f"refs/heads/{target_branch}",
         "remote": str(availability.get("remote") or "origin"),
         "observed_remote_ref": str(sync.get("remote_ref") or ""),
@@ -174,7 +303,7 @@ def _publish_expected_state(*, repo: Path, branch: str, current_head: str, publi
         "remote_availability_state": str(availability.get("state") or "not_probed"),
         "remote_sync_state": str(sync.get("state") or "not_checked"),
         "remote_targets": targets,
-        "branch_admission": dict(branch_admission),
+        "branch_admission": dict(options.branch_admission),
     }
 
 
@@ -204,56 +333,66 @@ def _stable_control_replacement(*, repo: Path, audit_root: Path, accepted_head: 
     return report, tuple(string_sequence(report.get("required_gaps")))
 
 
-def land(*, apply: bool = False, authorize: bool = False, expect_head: str | None = None, closeout: bool = False, control_verifier_receipt: Annotated[Path | None, Parameter(name="--control-verifier-receipt")] = None, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
-    """Report land readiness."""
-    repo = resolve_root(root)
-    profile = load_repository_profile(repo)
-    if not is_product_root(repo) and profile.state == "invalid":
-        emit_invalid_adopter_profile(
-            command="land",
-            json_output=json_output,
-            enforce=apply,
+def _emit_closeout_recovery(*, repo: Path, options: _LandOptions, json_output: bool) -> None:
+    result = _closeout_recovery_result(
+        _closeout_recovery_payload(
+            repo=repo,
+            options=_CloseoutRecoveryOptions(
+                apply=options.apply,
+                authorize=options.authorize,
+                expect_head=options.expect_head,
+                closeout=options.closeout,
+                failure_receipt=options.failure_receipt,
+                expect_failure_receipt_sha256=options.expect_failure_receipt_sha256,
+                expect_index_lock_sha256=options.expect_index_lock_sha256,
+                lock_quarantine=options.lock_quarantine,
+                confirm_stale_index_lock=options.confirm_stale_index_lock,
+                confirm_irreversible=options.confirm_irreversible,
+            ),
         )
-        return
-    current_head = git.current_head(repo)
-    if closeout:
-        request = MutationRequest(command="closeout", apply=apply, authorized=authorize, expect_head=expect_head)
-        decision = evaluate_closeout_mutation(request, root=repo, current_head=current_head)
-        audit_root = land_core.closeout_audit_root(repo, decision)
-        audited_candidate_head = _observed_candidate_head(repo, current_head)
-        audit = land_core.repository_audit_after_admission(audit_root, decision, current_head=audited_candidate_head)
-        lifecycle = completed_active_changes_report(audit_root)
-        control_replacement, control_gaps = _stable_control_replacement(repo=repo, audit_root=audit_root, accepted_head=current_head, candidate_head=audited_candidate_head, external_receipt=control_verifier_receipt)
-        gaps = tuple(string_sequence(audit.get("required_gaps"))) + decision.gaps + tuple(string_sequence(lifecycle.get("required_gaps"))) + control_gaps
-        ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
-        update: dict[str, object] = {}
-        if ok and apply:
-            control_replacement, fresh_control_gaps = _stable_control_replacement(repo=repo, audit_root=audit_root, accepted_head=current_head, candidate_head=audited_candidate_head, external_receipt=control_verifier_receipt)
-            gaps = (*gaps, *fresh_control_gaps)
-            ok = not fresh_control_gaps
-        if ok and apply:
-            update = apply_candidate_to_accepted(root=repo, authorized=authorize, expect_head=expect_head, candidate_head=audited_candidate_head)
-            gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
-            ok = bool(update["ok"])
-        result = _closeout_result(_CloseoutPayload(repo=repo, mutation=request, decision=decision, audit_root=audit_root, audit=audit, lifecycle=lifecycle, update=update, gaps=gaps, ok=ok, current_head=current_head, control_replacement=control_replacement))
-        emit(result, json_output=json_output, enforce=apply)
-        return
+    )
+    emit(result, json_output=json_output, enforce=options.apply)
 
+
+def _emit_accepted_closeout(*, repo: Path, options: _LandOptions, current_head: str, json_output: bool) -> None:
+    request = MutationRequest(command="closeout", apply=options.apply, authorized=options.authorize, expect_head=options.expect_head)
+    decision = evaluate_closeout_mutation(request, root=repo, current_head=current_head)
+    audit_root = land_core.closeout_audit_root(repo, decision)
+    audited_candidate_head = _observed_candidate_head(repo, current_head)
+    audit = land_core.repository_audit_after_admission(audit_root, decision, current_head=audited_candidate_head)
+    lifecycle = completed_active_changes_report(audit_root)
+    control_replacement, control_gaps = _stable_control_replacement(repo=repo, audit_root=audit_root, accepted_head=current_head, candidate_head=audited_candidate_head, external_receipt=options.control_verifier_receipt)
+    gaps = tuple(string_sequence(audit.get("required_gaps"))) + decision.gaps + tuple(string_sequence(lifecycle.get("required_gaps"))) + control_gaps
+    ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
+    update: dict[str, object] = {}
+    if ok and options.apply:
+        control_replacement, fresh_control_gaps = _stable_control_replacement(repo=repo, audit_root=audit_root, accepted_head=current_head, candidate_head=audited_candidate_head, external_receipt=options.control_verifier_receipt)
+        gaps = (*gaps, *fresh_control_gaps)
+        ok = not fresh_control_gaps
+    if ok and options.apply:
+        update = apply_candidate_to_accepted(root=repo, authorized=options.authorize, expect_head=options.expect_head, candidate_head=audited_candidate_head)
+        gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
+        ok = bool(update["ok"])
+    result = _closeout_result(_CloseoutPayload(repo=repo, mutation=request, decision=decision, audit_root=audit_root, audit=audit, lifecycle=lifecycle, update=update, gaps=gaps, ok=ok, current_head=current_head, control_replacement=control_replacement))
+    emit(result, json_output=json_output, enforce=options.apply)
+
+
+def _emit_work_lane_land(*, repo: Path, options: _LandOptions, current_head: str, json_output: bool) -> None:
     governance = context_for_root(repo)
     status_payload = workspace_status(repo, include_foreign_path_scope=False)
     closeout_support = string_mapping(status_payload.get("closeout_support"))
     closeout_gaps: tuple[str, ...] = ()
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
         closeout_gaps = tuple(string_sequence(closeout_support.get("required_gaps")))
-    request = MutationRequest(command="land", apply=apply, authorized=authorize, expect_head=expect_head)
-    decision = evaluate_mutation(request, root=repo, current_head=current_head, status=None if apply else status_payload)
+    request = MutationRequest(command="land", apply=options.apply, authorized=options.authorize, expect_head=options.expect_head)
+    decision = evaluate_mutation(request, root=repo, current_head=current_head, status=None if options.apply else status_payload)
     audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
     gaps = tuple(string_sequence(audit.get("required_gaps"))) + decision.gaps + closeout_gaps + tuple(string_sequence(lifecycle.get("required_gaps")))
     ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
     update: dict[str, object] = {}
-    if ok and apply:
-        update = apply_land_to_candidate(root=repo, authorized=authorize, expect_head=expect_head, admitted_decision=decision)
+    if ok and options.apply:
+        update = apply_land_to_candidate(root=repo, authorized=options.authorize, expect_head=options.expect_head, admitted_decision=decision)
         gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
         ok = bool(update["ok"])
     elif ok:
@@ -262,11 +401,11 @@ def land(*, apply: bool = False, authorize: bool = False, expect_head: str | Non
             gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = False
     proof_readiness: dict[str, object] = {}
-    if ok and not apply:
+    if ok and not options.apply:
         proof_readiness = proof_readiness_report(repo, current_head)
         gaps = gaps + tuple(string_sequence(proof_readiness.get("required_gaps")))
         ok = not bool(proof_readiness["blocking"])
-    state = "ready_to_land" if ok and not apply else "blocked" if gaps else str(update.get("state") or decision.state)
+    state = "ready_to_land" if ok and not options.apply else "blocked" if gaps else str(update.get("state") or decision.state)
     mutation_next_actions = land_core.land_next_actions(ok=ok, gaps=gaps, current_head=current_head)
     result = EthosResult(
         command="land",
@@ -284,7 +423,29 @@ def land(*, apply: bool = False, authorize: bool = False, expect_head: str | Non
             "mutation": mutation_envelope(request, action="candidate.integrate", resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}", expected_state=_land_expected_state(repo=repo, current_head=current_head, status_payload=status_payload, closeout_support=closeout_support), verdict="allow" if ok else "block", required_gaps=gaps, next_actions=mutation_next_actions, state=state),
         },
     )
-    emit(result, json_output=json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=options.apply)
+
+
+def land(
+    options: Annotated[_LandOptions, Parameter(name="*")] = _DEFAULT_LAND_OPTIONS,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report land readiness."""
+    repo = resolve_root(root)
+    profile = load_repository_profile(repo)
+    if not is_product_root(repo) and profile.state == "invalid":
+        emit_invalid_adopter_profile(command="land", json_output=json_output, enforce=options.apply)
+        return
+    current_head = git.current_head(repo)
+    if options.recover_accepted_worktree_sync:
+        _emit_closeout_recovery(repo=repo, options=options, json_output=json_output)
+        return
+    if options.closeout:
+        _emit_accepted_closeout(repo=repo, options=options, current_head=current_head, json_output=json_output)
+        return
+    _emit_work_lane_land(repo=repo, options=options, current_head=current_head, json_output=json_output)
 
 
 def publish(options: Annotated[_PublishOptions, Parameter(name="*")] = _DEFAULT_PUBLISH_OPTIONS, *, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
@@ -345,7 +506,16 @@ def publish(options: Annotated[_PublishOptions, Parameter(name="*")] = _DEFAULT_
     # upgrades this no-push command into an executed publication transition.
     publication_verdict = "block" if gaps else "defer"
     transition_ok = ok and (not options.apply or publication_verdict == "allow")
-    publish_expected_state = _publish_expected_state(repo=repo, branch=str(branch), current_head=current_head, publication=publication, remote_observations=remote_observations, branch_admission=branch_admission)
+    publish_expected_state = _publish_expected_state(
+        _PublishExpectedStateOptions(
+            repo=repo,
+            branch=str(branch),
+            current_head=current_head,
+            publication=publication,
+            remote_observations=remote_observations,
+            branch_admission=branch_admission,
+        )
+    )
     result = EthosResult(
         command="publish",
         ok=transition_ok,

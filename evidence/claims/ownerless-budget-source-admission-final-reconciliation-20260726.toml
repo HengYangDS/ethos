@@ -1,0 +1,43 @@
+[claim]
+id = "ownerless-budget-source-admission-final-reconciliation-20260726"
+subject = "ethos:work-lane-cohort:ownerless-budget-source-admission-final-reconciliation"
+state = "active"
+summary = "Records a bounded later reconciliation for two exact clean ownerless budget predecessors after fresh direct-retire attempts reached the same no-effect ancestry boundary."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/2026-07-26.md"
+sha256 = "3d126bb3140c3e591c5efa32977b61e00a8a3248ed16392f3e5e269caa42584b"
+evidence_ids = ["evidence:ownerless-budget-source-admission-final-reconciliation-20260726"]
+binding = "This digest-only Claim binds accepted head 3b04f2dfa3638099753bb484bf4f4e1cea19ceaa, direct-retire decisions lane-decision:4838b832-ce13-4392-913d-99a6ebc3cbbd and lane-decision:6d1a4a1d-4b3e-4cd1-9d2e-303e8688d45e, observation digests 96f19134e6b818e70d410cd26dc712b57b5ec568cb6259b3912c12be888c6c9e and 64c76ea6527ea01f4001f7a903040fd2b526b3c3761d5b2310815e8f7607e329, target Chronicle SHA-256 values 5f76e5977d1a11278976aca2a0a41c6fe6df459127f9e02670e691fd2952dd38 and b8fe110a6c6f997234d1758f593558e8ea400ac3a5656312ab4d69861a2fff46, the exact no-effect result lane_resolution_ownerless_target_not_accepted_ancestor, and two later fresh preserve-retire decisions only after accepted closeout."
+verifier = "digest_only"
+tests = [
+  "openspec validate ownerless-budget-source-admission-final-reconciliation --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-budget-source-admission-final-reconciliation --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution inventory --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Two exact clean missing-lease predecessor lanes, two immutable direct-retire no-effect records, and two later serial preserve-retire effects. No product code, feature acceptance, valid-owner mutation, package clear, network operation, provider claim, raw Git/SQLite action, or IDE/session mutation."
+
+[carriers]
+openspec = "openspec/changes/ownerless-budget-source-admission-final-reconciliation"
+fallback = "Leave both sources and every valid-owner lane intact whenever any exact target, decision, Chronicle, lease, Claim, registration, accepted, package, receipt, or inventory fact differs."
+kill_signal = "Any old decision is reused, a no-effect result is hidden, a valid-owner lane is treated as disposable, a target is removed without native preservation, or retained recovery material is cleared without later accepted exact-manifest authority."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-budget-source-admission-final-reconciliation-20260726.toml",
+  "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/2026-07-26.md",
+  "evidence/claims/ownerless-budget-source-admission-predecessor-preserve-retire-20260726.toml",
+  "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/20260724-budget-contract-v2-changed-scope-source-admission.md",
+  "evidence/claims/ownerless-budget-source-admission-successor-predecessor-preserve-retire-20260726.toml",
+  "evidence/chronicle/ownerless-budget-source-admission-final-reconciliation-20260726/20260725-budget-contract-v2-changed-scope-source-admission-successor.md",
+  "openspec/changes/ownerless-budget-source-admission-final-reconciliation",
+  "openspec/specs/repository-governance/spec.md",
+]

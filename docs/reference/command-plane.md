@@ -67,91 +67,55 @@ ethos adopt --root <repo> --apply --authorize --expect-head <git-head> --json
 ethos doctor
 ```
 
-Quality and governance:
+Quality and governance use the singular proof surface:
 
 ```bash
-ethos quality command-registry
-ethos quality command-surface
-ethos quality command-examples
-ethos quality format-policy
-ethos quality code-size
-ethos quality module-layout
-ethos quality projection-drift
-ethos quality evidence-freshness
-ethos quality coupling-audit
-ethos quality asset-policy
-ethos quality docs
-ethos quality proof-policy
-ethos quality tool-profiles
-ethos quality claims
-ethos quality docs-registry
-ethos quality docs-topology
-ethos quality generated-artifacts
-ethos quality gates
-ethos quality provenance
-ethos quality schemas
-ethos quality commits
-ethos quality release
-ethos quality release-policy
-ethos quality release-attestation
-ethos quality sbom
-ethos quality standards
-ethos quality projection-drift
-ethos audit
+ethos prove --gate schemas --json
+ethos prove --gate docs-registry --json
+ethos prove --gate docs-topology --json
+ethos prove --gate generated-artifacts --json
+ethos prove --gate product-boundary --json
+ethos prove --gate module-layout --json
+ethos prove --gate source-budget --json
+ethos prove --execute --expect-head <git-head> --json
+ethos prove --full --execute --expect-head <git-head> --json
 ethos audit --mode shape
 ethos audit --mode deep
 ethos openspec --lifecycle
-ethos prove --execute
-ethos prove --full --execute
-ethos prove --expect-head <git-head>
-ethos prove --scope proof-kernel
-ethos prove --scope proof-kernel --host --probe
 ethos campaign hypotheses
 ethos campaign closeout --adopter <adopter-id> --target <repo>
-ethos intake status
-ethos intake mine
-ethos hook admit pre-tool <paths> --editor-root <worktree-path> --require-editor-root
-ethos hook admit pre-run --command <shell-command>
-ethos hook admit post-write <paths> --editor-root <worktree-path>
-ethos parity ledger
-ethos parity gaps --adopter <adopter-id>
-ethos parity gaps --adopter <adopter-id> --target <repo>
-ethos parity shadow --target <repo>
-ethos parity shadow --adopter <adopter-id> --target <repo>
 ethos status
 ethos docs
 ethos explain <gap-or-signal>
 ```
 
-`ethos quality docs-topology --json` audits the Minimal Semantic Documentation Topology Contract. It requires the minimal semantic common docs kernel (`docs/README.md`, `docs/decisions/`, `docs/evidence/`, `docs/history/`, and `docs/reference/`) while forbidding `current`/`future` roots such as `docs/current/` and `docs/future/`. Product or adopter roots such as `docs/architecture/`, `docs/concepts/`, `docs/start/`, `docs/governance/`, `docs/plans/`, and `docs/research/` are extensions, not required kernel lanes. `ethos fleet retirement-readiness --target <repo> --root <product> --json` uses the same audit as a blocking embedded-backend retirement gate.
+Cyclopts declarations own command names, parameters, help, and dispatch.
+`system/gates.toml` owns gate metadata and proof floors. A gate either invokes a
+concrete Python provider directly or one external owner script/tool; it never
+loops back through another ETHOS command. There is no command registry and no
+parallel quality command forest.
 
-`ethos quality governance-kernel --json` is the independent guard for
-Isomorphic Governance. It checks the live `governance_context`, the
-product/adopter governance profile isomorphism, the product docs that make the
-contract discoverable, and the minimal adoption binding. A clean verdict means
-product and adopted repositories share the same kernel and same transition
-command semantics; only profile and adapter bindings may vary.
+`ethos prove --gate docs-topology --json` audits the Minimal Semantic
+Documentation Topology Contract. `ethos fleet retirement-readiness --target
+<repo> --root <product> --json` consumes the same owner as a blocking retirement
+check.
 
-`ethos quality generated-artifacts --json` audits the Generated Artifact Topology Contract. It routes repository paths into declarative interface, local runtime, generated output, curated evidence, governed-docs, source-tree, package-metadata, and review-required classes; it blocks tracked generated drift outside `.cache/local-state/`, `.ethos/state/`, `build/runtime/tool-cache/`, `build/runtime/work/`, `build/ethos/`, `build/evidence/`, and `build/artifacts/`, while keeping `.config/ethos/` declarative-only and requiring curated evidence promotion under `docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`. Promotion from `build/evidence/` or `build/ethos/` requires an explicit reviewed summary that binds command, scope, verifier, digest, and HEAD; runtime caches and local artifacts are regenerated, not promoted. The JSON also includes lifecycle classes (`runtime_cache`, `machine_evidence`, `local_artifact`, `curated_evidence`) and an `entrypoint_audit` that verifies active producer entrypoints route pytest, Ruff, import-linter, package builds, and local provider emulator state to semantic homes before they can recreate root or flat generated residue.
+`ethos prove --gate product-boundary --json` composes the product-boundary,
+contributor-policy, and Isomorphic Governance providers. Product and adopted
+repositories share the same transition and command semantics; only profile and
+adapter bindings vary.
 
-`ethos quality evidence-freshness --json` is profile-aware. Its summary reports the active profile durable evidence root. The product-default `evidence/` root and non-docs custom evidence roots use the strict kernel layout (`claims/`, `chronicle/`, `parity/`). A profile-declared `docs/evidence` root is audited as curated profile evidence so existing adopter delivery or rollback evidence trees can remain under `docs/evidence/` without becoming generated output or product-owned adopter fixtures.
+`ethos prove --gate generated-artifacts --json` audits generated-output routing
+and promotion boundaries. Runtime caches and local artifacts are regenerated,
+not promoted.
 
-Active claims also declare an explicit evidence-freshness contract. `historical`
-means dated, digest-bound Chronicle support and deliberately makes no
-current-HEAD assertion. `head_bound` requires one exact current HEAD.
-`semantic_scope` requires a declared HEAD plus a digest of the current semantic
-promotion scope. Missing freshness is a required gap: ETHOS does not infer an
-undeclared currentness mode or turn durable history into an unearned
-present-tense proof.
+`ethos prove --gate evidence-freshness --json` checks profile-aware durable
+evidence and declared freshness. Historical evidence cannot mint current truth.
 
-`ethos quality module-layout --json` audits repository-owned Python across product
-source, tests, tools, and agent scripts. It blocks ambiguous module or package
-names, multiple command owners, compatibility facades, package-root submodule
-imports, and cross-module private imports. Product-package topology and
-repository-wide semantic rules have separate configured scopes so pytest and tool
-carrier syntax is not mistaken for domain architecture. There is no baseline or
-allowlist: every reported semantic gap remains blocking until its owner is
-absorbed, precisely renamed, split by a real semantic axis, or deleted.
+`ethos prove --gate module-layout --json` audits repository-owned Python across
+source, tests, tools, and agent scripts. Every reported semantic gap remains
+blocking until its owner is absorbed, precisely renamed, split by a real semantic
+axis, or deleted.
 
 Agent projections:
 
@@ -704,14 +668,14 @@ reports `state=ready` with `executed=false` when planning and static admission
 pass. `ethos prove --execute --json` can report `state=proven` because every
 selected gate records an exit code. `ethos prove --full --json` without
 execution is intentionally `gapped` with `full_proof_requires_execute`.
-`ethos prove --scope proof-kernel --json` is a compatibility contract for
-adopters whose existing governance invokes scoped proof-kernel checks; scope is
+`ethos prove --scope proof-kernel --json` is a bounded proof-scope selector;
+scope is
 proof-boundary metadata and does not override `--gate`, `--full`, or profile gate
 selection. `--host --probe` records an optional host-local readiness boundary in
 `data.host_probe`; it does not satisfy repository proof, hosted CI, publication,
 or adopter retirement readiness by itself.
 
-`ethos quality coupling-audit --json` reports product-semantic hard bindings,
+`ethos prove --gate repository-audit --json` reports product-semantic hard bindings,
 mandatory governance dependencies, native protocol bindings, product-toolchain
 toolchain bindings, profile or adapter bindings, historical evidence, and
 test-fixture coupling boundaries through `data.binding_registry`. The
@@ -741,6 +705,6 @@ explicit `changed-scope` route and path-glob metadata.
 
 `ethos status --json` includes blocking Skills V2 gaps in its bounded readiness
 projection. `ethos prove --execute --gate playbooks-v2 --json` executes the strict
-playbook gate. `ethos quality projection-drift --json` reports package drift,
+playbook gate and reports package drift,
 the normalized registry digest, the expected registry digest, the playbook
 generator digest, the expected generator digest, and activation input digests.

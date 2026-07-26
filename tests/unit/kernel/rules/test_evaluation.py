@@ -177,7 +177,7 @@ def test_rule_evaluation_blocks_timeout_nondeterminism_and_conflicts(
     assert "fact_unresolved_conflicts:merge" in report["required_gaps"]
 
 
-def test_rule_evaluation_ignores_non_authoritative_claim_and_registry_facts(
+def test_rule_evaluation_ignores_non_authoritative_claim_and_interface_facts(
     tmp_path: Path,
 ) -> None:
     snapshot = complete_snapshot(phase="prove")
@@ -191,9 +191,9 @@ def test_rule_evaluation_ignores_non_authoritative_claim_and_registry_facts(
                 {"ok": False, "stale": ["evidence/rules.md"]},
                 owner="ethos-repository.claims",
             ),
-            "command_registry": fact(
-                {"ok": False, "required_gaps": ["parallel_command_truth"]},
-                owner="ethos-repository.command-registry",
+            "interface_projection": fact(
+                {"ok": False, "required_gaps": ["parallel_interface_truth"]},
+                owner="ethos-interface-projection",
             ),
         }
     )
@@ -203,7 +203,7 @@ def test_rule_evaluation_ignores_non_authoritative_claim_and_registry_facts(
     assert not any(
         name in gap
         for gap in report["required_gaps"]
-        for name in ("claim_state", "evidence_freshness", "command_registry")
+        for name in ("claim_state", "evidence_freshness", "interface_projection")
     )
 
 

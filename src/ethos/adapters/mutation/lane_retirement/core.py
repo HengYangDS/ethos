@@ -25,7 +25,7 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.transition import LifecycleModel
+from ethos.contracts.lifecycle.reducer import LifecycleModel
 from ethos.normalization.core import string_sequence
 
 

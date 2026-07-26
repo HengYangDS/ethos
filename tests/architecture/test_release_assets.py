@@ -400,7 +400,7 @@ def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
     policy = (ROOT / ".config/checks/docstrings/policy.toml").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
-    assert "ethos quality docstrings" in runner
+    assert "ethos prove --execute --gate docstrings" in runner
     assert "--min-coverage" not in runner
     assert "fail_under = 100" in policy
     assert 'paths = ["src/ethos"]' in policy
@@ -419,7 +419,7 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
     precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
-    assert "ethos quality module-layout" in runner
+    assert "ethos prove --execute --gate module-layout" in runner
     assert "--flat-directory-limit" not in runner
     assert 'semantic_paths = ["."]' in policy
     assert 'package_paths = ["src/ethos"]' in policy

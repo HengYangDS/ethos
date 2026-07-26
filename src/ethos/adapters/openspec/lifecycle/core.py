@@ -6,6 +6,9 @@ from typing import NamedTuple
 
 from ethos.adapters.openspec.preflight.core import openspec_archive_preflight_report
 from ethos.adapters.openspec.protocol.core import proposal_protocol_report
+from ethos.normalization.core import object_sequence
+from ethos.normalization.core import string_mapping
+from ethos.normalization.core import string_sequence
 from ethos.repository.openspec.audit import change_tasks_complete
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
@@ -199,11 +202,11 @@ def _lifecycle_names(
 ) -> tuple[list[str], tuple[str, ...]]:
     if requested:
         return [requested], () if change_tasks_complete(root, requested) else (requested,)
-    items = (
-        [item for item in payload if isinstance(item, dict) and item.get("name")]
-        if isinstance(payload, list)
-        else []
-    )
+    items = [
+        string_mapping(item)
+        for item in object_sequence(payload)
+        if isinstance(item, dict) and item.get("name")
+    ]
     names = [str(item["name"]) for item in items]
     active = tuple(
         str(item["name"]) for item in items if not change_tasks_complete(root, str(item["name"]))
@@ -229,11 +232,11 @@ def _change_report(
         if not present
     ]
     contract = scope.change_contract_report(root, name)
-    gaps.extend(map(str, contract["required_gaps"]))
+    gaps.extend(string_sequence(contract.get("required_gaps")))
     if logical_change_identifier_issue(name):
         gaps.append(f"openspec_active_change_identifier_invalid:{name}")
     protocol = proposal_protocol_report(root, name)
-    gaps.extend(map(str, protocol["required_gaps"]))
+    gaps.extend(string_sequence(protocol.get("required_gaps")))
     preflight = (
         openspec_archive_preflight_report(root, name, base_command=base_command)
         if base_command is not None
@@ -247,7 +250,7 @@ def _change_report(
             "required_gaps": [],
         }
     )
-    gaps.extend(map(str, preflight["required_gaps"]))
+    gaps.extend(string_sequence(preflight.get("required_gaps")))
     return {
         "name": name,
         "path": change_root.relative_to(root).as_posix(),

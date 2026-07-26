@@ -2,1378 +2,242 @@
 
 ## Purpose
 
-ETHOS SHALL define quality, determinism, documentation quality, proof policy,
-and asset-governance semantics as a first-class product capability.
+ETHOS SHALL make repository quality a deterministic proof concern with one owner
+per property, one gate declaration plane, and no command-shaped quality shadow.
+
 ## Requirements
-### Requirement: Quality Asset Model
-
-ETHOS SHALL model repository assets across code, docs, shell, configuration,
-evidence, release artifacts, and adopter profiles. The tracked active-tool
-catalog SHALL be the sole declaration of an admitted tool's identity, profile,
-configuration, and optional gate boundary; comparative lifecycle decisions
-belong only to the tooling roadmap.
-
-#### Scenario: Asset policy is reported
-
-- **WHEN** `ethos quality asset-policy --json` runs
-- **THEN** ETHOS reports asset classes, dimensions, and catalog-derived tool
-  profiles without executing provider tools
-
-#### Scenario: Tool profiles are catalog-derived
-
-- **WHEN** `ethos quality tool-profiles --json` or
-  `ethos quality asset-policy --json` reports quality tool adapters
-- **THEN** every adapter is derived from exactly one `system/tools.toml` entry
-- **AND** its concern, tool identity, configuration, profile, and optional gate
-  agree with that entry
-- **AND** catalog membership means the mechanism is admitted and active without
-  a repeated lifecycle-state field
-- **AND** candidate, deferred, and rejected mechanisms own no runtime catalog
-  row
-- **AND** no parallel static Python tool-adapter registry supplies conflicting
-  tool truth
-
-### Requirement: Python Lint and Format Ratchet
-
-ETHOS SHALL enforce Python lint and format through Ruff and SHALL keep
-explicitly frozen ignored-rule debt visible and non-increasing. A rule whose
-finding count reaches zero SHALL leave both the ignore set and ratchet,
-returning to direct enforcement.
-
-#### Scenario: Ruff gate blocks current hard rules and ignored-rule growth
-
-- **WHEN** hosted CI or `ethos prove --execute --json` runs the Python lint gate
-- **THEN** ETHOS invokes `tools/ci/scripts/run-python-lint.sh`
-- **AND** that owner script runs Ruff check and Ruff format with explicit
-  `.config/checks/ruff/ruff.toml`, plus the Ruff ignored-rule ratchet script
-- **AND** Ruff runtime cache lives under ignored `build/runtime/tool-cache/ruff`, not root `.ruff_cache/`
-- **AND** the Ruff ratchet uses the same tracked Python file set as Ruff check and
-  Ruff format, so packages, tools, tests, agent scripts, and CI adapters obey one
-  repository-wide Python law
-- **AND** each baseline in `.config/checks/ruff/ratchet.toml` must equal the
-  current finding count for that ignored rule, not a slack maximum
-- **AND** the gate fails both when findings exceed a baseline and when findings
-  fall below a stale baseline, forcing debt reductions to be recorded
-- **AND** a rule whose finding count reaches zero is removed from the ignored-rule
-  ratchet and returns to the hard Ruff rule set
-- **AND** a rule baseline may be lowered when findings are removed, but may not
-  increase without an explicit quality debt decision
-
-#### Scenario: A zero-finding temporal rule returns to direct enforcement
-
-- **WHEN** the policy-exception clock uses an explicit UTC calendar boundary
-- **THEN** the whole tracked Python corpus reports zero `DTZ011` findings
-- **AND** `DTZ011` is absent from the Ruff ignore list and ratchet baseline
-- **AND** any future `DTZ011` finding blocks the ordinary Ruff owner script
-
-#### Scenario: An eliminated unused-method-argument rule returns to direct enforcement
-
-- **WHEN** the Python quality policy and owner lint gate run against all tracked
-  Python files
-- **THEN** the corpus reports zero `ARG002` findings
-- **AND** `ARG002` is absent from the Ruff global ignore list and ratchet
-  baseline
-- **AND** any future `ARG002` finding fails the canonical Ruff owner gate
-- **AND** no alternate command, baseline, or compatibility policy accepts it
-
-#### Scenario: Dry-run actions bind their declared execution root
-
-- **WHEN** `DryRunRunner` plans an action with a repository root
-- **THEN** it resolves that root without executing the action
-- **AND** it returns a planned action result
-
-#### Scenario: An eliminated exception-message rule returns to direct enforcement
-
-- **WHEN** the Python quality policy and owner lint gate run against all tracked
-  Python files
-- **THEN** the corpus reports zero `EM102` findings
-- **AND** `EM102` is absent from the Ruff global ignore list and ratchet baseline
-- **AND** any future `EM102` finding fails the canonical Ruff owner gate
-- **AND** no alternate command, baseline, or compatibility policy accepts it
-
-#### Scenario: An obsolete process-execution rule returns to direct enforcement
-
-- **WHEN** the Python quality policy and owner lint gate run against all tracked
-  Python files
-- **THEN** the corpus reports zero `S606` findings
-- **AND** `S606` is absent from the Ruff global ignore list and ratchet baseline
-- **AND** the quality-audit owner script contains no Python-before-3.11 re-exec
-  bootstrap or alternate host command path
-- **AND** any future `S606` finding fails the canonical Ruff owner gate
-- **AND** no alternate command, baseline, or compatibility policy accepts it
-
-### Requirement: Gate Descriptor Model
-
-ETHOS SHALL describe quality gates with asset classes, dimensions, execution
-mode, evidence class, trust-bearing classification, tool adapter, file-write
-policy, network policy, and version source. Gate descriptors, ordered runtime
-and quality views, and product/adopter proof floors SHALL compile from one
-strict, immutable, declaration-first registry rather than parallel Python
-registries.
-
-#### Scenario: Gate descriptors are reported
-
-- **WHEN** `ethos quality gates --json` runs
-- **THEN** every gate includes the quality descriptor fields required by the
-  gate schema
-
-#### Scenario: Gate registry has one declaration owner
-
-- **WHEN** runtime proof planning or quality-gate reporting loads the gate registry
-- **THEN** `system/gates.toml` is the repository declaration owner
-- **AND** `pyproject.toml` projects it into the wheel as
-  `ethos/data/gates.toml`
-- **AND** frozen Pydantic v2 contracts reject unknown fields, empty commands,
-  duplicate gate ids per view, unavailable dependencies, and unknown proof-set ids
-- **AND** Python compiles the declaration to runtime and quality projections but
-  does not restate gate records or proof floors as hand-written registries
-
-#### Scenario: Adopter-native gates extend the typed runtime registry
-
-- **GIVEN** an adopted repository declares native code-correctness gate ids
-- **WHEN** proof planning compiles the repository gate registry
-- **THEN** each native id must have a complete descriptor under the profile
-  proof table, including an executable command
-- **AND** validated descriptors extend the runtime registry and participate in
-  action-graph validation, policy digest, and proof-run conformance checks
-- **AND** an id-only, invalid, duplicate, or product-conflicting descriptor emits
-  an `adopter_gate_descriptor_*` required gap instead of raising an exception,
-  guessing a command, overriding a product gate, or silently skipping the gate
-
-### Requirement: Proof Policy Lattice
-
-ETHOS SHALL distinguish planned, readiness, executed, proven, blocked,
-accepted-risk, and waived-nonblocking proof states.
-
-#### Scenario: Trust-bearing consumers require proven evidence
-
-- **WHEN** `ethos quality proof-policy --json` runs
-- **THEN** only `proven` is marked trust-bearing for claim, land, publish,
-  release, and repository governance consumers
-
-### Requirement: Documentation Quality Profile
-
-ETHOS SHALL make documentation faithfulness, expressiveness, and elegance
-mechanically checkable through metadata, visible reader sections, glossary,
-links, anchors, and command examples.
-
-#### Scenario: Docs profile is reported
-
-- **WHEN** `ethos quality docs --json` runs
-- **THEN** ETHOS reports docs quality profile checks alongside governed docs
-  registry health
-
-#### Scenario: Tracked Markdown violates its native lint policy
-
-- **WHEN** `tools/ci/scripts/run-markdown-lint.sh` evaluates tracked Markdown
-  that violates the configured markdownlint policy
-- **THEN** the owner script fails with a line-addressed diagnostic
-- **AND** hosted CI does not report the quality workflow or repository proof as
-  successful
-- **AND** the gate does not rewrite the governed document automatically
-
-### Requirement: Parallel Timeout-Bound Test Gate
-
-ETHOS SHALL run the default Python test gate through a reusable owner script that
-supports bounded parallel execution, timeout protection, slow-test visibility,
-JUnit output, branch coverage, and the configured hard coverage floor. The owner
-script SHALL accept optional paired timeout-seconds/timeout-method and
-run-as-UID/run-as-GID inputs, validate either pair before test execution, and
-otherwise preserve the repository-wide pytest defaults and caller identity.
-
-#### Scenario: default Python test gate is bounded and parallel-capable
-
-- **WHEN** hosted CI or `ethos prove --execute --json` runs the Python test gate
-- **THEN** ETHOS invokes `tools/ci/scripts/run-python-tests.sh`
-- **AND** pytest policy requires `pytest-timeout` and strict config/marker handling
-- **AND** the owner script honors `ETHOS_TEST_WORKERS`, defaulting to parallel workers
-- **AND** the owner script reports slow test durations and writes JUnit output under `build/evidence/quality/tests/pytest`
-- **AND** pytest runtime cache lives under ignored `build/runtime/tool-cache/pytest`, not `.config/`
-- **AND** benchmark and Allure reporting remain planned or opt-in unless admitted as active gates
-
-#### Scenario: hosted macOS proof requires observable timeout failure
-
-- **GIVEN** the repository-wide pytest default remains 120 seconds with thread
-  timeout handling
-- **WHEN** the self-hosted macOS GitHub repository-proof job invokes the Python
-  test owner script with four workers
-- **THEN** the provider projection sets a 300-second signal timeout through the
-  validated paired owner-script inputs
-- **AND** a timeout is reported as a pytest test failure rather than an abrupt
-  xdist worker exit
-- **AND** GitLab and callers without the paired inputs retain the repository-wide
-  defaults
-- **AND** missing, non-positive, or unsupported override values fail before test
-  execution.
-
-#### Scenario: GitLab Docker proof preserves root bootstrap and truthful worker isolation
-
-- **GIVEN** the GitLab Docker executor launches `python:3.14` as root so bootstrap
-  can install the pinned Node runtime and maintain persistent root-owned caches
-- **WHEN** the `ethos:verify` job reaches the Python test owner script
-- **THEN** GitLab supplies the complete numeric UID/GID pair `65534:65534`
-- **AND** the owner script requires a root launcher and `setpriv`, prepares only
-  generated `build/` and temporary test paths for that identity, and runs pytest
-  with cleared supplementary groups
-- **AND** before returning to later root-owned job stages, the owner script
-  restores root ownership of generated build and pytest temporary paths
-- **AND** the run-as pair is consumed before pytest so nested owner-script calls
-  remain unprivileged without attempting a second root-only drop
-- **AND** the test process retains only exact safe-directory overlays for the
-  checkout root and `.git`, plus the fsmonitor-disable overlay
-- **AND** a missing, partial, zero, non-decimal, non-root, or unavailable-`setpriv`
-  identity request fails before pytest execution
-- **AND** the complete Linux gate SHALL independently exercise platform adapter
-  contracts and satisfy the configured 100% branch-coverage floor.
-
-### Requirement: Configuration and Script Quality Gates
-
-ETHOS SHALL make configuration and runner-script quality executable through
-reusable owner scripts rather than provider-specific CI inline policy, and the
-same owner scripts SHALL participate in the default ETHOS proof floor.
-
-#### Scenario: Python tool policy is owned outside the repository root
-
-- **WHEN** the Python lint or Python test gate executes
-- **THEN** ETHOS invokes the reusable owner scripts under `tools/ci/scripts/`
-- **AND** Ruff policy is read from `.config/checks/ruff/ruff.toml`
-- **AND** pytest configuration is read from `.config/checks/pytest/pytest.ini`
-- **AND** root `pyproject.toml` carries only the pytest discovery cache route to
-  `build/runtime/tool-cache/pytest`
-- **AND** the repository root does not contain `ruff.toml` or `pytest.ini`
-- **AND** adopter-native gates and provider projections do not assume the product
-  repository's Ruff, pytest, or owner-script surfaces
-
-#### Scenario: Bare pytest discovery preserves the semantic cache boundary
-
-- **WHEN** a human or IDE invokes pytest from the repository root without the
-  repository owner script
-- **THEN** pytest discovers only the root cache route and writes cache under
-  `build/runtime/tool-cache/pytest`
-- **AND** the invocation does not gain owner-script test selection, strictness,
-  coverage, JUnit, or proof semantics
-- **AND** the invocation does not create root `.pytest_cache`
-
-#### Scenario: Product docs may reference bounded owner scripts
-
-- **WHEN** `ethos quality command-examples --json` scans active product docs
-- **THEN** ETHOS admits documented `tools/ci/scripts/*.sh` examples as bounded
-  repository-owned runner-script surfaces
-- **AND** arbitrary `tools/**` command roots remain unknown command examples
-
-#### Scenario: TOML and YAML configuration gates execute through owner scripts
-
-- **WHEN** hosted CI or `ethos quality toml --json` / `ethos quality yaml --json` runs
-- **THEN** ETHOS invokes the reusable configuration lint script
-- **AND** TOML files are parsed, checked for exactly one final newline, checked
-  for trailing whitespace, formatted with the configured Taplo policy, and linted
-  with Taplo
-- **AND** YAML files are linted with the configured Yamllint policy
-- **AND** `.gitlab-ci.yml` does not duplicate Taplo or Yamllint policy inline
-
-#### Scenario: Shell quality executes through the owner script
-
-- **WHEN** hosted CI or `ethos quality shell --json` runs
-- **THEN** ETHOS invokes the reusable shell lint script
-- **AND** ShellCheck policy is read from `.config/checks/shell/.shellcheckrc`
-- **AND** `.gitlab-ci.yml` does not duplicate ShellCheck policy inline
-
-#### Scenario: Tool catalog exposes active configuration gates
-
-- **WHEN** `system/tools.toml` is inspected
-- **THEN** TOML, YAML, and shell concerns are marked active with their owning
-  config path and reusable gate script
-- **AND** planned tool entries do not masquerade as active gates
-
-#### Scenario: Default proof consumes the active quality floor
-
-- **WHEN** `ethos prove --json` builds its default PlanIR
-- **THEN** the plan includes TOML, YAML, shell, Python lint, Python type,
-  docstring, module-layout, Python size, unit/coverage, and format-policy gates
-- **AND** CI, pre-commit, and proof invoke reusable owner scripts instead of
-  copying tool command policy into provider projections
-
-#### Scenario: Report exposes hard quality-floor gaps
-
-- **WHEN** a product hard quality gate such as Python size, module layout,
-  coverage, type policy, or public-surface docstrings reports required gaps
-- **THEN** `ethos status --json` includes those gaps in its blocking
-  `required_gaps`
-- **AND** the report state is not ready
-- **AND** the report payload includes a `hard_quality_floor` read model with the
-  contributing gate verdicts
-- **AND** next actions point to the concrete standalone quality command instead
-  of implying full proof can close the gap
-
-#### Scenario: Coverage quality read model reports the active floor
-
-- **WHEN** `ethos quality coverage --json` runs
-- **THEN** ETHOS reports the coverage policy source, current hard floor, aspirational
-  floor, branch coverage requirement, configured source paths, configured
-  `fail_under`, owner script, and latest coverage artifact summary when present
-- **AND** the command reports required gaps when policy or config is missing,
-  `fail_under` diverges from the hard floor, branch coverage is disabled while
-  required, the latest artifact is missing or malformed, or latest coverage is
-  below the hard floor
-- **AND** when the Python test owner script holds the coverage evidence write
-  lock and the latest artifact is temporarily absent, the command reports the
-  writer as in-progress advisory state rather than a stale coverage failure
-- **AND** the command remains read-only and does not replace the reusable Python
-  test gate owner script
-
-### Requirement: Repository Hygiene Gate
-
-ETHOS SHALL make repository-shape hygiene visible through one owner script and a
-separated policy file so host-local residue, text-shape drift, merge markers,
-large tracked files, malformed JSON, and forbidden stash guidance cannot hide in
-Git, global ignores, provider projections, or hook-local behavior.
-
-#### Scenario: Hidden root host-local residue fails closed
-
-- **WHEN** `tools/ci/scripts/run-repository-hygiene.sh` runs
-- **THEN** the gate reads `.config/checks/repository-hygiene/policy.toml` as the
-  policy owner
-- **AND** globally ignored root host-local files such as `.DS_Store`,
-  `Thumbs.db`, and `Desktop.ini` fail with a required hygiene error
-- **AND** the gate reports the residue without deleting, stashing, or promoting
-  it into repository truth
-- **AND** CI providers, pre-commit hooks, and local CI call the owner script
-  instead of duplicating the policy body.
-
-#### Scenario: Historical carriers are not active stash guidance
-
-- **WHEN** repository hygiene scans Chronicle records under `evidence/chronicle/`
-  or archived OpenSpec carriers under `openspec/changes/archive/`
-- **THEN** final-newline, line-ending, conflict-marker, large-file, and structured
-  carrier checks continue to apply
-- **AND** the stash-guidance check does not reinterpret historical records as
-  current operating instructions
-- **AND** positive stash guidance in active docs, rules, plans, or OpenSpec
-  carriers remains blocked.
-
-### Requirement: Generated Artifact Topology Gate
-
-ETHOS SHALL keep generated artifact placement auditable so source,
-configuration, semantic documentation, repository root, runtime state,
-generated proof output, and curated evidence remain distinct authority
-surfaces.
-
-#### Scenario: Root generated drift remains blocked while ignored test residue is local
-
-- **WHEN** `ethos quality generated-artifacts --json` scans repository root paths
-- **THEN** tracked or unignored generated outputs in repo root fail with
-  `generated_artifact_repo_root_drift:<path>`
-- **AND** ignored and untracked root `.coverage*`, `coverage.xml`, and `junit.xml`
-  are reported as ignored local test residue rather than required gaps
-- **AND** unrelated root generated outputs such as `proof.json` remain blocked
-- **AND** the command remains read-only and does not clean files as part of the
-  verdict
-
-#### Scenario: Semantic generated homes are enforced
-
-- **WHEN** `ethos quality generated-artifacts --json` scans ignored local state
-- **THEN** root tool cache homes such as `.import_linter_cache/`,
-  `.import-linter-cache/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`,
-  `.tox/`, `.nox/`, `.uv-cache/`, and root `dist/` fail even when ignored
-- **AND** retired flat generated homes such as `build/cache/` and
-  `build/runtime/gitlab-ci-local/` fail
-- **AND** allowed generated homes are semantic: `.cache/local-state/`,
-  `.ethos/state/`, `build/runtime/tool-cache/<tool>/`,
-  `build/runtime/work/<provider>/`, `build/evidence/`, `build/ethos/`, and
-  `build/artifacts/<kind>/`
-- **AND** the command reports lifecycle classes for `runtime_cache`,
-  `machine_evidence`, `local_artifact`, and `curated_evidence`.
-
-#### Scenario: Generated artifact producer entrypoints are audited
-
-- **WHEN** `ethos quality generated-artifacts --json` runs
-- **THEN** the command reports an `entrypoint_audit` over active CI projections,
-  reusable owner scripts, package entrypoints, and tool configuration
-- **AND** pytest entrypoints must use `.config/checks/pytest/pytest.ini`, route
-  pytest cache to `build/runtime/tool-cache/pytest`, and write coverage/JUnit
-  machine evidence under `build/evidence/quality/tests/`
-- **AND** Ruff and import-linter entrypoints must route runtime cache under
-  `build/runtime/tool-cache/ruff` and `build/runtime/tool-cache/import-linter`
-- **AND** package build entrypoints must write to `build/artifacts/<kind>`
-- **AND** `gitlab-ci-local` entrypoints must route provider state to
-  `build/runtime/work/gitlab-ci-local`
-- **AND** cleanup commands may remove denied residue but do not make a producer
-  that recreates denied homes compliant.
-
-#### Scenario: Product proof seals topology after runtime-producing gates
-
-- **WHEN** the default product proof executes its quality gates
-- **THEN** `generated-artifacts` runs after the Ruff and Python test gates
-- **AND** root `.pytest_cache/` and `.ruff_cache/` remain denied at the final
-  topology verdict
-- **AND** the Python test gate removes those denied root caches at both entry
-  and EXIT cleanup
-- **AND** standalone `ethos quality generated-artifacts --json` remains
-  read-only and fails closed on surviving root cache drift.
-
-#### Scenario: Runtime-producing quality owners stay semantically bound and portable
-
-- **WHEN** the product runs its type, lint, Ruff-ratchet, or Bandit owner
-  gates from a governed checkout
-- **THEN** `ty` resolves third-party imports against
-  `build/runtime/venv`, never an ambient host or root `.venv`
-- **AND** each owner gate preserves its tracked Python-file scope under the
-  macOS-provided Bash 3.2
-- **AND** no owner gate requires a newer shell or silently weakens its file
-  selection to obtain portability.
-
-### Requirement: No Compatibility Residue Gate
-
-ETHOS SHALL enforce destructive cutover by blocking compatibility residue in
-production source after migration closeout.
-
-#### Scenario: Production compatibility residue is blocked
-
-- **WHEN** `ethos quality no-compat --json` runs
-- **THEN** ETHOS scans product production source roots
-- **AND** it reports required gaps for compatibility shims, deprecated surfaces,
-  legacy wrappers, dynamic export forwarding, and import-path shells
-- **AND** it does not scan test fixtures that intentionally contain blocked
-  examples
-- **AND** the default product proof floor includes the no-compat gate
-
-### Requirement: Python Module Layout Gate
-
-ETHOS SHALL gate Python module layout as a quality property so semantic
-sub-packages, package-root visibility, suffix-flat debt, flat-directory debt,
-ordinary-module facade debt, same-directory flat-growth, baseline growth, and
-import-alias compatibility residue cannot grow through normal write paths.
-
-#### Scenario: Semantic module layout is reported and enforced
-
-- **WHEN** `ethos quality module-layout --json` runs
-- **THEN** ETHOS reports suffix-module, suffix-flat, flat-directory, private import
-  alias, package `__init__.py` facade, ordinary module facade, flat-growth, and
-  baseline-growth findings against
-  `.config/checks/module-layout/policy.toml`
-- **AND** new findings outside the ratchet baseline fail the gate
-- **AND** the ratchet baseline declares `baseline_gap_limit`, fails unless the
-  current allowed-baseline count exactly matches that limit, and fails when
-  baseline entries no longer correspond to current findings
-- **AND** the ratchet baseline declares per-kind baseline limits for suffix
-  modules, suffix-flat groups, flat directories, private import aliases, package
-  init facades, and ordinary module facades, so one debt category cannot grow
-  while the total count appears unchanged
-- **AND** adding baseline entries or raising `baseline_gap_limit` fails the gate
-- **AND** adding governed modules to existing crowded directories fails before the
-  directory reaches a larger flat-directory breach
-- **AND** creating a brand-new directory with more than the configured direct
-  module burst limit fails before the directory becomes a flat bucket
-- **AND** package-root `__init__.py` files remain declaration-only docstring
-  boundaries rather than re-export or compatibility facades
-- **AND** ordinary modules cannot act as import-only compatibility re-export
-  facades
-- **AND** ordinary modules cannot act as module-level `__getattr__` dynamic
-  compatibility export facades
-- **AND** changed governed Python modules cannot import private symbols from
-  another module with `from ... import _private` as a compatibility or helper
-  dependency
-- **AND** hosted CI, pre-commit, local CI, and proof invoke the reusable
-  `tools/ci/scripts/run-module-layout.sh` owner script instead of duplicating
-  the policy inline.
-
-### Requirement: Python Public-Surface Docstring Gate
-
-ETHOS SHALL gate intent-bearing Google-style docstrings for public Python product surfaces
-without requiring private helper docstrings to become a parallel documentation
-store.
-
-#### Scenario: Public docstring coverage is reported
-
-- **WHEN** `ethos quality docstrings --json` runs
-- **THEN** ETHOS reports configured source paths, minimum coverage, documented
-  public-surface count, total public-surface count, missing symbols, Google-style
-  conformance, and a non-blocking broader public-definition inventory
-- **AND** the configured minimum coverage floor is 100 percent for product
-  public surfaces
-- **AND** the gate fails when public-surface coverage is below the configured
-  threshold
-- **AND** existing structured docstrings must use Google-style sections and their
-  `Args` section must match the Python signature
-- **AND** retired reStructuredText or NumPy-style sections are rejected
-- **AND** the gate scope is limited to product-visible Python surfaces such as
-  CLI command functions, explicit exports, and package boundary docstrings
-- **AND** hosted CI invokes the reusable docstring coverage script instead of
-  duplicating the policy inline.
-
-### Requirement: Product Boundary and Contributor Policy Gate
-
-ETHOS SHALL keep active product surfaces, release metadata, and contributor
-policy organization-native rather than person-native or adopter-private.
-
-#### Scenario: Active product boundary is enforced
-
-- **WHEN** hosted CI, pre-commit, local CI, or `ethos prove --execute --json`
-  runs the product boundary gate
-- **THEN** ETHOS invokes `tools/ci/scripts/run-product-boundary.sh`
-- **AND** the owner script runs `ethos quality product-boundary --json` and
-  `ethos quality contributor-policy --json`
-- **AND** active product surfaces reject hardcoded personal identity literals,
-  local workstation paths, private infrastructure URLs, adopter-specific
-  literals, generic lifecycle bucket phrases, session-authority phrases, and
-  person attribution fields in release/package metadata
-- **AND** active product plans, rules, and configuration comments reject named
-  private repository references as product authority while allowing generic
-  reference-adopter and mechanism-class language
-- **AND** distribution manifests explicitly allowlist neutral launcher assets
-  and reject historical evidence, local state, tests, adopter-private records,
-  private paths, and person attribution metadata from published package scope
-- **AND** ignored host-local state under `.ethos/state/**` is not scanned as an
-  active product surface
-- **AND** historical evidence and archived change records may retain factual
-  names only as historical records, not as active product defaults or authority
-
-#### Scenario: Contributor policy is role-based
-
-- **WHEN** `ethos quality contributor-policy --json` runs
-- **THEN** ETHOS reports identity mode, allowed identity count, allowed roles,
-  and contributor-policy findings
-- **AND** single built-in author policy is rejected for active product
-  governance
-- **AND** product repositories use external role policy rather than a built-in
-  author, personal allowlist, or local workstation identity
-- **AND** the configured policy includes at least one maintainer or team role
-  and at least one bot or service role
-- **AND** Git author, Git committer, Work Lane actor, reviewer, maintainer,
-  bot, team, and adopter-side owner remain distinct identity facts
-- **AND** an opt-in local pre-push identity policy may require newly pushed
-  commits to match the checkout's configured Git identity without creating a
-  product-hardcoded personal author
-
-#### Scenario: Governance kernel is independently enforced
-
-- **WHEN** `ethos quality governance-kernel --json` runs
-- **THEN** ETHOS checks the live `governance_context`, governance profile
-  isomorphism, first-glance product docs, and generic adoption scaffold
-- **AND** the gate requires `Authority -> Subject -> Commitment -> Change ->
-  Evidence -> Claim -> Chronicle` as the shared kernel chain
-- **AND** the gate requires `ethos status`, `ethos plan`, `ethos prove`,
-  `ethos land`, and `ethos publish` as the same transition command semantics
-  for product and adopted repositories
-- **AND** product and adopted repositories may differ only by authority binding,
-  profile configuration, adapter binding, strictness, and rollout
-- **AND** the gate blocks a second command plane, product cloning, profile-driven
-  kernel changes, or adopter-specific product authority
-- **AND** `tools/ci/scripts/run-governance-kernel.sh` is the reusable owner
-  script and participates in the local product-boundary and local-CI gate bundle
-
-### Requirement: Evidence Freshness Protocol Gate
-
-ETHOS SHALL treat evidence freshness as the read model that checks claim
-digests, claim evidence freshness, and evolution-ledger protocol health without
-creating another truth store.
-
-#### Scenario: evidence freshness reports claim and evolution protocol health
-
-- **WHEN** `ethos quality evidence-freshness --json` runs
-- **THEN** the result includes claim digest/head checks from `evidence/claims`
-- **AND** the result includes evolution protocol checks from `evolution/ledger.toml`
-- **AND** the result includes evidence topology checks for the durable evidence
-  root, flat claim records, topic-scoped chronicle records, and parity artifacts
-- **AND** required gaps from claims, evolution, or evidence topology block the command
-- **AND** the command does not execute proof refs or claim hosted CI success
-
-#### Scenario: default proof includes evidence freshness
-
-- **WHEN** `ethos prove --json` builds the default product or adopter proof graph
-- **THEN** the graph includes the trust-bearing `evidence-freshness` gate after
-  `claims`
-- **AND** the gate command is `ethos quality evidence-freshness --json`
-
-### Requirement: Hosted CI tool supply is deterministic enough to support quality proof
-
-Hosted CI jobs that require downloaded binary tools MUST use repository-owned
-installer scripts with a shared cache, resumable artifact download, bounded retry
-policy, and archive validation before the tool is installed.
-
-#### Scenario: A binary tool installer runs in hosted CI
-
-- **WHEN** a hosted CI job needs gitleaks or Node
-- **THEN** the job invokes a repository-owned installer script
-- **AND** the installer downloads through the shared CI artifact helper
-- **AND** the artifact is cached under `build/runtime/tool-cache/ci-tools/`
-- **AND** the installer validates the cached archive before reuse
-
-### Requirement: Executable tooling adoption gates
-
-ETHOS SHALL activate roadmap tools as quality gates only after every owner
-surface exists: tool catalog, config owner, reusable runner, CI or hook
-projection, and tests or proof coverage.
-
-#### Scenario: Dependency hygiene is package-local and non-vulnerability evidence
-
-- **WHEN** the dependency hygiene gate runs
-- **THEN** ETHOS SHALL invoke `tools/ci/scripts/run-dependency-hygiene.sh`
-- **AND** the runner SHALL execute `deptry` per Python distribution rather than
-  treating the workspace root as one runtime package
-- **AND** the resulting evidence SHALL be local owner-gate evidence
-- **AND** it SHALL NOT claim vulnerability scanning or hosted CI success.
-
-#### Scenario: Prose and schema hygiene are report-first gates
-
-- **WHEN** prose spelling or JSON Schema hygiene runs
-- **THEN** ETHOS SHALL invoke the reusable owner scripts
-- **AND** the prose gate SHALL NOT rewrite digest-bound evidence or archived
-  records
-- **AND** the schema gate SHALL validate schema documents without replacing
-  command payload validation.
-
-### Requirement: Proof gates are fail-closed for CI and hooks
-
-ETHOS proof gates SHALL be consumable by CI, git hooks, and shell chains without
-requiring every caller to parse JSON manually.
-
-#### Scenario: failed proof gate fails the process
-
-- **WHEN** a proof command emits a blocking verdict
-- **THEN** CI and hooks can reject the operation from the process exit code
-- **AND** the JSON verdict remains available for diagnostics
-
-### Requirement: Evidence and claims are HEAD-bound
-
-ETHOS quality and readiness surfaces SHALL bind active claims and evidence
-freshness to current Git HEAD before treating them as current truth.
-
-#### Scenario: active claim was proven against another head
-
-- **WHEN** status, plan, or quality freshness reads active claim evidence
-- **THEN** the read model compares the claim head to current repository HEAD
-- **AND** stale evidence is surfaced as a gap rather than reused as current proof
-
-### Requirement: Status exposes hard-floor and coordination risk
-
-ETHOS status SHALL expose hard-quality gaps and coordination risk separately
-without deriving readiness from a score.
-
-#### Scenario: hard quality or coordination risk exists
-
-- **WHEN** `ethos status --json` summarizes repository readiness
-- **THEN** the summary identifies the governed status read model
-- **AND** hard quality gaps and coordination risk are counted explicitly
-- **AND** product and adopter profiles expose status-required coordination gaps
-  in top-level `required_gaps`
-- **AND** advisory coordination signals stay advisory and do not authorize foreign
-  Work Lane cleanup
-- **AND** advisory-only status results use `state=advisory` with `ok=true` rather
-  than collapsing advisory visibility into `state=ready`
-- **AND** no nominal or effective score can override a hard gap
-
-### Requirement: Local-ci fallback projects owner scripts from target root
-
-ETHOS local-ci fallback evidence SHALL derive invoked owner scripts from the
-actual target repository's local-ci script.
-
-#### Scenario: publish is run with an explicit root from another cwd
-
-- **WHEN** `ethos publish --root <repo> --json` assembles local-ci fallback
-- **THEN** owner scripts come from `<repo>/.config/ci/scripts/run-local-ci.sh`
-- **AND** the local-proposal package and fallback evidence agree
-- **AND** hosted CI status remains unclaimed
-
-#### Scenario: local-ci fallback evidence is stale, missing, invalid, or current
-
-- **WHEN** `ethos publish --json` assembles local-ci fallback evidence
-- **THEN** the fallback package reports `evidence_status.path`,
-  `evidence_status.current_head`, `evidence_status.evidence_head`,
-  `evidence_status.state`, and `evidence_status.ok`
-- **AND** stale, missing, or invalid local-ci fallback evidence directs the caller
-  to rerun `tools/ci/scripts/run-local-ci.sh`
-- **AND** current fallback evidence says only that local CI fallback evidence is
-  current at HEAD; it does not claim hosted CI success or remote publication
-
-### Requirement: Release supply-chain evidence binds tools, secrets, SBOM, and attestation
-
-ETHOS release-profile quality gates SHALL bind tool downloads, secret scanning,
-transitive dependencies, and release attestation materials to current repository
-truth.
-
-#### Scenario: supply-chain evidence is emitted for release readiness
-
-- **WHEN** release quality surfaces emit SBOM or release attestation evidence
-- **THEN** the SBOM includes workspace packages and lockfile transitive packages
-- **AND** the SBOM records the `uv.lock` digest and package layer counts
-- **AND** release attestation includes SLSA materials for Git HEAD, evidence,
-  `uv.lock`, and SBOM digest
-- **AND** the gitleaks installer validates cached archives with pinned SHA-256
-- **AND** the secrets gate scans both current tree and Git history
-- **AND** the Git history scan invokes `gitleaks git` with the repository path as
-  the command argument rather than the removed `--source` flag
-
-### Requirement: Direct Terminal Source Budget
-
-ETHOS SHALL measure every Git-present owned executable carrier through one
-direct repository owner using canonical measurement plus an independent `scc`
-check. It SHALL enforce immutable terminal ceilings of 54,000 Python ELOC and
-68,000 global owned-source ELOC without a baseline, allowance, debt, replay,
-shadow, worker, or cross-language compensation path.
-
-#### Scenario: Repository source is measured
-
-- **WHEN** `ethos quality source-budget --json` evaluates a governed repository
-- **THEN** it classifies Git-present tracked and non-ignored untracked files from
-  `.config/checks/format/selection.toml`
-- **AND** it classifies an extensionless executable by an admitted shebang and
-  reports an unclassified executable as a required gap instead of omitting it
-- **AND** Python uses `ethos.measure.effective_code_lines_for_source` while
-  every other admitted carrier uses its declared canonicalization and a fixed
-  line-width floor so formatting, reflow, minification, or carrier movement
-  cannot manufacture deletion credit
-- **AND** every admitted category appears exactly once in `global_total`, every
-  admitted Python category appears exactly once in `python_total`, and no
-  category is hidden by an incomplete or compensating aggregate
-- **AND** it reports all category totals, `python_total`, `global_total`, a stable
-  inventory digest, terminal ceilings, and independent `scc` observations
-- **AND** archived OpenSpec `.openspec.yaml` metadata MAY be excluded while every
-  other admitted executable carrier remains counted.
-
-#### Scenario: The terminal policy cannot weaken the quality floor
-
-- **WHEN** a proposed policy raises either terminal ceiling, widens a
-  measurement tolerance or fixed canonicalization line width, or omits an admitted
-  category from its exact aggregate
-- **THEN** policy loading fails closed before measurement
-- **AND** the first versioned policy is a control replacement that requires the
-  existing candidate-external bootstrap verifier before accepted promotion
-- **AND** later policies compare against the accepted versioned policy and no
-  partial metrics, clean state, replacement baseline, or parallel budget SSOT is emitted.
-
-#### Scenario: Terminal limits or measurement integrity fail
-
-- **WHEN** Python ELOC exceeds 54,000, global owned-source ELOC exceeds 68,000,
-  policy or inventory is invalid, an admitted carrier is unreadable or an
-  executable is unclassified, `scc` is unavailable or invalid, the independent
-  file set is incomplete, or either independent total differs from canonical
-  measurement in either direction beyond its declared tolerance
-- **THEN** the report is blocked and returns stable required gaps
-- **AND** status, proof, campaign or accepted closeout, land, protected
-  publication admission, and publish remain blocked
-- **AND** no reader view, allowance, or advisory classification can
-  convert those gaps into a green state.
-
-#### Scenario: Intermediate campaign growth is observed
-
-- **WHEN** a non-terminal local campaign iteration is above a terminal limit
-- **THEN** the iteration MAY remain an unfinished local recovery anchor
-- **AND** no proof, closeout, publication, or terminal-completion claim may call
-  that state ready or successful.
-
-### Requirement: Executable Carrier Admission
-
-ETHOS SHALL admit an executable carrier or tool only when its semantic owner,
-format or canonicalization policy, parser, semantic validation, behavior proof,
-runtime-cache home, supply-chain owner, and gate are declared.
-
-#### Scenario: An undeclared executable carrier is rejected
-
-- **WHEN** a tracked executable carrier extension or tool declaration is added
-- **THEN** ETHOS verifies it against the fail-closed carrier policy
-- **AND** it reports a required gap when the carrier has no complete quality and
-  supply-chain contract
-- **AND** provider projections invoke owner scripts rather than restating the
-  carrier policy inline
-
-### Requirement: Local Provider Execution Is Not Workflow Listing
-
-ETHOS SHALL distinguish workflow discovery from local provider execution and
-SHALL not treat a listed job as passing parity evidence.
-
-#### Scenario: A selected emulatable job is verified locally
-
-- **WHEN** a configured GitHub or GitLab local-provider job is evaluated
-- **THEN** ETHOS executes the selected formal job through `act` or
-  `gitlab-ci-local`
-- **AND** the evidence binds the current HEAD, job, tool versions, image mapping,
-  redacted inputs, and execution verdict
-- **AND** an unsupported hosted-only job is reported as hosted-observation-only,
-  not as a locally passing job
-
-### Requirement: Local dependency runtime trees are excluded from artifact topology traversal
-
-ETHOS SHALL exclude non-authoritative local dependency runtime roots from
-recursive generated-artifact candidate traversal, including a Pixi `.pixi/`
-environment tree, while retaining generated-artifact policy evaluation for all
-non-excluded repository paths.
-
-#### Scenario: Pixi-backed Work Lane runs the topology gate
-
-- **WHEN** `ethos quality generated-artifacts --json` runs in a Work Lane that
-  contains a local `.pixi/` environment tree
-- **THEN** the audit SHALL prune `.pixi/` before recursive candidate descent
-- **AND** the command SHALL remain finite and read-only
-- **AND** adjacent non-excluded generated-artifact drift SHALL remain subject to
-  the existing policy.
-
-### Requirement: Zero-Tolerance Python Type Policy
-
-ETHOS SHALL enforce Python type checking as a fail-closed, zero-diagnostic
-quality gate for every package declared by `.config/checks/ty/policy.toml`.
-The policy SHALL contain no type-diagnostic ratchet, baseline, ignore, or
-exception once a package is governed by this requirement.
-
-#### Scenario: Unknown type-tool execution blocks proof
-
-- **WHEN** `ty` is unavailable, cannot launch, exits without a terminal
-  diagnostic result, or produces malformed terminal output
-- **THEN** `ethos quality types --json` reports a stable required execution gap
-- **AND** the command exits non-zero through its enforced quality verdict
-- **AND** the result does not report the unknown execution as zero diagnostics
-
-#### Scenario: Every declared package has zero diagnostics
-
-- **WHEN** `ethos quality types --json` runs with an available `ty` runtime
-- **THEN** every package declared in the zero-tolerance policy reports
-  `tier = "zero_tolerance"` and `limit = 0`
-- **AND** any positive diagnostic count reports
-  `ty_zero_tolerance_violation:<package>:<count>`
-- **AND** CI and the default proof graph invoke the same owner gate
-
-#### Scenario: Retired type debt cannot return as a baseline
-
-- **WHEN** all governed packages report zero diagnostics
-- **THEN** the type policy contains no ratchet table or equivalent exception
-- **AND** a future diagnostic blocks immediately rather than establishing a
-  new tolerated count
-
-#### Scenario: Type checks use a checkout-bound runtime without ambient venv noise
-
-- **WHEN** `ethos quality types --json` checks a governed package from a Work Lane
-- **THEN** the type adapter invokes the checkout-local runtime wrapper before
-  `uv run --locked --group dev python -m ty`
-- **AND** the wrapper binds the runtime to `build/runtime/venv` for that checkout
-- **AND** an inherited `VIRTUAL_ENV` neither redirects resolution nor emits a
-  false active-environment mismatch warning
-
-### Requirement: Declarative Product-Parity Test Partitions
-
-ETHOS SHALL represent finite, uniform product-parity verification partitions as
-compact test-only fixtures and declarative pytest case tables when the resulting
-scoped representation is a net deletion and preserves exact public contracts.
-
-#### Scenario: Accepted differences retain exact contracts
-
-- **WHEN** a case covers an external stricter state, gap, or plan scope
-- **THEN** the table asserts the same semantic-diff and accepted-difference
-  contract with a domain-named case identifier
-
-#### Scenario: Compression preserves diagnostic boundaries
-
-- **WHEN** product-parity tests are consolidated
-- **THEN** false-negative, process-failure, schema-validation, and integration
-  boundaries remain independently named and the recorded surface is smaller
-
-#### Scenario: Runtime classification boundaries remain named
-
-- **WHEN** a shadow runner distinguishes missing backends, timeouts, malformed
-  output, verdict exit code, or invocation root behavior
-- **THEN** the suite SHALL retain direct, domain-named coverage for each distinct
-  process or routing boundary.
-
-#### Scenario: Evidence destination and freshness contracts remain exact
-
-- **WHEN** a parity evidence test varies only by durable evidence root, target
-  identity, or acceptable current/parent head condition
-- **THEN** a declarative test partition MAY share inert setup while asserting the
-  same evidence path, identity, and freshness contract.
-
-#### Scenario: Compression does not reimplement parity semantics
-
-- **WHEN** reusable test helpers are introduced
-- **THEN** they SHALL construct literal fixtures and asserted public envelopes
-  only, and SHALL NOT classify product payloads or normalize runtime semantics.
-
-### Requirement: Compact Declarative Rules-Evaluation Test Inputs
-
-ETHOS SHALL represent stable rule-evaluation fact envelopes through compact
-immutable test declarations and SHALL remove equivalent coverage-only scenario
-bodies when the canonical test surface preserves their public contracts.
-
-#### Scenario: Fact and waiver partitions remain fail-closed
-
-- **WHEN** the rules test suite evaluates malformed, unavailable, stale,
-  non-deterministic, conflicting, or waived facts
-- **THEN** the canonical tests assert the same public state and required-gap
-  contract while duplicate coverage-only scenario bodies are absent
-
-#### Scenario: Compression does not weaken verification
-
-- **WHEN** compact fact declarations replace legacy test setup
-- **THEN** focused coverage and the repository proof floor still pass and the
-  targeted effective test-line total is lower than its recorded baseline
-
-### Requirement: Declarative Coordination-Lifecycle Test Partitions
-
-ETHOS SHALL represent finite uniform coordination-lifecycle test inputs as
-literal declarative partitions when the formatted scoped test representation is
-a net deletion and preserves exact public lifecycle contracts.
-
-#### Scenario: Pure helper cases remain direct and bounded
-
-- **WHEN** handoff context, lease projection, or prewrite normalization cases
-  differ only in literal input and expected public output
-- **THEN** the test MAY use a local literal case table without deriving expected
-  lifecycle semantics from production code
-
-#### Scenario: Effect boundaries retain named coverage
-
-- **WHEN** a case executes handoff, SQLite lease, Git-ref, or recovery effects
-- **THEN** the test SHALL retain a domain-named boundary and exact failure or
-  state assertion rather than merge unrelated effect sequences
-
-#### Scenario: Duplicate normalization probes are removed safely
-
-- **WHEN** multiple unrelated tests repeat the same shared normalizer scalar
-  rejection probe
-- **THEN** one direct named normalizer test SHALL retain the tuple and scalar
-  contracts and the unrelated duplicate probes SHALL be absent
-
-#### Scenario: Formatter-aware compression is measured
-
-- **WHEN** Python test compression changes a file with pre-existing formatter
-  drift
-- **THEN** the recorded result SHALL compare the formatter-clean scoped ELOC to
-  the formatter-clean baseline and SHALL not claim deletion from unformatted
-  layout alone
-
-### Requirement: Declarative Work-Lane Admission Test Partitions
-
-ETHOS SHALL represent finite equivalent Work-Lane admission failure states as
-bounded declarative test partitions when the formatter-clean scoped test
-representation is a net deletion and each state-specific setup, blocking gap,
-and no-worktree invariant remains explicit.
-
-#### Scenario: Candidate readiness states remain independently covered
-
-- **WHEN** the candidate branch is missing, the candidate worktree is missing,
-  or the candidate worktree is dirty
-- **THEN** a distinct declarative test case SHALL assert the corresponding
-  blocking gap
-- **AND THEN** no requested Work Lane checkout SHALL be created.
-
-#### Scenario: Accepted-root start blockers remain independently covered
-
-- **WHEN** a nested Work Lane start is requested from a Work Lane or the
-  accepted root is dirty
-- **THEN** a distinct declarative test case SHALL assert
-  `lane_start_requires_clean_accepted_root`
-- **AND THEN** no requested Work Lane checkout SHALL be created.
-
-### Requirement: Declarative Cross-Host Handoff Test Command Envelopes
-
-ETHOS SHALL factor a finite family of equivalent cross-host handoff test command
-envelopes into one bounded typed local helper when the formatter-clean scoped
-representation is a net deletion and each case-specific input and result remains
-explicit.
-
-#### Scenario: Export modes retain independent behavior
-
-- **WHEN** a cross-host export uses a file or text context and clean, omitted,
-  committed, or preserved dirty disposition
-- **THEN** each test SHALL retain its distinct expected success or blocking
-  result through the shared command envelope.
-
-### Requirement: Declarative CLI Lifecycle Fixture Reuse
-
-ETHOS SHALL reuse test-only literal fixture builders for repeated CLI lifecycle
-topology and Git commit mechanics when formatter-clean scoped test ELOC is a
-net deletion and every command-specific public assertion remains in its named
-test.
-
-#### Scenario: Work-Lane lifecycle contracts retain their command boundary
-
-- **WHEN** land or publish tests require an adopted accepted root, candidate
-  worktree, owned Work Lane, or a committed fixture file
-- **THEN** a typed test-only helper MAY construct that topology or commit
-  literal file content
-- **AND THEN** each named test SHALL invoke its own command and assert its own
-  state, gaps, and payload contract.
-
-### Requirement: Canonical Workspace-Status Schema Sample Reuse
-
-ETHOS SHALL validate schemas through real producer payloads and focused local
-negative mutations. Synthetic production sample builders SHALL NOT be retained
-solely to make a schema-quality report green.
-
-#### Scenario: UI projection fields remain rejected
-
-- **WHEN** a workspace-status producer test adds a forbidden UI projection field
-to its real payload
-- **THEN** validation SHALL fail with required gaps
-
-### Requirement: Runtime-Owned Schema Contract Validation
-
-ETHOS SHALL validate published schemas and real repository producer payloads
-without retaining synthetic sample builders in production runtime merely to
-exercise schema shape.
-
-#### Scenario: UI projection fields remain rejected
-
-- **WHEN** a workspace-status producer test adds a forbidden UI projection field
-  to its real payload
-- **THEN** validation SHALL fail with required gaps
-- **AND THEN** the validation SHALL remain owned by that producer boundary.
-
-### Requirement: Curated JSON Evidence Carrier Admission
-
-ETHOS SHALL keep tracked JSON placement fail-closed and SHALL admit a curated
-Chronicle JSON evidence carrier only when the format-selection policy names its
-exact repository-relative file path.
-
-#### Scenario: Exact convergence inventory is admitted
-
-- **WHEN** the tracked Work Lane convergence inventory is present at
-  `evidence/chronicle/all-work-lanes-convergence-20260716/lane-inventory.json`
-- **THEN** the format-selection owner script accepts that exact file as a
-  declared JSON carrier
-- **AND** the audit remains clean when every other JSON path satisfies its
-  declared carrier boundary.
-
-#### Scenario: Unlisted Chronicle JSON remains blocked
-
-- **WHEN** a tracked JSON file appears under `evidence/chronicle/` without an
-  exact file declaration
-- **THEN** the format-selection owner script reports that JSON as outside its
-  declared carrier home
-- **AND** no broad Chronicle-root allowance is inferred.
-
-### Requirement: Portable configuration-lint interpreter resolution
-
-ETHOS configuration-lint owner scripts SHALL run inline Python standard-library
-validation through an explicit bounded interpreter chain: `ETHOS_PYTHON`, then
-`PYTHON`, then `python3`. They SHALL NOT require a bare `python` command alias.
-Targeted TOML-only invocations SHALL retain all TOML checks even when no JSON or
-YAML target is present.
-
-#### Scenario: standalone runtime lacks a python alias
-
-- **GIVEN** a standalone configuration-lint fixture exposes `python3` but no
-  bare `python` executable
-- **WHEN** its targeted TOML check runs with runtime bootstrap already marked
-- **THEN** the TOML parser, newline, whitespace, Taplo format, and Taplo lint
-  checks complete successfully
-- **AND** the runner does not invoke the absent `python` alias.
-
-### Requirement: Isolated sharded Python test evidence preserves the quality floor
-
-ETHOS SHALL permit the Python test owner script to use an explicit isolated
-evidence root, pytest base temporary directory, and finite shard count while
-preserving the same selected tests, coverage combination, coverage floor, and
-HEAD-stability check as its unsharded execution.
-
-#### Scenario: isolated sharded execution completes
-
-- **WHEN** the Python test owner script runs with isolated evidence and
-  temporary paths plus a positive shard count
-- **THEN** it combines all completed shard coverage before enforcing the
-  declared coverage floor
-- **AND** it leaves no trust-bearing claim that a hosted provider ran.
-
-### Requirement: Coverage writer evidence is fail-closed
-
-ETHOS SHALL report Python coverage policy, configuration, current artifact, and
-writer ownership without allowing an unverified lock to satisfy or defer the
-hard coverage floor.
-
-#### Scenario: Active writer remains blocking until evidence exists
-
-- **WHEN** `ethos quality coverage --json` observes a missing coverage artifact
-  and a writer lock with a parseable owner PID and matching live process-start
-  fingerprint
-- **THEN** it SHALL report `state=in_progress`
-- **AND** it SHALL report a blocking `coverage_artifact_write_in_progress` gap
-- **AND** report, prove, enterprise readiness, and local publication SHALL NOT
-  treat the coverage gate as clean until the artifact exists.
-
-#### Scenario: Invalid or stale writer does not hide missing evidence
-
-- **WHEN** the coverage writer lock lacks owner metadata, contains malformed
-  metadata, names a dead PID, or names a reused PID with a different process
-  start
-- **THEN** ETHOS SHALL retain `coverage_artifact_missing`
-- **AND** it SHALL expose the observed lock state without claiming an active
-  writer.
-
-#### Scenario: Test owner script recovers invalid stale locks safely
-
-- **WHEN** the Python test owner script encounters a proven-dead writer
-- **THEN** it SHALL reclaim the lock and continue
-- **AND** when owner metadata remains missing or malformed for the complete
-  bounded wait, it MAY reclaim that persistently invalid lock once and retry
-- **AND** it SHALL never preempt a valid live owner.
-
-### Requirement: Product hard-quality floor covers current generated state
-
-ETHOS SHALL include generated-artifact topology in the product hard-quality
-floor consumed by status and local publication readiness.
-
-#### Scenario: Current generated-artifact drift blocks green readiness
-
-- **WHEN** `ethos quality generated-artifacts --json` reports required gaps
-- **THEN** `ethos status --json` SHALL include those gaps in the hard-quality
-  layer
-- **AND** product `ethos publish --json` SHALL report local readiness blocked
-- **AND** an earlier HEAD-bound proof SHALL NOT override the current local-state
-  blocker.
-
-### Requirement: Locale-Stable External CLI Assertions
-
-ETHOS local quality tests SHALL bind human-readable external CLI assertions to
-a deterministic message locale when the asserted semantics are represented
-only by localized text.
-
-#### Scenario: Git bundle complete-history verification
-
-- **GIVEN** a cross-host handoff bundle created by the ETHOS test fixture
-- **WHEN** the test invokes `git bundle verify`
-- **THEN** the command SHALL execute successfully
-- **AND** the complete-history text assertion SHALL use the C message locale
-- **AND** the surrounding test process and shared Git helpers SHALL remain
-  unchanged.
-
-### Requirement: Commit-time staged secret admission fails closed under the repository-owned tool contract
-
-The tracked ETHOS pre-commit hook MUST run the repository-owned staged-secret
-runner against the Git index before Ruff formatting or ordinary ETHOS write
-admission. The runner MUST use the repository-selected gitleaks version and
-policy, MUST fully redact matched values, and MUST NOT install tools, access the
-network, scan history, or write quality evidence.
-
-#### Scenario: Staged secret stops downstream admission
-
-- **WHEN** a non-empty staged index matches the active `.gitleaks.toml` policy
-- **THEN** the staged-secret runner MUST return a blocking result
-- **AND** the hook MUST stop before Ruff and `ethos.cli hook admit pre-tool`
-- **AND** stdout and stderr MUST NOT contain the matched value.
-
-#### Scenario: Clean staged content preserves the existing hook path
-
-- **WHEN** the staged-secret runner accepts the non-empty staged index
-- **THEN** the hook MUST continue to the existing staged-Python Ruff check
-- **AND** it MUST continue to repository-root-bound ETHOS write admission.
-
-#### Scenario: Missing or incompatible scanner fails closed without host mutation
-
-- **WHEN** the selected gitleaks executable is missing or reports an incompatible version
-- **THEN** the runner MUST fail with a stable non-secret diagnostic naming the expected version
-- **AND** the hook MUST NOT install a binary, invoke a package manager, access the network, or continue downstream.
-
-#### Scenario: Full secret proof remains a separate owner path
-
-- **WHEN** local or hosted quality proof scans the tracked tree and Git history
-- **THEN** it MUST continue through the existing full secret gate and evidence path
-- **AND** the commit-time runner MUST NOT claim that full-tree or history proof occurred.
-
-### Requirement: Non-authoritative same-machine performance evidence is not a product gate
-
-ETHOS SHALL NOT ship a same-machine timing and token-budget evidence stack as a
-product quality gate when it has no trust-bearing consumer, reproducibility
-contract, or provider-neutral admission boundary.
-
-#### Scenario: The retired performance evidence stack is inspected
-
-- **WHEN** command, tool, policy, package, test, and runner surfaces are audited
-- **THEN** `ethos quality performance` is not registered
-- **AND** its former policy file, Python owner, shell runner, tool declaration,
-  and dedicated tests are absent
-- **AND** the default proof floor still retains the declared lint, type,
-  coverage, module-layout, docstring, configuration, shell, format, hygiene, and
-  other hard quality owners.
-
-#### Scenario: Performance evidence is proposed again
-
-- **WHEN** a later change needs executable performance evidence
-- **THEN** it requires a new declared tool contract, reproducible measurement
-  boundary, typed report, consumer, and proof policy
-- **AND** it does not restore the retired command through a compatibility shim,
-  alias, or copied historical implementation.
-
-### Requirement: Fresh Offline Local Installation Smoke Gate
-
-ETHOS SHALL prove local wheel installability through one reusable owner that
-uses a fresh environment, disables network access during build and install,
-binds its result to a stable HEAD, and remains separate from remote or hosted
-claims.
-
-#### Scenario: Fresh environment proves both installed packages
-
-- **WHEN** `tools/ci/scripts/run-local-install-smoke.sh` executes
-- **THEN** workspace wheels SHALL be built under `build/artifacts/python/**`
-- **AND** disposable state SHALL stay under
-  `build/runtime/work/local-install-smoke/**`
-- **AND** installation SHALL run offline into a newly created virtual
-  environment
-- **AND** both `ethos` and `ethos` module origins SHALL resolve inside that
-  environment rather than the source checkout
-- **AND** the installed `ethos --help` and `ethos --version` commands SHALL
-  succeed.
-
-#### Scenario: Local install evidence is bounded and head-stable
-
-- **WHEN** the smoke succeeds on a stable Git HEAD
-- **THEN** it SHALL write `build/evidence/local-install/smoke.json` containing
-  the exact HEAD, wheel digests, installed origins, executed CLI checks, and
-  `hosted_ci_status_claimed=false` plus `remote_publication_claimed=false`
-- **AND** a HEAD change during execution SHALL fail the owner rather than retain
-  a passing receipt.
-
-#### Scenario: Local CI and full proof share the owner
-
-- **WHEN** local CI runs
-- **THEN** it SHALL invoke the owner before writing local fallback evidence
-- **AND** `system/tools.toml` SHALL register one active local-install concern
-- **AND** `system/gates.toml` SHALL register one trust-bearing, file-writing,
-  offline `local-install-smoke` gate in `product_full` after `build`
-- **AND** only an executed full proof SHALL claim that full-proof gate ran.
-
-### Requirement: Declarative Adoption-Retirement Test Partitions
-
-ETHOS SHALL represent finite, equivalent adoption-retirement verification
-partitions as literal pytest case tables when the formatter-clean scoped
-representation is a net deletion and exact public retirement contracts remain
-visible.
-
-#### Scenario: Equivalent readiness gaps share literal setup
-
-- **WHEN** retirement cases differ only by profile, backend-control, rollback,
-  parity, or shadow input facts
-- **THEN** one domain-named declarative partition SHALL assert each exact public
-  state, required gap, check result, or next action
-- **AND** repeated repository construction and invocation bodies SHALL be absent.
-
-#### Scenario: Effect boundaries remain named
-
-- **WHEN** a retirement case exercises Git reachability, tracked evidence,
-  filesystem drift, CLI execution, or an external process boundary
-- **THEN** that boundary SHALL retain a direct named test and exact observable
-  assertion rather than being hidden inside an opaque callback table.
-
-#### Scenario: Test helpers do not own retirement semantics
-
-- **WHEN** shared adoption-retirement test helpers are introduced
-- **THEN** they SHALL construct literal fixtures or invoke public operations only
-- **AND** they SHALL NOT classify lifecycle state, derive expected gaps, or
-  duplicate product normalization.
-
-#### Scenario: Compression is measured after formatting
-
-- **WHEN** the adoption-retirement test partition is cut over
-- **THEN** Ruff-formatted scoped code SHALL be no more than 700 `scc` code lines
-- **AND** scoped repeated code SHALL be no more than 250 lines
-- **AND** focused behavior, coverage, warnings, and required repository proof
-  SHALL remain green.
-
-### Requirement: Quality capabilities have one ranked mechanism
-
-ETHOS SHALL govern quality tools by capability and SHALL select one active owner
-for each capability rather than accumulating overlapping permanent scanners,
-formatters, runners, dashboards, or report planes.
-
-#### Scenario: Runtime catalog and decision portfolio are non-overlapping
-
-- **WHEN** `ethos quality tool-profiles --json` reports the tracked catalog
-- **THEN** every reported mechanism SHALL be admitted and executable
-- **AND** the runtime catalog SHALL contain admitted active mechanisms only
-- **AND** a candidate SHALL remain owned by a time-bounded OpenSpec pilot until
-  promotion
-- **AND** the tooling roadmap SHALL state the unique active or pilot choice and
-  the disposition of material alternatives
-- **AND** deferred or rejected platforms SHALL own no runtime catalog row,
-  config, runner, or proof gate.
-
-### Requirement: Active product tools close the owner-to-proof chain
-
-An active product quality tool SHALL execute through its reusable owner surface,
-have a GateDescriptor when it belongs to a trust-bearing proof floor, and appear
-in each applicable proof set without provider-specific command duplication.
-
-#### Scenario: Import and dependency gates use their owner scripts
-
-- **WHEN** default or full product proof compiles the gate registry
-- **THEN** import boundaries SHALL execute
-  `tools/ci/scripts/run-import-linter.sh`
-- **AND** dependency hygiene SHALL execute
-  `tools/ci/scripts/run-dependency-hygiene.sh`
-- **AND** both gate ids SHALL be present in the default and full product proof
-  sets
-- **AND** provider CI and local CI SHALL continue invoking those same owner
-  scripts.
-
-### Requirement: Quality configuration validates its own control surface
-
-ETHOS SHALL validate the syntax and semantic shape of the tracked pre-commit
-configuration through the existing config owner gate.
-
-#### Scenario: Pre-commit configuration is validated without external hooks
-
-- **WHEN** `tools/ci/scripts/run-config-lint.sh` runs the full repository config
-  profile
-- **THEN** it SHALL execute the locked `pre-commit validate-config` command
-- **AND** `.pre-commit-config.yaml` SHALL continue using repository-local owner
-  scripts only
-- **AND** validation SHALL not install or execute third-party hook repositories.
-
-### Requirement: Tool and standard claims match executed implementations
-
-ETHOS SHALL name the scanner, schema, and standard boundary actually executed
-and SHALL label partial or local projections without implying external-standard
-conformance.
-
-#### Scenario: Vulnerability and release evidence are described exactly
-
-- **WHEN** quality docs, specs, and release metadata describe dependency audit,
-  SBOM, or provenance output
-- **THEN** Python dependency auditing SHALL name `uv audit`
-- **AND** the current SBOM SHALL be labeled an ETHOS lockfile-derived
-  `SPDX-lite` projection
-- **AND** the current provenance SHALL be labeled an ETHOS-local in-toto-shaped
-  statement with SLSA-shaped fields
-- **AND** SPDX or SLSA conformance SHALL remain unclaimed until an admitted
-  standard adapter proves it.
-
-### Requirement: Candidate tools have a terminal exit
-
-Candidate quality tools SHALL remain report-only until they prove independent
-value and SHALL not become an indefinite second implementation.
-
-#### Scenario: Pilot promotion is evidence bound
-
-- **WHEN** a candidate tool is proposed for active adoption
-- **THEN** repeated fixed-HEAD runs SHALL produce deterministic normalized output
-- **AND** the candidate SHALL find a valid issue not already owned by an active
-  gate on at least two real changes
-- **AND** its runtime, cache, network, write, license, and supply boundaries SHALL
-  be recorded
-- **AND** the decision SHALL promote it, absorb its useful rule and retire it, or
-  reject it with no active residue.
-
-### Requirement: Python dependency vulnerability audit is lockfile-native
-
-ETHOS SHALL run Python dependency vulnerability auditing through the reusable
-owner script and native `uv audit --frozen` lockfile analysis. The gate SHALL
-bind its result to `uv.lock`, identify OSV as the advisory service, keep local,
-hosted, image, and publication claims separate, and fail closed whenever the
-audit cannot produce a valid passing result.
-
-#### Scenario: uv audits the frozen workspace lock
-
-- **WHEN** hosted CI, local CI, or `ethos prove --execute --json` runs the Python
-  vulnerability audit gate
-- **THEN** ETHOS SHALL invoke
-  `tools/ci/scripts/run-python-vulnerability-audit.sh`
-- **AND** the runner SHALL execute native `uv audit --frozen` against `uv.lock`
-- **AND** the evidence SHALL identify `uv audit`, `uv.lock`, and OSV explicitly
-- **AND** the evidence SHALL be local owner-gate evidence under
-  `build/evidence/quality/security/`
-- **AND** the gate SHALL NOT claim image/package scanning, hosted CI success, or
-  remote publication.
-
-#### Scenario: vulnerability or audit failure remains final
-
-- **WHEN** `uv audit` reports a vulnerability, an adverse package status,
-  malformed JSON, or any execution failure
-- **THEN** the owner script SHALL return a nonzero result
-- **AND** it SHALL NOT emit a passing vulnerability-audit summary.
+
+### Requirement: Singular Gate Declaration
+
+`system/gates.toml` SHALL be the only product gate and proof-floor declaration.
+A gate SHALL bind either one or more concrete Python providers or one external
+owner command, never both.
+
+#### Scenario: A gate is loaded
+
+- **WHEN** ETHOS validates or compiles the gate declaration
+- **THEN** strict Pydantic contracts reject unknown fields, duplicate IDs,
+  duplicate executors, missing dependencies, and unknown proof-set members
+- **AND** provider references and external commands remain adapter identities,
+  not public CLI commands
+- **AND** no second Python gate registry restates the declaration
+
+#### Scenario: A Python provider gate executes
+
+- **WHEN** `ethos prove --execute --gate <gate-id> --json` selects a provider gate
+- **THEN** the provider is invoked directly in the admitted checkout
+- **AND** every provider returns a mapping with an explicit `ok` result and
+  required gaps
+- **AND** the proof run records the gate, provider identity, diagnostics, and
+  closed verdict
+- **AND** ETHOS does not call its CLI through a subprocess or in-process loopback
+
+### Requirement: Singular Quality Entry
+
+`ethos prove` SHALL be the only public quality selection and execution surface.
+Cyclopts operation declarations own CLI syntax; gate IDs own proof selection.
+
+#### Scenario: A focused check is requested
+
+- **WHEN** a caller runs `ethos prove --gate <gate-id> --json`
+- **THEN** ETHOS plans the exact gate and dependency closure
+- **AND** `--execute` runs that plan and returns evidence
+- **AND** no `ethos quality` command group, generic report-handler DSL, command
+  registry, wrapper alias, or re-export facade exists
+
+### Requirement: One Owner Per Property
+
+Ruff, the selected type checker, pytest/coverage, rumdl or markdownlint, dprint or
+native carrier formatters, shfmt/ShellCheck, ast-grep, import-linter, dependency
+checking, and repository-native semantic checks SHALL each own a disjoint
+property.
+
+#### Scenario: Two tools claim the same property
+
+- **WHEN** the tracked tool, gate, and owner-script declarations are audited
+- **THEN** the overlap is a required gap unless one tool is explicitly a bounded
+  pilot replacing the other
+- **AND** a baseline, hosted dashboard, or convenience wrapper cannot become a
+  second authority
+
+### Requirement: Warning And Suppression Zero
+
+Local proof, hooks, provider CI, and release proof SHALL treat unapproved warnings
+as failures. Production source SHALL not use formatter, lint, type, or coverage
+suppressions to hide current defects.
+
+#### Scenario: A command succeeds with a warning
+
+- **WHEN** a governed quality command exits zero but emits an unapproved warning
+- **THEN** its gate fails
+- **AND** the warning must be removed or represented by an explicit bounded
+  decision with a deletion condition
+
+#### Scenario: Production contains a suppression
+
+- **WHEN** quality proof finds `fmt off/on`, `noqa`, type-ignore, coverage-ignore,
+  or an equivalent suppression in production source
+- **THEN** proof blocks until the construct is deleted or replaced by a truthful
+  semantic layout
+
+### Requirement: Python Quality Floor
+
+Python source SHALL pass the canonical Ruff lint/format owner, the selected
+strict type owner, import boundaries, dependency hygiene, docstring policy, and
+semantic module-layout policy.
+
+#### Scenario: Python proof runs
+
+- **WHEN** default or full proof selects Python quality gates
+- **THEN** each gate uses its tracked native configuration and one reusable owner
+- **AND** caches and generated outputs stay under ignored `build/runtime/**`
+- **AND** no ambient host configuration or second formatter changes the verdict
+
+### Requirement: Capability-Preserving Test Floor
+
+The Python test owner SHALL run bounded parallel tests, warnings as errors,
+branch coverage, architecture tests, property tests, and declared concurrency or
+CAS tests. Coverage policy SHALL come only from
+`.config/checks/coverage/policy.toml`.
+
+#### Scenario: Coverage is evaluated
+
+- **WHEN** the unit-architecture gate completes
+- **THEN** it uses the configured hard coverage floor and current hard floor to
+  evaluate measured branch coverage
+- **AND** authority, CAS, and reducer owners may declare stricter local floors
+- **AND** a test that only reaches a branch without asserting behavior is not a
+  substitute for capability proof
+
+### Requirement: Native Carrier Quality
+
+Markdown, TOML, JSON, YAML, shell, lockfiles, diagrams, and release metadata SHALL
+use one carrier-native formatter or validator and one tracked configuration
+owner.
+
+#### Scenario: A carrier is checked
+
+- **WHEN** config, docs, shell, or format proof runs
+- **THEN** deterministic format, syntax, schema, links, anchors, and shell safety
+  are checked by the declared native owner
+- **AND** the gate does not rewrite governed content during proof
+
+### Requirement: Semantic And Physical Isomorphism
+
+Repository-owned code SHALL place each narrow concept with one truth or effect
+owner and one primary reason to change. Ambiguous modules, facades, aliases,
+private cross-module imports, and mixed command owners SHALL block proof.
+
+#### Scenario: A generic module has no closed semantic contract
+
+- **WHEN** the module-layout gate observes `core`, `common`, `shared`, `utils`,
+  `helpers`, `base`, `manager`, `service`, or another configured ambiguous name
+- **THEN** the module must be absorbed, precisely renamed, split on a real
+  semantic axis, or deleted
+- **AND** splitting only to satisfy ELOC or retaining the old path as a facade is
+  not remediation
+
+### Requirement: Direct Source Budget
+
+Source budget SHALL be measured directly from repository files without worker,
+replay, shadow, or self-referential admission runtimes. Coordinates SHALL remain
+non-compensatory.
+
+#### Scenario: One budget coordinate exceeds its limit
+
+- **WHEN** `ethos prove --gate source-budget --json` evaluates the repository
+- **THEN** the result is `block` even if unrelated coordinates are below budget
+- **AND** a budget increase cannot substitute for deletion or an explicit product
+  capability decision
+
+### Requirement: Generated Artifact Boundary
+
+Generated caches, build outputs, local state, machine evidence, and curated
+records SHALL remain physically distinct and deterministically classifiable.
+
+#### Scenario: Generated content appears in a governed source location
+
+- **WHEN** the generated-artifacts provider observes tracked or ignored drift
+  outside its declared semantic home
+- **THEN** proof blocks with the exact path and expected disposition
+- **AND** generated content cannot become source, current evidence, or release
+  truth merely because a file exists
+
+### Requirement: Compatibility Residue Is Forbidden
+
+Production source SHALL not retain shims, wrappers, aliases, re-exports,
+fallback implementations, or deprecated parallel paths unless the current user
+explicitly requires a bounded compatibility window.
+
+#### Scenario: Compatibility residue is found
+
+- **WHEN** `ethos prove --gate no-compat --json` scans production source
+- **THEN** every residue is a hard gap
+- **AND** the terminal fix moves callers to the one selected owner and deletes the
+  old path in the same cutover
+
+### Requirement: Evidence Is Head And Policy Bound
+
+Executed proof SHALL bind the exact HEAD, tree, ChangeContract, PlanIR digest,
+gate policy identity, provider or command identity, output, and closed verdict.
+Focused proof MAY merge same-HEAD gate evidence but SHALL NOT satisfy promotion
+until the complete required floor is present.
+
+#### Scenario: A gate implementation changes after proof
+
+- **WHEN** proof policy or repository-owned provider or script source changes
+- **THEN** the previous proof becomes stale
+- **AND** land, publish, and protected ref movement remain blocked until fresh
+  proof exists for the immutable target HEAD
+
+### Requirement: Local And Hosted Planes Stay Separate
+
+Local proof, local provider emulation, GitLab CI, GitHub Actions, publication, and
+release SHALL remain independently identified evidence planes.
+
+#### Scenario: Local proof passes while a provider is unavailable
+
+- **WHEN** every local gate passes but GitLab or GitHub has no fresh observation
+- **THEN** local proof is pass and the unavailable provider remains unknown
+- **AND** no local runner or emulator self-promotes to hosted success
+
+### Requirement: Fresh Offline Installation
+
+The full release proof SHALL build deterministic Python artifacts and install
+them into a fresh offline environment through one owner. Installed command help,
+version, module origin, and artifact digests SHALL bind to the same stable HEAD.
+
+#### Scenario: Offline installation succeeds
+
+- **WHEN** `tools/ci/scripts/run-local-install-smoke.sh` completes
+- **THEN** disposable state stays under `build/runtime/**`
+- **AND** evidence stays under `build/evidence/**`
+- **AND** source-checkout imports, network access, HEAD movement, or artifact
+  digest drift fail the gate
+
+### Requirement: Supply Chain Evidence
+
+Release proof SHALL produce deterministic package digests, SBOM, provenance,
+and provider-specific publication attestations through bounded release owners.
+
+#### Scenario: A release artifact is prepared
+
+- **WHEN** terminal full proof and publish readiness run at one immutable HEAD
+- **THEN** local package, SBOM, provenance, GitLab, and GitHub observations remain
+  separately attributable
+- **AND** matching artifact digests are required before a dual-provider release
+  is admitted
+
+### Requirement: Performance Evidence Is Not A Default Gate
+
+Same-machine timing or token measurements SHALL remain diagnostic unless a real
+consumer, reproducibility contract, provider-neutral protocol, and admission
+policy justify a gate.
+
+#### Scenario: The retired performance stack is inspected
+
+- **WHEN** gate and tool declarations are audited
+- **THEN** no performance gate, policy, runner, baseline, or compatibility alias
+  exists
+- **AND** a future proposal must replace an identified owner or close a proven
+  gap rather than add a parallel metric plane

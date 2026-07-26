@@ -20,8 +20,8 @@ ETHOS documentation is governed as sedimented knowledge, not as a loose page
 pile. Every governed document declares Subject, Role, State, and Relation
 metadata in front matter.
 
-`ethos quality docs --json` is the reader-facing quality entrypoint.
-`ethos quality docs-registry --json` is the lower-level machine registry report.
+`ethos prove --gate docs-registry --gate docs-topology --json` is the reader-facing quality entrypoint.
+`ethos prove --gate docs-registry --json` is the lower-level machine registry report.
 Missing metadata is a required gap because agents need to distinguish canonical
 truth, active workflow notes, planned material, experimental material, and
 archived history before they act.

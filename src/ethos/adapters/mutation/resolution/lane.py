@@ -22,12 +22,12 @@ from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
 from ethos.adapters.mutation.resolution.records.core import reserve_resolution_receipt
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
+from ethos.contracts.lifecycle.reducer import TransitionFacts
+from ethos.contracts.lifecycle.reducer import TransitionRequest
+from ethos.contracts.lifecycle.reducer import reduce_transition
 from ethos.contracts.resolution.lane import LaneObservation
 from ethos.contracts.resolution.lane import LaneResolutionDecision
-from ethos.contracts.transition import TransitionFacts
-from ethos.contracts.transition import TransitionRequest
-from ethos.contracts.transition import reduce_transition
-from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ def plan_lane_resolution(
         root, chronicle_ref=chronicle_ref, disposition=disposition
     )
     evaluation = reduce_transition(
-        load_workflow_contract_declaration(root).policy("guarded"),
+        load_lifecycle_declaration(root).policy("guarded"),
         TransitionRequest(apply=apply),
         TransitionFacts(
             initial_gaps=(
@@ -147,7 +147,7 @@ def apply_lane_resolution(
     observation, observation_gaps = observe_lane(root, branch)
     handoff_required = bool(decision and disposition in _DESTRUCTIVE and observation.holder_ref)
     evaluation = reduce_transition(
-        load_workflow_contract_declaration(root).policy("guarded"),
+        load_lifecycle_declaration(root).policy("guarded"),
         TransitionRequest(apply=apply),
         TransitionFacts(
             initial_gaps=(*gaps, *observation_gaps),

@@ -6,16 +6,15 @@ ETHOS SHALL expose the public command plane without owning repository lifecycle
 semantics.
 ## Requirements
 ### Requirement: Public Command Plane
-ETHOS SHALL keep the normal user workflow under five public commands:
-`ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
+ETHOS SHALL keep the normal user workflow under six public commands:
+`ethos adopt`, `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos publish`.
 
-#### Scenario: Command surface is classified
-- **WHEN** `ethos quality command-registry --json` runs
-- **THEN** it reports five public workflow commands
-- **AND** it reports `ethos status` as the single bounded reader
-- **AND** maintainer/reference commands are not counted as advanced public
-  workflow commands
+#### Scenario: Cyclopts exposes the terminal root surface
+- **WHEN** the root CLI help is rendered
+- **THEN** it exposes exactly the six public commands
+- **AND** `ethos status` is the single bounded reader
+- **AND** maintainer mechanics remain hidden or semantically namespaced
 
 #### Scenario: PlanIR is the single transition projection
 - **WHEN** `ethos plan --json` compiles the current ChangeContract, repository
@@ -30,30 +29,45 @@ ETHOS SHALL keep the normal user workflow under five public commands:
 - **AND** oversized detail is replaced by a digest-bound artifact reference
 - **AND** no alternate reader command or truth source is introduced
 
+### Requirement: Cyclopts And API Own Interface Semantics
+Concrete Cyclopts declarations and the in-process operation API SHALL own command
+names, parameters, help, and dispatch. ETHOS SHALL NOT maintain a parallel command
+registry, lazy report-handler DSL, re-export facade, or command-shaped quality
+plane.
+
+#### Scenario: A command signature changes
+- **WHEN** a public operation changes its parameters or help
+- **THEN** CLI, SDK metadata, generated docs, and protocol projections derive from
+  the same operation declaration
+- **AND** no tracked command declaration must be synchronized by hand
+
+#### Scenario: ETHOS runs from an installed wheel
+- **WHEN** the package runs outside a source checkout
+- **THEN** packaged lifecycle and gate resources remain available
+- **AND** command discovery still comes from Cyclopts declarations, not a packaged
+  command registry
+
+### Requirement: Prove Is The Singular Quality Execution Surface
+Quality checks SHALL be selected by gate ID through `ethos prove --gate <gate-id>`.
+`system/gates.toml` SHALL bind each gate to concrete Python providers or an external
+owner command without looping back through another ETHOS command.
+
+#### Scenario: One focused gate is requested
+- **WHEN** `ethos prove --execute --gate <gate-id> --json` runs
+- **THEN** the declared provider or external adapter executes directly
+- **AND** the proof evidence records the gate ID, adapter identity, verdict, and
+  diagnostics
+- **AND** no `ethos quality` command is registered or invoked
+
 ### Requirement: CLI Surface Delegation
-The CLI SHALL compose output and UX while delegating semantics to core,
-contracts, repository, assistants, and adapters packages.
+The CLI SHALL compose output and UX while delegating semantics to contracts,
+operations, repository policy, and adapters.
 
 #### Scenario: CLI package is scanned
 - **WHEN** architecture tests inspect imports
-- **THEN** the public CLI imports target product packages and does not import
-  retired migration-host modules
-
-### Requirement: Quality Command Registry Is Declaration-First
-ETHOS SHALL declare quality command names, handler import paths, help text, and
-visibility in `system/commands.toml`, validate that declaration through an
-immutable typed contract, and compile it through Cyclopts native lazy loading.
-
-#### Scenario: Quality command group is registered
-- **WHEN** `ethos quality` is invoked or its help is rendered
-- **THEN** the command group is compiled from the tracked declaration
-- **AND** handler modules are not imported merely to execute decorators
-- **AND** Cyclopts continues to derive command parameters from handler signatures
-
-#### Scenario: Packaged command declaration is used
-- **WHEN** ETHOS runs outside a repository checkout
-- **THEN** the wheel projection built from `system/commands.toml` by
-  `pyproject.toml` supplies the same validated command declaration
+- **THEN** command modules call concrete operation and adapter owners
+- **AND** no command registry, generic report compiler, or CLI subprocess loopback
+  exists
 
 ### Requirement: Retired Family Command Vocabulary
 ETHOS SHALL reject retired family-style command prefixes from governed docs.
@@ -61,7 +75,7 @@ ETHOS SHALL reject retired family-style command prefixes from governed docs.
 #### Scenario: Retired capability command appears
 - **WHEN** governed docs contain `ethos governance`, `ethos workspace`,
   `ethos agent`, `ethos project`, `ethos kernel`, or `ethos node` as a command
-- **THEN** `ethos quality command-registry --json` reports a required gap
+- **THEN** the command-surface and documentation gates report a required gap
 
 ### Requirement: Proof Command State Semantics
 ETHOS CLI SHALL present proof command states according to execution depth.
@@ -118,7 +132,7 @@ projection for governance gaps and advisory signals.
 #### Scenario: Explain accepts advisory signals without required-gap overclaim
 
 - **WHEN** `ethos explain <signal> --json` runs for a non-blocking advisory signal
-- **THEN** the payload keeps the original string as `gap` for compatibility
+- **THEN** the payload keeps the original string as `gap` for the stable result contract
 - **AND** the payload also exposes the original string as `signal`
 - **AND** the payload classifies the signal into an invalid-state category
 - **AND** the payload wording does not claim every explained signal is a required gap
@@ -248,8 +262,7 @@ exactly one `YYYY-MM-DD-<logical-id>` archived carrier under
 - **WHEN** an archive query receives a numeric-leading ID, terminal-date ID,
   archive directory name, absent ID, or ambiguous logical ID
 - **THEN** ETHOS SHALL reject it as an invalid logical Change ID
-- **AND** it SHALL require the date-free logical ID rather than a compatibility
-  alias, redirect, or fallback lookup.
+- **AND** it SHALL require the date-free logical ID rather than an alias, redirect, or fallback lookup.
 
 ### Requirement: Active Change selection excludes archive directory names
 ETHOS SHALL keep `ethos openspec --change` scoped to active logical Change IDs.

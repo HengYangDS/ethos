@@ -160,7 +160,7 @@ Tasks:
 Evidence:
 
 ```bash
-ethos quality claims --json
+ethos prove --gate claims --json
 ethos status --json
 ethos assistants doctor --json
 ```

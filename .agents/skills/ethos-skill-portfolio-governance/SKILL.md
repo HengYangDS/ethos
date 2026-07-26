@@ -33,7 +33,7 @@ repository truth.
    metadata, included files, required sections, capabilities, and digests stay
    aligned.
 7. Run the bundled portfolio audit plus `ethos playbooks check --mode v2-strict
-   --json` and `ethos quality projection-drift --json` before claiming the
+   --json` and `ethos prove --gate playbooks-v2 --json` before claiming the
    projection is fresh.
 
 ## Evidence
@@ -44,7 +44,7 @@ Use these commands as machine evidence:
 .agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .
 ethos playbooks check --mode v2-strict --json
 ethos playbooks route --changed --json
-ethos quality projection-drift --json
+ethos prove --gate playbooks-v2 --json
 ethos prove --execute --gate playbooks-v2 --json
 ```
 

@@ -474,8 +474,8 @@ Current and future sources:
 
 ```bash
 ETHOS_ACTOR=codex uv run ethos status --root <target-root> --json
-ETHOS_ACTOR=codex uv run ethos quality evidence-freshness --root <target-root> --json
-ETHOS_ACTOR=codex uv run ethos quality claims --root <target-root> --json
+ETHOS_ACTOR=codex uv run ethos prove --gate evidence-freshness --root <target-root> --json
+ETHOS_ACTOR=codex uv run ethos prove --gate claims --root <target-root> --json
 ETHOS_ACTOR=codex uv run ethos lane status --root <target-root> --json
 ETHOS_ACTOR=codex uv run ethos campaign hypotheses --root <target-root> --json
 ```

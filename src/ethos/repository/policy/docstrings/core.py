@@ -28,7 +28,7 @@ class PublicSurfaceSymbol:
     documented: bool
 
     def to_dict(self) -> dict[str, object]:
-        """Return the stable JSON form used by `ethos quality docstrings`."""
+        """Return the stable JSON form used by the ``docstrings`` proof gate."""
         return {
             "path": self.path,
             "qualified_name": self.qualified_name,

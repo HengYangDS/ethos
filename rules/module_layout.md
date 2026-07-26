@@ -62,9 +62,10 @@ Splitting to game ELOC, moving the same mixture under several files, or retainin
 the old path as a facade is not remediation. "As few entities as necessary"
 means few semantic entities, not few files.
 
-Command ownership follows the same rule. `system/commands.toml` is the command
-registry SSOT. A `surface/cli/**/core.py` command owner, or one module that owns
-more than one Cyclopts application, is a hard layout defect.
+Command ownership follows the same rule. Concrete Cyclopts declarations own CLI
+names, parameters, help, and dispatch; `system/gates.toml` owns only proof-gate
+adapters. A `surface/cli/**/core.py` command owner, or one module that owns more
+than one Cyclopts application, is a hard layout defect.
 
 ## 2. Logical organization — public vs private
 

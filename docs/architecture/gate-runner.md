@@ -10,7 +10,7 @@ relations:
 
 ETHOS proof executes a validated PlanIR and records evidence; it is not a shell-script alias.
 
-`ethos quality gates --json` exposes the available gate registry. `ethos prove
+`ethos prove --json --json` exposes the available gate registry. `ethos prove
 --json` plans the graph and reports readiness only. A readiness result has
 `state=ready`, `data.executed=false`, and proof runs in `planned` state with no
 exit code. It is useful for fast local admission, but it is not promotion

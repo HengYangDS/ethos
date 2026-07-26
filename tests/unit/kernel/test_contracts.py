@@ -482,7 +482,7 @@ def test_system_contracts_all_load() -> None:
     # Every declared system-tier contract is present and parseable — system/ is
     # load-bearing, not inert prose (the parsimony invariant: derive rather than store twice).
     assert all(contracts.values())
-    assert set(contracts) >= {"authority", "evidence_boundaries", "workflows"}
+    assert set(contracts) >= {"authority", "evidence_boundaries", "lifecycle"}
 
 
 def test_evidence_boundary_contract_exposes_decision_and_boundaries() -> None:
@@ -556,38 +556,24 @@ def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
 
 
 def test_governance_context_projects_repository_authority_without_shadow_models() -> None:
+    from ethos.repository.context import LIFECYCLE_COMMANDS
     from ethos.repository.context import governance_context
-    from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 
     context = governance_context(Path.cwd(), profile="product")
     assert context["repository"] == str(Path.cwd().resolve())
     assert "user_instruction" in context["authority_refs"]
-    assert context["shared_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
-    assert context["transition_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
+    assert context["shared_commands"] == list(LIFECYCLE_COMMANDS)
+    assert context["transition_commands"] == list(LIFECYCLE_COMMANDS)
     assert context["reader_projection_commands"] == ["ethos status"]
 
 
-def test_workflow_transitions_bind_to_declared_guards_and_signals() -> None:
-    contract = load_system_contract(Path(), "workflows")
-    states = set(contract["lifecycle"]["states"])
-    guards = set(contract["guards"])
-    transitions = contract["transition"]
-
-    assert transitions
-    for transition in transitions:
-        assert transition["from"] in states
-        assert transition["to"] in states
-        assert transition["guard"] in guards
-        assert transition["invalid_state"] in transition["invalid_states"]
-
-
-def test_load_system_contract_uses_product_resource_for_workflows_when_root_lacks_contract(
+def test_load_system_contract_uses_product_lifecycle_resource_when_root_lacks_contract(
     tmp_path,
 ):
-    contract = load_system_contract(tmp_path, "workflows")
+    contract = load_system_contract(tmp_path, "lifecycle")
 
-    assert contract["runtime"]["truth_boundary"] == "derived_repository_projection"
     assert contract["node"]
+    assert contract["campaign"]
 
 
 def test_load_system_contract_keeps_non_resource_contracts_fail_closed(tmp_path):

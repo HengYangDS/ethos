@@ -20,6 +20,7 @@ _DECLARATION_RESOURCE = "data/gates.toml"
 RegistryName = Literal["runtime", "quality"]
 _DUPLICATE_GATE_ID = "duplicate gate id"
 _DUPLICATE_GATE_COMMAND = "duplicate gate command"
+_GATE_EXECUTOR_INVALID = "gate executor invalid"
 _UNAVAILABLE_GATE_DEPENDENCY = "unavailable gate dependency"
 _PRODUCT_FULL_MISSING_DEFAULT = "product full missing default"
 _UNKNOWN_PROOF_GATE = "unknown proof gate"
@@ -33,7 +34,8 @@ class GateDescriptor(BaseModel):
 
     id: str = Field(min_length=1)
     kind: str = Field(min_length=1)
-    command: tuple[str, ...] = Field(min_length=1)
+    command: tuple[str, ...] = ()
+    providers: tuple[str, ...] = ()
     policy: str = "required"
     profile: str = "product"
     toolchain: str = "quality-adapter"
@@ -48,6 +50,20 @@ class GateDescriptor(BaseModel):
     network_policy: str = "offline"
     version_source: str = "product"
 
+    @model_validator(mode="after")
+    def validate_executor(self) -> GateDescriptor:
+        """Require exactly one executable adapter form per gate."""
+        if bool(self.command) == bool(self.providers):
+            raise ValueError(_GATE_EXECUTOR_INVALID)
+        if len(self.providers) != len(set(self.providers)) or any(
+            not reference.startswith("ethos.")
+            or reference.count(":") != 1
+            or not all(reference.partition(":")[::2])
+            for reference in self.providers
+        ):
+            raise ValueError(_GATE_EXECUTOR_INVALID)
+        return self
+
     def resolved_command(self, python_executable: str) -> tuple[str, ...]:
         """Resolve declaration placeholders from an explicit runtime fact."""
         return tuple(python_executable if part == "{python}" else part for part in self.command)
@@ -58,7 +74,9 @@ class GateDescriptor(BaseModel):
 
     def to_dict(self) -> dict[str, object]:
         """Project the descriptor to the stable public quality-gate shape."""
-        return self.model_dump(mode="json")
+        payload = self.model_dump(mode="json", exclude={"command", "providers"})
+        payload["command" if self.command else "providers"] = list(self.command or self.providers)
+        return payload
 
 
 class GateEntry(GateDescriptor):
@@ -99,7 +117,7 @@ class GateRegistryDeclaration(BaseModel):
         gate_ids = [gate.id for gate in self.gates]
         if len(gate_ids) != len(set(gate_ids)):
             raise ValueError(_DUPLICATE_GATE_ID)
-        commands = [gate.command for gate in self.gates]
+        commands = [gate.command for gate in self.gates if gate.command]
         if len(commands) != len(set(commands)):
             raise ValueError(_DUPLICATE_GATE_COMMAND)
         runtime_ids = _validate_registry("runtime", self.gates)

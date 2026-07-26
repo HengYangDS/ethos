@@ -16,7 +16,7 @@ See also: [Documentation Index](../index.md), [Command Plane](../reference/comma
 
 ETHOS command output and kernel protocols are JSON-first and schema-governed.
 
-`ethos quality schemas --json` validates tracked JSON Schemas with the
+`ethos prove --gate schemas --json` validates tracked JSON Schemas with the
 Draft 2020-12 validator. Command payloads use `system/schemas/kernel/result.schema.json`
 as the stable envelope.
 
@@ -77,12 +77,12 @@ Trust and promotion contracts are explicit:
   records that map each capability family to owner, invariant, routing, boundary,
   and proof metadata.
 
-`ethos quality schemas --json` validates the schemas, sample contract instances,
+`ethos prove --gate schemas --json` validates the schemas, sample contract instances,
 and any canonical capability profiles present under `openspec/specs/`.
 
 Schema validation is product governance. A command that returns JSON without a
 tracked schema is not mature enough for automation.
-`ethos quality schemas --json` validates both schemas and representative
+`ethos prove --gate schemas --json` validates both schemas and representative
 instances for docs registry, gate registry, workspace status, campaign closeout,
 shadow parity, and Skills V2 contracts. Product-root runs also validate the live
 `.agents/skills/activation.toml`, the normalized live skill registry, and every

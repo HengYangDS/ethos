@@ -22,10 +22,9 @@ if TYPE_CHECKING:
     [
         (["--root", "status", "plan", "--json"], "plan"),
         (["--root", "openspec", "status", "--json"], "status"),
-        (["quality", "status", "--json"], "ethos"),
     ],
 )
-def test_invalid_profile_command_detection_uses_declared_root_commands(
+def test_invalid_profile_command_detection_skips_option_values(
     argv: list[str], expected: str
 ) -> None:
     assert _command(argv) == expected

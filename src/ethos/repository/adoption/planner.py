@@ -19,7 +19,7 @@ from ethos.repository.profile import render_repository_profile
 PROFILE_PATH = ".ethos/profile.toml"
 CONTRACT_PATH = ".ethos/contract.toml"
 APPLY_CRITERIA = (
-    "planned_files contains only the adopter binding manifest",
+    "planned_files contains only the adopter profile and repository contract bindings",
     "existing nonempty binding content is not replaced",
     "rollback path is understood before apply",
 )
@@ -38,12 +38,12 @@ def adoption_plan(
     repository_id = _repository_id(current_contract) or repository_id
     profile = render_repository_profile(RepositoryProfileDeclaration.bootstrap(root.resolve().name))
     contract = _repository_contract(repository_id)
-    contents = {
+    contents: dict[str, str] = {
         PROFILE_PATH: current_profile[0]
-        if _existing_profile_is_valid(root, current_profile)
+        if isinstance(current_profile[0], str) and _existing_profile_is_valid(root, current_profile)
         else profile,
         CONTRACT_PATH: current_contract[0]
-        if _existing_contract_is_valid(current_contract)
+        if isinstance(current_contract[0], str) and _existing_contract_is_valid(current_contract)
         else contract,
     }
     bindings = {

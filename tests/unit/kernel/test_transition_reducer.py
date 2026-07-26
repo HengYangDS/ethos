@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from ethos.contracts.transition import TransitionFacts
-from ethos.contracts.transition import TransitionRequest
-from ethos.contracts.transition import reduce_transition
-from ethos.contracts.workflow import load_workflow_contract_declaration
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
+from ethos.contracts.lifecycle.reducer import TransitionFacts
+from ethos.contracts.lifecycle.reducer import TransitionRequest
+from ethos.contracts.lifecycle.reducer import reduce_transition
 
 
 def _policy(identifier: str):
-    return load_workflow_contract_declaration().policy(identifier)
+    return load_lifecycle_declaration().policy(identifier)
 
 
 def test_transition_reducer_orders_and_deduplicates_every_hard_gap() -> None:

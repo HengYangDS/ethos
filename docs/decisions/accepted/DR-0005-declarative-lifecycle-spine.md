@@ -1,20 +1,20 @@
 ---
-subject: ethos:decision:declarative-runtime-spine
+subject: ethos:decision:declarative-lifecycle-spine
 role: decision
 state: canonical
 relations:
-  canonical_for: declarative runtime spine
+  canonical_for: declarative lifecycle spine
   informs:
     - docs/architecture/declarative-governance-compiler.md
     - docs/architecture/plan-ir.md
     - docs/plans/terminal-governance-product-design.md
 ---
 
-# DR-0005: Declarative Runtime Spine
+# DR-0005: Declarative Lifecycle Spine
 
 Status: accepted.
 
-Purpose: establish the singular declaration-first runtime spine for ETHOS
+Purpose: establish the singular declaration-first lifecycle spine for ETHOS
 without ceding repository truth or lifecycle authority to a framework.
 
 See also: [Decision Records](../README.md), [Decision Index](../decision-index.md),
@@ -31,8 +31,8 @@ See also: [Decision Records](../README.md), [Decision Index](../decision-index.m
 | Decision Makers | ETHOS maintainer and authorized work lane |
 | Status | accepted |
 | Decision Date | 2026-07-10 |
-| Decision Version | 2 |
-| Decision Change Date | 2026-07-25 |
+| Decision Version | 3 |
+| Decision Change Date | 2026-07-26 |
 | Record Review Date | 2026-10-10 |
 | Supersedes | DR-0005 version 1 graph-wrapper and parallel-registry choices |
 | Superseded By | None |
@@ -41,7 +41,7 @@ See also: [Decision Records](../README.md), [Decision Index](../decision-index.m
 | Decision | Use strict frozen Pydantic v2 models for persisted and external contracts, small frozen stdlib values internally, CEL for typed guard expressions after parity, direct `graphlib.TopologicalSorter` for PlanIR order, Cyclopts declarations as CLI truth, and checked JSON Schema for language-neutral contracts. |
 | Consequences | Public contracts, rules, commands, projections, and plans are declaration-first. Python remains for pure compilation or explicit I/O and mutation adapters. Parallel registries, graph wrappers, compatibility layers, DI containers, and in-process event buses are not admitted without unique semantics and measured net benefit. |
 | Proof or Evidence | The `terminal-convergence` OpenSpec change owns implementation and deletion proof; focused contract, determinism, schema, command, and HEAD-bound proof must pass before closeout. |
-| Revisit Trigger | Revisit when declarations increase total maintenance, obscure authority, prevent explanation, or require an external runtime to own lifecycle truth. |
+| Revisit Trigger | Revisit when declarations increase total maintenance, obscure authority, prevent explanation, or require an execution substrate to own lifecycle truth. |
 
 ## Rationale
 
@@ -51,7 +51,7 @@ with overlapping ownership. The corrective principle is not “replace Python
 with frameworks.” It is one semantic obligation, one owner, and the smallest
 mature mechanism that preserves meaning.
 
-The runtime spine is therefore:
+The lifecycle spine is therefore:
 
 1. **Contracts:** Pydantic v2 only at persisted or external boundaries.
 2. **Facts:** freshly observed and passed explicitly; no ambient mutable truth.
@@ -66,10 +66,11 @@ The runtime spine is therefore:
 7. **Evidence:** execution returns immutable attestations instead of publishing
    hidden events or mutating a second truth store.
 
-Heavy workflow engines, policy servers, graph frameworks, state-machine
-frameworks, DI containers, and event buses remain outside the kernel. They may
-become optional adapters only after a real consumer proves that the existing
-contracts and adapter protocol cannot express the requirement more simply.
+Execution runtimes, workflow engines, policy servers, graph frameworks,
+state-machine frameworks, DI containers, and event buses remain outside the
+kernel. They may become optional adapters only after a real consumer proves
+that the existing contracts and adapter protocol cannot express the requirement
+more simply.
 
 ## Proof
 

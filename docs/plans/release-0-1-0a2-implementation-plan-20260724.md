@@ -79,9 +79,9 @@ CLI, GitHub CLI, GitLab CLI, repo-family governance.
   uv run --group dev pytest \
     tests/unit/release/test_policy_attestation.py \
     tests/architecture/test_product_boundaries.py -q
-  uv run ethos quality release-policy --json
-  uv run ethos quality sbom --json
-  uv run ethos quality release-attestation --json
+  uv run ethos publish --json
+  uv run tools/ci/scripts/run-release-supply-chain.sh
+  uv run tools/ci/scripts/run-release-supply-chain.sh
   npm ci --ignore-scripts
   npm run ethos -- --version
   npm run test:npm
@@ -168,8 +168,8 @@ CLI, GitHub CLI, GitLab CLI, repo-family governance.
       `npm pack --workspace @agentic-workflow/ethos --pack-destination build/artifacts/release-0.1.0a2`.
 - [ ] Run the local install smoke and verify imports and CLI version from the
       freshly built wheels.
-- [ ] Save canonical JSON from `ethos quality sbom --json` and
-      `ethos quality release-attestation --json` beside the artifacts.
+- [ ] Save canonical JSON from `tools/ci/scripts/run-release-supply-chain.sh` and
+      `tools/ci/scripts/run-release-supply-chain.sh` beside the artifacts.
 - [ ] Generate `SHA256SUMS` with sorted base filenames and verify it with
       `shasum -a 256 -c SHA256SUMS`.
 - [ ] Create `release-notes.md` from the `0.1.0a2` changelog section plus the

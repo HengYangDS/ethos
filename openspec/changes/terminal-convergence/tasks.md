@@ -11,7 +11,11 @@
 - [x] 1.3 Remove every active workstation-control-plane literal, import, schema,
   test, document, and evidence dependency while preserving native fail-closed
   lane authority.
-- [ ] 1.4 Measure and record product/test/tool/document/config deletion by canonical ELOC ownership class.
+- [x] 1.4 Measure and record product/test/tool/document/config deletion by canonical ELOC
+  ownership class. Against `5883f078b1a539b1cbc84f9bac367f3a91a380a8`, `scc --by-file`
+  records product `-908`, tests `+75`, tools `-54`, documents `-824`, config `-475`,
+  and total `-2186` code lines; direct terminal measurement is Python `48401/54000`
+  and global `64837/68000` (`49406` and `65881` after the independent scc cross-check).
 - [x] 1.5 Block repository-local shadow plan/task/progress/report authority from
   optional method packs and runtimes, including ignored paths, and remove the
   observed `.superpowers` residue after preserving any unique OpenSpec intent.
@@ -25,9 +29,20 @@
 
 ## 3. Lifecycle, Collaboration, And Integration Train
 
-- [ ] 3.1 Implement one pure transition reducer and a separate idempotent Git effect adapter with CAS and attestation replay.
+- [x] 3.1.1 Collapse lifecycle policy, lease operations, PlanIR actions, and
+  campaign CEL into one strict declaration and schema; delete workflow-run,
+  runtime read-model, and parallel transition owners.
+- [ ] 3.1.2 Complete the separate idempotent Git effect adapter with CAS and
+  attestation replay over the pure transition reducer.
 - [ ] 3.2 Implement Worktree Family, cooperative slots, at most two competitive variants, canonical-head selection, intent amendments, absorption, and retirement.
-- [ ] 3.3 Implement vendor-neutral actor references, shared-inbox projection, transcript-free handoff/takeover, orphan recovery, and lost-session unknown boundaries.
+- [x] 3.3.1 Use one isolated, non-locking Git profile for lifecycle observation
+  without changing effect or handoff mutation environments.
+- [ ] 3.3.2 Implement vendor-neutral actor references, shared-inbox projection,
+  transcript-free handoff/takeover, orphan recovery, and lost-session unknown
+  boundaries.
+- [ ] 3.3.3 Implement exact authorized Lease takeover with source-state truth,
+  dirty-content binding, epoch CAS, and receipt evidence; use it to assume and
+  close the currently authorized campaign lanes without holder impersonation.
 - [ ] 3.4 Implement adaptive backpressure, parallel proof scheduling, candidate queue policy, and a short serialized candidate CAS update.
 - [ ] 3.5 Replace submit roles with proposal roles across config, source, schemas, tests, docs, hooks, CI, and release policy without compatibility aliases.
 - [ ] 3.6 Prove lifecycle and race invariants with Hypothesis state machines and Quint models.
@@ -45,7 +60,9 @@
 - [ ] 4.3 Reach 95% global branch coverage and 100% authority/CAS/reducer coverage while deleting branch-reachability tests.
 - [ ] 4.4 Add bounded mutmut gates for critical pure reducers and advisory AST-aware duplicate investigation.
 - [ ] 4.5 Add Aqua-managed CI binaries, Syft SPDX SBOM, in-toto DSSE/SLSA provenance, bump-my-version, and bounded act replay.
-- [ ] 4.6 Enforce Python ELOC <=54,000, global owned-source ELOC <=68,000, payload caps, and no hard-gap green verdict.
+- [ ] 4.6 Enforce Python ELOC <=54,000, global owned-source ELOC <=68,000,
+  payload caps, no hard-gap green verdict, and direct exact-merge-base
+  per-coordinate admission without the retired source-admission stack.
 - [ ] 4.7 Enforce semantic/physical isomorphism: eliminate ambiguous modules,
   make command declarations singular, and block concept, authority, public-symbol,
   import-root, and role-size drift without compatibility facades.

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ethos.domain.plan import load_repository_contract
+from ethos.adapters.repo.change_contract import load_repository_contract
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS

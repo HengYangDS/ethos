@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - Cyclopts needs runtime types in signatures
 from typing import Annotated
+from typing import Any
 from typing import ClassVar
+from typing import cast
 
 from cyclopts import Parameter
 from pydantic import BaseModel
@@ -16,6 +18,7 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.core import revoke_cross_hos
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.normalization.core import integer
+from ethos.normalization.core import object_sequence
 from ethos.normalization.core import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli._base import JsonFlag
@@ -125,6 +128,11 @@ def _emit_lease_result(command: str, report: dict[str, object], *, json_output: 
             "epoch": integer(summary_payload.get("epoch")),
             "holder_ref": str(summary_payload.get("holder_ref") or ""),
         },
+        diagnostics=tuple(
+            cast("dict[str, Any]", item)
+            for item in object_sequence(report.get("diagnostics"))
+            if isinstance(item, dict)
+        ),
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos lane status --json",) if report["ok"] else (),
         data=report,

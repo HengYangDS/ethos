@@ -66,10 +66,12 @@ ethos:types:
   <<: *python_setup
   stage: quality
   script:
-    # `ethos quality types` requires zero diagnostics for every declared package.
+    # The executed python-types gate requires zero diagnostics for every declared package.
     # Unavailable or indeterminate ty execution also blocks through verdict-to-exit
     # binding, so the pipeline cannot pass on an unverified type result.
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos quality types --json
+    - >-
+      tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --execute
+      --gate python-types --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:architecture:
   <<: *python_setup
@@ -147,7 +149,9 @@ ethos:docs-links:
   stage: quality
   script:
     - tools/ci/scripts/install-lychee.sh
-    - tools/ci/scripts/with-python-runtime.sh -- uv run ethos quality markdown-links --json
+    - >-
+      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
+      --gate markdown-links --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:markdown:
   <<: *python_setup

@@ -166,32 +166,14 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, Mapping[s
         docs,
         root=root,
     )
-    gate_results = []
-    for gate in gate_registry().values():
-        gate_results.append(
-            validate_schema_instance(
-                "gate.schema.json",
-                {
-                    "id": gate.id,
-                    "kind": gate.kind,
-                    "command": list(gate.command),
-                    "policy": gate.policy,
-                    "profile": gate.profile,
-                    "toolchain": gate.toolchain,
-                    "asset_classes": list(gate.asset_classes),
-                    "dimensions": list(gate.dimensions),
-                    "execution_mode": gate.execution_mode,
-                    "evidence_class": gate.evidence_class,
-                    "trust_bearing": gate.trust_bearing,
-                    "tool_adapter": gate.tool_adapter,
-                    "writes_files": gate.writes_files,
-                    "network_policy": gate.network_policy,
-                    "version_source": gate.version_source,
-                    "depends_on": list(gate.depends_on),
-                },
-                root=root,
-            )
+    gate_results = [
+        validate_schema_instance(
+            "gate.schema.json",
+            gate.to_dict(),
+            root=root,
         )
+        for gate in gate_registry().values()
+    ]
     gate_gaps = [
         gap
         for result in gate_results

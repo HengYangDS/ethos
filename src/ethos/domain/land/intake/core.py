@@ -121,7 +121,7 @@ def _mine_claim_file(
             "severity": "medium",
             "dedupe_key": f"evidence.head_stale:{relative}",
             "suggested_disposition": "admit_change_claim",
-            "suggested_proof": "refresh claim evidence and run ethos quality claims --json",
+            "suggested_proof": "refresh claim evidence and run ethos prove --gate claims --json",
             "auto_raise_allowed": False,
             "auto_dispatch_allowed": False,
         }

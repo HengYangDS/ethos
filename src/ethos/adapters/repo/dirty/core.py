@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import os
+import stat
 import subprocess
 from itertools import islice
 from pathlib import PurePosixPath
@@ -9,6 +12,7 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.repo.git import git_stdout_checked
+from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -17,6 +21,159 @@ if TYPE_CHECKING:
 _TEMPORARY_PROBE_HEADER_LINES = 20
 _TEMPORARY_PROBE_PATH_LIMIT = 16
 _TEMPORARY_PROBE_MARKER = "TEMP PROBE"
+
+
+def dirty_content_sha256(root: Path) -> str:
+    """Bind tracked and untracked working content without normalizing bytes."""
+    digest = hashlib.sha256()
+    patch = run_git(root, "diff", "--binary", "HEAD", "--", text=False, observation=True).stdout
+    inventory = run_git(
+        root,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
+        text=False,
+        observation=True,
+    ).stdout
+    parts = [patch]
+    for raw in (item for item in inventory.split(b"\0") if item):
+        parts.extend((raw, _read_untracked(root, raw)))
+    current_patch = run_git(
+        root, "diff", "--binary", "HEAD", "--", text=False, observation=True
+    ).stdout
+    current_inventory = run_git(
+        root,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
+        text=False,
+        observation=True,
+    ).stdout
+    if patch != current_patch or inventory != current_inventory:
+        message = "dirty_content_snapshot_drift"
+        raise ValueError(message)
+    for part in parts:
+        digest.update(len(part).to_bytes(8, "big"))
+        digest.update(part)
+    return digest.hexdigest()
+
+
+def _read_untracked(root: Path, raw: bytes) -> bytes:
+    """Read one regular untracked file without following any path component."""
+    relative = raw.decode(errors="surrogateescape")
+    path = PurePosixPath(relative)
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    directory = getattr(os, "O_DIRECTORY", 0)
+    nonblock = getattr(os, "O_NONBLOCK", 0)
+    unsafe_gap = f"dirty_content_unsafe_path:{relative}"
+    unstable_gap = f"dirty_content_unstable_path:{relative}"
+    if _unsafe_untracked_path(
+        path,
+        nofollow=nofollow,
+        directory=directory,
+        nonblock=nonblock,
+    ):
+        raise ValueError(unsafe_gap)
+    directories: list[int] = []
+    file_descriptor: int | None = None
+    try:
+        directories.append(os.open(root, os.O_RDONLY | directory | nofollow))
+        root_before = os.fstat(directories[0])
+        for component in path.parts[:-1]:
+            directories.append(
+                os.open(
+                    component,
+                    os.O_RDONLY | directory | nofollow,
+                    dir_fd=directories[-1],
+                )
+            )
+        file_descriptor = os.open(
+            path.parts[-1],
+            os.O_RDONLY | nofollow | nonblock,
+            dir_fd=directories[-1],
+        )
+        before = os.fstat(file_descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(unsafe_gap)
+        with os.fdopen(file_descriptor, "rb", closefd=True) as source:
+            file_descriptor = None
+            content = source.read()
+            after = os.fstat(source.fileno())
+        _validate_untracked_snapshot(
+            root=root,
+            name=path.parts[-1],
+            parent_descriptor=directories[-1],
+            root_before=root_before,
+            before=before,
+            after=after,
+            content_length=len(content),
+            unstable_gap=unstable_gap,
+        )
+    except OSError as exc:
+        raise ValueError(unsafe_gap) from exc
+    else:
+        return content
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        for descriptor in reversed(directories):
+            os.close(descriptor)
+
+
+def _unsafe_untracked_path(
+    path: PurePosixPath,
+    *,
+    nofollow: int,
+    directory: int,
+    nonblock: int,
+) -> bool:
+    return (
+        not nofollow
+        or not directory
+        or not nonblock
+        or path.is_absolute()
+        or not path.parts
+        or ".." in path.parts
+    )
+
+
+def _validate_untracked_snapshot(
+    *,
+    root: Path,
+    name: str,
+    parent_descriptor: int,
+    root_before: os.stat_result,
+    before: os.stat_result,
+    after: os.stat_result,
+    content_length: int,
+    unstable_gap: str,
+) -> None:
+    if _stat_identity(before) != _stat_identity(after) or content_length != after.st_size:
+        raise ValueError(unstable_gap)
+    try:
+        current = os.stat(name, dir_fd=parent_descriptor, follow_symlinks=False)
+        root_current = root.stat(follow_symlinks=False)
+    except OSError as exc:
+        raise ValueError(unstable_gap) from exc
+    if (
+        not stat.S_ISREG(current.st_mode)
+        or (current.st_dev, current.st_ino) != (after.st_dev, after.st_ino)
+        or not stat.S_ISDIR(root_current.st_mode)
+        or (root_current.st_dev, root_current.st_ino) != (root_before.st_dev, root_before.st_ino)
+    ):
+        raise ValueError(unstable_gap)
+
+
+def _stat_identity(value: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
 
 
 def changed_paths(

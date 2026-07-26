@@ -23,10 +23,10 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.coordination import CrossHostHandoff
 from ethos.contracts.coordination import HolderRef
-from ethos.contracts.transition import TransitionFacts
-from ethos.contracts.transition import TransitionRequest
-from ethos.contracts.transition import reduce_transition
-from ethos.contracts.workflow import load_workflow_contract_declaration
+from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
+from ethos.contracts.lifecycle.reducer import TransitionFacts
+from ethos.contracts.lifecycle.reducer import TransitionRequest
+from ethos.contracts.lifecycle.reducer import reduce_transition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -95,7 +95,7 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
         )
     )
     evaluation = reduce_transition(
-        load_workflow_contract_declaration(repo).policy("guarded"),
+        load_lifecycle_declaration(repo).policy("guarded"),
         TransitionRequest(apply=apply),
         TransitionFacts(initial_gaps=tuple(gaps)),
     )
@@ -175,7 +175,7 @@ def import_cross_host_handoff(
         ),
     )
     evaluation = reduce_transition(
-        load_workflow_contract_declaration(destination).policy("guarded"),
+        load_lifecycle_declaration(destination).policy("guarded"),
         TransitionRequest(apply=apply),
         TransitionFacts(initial_gaps=tuple(gaps), checks=checks),
     )
@@ -324,7 +324,7 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     )
 
     evaluation = reduce_transition(
-        load_workflow_contract_declaration(repo).policy("guarded"),
+        load_lifecycle_declaration(repo).policy("guarded"),
         TransitionRequest(apply=apply),
         TransitionFacts(initial_gaps=tuple(gaps), checks=checks),
     )

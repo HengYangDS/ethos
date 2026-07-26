@@ -139,6 +139,21 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "hosted_gitlab_status_claimed=true" not in combined
 
 
+def test_hosted_inline_gates_execute_at_the_checked_out_head() -> None:
+    github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+    github_type = next(
+        step["run"]
+        for step in github["jobs"]["quality"]["steps"]
+        if step.get("name") == "Type policy"
+    )
+
+    assert '--execute --gate python-types --expect-head "$(git rev-parse HEAD)"' in github_type
+    for job, gate in (("ethos:types", "python-types"), ("ethos:docs-links", "markdown-links")):
+        command = " ".join(gitlab[job]["script"])
+        assert f'--execute --gate {gate} --expect-head "$(git rev-parse HEAD)"' in command
+
+
 def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
     providers = {str(entry["provider"]): entry for entry in _projection_entries()}
     bootstrap = "source tools/ci/scripts/bootstrap-python.sh"

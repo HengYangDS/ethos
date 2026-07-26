@@ -4,13 +4,9 @@ from __future__ import annotations
 
 import sys
 
-from ethos.repository.registry.commands import known_root_command_names
 from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit_invalid_adopter_profile
 from ethos.surface.cli._base import load_command_groups
-from ethos.surface.cli.root.registry import load_root_commands
-
-load_root_commands()
 
 
 def main() -> None:
@@ -27,7 +23,6 @@ def main() -> None:
 
 def _command(argv: list[str]) -> str:
     """Return the declared root command without mistaking an option value for it."""
-    root_commands = known_root_command_names()
     skip_value = False
     for argument in argv:
         if skip_value:
@@ -38,7 +33,7 @@ def _command(argv: list[str]) -> str:
             continue
         if argument.startswith("-"):
             continue
-        return argument if argument in root_commands else "ethos"
+        return argument
     return "ethos"
 
 

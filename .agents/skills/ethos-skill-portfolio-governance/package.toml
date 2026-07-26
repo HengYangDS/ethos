@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:e93041b6b9e2d67018bce7bffa42d56ba35069c98441d0504a6d8cb4b6b74828"
+expected_digest = "sha256:35d24b2b4e845c2c4d44ea77e774a1934f6b88137364b29c96624d7a0c7495f8"
 
 [quality]
 placeholder_allowed = false
@@ -28,11 +28,6 @@ kind = "command_readonly"
 command = ["ethos", "playbooks", "route", "--changed", "--json"]
 
 [[capability]]
-id = "ethos.quality.projection-drift"
-kind = "command_readonly"
-command = ["ethos", "quality", "projection-drift", "--json"]
-
-[[capability]]
 id = "ethos.prove.playbooks-v2"
 kind = "command_proof"
-command = ["ethos", "prove", "--execute", "--gate", "playbooks-v2", "--json"]
+command = ["ethos", "prove", "--gate", "playbooks-v2", "--execute", "--json"]

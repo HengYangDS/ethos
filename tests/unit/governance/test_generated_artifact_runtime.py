@@ -289,15 +289,18 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(repo: Path, tmp_pa
         "[project]\nname = 'runtime-test'\nversion = '0.0.0'\n",
         encoding="utf-8",
     )
+    host_cache = tmp_path / "host-cache"
     env = _env(
         uv,
         ETHOS_RUNTIME_BOOTSTRAPPED="1",
         ETHOS_RUNTIME_ROOT=str(tmp_path / "outer"),
+        XDG_CACHE_HOME=str(host_cache),
         UV_CAPTURE=str(capture),
     )
 
     assert _run(repo, env, str(python), "-m", "ethos.cli", "hook") == ["semantic-runtime"]
     assert capture.exists() is False
+    assert not (host_cache / "ethos/uv/nested-bootstrap").exists()
 
 
 def test_owner_script_detaches_from_uv_sync_lock(repo: Path, tmp_path: Path) -> None:

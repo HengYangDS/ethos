@@ -6,7 +6,6 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.repository.profile import RepositoryProfileDeclaration
-from ethos.repository.profile import _normalize_legacy_profile_payload
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_evidence_roots
 from ethos.repository.profile import profile_root
@@ -115,13 +114,7 @@ def test_profile_contract_rejects_non_string_paths() -> None:
         )
 
 
-def test_legacy_profile_normalizer_preserves_non_mapping_input() -> None:
-    payload = ("not", "a", "profile")
-
-    assert _normalize_legacy_profile_payload(payload) is payload
-
-
-def test_legacy_profile_envelope_normalizes_to_current_contract(tmp_path: Path) -> None:
+def test_profile_contract_rejects_complete_former_envelope(tmp_path: Path) -> None:
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir()
     profile.write_text(
@@ -132,85 +125,6 @@ def test_legacy_profile_envelope_normalizes_to_current_contract(tmp_path: Path) 
         "[repository]\n"
         'kind = "documentation"\n'
         'root_subject = "sample"\n\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n',
-        encoding="utf-8",
-    )
-
-    loaded = load_repository_profile(tmp_path)
-
-    assert loaded.state == "valid"
-    assert loaded.declaration is not None
-    assert loaded.declaration.profile_id == "sample"
-
-
-def test_complete_legacy_profile_normalizes_root_rules_workaround(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        "schema_version = 1\n"
-        'profile_id = "sample"\n'
-        'profile_version = "1"\n'
-        'ethos_contract_version = "1"\n\n'
-        "[repository]\n"
-        'kind = "documentation"\n'
-        'root_subject = "sample"\n\n'
-        "[roots]\n"
-        'rules = "."\n\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n',
-        encoding="utf-8",
-    )
-
-    loaded = load_repository_profile(tmp_path)
-
-    assert loaded.state == "valid"
-    assert loaded.declaration is not None
-    assert loaded.declaration.roots.rules == "rules"
-    assert loaded.declaration.normative_sources == ("guidelines.md",)
-    assert profile_evidence_roots(tmp_path) == (
-        ".ethos/profile.toml",
-        "rules",
-        "guidelines.md",
-        "evidence/claims",
-        "openspec",
-        "evidence",
-        "docs",
-    )
-
-
-def test_complete_legacy_profile_preserves_declared_normative_sources(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        "schema_version = 1\n"
-        'profile_id = "sample"\n'
-        'profile_version = "1"\n'
-        'ethos_contract_version = "1"\n'
-        'normative_sources = ["authority.md"]\n\n'
-        "[repository]\n"
-        'kind = "documentation"\n'
-        'root_subject = "sample"\n\n'
-        "[roots]\n"
-        'rules = "."\n\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n',
-        encoding="utf-8",
-    )
-
-    loaded = load_repository_profile(tmp_path)
-
-    assert loaded.state == "valid"
-    assert loaded.declaration is not None
-    assert loaded.declaration.normative_sources == ("authority.md",)
-
-
-def test_legacy_profile_envelope_requires_exact_retired_shape(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        'profile_id = "sample"\n'
-        'profile_version = "2"\n\n'
         "[openspec]\n"
         'material_paths = ["openspec/**"]\n',
         encoding="utf-8",

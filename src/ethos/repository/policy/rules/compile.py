@@ -206,7 +206,14 @@ def compile_rules(root: Path) -> dict[str, object]:
     config = load_rules_config(root)
     profile_stack, profile_gaps = resolve_profile_stack(config)
     rules, rule_gaps = _rules_as_contracts(root, config, profile_stack)
-    compile_gaps = [*profile_gaps, *rule_gaps]
+    gate_definitions_by_id = gate_definitions(root, config=config)
+    gate_gaps = [
+        f"unknown_rule_gate:{rule.id}:{gate_id}"
+        for rule in rules
+        for gate_id in rule.required_gates
+        if gate_id not in gate_definitions_by_id
+    ]
+    compile_gaps = [*profile_gaps, *rule_gaps, *gate_gaps]
     rule_set = RuleSet(
         id="ethos-rules",
         profile_layers=tuple(profile_stack),
@@ -231,5 +238,5 @@ def compile_rules(root: Path) -> dict[str, object]:
         "compiled_policy_digest": stable_digest(compiled_policy),
         "source_refs": source_refs,
         "compile_gaps": compile_gaps,
-        "gate_definitions": gate_definitions(root, config=config),
+        "gate_definitions": gate_definitions_by_id,
     }

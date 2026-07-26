@@ -1,7 +1,8 @@
-"""Rules configuration: rules.toml loading, profile resolution, raw-rule normalization."""
+"""Rules configuration: parse rules.toml and validate the active profile stack."""
 
 from __future__ import annotations
 
+import fnmatch
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
@@ -26,10 +27,14 @@ def load_rules_config(root: Path) -> dict[str, Any]:
         return {"_parse_error": str(exc)}
 
 
-def _normalize_profile(profile: str) -> str:
-    if profile == "python-package":
-        return "python"
-    return profile
+def path_matches(path: str, patterns: tuple[str, ...] | list[str]) -> bool:
+    """Return whether a path matches a rule glob, including a trailing-directory glob."""
+    return any(
+        path == pattern[:-3] or fnmatch.fnmatchcase(path, pattern)
+        if pattern.endswith("/**")
+        else fnmatch.fnmatchcase(path, pattern)
+        for pattern in patterns
+    )
 
 
 def _validated_active_profiles(active: object) -> tuple[list[str], str]:
@@ -58,10 +63,15 @@ def resolve_profile_stack(config: dict[str, Any]) -> tuple[list[str], list[str]]
     active_profiles, active_gap = _validated_active_profiles(active)
     if active_gap:
         return ["generic"], [active_gap]
-    normalized = [_normalize_profile(item) for item in active_profiles]
-    if len(normalized) != len(set(normalized)):
+    if len(active_profiles) != len(set(active_profiles)):
         return ["generic"], ["rules_profile_ambiguous:active_contains_duplicates"]
-    stack = list(normalized)
+    known_profiles = {"generic", "python", "strict"}
+    unknown_profiles = sorted(set(active_profiles) - known_profiles)
+    if unknown_profiles:
+        return ["generic"], [
+            f"rules_profile_invalid:unknown_profile:{profile}" for profile in unknown_profiles
+        ]
+    stack = list(active_profiles)
     if "generic" not in stack:
         stack.insert(0, "generic")
     return stack, []

@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import fnmatch
 from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.repository.policy.rules.compile import compile_rules
+from ethos.repository.policy.rules.config import path_matches
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _matches(path: str, patterns: list[str]) -> bool:
-    return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
 
 
 def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[str, object]:
@@ -33,16 +29,16 @@ def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[
         if isinstance(rule, dict)
     ]
     for path in changed_paths:
-        path_matches = [
+        matching_rules = [
             rule
             for rule in rules
-            if _matches(
+            if path_matches(
                 path, [str(pattern) for pattern in cast("list[object]", rule.get("path_globs", []))]
             )
         ]
-        if path_matches:
+        if matching_rules:
             covered_paths.append(path)
-            for rule in path_matches:
+            for rule in matching_rules:
                 matched_rules.append(
                     {
                         "path": path,
@@ -56,11 +52,9 @@ def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[
                             cast("list[object]", rule.get("required_gates", []))
                         ),
                         "required_gates_detail": [
-                            gate_definitions.get(
-                                str(gate),
-                                {"id": str(gate), "command": "", "blocking": True},
-                            )
+                            gate_definitions[str(gate)]
                             for gate in cast("list[object]", rule.get("required_gates", []))
+                            if str(gate) in gate_definitions
                         ],
                         "evidence_requirements": list(
                             cast("list[object]", rule.get("evidence_requirements", []))

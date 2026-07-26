@@ -10,6 +10,8 @@ from ethos.contracts.rules import RuleSet
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.policy.rules.compile import compile_rules
+from ethos.repository.policy.rules.config import resolve_profile_stack
+from ethos.repository.policy.rules.coverage import coverage_report
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
@@ -178,10 +180,57 @@ evidence = ["rule-evaluation"]
     )
 
 
+def test_noncanonical_profile_fails_closed_without_alias_normalization() -> None:
+    profiles, gaps = resolve_profile_stack({"profiles": {"active": ["python-package"]}})
+
+    assert profiles == ["generic"]
+    assert gaps == ["rules_profile_invalid:unknown_profile:python-package"]
+
+
+def test_unknown_rule_gate_is_a_compile_gap_without_synthetic_plan_gate(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "rules.toml").write_text(
+        """
+[[rule]]
+id = "custom.notes"
+owner = "docs-team"
+authority_ref = "docs/governance/docs.md"
+contract_ref = "docs/governance/docs.md"
+path_globs = ["notes/**"]
+severity = "advisory"
+required_gates = ["missing-gate"]
+stop_condition = "notes_gap"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    compiled = compile_rules(tmp_path)
+    matched_rules, required_gates, plan_gaps = matching_rule_gates(tmp_path, ("notes",))
+    coverage = coverage_report(tmp_path, changed_paths=("notes",))
+
+    assert "unknown_rule_gate:custom.notes:missing-gate" in compiled["compile_gaps"]
+    assert matched_rules == [
+        {
+            "id": "custom.notes",
+            "subject": "",
+            "matched_paths": ["notes"],
+            "required_gates": [],
+            "evidence_requirements": [],
+        }
+    ]
+    assert required_gates == []
+    assert "unknown_rule_gate:custom.notes:missing-gate" in plan_gaps
+    assert coverage["covered_paths"] == ["notes"]
+    assert coverage["matched_rules"][0]["required_gates_detail"] == []
+
+
 def test_compiled_rule_matching_treats_trailing_glob_as_its_directory(
     tmp_path: Path,
 ) -> None:
-    matched_rules, _, gaps = matching_rule_gates(tmp_path, ("docs",))
+    matched_rules, _, plan_gaps = matching_rule_gates(tmp_path, ("docs",))
+    coverage = coverage_report(tmp_path, changed_paths=("docs",))
 
-    assert gaps == []
+    assert plan_gaps == []
     assert any(rule["id"] == "starter.docs" for rule in matched_rules)
+    assert coverage["covered_paths"] == ["docs"]
+    assert any(match["rule_id"] == "starter.docs" for match in coverage["matched_rules"])

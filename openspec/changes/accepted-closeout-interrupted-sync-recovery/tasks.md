@@ -19,11 +19,23 @@
 - [x] 2.3 Assert that recovery imports neither retired-resolution code nor
   SQLite/state storage and introduces no initializer façade.
 
-## 3. Complete local closeout
+## 3. Post-archive terminal acceptance (external evidence)
 
-- [ ] 3.1 Validate OpenSpec, Claim, focused gates, full executed HEAD-bound
-  proof, and parity.
-- [ ] 3.2 Land to candidate and run the candidate runner against the original
-  accepted-root failure receipt.
-- [ ] 3.3 Verify normal accepted-root closeout/current state, local publish
-  readiness, native lane retirement, and bounded housekeeping without push.
+The official archive changes the final canonical-specification HEAD. Executed
+proof, candidate land, receipt-bound accepted-root recovery, normal closeout,
+local publish readiness, and retirement must therefore run **after** archive
+against that exact final HEAD. They are operational acceptance conditions, not
+archive-gated implementation checkboxes: marking them here before the archive
+exists would be false, while leaving them unchecked would make the historical
+carrier's incomplete state visible to archive closeout review.
+
+The post-archive run must preserve command JSON outside the product tree and
+perform, in order:
+
+1. strict archive/Claim verification, focused gates, parity, and one executed
+   HEAD-bound proof;
+2. candidate land and the candidate runner's exact receipt-bound recovery of
+   the original accepted-root residue;
+3. normal accepted closeout with its candidate-external control receipt, local
+   publish readiness without push, native retirement of this lane, and bounded
+   housekeeping.

@@ -200,16 +200,24 @@ def closeout_worktree_sync_recovery_report(
         if request.apply and not request.confirm_irreversible
         else ()
     )
-    observed_gaps = observation.get("required_gaps", [])
+    observed_raw = observation.get("required_gaps")
+    if (
+        not isinstance(observed_raw, list | tuple)
+        or not all(isinstance(item, str) for item in observed_raw)
+        or not isinstance(observation.get("ok"), bool)
+        or observation["ok"] is not (not observed_raw)
+        or not isinstance(observation.get("residue_exact"), bool)
+    ):
+        observed_gaps = ("recovery_observation_invalid",)
+    else:
+        observed_gaps = tuple(str(item) for item in observed_raw)
     decision = reduce_mutation(
         request,
         current_head=current_head,
         facts=MutationFacts(
             role=str(status.get("role") or ""),
             dirty=bool(status.get("dirty")) and not bool(observation.get("residue_exact")),
-            always_gaps=tuple(
-                item for item in (*observed_gaps, *confirmation_gaps) if isinstance(item, str)
-            ),
+            always_gaps=(*observed_gaps, *confirmation_gaps),
         ),
         transition=CLOSEOUT_WORKTREE_RECOVERY_MUTATION,
     )

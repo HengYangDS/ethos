@@ -15,6 +15,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
@@ -298,18 +299,24 @@ def recover_accepted_worktree_sync(
     inspected = inspect_accepted_worktree_sync_recovery(request, dependencies=dependencies)
     if not inspected["ok"]:
         return _recovery_blocked(request, inspected)
-    lock, quarantine = inspected["index_lock"], inspected["lock_quarantine"]
-    observation_invalid = not isinstance(lock, dict) or not isinstance(quarantine, dict)
-    fingerprint = lock.get("fingerprint") if isinstance(lock, dict) else None
+    lock_raw, quarantine_raw = inspected["index_lock"], inspected["lock_quarantine"]
+    observation_invalid = not isinstance(lock_raw, dict) or not isinstance(quarantine_raw, dict)
+    fingerprint = lock_raw.get("fingerprint") if isinstance(lock_raw, dict) else None
     if observation_invalid or not isinstance(fingerprint, dict):
         gap = "recovery_observation_invalid" if observation_invalid else "recovery_index_lock_fingerprint_invalid"
         return _recovery_blocked(request, {**inspected, "required_gaps": [gap]})
+    lock = cast("dict[str, object]", lock_raw)
+    quarantine = cast("dict[str, object]", quarantine_raw)
     lock_path = Path(str(lock["path"]))
     quarantine_path = Path(str(quarantine["path"]))
     lock_digest = str(lock.get("sha256") or "")
     quarantine_gap = _quarantine_lock(lock_path, quarantine_path, fingerprint, lock_digest)
-    if quarantine_gap:
-        return _recovery_blocked(request, {**inspected, "required_gaps": [quarantine_gap]})
+    pre_sync_gaps = [] if quarantine_gap else _recovery_head_drift_gaps(request, dependencies)
+    if quarantine_gap or pre_sync_gaps:
+        failure = {**inspected, "required_gaps": [quarantine_gap] if quarantine_gap else pre_sync_gaps}
+        if not quarantine_gap:
+            failure["lock_quarantined"] = quarantine_path.as_posix()
+        return _recovery_blocked(request, failure)
     synced, attempts = sync_worktree_to_head(request.root, request.current_head, dependencies.run_git)
     if synced.returncode:
         return _recovery_blocked(
@@ -409,6 +416,16 @@ def _recovery_heads(request, dependencies):
         "accepted": _git_text(request.root, dependencies.run_git, "rev-parse", "--verify", request.policy.accepted_branch),
         "candidate": _git_text(request.root, dependencies.run_git, "rev-parse", "--verify", request.policy.candidate_branch),
     }
+
+
+def _recovery_head_drift_gaps(request, dependencies):
+    heads = _recovery_heads(request, dependencies)
+    gaps = []
+    if heads["head"] != request.current_head or heads["accepted"] != request.current_head:
+        gaps.append("recovery_promoted_refs_drifted")
+    if not heads["candidate"] or not dependencies.is_ancestor(request.root, request.current_head, heads["candidate"]):
+        gaps.append("recovery_candidate_drifted")
+    return gaps
 
 
 def _recovery_residue_gaps(root, previous, run):
@@ -518,12 +535,7 @@ def _post_recovery_gaps(request, *, lock, quarantine, run):
     lock_path = Path(str(lock["path"]))
     fingerprint = lock["fingerprint"]
     digest = str(lock["sha256"])
-    gaps = []
-    heads = _recovery_heads(request, CloseoutDependencies(run_git=run))
-    if heads["head"] != request.current_head or heads["accepted"] != request.current_head:
-        gaps.append("recovery_promoted_refs_drifted")
-    if not heads["candidate"] or not is_ancestor(request.root, request.current_head, heads["candidate"]):
-        gaps.append("recovery_candidate_drifted")
+    gaps = _recovery_head_drift_gaps(request, CloseoutDependencies(run_git=run))
     status = run(request.root, "status", "--short", check=False)
     if status.returncode or status.stdout.strip():
         gaps.append("recovery_worktree_dirty_after_sync")

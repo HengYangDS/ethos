@@ -39,6 +39,14 @@ retry or reset would erase legitimate work and make the boundary bypassable.
    The recovery stays in the existing closeout module, reuses its worktree-sync
    primitive, and imports neither retired-resolution code nor SQLite/state
    storage. No package initializer or compatibility façade is introduced.
+6. **Archive precedes terminal-operation evidence.**
+   The official archive changes the canonical specification and therefore the
+   exact HEAD that must receive executed proof. The carrier cannot truthfully
+   mark proof, candidate promotion, accepted-root recovery, publication
+   readiness, or its own retirement as complete before that archive exists.
+   Those operations are an explicit post-archive acceptance sequence whose
+   command JSON stays outside the product tree; they are not archive-gated task
+   checkboxes.
 
 ## Failure Handling
 
@@ -62,4 +70,6 @@ retry or reset would erase legitimate work and make the boundary bypassable.
    state-store dependencies.
 3. Validate OpenSpec, Claim, focused gates, an executed HEAD-bound proof,
    parity, candidate land, accepted recovery, normal current closeout, local
-   publish readiness, and native lane retirement. Do not push.
+   publish readiness, and native lane retirement. Archive the completed source
+   carrier before the HEAD-bound proof, record the subsequent command JSON in
+   external evidence, and do not push.

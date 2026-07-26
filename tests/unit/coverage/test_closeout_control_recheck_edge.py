@@ -52,7 +52,7 @@ def _run(root: Path, monkeypatch: pytest.MonkeyPatch, statuses: tuple[str, ...],
     _patch(monkeypatch, life, resolve_root=lambda _root: root, evaluate_closeout_mutation=lambda *_args, **_kwargs: MutationEvaluation(ok=True, state="ready"), completed_active_changes_report=lambda _root: {"ok": True, "required_gaps": []}, workspace_status=status, control_replacement_report=control, apply_candidate_to_accepted=lambda **_kwargs: pytest.fail("effect after failed recheck"), emit=lambda result, **_kwargs: emitted.append(result), _closeout_result=lambda payload: payload)  # fmt: skip
     _patch(monkeypatch, life.git, current_head=lambda _root: "a" * 40)
     _patch(monkeypatch, life.land_core, closeout_audit_root=lambda *_args: root, repository_audit_after_admission=audit)  # fmt: skip
-    life.land(apply=True, authorize=True, expect_head="a" * 40, closeout=True, root=root, json_output=True)  # fmt: skip
+    life.land(life._LandOptions(apply=True, authorize=True, expect_head="a" * 40, closeout=True), root=root, json_output=True)  # noqa: SLF001, RUF100 - root command option boundary  # fmt: skip
     return emitted[0], controls, audits, events
 
 

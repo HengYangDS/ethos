@@ -41,10 +41,10 @@ build-backend = "hatchling.build"
 packages = ["src/ethos"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"system/commands.toml" = "ethos/data/commands.toml"
 "system/gates.toml" = "ethos/data/gates.toml"
 "system/invalid_states.toml" = "ethos/data/invalid_states.toml"
-"system/workflows.toml" = "ethos/data/workflows.toml"
+"system/lifecycle.toml" = "ethos/data/lifecycle.toml"
+"system/schemas/contracts/lifecycle.schema.json" = "ethos/data/system/schemas/contracts/lifecycle.schema.json"
 "system/coupling.toml" = "ethos/data/coupling.toml"
 "system/standards.toml" = "ethos/data/standards.toml"
 "system/policies/evidence-layout.toml" = "ethos/data/evidence_layout.toml"

@@ -85,11 +85,22 @@ ETHOS_LOCAL_INSTALL_WHEEL="${wheel}" \
 import hashlib
 import json
 import os
+import tomllib
 from datetime import UTC, datetime
+from importlib import resources
 from pathlib import Path
+
+import jsonschema
 
 root = Path(os.environ["ETHOS_LOCAL_INSTALL_ROOT"])
 wheel = Path(os.environ["ETHOS_LOCAL_INSTALL_WHEEL"])
+lifecycle = tomllib.loads(
+    resources.files("ethos").joinpath("data", "lifecycle.toml").read_text(encoding="utf-8")
+)
+schema_ref = lifecycle["schema"]
+schema = resources.files("ethos").joinpath("data", *schema_ref.split("/"))
+assert schema.is_file(), schema
+jsonschema.validate(lifecycle, json.loads(schema.read_text(encoding="utf-8")))
 payload = {
     "schema_version": 1,
     "kind": "ethos_local_install_smoke_evidence",
@@ -103,7 +114,11 @@ payload = {
     "fresh_environment": True,
     "dependencies": "locked_project_environment_projection",
     "module_origins": {"ethos": os.environ["ETHOS_LOCAL_INSTALL_ORIGIN"]},
-    "cli_checks": ["ethos --help", "ethos --version"],
+    "cli_checks": [
+        "ethos --help",
+        "ethos --version",
+        "installed lifecycle declaration resolves its schema",
+    ],
     "version": os.environ["ETHOS_LOCAL_INSTALL_VERSION"],
     "wheels": [{
         "path": wheel.relative_to(root).as_posix(),

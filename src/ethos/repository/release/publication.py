@@ -1,4 +1,4 @@
-"""Read declared equal-remote publication policy."""
+"""Read the declared dual-remote publication topology."""
 
 from __future__ import annotations
 
@@ -7,27 +7,22 @@ from collections.abc import Mapping
 from typing import Any
 from typing import cast
 
-_DEFAULTS = {"gitlab": "origin", "github": "github"}
 _PEERS = {
     "gitlab": ("organization_collaboration", ".gitlab-ci.yml"),
     "github": ("public_distribution", ".github/workflows/ci.yml"),
 }
 _CAPABILITIES = ["repository", "ci_cd", "publication"]
-_PEER_COUNT = len(_DEFAULTS)
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_DECLARATION_FIELDS = frozenset(f"{provider}_remote" for provider in _PEERS)
 
 
 def publication_topology(config: Mapping[str, Any]) -> dict[str, object]:
-    """Project compact peers or validate the verbose compatibility form."""
+    """Project the required named GitLab and GitHub remote declaration."""
     raw = config.get("publication")
-    if raw is None:
-        return _topology(legacy=True, remotes={"origin": "origin"}, gaps=())
     if not isinstance(raw, Mapping):
-        return _topology(
-            legacy=False, remotes={}, gaps=("publication_topology_declaration_invalid",)
-        )
+        return _topology(remotes={}, gaps=("publication_topology_declaration_invalid",))
     remotes, gaps = _declared_remotes(raw)
-    return _topology(legacy=False, remotes=remotes, gaps=gaps)
+    return _topology(remotes=remotes, gaps=gaps)
 
 
 def publication_branch_admission(
@@ -38,20 +33,16 @@ def publication_branch_admission(
     release_branch = str(policy.get("release_branch") or "main")
     proposal_branch_prefix = str(policy.get("proposal_branch_prefix") or "proposal/")
     remote_name = str(policy["remote_name"]) if "remote_name" in policy else "origin"
-    enforce = bool(policy.get("enforce", True))
-    legacy = bool(topology.get("legacy"))
-    gaps = [] if legacy or not enforce else _strings(topology.get("required_gaps"))
+    gaps = _strings(topology.get("required_gaps"))
     if branch == candidate_branch:
         gaps.append(f"publication_candidate_branch_remote_forbidden:{branch}")
-    elif (
-        not legacy
-        and branch not in {accepted_branch, release_branch}
-        and not branch.startswith(proposal_branch_prefix)
+    elif branch not in {accepted_branch, release_branch} and not branch.startswith(
+        proposal_branch_prefix
     ):
         gaps.append(f"publication_remote_branch_forbidden:{branch}")
     elif not remote_name:
         gaps.append("publication_remote_name_missing")
-    elif not legacy and remote_name not in topology_remotes(topology).values():
+    elif not gaps and remote_name not in topology_remotes(topology).values():
         gaps.append(f"publication_remote_target_unknown:{remote_name}")
     gaps = list(dict.fromkeys(gaps))
     return {
@@ -70,66 +61,44 @@ def publication_branch_admission(
 
 
 def topology_remotes(topology: Mapping[str, object]) -> dict[str, str]:
-    """Return provider IDs and their declared Git remote names."""
+    """Return provider IDs and their explicitly declared Git remote names."""
     return {
-        key: str(_mapping(topology.get(key)).get("git_remote") or default)
-        for key, default in _DEFAULTS.items()
+        provider: str(_mapping(topology.get(provider)).get("git_remote") or "")
+        for provider in _PEERS
     }
 
 
 def _declared_remotes(
     raw: Mapping[str, object],
 ) -> tuple[dict[str, str], tuple[str, ...]]:
-    """Read compact fields or validate verbose compatibility records."""
-    values = raw.get("remotes")
-    if isinstance(values, list):
-        remotes = dict(zip(_DEFAULTS, map(str, values), strict=False))
-        return remotes, tuple(_remote_name_gaps(remotes))
-    fields = {key: str(raw.get(f"{key}_remote") or "") for key in _DEFAULTS}
-    if any(fields.values()):
-        return fields, tuple(_remote_name_gaps(fields))
-    records = raw.get("remote")
-    if not isinstance(records, list):
+    """Read only the required named scalar remote declaration."""
+    fields = set(raw)
+    if fields - _DECLARATION_FIELDS:
         return {}, ("publication_topology_declaration_invalid",)
-    records = {str(item.get("id") or ""): item for item in records if isinstance(item, Mapping)}
-    remotes = {key: str(_mapping(records.get(key)).get("git_remote") or "") for key in _DEFAULTS}
-    expected = {key: (role, key, surface, _CAPABILITIES) for key, (role, surface) in _PEERS.items()}
-    gaps = _remote_name_gaps(remotes)
-    gaps.extend(
-        f"publication_topology_{key}_declaration_invalid"
-        for key, target in expected.items()
-        if tuple(
-            _mapping(records.get(key)).get(name)
-            for name in ("role", "provider", "ci_surface", "capabilities")
-        )
-        != target
-    )
-    if len(records) != _PEER_COUNT:
-        gaps.append(f"publication_topology_remote_count_invalid:{len(records)}")
-    return remotes, tuple(dict.fromkeys(gaps))
+    if any(not isinstance(raw.get(field), str) for field in fields):
+        return {}, ("publication_topology_declaration_invalid",)
+    remotes = {provider: str(raw.get(f"{provider}_remote") or "") for provider in _PEERS}
+    return remotes, tuple(_remote_name_gaps(remotes))
 
 
 def _remote_name_gaps(remotes: Mapping[str, str]) -> list[str]:
     gaps = [
-        f"publication_topology_{key}_remote_missing"
+        f"publication_topology_{provider}_remote_missing"
         if not remote
-        else f"publication_topology_{key}_remote_invalid:{remote}"
-        for key, remote in remotes.items()
+        else f"publication_topology_{provider}_remote_invalid:{remote}"
+        for provider, remote in remotes.items()
         if not remote or not _REMOTE.fullmatch(remote)
     ]
-    if len(set(remotes.values())) != len(remotes):
+    if all(remotes.values()) and len(set(remotes.values())) != len(remotes):
         gaps.append("publication_topology_git_remotes_duplicate")
     return gaps
 
 
-def _topology(
-    *, legacy: bool, remotes: Mapping[str, str], gaps: tuple[str, ...]
-) -> dict[str, object]:
-    peers = {key: _peer(key, remotes.get(key, "")) for key in _DEFAULTS}
+def _topology(*, remotes: Mapping[str, str], gaps: tuple[str, ...]) -> dict[str, object]:
+    peers = {provider: _peer(provider, remotes.get(provider, "")) for provider in _PEERS}
     return {
         "kind": "ethos_publication_topology",
-        "state": "legacy_single_remote" if legacy else "ready" if not gaps else "invalid",
-        "legacy": legacy,
+        "state": "ready" if not gaps else "invalid",
         "local": {
             "id": "local",
             "role": "local_verification_install",
@@ -141,20 +110,20 @@ def _topology(
             "candidate_role": "local_only",
             "remote_branches": "accepted_release_proposal_only",
         },
-        "remotes": [{"id": "origin", "git_remote": "origin"}] if legacy else list(peers.values()),
-        "gitlab": peers["gitlab"] if not legacy else {},
-        "github": peers["github"] if not legacy else {},
+        "remotes": list(peers.values()),
+        "gitlab": peers["gitlab"],
+        "github": peers["github"],
         "required_gaps": list(gaps),
     }
 
 
-def _peer(key: str, remote: str) -> dict[str, object]:
+def _peer(provider: str, remote: str) -> dict[str, object]:
     """Render one canonical provider peer from its named remote."""
-    role, surface = _PEERS[key]
+    role, surface = _PEERS[provider]
     return {
-        "id": key,
+        "id": provider,
         "role": role,
-        "provider": key,
+        "provider": provider,
         "git_remote": remote,
         "ci_surface": surface,
         "capabilities": _CAPABILITIES,
@@ -167,5 +136,5 @@ def _mapping(value: object) -> Mapping[str, object]:
 
 
 def _strings(value: object) -> list[str]:
-    """Return a JSON-string sequence or its empty compatibility projection."""
+    """Return a JSON-string sequence or its empty projection."""
     return [str(item) for item in value] if isinstance(value, (list, tuple)) else []

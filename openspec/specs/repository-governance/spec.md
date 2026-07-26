@@ -1904,7 +1904,11 @@ cache roots win; otherwise downloads use a host-scoped content-addressed cache.
 Nested cross-worktree bootstrap SHALL use a bounded child cache namespace and
 keep child source without waiting on the outer lock.
 `ETHOS_RUNTIME_BOOTSTRAPPED=1` owner scripts SHALL invoke outer uv with
-`--no-sync`.
+`--no-sync`. When that marker is already set and the request names the current
+worktree's executable semantic Python with a valid `pyvenv.cfg`, the bootstrap
+SHALL execute the original Python request directly without `uv sync` or a
+nested `uv run`; it MUST NOT require an inherited runtime root to equal the
+current worktree.
 
 #### Scenario: two Work Lanes initialize independently
 
@@ -1944,6 +1948,18 @@ keep child source without waiting on the outer lock.
 - **AND** the script retains ownership of any later tool synchronization
 - **AND** an inner tool invocation does not wait on a parent process holding
   the same `<worktree>/build/runtime/venv` lock
+
+#### Scenario: marked semantic Python bypasses nested synchronization
+
+- **GIVEN** a hook or owner process has `ETHOS_RUNTIME_BOOTSTRAPPED=1`
+- **AND** it requests the current worktree's executable
+  `build/runtime/venv/bin/python` with a valid `pyvenv.cfg`
+- **AND** an inherited runtime root may name a different outer worktree
+- **WHEN** the runtime bootstrap dispatches that semantic Python request
+- **THEN** it executes the original request directly
+- **AND** it does not invoke `uv sync` or a nested `uv run`
+- **AND** an unmarked, unavailable, invalid, or non-semantic request retains
+  its existing runtime-bootstrap behavior
 
 ### Requirement: Explicit execution overrides remain bounded
 

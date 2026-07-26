@@ -138,8 +138,8 @@
 
 - [ ] 10.1 Remove branch-owned `EM101`, `TRY003`, and `PLR0911` findings without
   expanding `.config/checks/ruff/ratchet.toml`.
-- [ ] 10.2 Split the oversized lane-resolution record edge test into a two-module
-  semantic subpackage; do not raise code-size or module-layout limits.
+- [ ] 10.2 Split the oversized lane-resolution preservation Git-payload test into
+  a semantic sibling module; do not raise code-size or module-layout limits.
 - [ ] 10.3 Pass focused tests, Ruff, types, schemas, code-size, module-layout,
   no-compat, and import gates.
 - [ ] 10.4 Complete independent reviews for contracts/records, preservation,

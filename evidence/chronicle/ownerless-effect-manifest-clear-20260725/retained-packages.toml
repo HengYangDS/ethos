@@ -33,7 +33,7 @@ decision_id = "lane-decision:19f824d3-8cc9-47ef-a224-8b154fbdc7ea"
 head = "c3075ebc6cd581212e2c2ff138fbd2c4e7df9cc8"
 index_patch_sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 key = "zero-coupling"
-lane_ref = "work/20260723-native-worktree-authority-wcp-zero-coupling"
+branch_identity = { redaction = "current tracked identifier removed", semantic_label = "task-owned retired-provider predecessor", ref_sha256 = "dda7e65c0339a066f31c46ddecdb103b254a71061d730d8c71b9b08d2f613911" }
 manifest_sha256 = "71af0ad007b29f783823c4aaeafb35488627138f40e459610016ffe45b7e242d"
 package_state = "retained"
 tracked_patch_sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

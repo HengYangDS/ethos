@@ -12,12 +12,23 @@ if [[ -n "${ETHOS_UV_CACHE_DIR:-}" ]]; then export UV_CACHE_DIR="${ETHOS_UV_CACH
 if [[ "${UV_CACHE_DIR}" != /* ]]; then cache_owner_root="${repo_root}"; if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then cache_owner_root="${inherited_runtime_root}"; fi; export UV_CACHE_DIR="${cache_owner_root}/${UV_CACHE_DIR}"; fi
 mkdir -p "${UV_CACHE_DIR}"; export ETHOS_RUNTIME_ROOT="${repo_root}"
 # Bootstrap only the default checkout interpreter; explicit Python overrides remain caller-owned.
-semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"; if [[ "$1" == "${semantic_python}" ]]; then
+semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"
+if [[ "$1" == "${semantic_python}" ]]; then
+  # Nested worktrees must not wait on the outer uv cache lock. Scope the
+  # replacement cache to that outer runtime, so sibling worktrees reuse one
+  # content-addressed cache rather than repeatedly cold-bootstrapping it.
+  bootstrap_cache_dir="${UV_CACHE_DIR}"
+  if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then
+    nested_cache_key="$(printf '%s' "${inherited_runtime_root}" | cksum | awk '{print $1}')"
+    bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"
+    mkdir -p "${bootstrap_cache_dir}"
+  fi
   if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" == "1" && -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" ]]; then exec "$@"; fi
   if [[ -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" && ! -f "${repo_root}/pyproject.toml" ]]; then exec "$@"; fi
-  if [[ -x "${semantic_python}" ]] && uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; then exec "$@"; fi
-  bootstrap_cache_dir="${UV_CACHE_DIR}"
-  if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then nested_cache_key="$(printf '%s' "${repo_root}" | cksum | awk '{print $1}')"; bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"; mkdir -p "${bootstrap_cache_dir}"; fi
+  if [[ -x "${semantic_python}" ]] && \
+    UV_CACHE_DIR="${bootstrap_cache_dir}" uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; then
+    exec "$@"
+  fi
   exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --locked --all-packages --group dev python "${@:2}"
 fi
 

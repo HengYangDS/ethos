@@ -163,6 +163,96 @@ def test_missing_checkout_python_uses_locked_fallback(
     assert not python.exists()
 
 
+def test_nested_bootstrap_cache_is_shared_by_outer_runtime(repo: Path, tmp_path: Path) -> None:
+    peer = tmp_path / "peer"
+    peer.mkdir()
+    _git(peer, "init", "-b", "dev")
+    host_cache = tmp_path / "host-cache"
+    env = _env(
+        _uv(tmp_path, UV_CONTEXT),
+        XDG_CACHE_HOME=str(host_cache),
+        ETHOS_RUNTIME_ROOT=str(tmp_path / "outer"),
+    )
+    first = _run(
+        repo,
+        env,
+        str(repo.resolve() / "build/runtime/venv/bin/python"),
+        "-m",
+        "ethos.cli",
+    )
+    second = _run(
+        peer,
+        env,
+        str(peer.resolve() / "build/runtime/venv/bin/python"),
+        "-m",
+        "ethos.cli",
+    )
+
+    assert first[1] == second[1]
+    assert Path(first[1]).parent == host_cache / "ethos/uv/nested-bootstrap"
+
+
+def test_nested_bootstrap_cache_isolated_between_outer_runtimes(repo: Path, tmp_path: Path) -> None:
+    python = repo.resolve() / "build/runtime/venv/bin/python"
+    host_cache = tmp_path / "host-cache"
+    uv = _uv(tmp_path, UV_CONTEXT)
+    first = _run(
+        repo,
+        _env(
+            uv,
+            XDG_CACHE_HOME=str(host_cache),
+            ETHOS_RUNTIME_ROOT=str(tmp_path / "outer-one"),
+        ),
+        str(python),
+        "-m",
+        "ethos.cli",
+    )
+    second = _run(
+        repo,
+        _env(
+            uv,
+            XDG_CACHE_HOME=str(host_cache),
+            ETHOS_RUNTIME_ROOT=str(tmp_path / "outer-two"),
+        ),
+        str(python),
+        "-m",
+        "ethos.cli",
+    )
+
+    assert first[1] != second[1]
+
+
+def test_nested_checkout_sync_check_uses_bootstrap_cache(repo: Path, tmp_path: Path) -> None:
+    capture = tmp_path / "sync-cache.txt"
+    uv = _uv(
+        tmp_path,
+        "#!/usr/bin/env bash\n"
+        'if [[ "$1" == sync ]]; then printf \'%s\\n\' "$UV_CACHE_DIR" > "$UV_CAPTURE"; exit 1; fi\n'
+        'printf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n',
+    )
+    python = _executable(
+        repo / "build/runtime/venv/bin/python",
+        "#!/usr/bin/env bash\nprintf 'semantic-runtime\\n'\n",
+    )
+    (repo / "build/runtime/venv/pyvenv.cfg").write_text("home = test\n", encoding="utf-8")
+    (repo / "pyproject.toml").write_text(
+        "[project]\nname = 'runtime-test'\nversion = '0.0.0'\n", encoding="utf-8"
+    )
+    host_cache = tmp_path / "host-cache"
+    env = _env(
+        uv,
+        XDG_CACHE_HOME=str(host_cache),
+        ETHOS_RUNTIME_ROOT=str(tmp_path / "outer"),
+        UV_CAPTURE=str(capture),
+    )
+
+    actual = _run(repo, env, str(python), "-m", "ethos.cli", "status", "--json")
+
+    assert actual[2] == f"{LOCKED} status --json"
+    assert capture.read_text().splitlines() == [actual[1]]
+    assert Path(actual[1]).parent == host_cache / "ethos/uv/nested-bootstrap"
+
+
 def test_checkout_python_requires_successful_locked_check(repo: Path, tmp_path: Path) -> None:
     capture = tmp_path / "uv-calls.txt"
     uv = _uv(

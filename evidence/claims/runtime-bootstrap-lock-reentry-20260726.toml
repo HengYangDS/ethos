@@ -7,7 +7,7 @@ summary = "The active carrier bounds one narrow worktree-local runtime bootstrap
 
 [evidence]
 dated = "evidence/chronicle/runtime-bootstrap-lock-reentry-20260726/2026-07-26.md"
-sha256 = "516817f2489f3921c3768fb99b5101b528e98e421e971893a8390621b3520051"
+sha256 = "c85ef1c6be0730a0132988bb75fa251069430829b6f332e8839b376f8847b337"
 evidence_ids = ["evidence:runtime-bootstrap-lock-reentry-20260726"]
 binding = "This Claim binds the owned successor Work Lane at f26f806ae6bc8868786e05f1c79a02ec061a308d, the active OpenSpec carrier, one exact declared-runtime guard, its deterministic fake-uv regression, and later local command evidence only. It does not authorize a ref move, candidate land, accepted closeout, lane retirement, remote mutation, or hosted success claim."
 verifier = "digest_only"

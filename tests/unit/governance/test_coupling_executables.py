@@ -482,6 +482,8 @@ def test_dynamic_module_loading_and_reflection_fail_closed(tmp_path: Path, sourc
         "import builtins\nbuiltins.__import__('subprocess').run(['tar', '--version'])\n",
         "import builtins\n"
         "getattr(builtins, '__import__')('subprocess').run(['tar', '--version'])\n",
+        "import builtins\n"
+        "builtins.__dict__['__import__']('subprocess').run(['tar', '--version'])\n",
         "from builtins import __import__ as load\nload('subprocess').run(['tar', '--version'])\n",
         "from importlib import import_module as load\n"
         "load('subprocess').run(['tar', '--version'])\n",
@@ -490,6 +492,8 @@ def test_dynamic_module_loading_and_reflection_fail_closed(tmp_path: Path, sourc
         "load('subprocess').run(['tar', '--version'])\n",
         "import importlib\n"
         "getattr(importlib, 'import_module')('subprocess').run(['tar', '--version'])\n",
+        "import importlib\n"
+        "importlib.__dict__['import_module']('subprocess').run(['tar', '--version'])\n",
         "load = globals\nload()['subprocess'].run(['tar', '--version'])\n",
         "import sys\nsys.modules['subprocess'].run(['tar', '--version'])\n",
         "eval(\"__import__('subprocess').run(['tar', '--version'])\")\n",

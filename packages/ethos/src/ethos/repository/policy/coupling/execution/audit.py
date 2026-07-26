@@ -61,14 +61,27 @@ def external_execution_calls(tree: ast.AST) -> tuple[tuple[ast.Call, str], ...]:
 
 def _dynamic_resolution_gaps(tree: ast.AST, relative: str, binding: CouplingBinding) -> list[str]:
     """Fail closed on runtime module loading or namespace reflection in mandatory paths."""
+    module_aliases = _dynamic_module_aliases(tree)
     return [
         _node_gap(binding, relative, node, "mandatory_executable_dynamic_resolution")
         for node in ast.walk(tree)
-        if _is_dynamic_resolution_node(node)
+        if _is_dynamic_resolution_node(node, module_aliases)
     ]
 
 
-def _is_dynamic_resolution_node(node: ast.AST) -> bool:
+def _dynamic_module_aliases(tree: ast.AST) -> frozenset[str]:
+    """Return lexical names bound directly to dynamic module-loader namespaces."""
+    aliases = {"builtins", "importlib"}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Import):
+            continue
+        for alias in node.names:
+            if alias.name in aliases:
+                aliases.add(alias.asname or alias.name)
+    return frozenset(aliases)
+
+
+def _is_dynamic_resolution_node(node: ast.AST, module_aliases: frozenset[str]) -> bool:
     """Return whether syntax can resolve an execution module outside lexical analysis."""
     if isinstance(node, ast.ImportFrom):
         return node.module in {"builtins", "importlib"} and any(
@@ -77,20 +90,28 @@ def _is_dynamic_resolution_node(node: ast.AST) -> bool:
     if isinstance(node, ast.Name):
         return node.id in {"__import__", "globals", "locals", "vars", "eval", "exec"}
     if isinstance(node, ast.Attribute):
-        return node.attr in {"__import__", "import_module", "modules"}
-    return isinstance(node, ast.Call) and _is_dynamic_resolution_getattr(node)
+        return node.attr in {"__import__", "import_module", "modules"} or (
+            node.attr == "__dict__"
+            and isinstance(node.value, ast.Name)
+            and node.value.id in module_aliases
+        )
+    return isinstance(node, ast.Call) and _is_dynamic_resolution_getattr(node, module_aliases)
 
 
-def _is_dynamic_resolution_getattr(node: ast.Call) -> bool:
+def _is_dynamic_resolution_getattr(node: ast.Call, module_aliases: frozenset[str]) -> bool:
     """Recognize literal reflection of module-loader and module-map attributes."""
     if not isinstance(node.func, ast.Name) or node.func.id != "getattr" or len(node.args) < 2:
         return False
     name = node.args[1]
-    return isinstance(name, ast.Constant) and name.value in {
-        "__import__",
-        "import_module",
-        "modules",
-    }
+    if not isinstance(name, ast.Constant) or not isinstance(name.value, str):
+        return False
+    if name.value in {"__import__", "import_module", "modules"}:
+        return True
+    return (
+        name.value == "__dict__"
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id in module_aliases
+    )
 
 
 def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBinding) -> list[str]:

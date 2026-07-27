@@ -27,6 +27,7 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_o
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
@@ -324,7 +325,7 @@ def _acquire_or_recover_lease(
             lane_incarnation_id=identity["lane_incarnation_id"],
             lease_id=identity["lease_id"],
             lane_ref=str(manifest["source_lane_ref"]),
-            holder_ref=target_holder_ref,
+            holder_ref=HolderRef.parse(target_holder_ref),
             epoch=1,
             issued_at=now,
             renewed_at=now,

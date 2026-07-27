@@ -133,14 +133,14 @@ def _git_worktree_is_read_only(args: list[str]) -> bool:
 
 
 def _first_non_option(tokens: list[str]) -> str | None:
-    for token in tokens:
-        if not token.startswith("-"):
-            return token
+    for argument in tokens:
+        if not argument.startswith("-"):
+            return argument
     return None
 
 
-def _command_name(token: str) -> str:
-    return token.rsplit("/", maxsplit=1)[-1].lower()
+def _command_name(argument: str) -> str:
+    return argument.rsplit("/", maxsplit=1)[-1].lower()
 
 
 def git_stash_policy(command: str) -> dict[str, object]:
@@ -165,8 +165,8 @@ def _shell_tokens(command: str) -> list[str]:
 
 
 def _git_stash_operation(tokens: list[str]) -> str | None:
-    for index, token in enumerate(tokens):
-        if token != "git":
+    for index, argument in enumerate(tokens):
+        if argument != "git":
             continue
         stash_index = _find_git_subcommand(tokens, start=index + 1)
         if stash_index is None or tokens[stash_index] != "stash":
@@ -180,14 +180,14 @@ def _git_stash_operation(tokens: list[str]) -> str | None:
 def _find_git_subcommand(tokens: list[str], *, start: int) -> int | None:
     index = start
     while index < len(tokens):
-        token = tokens[index]
-        if token in {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}:
+        argument = tokens[index]
+        if argument in {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}:
             index += 2
             continue
-        if token.startswith(("--git-dir=", "--work-tree=", "--namespace=", "--exec-path=")):
+        if argument.startswith(("--git-dir=", "--work-tree=", "--namespace=", "--exec-path=")):
             index += 1
             continue
-        if token.startswith("-"):
+        if argument.startswith("-"):
             index += 1
             continue
         return index

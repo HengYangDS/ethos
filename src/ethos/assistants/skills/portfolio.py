@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 from typing import cast
 
+from ethos.assistants.skills.capabilities import capability_command_strings
 from ethos.normalization.coercion import string_list
 
 SKILL_PACKAGE_FILE_LIMIT = 6
@@ -69,13 +70,13 @@ def portfolio_design(
         subjects = [str(item) for item in cast("list[str]", record["subjects"])]
         if str(record["primary_subject"]) not in subjects:
             gaps.append(f"skill_portfolio_primary_subject_not_routed:{skill_id}")
-        for command in cast("list[str]", record["commands"]):
+        package = package_by_id.get(skill_id, {})
+        for command in capability_command_strings(package.get("capabilities", [])):
             command_owners.setdefault(command, []).append(skill_id)
         for pattern in cast("list[str]", record["path_globs"]):
             path_owners.setdefault(pattern, []).append(skill_id)
         for token in cast("list[str]", record["intent_tokens"]):
             token_owners.setdefault(token, []).append(skill_id)
-        package = package_by_id.get(skill_id, {})
         file_count = len(cast("list[object]", package.get("files", [])))
         if file_count > SKILL_PACKAGE_FILE_LIMIT:
             gaps.append(f"skill_portfolio_package_overloaded:{skill_id}:{file_count}")

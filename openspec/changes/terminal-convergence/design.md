@@ -138,7 +138,8 @@ only active implementation carrier for that design.
 - **Capability loss hidden by ELOC reduction** -> bind every concern to a delta
   scenario, preservation matrix row, mutation/property test, or adopter proof.
 - **Foreign lane overlap** -> observe and compare only; absorb solely through
-  native handoff/resolution and never mutate foreign paths.
+  holder handoff or exact authorized Lease takeover and never mutate foreign
+  paths directly.
 - **Source measurement becomes too weak** -> keep canonical formatting plus
   scc and Python AST/tokenize cross-checks, platform fixtures, and fail-closed
   disagreement without a private worker protocol.

@@ -1,15 +1,16 @@
 ---
 subject: ethos:owner-recovery-hook-probe-retirement-20260720
 role: plan
-state: active
+state: superseded
 relations:
   carrier: openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement
   target_lane: work/owner-recovery-hook-probe-20260720
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Owner-Recovery Hook Probe Retirement — 2026-07-20
 
-Status: active local-only authority carrier.
+Status: superseded historical carrier; it grants no current lifecycle authority.
 
 Purpose: retain the provenance of one exact, clean, lease-free, unbound parity
 probe in accepted history, replace its stale parity projection with current

@@ -10,14 +10,12 @@ app = App(name="ethos", help="ETHOS command plane.")
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
 lane_lease_app = App(name="lease", help="Generation-bound local Lane Lease lifecycle.")
 lane_handoff_app = App(name="handoff", help="Local and cross-host Work Lane handoff.")
-lane_resolution_app = App(name="resolution", help="Exceptional Work Lane judgment and repair.")
 lane_retire_app = App(name="retire", help="Bounded Work Lane retirement lifecycle.")
 hook_app = App(name="hook", help="Hook admission and guard reports.", show=False)
 
 for command_group in (
     lane_lease_app,
     lane_handoff_app,
-    lane_resolution_app,
     lane_retire_app,
 ):
     lane_app.command(command_group)
@@ -63,7 +61,6 @@ def load_command_groups(argv: list[str]) -> None:
         if module == _COMMAND_MODULES["lane"]:
             importlib.import_module("ethos.surface.cli.lane.lease")
             importlib.import_module("ethos.surface.cli.lane.handoff")
-            importlib.import_module("ethos.surface.cli.lane.resolution")
             importlib.import_module("ethos.surface.cli.lane.retirement")
 
 

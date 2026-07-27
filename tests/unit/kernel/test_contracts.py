@@ -506,6 +506,15 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     serialized_workspace_schema = json.dumps(workspace_schema, sort_keys=True)
     assert "claim_id" not in serialized_workspace_schema
     assert "claim_binding" not in serialized_workspace_schema
+    assert "closeoutResidueLane" not in workspace_schema["$defs"]
+    for retired_field in (
+        "closeout_disposition",
+        "residue_state",
+        "closeout_residue_count",
+        "dirty_closeout_residue_count",
+        "closeout_residue_lanes",
+    ):
+        assert retired_field not in serialized_workspace_schema
     for definition in (
         "branchBinding",
         "closeoutSupport",

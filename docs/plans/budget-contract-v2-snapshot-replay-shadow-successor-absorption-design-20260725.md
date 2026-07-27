@@ -1,18 +1,20 @@
 ---
 subject: ethos:budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725
 role: plan
-state: active
+state: superseded
 relations:
   source_lane: work/20260724-budget-contract-v2-snapshot-replay-shadow-successor
   change: openspec/changes/budget-contract-v2-snapshot-replay-shadow-successor-absorption
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Snapshot-Replay Shadow Successor Absorption Design
 
-Status: active local-only authority design.
+Status: superseded by terminal convergence; retained as historical planning
+context only and grants no current authority.
 
-Purpose: bind one exact dirty ownerless Budget Contract v2 successor to current
-accepted semantics and a later native preserve-retire transition.
+Purpose: preserve the source lane's unique budget intent after its valid meaning
+was absorbed by the terminal campaign.
 
 See also: [Implementation Plan](budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md),
 [Mutation Rules](../../rules/mutation.md), and

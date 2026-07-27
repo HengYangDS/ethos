@@ -1,9 +1,10 @@
 ---
 subject: ethos:runtime-topology-convergence-20260711
 role: plan
-state: active
+state: superseded
 relations:
   implements: openspec/changes/archive/2026-07-11-runtime-topology-convergence
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Runtime Topology Convergence Plan

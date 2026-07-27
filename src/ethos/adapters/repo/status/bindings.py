@@ -151,15 +151,15 @@ def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
 
 
 def unbound_ref_next_action(root: Path, branch: str, accepted_branch: str) -> str:
-    """Return the safe next action for an unbound Work Lane ref."""
+    """Return an observation-only action for an unbound Work Lane ref."""
     return {
-        "ancestor_of_accepted": (
-            "retire unbound Work Lane ref after confirming no external owner depends on it"
+        "ancestor_of_accepted": "preserve unbound Work Lane ref; no retirement effect is admitted",
+        "descendant_of_accepted": (
+            "preserve unbound Work Lane ref; bind a recovery contract before action"
         ),
-        "descendant_of_accepted": "bind a lease or land the unbound Work Lane ref before cleanup",
     }.get(
         ref_relation(root, branch, accepted_branch),
-        "inspect diverged unbound Work Lane ref before merge, supersede, or deletion",
+        "preserve and block on unbound Work Lane ref",
     )
 
 

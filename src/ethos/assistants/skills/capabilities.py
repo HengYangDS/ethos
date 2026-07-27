@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 MIN_ETHOS_COMMAND_PARTS = 2
 CAPABILITY_KINDS = frozenset(
@@ -85,6 +89,14 @@ def capability_records(
             record["guard"] = str(item["guard"])
         records.append(record)
     return gaps, records
+
+
+def capability_command_strings(capabilities: Iterable[dict[str, Any]]) -> list[str]:
+    return [
+        " ".join(str(part) for part in capability["command"])
+        for capability in capabilities
+        if capability.get("command")
+    ]
 
 
 def capability_semantic_gaps(context: CapabilityValidationContext) -> list[str]:

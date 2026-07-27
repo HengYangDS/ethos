@@ -1,15 +1,16 @@
 ---
 subject: ethos:ownerless-arg005-unbound-retirement-20260720
 role: plan
-state: active
+state: superseded
 relations:
   carrier: openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement
   target_lane: work/arg005-coverage-edges-20260719
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Ownerless ARG005 Unbound Retirement — 2026-07-20
 
-Status: active, local-only authority carrier.
+Status: superseded historical carrier; it grants no current lifecycle authority.
 
 Purpose: absorb the only useful semantics of one exact, lease-free, unbound
 accepted-ancestor parity residue into current accepted history, then retire the

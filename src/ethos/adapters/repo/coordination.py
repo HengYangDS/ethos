@@ -15,12 +15,9 @@ if TYPE_CHECKING:
 
 FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS = ("write", "land", "retire")
 FOREIGN_WORK_LANE_HANDOFF_REQUIRED = True
-LANDED_DIRTY_RESIDUE_STATE = "unpreserved_worktree_delta"
-CLEAN_RESIDUE_STATE = "clean_or_none"
-LANDED_DIRTY_NEXT_ACTION = (
-    "owner must preserve or intentionally discard dirty worktree delta before retirement"
+FOREIGN_WORK_LANE_NEXT_ACTION = (
+    "observe only; request holder handoff or exact authorized Lease takeover"
 )
-CLEAN_RESIDUE_NEXT_ACTION = "observe lane state; use owner-bound lifecycle command when ready"
 
 
 def branch_path_scope(
@@ -78,19 +75,11 @@ def foreign_work_lane(worktree: dict[str, str], context: ForeignLaneContext) -> 
     )
     path_scope = tuple(dict.fromkeys((*committed, *context.dirty_paths)))
     scope_state = _combined_scope_state(committed_state, path_scope)
-    lease_state = str(context.lease.get("lease_state") or "missing")
-    disposition = closeout_disposition(
-        lease_state=lease_state,
-        contract_binding=str(context.lease.get("contract_binding") or lease_state),
-        relation_to_accepted=context.relation_to_accepted,
-        dirty=bool(context.dirty_paths),
-    )
     return _foreign_lane_payload(
         worktree,
         {
             "lease": context.lease,
             "relation_to_accepted": context.relation_to_accepted,
-            "disposition": disposition,
             "dirty_paths": context.dirty_paths,
             "path_scope": path_scope,
             "scope_state": scope_state,
@@ -118,7 +107,6 @@ def foreign_work_lane_deferred(
         {
             "lease": lease,
             "relation_to_accepted": relation_to_accepted,
-            "disposition": "none",
             "dirty_paths": dirty_paths,
             "path_scope": (),
             "scope_state": "deferred",
@@ -130,9 +118,8 @@ def foreign_work_lane_deferred(
 def _foreign_lane_payload(
     worktree: dict[str, str], context: dict[str, object]
 ) -> dict[str, object]:
-    branch, head = worktree["branch"], worktree["head"]
+    branch = worktree["branch"]
     lease = cast("dict[str, object]", context["lease"])
-    disposition = str(context["disposition"])
     dirty_paths = cast("tuple[str, ...]", context["dirty_paths"])
     lease_state = str(lease.get("lease_state") or "missing")
     base_digest = str(lease.get("base_change_contract_digest") or "")
@@ -143,9 +130,7 @@ def _foreign_lane_payload(
         "base_change_contract_digest": base_digest if lease_state in {"valid", "expired"} else "",
         "contract_binding": str(lease.get("contract_binding") or lease_state),
         "relation_to_accepted": str(context["relation_to_accepted"]),
-        "closeout_disposition": disposition,
-        "residue_state": residue_state(disposition),
-        "next_action": lane_next_action(disposition, branch=branch, head=head),
+        "next_action": FOREIGN_WORK_LANE_NEXT_ACTION,
         "dirty": None if context["scope_state"] == "deferred" else bool(dirty_paths),
         "dirty_paths": list(dirty_paths),
         "path_scope": list(cast("tuple[str, ...]", context["path_scope"])),
@@ -155,25 +140,10 @@ def _foreign_lane_payload(
             action="observe",
             resource=branch,
             blocked_actions=FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS,
-            why=("foreign_lane_requires_handoff_or_accepted_decision",),
+            why=("foreign_lane_requires_handoff_or_exact_authorized_lease_takeover",),
         ),
         "handoff_required": FOREIGN_WORK_LANE_HANDOFF_REQUIRED,
     }
-
-
-def residue_state(disposition: str) -> str:
-    return LANDED_DIRTY_RESIDUE_STATE if disposition == "landed_dirty" else CLEAN_RESIDUE_STATE
-
-
-def lane_next_action(disposition: str, *, branch: str = "", head: str = "") -> str:
-    if disposition == "landed_dirty":
-        return LANDED_DIRTY_NEXT_ACTION
-    if disposition == "retire_ready" and branch and head:
-        return (
-            "retire clean absorbed Work Lane with "
-            f"ethos lane retire landed --branch {branch} --expect-head {head} --apply --json"
-        )
-    return CLEAN_RESIDUE_NEXT_ACTION
 
 
 def lease_summary(lease: dict[str, object]) -> dict[str, object]:
@@ -224,8 +194,6 @@ def coordination_gaps(
             advisory.append(f"work_lane_lease_unknown:{branch}")
         elif lane["lease_state"] == "expired":
             advisory.append(f"work_lane_lease_expired:{branch}")
-        if _is_closeout_residue(lane) and "work_lane_closeout_residue_present" not in advisory:
-            advisory.append("work_lane_closeout_residue_present")
         if current_role != ROLE_WORK_LANE:
             continue
         state = str(lane.get("coordination_state") or "unknown")
@@ -234,25 +202,6 @@ def coordination_gaps(
         elif state == "overlap":
             advisory.append(f"coordination_gap:scope_overlap:{branch}")
     return required, advisory
-
-
-def closeout_disposition(
-    *, lease_state: str, contract_binding: str, relation_to_accepted: str, dirty: bool
-) -> str:
-    """Classify closeout state without authorizing foreign lane mutation."""
-    if relation_to_accepted == "unknown":
-        return "unknown"
-    if relation_to_accepted == "ancestor_of_accepted":
-        if dirty:
-            return "landed_dirty"
-        return "retire_ready" if (lease_state, contract_binding) == ("valid", "bound") else "none"
-    return {"descendant_of_accepted": "unlanded", "diverged_from_accepted": "diverged"}.get(
-        relation_to_accepted, "none"
-    )
-
-
-def _is_closeout_residue(lane: dict[str, object]) -> bool:
-    return str(lane.get("closeout_disposition") or "") not in {"", "none"}
 
 
 def coordination_package(
@@ -265,22 +214,23 @@ def coordination_package(
     unbound_work_lane_count: int = 0,
 ) -> dict[str, object]:
     detail_state = "deferred" if defer_details else "exact"
-    overlaps = [lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"]
-    residues = list(filter(_is_closeout_residue, foreign_work_lanes))
-    unbound_refs = list(unbound_work_lane_refs or ())
+    unbound_refs = [
+        {**ref, "next_action": FOREIGN_WORK_LANE_NEXT_ACTION}
+        for ref in unbound_work_lane_refs or ()
+    ]
     if not unbound_refs and unbound_work_lane_count:
         unbound_refs = [_unknown_unbound_ref() for _ in range(unbound_work_lane_count)]
     counts: dict[str, int] = {
         "missing_lease_count": sum(lane["lease_state"] == "missing" for lane in foreign_work_lanes),
-        "overlap_count": len(overlaps),
+        "overlap_count": sum(
+            lane.get("coordination_state") == "overlap" for lane in foreign_work_lanes
+        ),
         "unknown_scope_count": sum(
             lane.get("coordination_state") == "unknown" for lane in foreign_work_lanes
         ),
         "dirty_foreign_work_lane_count": sum(
             bool(lane.get("dirty")) for lane in foreign_work_lanes
         ),
-        "closeout_residue_count": len(residues),
-        "dirty_closeout_residue_count": sum(bool(lane.get("dirty")) for lane in residues),
     }
     projected_counts = {
         name: value if detail_state == "exact" or name == "missing_lease_count" else None
@@ -297,7 +247,6 @@ def coordination_package(
         **projected_counts,
         "unbound_work_lane_count": len(unbound_refs),
         "unbound_work_lane_refs": unbound_refs,
-        "closeout_residue_lanes": [_closeout_residue_summary(lane) for lane in residues],
         "next_action": coordination_next_action(
             required_gaps=required_gaps,
             foreign_work_lane_count=len(foreign_work_lanes),
@@ -307,15 +256,7 @@ def coordination_package(
                 for name in ("overlap_count", "unknown_scope_count", "missing_lease_count")
             },
         ),
-        "migration_recommendations": [_migration_recommendation(lane) for lane in overlaps],
     }
-
-
-def _closeout_residue_summary(lane: dict[str, object]) -> dict[str, object]:
-    return {
-        name: str(lane.get(name) or "")
-        for name in ("branch", "closeout_disposition", "residue_state")
-    } | {"dirty": bool(lane.get("dirty"))}
 
 
 def _unknown_unbound_ref() -> dict[str, object]:
@@ -323,7 +264,7 @@ def _unknown_unbound_ref() -> dict[str, object]:
         "contract_binding": "missing",
         "lease_state": "missing",
         "relation_to_accepted": "unknown",
-        "next_action": "inspect unbound Work Lane ref before cleanup",
+        "next_action": FOREIGN_WORK_LANE_NEXT_ACTION,
     }
 
 
@@ -339,43 +280,20 @@ def coordination_next_action(
     choices = (
         (
             required_gaps,
-            "resolve required Work Lane coordination gaps before candidate integration",
+            "resolve required current Work Lane coordination gaps before candidate integration",
+        ),
+        (
+            foreign_work_lane_count or unbound_work_lane_count,
+            FOREIGN_WORK_LANE_NEXT_ACTION,
         ),
         (unknown_scope_count, "inspect unknown Work Lane scope before candidate integration"),
         (overlap_count, "review overlapping Work Lane scope before candidate integration"),
         (missing_lease_count, "bind or inspect Work Lane leases before candidate integration"),
-        (
-            foreign_work_lane_count,
-            "review advisory Work Lane coordination signals before candidate integration",
-        ),
-        (
-            unbound_work_lane_count,
-            "inspect or retire unbound Work Lane refs during coordination cleanup",
-        ),
     )
     return next(
         (action for active, action in choices if active),
         "no Work Lane coordination action required",
     )
-
-
-def _migration_recommendation(lane: dict[str, object]) -> dict[str, object]:
-    branch = str(lane.get("branch") or "")
-    lease = lane.get("lease")
-    holder_ref = str(lease.get("holder_ref") or "") if isinstance(lease, dict) else ""
-    return {
-        "kind": "overlap_resolution",
-        "overlapping_branch": branch,
-        "holder_ref": holder_ref,
-        "recommendation": "preserve_legitimate_lane_and_replay_or_move_verified_head",
-        "next_actions": [
-            "do not land a temporary overlapping lane directly",
-            f"refresh or move the leased lane {branch} after review"
-            if branch
-            else "refresh the leased lane after review",
-            "delete the temporary lane after the legitimate lane carries the verified head",
-        ],
-    }
 
 
 def scopes_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:

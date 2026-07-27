@@ -205,7 +205,7 @@ def _create_lane_start_carrier(context: _LaneStartContext) -> dict[str, object]:
                 lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
                 lease_id=f"lease:{uuid.uuid4()}",
                 lane_ref=context.branch,
-                holder_ref=context.holder_ref,
+                holder_ref=HolderRef.parse(context.holder_ref),
                 epoch=1,
                 issued_at=issued_at,
                 renewed_at=issued_at,
@@ -745,7 +745,7 @@ def _lane_start_contract(
     change_id = ""
     contract_digest = ""
     gap = "source_root_required" if source_root is None else ""
-    if not gap:
+    if not gap and source_root is not None:
         try:
             source = repository_root(source_root)
         except (OSError, subprocess.CalledProcessError):

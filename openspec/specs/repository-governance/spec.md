@@ -3380,14 +3380,11 @@ bindings and SHALL NOT support a parallel legacy fingerprint.
 
 ### Requirement: Work Lane start is no-clobber and compensation-bound
 
-ETHOS SHALL reject a Work Lane start before initialization when the target path
-or lane ref already exists. It SHALL initialize one detached candidate-based
-carrier, derive its deterministic initialization HEAD from the exact source
-commit metadata, acquire the Lease for that final HEAD, and only then
-compare-and-create the lane ref. On failure, ETHOS SHALL remove only a linked
-worktree and a ref whose successful creation at that exact HEAD is proven. It
-SHALL revoke the newly acquired Lease only after both exact carriers are proven
-absent.
+ETHOS SHALL reject a Work Lane start when its target path or ref already exists.
+It SHALL initialize one detached candidate-based carrier, derive the final HEAD
+from exact source commit metadata, acquire the Lease for that HEAD, and then
+compare-and-create the ref. Failure compensation SHALL remove only proven
+attempt-owned carriers and revoke the Lease only after their absence is proven.
 
 #### Scenario: Target carrier already exists
 

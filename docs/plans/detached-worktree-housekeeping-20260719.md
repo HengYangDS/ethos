@@ -1,10 +1,11 @@
 ---
 subject: ethos:detached-worktree-housekeeping-20260719
 role: plan
-state: active
+state: superseded
 relations:
   implements: detached-worktree-housekeeping-20260719
   see_also: docs/reference/command-plane.md, openspec/specs/repository-governance/spec.md
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Detached Worktree Housekeeping — 2026-07-19

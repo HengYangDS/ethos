@@ -8,8 +8,11 @@ leaf, so the contract-name list is owned here.
 
 from __future__ import annotations
 
+import json
 import tomllib
 from pathlib import Path
+
+import jsonschema
 
 from ethos._resources import declaration_text
 
@@ -46,18 +49,7 @@ def load_system_contract(root: Path, name: str) -> dict[str, object]:
 
 
 def schema_validation_gaps(name: str, payload: dict[str, object], schema_path: Path) -> list[str]:
-    """Validate a contract against its declared JSON schema when jsonschema is present.
-
-    A schema ref is only a real binding if the contract is actually validated against
-    it. jsonschema is soft-imported so the pure-leaf package keeps a zero hard-dependency
-    footprint; when present, a schema violation is a blocking gap.
-    """
-    try:
-        import json
-
-        import jsonschema
-    except ImportError:
-        return []
+    """Validate a contract against its declared JSON schema."""
     try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         jsonschema.validate(payload, schema)

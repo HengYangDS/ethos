@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[str, object]:
     """Create a portable Git/context package without copying local lease state."""
-    repo = repository_root(request.root)
+    repo = repository_root(Path(request.root))
     status = workspace_status(repo)
     head = _git_value(repo, "rev-parse", "HEAD")
     tree = _git_value(repo, "rev-parse", "HEAD^{tree}")
@@ -149,7 +149,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
 
 def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[str, object]:
     """Import a verified package and create destination-local coordination."""
-    destination = repository_root(request.root)
+    destination = repository_root(Path(request.root))
     package = Path(request.package)
     status = workspace_status(destination)
     manifest, gaps = handoff_package.verified_handoff_manifest(package=package, root=destination)
@@ -205,7 +205,7 @@ def revoke_cross_host_source(
     request: CrossHostHandoffSourceRevocationRequest,
 ) -> dict[str, object]:
     """Revoke the exact source lease only after destination acknowledgement."""
-    repo = repository_root(request.root)
+    repo = repository_root(Path(request.root))
     package = Path(request.package)
     acknowledgement = Path(request.acknowledgement)
     status = workspace_status(repo)

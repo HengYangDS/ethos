@@ -496,10 +496,15 @@ def _artifact_checks(
             else "proof_attestation_artifact_unavailable"
         )
         return None, [gap]
-    if hashlib.sha256(payload).hexdigest() != attestation.effect_digest:
-        return None, ["proof_attestation_artifact_digest_mismatch"]
-    if artifact.get("size_bytes") != len(payload):
-        return None, ["proof_attestation_artifact_size_mismatch"]
+    integrity_gap = (
+        "proof_attestation_artifact_digest_mismatch"
+        if hashlib.sha256(payload).hexdigest() != attestation.effect_digest
+        else "proof_attestation_artifact_size_mismatch"
+        if artifact.get("size_bytes") != len(payload)
+        else ""
+    )
+    if integrity_gap:
+        return None, [integrity_gap]
     try:
         document = json.loads(payload)
     except json.JSONDecodeError:

@@ -611,13 +611,13 @@ def _shell_command_segments(line: str) -> tuple[tuple[str, ...], ...]:
 
 
 def _shell_segment_command(tokens: tuple[str, ...]) -> tuple[str, ...]:
-    for index, token in enumerate(tokens):
-        if token == "env":
+    for index, argument in enumerate(tokens):
+        if argument == "env":
             command_index = _env_command_start(tokens, index + 1)
             return tokens[command_index:] if command_index < len(tokens) else ()
-        if _ignored_shell_token(token):
+        if _ignored_shell_token(argument):
             continue
-        if token in _SHELL_NON_EXECUTABLES or token.startswith("$"):
+        if argument in _SHELL_NON_EXECUTABLES or argument.startswith("$"):
             return ()
         return tokens[index:]
     return ()

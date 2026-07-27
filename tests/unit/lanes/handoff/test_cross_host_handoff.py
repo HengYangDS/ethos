@@ -201,6 +201,142 @@ def _import_with_uncertain_effect(
         )
 
 
+def _export_handoff_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_holder: str,
+    target_holder: str,
+    branch: str,
+) -> tuple[Any, Any, Path, str, dict[str, object]]:
+    source = start_adopted_work_lane(tmp_path / "source", name="handoff", holder_ref=source_holder)
+    destination, _candidate = start_adopted_candidate(tmp_path / "destination")
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=source.worktree,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    lease = leases_by_branch(source.worktree)[branch]
+    export_arguments = {
+        "root": source.worktree.as_posix(),
+        "branch": branch,
+        "holder_ref": source_holder,
+        "target_holder_ref": target_holder,
+        "lease_id": str(lease["lease_id"]),
+        "epoch": int(lease["epoch"]),
+        "expected_expires_at": str(lease["expires_at"]),
+        "expected_payload_sha256": str(lease["payload_sha256"]),
+        "expect_head": head,
+        "context_text": "Continue only after destination validates the package.",
+        "context_file": None,
+        "output_root": (tmp_path / "packages").as_posix(),
+        "apply": True,
+    }
+    monkeypatch.setenv("ETHOS_ACTOR", source_holder)
+    exported = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
+    assert exported["ok"] is True
+    assert (
+        exported["manifest"]["base_change_contract_digest"] == lease["base_change_contract_digest"]
+    )
+    package = Path(str(exported["package_path"]))
+    repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
+    assert (repeated_export["ok"], repeated_export["package_id"]) == (
+        True,
+        exported["package_id"],
+    )
+    return source, destination, package, head, lease
+
+
+def _assert_failed_import_is_compensated(
+    rolled_back: dict[str, object],
+    *,
+    expected_worktree: Path,
+    destination: Path,
+    branch: str,
+    object_probe: list[str],
+    preserved_objects: list[str],
+    stage: str,
+) -> None:
+    assert rolled_back["ok"] is False
+    assert f"handoff_import_failed:forced-{stage}-failure" in rolled_back["required_gaps"]
+    assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
+    assert not expected_worktree.exists()
+    assert (
+        subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=destination,
+            check=False,
+        ).returncode
+        == 1
+    )
+    assert observe_lease(state_database(destination), branch).state == "missing"
+    _assert_objects_exist(destination, preserved_objects)
+
+
+def _assert_uncertain_import_is_compensated(
+    rolled_back: dict[str, object],
+    *,
+    expected_worktree: Path,
+    destination: Path,
+    branch: str,
+    object_probe: list[str],
+    stage: str,
+) -> None:
+    assert rolled_back["ok"] is False
+    assert f"handoff_import_failed:forced-{stage}-uncertain" in rolled_back["required_gaps"]
+    assert not expected_worktree.exists()
+    assert observe_lease(state_database(destination), branch).state == "missing"
+    assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
+
+
+def _assert_source_revoked(
+    monkeypatch: pytest.MonkeyPatch,
+    source: Any,
+    package: Path,
+    lease: dict[str, object],
+    destination: Path,
+) -> None:
+    source_holder = "agent:test:case:source"
+    branch = "work/handoff"
+    head = str(lease["expected_head"])
+    imported = import_cross_host_handoff(
+        CrossHostHandoffImportRequest(
+            root=destination.as_posix(),
+            package=package.as_posix(),
+            target_holder_ref="agent:test:case:target",
+            apply=True,
+        )
+    )
+    assert imported["ok"] is True
+    assert imported["lease"]["base_change_contract_digest"] == lease["base_change_contract_digest"]
+    assert (
+        imported["acknowledgement"]["base_change_contract_digest"]
+        == lease["base_change_contract_digest"]
+    )
+    acknowledgement = package.parent / "acknowledgement.json"
+    acknowledgement.write_text(
+        json.dumps(imported["acknowledgement"], sort_keys=True) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", source_holder)
+    revoked = revoke_cross_host_source(
+        CrossHostHandoffSourceRevocationRequest(
+            root=source.worktree.as_posix(),
+            package=package.as_posix(),
+            acknowledgement=acknowledgement.as_posix(),
+            holder_ref=source_holder,
+            lease_id=str(lease["lease_id"]),
+            epoch=int(lease["epoch"]),
+            expected_expires_at=str(lease["expires_at"]),
+            expected_payload_sha256=str(lease["payload_sha256"]),
+            expect_head=head,
+            apply=True,
+        )
+    )
+    assert (revoked["ok"], revoked["state"]) == (True, "source_revoked")
+    assert branch not in leases_by_branch(source.worktree)
+
+
 def test_handoff_import_rejects_object_format_mismatch_before_effects(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -263,43 +399,8 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
     source_holder = "agent:test:case:source"
     target_holder = "agent:test:case:target"
     branch = "work/handoff"
-    source = start_adopted_work_lane(tmp_path / "source", name="handoff", holder_ref=source_holder)
-    destination, _candidate = start_adopted_candidate(tmp_path / "destination")
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=source.worktree,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip()
-    lease = leases_by_branch(source.worktree)[branch]
-    export_arguments = {
-        "root": source.worktree.as_posix(),
-        "branch": branch,
-        "holder_ref": source_holder,
-        "target_holder_ref": target_holder,
-        "lease_id": str(lease["lease_id"]),
-        "epoch": int(lease["epoch"]),
-        "expected_expires_at": str(lease["expires_at"]),
-        "expected_payload_sha256": str(lease["payload_sha256"]),
-        "expect_head": head,
-        "context_text": "Continue only after destination validates the package.",
-        "context_file": None,
-        "output_root": (tmp_path / "packages").as_posix(),
-        "apply": True,
-    }
-
-    monkeypatch.setenv("ETHOS_ACTOR", source_holder)
-    exported = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
-    assert exported["ok"] is True
-    assert (
-        exported["manifest"]["base_change_contract_digest"] == lease["base_change_contract_digest"]
-    )
-    package = Path(str(exported["package_path"]))
-    repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
-    assert (repeated_export["ok"], repeated_export["package_id"]) == (
-        True,
-        exported["package_id"],
+    source, destination, package, head, lease = _export_handoff_fixture(
+        tmp_path, monkeypatch, source_holder, target_holder, branch
     )
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:wrong")
@@ -336,20 +437,15 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
                 apply=True,
             )
         )
-    assert rolled_back["ok"] is False
-    assert "handoff_import_failed:forced-lease-failure" in rolled_back["required_gaps"]
-    assert not expected_worktree.exists()
-    assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
-    assert (
-        subprocess.run(
-            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
-            cwd=destination,
-            check=False,
-        ).returncode
-        == 1
+    _assert_failed_import_is_compensated(
+        rolled_back,
+        expected_worktree=expected_worktree,
+        destination=destination,
+        branch=branch,
+        object_probe=object_probe,
+        preserved_objects=preserved_objects,
+        stage="lease",
     )
-    assert observe_lease(state_database(destination), branch).state == "missing"
-    _assert_objects_exist(destination, preserved_objects)
 
     for stage in ("ref", "worktree", "commit", "index-pack", "install"):
         rolled_back = _import_with_fault(
@@ -362,20 +458,15 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
             preserved_objects=preserved_objects,
             monkeypatch=monkeypatch,
         )
-        assert rolled_back["ok"] is False
-        assert f"handoff_import_failed:forced-{stage}-failure" in rolled_back["required_gaps"]
-        assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
-        assert not expected_worktree.exists()
-        assert (
-            subprocess.run(
-                ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
-                cwd=destination,
-                check=False,
-            ).returncode
-            == 1
+        _assert_failed_import_is_compensated(
+            rolled_back,
+            expected_worktree=expected_worktree,
+            destination=destination,
+            branch=branch,
+            object_probe=object_probe,
+            preserved_objects=preserved_objects,
+            stage=stage,
         )
-        assert observe_lease(state_database(destination), branch).state == "missing"
-        _assert_objects_exist(destination, preserved_objects)
 
     for stage in ("lease", "ref", "worktree"):
         rolled_back = _import_with_uncertain_effect(
@@ -387,44 +478,19 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
             ),
             monkeypatch=monkeypatch,
         )
-        assert rolled_back["ok"] is False
-        assert f"handoff_import_failed:forced-{stage}-uncertain" in rolled_back["required_gaps"]
-        assert not expected_worktree.exists()
-        assert observe_lease(state_database(destination), branch).state == "missing"
-        assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
+        _assert_uncertain_import_is_compensated(
+            rolled_back,
+            expected_worktree=expected_worktree,
+            destination=destination,
+            branch=branch,
+            object_probe=object_probe,
+            stage=stage,
+        )
 
-    imported = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref=target_holder,
-            apply=True,
-        )
+    _assert_source_revoked(
+        monkeypatch,
+        source,
+        package,
+        lease,
+        destination,
     )
-    assert imported["ok"] is True
-    assert imported["lease"]["base_change_contract_digest"] == lease["base_change_contract_digest"]
-    assert (
-        imported["acknowledgement"]["base_change_contract_digest"]
-        == lease["base_change_contract_digest"]
-    )
-    acknowledgement = tmp_path / "acknowledgement.json"
-    acknowledgement.write_text(
-        json.dumps(imported["acknowledgement"], sort_keys=True) + "\n", encoding="utf-8"
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", source_holder)
-    revoked = revoke_cross_host_source(
-        CrossHostHandoffSourceRevocationRequest(
-            root=source.worktree.as_posix(),
-            package=package.as_posix(),
-            acknowledgement=acknowledgement.as_posix(),
-            holder_ref=source_holder,
-            lease_id=str(lease["lease_id"]),
-            epoch=int(lease["epoch"]),
-            expected_expires_at=str(lease["expires_at"]),
-            expected_payload_sha256=str(lease["payload_sha256"]),
-            expect_head=head,
-            apply=True,
-        )
-    )
-    assert (revoked["ok"], revoked["state"]) == (True, "source_revoked")
-    assert branch not in leases_by_branch(source.worktree)

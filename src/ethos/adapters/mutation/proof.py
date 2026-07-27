@@ -479,8 +479,8 @@ def _artifact_checks(
     artifact = attestation.content.get("artifact")
     expected_relative = (_ARTIFACT_SUBDIR / f"{attestation.effect_digest}.json").as_posix()
     artifact, gap = _artifact_binding(artifact, attestation, expected_relative)
-    if gap:
-        return None, [gap]
+    if artifact is None:
+        return None, [str(gap)]
     path = attestation_store_dir(root) / expected_relative
     try:
         payload = path.read_bytes()
@@ -518,8 +518,8 @@ def _artifact_content_checks(
     ):
         return None, "proof_attestation_artifact_content_mismatch"
     try:
-        return _normalize_checks(document["checks"], allow_empty=True), None
-    except (KeyError, TypeError, ValueError) as error:
+        return _normalize_checks(document.get("checks"), allow_empty=True), None
+    except (TypeError, ValueError) as error:
         return None, str(error)
 
 
@@ -530,6 +530,7 @@ def _artifact_binding(
 ) -> tuple[Mapping[str, Any] | None, str | None]:
     if not isinstance(artifact, Mapping):
         return None, "proof_attestation_artifact_missing"
+    artifact = {str(key): value for key, value in artifact.items()}
     if (
         artifact.get("path") != expected_relative
         or artifact.get("sha256") != f"sha256:{attestation.effect_digest}"

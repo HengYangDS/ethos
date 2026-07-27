@@ -19,6 +19,74 @@ def _write_fake_executable(path: Path, body: str) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
+def _assert_project_configuration(
+    pyproject: str,
+    ruff: str,
+    pytest: str,
+    config_readme: str,
+) -> None:
+    assert "[project]" in pyproject
+    assert "[tool.uv.workspace]" not in pyproject
+    assert 'packages = ["src/ethos"]' in pyproject
+    assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
+    ruff_config = tomllib.loads(ruff)
+    assert ruff_config["cache-dir"] == "build/runtime/tool-cache/ruff"
+    assert ruff_config["line-length"] == 100
+    assert ruff_config["target-version"] == "py312"
+    assert "extend" not in ruff_config
+    assert not (ROOT / ".config/checks/ruff/ruff.toml").exists()
+    assert not (ROOT / "pytest.ini").exists()
+    assert "[lint.per-file-ignores]" in ruff
+    assert '"tests/**" = [' in ruff
+    assert '"INP001"' in ruff
+    assert "src/ethos/repository/evidence/core.py" not in ruff
+    assert "src/ethos/repository/evidence/proof.py" not in ruff
+    assert "[pytest]" in pytest
+    assert "pythonpath" in pytest
+    assert "error" in pytest
+    assert "Separation of concerns" in config_readme
+    assert "system/tools.toml" in config_readme
+
+
+def _assert_tool_registry(tools: str) -> None:
+    assert (
+        'config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"' in tools
+    )
+    assert 'config = "ruff.toml + .config/checks/ruff/ratchet.toml"' in tools
+    assert 'config = ".config/checks/ruff/ruff.toml"' not in tools
+    assert 'config = ".config/checks/import-linter/"' in tools
+    assert 'config = ".config/checks/lychee/"' in tools
+    assert 'config = ".config/checks/coverage/coverage.ini"' in tools
+    assert 'tool = "coverage.py + pytest-cov"' in tools
+    assert "planned = true" not in tools.split('concern = "coverage"', 1)[1].split("[[tool]]", 1)[0]
+    assert 'config = ".config/boundaries/"' not in tools
+    assert 'config = ".config/docs/lychee.toml"' not in tools
+    assert 'concern = "product_boundary"' in tools
+    assert 'gate = "tools/ci/scripts/run-product-boundary.sh"' in tools
+    assert 'concern = "local_ci_fallback"' in tools
+    assert "tools/ci/scripts/require-stable-head.sh" in tools
+    assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
+    assert 'config = ".config/checks/docstrings/policy.toml"' in tools
+    assert 'tool = "ethos-docstrings-google"' in tools
+    assert 'concern = "python_docstrings"' in tools
+
+
+def _assert_required_ci_scripts() -> None:
+    assert (ROOT / "tools/ci/scripts/bootstrap-python.sh").exists()
+    assert (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-import-linter.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
+    assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
+    assert (ROOT / ".config/checks/coverage/.gitignore").exists()
+    assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
+    assert (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
+    assert (ROOT / "tools/ci/scripts/require-stable-head.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
+
+
 def test_gitlab_visible_project_files_exist() -> None:
     required = {
         "CHANGELOG.md",
@@ -100,60 +168,9 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     config_readme = (ROOT / ".config/README.md").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
-    assert "[project]" in pyproject
-    assert "[tool.uv.workspace]" not in pyproject
-    assert 'packages = ["src/ethos"]' in pyproject
-    assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
-        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
-    }
-    ruff_config = tomllib.loads(ruff)
-    assert ruff_config["cache-dir"] == "build/runtime/tool-cache/ruff"
-    assert ruff_config["line-length"] == 100
-    assert ruff_config["target-version"] == "py312"
-    assert "extend" not in ruff_config
-    assert not (ROOT / ".config/checks/ruff/ruff.toml").exists()
-    assert not (ROOT / "pytest.ini").exists()
-    assert "[lint.per-file-ignores]" in ruff
-    assert '"tests/**" = [' in ruff
-    assert '"INP001"' in ruff
-    assert "src/ethos/repository/evidence/core.py" not in ruff
-    assert "src/ethos/repository/evidence/proof.py" not in ruff
-    assert "[pytest]" in pytest
-    assert "pythonpath" in pytest
-    assert "error" in pytest
-    assert "Separation of concerns" in config_readme
-    assert "system/tools.toml" in config_readme
-    assert (
-        'config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"' in tools
-    )
-    assert 'config = "ruff.toml + .config/checks/ruff/ratchet.toml"' in tools
-    assert 'config = ".config/checks/ruff/ruff.toml"' not in tools
-    assert 'config = ".config/checks/import-linter/"' in tools
-    assert 'config = ".config/checks/lychee/"' in tools
-    assert 'config = ".config/checks/coverage/coverage.ini"' in tools
-    assert 'tool = "coverage.py + pytest-cov"' in tools
-    assert "planned = true" not in tools.split('concern = "coverage"', 1)[1].split("[[tool]]", 1)[0]
-    assert 'config = ".config/boundaries/"' not in tools
-    assert 'config = ".config/docs/lychee.toml"' not in tools
-    assert (ROOT / "tools/ci/scripts/bootstrap-python.sh").exists()
-    assert (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-import-linter.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
-    assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
-    assert (ROOT / ".config/checks/coverage/.gitignore").exists()
-    assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
-    assert (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
-    assert (ROOT / "tools/ci/scripts/require-stable-head.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
-    assert 'concern = "product_boundary"' in tools
-    assert 'gate = "tools/ci/scripts/run-product-boundary.sh"' in tools
-    assert 'concern = "local_ci_fallback"' in tools
-    assert "tools/ci/scripts/require-stable-head.sh" in tools
-    assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
-    assert 'config = ".config/checks/docstrings/policy.toml"' in tools
-    assert 'tool = "ethos-docstrings-google"' in tools
-    assert 'concern = "python_docstrings"' in tools
+    _assert_project_configuration(pyproject, ruff, pytest, config_readme)
+    _assert_tool_registry(tools)
+    _assert_required_ci_scripts()
 
 
 def test_pyproject_does_not_carry_quality_tool_policy() -> None:

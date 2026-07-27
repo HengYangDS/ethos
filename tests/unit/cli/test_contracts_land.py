@@ -474,9 +474,7 @@ def test_publish_dry_run_blocks_release_root_active_openspec_residue(tmp_path: P
     assert payload["data"]["release_root_open_spec"] == {"required_gaps": [gap], "blocking": True}
 
 
-def test_configured_branch_roles_drive_local_lifecycle_commands(
-    monkeypatch, tmp_path: Path
-) -> None:
+def _prepare_configured_branch_roles(tmp_path: Path) -> tuple[Path, Path, Path, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     git(repo, "branch", "integration", "dev")
@@ -518,6 +516,10 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
         "branch": "lane/configured",
         "path": worktree.resolve().as_posix(),
     }
+    return repo, candidate_path, worktree, accepted_head
+
+
+def _commit_configured_lane(monkeypatch, worktree: Path) -> str:
     lease_head = git(worktree, "rev-parse", "HEAD")
     (worktree / "README.md").write_text("# configured lane\n", encoding="utf-8")
     git(worktree, "add", "README.md")
@@ -549,22 +551,25 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     assert hook_payload["ok"] is True
     work_head = _archive_fixture_change(monkeypatch, worktree)
     seed_executed_proof(worktree, work_head)
-    publish_payload = run_ethos("publish", "--json", cwd=worktree)
-    assert publish_payload["ok"] is True
-    assert publish_payload["summary"]["mode"] == "local_readiness"
-    assert publish_payload["summary"]["local_readiness"] is True
-    assert publish_payload["summary"]["remote_push"] == "not_performed"
-    assert publish_payload["summary"]["remote_publication_state"] == "deferred"
-    assert publish_payload["summary"]["hosted_ci_status_claimed"] is False
-    assert publish_payload["summary"]["proposal_branch"] == "review/configured"
-    assert publish_payload["data"]["publication"]["proposal_branch"] == "review/configured"
-    local_proposal = publish_payload["data"]["publication"]["local_proposal_package"]
+    return work_head
+
+
+def _assert_configured_publish(payload: dict[str, object]) -> None:
+    assert payload["ok"] is True
+    assert payload["summary"]["mode"] == "local_readiness"
+    assert payload["summary"]["local_readiness"] is True
+    assert payload["summary"]["remote_push"] == "not_performed"
+    assert payload["summary"]["remote_publication_state"] == "deferred"
+    assert payload["summary"]["hosted_ci_status_claimed"] is False
+    assert payload["summary"]["proposal_branch"] == "review/configured"
+    assert payload["data"]["publication"]["proposal_branch"] == "review/configured"
+    local_proposal = payload["data"]["publication"]["local_proposal_package"]
     assert local_proposal["kind"] == "proposal_branch_plan"
     assert local_proposal["source_branch"] == "lane/configured"
     assert local_proposal["proposal_branch"] == "review/configured"
     assert local_proposal["remote_push"] == "not_performed"
     assert local_proposal["remote_state"] == "deferred"
-    assert publish_payload["data"]["publication"]["remote_state"] == "deferred"
+    assert payload["data"]["publication"]["remote_state"] == "deferred"
     assert local_proposal["blocking"] is False
     assert local_proposal["remote_availability"]["blocking"] is False
     assert local_proposal["local_ci_fallback"]["kind"] == "local_ci_fallback"
@@ -575,6 +580,15 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
         "run local-ci fallback when remote publication is unavailable",
         "create configured proposal branch when remote publication is available",
     ]
+
+
+def _land_configured_lane(
+    repo: Path,
+    candidate_path: Path,
+    worktree: Path,
+    accepted_head: str,
+    work_head: str,
+) -> None:
     land_payload = run_ethos(
         "land", "--apply", "--authorize", "--expect-head", work_head, "--json", cwd=worktree
     )
@@ -605,6 +619,9 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     assert accepted_update["required_gaps"] == []
     assert accepted_update["attestation"]["kind"] == "effect"
     assert accepted_update["attestation"]["content"]["state"] == "applied"
+
+
+def _retire_configured_lane(repo: Path, work_head: str) -> None:
     retire_payload = run_ethos(
         "lane",
         "retire",
@@ -627,6 +644,17 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
         "selected_blockers": [],
     }
     assert retire_payload["data"]["mutation"]["request"]["expect_head"] == work_head
+
+
+def test_configured_branch_roles_drive_local_lifecycle_commands(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, candidate_path, worktree, accepted_head = _prepare_configured_branch_roles(tmp_path)
+    work_head = _commit_configured_lane(monkeypatch, worktree)
+    publish_payload = run_ethos("publish", "--json", cwd=worktree)
+    _assert_configured_publish(publish_payload)
+    _land_configured_lane(repo, candidate_path, worktree, accepted_head, work_head)
+    _retire_configured_lane(repo, work_head)
 
 
 def test_publish_invalid_topology_does_not_infer_origin_remote(tmp_path: Path) -> None:

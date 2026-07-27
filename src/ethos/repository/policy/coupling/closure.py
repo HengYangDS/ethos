@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 
 import yaml
 
-from ethos.adapters.repo.git import committed_file_text
 from ethos.contracts.registry.declarations import CouplingDeclaration
 from ethos.contracts.registry.declarations import load_coupling_declaration
 from ethos.contracts.registry.declarations import normalize_binding_command
@@ -22,16 +21,6 @@ from ethos.repository.policy.boundary.product import product_surface_files
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
-
-
-def baseline_product_references(root: Path, head: str) -> dict[str, frozenset[str]]:
-    """Return external references admitted by the binding declaration at ``head``."""
-    text = committed_file_text(root, head, "system/coupling.toml")
-    try:
-        declaration = CouplingDeclaration.model_validate(tomllib.loads(text))
-    except (tomllib.TOMLDecodeError, ValueError):
-        return {kind: frozenset() for kind in _REFERENCE_KINDS}
-    return declared_product_references(declaration)
 
 
 def declared_product_references(
@@ -68,12 +57,10 @@ def latent_product_references(
 
 
 def product_reference_gaps(
-    root: Path,
-    head: str,
+    allowed: dict[str, frozenset[str]],
     observed: dict[str, set[str]],
 ) -> list[str]:
-    """Reject machine references not admitted by the baseline product declaration."""
-    allowed = baseline_product_references(root, head)
+    """Reject machine references outside one declared product closure."""
     return _reference_gaps(allowed, observed)
 
 

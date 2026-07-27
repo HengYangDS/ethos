@@ -612,6 +612,9 @@ def _shell_command_segments(line: str) -> tuple[tuple[str, ...], ...]:
 
 def _shell_segment_command(tokens: tuple[str, ...]) -> tuple[str, ...]:
     for index, token in enumerate(tokens):
+        if token == "env":
+            command_index = _env_command_start(tokens, index + 1)
+            return tokens[command_index:] if command_index < len(tokens) else ()
         if _ignored_shell_token(token):
             continue
         if token in _SHELL_NON_EXECUTABLES or token.startswith("$"):
@@ -646,17 +649,42 @@ def _command_executables(
 
 
 def _command_tokens(tokens: tuple[str, ...]) -> tuple[str, ...]:
-    for index, argument in enumerate(tokens):
+    index = 0
+    while index < len(tokens):
+        argument = tokens[index]
+        if argument == "env":
+            index = _env_command_start(tokens, index + 1)
+            continue
         if (
             argument in _SHELL_PREFIXES
             or argument in {"(", ")"}
             or _SHELL_ASSIGNMENT.fullmatch(argument)
+            or argument.startswith("-")
+            or argument.isdigit()
         ):
-            continue
-        if argument.startswith("-") or argument.isdigit():
+            index += 1
             continue
         return tokens[index:]
     return ()
+
+
+def _env_command_start(tokens: tuple[str, ...], index: int) -> int:
+    while index < len(tokens):
+        argument = tokens[index]
+        if argument == "--":
+            return index + 1
+        if _SHELL_ASSIGNMENT.fullmatch(argument):
+            index += 1
+            continue
+        option = argument.partition("=")[0]
+        if option in _ENV_OPTIONS_WITH_VALUE:
+            index += 1 if "=" in argument else 2
+            continue
+        if argument.startswith("-"):
+            index += 1
+            continue
+        return index
+    return index
 
 
 def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[str, ...]:
@@ -922,6 +950,7 @@ _UVX_OPTIONS_WITH_VALUE = frozenset(
     {"--from", "--index", "--python", "--refresh-package", "--with"}
 )
 _NPM_OPTIONS_WITH_VALUE = frozenset({"--prefix", "--workspace", "-w"})
+_ENV_OPTIONS_WITH_VALUE = frozenset({"--chdir", "--unset", "-C", "-u"})
 _MARKDOWN_FENCE = re.compile(
     r"^```(?P<language>[A-Za-z0-9_-]+)[^\n]*\n(?P<body>.*?)^```\s*$",
     re.IGNORECASE | re.MULTILINE | re.DOTALL,

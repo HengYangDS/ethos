@@ -250,6 +250,18 @@ uvx --from ruff ruff check .
     )
 
 
+def test_env_option_values_are_not_executables() -> None:
+    observed = product_references_from_files(
+        {
+            "tools/check.sh": "env -u ETHOS_ACTOR python -m pytest -q\n",
+            "tools/check.py": "subprocess.run(['env', '-u', 'ETHOS_ACTOR', 'python', '-m', 'pytest'])\n",
+        }
+    )
+
+    assert "ETHOS_ACTOR" not in observed["executable"]
+    assert {"python", "pytest"} <= observed["executable"]
+
+
 def test_npm_run_resolves_the_declared_script_executable() -> None:
     observed = product_references_from_files(
         {

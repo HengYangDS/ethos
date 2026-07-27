@@ -130,7 +130,12 @@ def _projection_gaps(
         text, anchors = document
         if not anchors.intersection(SEMANTIC_ANCHORS):
             gaps.append(f"design_projection_owner_link_missing:{relative}")
-        if "Design status: projection." not in text:
+        status = (
+            "Design status: projection."
+            if relative == "README.md"
+            else "Status: active projection."
+        )
+        if status not in text:
             gaps.append(f"design_projection_status_missing:{relative}")
         if relative in METADATA_PROJECTIONS:
             entry = registry.get(relative, {})
@@ -138,7 +143,7 @@ def _projection_gaps(
             projects_owner = "projects:" in relations and any(
                 f"product-design-contract.md#{anchor}" in relations for anchor in SEMANTIC_ANCHORS
             )
-            if entry.get("state") != "projection" or not projects_owner:
+            if entry.get("state") != "active" or not projects_owner:
                 gaps.append(f"design_projection_front_matter_invalid:{relative}")
             if "canonical_for:" in relations:
                 gaps.append(f"design_projection_claims_canonical_authority:{relative}")

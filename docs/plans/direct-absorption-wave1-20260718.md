@@ -1,10 +1,11 @@
 ---
 subject: ethos:direct-absorption-wave1-20260718
 role: plan
-state: active
+state: superseded
 relations:
   implements: direct-absorption-wave1-20260718
   derives_from: all-lanes-authorized-closeout-20260718
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Direct Absorption Wave 1 — 2026-07-18

@@ -191,14 +191,20 @@ fallback.
 - **AND** remediation points to one of the six public roots or an admitted gate
 
 ### Requirement: Semantic Lane Lifecycle Groups
-Work Lane lease, handoff, resolution, retirement, and hook admission mechanics
-SHALL remain under the hidden `lane` and `hook` operational groups. Their
-operations SHALL call one semantic owner directly and SHALL NOT be promoted,
-aliased, or re-exported as public roots.
+Work Lane lease, handoff, linked retirement, candidate maintenance, and hook
+admission mechanics SHALL remain under the hidden `lane` and `hook` operational
+groups. Their operations SHALL call one semantic owner directly and SHALL NOT be
+promoted, aliased, or re-exported as public roots.
 
 #### Scenario: retirement commands are grouped
 - **WHEN** a maintainer invokes an exact hidden operation
-- **THEN** the operation remains generation-bound, admission-controlled, and
+- **THEN** retirement exposes only `ethos lane retire landed` and
+  `ethos lane retire superseded`
+- **AND** Lease lifecycle remains under `ethos lane lease` and holder transfer
+  under `ethos lane handoff`
+- **AND** no Resolution, unbound-retirement, ownerless, or reconciliation command
+  is registered, documented, or emitted as a next action
+- **AND** every operation remains generation-bound, admission-controlled, and
   scoped to its lane or hook owner
 - **AND** root help and generated public command metadata still expose only the
   six public roots

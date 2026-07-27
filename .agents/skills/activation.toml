@@ -49,7 +49,6 @@ post_checks = [
   "ethos plan --changed --json",
   "ethos status --json",
 ]
-commands = ["ethos status", "ethos plan", "ethos prove"]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -94,13 +93,6 @@ during_rules = [
   "dry-run readiness is not executed proof",
 ]
 post_checks = ["ethos status --json"]
-commands = [
-  "ethos status",
-  "ethos plan",
-  "ethos prove",
-  "ethos land",
-  "ethos publish",
-]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -152,11 +144,6 @@ post_checks = [
   "ethos plan --changed --json",
 ]
 may_coactivate = ["ethos-repository-governance"]
-commands = [
-  ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .",
-  "ethos prove --gate playbooks-v2",
-  "ethos plan --changed",
-]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -221,7 +208,6 @@ post_checks = [
   "ethos prove --json",
 ]
 may_coactivate = ["ethos-change-lifecycle"]
-commands = ["ethos prove", "ethos status"]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -272,9 +258,4 @@ post_checks = [
   "ethos status --json",
 ]
 may_coactivate = ["ethos-repository-governance"]
-commands = [
-  "ethos adopt",
-  "ethos status",
-  "ethos prove --root <repo> --full",
-]
 boundary = "workflow-package-projection"

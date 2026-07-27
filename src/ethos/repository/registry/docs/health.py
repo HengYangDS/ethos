@@ -6,6 +6,7 @@ import re
 import shlex
 from typing import TYPE_CHECKING
 
+from ethos.repository.registry.docs.links import markdown_links
 from ethos.repository.registry.docs.links import markdown_paths
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
 from ethos.repository.registry.docs.registry import VISIBLE_SECTION_LABELS
@@ -56,6 +57,7 @@ def docs_health_report(
     invalid_command_examples = (
         command_example_gaps(root, registry, command_validator) if command_validator else []
     )
+    unindexed_current_plans = current_plan_index_gaps(root, registry)
     required_gaps = (
         missing
         + invalid_state
@@ -63,6 +65,7 @@ def docs_health_report(
         + duplicate_subjects
         + visible_section_gaps
         + invalid_command_examples
+        + unindexed_current_plans
     )
     return {
         "ok": not required_gaps,
@@ -73,9 +76,31 @@ def docs_health_report(
         "duplicate_subjects": duplicate_subjects,
         "missing_visible_sections": visible_section_gaps,
         "invalid_command_examples": invalid_command_examples,
+        "unindexed_current_plans": unindexed_current_plans,
         "required_gaps": required_gaps,
         "registry": registry,
     }
+
+
+def current_plan_index_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
+    """Return current plan documents absent from the canonical plan index."""
+    index = root / "docs" / "plans" / "README.md"
+    if not index.exists():
+        return []
+    indexed = {
+        (index.parent / target.partition("#")[0]).resolve()
+        for _lineno, target in markdown_links(index)
+        if target.partition("#")[0].endswith(".md")
+    }
+    return [
+        f"unindexed_current_plan:{entry['path']}"
+        for entry in registry
+        if entry["path"].startswith("docs/plans/")
+        and entry["path"] != "docs/plans/README.md"
+        and entry["role"] == "plan"
+        and entry["state"] in {"active", "planned"}
+        and (root / entry["path"]).resolve() not in indexed
+    ]
 
 
 def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, str]]) -> list[str]:

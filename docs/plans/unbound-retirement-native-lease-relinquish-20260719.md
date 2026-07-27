@@ -1,17 +1,17 @@
 ---
 subject: ethos:unbound-retirement-native-lease-relinquish-20260719
 role: plan
-state: active
+state: superseded
 relations:
   implements: unbound-retirement-native-lease-relinquish-20260719
   extends: worktree-retirement-exceptional-unbound-v2-20260719
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Native Unbound-Retirement Lease Relinquishment — 2026-07-19
 
-Status: active, owned implementation carrier.  The target ref remains intact
-until this carrier is accepted, locally closed out, and a fresh native command
-re-observes the target.
+Status: superseded historical carrier. The terminal lifecycle exposes no
+unbound-retirement command; the target remains an observation only.
 
 Purpose: close one native-lifecycle deadlock without widening exceptional retirement:
 when the exact current holder still owns the exact lease for an otherwise

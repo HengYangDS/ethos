@@ -23,6 +23,10 @@
   schemas, and other knowledge carriers: inventory independent meaning, integrate
   it into one authoritative organization, escalate model gaps, verify preserved
   scenarios and links, then retire only the misleading or fully redundant residue.
+- [x] 1.6.1 Remove the runtime closeout-residue read model and its schema/CLI
+  projections, route status actions from one stage-gate owner, supersede obsolete
+  active plans without rewriting historical archives, and keep unbound/unknown
+  Work Lane state observe-only.
 
 ## 2. Semantic Kernel Cutover
 

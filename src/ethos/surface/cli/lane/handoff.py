@@ -9,6 +9,9 @@ from cyclopts import Parameter
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import export_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import import_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import revoke_cross_host_source
+from ethos.contracts.coordination import CrossHostHandoffExportRequest
+from ethos.contracts.coordination import CrossHostHandoffImportRequest
+from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
 from ethos.surface.cli.application import lane_handoff_app
 from ethos.surface.cli.lane.lease import LeaseCommandOptions
 from ethos.surface.cli.lane.lease import LeaseHolderOperationOptions
@@ -73,22 +76,55 @@ def lane_handoff_accept(options: Annotated[_AcceptOptions, Parameter(name="*")])
 @lane_handoff_app.command(name="export")
 def lane_handoff_export(options: Annotated[_ExportOptions, Parameter(name="*")]) -> None:
     """Export content-addressed Git/context state for another common directory."""
-    values = options.model_dump(exclude={"root", "json_output"})
-    report = export_cross_host_handoff(root=resolve_root(options.root), **values)
+    report = export_cross_host_handoff(
+        CrossHostHandoffExportRequest(
+            root=resolve_root(options.root).as_posix(),
+            branch=options.branch,
+            holder_ref=options.holder_ref,
+            target_holder_ref=options.target_holder_ref,
+            lease_id=options.lease_id,
+            epoch=options.epoch,
+            expected_expires_at=options.expected_expires_at,
+            expected_payload_sha256=options.expected_payload_sha256,
+            expect_head=options.expect_head,
+            context_text=options.context_text,
+            context_file=options.context_file.as_posix() if options.context_file else None,
+            output_root=options.output_root.as_posix() if options.output_root else None,
+            apply=options.apply,
+        )
+    )
     emit_lease_result(options.command, report, json_output=options.json_output)
 
 
 @lane_handoff_app.command(name="import")
 def lane_handoff_import(options: Annotated[_ImportOptions, Parameter(name="*")]) -> None:
     """Import a verified package and create destination-local coordination."""
-    values = options.model_dump(exclude={"root", "json_output"})
-    report = import_cross_host_handoff(root=resolve_root(options.root), **values)
+    report = import_cross_host_handoff(
+        CrossHostHandoffImportRequest(
+            root=resolve_root(options.root).as_posix(),
+            package=options.package.as_posix(),
+            target_holder_ref=options.target_holder_ref,
+            apply=options.apply,
+        )
+    )
     emit_lease_result(options.command, report, json_output=options.json_output)
 
 
 @lane_handoff_app.command(name="revoke-source")
 def lane_handoff_revoke_source(options: Annotated[_RevokeOptions, Parameter(name="*")]) -> None:
     """Revoke the exact source lease after destination acknowledgement."""
-    values = options.model_dump(exclude={"root", "json_output"})
-    report = revoke_cross_host_source(root=resolve_root(options.root), **values)
+    report = revoke_cross_host_source(
+        CrossHostHandoffSourceRevocationRequest(
+            root=resolve_root(options.root).as_posix(),
+            package=options.package.as_posix(),
+            acknowledgement=options.acknowledgement.as_posix(),
+            holder_ref=options.holder_ref,
+            lease_id=options.lease_id,
+            epoch=options.epoch,
+            expect_head=options.expect_head,
+            expected_expires_at=options.expected_expires_at,
+            expected_payload_sha256=options.expected_payload_sha256,
+            apply=options.apply,
+        )
+    )
     emit_lease_result(options.command, report, json_output=options.json_output)

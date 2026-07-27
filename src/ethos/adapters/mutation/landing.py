@@ -338,7 +338,7 @@ def _apply_candidate_promotion(*, root, policy, status, heads, context):
             "source_branch": policy.candidate_branch,
             "head": candidate_head,
             "previous_head": current_head,
-            "attestation": attestation.model_dump(mode="json"),
+            "attestation": cast("Attestation", attestation).model_dump(mode="json"),
             "attestations": [item.model_dump(mode="json") for item in attestations],
             "release_mirror": mirror_result,
             "required_gaps": [],

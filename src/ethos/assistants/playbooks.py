@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
+from ethos.assistants.skills.capabilities import capability_command_strings
 from ethos.assistants.skills.packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skills.packages import validate_skill_markdown
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
-from ethos.assistants.skills.routing import command_capability_gaps
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.contracts.skill.activation import skill_registry_digest
 from ethos.repository.profile import DEFAULT_ROOTS
@@ -110,23 +110,22 @@ def _collect_playbook_records(
     package_reports: list[dict[str, Any]] = []
     package_capabilities: list[dict[str, Any]] = []
     for record in registry["records"]:
-        playbook_record = _playbook_record(record)
-        records.append(playbook_record)
-        skill_id = playbook_record["id"]
+        skill_id = record["id"]
+        skill_id_text = str(skill_id)
         if not skill_id:
             required_gaps.append("skill_missing_id")
             continue
-        path_gaps = _record_path_gaps(root, str(skill_id), str(playbook_record["path"]))
+        path_gaps = _record_path_gaps(root, skill_id_text, str(record["path"]))
         if path_gaps:
             v2_gaps.extend(path_gaps)
-        elif not (root / str(playbook_record["path"])).exists():
-            required_gaps.append(f"skill_missing_file:{skill_id}")
+        elif not (root / str(record["path"])).exists():
+            required_gaps.append(f"skill_missing_file:{skill_id_text}")
         v2_gaps.extend(_strict_record_gaps(record))
         if not path_gaps:
             quality = validate_skill_markdown(
                 root,
-                str(playbook_record["path"]),
-                str(skill_id),
+                str(record["path"]),
+                skill_id_text,
                 DEFAULT_REQUIRED_SECTIONS,
             )
             v2_gaps.extend(str(gap) for gap in quality["required_gaps"])
@@ -135,15 +134,18 @@ def _collect_playbook_records(
         package_reports.append(package_report)
         package_capabilities.extend(package_report["capabilities"])
         v2_gaps.extend(str(gap) for gap in package_report["required_gaps"])
+        if not capability_command_strings(package_report["capabilities"]):
+            v2_gaps.append(f"playbook_skill_missing_commands:{record['id']}")
         v2_gaps.extend(
             _package_entrypoint_gaps(
                 root,
-                str(skill_id),
-                str(playbook_record["path"]),
+                skill_id_text,
+                str(record["path"]),
                 package_report,
             )
         )
-        v2_gaps.extend(command_capability_gaps(record, package_report))
+        playbook_record = _playbook_record(record, package_report)
+        records.append(playbook_record)
     return {
         "records": records,
         "required_gaps": required_gaps,
@@ -153,7 +155,10 @@ def _collect_playbook_records(
     }
 
 
-def _playbook_record(record: dict[str, Any]) -> dict[str, object]:
+def _playbook_record(
+    record: dict[str, Any],
+    package_report: dict[str, Any],
+) -> dict[str, object]:
     return {
         "id": record["id"],
         "path": record["path"],
@@ -163,7 +168,7 @@ def _playbook_record(record: dict[str, Any]) -> dict[str, object]:
         "pre_reads": list(record["obligations"]["pre_reads"]),
         "post_checks": list(record["obligations"]["post_checks"]),
         "may_coactivate": list(record["relations"]["may_coactivate"]),
-        "commands": list(record["commands"]),
+        "commands": capability_command_strings(package_report["capabilities"]),
         "boundary": record["boundary"],
         "contract_version": 2,
         "primary_subject": record["primary_subject"],
@@ -193,8 +198,6 @@ def _strict_record_gaps(record: dict[str, Any]) -> list[str]:
         gaps.append(f"playbook_skill_missing_post_checks:{skill_id}")
     if not record["package_manifest"]:
         gaps.append(f"skill_package_manifest_missing:{skill_id}")
-    if not record["commands"]:
-        gaps.append(f"playbook_skill_missing_commands:{skill_id}")
     return gaps
 
 

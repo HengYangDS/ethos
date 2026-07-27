@@ -659,10 +659,14 @@ def _command_executables(
 
 
 def _command_tokens(tokens: tuple[str, ...]) -> tuple[str, ...]:
-    for index, token in enumerate(tokens):
-        if token in _SHELL_PREFIXES or token in {"(", ")"} or _SHELL_ASSIGNMENT.fullmatch(token):
+    for index, argument in enumerate(tokens):
+        if (
+            argument in _SHELL_PREFIXES
+            or argument in {"(", ")"}
+            or _SHELL_ASSIGNMENT.fullmatch(argument)
+        ):
             continue
-        if token.startswith("-") or token.isdigit():
+        if argument.startswith("-") or argument.isdigit():
             continue
         return tokens[index:]
     return ()
@@ -670,7 +674,9 @@ def _command_tokens(tokens: tuple[str, ...]) -> tuple[str, ...]:
 
 def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[str, ...]:
     if executable == "uv":
-        run_index = next((index for index, token in enumerate(tokens[1:], 1) if token == "run"), -1)
+        run_index = next(
+            (index for index, argument in enumerate(tokens[1:], 1) if argument == "run"), -1
+        )
         return (
             _tokens_after_options(tokens[run_index + 1 :], _UV_RUN_OPTIONS_WITH_VALUE)
             if run_index >= 0
@@ -678,7 +684,7 @@ def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[s
         )
     if executable in {"python", "python3"} or re.fullmatch(r"python\d+(?:\.\d+)*", executable):
         module_index = next(
-            (index for index, token in enumerate(tokens[1:], 1) if token == "-m"), -1
+            (index for index, argument in enumerate(tokens[1:], 1) if argument == "-m"), -1
         )
         return tokens[module_index + 1 : module_index + 2] if module_index >= 0 else ()
     if executable in {"npx", "uvx"}:
@@ -694,23 +700,23 @@ def _tokens_after_options(
 ) -> tuple[str, ...]:
     index = 0
     while index < len(tokens):
-        token = tokens[index]
-        if token.startswith((">", "<")):
+        argument = tokens[index]
+        if argument.startswith((">", "<")):
             return ()
-        if token == "--":
+        if argument == "--":
             return tokens[index + 1 :]
-        if not token.startswith("-"):
+        if not argument.startswith("-"):
             return tokens[index:]
-        option = token.partition("=")[0]
-        index += 2 if option in options_with_value and "=" not in token else 1
+        option = argument.partition("=")[0]
+        index += 2 if option in options_with_value and "=" not in argument else 1
     return ()
 
 
-def _package_command(token: str) -> str:
-    package = token
+def _package_command(argument: str) -> str:
+    package = argument
     if package.startswith("@") and "/" in package:
         package, separator, _ = package.rpartition("@")
-        package = package if separator else token
+        package = package if separator else argument
     elif "@" in package:
         package = package.partition("@")[0]
     return package.rsplit("/", maxsplit=1)[-1]

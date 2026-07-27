@@ -1,14 +1,14 @@
 ---
 subject: ethos:glossary
 role: reference
-state: projection
+state: active
 relations:
   projects: ../governance/product-design-contract.md#semantic-kernel
 ---
 
 # Glossary
 
-Design status: projection.
+Status: active projection.
 
 Purpose: keep ETHOS terms discoverable for humans, agents, docs, and command
 outputs.

@@ -387,10 +387,11 @@ terminal-convergence task 3.7.
 ### Requirement: Exact Work Lane Lifecycle Effects
 
 ETHOS SHALL keep routine lease coordination and its postcondition receipts in
-ignored local state. An irreversible Lane disposition requires a selected
-ChangeContract and accepted judgment Attestation bound to the exact target and
-policy; only the resulting repository-semantic mutation emits an effect
-Attestation. Chronicle is derived history and never authorization.
+ignored local state. Linked Work Lane retirement SHALL expose only the exact
+holder-bound `landed` and `superseded` transitions. Foreign holder changes SHALL
+use handoff or exact authorized Lease takeover. Unknown, dirty, unbound, or
+owner-uncertain state SHALL remain observe-only and blocked. Chronicle is derived
+history and never authorization.
 
 #### Scenario: routine lifecycle remains local
 
@@ -401,38 +402,36 @@ Attestation. Chronicle is derived history and never authorization.
 - **AND** routine coordination produces no effect Attestation or tracked
   lifecycle telemetry
 
-#### Scenario: exceptional cleanup consumes prior accepted judgment
+#### Scenario: exceptional state does not widen lifecycle effects
 
-- **WHEN** orphan recovery, foreign retirement, non-mechanical supersession,
-  disputed handoff, preservation, or irreversible deletion is requested
-- **THEN** the selected ChangeContract and accepted judgment Attestation bind the
-  exact target, policy, disposition, and recovery plan
-- **AND** a derived historical projection supplies context only and does not
-  authorize the disposition
-- **AND** fresh RepositoryFacts are observed before effect and drift blocks
-  cleanup
-- **AND** the repository-semantic irreversible mutation emits an effect
-  Attestation with verified postconditions
+- **WHEN** orphan recovery, foreign retirement, unbound deletion, preservation,
+  or another exceptional cleanup is requested
+- **THEN** this release exposes no generic cleanup or Resolution transition
+- **AND** the target remains observe-only and blocked unless normal holder-bound
+  handoff, takeover, `landed`, or `superseded` admission applies
+- **AND** a future generic recovery effect requires its own selected
+  ChangeContract rather than a hidden compatibility path
 
 #### Scenario: dirty or unknown work is preserved by default
 
 - **WHEN** ownership, lease, contents, or recovery state is dirty, missing,
   ambiguous, or unknown
-- **THEN** ETHOS preserves or blocks the lane
-- **AND** irreversible deletion requires a selected ChangeContract and accepted
-  judgment Attestation bound to the exact target and policy
+- **THEN** ETHOS preserves and blocks the lane
+- **AND** current lifecycle output does not offer retirement, cleanup, or raw Git
+  deletion as a next action
 
-#### Scenario: break-glass reconciles after emergency action
+#### Scenario: break-glass remains outside normal lifecycle
 
 - **WHEN** a predeclared selected ChangeContract and accepted judgment
   Attestation bind the exact emergency target, policy, blast radius, and expiry
-- **THEN** the repository-semantic emergency mutation emits an effect
-  Attestation and blocks integration
-- **AND** a later governance ChangeContract records reconciliation
+- **THEN** normal Work Lane lifecycle commands do not reinterpret that judgment
+  as holder, retirement, or cleanup authority
+- **AND** any emergency effect and later reconciliation remain separately
+  admitted ChangeContracts outside the normal lane lifecycle
 - **AND** a self-supplied flag, holder string, or historical projection grants no
   authority
 
-#### Scenario: lane handoff is recorded as Chronicle resolution
+#### Scenario: exceptional handoff is attested
 
 - **WHEN** an exceptional handoff becomes disputed
 - **THEN** the selected ChangeContract and accepted judgment Attestation bind
@@ -441,23 +440,21 @@ Attestation. Chronicle is derived history and never authorization.
   does not authorize the handoff
 - **AND** the judgment does not replace the destination Lane Lease
 
-#### Scenario: orphan audit produces a decision, not a persistent orphan state
+#### Scenario: unknown holder facts remain blocked observations
 
 - **WHEN** holder evidence is missing, stale, ambiguous, or obsolete
-- **THEN** RepositoryFacts remain observations until a selected ChangeContract
-  and accepted judgment Attestation bind an exact disposition
+- **THEN** RepositoryFacts remain blocked observations
 - **AND** a derived historical projection may provide context but does not
   authorize retire, preserve, block, handoff, or break-glass
 - **AND** dirty or owner-unknown lanes remain preserved or blocked
 
-#### Scenario: clean ownerless diverged source retires after semantic absorption
+#### Scenario: linked retirement remains exact and holder-bound
 
-- **WHEN** a selected ChangeContract and accepted judgment Attestation bind the
-  exact source branch, HEAD, target, policy, useful meaning, and retirement
-  intent
-- **THEN** the resolver re-observes the source and applies only that exact
-  repository-semantic effect
-- **AND** an effect Attestation records verified postconditions
+- **WHEN** the current holder requests linked `landed` or `superseded`
+  retirement for an exact source branch and HEAD
+- **THEN** ETHOS re-observes the source and applies only that exact linked
+  lifecycle effect
+- **AND** ignored local postcondition evidence records the verified result
 - **AND** tree inequality, a missing lease, or a derived historical projection
   grants no authority
 - **AND** authority does not extend to another lane or remote mutation
@@ -619,11 +616,10 @@ accepted-spec identity, proposal-intent, scope, evidence, and archive checks.
 
 #### Scenario: clean ownerless landed residual retires after exact accepted absorption
 - **GIVEN** one named Work Lane is clean, unleased, and strictly ancestral to accepted
-- **AND** its ChangeContract and accepted judgment Attestation bind the source,
-  absorption basis, and recovery plan
-- **WHEN** native break-glass retirement is applied with irreversible confirmation
-- **THEN** ETHOS re-observes the exact source and accepted control state
-- **AND** it removes only that source and writes a receipt
+- **WHEN** lifecycle admission observes the exact source and accepted control state
+- **THEN** ETHOS reports the lane without offering a retirement effect
+- **AND** holder handoff or exact authorized Lease takeover is required before a
+  linked `landed` or `superseded` transition
 - **AND** inventory, lease expiry, graph relation, or history alone authorizes nothing
 
 
@@ -675,15 +671,13 @@ session instruction as reusable wildcard authority.
 
 - **GIVEN** a cohort lane is dirty, missing trusted lease state, owner-uncertain,
   or requires irreversible retirement
-- **WHEN** the lane is resolved
-- **THEN** the selected ChangeContract and accepted judgment Attestation bind the
-  exact policy and target
-- **AND** a derived historical projection supplies context only and does not
-  authorize the disposition
-- **AND** fresh RepositoryFacts bind one exact observation and recovery plan
-- **AND** dirty content is preserved before retirement
-- **AND** a stale observation blocks the effect instead of falling back to raw
-  Git deletion.
+- **WHEN** the lane is evaluated for convergence
+- **THEN** fresh RepositoryFacts bind one exact observation
+- **AND** the lane remains observe-only and blocked rather than entering a
+  Resolution or exceptional-retirement state machine
+- **AND** holder handoff or exact authorized Lease takeover is required before
+  any linked lifecycle action
+- **AND** dirty or stale state never falls back to raw Git deletion.
 
 #### Scenario: local convergence completion keeps evidence planes separate
 
@@ -932,3 +926,152 @@ renamed scenario maps explicitly below.
 **Migration**: The seven deduplicated lifecycle scenarios move to Exact Work Lane Lifecycle Effects.
 
 **Replacement**: Exact Work Lane Lifecycle Effects
+
+**Scenario replacement**: lane handoff is recorded as Chronicle resolution -> exceptional handoff is attested
+
+**Scenario replacement**: orphan audit produces a decision, not a persistent orphan state -> unknown holder facts remain blocked observations
+
+**Scenario replacement**: clean ownerless diverged source retires after semantic absorption -> linked retirement remains exact and holder-bound
+
+**Scenario replacement**: exceptional cleanup consumes prior accepted judgment -> exceptional state does not widen lifecycle effects
+
+**Scenario replacement**: break-glass reconciles after emergency action -> break-glass remains outside normal lifecycle
+
+### Requirement: Preservation-bound exceptional Work Lane retirement
+
+**Reason**: Preservation packages, Resolution decisions, and a dedicated exceptional retirement lifecycle create parallel semantic owners for facts already represented by Git, ChangeContract, RepositoryFacts, and Attestations.
+
+**Migration**: Preserve dirty or uncertain content as ordinary Git-reachable recovery material; bind any irreversible disposition to the exact selected ChangeContract, fresh RepositoryFacts, and an accepted judgment Attestation; execute only `retire landed` or `retire superseded` under Exact Work Lane Lifecycle Effects.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Durable exceptional-resolution recovery inventory
+
+**Reason**: A durable Resolution inventory and its reservation, decision, and receipt records are a third lifecycle truth plane.
+
+**Migration**: Observe current refs, linked worktrees, Lease state, repository records, and recovery anchors as RepositoryFacts; represent accepted judgment and realized repository-semantic outcome as Attestations; derive history without a Resolution store.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Evidence-bound preservation-package clearing
+
+**Reason**: A preservation-package clearing command and receipt store preserve the retired Resolution object model.
+
+**Migration**: Recovery material follows repository-family record governance and is retained or superseded by exact record verification; no lifecycle command clears it as a semantic effect.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Dirty and unbound Work Lane content is preserved before destructive closeout
+
+**Reason**: The requirement couples safety to a preservation-package and unbound-retirement mechanism that no longer exists.
+
+**Migration**: Dirty, unknown, or owner-uncertain content remains blocked and recoverable through Git-reachable evidence or repository-family records; destructive effects are limited to exact linked `landed` or `superseded` retirement.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Exceptional unbound Work Lane retirement is exact and accepted-policy-bound
+
+**Reason**: Unbound-ref deletion is outside the terminal Work Lane lifecycle and duplicates native Git/ref recovery with a special command, Claim, Chronicle, and receipt plane.
+
+**Migration**: Status reports unbound refs as observations only. ETHOS preserves and blocks them until an explicitly modeled future ChangeContract promotes a generic recovery transition; this release exposes no unbound retirement effect.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Exceptional unbound effects are compare-and-delete and receipt-bound
+
+**Reason**: The effect is inseparable from the retired unbound-resolution command and its parallel receipt records.
+
+**Migration**: Remove the effect. Exact compare-and-swap remains only inside admitted linked Work Lane Lease, handoff, landing, and `landed|superseded` retirement transitions.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Ref-absent owner-unavailable partial effects are reconciled only through exact native lease CAS
+
+**Reason**: Reconciliation exists only to recover a removed unbound-resolution transition and would retain that obsolete state machine.
+
+**Migration**: Remove the transition and its records. Lease takeover remains the single exact, authorized holder-change mechanism; lost or partial external state stays blocked until modeled by a new generic ChangeContract.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Resolution Decisions and Receipts are semantically disjoint
+
+**Reason**: Both types belong to the removed Resolution plane and duplicate judgment and effect Attestations.
+
+**Migration**: Accepted judgment is a `judgment` Attestation; a realized repository-semantic mutation is an `effect` Attestation; ignored local coordination may retain non-semantic postcondition receipts.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Ownerless closeout admission is consumed at the effect boundary
+
+**Reason**: Ownerless reservation, fence, decision, and completion receipt stores duplicate Lease/handoff authority and the terminal Attestation model.
+
+**Migration**: Remove ownerless closeout. A current holder uses normal `landed|superseded` retirement; a foreign holder uses handoff or exact authorized Lease takeover; unknown ownership blocks mutation.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Authorized Work Lane cohort closeout is exact and evidence-bound
+
+**Reason**: The historical cohort closeout carrier retains a separate decision,
+preservation-package, and exceptional-effect lifecycle.
+
+**Migration**: Observe cohort members as fresh RepositoryFacts. Absorb useful
+meaning through the selected ChangeContract and current Attestations; use only
+holder-bound handoff/takeover and the linked `landed` or `superseded` lifecycle.
+Foreign, dirty, unknown, and unbound state remains observe-only and blocked.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Explicit conservative local-state maintenance
+
+**Reason**: Orphan-lease pruning is a separate local-state effect owner rather
+than part of the terminal Lease lifecycle.
+
+**Migration**: Local coordination is observed from the current owned schema.
+Missing, stale, or ambiguous state is preserved and blocked; this release does
+not expose a generic local-state maintenance effect.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Recovery material is preservation-bound before cleanup
+
+**Reason**: Chronicle-bound recovery cleanup retains the retired preservation and
+Resolution receipt plane.
+
+**Migration**: Recovery records are immutable repository-family records verified
+by their own manifest and hash contract. Lifecycle commands do not clear them;
+future cleanup requires a separately selected ChangeContract and Attestation.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Tracked lifecycle does not imply local-state maintenance effects
+
+**Reason**: A separate maintenance apply and receipt lifecycle creates another
+semantic effect plane.
+
+**Migration**: Tracked lifecycle operations make no claim about ignored local
+state. Any local-state effect must be independently admitted and attested under
+the same terminal kernel.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Bounded Coordination Aggregate Detail State
+
+**Reason**: Closeout-residue counters and residue records preserve a parallel
+aggregate coordination state plane that is not a repository semantic owner.
+
+**Migration**: Coordination readers expose fresh lane, lease, scope, and
+content observations only. Detail is either `deferred` or freshly computed;
+there is no closeout-residue inventory or lifecycle action derived from it.
+
+**Replacement**: ChangeContract And Attestation Admission
+
+### Requirement: Real history-residue effects use a distinct local closeout successor
+
+**Reason**: A successor claim and external receipt create a parallel local-closeout
+state machine after the historical carrier is archived.
+
+**Migration**: Historical Git, OpenSpec, and records remain immutable. Current
+work starts from a selected ChangeContract and fresh facts; no successor
+closeout effect or unbound-lane recovery command is exposed.
+
+**Replacement**: ChangeContract And Attestation Admission

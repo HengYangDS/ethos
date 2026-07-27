@@ -125,7 +125,7 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
     report = {
         **report,
         "ok": bool(validation["ok"]),
-        "state": "ready" if validation["ok"] else "invalid",
+        "state": "blocked" if gaps else "ready" if validation["ok"] else "invalid",
         "required_gaps": gaps,
     }
     coordination = cast("dict[str, object]", report.get("coordination") or {})
@@ -139,8 +139,6 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
         ),
         "unbound_work_lane_count": integer(coordination.get("unbound_work_lane_count")),
         "missing_lease_count": integer(coordination.get("missing_lease_count")),
-        "closeout_residue_count": integer(coordination.get("closeout_residue_count")),
-        "dirty_closeout_residue_count": integer(coordination.get("dirty_closeout_residue_count")),
         "dirty_foreign_work_lane_count": integer(coordination.get("dirty_foreign_work_lane_count"))
         or sum(lane.get("dirty") is True for lane in foreign),
         "coordination_advisory_count": len(string_sequence(coordination.get("advisory_gaps"))),

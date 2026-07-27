@@ -25,13 +25,12 @@ decisions, or evidence prove the claim.
 
 - [Terminal Governance Product Design](terminal-governance-product-design.md)
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
-- [Artifact-Topology Detached Residue Absorption Design](artifact-topology-detached-residue-absorption-design-20260724.md)
-- [Artifact-Topology Detached Residue Absorption Implementation](artifact-topology-detached-residue-absorption-implementation-plan-20260724.md)
-- [Artifact-Topology Detached Residue Preservation Clear](artifact-topology-detached-residue-preservation-clear-20260725.md)
-- [Snapshot-Replay Shadow Successor Absorption Design](budget-contract-v2-snapshot-replay-shadow-successor-absorption-design-20260725.md)
-- [Snapshot-Replay Shadow Successor Absorption Implementation](budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md)
-- [Snapshot-Replay Shadow Successor Preservation Clear](budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725.md)
+- [ETHOS 0.1.0a2 Release Design](release-0-1-0a2-design-20260724.md)
 
 ## Archived Plans
 
 - [Self-healing Closeout Intelligence](self-healing-closeout-intelligence/task_plan.md)
+
+Superseded and archived plan files remain retained context. Their front-matter
+state, not their physical directory, prevents them from acting as current work
+authority.

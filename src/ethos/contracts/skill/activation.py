@@ -73,7 +73,6 @@ def _normalize_record(entry: dict[str, Any], *, raw_version: int) -> dict[str, A
             "supports": string_list(entry.get("supports"), drop_empty=True),
             "excludes": string_list(entry.get("excludes"), drop_empty=True),
         },
-        "commands": string_list(entry.get("commands"), drop_empty=True),
         "boundary": _string(entry.get("boundary")),
         "source_version": raw_version,
         "extensions": _extensions(entry),

@@ -1,42 +1,41 @@
 ---
 subject: ethos:all-work-lanes-convergence-replay-20260718
 role: plan
-state: active
+state: superseded
 relations:
   implements: all-lanes-convergence-replay-20260718
   supersedes_execution_of: all-lanes-convergence-implementation-20260716
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # All Work Lanes Convergence Replay — 2026-07-18
 
-Status: active local Work Lane replay.
+Status: superseded by the terminal-convergence campaign; retained as historical
+planning context only.
 
-Purpose: complete the owned refresh-safety replay and its evidence-bound local closeout.
+Purpose: preserve the intent that the terminal campaign absorbed without
+remaining an executable lifecycle plan.
 
 See also: [Mutation Rules](../../rules/mutation.md), [Evidence Rules](../../rules/evidence.md), and [OpenSpec Governance](../governance/openspec-governance.md).
 
 ## Objective
 
-Complete the preserved current-contract safety intent in one clean successor
-lane, then use proof-backed local lifecycle commands to advance only the owned
-change. The complete Work Lane cohort remains an observation and resolution
-program, not a permission to mutate every visible branch.
+The terminal campaign absorbed the refresh-safety intent. The complete Work Lane
+cohort is now a fresh observation set, never reusable mutation authority.
 
 ## Execution Sequence
 
-1. Bind this Change, claim, lease, and exact baseline; use the repository-local
+1. Bind the selected ChangeContract, Lease, and exact baseline; use the repository-local
    runtime wrapper and an explicit holder actor for every mutating command.
 2. Add and observe the three missing refresh regressions before implementation.
 3. Implement the bounded signing/snapshot/detached-replay/CAS path; keep all
    projection recovery and failure cleanup fail-closed.
-4. Recompute a compact all-lane matrix from fresh status immediately before any
-   resolution decision. Preserve dirty, unbound, missing-lease, and
-   foreign-owned state until its exact native path is admitted.
+4. Recompute a compact all-lane observation from fresh status. Preserve and
+   block dirty, unbound, missing-lease, and foreign-owned state.
 5. Complete strict Change lifecycle, required parity, source budget, focused
    and full proof. Land and accepted-close only the stable owned head.
-6. Invoke holder-bound or accepted exceptional resolution per exact lane only;
-   report any owner, remote, hosted, or product limitation that prevents local
-   closeout instead of implying success.
+6. Use only holder handoff, exact authorized Lease takeover, and linked
+   `landed|superseded` lifecycle effects; report every remaining blocker.
 
 ## Anti-stall Controls
 

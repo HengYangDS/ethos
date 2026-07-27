@@ -12,6 +12,7 @@ from typing import cast
 
 import ethos
 import ethos.adapters.repo.git as git_adapter
+import ethos.domain.status
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 
@@ -192,8 +193,6 @@ def closeout_next_actions(
 
 def repository_audit_after_admission(repo: Path, decision: object) -> dict[str, object]:
     """Run the shape audit after admission, or skip when mutation was blocked."""
-    from ethos.domain.status import audit_for_root
-
     if not getattr(decision, "ok", False):
         return {
             "ok": False,
@@ -202,4 +201,4 @@ def repository_audit_after_admission(repo: Path, decision: object) -> dict[str, 
             "required_gaps": [],
             "root": repo.as_posix(),
         }
-    return audit_for_root(repo, openspec_mode="shape")
+    return ethos.domain.status.audit_for_root(repo, openspec_mode="shape")

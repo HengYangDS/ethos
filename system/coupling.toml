@@ -105,10 +105,6 @@ commands = [
   "ethos lane handoff export",
   "ethos lane handoff import",
   "ethos lane handoff revoke-source",
-  "ethos lane resolution decide",
-  "ethos lane resolution apply",
-  "ethos lane resolution inventory",
-  "ethos lane resolution clear",
 ]
 distribution = "ethos"
 executables = ["ethos"]

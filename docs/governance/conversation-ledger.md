@@ -1,21 +1,16 @@
 ---
 subject: ethos:conversation-ledger
 role: ledger
-state: active
+state: superseded
 relations:
-  canonical_for: conversation-derived product gaps
-  informs:
-    - ethos:evolution
-    - ethos:adoption
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Conversation Ledger
 
-This ledger records product requirements and corrections that came from the
-long ETHOS design conversation. It is not a substitute for specs, code, tests,
-or release evidence. Its job is narrower: preserve the requirements that were
-easy to lose during implementation, make gaps reviewable, and feed the
-evolution campaign.
+This superseded ledger preserves the conversation-derived requirements that the
+terminal product design absorbed. It is not current product truth, a task SSOT,
+or an executable evolution ledger.
 
 ## Situation
 

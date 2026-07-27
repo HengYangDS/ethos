@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from dataclasses import field
 from typing import Any
 
 SCHEMA_VERSION = 1
@@ -70,37 +69,3 @@ class RuleSet:
     @property
     def digest(self) -> str:
         return stable_digest(self.to_dict())
-
-
-@dataclass(frozen=True, slots=True)
-class PolicyException:
-    id: str
-    rule_id: str
-    scope: str
-    owner: str
-    approver: str
-    reason: str
-    evidence_ref: str
-    created_at: str
-    expires_at: str
-    status: str = "active"
-    max_ttl: str = ""
-    digest: str = field(default="")
-
-    def to_dict(self) -> dict[str, Any]:
-        base: dict[str, Any] = {
-            "id": self.id,
-            "rule_id": self.rule_id,
-            "scope": self.scope,
-            "owner": self.owner,
-            "approver": self.approver,
-            "reason": self.reason,
-            "evidence_ref": self.evidence_ref,
-            "created_at": self.created_at,
-            "expires_at": self.expires_at,
-            "status": self.status,
-        }
-        if self.max_ttl:
-            base["max_ttl"] = self.max_ttl
-        base["digest"] = self.digest or stable_digest(base)
-        return base

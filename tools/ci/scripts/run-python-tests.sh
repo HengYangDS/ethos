@@ -140,7 +140,11 @@ if ! "${ethos_python}" -m pytest --version >/dev/null 2>&1; then pytest_runner=(
 if [[ "${workers}" != "1" && "${workers}" != "serial" ]]; then pytest_common_args=(-n "${workers}" "${pytest_common_args[@]}"); fi
 export GIT_CONFIG_GLOBAL="${GIT_CONFIG_GLOBAL:-/dev/null}" GIT_CONFIG_NOSYSTEM="${GIT_CONFIG_NOSYSTEM:-1}"
 run_pytest() {
-  if [[ "${#pytest_identity_prefix[@]}" -gt 0 ]]; then "${pytest_identity_prefix[@]}" "${pytest_runner[@]}" "$@"; else "${pytest_runner[@]}" "$@"; fi
+  if [[ "${#pytest_identity_prefix[@]}" -gt 0 ]]; then
+    env -u ETHOS_ACTOR "${pytest_identity_prefix[@]}" "${pytest_runner[@]}" "$@"
+  else
+    env -u ETHOS_ACTOR "${pytest_runner[@]}" "$@"
+  fi
 }
 run_coverage() { "${coverage_runner[@]}" "$@"; }
 if [[ "${sharded_mode}" != "true" ]]; then

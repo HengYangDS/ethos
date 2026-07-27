@@ -1,29 +1,24 @@
 ---
-subject: ethos:mcp-server
+subject: ethos:mcp-adapter
 role: explanation
 state: canonical
 relations:
-  canonical_for: MCP adapter
+  canonical_for: MCP adapter boundary
 ---
 
-# MCP Server
+# MCP Adapter
 
-`ethos assistants mcp-server --serve` is a newline-delimited JSON-RPC stdio
-server. It exposes only the fixed read-only `status`, `plan`, `explain`, and
-context tools plus declared resources and prompts. It does not expose prove,
-publish, land, or any generic command execution path; repository mutation and
-proof remain on the admission-bound command plane.
+Status: canonical.
 
-The MCP surface is an adapter over repository truth.
+Purpose: define MCP as a replaceable projection over repository truth.
 
-`ethos assistants mcp-manifest --json` emits resources, prompts, and tools.
-`ethos assistants mcp-server --json` describes the stdio server adapter contract.
+See also: [Agent Projections](agent-projections.md) and
+[Command Plane](../reference/command-plane.md).
 
-The server descriptor does not create a second truth store. It exposes docs,
-schemas, and command JSON to agent hosts.
+MCP integrations are not public ETHOS lifecycle commands and do not own task,
+change, evidence, or authorization state. They may expose declared resources or
+guarded tools only through an admitted adapter contract.
 
-Status: see front matter.
-
-Purpose: explain the repository truth represented by this ETHOS document.
-
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+No MCP implementation or smoke gate is currently admitted. A future adapter
+must bring its own consumer, permissions, conformance tests, and uninstall proof;
+the core lifecycle remains complete without it.

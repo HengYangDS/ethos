@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import os
+import shlex
+import shutil
 import subprocess
+import tempfile
+import tomllib
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.runtime.core import runtime_binding
+from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.core import current_branch
-from ethos.adapters.repo.status.core import worktree_records
+from ethos.adapters.repo.status.workspace import current_branch
+from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
@@ -21,9 +26,13 @@ from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import ROLE_DETACHED
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.repository.policy.coupling.closure import baseline_product_references
+from ethos.repository.policy.coupling.closure import product_reference_gaps
+from ethos.repository.policy.coupling.closure import product_references_from_files
 
 _CONTROL_CHARACTER_UPPER_BOUND = 32
 _DELETE_CONTROL_CODE_POINT = 127
+_UNIFIED_DIFF_HEADER_PART_COUNT = 4
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "lease_id", "epoch", "head")
 _SCOPE_LIST_FIELDS = (
     "changed_paths",
@@ -53,6 +62,7 @@ def prewrite_guard(
     paths: list[Path],
     editor_root: Path | None = None,
     require_editor_root: bool = False,
+    patch: str = "",
 ) -> dict[str, object]:
     status = _prewrite_status(root)
     status_role, status_branch = str(status["role"]), str(status["branch"])
@@ -81,8 +91,14 @@ def prewrite_guard(
         editor_root=editor_root,
         require_editor_root=require_editor_root or tracked,
     )
+    patch_admission = _patch_admission(
+        root=root,
+        requested_paths=requested,
+        baseline_head=str(lease.get("expected_head") or ""),
+        patch=patch,
+    )
     blocked = [path for path in checked if path["allowed"] is False]
-    error = _error(runtime_check, lease, editor, scope, blocked)
+    error = _error(runtime_check, lease, editor, patch_admission, scope, blocked)
     decision = _prewrite_decision(root, effective, checked, lease, error)
     return {
         "ok": not error,
@@ -95,6 +111,7 @@ def prewrite_guard(
         "runtime_binding": runtime_check,
         "work_lane_lease": lease,
         "editor_root": editor,
+        "patch_admission": patch_admission,
         "openspec_lifecycle": lifecycle,
         "material_scope": scope,
         "paths": checked,
@@ -170,11 +187,14 @@ def _work_lane_lease_check(
     if role != ROLE_WORK_LANE or not tracked_write_requested:
         return _lease_report(branch, actor, {}, (True, False, "not_required"))
     lease = _work_lane_lease(root=root, status=status, branch=branch)
+    lease_state = str(lease.get("lease_state") or "missing")
     holder = str(lease.get("holder_ref") or "")
-    if not holder:
-        return _lease_report(
-            branch, actor, lease, (False, True, f"work_lane_missing_lease:{branch}")
-        )
+    if lease_state != "valid" or not holder:
+        reason = {
+            "unknown": f"work_lane_lease_unknown:{branch}",
+            "expired": f"work_lane_lease_expired:{branch}",
+        }.get(lease_state, f"work_lane_missing_lease:{branch}")
+        return _lease_report(branch, actor, lease, (False, True, reason))
     current = git_stdout(root, "rev-parse", "HEAD")
     binding, binding_source = (
         (
@@ -184,7 +204,13 @@ def _work_lane_lease_check(
         if source == "git_rebase_head_name"
         else (current, "head")
     )
-    reason = _lease_binding_reason(branch=branch, lease=lease, actor=actor, current_head=binding)
+    reason = _lease_binding_reason(
+        root=root,
+        branch=branch,
+        lease=lease,
+        actor=actor,
+        current_head=binding,
+    )
     return _lease_report(
         branch,
         actor,
@@ -225,8 +251,20 @@ def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> d
 
 
 def _lease_binding_reason(
-    *, branch: str, lease: dict[str, object], actor: str, current_head: str
+    *, root: Path, branch: str, lease: dict[str, object], actor: str, current_head: str
 ) -> str:
+    base_digest = str(lease.get("base_change_contract_digest") or "")
+    expected_head = str(lease.get("expected_head") or "")
+    contract_reason = ""
+    try:
+        load_lease_bound_change_contract(
+            root,
+            expected_head=expected_head,
+            base_change_contract_digest=base_digest,
+        )
+    except ValueError as exc:
+        reason = str(exc)
+        contract_reason = f"{reason}:{branch}" if reason.startswith("lease_base_") else reason
     checks = (
         (
             actor != str(lease.get("holder_ref") or ""),
@@ -237,9 +275,10 @@ def _lease_binding_reason(
             f"lease_generation_missing:{branch}",
         ),
         (
-            str(lease.get("expected_head") or "") != current_head,
+            expected_head != current_head,
             f"lease_head_stale:{branch}",
         ),
+        (bool(contract_reason), contract_reason),
     )
     return next((reason for failed, reason in checks if failed), "")
 
@@ -406,6 +445,7 @@ def _error(
     runtime_check: dict[str, object],
     lease_check: dict[str, object],
     editor_check: dict[str, object],
+    patch_admission: dict[str, object],
     material_scope: dict[str, object],
     blocked_paths: list[dict[str, object]],
 ) -> str:
@@ -415,6 +455,7 @@ def _error(
         _blocked_path_error(blocked_paths),
         str(lease_check["reason"]) if lease_check["ok"] is not True else "",
         str(editor_check["reason"]) if editor_check["ok"] is not True else "",
+        str(patch_admission["reason"]) if patch_admission["ok"] is not True else "",
         str(scope_gaps[0]) if isinstance(scope_gaps, list) and scope_gaps else "",
     )
     return next((error for error in checks if error), "")
@@ -447,3 +488,200 @@ def _material_scope_from_lifecycle(report: dict[str, object]) -> dict[str, objec
         "state": "not_available",
         **{key: [] for key in _SCOPE_LIST_FIELDS},
     }
+
+
+def _patch_admission(
+    *,
+    root: Path,
+    requested_paths: tuple[str, ...],
+    baseline_head: str,
+    patch: str,
+) -> dict[str, object]:
+    if not patch:
+        return {
+            "ok": True,
+            "state": "not_requested",
+            "reason": "not_requested",
+            "baseline_head": baseline_head,
+            "paths": [],
+            "references": {},
+        }
+    changes, parse_gap = _unified_patch_changes(patch)
+    patch_paths = sorted({str(change["path"]) for change in changes})
+    requested = sorted(set(requested_paths))
+    reason = parse_gap
+    if not reason and patch_paths != requested:
+        reason = "prewrite_patch_paths_mismatch"
+    if not reason and not baseline_head:
+        reason = "prewrite_patch_baseline_missing"
+    if not reason:
+        completed = subprocess.run(
+            ["git", "apply", "--check", "--whitespace=error-all", "-"],
+            cwd=root,
+            input=patch,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            reason = "prewrite_patch_preimage_mismatch"
+    exact_scope = _baseline_exact_scope_paths(root, baseline_head) if not reason else set()
+    if not reason:
+        reason = next(
+            (
+                f"product_path_not_admitted_at_baseline:{change['path']}"
+                for change in changes
+                if change["new"] is True and change["path"] not in exact_scope
+            ),
+            "",
+        )
+    references: dict[str, set[str]] = {}
+    if not reason:
+        baseline_references = baseline_product_references(root, baseline_head)
+        try:
+            references = _patch_references(
+                root,
+                patch,
+                changes,
+                declared_commands=baseline_references["command"],
+            )
+        except (OSError, UnicodeError, ValueError):
+            reason = "prewrite_patch_postimage_failed"
+    if not reason:
+        gaps = product_reference_gaps(root, baseline_head, references)
+        reason = gaps[0] if gaps else ""
+    return {
+        "ok": not reason,
+        "state": "admitted" if not reason else "blocked",
+        "reason": reason or "baseline_product_closure_matched",
+        "baseline_head": baseline_head,
+        "paths": patch_paths,
+        "references": {key: sorted(value) for key, value in references.items() if value},
+    }
+
+
+def _unified_patch_changes(patch: str) -> tuple[list[dict[str, object]], str]:
+    changes: list[dict[str, object]] = []
+    current: dict[str, object] | None = None
+    for line in patch.splitlines():
+        if line.startswith(("GIT binary patch", "Binary files ")):
+            return changes, "prewrite_patch_binary_unsupported"
+        if line.startswith("diff --git "):
+            current = _new_patch_change(line)
+            if current is None:
+                return changes, "prewrite_patch_invalid"
+            changes.append(current)
+        elif current is not None:
+            _update_patch_change(current, line)
+    if not changes or any(not change["path"] for change in changes):
+        return changes, "prewrite_patch_invalid"
+    return changes, ""
+
+
+def _new_patch_change(line: str) -> dict[str, object] | None:
+    try:
+        parts = shlex.split(line)
+    except ValueError:
+        return None
+    if len(parts) != _UNIFIED_DIFF_HEADER_PART_COUNT:
+        return None
+    return {
+        "old_path": _patch_path(parts[2]),
+        "path": _patch_path(parts[3]),
+        "new": False,
+    }
+
+
+def _update_patch_change(change: dict[str, object], line: str) -> None:
+    if line.startswith("--- "):
+        change["old_path"] = _patch_path(line[4:].split("\t", 1)[0])
+        change["new"] = change["old_path"] == "/dev/null"
+    elif line.startswith("+++ "):
+        path = _patch_path(line[4:].split("\t", 1)[0])
+        if path != "/dev/null":
+            change["path"] = path
+
+
+def _patch_path(raw: str) -> str:
+    if raw == "/dev/null":
+        return raw
+    return raw.removeprefix("a/").removeprefix("b/")
+
+
+def _baseline_exact_scope_paths(root: Path, head: str) -> set[str]:
+    paths = git_stdout(
+        root,
+        "ls-tree",
+        "-r",
+        "--name-only",
+        head,
+        "--",
+        "openspec/changes",
+    ).splitlines()
+    exact: set[str] = set()
+    for path in paths:
+        if not path.endswith("/contract.toml") or "/archive/" in path:
+            continue
+        text = git_stdout(root, "show", f"{head}:{path}")
+        try:
+            scope = tomllib.loads(text).get("scope", [])
+        except tomllib.TOMLDecodeError:
+            continue
+        if not isinstance(scope, list):
+            continue
+        exact.update(
+            item for item in scope if isinstance(item, str) and item and not set("*?[") & set(item)
+        )
+    return exact
+
+
+def _patch_references(
+    root: Path,
+    patch: str,
+    changes: list[dict[str, object]],
+    *,
+    declared_commands: tuple[str, ...] | frozenset[str] = (),
+) -> dict[str, set[str]]:
+    with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
+        workspace = Path(temporary)
+        for change in changes:
+            old_path = str(change["old_path"])
+            if old_path == "/dev/null":
+                continue
+            relative = Path(old_path)
+            if relative.is_absolute() or ".." in relative.parts:
+                msg = "prewrite patch path escapes root"
+                raise ValueError(msg)
+            source = root / relative
+            if not source.is_file():
+                msg = "prewrite patch preimage missing"
+                raise ValueError(msg)
+            target = workspace / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        completed = subprocess.run(
+            ["git", "apply", "--whitespace=error-all", "-"],
+            cwd=workspace,
+            input=patch,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            msg = "prewrite patch postimage application failed"
+            raise ValueError(msg)
+        files: dict[str, str] = {}
+        for change in changes:
+            path = str(change["path"])
+            relative = Path(path)
+            if relative.is_absolute() or ".." in relative.parts:
+                msg = "prewrite patch path escapes root"
+                raise ValueError(msg)
+            target = workspace / relative
+            if target.is_file():
+                files[path] = target.read_text(encoding="utf-8")
+        return product_references_from_files(
+            files,
+            root=root,
+            declared_commands=declared_commands,
+        )

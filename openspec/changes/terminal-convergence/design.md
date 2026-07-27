@@ -36,9 +36,10 @@ only active implementation carrier for that design.
 ## Decisions
 
 1. **One campaign and one design owner.** This change and the canonical terminal
-   design replace parallel roadmaps, research notes, and progress documents.
-   Alternatives that split the work into compatibility phases were rejected
-   because they preserve duplicate owners and repeat remote closeout.
+   design absorb the still-valid intent from parallel roadmaps, research notes,
+   and progress documents before those lower-order carriers retire. Alternatives
+   that split the work into compatibility phases were rejected because they
+   preserve duplicate owners and repeat remote closeout.
 2. **Two persistent entities.** `ChangeContract` owns intent and
    `Attestation` owns evidence-bearing statements. RepositoryFacts and PlanIR
    are derived. Separate claim, evidence, decision, event, inbox, experiment,
@@ -48,16 +49,16 @@ only active implementation carrier for that design.
    `pass | block | unknown`. This keeps extension flexible without making
    mutation semantics unbounded.
 4. **Deletion-first cutover.** False-green verdicts and oversized outputs are
-   fixed first; then private source-budget, workstation-control-plane coupling,
+   fixed first; then private source-budget, unadmitted external-product coupling,
    custom graph, command registry,
    empty template, compatibility, and coverage-only surfaces are deleted before
    broader ecosystem work.
 5. **Direct mature mechanisms.** Use Pydantic v2 for persisted contracts,
    Cyclopts for CLI, stdlib graphlib for DAG ordering, official CEL for guards,
-   Ruff/Pyright/rumdl/dprint/shfmt/ShellCheck/ast-grep/import-linter for quality,
-   Hypothesis and Quint for transition properties, and standard supply-chain
-   formats. Wrappers around those owners are not admitted without distinct
-   semantics.
+   stateful property testing plus the smallest sufficient formal model for
+   transition invariants, and standard supply-chain formats. The declarative
+   tool registry selects exactly one admitted owner per quality property;
+   wrappers and unused tools are not admitted without distinct semantics.
 6. **Family-level collaboration.** One contract derives one Worktree Family.
    Cooperative slots declare disjoint scopes; no more than two competitive
    variants share acceptance and produce a selection attestation. Only one
@@ -77,33 +78,58 @@ only active implementation carrier for that design.
    is not blocked by unrelated historical debt and no coordinate can borrow
    another coordinate's reduction. The former source-admission command,
    declaration fixed point, replay, worker, and shadow stack are rejected.
-10. **Ecosystem last.** Language-neutral schemas, TCK, data/subprocess packs,
-    MCP/A2A adapters, and optional Copier/Jinja scaffolds ship only after the
-    kernel passes three adopter profiles.
+10. **Portable boundary before ecosystem.** Language-neutral schemas, a TCK,
+    SDK and subprocess conformance precede optional protocol adapters. Catalogs,
+    runtimes, packs, and scaffolds require a concrete adopter and a separately
+    admitted change; they are not terminal-closeout prerequisites by name.
 11. **Semantic and physical isomorphism.** Every module has one narrow concept,
     one authority owner, and one primary change reason. Ambiguous module names
-    require a closed machine role contract; otherwise the module is absorbed,
-    precisely renamed, split by real semantic axes, or deleted. ELOC-only splits,
-    compatibility facades, and duplicate command ownership are rejected. The
-    invariant spans source, tests, tools, and agent scripts, but carrier-native
-    syntax is preserved and no file-count metric can mint architecture.
+    are never exempted; the module is absorbed, precisely renamed, split by real
+    semantic axes, or deleted. ELOC-only splits, compatibility facades, and
+    duplicate command ownership are rejected. The invariant spans source, tests,
+    tools, and agent scripts, but carrier-native syntax is preserved and no
+    file-count metric can mint architecture.
 12. **Open-world signals.** Verdicts are closed, but gap and feedback vocabularies
     are open. Taxonomies are rebuildable explanations over observed signals and
     must not reject novelty or force new evidence into an incumbent category.
-13. **Replaceable execution substrates.** OpenSpec owns persistent intent,
-    design, tasks, and lifecycle; ETHOS owns PlanIR admission and attestations.
+13. **Replaceable execution substrates.** `ChangeContract` owns persistent
+    intent and lifecycle commitment. OpenSpec is the self-profile authoring
+    carrier: `contract.toml` materializes that contract, while prose, tasks, and
+    archive state are observed carrier facts rather than a second lifecycle
+    database. ETHOS owns transient PlanIR admission and durable Attestations.
     Agent hosts, method packs, and durable runtimes may execute or project that
     truth but may not create a repository-local shadow authority. Runtime
     selection follows one conformance kit and a native-host baseline rather than
-    a product-name preference. COMET Native is the first local coding-agent
-    candidate; graph runtimes and durable service runtimes enter only when a
-    real consumer proves that need. Checkpoint, CAS, journal, resume, and
-    evaluation mechanisms are useful, while external contract, acceptance,
-    phase, task, and artifact models must not duplicate ChangeContract, PlanIR,
-    or Attestation. `system/lifecycle.toml` is the singular declaration for
-    transition policy, lease operations, PlanIR actions, and campaign CEL;
-    workflow-run schemas and runtime read models are deleted rather than kept
-    as compatibility surfaces.
+    a product-name preference. Graph runtimes, durable services, and coding-agent
+    backends enter only when a real consumer proves that need. Checkpoint, CAS,
+    journal, resume, and evaluation mechanisms are useful, while external
+    contract, acceptance, phase, task, and artifact models must not duplicate
+    ChangeContract, PlanIR, or Attestation. `system/lifecycle.toml` declares only
+    transition policy, disposable lease operations, and PlanIR actions; Campaign,
+    Evolution, workflow-run schemas, and runtime read models are deleted rather
+    than retained as compatibility surfaces.
+14. **Absorptive retirement and meta-evolution.** Repository carriers converge
+    through preserve, extract, place, integrate, verify, and retire. Deletion is
+    admitted only after every independent semantic atom has one current owner or
+    an explicit historical/evidence destination and no current reader can be
+    misled by the residual carrier. A conflict that cannot be represented without
+    loss is treated as a model gap and as evidence that the current abstraction
+    has been falsified at that boundary: the ontology, taxonomy, contract, or
+    boundary is raised first, then the old carriers are re-evaluated. Novel
+    evidence is not forced into a stale classification merely to complete cleanup.
+    Promotion must preserve both valid scenarios while producing one higher-order
+    owner; it must not resolve the contradiction through duplication, exceptions,
+    or a new parallel truth plane.
+15. **Protected roots carry no active Change.** `main`, `dev`, and the local
+    candidate train are integration truth, never authoring carriers. Lane start
+    therefore requires one explicit source Work Lane, resolves one active
+    ChangeContract from that source HEAD, creates the destination from the clean
+    candidate HEAD, materializes the exact selected OpenSpec carrier as an
+    initialization commit, and only then acquires a Lease bound to that final
+    HEAD and base digest. Missing, dirty, foreign-repository, non-Work-Lane,
+    ambiguous, or drifted sources fail closed. Candidate inference, aliases,
+    uncommitted carrier copying, and post-hoc Lease repair were rejected because
+    they either pollute protected roots or weaken exact-HEAD truth.
 
 ## Risks / Trade-offs
 
@@ -134,11 +160,12 @@ only active implementation carrier for that design.
    backend.
 5. Cut over quality, warnings, suppressions, SBOM, provenance, and versioning.
 6. Prove Python, Node/polyglot, and docs/infra adopter homomorphism offline.
-7. Add only the minimal language-neutral protocol, TCK, packs, MCP/A2A, and
-   optional scaffold surface.
-8. Run complete local proof, create one proposal branch at the immutable terminal
-   commit, verify both providers independently, advance `dev`, release `main`,
-   verify records, and retire campaign families.
+7. Add only the language-neutral schemas, TCK, SDK/subprocess conformance, and
+   optional protocol boundary justified by those adopters.
+8. Run complete local proof, close local candidate and protected `dev`, retire
+   campaign families and verify records, then create one proposal branch at that
+   immutable terminal commit, verify both providers independently, publish
+   `dev`, and release `main`.
 
 Rollback is Git reversion to the last locally proven recovery anchor. There is
 no runtime compatibility mode and no dual implementation rollback path.

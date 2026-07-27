@@ -1,44 +1,135 @@
 ## ADDED Requirements
 
-### Requirement: Minimal Terminal Semantic Kernel
-ETHOS MUST persist only ChangeContract and Attestation as semantic entity types; RepositoryFacts MUST be re-observed and PlanIR MUST be transient, deterministic, hashable, and replayable.
+### Requirement: Attestation Assurance Boundary
 
-#### Scenario: A repository change is compiled
-- **WHEN** an effective ChangeContract and current RepositoryFacts are supplied
-- **THEN** ETHOS produces a PlanIR containing only Check, Decision, and Effect nodes and does not require another semantic truth store
+Semantic assurance SHALL be represented by an Attestation bound to the selected
+ChangeContract digest, evidence digest, semantic scope, exact HEAD, verifier,
+validity interval, and non-authorizing verdict. This boundary does not promote
+ignored local postcondition receipts into Attestations, schemas, roots, or a
+parallel lifecycle.
 
-### Requirement: Closed Transition Verdict
-Every required transition proposition MUST resolve to `pass`, `block`, or `unknown`; a missing or stale required proof MUST NOT resolve to pass.
+#### Scenario: Attestation is absent or mismatched
 
-#### Scenario: Required evidence cannot be verified
-- **WHEN** a required attestation is absent, stale, malformed, or unavailable
-- **THEN** the transition verdict is `unknown` or `block` and no mutating effect is admitted
+- **WHEN** the required assurance Attestation is missing, stale, repository-local,
+  malformed, or bound to different facts
+- **THEN** ETHOS fails the proposition closed with a machine-readable gap
 
-### Requirement: Direct DAG Ordering
-PlanIR ordering MUST use the standard-library graphlib implementation directly and MUST reject cycles before any effect.
+#### Scenario: Digest-only proposition remains portable
 
-#### Scenario: Plan dependencies contain a cycle
-- **WHEN** the compiled PlanIR dependency graph is cyclic
-- **THEN** planning blocks with a cycle diagnostic and executes zero effects
+- **WHEN** a ChangeContract contains a digest-only proposition
+- **THEN** ETHOS requires no assurance service, account, daemon, credential,
+  network operation, or dedicated local root
 
-### Requirement: Singular Lifecycle Declaration
-Lifecycle policy, lease operations, PlanIR actions, and campaign CEL MUST have
-one strict declaration owner. Run state and execution checkpoints MUST remain
-disposable substrate state rather than kernel entities.
+#### Scenario: Semantic attestation has a current semantic scope
 
-#### Scenario: Lifecycle policy is loaded
-- **WHEN** ETHOS loads the product lifecycle declaration
-- **THEN** the declaration validates against one language-neutral schema
-- **AND** no workflow-run schema, runtime read model, or parallel transition
-  registry is required
+- **WHEN** a ChangeContract requires semantic assurance
+- **THEN** the Attestation binds the declared semantic scope and exact HEAD
+- **AND** scope or HEAD drift makes the Attestation stale
 
-### Requirement: Current Facts Exclude Historical Ledgers
-RuleFactSnapshot and PlanIR MUST derive current verdicts from Git, worktree,
-OpenSpec, host readiness, policy, and projection facts. Historical claims and
-Chronicle records MAY remain immutable evidence but MUST NOT be required current
-facts. A parallel command registry MUST NOT exist.
+### Requirement: Executable Local-State Dataflow
 
-#### Scenario: A historical claim or registry projection is stale
-- **WHEN** current repository facts and the ChangeContract are valid
-- **THEN** the historical projection does not block planning or proof
-- **AND** it cannot make a blocked current transition pass
+Local events and indexes SHALL exist only when current product code produces and
+consumes them. Repository history is derived from Git, OpenSpec archives, and
+Attestations rather than a current Chronicle store.
+
+#### Scenario: lifecycle declaration is loaded
+
+- **WHEN** lifecycle declarations compile
+- **THEN** they contain transition policy, lease operations, and PlanIR actions
+- **AND** unused event models and event-locality rules are absent
+
+#### Scenario: local state is initialized
+
+- **WHEN** ETHOS initializes ignored local SQLite state
+- **THEN** it creates only tables consumed by current behavior
+- **AND** routine coordination postcondition receipts remain ignored local state
+  and do not become Attestations
+- **AND** unused event and historical-projection CRUD tables are absent
+
+#### Scenario: ignored local state uses the current contract
+
+- **WHEN** ETHOS initializes its coordination database
+- **THEN** it validates only the current owned schema
+- **AND** retired generic migration ledgers are not recreated
+
+#### Scenario: Chronicle remains derived historical evidence
+
+- **WHEN** a governance judgment becomes durable
+- **THEN** the judgment is an Attestation and Chronicle remains a derived
+  historical projection
+- **AND** Chronicle supplies history but never authorizes a current effect
+- **AND** deleting unused local event logs creates no parallel truth store
+
+## MODIFIED Requirements
+
+### Requirement: Minimal Semantic Kernel
+
+ETHOS SHALL compile exactly
+(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new
+Attestations. ChangeContract and Attestation are the only persistent semantic
+entities; RepositoryFacts is freshly observed and PlanIR is transient.
+
+#### Scenario: Repository operation is represented
+
+- **WHEN** ETHOS evaluates a repository operation
+- **THEN** the selected base ChangeContract, fresh RepositoryFacts, and prior
+  Attestations compile one deterministic PlanIR
+- **AND** repository-semantic outcomes are recorded only as new Attestations
+- **AND** routine local coordination receipts remain ignored local state and do
+  not become Attestations
+- **AND** verifier-bounded propositions exist only inside a ChangeContract or
+  Attestation
+
+#### Scenario: semantic attestation remains optional and bounded
+
+- **WHEN** a ChangeContract requires semantic assurance
+- **THEN** a candidate-external Attestation binds the selected contract digest,
+  evidence digest, semantic scope, and exact HEAD
+- **AND** the Attestation names the verifier, basis, verdict, and validity interval
+- **AND** it records mints_authority as false
+- **AND** stale or mismatched assurance blocks the proposition
+- **AND** digest-only propositions require no assurance provider
+
+#### Scenario: Model Promotion remains canonically owned
+
+- **WHEN** a compiler or projection emits model_promotion_required
+- **THEN** it links to
+  [canonical Model Promotion rule](../../../../../docs/governance/product-design-contract.md#model-promotion)
+- **AND** the projection does not restate the adjudication algorithm
+- **AND** this design delta does not assert runtime effect or retirement
+  enforcement
+
+### Requirement: Product Core Adopter Isolation
+
+ETHOS SHALL keep adopter-specific domain names out of product Python code except
+inside bounded comparative-assurance Attestations and explicit adopter fixtures.
+
+#### Scenario: Product code is scanned
+
+- **WHEN** architecture tests scan package source files
+- **THEN** adopter names are absent from semantic product implementation code
+
+## REMOVED Requirements
+
+### Requirement: Semantic attestation is receipt-bound and non-authorizing
+
+**Reason**: A receipt contract would duplicate the persistent Attestation entity.
+
+**Migration**: All three assurance scenarios move to Attestation Assurance
+Boundary.
+
+**Replacement**: Attestation Assurance Boundary
+
+**Scenario replacement**: Digest-only claim remains portable -> Digest-only proposition remains portable
+
+### Requirement: Event entities require an executable dataflow
+
+**Reason**: Event and Chronicle stores would create parallel current-state
+owners.
+
+**Migration**: All four dataflow and history scenarios move to Executable
+Local-State Dataflow.
+
+**Scenario replacement**: Chronicle remains authoritative evidence -> Chronicle remains derived historical evidence
+
+**Replacement**: Executable Local-State Dataflow

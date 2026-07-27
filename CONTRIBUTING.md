@@ -45,8 +45,9 @@ Before proposing a change:
 ```bash
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
-uv run ethos audit --mode shape --json
 uv run ethos status --json
+uv run ethos plan --changed --json
+uv run ethos prove --json
 ```
 
 Changes that affect package metadata should also run:

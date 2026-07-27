@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.cli import _command
+from ethos.cli import command_name
 from ethos.cli import main
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
@@ -24,10 +24,10 @@ if TYPE_CHECKING:
         (["--root", "openspec", "status", "--json"], "status"),
     ],
 )
-def test_invalid_profile_command_detection_skips_option_values(
+def test_invalid_profilecommand_name_detection_skips_option_values(
     argv: list[str], expected: str
 ) -> None:
-    assert _command(argv) == expected
+    assert command_name(argv) == expected
 
 
 def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> None:
@@ -55,8 +55,8 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
     assert json.loads(artifact.read_text(encoding="utf-8"))["data"] == result.data
 
 
-@pytest.mark.parametrize("command", ["status", "plan", "openspec"])
-def test_invalid_profile_reader_commands_emit_json_result(
+@pytest.mark.parametrize("command", ["status", "plan"])
+def test_invalid_profile_readercommand_names_emit_json_result(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -73,8 +73,6 @@ def test_invalid_profile_reader_commands_emit_json_result(
         encoding="utf-8",
     )
     args = ["ethos", command, "--root", repo.as_posix(), "--json"]
-    if command == "openspec":
-        args.insert(2, "--lifecycle")
     monkeypatch.setattr(sys, "argv", args)
 
     main()
@@ -92,7 +90,7 @@ def test_invalid_profile_reader_commands_emit_json_result(
         ("land", ("--apply",), True),
     ],
 )
-def test_invalid_profile_workflow_commands_emit_structured_result_before_admission(
+def test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

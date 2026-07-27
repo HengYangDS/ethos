@@ -2,30 +2,40 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 from contextlib import ExitStack
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
-from ethos.adapters.mutation.resolution.records.core import receipt_path
-from ethos.adapters.mutation.resolution.records.core import remove_record
-from ethos.adapters.mutation.resolution.records.core import replace_json_atomic
-from ethos.adapters.mutation.resolution.records.core import write_json_atomic
-from ethos.adapters.mutation.resolution.records.io.core import lock_record
-from ethos.adapters.mutation.resolution.records.io.core import read_descriptor_bytes
-from ethos.adapters.mutation.resolution.records.io.core import read_record_bytes
-from ethos.adapters.mutation.resolution.records.io.core import require_locked_record_identity
+import ethos.adapters.mutation.resolution.records.io.posix as record_posix
+from ethos.adapters.mutation.resolution.records.io.descriptor_store import claim_record_sidecar
+from ethos.adapters.mutation.resolution.records.io.descriptor_store import lock_record
+from ethos.adapters.mutation.resolution.records.io.descriptor_store import read_descriptor_bytes
+from ethos.adapters.mutation.resolution.records.io.descriptor_store import read_record_bytes
+from ethos.adapters.mutation.resolution.records.io.descriptor_store import remove_record_bytes
+from ethos.adapters.mutation.resolution.records.io.descriptor_store import (
+    require_locked_record_identity,
+)
+from ethos.adapters.mutation.resolution.records.json_store import canonical_current_record_bytes
+from ethos.adapters.mutation.resolution.records.json_store import remove_record
+from ethos.adapters.mutation.resolution.records.json_store import replace_json_atomic
+from ethos.adapters.mutation.resolution.records.json_store import write_json_atomic
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos.adapters.mutation.resolution.records.roots import receipt_path
+from ethos.adapters.repo.git import git_common_dir
 from ethos.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos.contracts.resolution.closeout import OwnerlessCloseoutBinding
 from ethos.contracts.resolution.closeout import OwnerlessCloseoutReservation
+from ethos.contracts.resolution.lane import is_lane_decision_id
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
+    from typing import Literal
 
 _RESERVATIONS = "reservations"
 _OWNERLESS_RESERVATION_INVALID = "lane_resolution_ownerless_reservation_invalid"
@@ -34,6 +44,9 @@ _OWNERLESS_RESERVATION_MISMATCH = "lane_resolution_ownerless_reservation_mismatc
 _OWNERLESS_RECOVERY_BINDING_MISMATCH = "lane_resolution_ownerless_recovery_binding_mismatch"
 _OWNERLESS_RECOVERY_NOT_FINALIZABLE = "lane_resolution_ownerless_recovery_not_finalizable"
 _OWNERLESS_RESERVATION_RELEASE_INVALID = "lane_resolution_ownerless_reservation_release_invalid"
+_RECEIPT_INVALID = "lane_resolution_receipt_invalid"
+_RECEIPT_RESERVATION_SUFFIX = ".receipt-reservation"
+_RECORD_PATH_UNSAFE = "lane_resolution_record_path_unsafe"
 _RESERVATION_STATE_FIELDS = {"phase", "recovery_state", "postcondition_digest"}
 _IMMUTABLE_RESERVATION_FIELDS = tuple(
     field
@@ -97,7 +110,7 @@ def reserve_ownerless_closeout_target(
     return destination
 
 
-def transition_ownerless_closeout_reservation(  # noqa: PLR0913, RUF100 - exact transition CAS
+def transition_ownerless_closeout_reservation(
     *,
     root: Path,
     expected: dict[str, object],
@@ -346,3 +359,116 @@ def _read_ownerless_reservation(record_root: Path, destination: Path) -> dict[st
     if content != canonical_current_record_bytes(canonical):
         raise ValueError(_OWNERLESS_RESERVATION_INVALID)
     return canonical
+
+
+@contextmanager
+def claim_resolution_receipt_reservation(
+    *,
+    root: Path,
+    decision_id: str,
+    artifact_root: Path | None = None,
+    mode: Literal["create", "recover", "recover_completed"],
+) -> Iterator[int | None]:
+    """Hold one receipt reservation across its complete writer or recovery attempt."""
+    if not is_lane_decision_id(decision_id):
+        raise ValueError(_RECEIPT_INVALID)
+    record_root = artifact_root or current_record_root(root)
+    destination = receipt_path(root, decision_id, artifact_root=record_root)
+    reservation = _receipt_reservation_path(destination)
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(_receipt_coordination_lock(root, record_root, reservation))
+            descriptor = stack.enter_context(
+                claim_record_sidecar(
+                    reservation,
+                    destination,
+                    expected=f"{decision_id}\n".encode(),
+                    record_root=record_root,
+                    mode=mode,
+                )
+            )
+        except ValueError as error:
+            raise ValueError(_RECEIPT_INVALID) from error
+        yield descriptor
+
+
+def release_resolution_receipt_reservation(
+    *,
+    root: Path,
+    decision_id: str,
+    artifact_root: Path | None = None,
+    locked_descriptor: int | None = None,
+) -> None:
+    """Release only the exact descriptor-bound sidecar reservation."""
+    record_root = artifact_root or current_record_root(root)
+    destination = receipt_path(root, decision_id, artifact_root=record_root)
+    try:
+        remove_record_bytes(
+            _receipt_reservation_path(destination),
+            expected=f"{decision_id}\n".encode(),
+            record_root=record_root,
+            locked_descriptor=locked_descriptor,
+        )
+    except FileNotFoundError:
+        return
+
+
+def _receipt_reservation_path(destination: Path) -> Path:
+    return destination.with_name(f".{destination.stem}{_RECEIPT_RESERVATION_SUFFIX}")
+
+
+def _receipt_coordination_root(root: Path, record_root: Path) -> Path:
+    common = git_common_dir(root)
+    if common:
+        return Path(common)
+    coordination = root.absolute()
+    target = record_root.absolute()
+    while not target.is_relative_to(coordination):
+        parent = coordination.parent
+        if parent == coordination:
+            raise OSError(_RECORD_PATH_UNSAFE)
+        coordination = parent
+    if coordination in (coordination.parent, target):
+        raise OSError(_RECORD_PATH_UNSAFE)
+    return coordination
+
+
+@contextmanager
+def _receipt_coordination_lock(
+    root: Path,
+    record_root: Path,
+    reservation: Path,
+) -> Iterator[None]:
+    coordination = _receipt_coordination_root(root, record_root)
+    try:
+        descriptor = record_posix.open_directory_path(coordination, create=False)
+    except OSError as error:
+        raise OSError(_RECORD_PATH_UNSAFE) from error
+    identity = record_posix.directory_identity(os.fstat(descriptor))
+    locked = False
+    try:
+        _acquire_coordination_lock(descriptor, reservation)
+        locked = True
+        _require_coordination_live(coordination, descriptor, identity)
+        yield
+        _require_coordination_live(coordination, descriptor, identity)
+    finally:
+        if locked:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def _acquire_coordination_lock(descriptor: int, reservation: Path) -> None:
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as error:
+        raise FileExistsError(reservation) from error
+
+
+def _require_coordination_live(
+    path: Path,
+    descriptor: int,
+    identity: record_posix.DirectoryIdentity,
+) -> None:
+    if not record_posix.directory_descriptor_is_live(path, descriptor, identity):
+        raise OSError(_RECORD_PATH_UNSAFE)

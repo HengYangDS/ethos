@@ -28,20 +28,7 @@ CAPABILITY_KINDS = frozenset(
 )
 _MUTATING_ETHOS_COMMANDS = {"adopt", "land", "publish"}
 _MUTATING_FLAGS = {"--apply", "--authorized", "--authorize", "--execute"}
-_READONLY_ETHOS_COMMANDS = {
-    "assistants",
-    "audit",
-    "campaign",
-    "docs",
-    "explain",
-    "fleet",
-    "openspec",
-    "parity",
-    "plan",
-    "playbooks",
-    "quality",
-    "status",
-}
+_READONLY_ETHOS_COMMANDS = {"plan", "status"}
 
 
 @dataclass(frozen=True, slots=True)

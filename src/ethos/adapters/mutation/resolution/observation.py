@@ -15,7 +15,7 @@ from typing import Literal
 from typing import NoReturn
 
 import ethos.adapters.mutation.resolution.records.io.posix as posix
-from ethos.adapters.mutation.resolution.preservation.core import digest_untracked_inventory
+from ethos.adapters.mutation.resolution.capture import digest_untracked_inventory
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.resolution.lane import LaneObservation
 
@@ -152,7 +152,6 @@ def read_root_bound_regular_file(
         for parent_fd, name, descriptor, identity in opened:
             _require_child_live(parent_fd, name, descriptor, identity)
         _require_directory_live(canonical_root, root_descriptor, root_identity, "root_bound_file")
-        return snapshot  # noqa: TRY300 - finally owns all held descriptors
     except FileNotFoundError:
         _fail("unverifiable", "file_missing")
     except OwnerlessGitObservationError:
@@ -163,6 +162,7 @@ def read_root_bound_regular_file(
         for _parent, _name, descriptor, _identity_value in reversed(opened):
             os.close(descriptor)
         os.close(root_descriptor)
+    return snapshot
 
 
 def git_object_bytes(root: Path, object_spec: str) -> bytes:
@@ -587,7 +587,7 @@ def _git_run(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     environment = {"PATH": os.environ.get("PATH", os.defpath), "GIT_NO_REPLACE_OBJECTS": "1"}
     environment |= {"LC_ALL": "C", "GIT_OPTIONAL_LOCKS": "0", "GIT_CONFIG_NOSYSTEM": "1"}
     environment |= {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_ATTR_NOSYSTEM": "1"}
-    return subprocess.run(  # noqa: S603, RUF100 - literal Git argv, shell disabled
+    return subprocess.run(
         ["git", *args],
         cwd=root,
         check=False,

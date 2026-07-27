@@ -44,19 +44,19 @@ budgets or the vendor-neutral product boundary.
 ### New Capabilities
 
 None. The campaign replaces and compacts existing product capabilities rather
-than creating a parallel capability family.
+than creating a parallel capability registry.
 
 ### Modified Capabilities
 
-- `kernel`: subject=terminal-semantic-kernel; reuse=extend; change=modify; facet:lifecycle=authoring,validation,runtime,archive; facet:surface=source,schema,test,openspec; facet:authority=source,test,schema,docs,openspec,evidence. Reduce the semantic center to the two persistent entities and one deterministic PlanIR transition algebra.
-- `command-plane`: subject=terminal-command-plane; reuse=extend; change=modify; facet:lifecycle=runtime,validation,release; facet:surface=cli,schema,docs,test; facet:authority=source,test,schema,docs,openspec,evidence. Remove quality_summary/orient duplication and enforce compact, truthful lifecycle outputs.
-- `contracts`: subject=terminal-contracts; reuse=extend; change=modify; facet:lifecycle=authoring,validation,runtime; facet:surface=source,schema,docs,test; facet:authority=source,test,schema,docs,openspec. Establish language- and vendor-neutral ChangeContract, Attestation, PlanIR, actor, permission, and pack schemas.
-- `repository-governance`: subject=terminal-repository-governance; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,archive,closeout; facet:surface=cli,source,schema,docs,openspec,evidence; facet:authority=source,test,schema,docs,openspec,claim,evidence. Add Worktree Family, intent continuity, cooperative/competitive selection, recovery, adaptive backpressure, and proposal branch semantics.
-- `quality`: subject=terminal-quality-floor; reuse=extend; change=modify; facet:lifecycle=validation,release; facet:surface=ci,source,test,config,docs; facet:authority=source,test,config,docs,openspec,evidence. Replace the self-referential budget runtime with direct measurement and enforce singular tools, warning zero, suppression zero, and terminal ELOC budgets.
-- `adapters`: subject=terminal-adapter-boundary; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,validation; facet:surface=source,schema,test,docs; facet:authority=source,test,schema,docs,openspec. Remove workstation-specific control-plane coupling and isolate Git, forge, carrier, gate, effect, and attestation integrations behind explicit profile contracts.
-- `distribution`: subject=terminal-distribution-topology; reuse=extend; change=modify; facet:lifecycle=validation,release; facet:surface=ci,package,docs,schema; facet:authority=source,test,config,docs,openspec,evidence. Preserve offline local installation while making GitLab and GitHub independent full release planes over identical artifacts.
-- `proof-hosts`: subject=terminal-conformance-proof; reuse=extend; change=modify; facet:lifecycle=validation,release; facet:surface=test,ci,evidence,docs; facet:authority=test,config,docs,openspec,evidence. Prove three unlike adopters, concurrency invariants, offline behavior, and independent provider evidence.
-- `assistant-projections`: subject=terminal-agent-projections; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,validation; facet:surface=mcp,skill,schema,docs,test; facet:authority=source,test,schema,docs,openspec. Derive compact MCP/A2A/skill/inbox/handoff surfaces from repository truth without vendor-session dependence.
+- `kernel`: subject=terminal-semantic-kernel; reuse=extend; change=modify
+- `command-plane`: subject=terminal-command-plane; reuse=extend; change=modify
+- `contracts`: subject=terminal-contracts; reuse=extend; change=modify
+- `repository-governance`: subject=terminal-repository-governance; reuse=extend; change=modify
+- `quality`: subject=terminal-quality-floor; reuse=extend; change=modify
+- `adapters`: subject=terminal-adapter-boundary; reuse=extend; change=modify
+- `distribution`: subject=terminal-distribution-topology; reuse=extend; change=modify
+- `proof-hosts`: subject=terminal-conformance-proof; reuse=extend; change=modify
+- `assistant-projections`: subject=terminal-agent-projections; reuse=extend; change=modify
 
 ## Impact
 

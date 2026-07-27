@@ -8,12 +8,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.mutation.resolution._shared import display_path
-from ethos.adapters.mutation.resolution._shared import record_destination_safe
-from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.records.core import clear_quarantine_identity
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos.adapters.mutation.resolution.records.roots import display_record_path
+from ethos.adapters.mutation.resolution.records.roots import record_path_is_safe
 from ethos.contracts.resolution.closeout import LaneResolutionClearReceipt
+from ethos.contracts.resolution.lane import is_lane_decision_id
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -33,6 +32,7 @@ _RECORD_CATEGORIES = {"decisions", "receipts", "clears", "reservations"}
 _SHA256_LENGTH = 64
 _FILE_IDENTITY_FIELD_COUNT = 6
 _QUARANTINE_NAME_PART_COUNT = 3
+_CLEAR_QUARANTINE_IDENTITY_FIELD_COUNT = 3
 _MANIFEST_FIELDS = {
     "decision_id",
     "lane_ref",
@@ -59,6 +59,30 @@ class ClearQuarantineCandidate:
     package_names: set[str] | None
     payload_identities: dict[str, CurrentFileIdentity | None] | None
     entry_identity: tuple[int, int, int] | None
+
+
+def clear_quarantine_name(decision_id: str, identity: tuple[int, int, int]) -> str:
+    """Bind one clear quarantine name to its decision and filesystem identity."""
+    device, inode, mode = identity
+    digest = hashlib.sha256(decision_id.encode()).hexdigest()
+    return f".{digest}.{device:x}-{inode:x}-{mode:x}.clear-quarantine"
+
+
+def clear_quarantine_identity(name: str, decision_id: str) -> tuple[int, int, int] | None:
+    """Parse the identity only from the exact quarantine namespace for one decision."""
+    digest = hashlib.sha256(decision_id.encode()).hexdigest()
+    prefix, suffix = f".{digest}.", ".clear-quarantine"
+    if not name.startswith(prefix) or not name.endswith(suffix):
+        return None
+    encoded = name.removeprefix(prefix).removesuffix(suffix)
+    try:
+        values = tuple(int(part, 16) for part in encoded.split("-"))
+    except ValueError:
+        return None
+    if len(values) != _CLEAR_QUARANTINE_IDENTITY_FIELD_COUNT:
+        return None
+    identity = values[0], values[1], values[2]
+    return identity if clear_quarantine_name(decision_id, identity) == name else None
 
 
 def quarantined_payloads_match(
@@ -99,7 +123,7 @@ def validated_manifest(payload: dict[str, object]) -> dict[str, object]:
         digest_fields.append(payload["index_patch_sha256"])
     archive_digest = payload["untracked_archive_sha256"]
     if (
-        not valid_decision_id(str(payload["decision_id"]))
+        not is_lane_decision_id(str(payload["decision_id"]))
         or not isinstance(payload["lane_ref"], str)
         or not payload["lane_ref"]
         or not _git_oid(payload["head"])
@@ -191,7 +215,7 @@ def clear_quarantines(
         records[decision_id] = {
             "decision_id": decision_id,
             "physical_path": source.path,
-            "package_path": display_path(root, source.path),
+            "package_path": display_record_path(root, source.path),
             "quarantine_name": source.path.name,
             "package_identity": identity,
             "manifest_sha256": clears[decision_id]["manifest_sha256"],
@@ -217,7 +241,7 @@ def exact_clear_receipt(record: dict[str, object], expected: dict[str, object]) 
 def unsafe_package_path_present(root: Path) -> bool:
     """Return whether current package topology contains an unsafe path."""
     record_root = current_record_root(root)
-    if not record_destination_safe(record_root, record_root):
+    if not record_path_is_safe(record_root, record_root):
         return True
     if not record_root.exists():
         return False
@@ -241,7 +265,7 @@ def unsafe_record_path_present(root: Path) -> bool:
 def package_path_safe(root: Path, package_path: Path) -> bool:
     """Return whether a package and its manifest remain under the current root."""
     record_root = current_record_root(root)
-    return record_destination_safe(record_root, package_path) and record_destination_safe(
+    return record_path_is_safe(record_root, package_path) and record_path_is_safe(
         record_root, package_path / "manifest.json"
     )
 

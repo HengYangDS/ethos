@@ -29,7 +29,8 @@ class IdentityAssertion(BaseModel):
     @model_validator(mode="after")
     def validate_interval(self) -> IdentityAssertion:
         if self.valid_until <= self.valid_from:
-            raise ValueError("valid_until must be later than valid_from")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
+            msg = "valid_until must be later than valid_from"
+            raise ValueError(msg)
         return self
 
     def to_payload(self) -> dict[str, object]:
@@ -97,9 +98,11 @@ class IndependentVerificationReceipt(BaseModel):
     @model_validator(mode="after")
     def validate_receipt(self) -> IndependentVerificationReceipt:
         if self.valid_until <= self.issued_at:
-            raise ValueError("valid_until must be later than issued_at")  # noqa: EM101, RUF100, TRY003
+            msg = "valid_until must be later than issued_at"
+            raise ValueError(msg)
         if self.payload_digest and self.payload_digest != self.canonical_payload_digest():
-            raise ValueError("payload_digest does not match canonical receipt payload")  # noqa: EM101, RUF100, TRY003
+            msg = "payload_digest does not match canonical receipt payload"
+            raise ValueError(msg)
         return self
 
     def canonical_payload_digest(self) -> str:

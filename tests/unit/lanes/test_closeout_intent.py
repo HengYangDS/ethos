@@ -14,20 +14,20 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.closeout_intent import core as closeout_intent
+import ethos.adapters.admission.closeout_intent.marker as closeout_markers
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def _marker_path(repo: Path, nonce: str) -> Path:
-    return closeout_intent._marker_path(repo, nonce)
+    return closeout_markers.closeout_intent_dir(repo) / f"{nonce}.json"
 
 
 def _write(repo: Path, *, old: str = "old", new: str = "new") -> dict[str, object]:
-    return closeout_intent.write_closeout_intent(
+    return closeout_markers.write_closeout_intent(
         root=repo,
-        transition=closeout_intent.CloseoutTransition(
+        transition=closeout_markers.CloseoutTransition(
             ref_name="refs/heads/dev",
             old_value=old,
             new_value=new,
@@ -54,10 +54,10 @@ def test_write_persists_marker_bound_to_transition(tmp_path: Path) -> None:
 def test_consume_matching_marker_is_one_shot(tmp_path: Path) -> None:
     _write(tmp_path)
 
-    first = closeout_intent.consume_closeout_intent(
+    first = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
-    second = closeout_intent.consume_closeout_intent(
+    second = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
 
@@ -66,7 +66,7 @@ def test_consume_matching_marker_is_one_shot(tmp_path: Path) -> None:
 
 
 def test_consume_reports_no_intent_when_dir_absent(tmp_path: Path) -> None:
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
 
@@ -76,7 +76,7 @@ def test_consume_reports_no_intent_when_dir_absent(tmp_path: Path) -> None:
 def test_consume_reports_mismatch_on_different_old_new(tmp_path: Path) -> None:
     _write(tmp_path, old="other-old", new="new")
 
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
 
@@ -87,7 +87,7 @@ def test_consume_reports_stale_and_deletes_expired_marker(tmp_path: Path) -> Non
     marker = _write(tmp_path)
     _expire(tmp_path, str(marker["nonce"]))
 
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
 
@@ -97,9 +97,9 @@ def test_consume_reports_stale_and_deletes_expired_marker(tmp_path: Path) -> Non
 
 def test_consume_skips_unrelated_ref_and_unreadable_markers(tmp_path: Path) -> None:
     # A marker for a different ref must not satisfy this transition.
-    closeout_intent.write_closeout_intent(
+    closeout_markers.write_closeout_intent(
         root=tmp_path,
-        transition=closeout_intent.CloseoutTransition(
+        transition=closeout_markers.CloseoutTransition(
             ref_name="refs/heads/release",
             old_value="old",
             new_value="new",
@@ -108,9 +108,11 @@ def test_consume_skips_unrelated_ref_and_unreadable_markers(tmp_path: Path) -> N
         evidence_digest="d",
     )
     # A corrupt file in the marker dir must be skipped, not crash.
-    (closeout_intent._marker_dir(tmp_path) / "bad.json").write_text("{not json", encoding="utf-8")
+    (closeout_markers.closeout_intent_dir(tmp_path) / "bad.json").write_text(
+        "{not json", encoding="utf-8"
+    )
 
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
 
@@ -121,8 +123,8 @@ def test_clear_is_idempotent(tmp_path: Path) -> None:
     marker = _write(tmp_path)
     nonce = str(marker["nonce"])
 
-    closeout_intent.clear_closeout_intent(tmp_path, nonce)
-    closeout_intent.clear_closeout_intent(tmp_path, nonce)  # second call is a no-op
+    closeout_markers.clear_closeout_intent(tmp_path, nonce)
+    closeout_markers.clear_closeout_intent(tmp_path, nonce)  # second call is a no-op
 
     assert not _marker_path(tmp_path, nonce).exists()
 
@@ -131,9 +133,11 @@ def test_sweep_removes_expired_and_corrupt_keeps_live(tmp_path: Path) -> None:
     live = _write(tmp_path, old="live-old", new="live-new")
     expired = _write(tmp_path, old="dead-old", new="dead-new")
     _expire(tmp_path, str(expired["nonce"]))
-    (closeout_intent._marker_dir(tmp_path) / "corrupt.json").write_text("nope", encoding="utf-8")
+    (closeout_markers.closeout_intent_dir(tmp_path) / "corrupt.json").write_text(
+        "nope", encoding="utf-8"
+    )
 
-    swept = closeout_intent.sweep_stale_closeout_intents(tmp_path)
+    swept = closeout_markers.sweep_stale_closeout_intents(tmp_path)
 
     assert str(expired["nonce"]) in swept
     assert "corrupt" in swept
@@ -142,7 +146,7 @@ def test_sweep_removes_expired_and_corrupt_keeps_live(tmp_path: Path) -> None:
 
 
 def test_sweep_on_absent_dir_is_empty(tmp_path: Path) -> None:
-    assert closeout_intent.sweep_stale_closeout_intents(tmp_path) == []
+    assert closeout_markers.sweep_stale_closeout_intents(tmp_path) == []
 
 
 def test_expired_marker_with_unparseable_timestamp_is_expired(tmp_path: Path) -> None:
@@ -152,7 +156,7 @@ def test_expired_marker_with_unparseable_timestamp_is_expired(tmp_path: Path) ->
     stored["expires_at"] = "not-a-timestamp"
     path.write_text(json.dumps(stored), encoding="utf-8")
 
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
 
@@ -166,7 +170,7 @@ def test_marker_missing_expires_at_is_treated_as_expired(tmp_path: Path) -> None
     del stored["expires_at"]
     path.write_text(json.dumps(stored), encoding="utf-8")
 
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
 
@@ -186,7 +190,7 @@ def test_marker_with_naive_but_parseable_timestamp_is_expired_not_crash(tmp_path
     stored["expires_at"] = "2099-01-01T00:00:00"  # far-future but NAIVE (no offset)
     path.write_text(json.dumps(stored), encoding="utf-8")
 
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
     )
     assert result == {"present": True, "gap": "closeout_intent_stale"}
@@ -201,13 +205,13 @@ def test_sweep_reclaims_naive_timestamp_marker_without_crashing(tmp_path: Path) 
     stored["expires_at"] = "2099-01-01T00:00:00"
     path.write_text(json.dumps(stored), encoding="utf-8")
 
-    swept = closeout_intent.sweep_stale_closeout_intents(tmp_path)
+    swept = closeout_markers.sweep_stale_closeout_intents(tmp_path)
 
     assert str(marker["nonce"]) in swept
     assert not path.exists()
 
 
-def test_marker_dir_resolves_inside_real_git_dir(tmp_path: Path) -> None:
+def testcloseout_intent_dir_resolves_inside_real_git_dir(tmp_path: Path) -> None:
     """In a real repo, `git rev-parse --git-path` resolves the marker dir under the git
     dir (the linked-worktree-safe path), not a hardcoded <root>/.git."""
     import subprocess
@@ -215,7 +219,7 @@ def test_marker_dir_resolves_inside_real_git_dir(tmp_path: Path) -> None:
     subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
     marker = _write(tmp_path)
 
-    marker_dir = closeout_intent._marker_dir(tmp_path)
+    marker_dir = closeout_markers.closeout_intent_dir(tmp_path)
     assert marker_dir.is_dir()
     assert (tmp_path / ".git" / "ethos" / "closeout-intent").resolve() == marker_dir.resolve()
     assert _marker_path(tmp_path, str(marker["nonce"])).exists()
@@ -231,32 +235,32 @@ def _expire(repo: Path, nonce: str) -> None:
 def test_consume_rejects_evidence_digest_mismatch(tmp_path: Path) -> None:
     """A marker whose bound evidence_digest != the expected one is refused (finding A)."""
     _write(tmp_path, old="o", new="n")  # marker carries evidence_digest="digest"
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path,
         ref_name="refs/heads/dev",
         old_value="o",
         new_value="n",
-        expect=closeout_intent.MarkerExpectation(evidence_digest="a-different-digest"),
+        expect=closeout_markers.MarkerExpectation(evidence_digest="a-different-digest"),
     )
     assert result == {"present": True, "gap": "closeout_intent_evidence_digest_mismatch"}
 
 
 def test_consume_rejects_gate_policy_digest_mismatch(tmp_path: Path) -> None:
     """A marker whose bound gate_policy_digest != the expected one is refused (finding A)."""
-    closeout_intent.write_closeout_intent(
+    closeout_markers.write_closeout_intent(
         root=tmp_path,
-        transition=closeout_intent.CloseoutTransition(
+        transition=closeout_markers.CloseoutTransition(
             ref_name="refs/heads/dev", old_value="o", new_value="n", candidate_head="n"
         ),
         evidence_digest="ed",
         gate_policy_digest="pd",
     )
-    result = closeout_intent.consume_closeout_intent(
+    result = closeout_markers.consume_closeout_intent(
         root=tmp_path,
         ref_name="refs/heads/dev",
         old_value="o",
         new_value="n",
-        expect=closeout_intent.MarkerExpectation(
+        expect=closeout_markers.MarkerExpectation(
             evidence_digest="ed", gate_policy_digest="a-different-policy-digest"
         ),
     )

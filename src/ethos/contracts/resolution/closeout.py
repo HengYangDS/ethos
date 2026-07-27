@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import uuid
 from typing import Literal
 from typing import Self
 
@@ -14,6 +13,7 @@ from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos.contracts.coordination import HolderRef
+from ethos.contracts.resolution.lane import is_lane_decision_id
 
 LaneResolutionState = Literal[
     "blocked_by_decision",
@@ -59,10 +59,25 @@ _CLEAR_RECEIPT_INCOMPLETE = "lane-resolution clear receipt must be completed"
 _CLEAR_RECEIPT_AUTHORITATIVE = "lane-resolution clear receipt cannot mint authority"
 
 
-class OwnerlessCloseoutBinding(BaseModel):
-    """Complete native admission and postcondition binding for ownerless closeout."""
-
+class _ResolutionContract(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    def to_payload(self) -> dict[str, object]:
+        return self.model_dump(mode="json", exclude_none=True)
+
+
+def _holder_ref(value: str) -> str:
+    return HolderRef.parse(value).serialize()
+
+
+def _required_bool(value: object, *, expected: bool, message: str) -> bool:
+    if value is not expected:
+        raise ValueError(message)
+    return expected
+
+
+class OwnerlessCloseoutBinding(_ResolutionContract):
+    """Complete native admission and postcondition binding for ownerless closeout."""
 
     executor_ref: str = Field(min_length=1)
     decision_sha256: str = Field(pattern=_SHA256_PATTERN)
@@ -76,13 +91,33 @@ class OwnerlessCloseoutBinding(BaseModel):
     @classmethod
     def validate_executor_ref(cls, value: str) -> str:
         """Apply the provider-neutral holder identity wire contract."""
-        return HolderRef.parse(value).serialize()
+        return _holder_ref(value)
 
 
-class LaneResolutionReceipt(BaseModel):
+class OwnerlessCloseoutFenceBinding(_ResolutionContract):
+    """Exact immutable facts for one ownerless closeout fence acquisition."""
+
+    subject: str = Field(min_length=1)
+    expected_head: str = Field(pattern=_GIT_OID_PATTERN)
+    decision_id: str = Field(min_length=1)
+    executor_ref: str = Field(min_length=1)
+    accepted_branch: str = Field(min_length=1)
+    accepted_head: str = Field(pattern=_GIT_OID_PATTERN)
+    target_path: str = Field(min_length=1)
+    lane_incarnation_id: str = Field(min_length=1)
+    observation_digest: str = Field(pattern=_SHA256_PATTERN)
+    decision_sha256: str = Field(pattern=_SHA256_PATTERN)
+    chronicle_digest: str = Field(pattern=_SHA256_PATTERN)
+
+    @field_validator("executor_ref")
+    @classmethod
+    def validate_executor_ref(cls, value: str) -> str:
+        """Apply the provider-neutral holder identity wire contract."""
+        return _holder_ref(value)
+
+
+class LaneResolutionReceipt(_ResolutionContract):
     """Immutable local completion record for one lane-resolution decision."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     schema_version: Literal[3]
     receipt_id: str = Field(min_length=1)
@@ -103,17 +138,13 @@ class LaneResolutionReceipt(BaseModel):
     @classmethod
     def validate_completed(cls, value: object) -> bool:
         """Require a completed receipt rather than a coercible truthy value."""
-        if value is not True:
-            raise ValueError(_RECEIPT_INCOMPLETE)
-        return True
+        return _required_bool(value, expected=True, message=_RECEIPT_INCOMPLETE)
 
     @field_validator("mints_authority")
     @classmethod
     def validate_non_authoritative(cls, value: object) -> bool:
         """Prevent completion evidence from minting authority."""
-        if value is not False:
-            raise ValueError(_RECEIPT_AUTHORITATIVE)
-        return False
+        return _required_bool(value, expected=False, message=_RECEIPT_AUTHORITATIVE)
 
     @model_validator(mode="after")
     def validate_retirement_blocked_reason(self) -> Self:
@@ -123,15 +154,9 @@ class LaneResolutionReceipt(BaseModel):
             raise ValueError(_RETIREMENT_BLOCKED_REASON_INVALID)
         return self
 
-    def to_payload(self) -> dict[str, object]:
-        """Return the canonical JSON-compatible receipt payload."""
-        return self.model_dump(mode="json", exclude_none=True)
 
-
-class OwnerlessCloseoutReservation(BaseModel):
+class OwnerlessCloseoutReservation(_ResolutionContract):
     """Durable exact-target reservation and visible recovery state."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     schema_version: Literal[2]
     decision_id: str = Field(min_length=1)
@@ -151,14 +176,7 @@ class OwnerlessCloseoutReservation(BaseModel):
     @classmethod
     def validate_decision_id(cls, value: str) -> str:
         """Require the canonical lane-decision UUID wire form."""
-        prefix = "lane-decision:"
-        if not value.startswith(prefix):
-            raise ValueError(_DECISION_ID_INVALID)
-        try:
-            parsed = uuid.UUID(value.removeprefix(prefix))
-        except ValueError as error:
-            raise ValueError(_DECISION_ID_INVALID) from error
-        if value != f"{prefix}{parsed}":
+        if not is_lane_decision_id(value):
             raise ValueError(_DECISION_ID_INVALID)
         return value
 
@@ -166,7 +184,7 @@ class OwnerlessCloseoutReservation(BaseModel):
     @classmethod
     def validate_executor_ref(cls, value: str) -> str:
         """Apply the provider-neutral holder identity wire contract."""
-        return HolderRef.parse(value).serialize()
+        return _holder_ref(value)
 
     @model_validator(mode="after")
     def validate_target_and_recovery_state(self) -> Self:
@@ -181,15 +199,9 @@ class OwnerlessCloseoutReservation(BaseModel):
             raise ValueError(_POSTCONDITION_DIGEST_MISMATCH)
         return self
 
-    def to_payload(self) -> dict[str, object]:
-        """Return the canonical JSON-compatible reservation payload."""
-        return self.model_dump(mode="json")
 
-
-class LaneResolutionClearReceipt(BaseModel):
+class LaneResolutionClearReceipt(_ResolutionContract):
     """Immutable local record for one approved recovery-package removal."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     schema_version: Literal[1]
     clear_receipt_id: str = Field(min_length=1)
@@ -205,18 +217,10 @@ class LaneResolutionClearReceipt(BaseModel):
     @classmethod
     def validate_completed(cls, value: object) -> bool:
         """Require a completed clear receipt rather than a coercible truthy value."""
-        if value is not True:
-            raise ValueError(_CLEAR_RECEIPT_INCOMPLETE)
-        return True
+        return _required_bool(value, expected=True, message=_CLEAR_RECEIPT_INCOMPLETE)
 
     @field_validator("mints_authority")
     @classmethod
     def validate_non_authoritative(cls, value: object) -> bool:
         """Prevent clear evidence from minting authority."""
-        if value is not False:
-            raise ValueError(_CLEAR_RECEIPT_AUTHORITATIVE)
-        return False
-
-    def to_payload(self) -> dict[str, object]:
-        """Return the canonical JSON-compatible clear-receipt payload."""
-        return self.model_dump(mode="json")
+        return _required_bool(value, expected=False, message=_CLEAR_RECEIPT_AUTHORITATIVE)

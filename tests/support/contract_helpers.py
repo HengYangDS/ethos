@@ -7,16 +7,26 @@ seeding) are the cross-cutting setup every split imports.
 
 from __future__ import annotations
 
+import os
 import subprocess
+import uuid
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple
 
-from ethos.adapters.mutation.proof import _promotion_required_gate_ids
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.mutation.proof import issue_proof_attestation
+from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.coordination import LaneLease
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.evidence.core import EvidenceSet
-from ethos.repository.evidence.core import ProofRun
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.profile import RepositoryProfileDeclaration
@@ -29,6 +39,7 @@ class WorkLaneFixture(NamedTuple):
 
     repository: Path
     candidate: Path
+    source: Path
     worktree: Path
 
 
@@ -36,6 +47,7 @@ def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
     """Create an adopted accepted root and its candidate worktree."""
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
+    commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     return repo, candidate
@@ -49,6 +61,12 @@ def start_adopted_work_lane(
 ) -> WorkLaneFixture:
     """Create a generic adopted repository, candidate worktree, and owned lane."""
     repo, candidate = start_adopted_candidate(tmp_path)
+    source = create_change_source_lane(
+        repo,
+        tmp_path / f"repo-work-source-{name}",
+        branch=f"work/source-{name}",
+        holder_ref=holder_ref,
+    )
     worktree = tmp_path / f"repo-work-{name}"
     run_ethos(
         "lane",
@@ -58,23 +76,33 @@ def start_adopted_work_lane(
         repo.as_posix(),
         "--path",
         worktree.as_posix(),
+        "--source-root",
+        source.as_posix(),
         "--holder-ref",
         holder_ref,
         "--apply",
         "--json",
         cwd=repo,
     )
-    return WorkLaneFixture(repo, candidate, worktree)
+    return WorkLaneFixture(repo, candidate, source, worktree)
 
 
 def lane_start_arguments(
     repository: Path,
     worktree: Path,
     *,
+    source_root: Path | None = None,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
 ) -> tuple[str, ...]:
     """Build canonical CLI arguments for an applied test Work Lane start."""
+    commit_openspec_baseline(repository)
+    source_root = source_root or create_change_source_lane(
+        repository,
+        repository.parent / f"{repository.name}-work-source-{name}",
+        branch=f"{load_branch_role_policy(repository).work_branch_prefix}source-{name}",
+        holder_ref=holder_ref,
+    )
     return (
         "lane",
         "start",
@@ -83,6 +111,8 @@ def lane_start_arguments(
         repository.as_posix(),
         "--path",
         worktree.as_posix(),
+        "--source-root",
+        source_root.as_posix(),
         "--holder-ref",
         holder_ref,
         "--apply",
@@ -95,6 +125,7 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+    previous = git(root, "rev-parse", "HEAD")
     git(root, "add", relative)
     git(
         root,
@@ -106,7 +137,28 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
         "-m",
         message,
     )
-    return git(root, "rev-parse", "HEAD")
+    head = git(root, "rev-parse", "HEAD")
+    branch = git(root, "branch", "--show-current")
+    holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
+    if holder:
+        actor = os.environ.get("ETHOS_ACTOR", "") or holder
+        original = os.environ.get("ETHOS_ACTOR")
+        os.environ["ETHOS_ACTOR"] = actor
+        try:
+            report = work_lane_ref_transition_report(
+                root=root,
+                phase="committed",
+                ref_name=f"refs/heads/{branch}",
+                old_value=previous,
+                new_value=head,
+            )
+        finally:
+            if original is None:
+                os.environ.pop("ETHOS_ACTOR", None)
+            else:
+                os.environ["ETHOS_ACTOR"] = original
+        assert report["state"] == "lease_head_advanced"
+    return head
 
 
 def write_chronicle_decision(repo: Path, *, topic: str, token: str) -> str:
@@ -171,9 +223,208 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
 def init_repo_with_candidate(tmp_path: Path) -> tuple[Path, Path]:
     """Create a minimal accepted root and its linked candidate checkout."""
     repo = init_git_repo(tmp_path / "repo")
+    adoption_plan(repo, apply=True)
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "adopt ethos governance",
+    )
+    commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     return repo, candidate
+
+
+def create_change_source_lane(
+    repo: Path,
+    path: Path,
+    *,
+    branch: str = "work/change-source",
+    change_id: str = "fixture-change",
+    scope: tuple[str, ...] = ("**",),
+    holder_ref: str = "agent:test:case:source",
+) -> Path:
+    """Create one clean linked Work Lane carrying one active Change."""
+    base_branch = load_branch_role_policy(repo).accepted_branch
+    git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
+    _write_active_change_carrier(path, change_id=change_id, scope=scope)
+    git(path, "add", ".")
+    git(
+        path,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        f"declare {change_id}",
+    )
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        lease=_lease(
+            branch=branch,
+            holder_ref=holder_ref,
+            expected_head=git(path, "rev-parse", "HEAD"),
+            base_change_contract_digest=load_change_contract(path).digest(),
+        ),
+    )
+    return path
+
+
+def _lease_holder(root: Path, branch: str) -> str:
+    holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
+    assert holder
+    return holder
+
+
+def write_active_change_contract(
+    repo: Path,
+    *,
+    change_id: str = "fixture-change",
+    scope: tuple[str, ...] = ("**",),
+) -> None:
+    """Write one complete-shape active OpenSpec Change for lifecycle fixtures."""
+    repository_contract = repo / ".ethos" / "contract.toml"
+    if not repository_contract.exists():
+        repository_id = f"repository:{repo.name}"
+        repository_contract.parent.mkdir(parents=True, exist_ok=True)
+        repository_contract.write_text(
+            "\n".join(
+                (
+                    "schema_version = 1",
+                    f'id = "{repository_id}"',
+                    'intent = "Govern the fixture repository."',
+                    f'subjects = ["{repository_id}"]',
+                    "",
+                )
+            ),
+            encoding="utf-8",
+        )
+    _write_openspec_baseline(repo)
+    _write_active_change_carrier(repo, change_id=change_id, scope=scope)
+
+
+def _write_openspec_baseline(repo: Path) -> None:
+    """Write the accepted-repository OpenSpec config and capability specs."""
+    openspec = repo / "openspec"
+    specs = openspec / "specs" / "contracts"
+    specs.mkdir(parents=True, exist_ok=True)
+    (openspec / "config.yaml").write_text(
+        "schema: spec-driven\n"
+        "context: governed fixture repository\n"
+        "rules:\n"
+        "  proposal: [write intent]\n"
+        "  specs: [write requirements]\n"
+        "  tasks: [track work]\n"
+        "  design: [record decisions]\n",
+        encoding="utf-8",
+    )
+    (openspec / "specs" / "README.md").write_text("# Specs\n", encoding="utf-8")
+    (specs / "spec.md").write_text(
+        "## Purpose\n\n"
+        "Exercise the governed fixture contract and its lifecycle semantics.\n\n"
+        "## Requirements\n\n"
+        "### Requirement: Governed fixture\n\n"
+        "The governed fixture SHALL remain valid throughout its lifecycle.\n\n"
+        "#### Scenario: Fixture is exercised\n\n"
+        "- **WHEN** the test lifecycle runs\n"
+        "- **THEN** the governed fixture remains valid\n",
+        encoding="utf-8",
+    )
+
+
+def commit_openspec_baseline(repo: Path) -> None:
+    """Commit the OpenSpec baseline before linked candidate/source worktrees."""
+    _write_openspec_baseline(repo)
+    if git(repo, "status", "--short", "--", "openspec"):
+        git(repo, "add", "openspec/config.yaml", "openspec/specs")
+        git(
+            repo,
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "seed OpenSpec baseline",
+        )
+
+
+def _write_active_change_carrier(
+    repo: Path,
+    *,
+    change_id: str,
+    scope: tuple[str, ...],
+) -> None:
+    """Write only one selected active OpenSpec Change carrier."""
+    openspec = repo / "openspec"
+    candidate_branch = load_branch_role_policy(repo).candidate_branch
+    carrier = openspec / "changes" / change_id
+    carrier.mkdir(parents=True, exist_ok=True)
+    (carrier / "proposal.md").write_text(
+        "## Why\n\nExercise the governed fixture lifecycle.\n\n"
+        "## What Changes\n\n- Exercise one fixture change.\n\n"
+        "## Capabilities\n\n"
+        "- `contracts`: subject=fixture-contracts; reuse=extend; change=modify\n\n"
+        "## Out Of Scope\n\n- Production behavior.\n",
+        encoding="utf-8",
+    )
+    (carrier / "design.md").write_text(
+        "## Context\n\nTest-only governed fixture.\n\n"
+        "## Design\n\nUse the real OpenSpec carrier shape.\n\n"
+        "## Alternatives\n\nNo compatibility fallback.\n\n"
+        "## Proof Strategy\n\nRun focused lifecycle tests.\n",
+        encoding="utf-8",
+    )
+    (carrier / "specs" / "contracts").mkdir(parents=True, exist_ok=True)
+    (carrier / "specs" / "contracts" / "spec.md").write_text(
+        "## ADDED Requirements\n\n"
+        "### Requirement: Fixture change\n\n"
+        "The fixture ChangeContract SHALL remain the single intent carrier.\n\n"
+        "#### Scenario: Fixture change is selected\n\n"
+        "- **WHEN** the fixture lifecycle selects the change\n"
+        "- **THEN** its ChangeContract is the single intent carrier\n",
+        encoding="utf-8",
+    )
+    (carrier / "contract.toml").write_text(
+        "schema_version = 1\n"
+        f'id = "change:{change_id}"\n'
+        'intent = "Exercise the governed fixture lifecycle."\n'
+        'subjects = ["repository:self"]\n'
+        f"scope = {list(scope)!r}\n".replace("'", '"')
+        + f'permissions = ["git.ref.update:refs/heads/{candidate_branch}"]\n',
+        encoding="utf-8",
+    )
+    (carrier / "tasks.md").write_text("- [ ] Exercise fixture lifecycle\n", encoding="utf-8")
+
+
+def commit_active_change_contract(
+    repo: Path,
+    *,
+    change_id: str = "fixture-change",
+    scope: tuple[str, ...] = ("**",),
+) -> str:
+    """Commit one active fixture ChangeContract and return its canonical digest."""
+    write_active_change_contract(repo, change_id=change_id, scope=scope)
+    if git(repo, "status", "--short"):
+        git(repo, "add", ".")
+        git(
+            repo,
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "declare active change",
+        )
+    return load_change_contract(repo, change_id=change_id).digest()
 
 
 def write_role_policy(
@@ -219,6 +470,7 @@ def adopt_and_commit(repo: Path) -> None:
     assert plan["applied"] is True
     _declare_minimal_code_correctness(repo)
     write_publication_topology(repo)
+    _write_openspec_baseline(repo)
     git(repo, "add", ".")
     git(
         repo,
@@ -293,35 +545,29 @@ def _declare_minimal_code_correctness(repo: Path) -> None:
 
 
 def seed_executed_proof(repo: Path, head: str) -> None:
-    """Record an executed-proof at HEAD, as `ethos prove --execute` would.
-
-    Land/publish now require a HEAD-keyed proof record before the merge, so tests
-    exercising land mechanics seed the proof the same way the prove command does. The
-    record is self-authenticating (digest recomputed on read), so this seeds a REAL
-    evidence body — a proof cannot be faked, in tests or production.
-    """
-    # Seed a COMPLETE, POLICY-CONFORMANT promotion proof (one passing run per required
-    # gate id, carrying that gate's canonical command / trust_bearing / evidence_class):
-    # land/publish require the proof to cover the required floor AND each run to conform
-    # to its gate's live policy identity, so a placeholder command no longer suffices.
-    runs = tuple(
-        conformant_proof_run(gate_id, repo) for gate_id in _promotion_required_gate_ids(repo)
+    """Persist one complete policy-conformant generic proof Attestation."""
+    plan = proof_plan(repo, head=head)
+    checks = tuple(
+        conformant_proof_check(gate_id, repo)
+        for gate_id in promotion_required_gate_ids(repo, tree_ref=head)
     )
-    record_executed_proof(
+    attestation = issue_proof_attestation(
         repo,
-        EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict(),
-        plan=proof_plan(repo, head=head),
+        {
+            "plan": plan,
+            "checks": checks,
+            "verdict": "pass",
+            "issuer": "agent:test:fixture:proof",
+            "issued_at": datetime.now(UTC),
+            "scope": "repository",
+            "boundary": "repository",
+        },
     )
+    persist_proof_attestation(repo, attestation)
 
 
-def conformant_proof_run(gate_id: str, root: Path) -> object:
-    """Build a ProofRun that conforms to `gate_id`'s live policy identity.
-
-    Mirrors what `ethos prove --execute` records: the gate's canonical command and its
-    declared trust_bearing / evidence_class, so the run passes gate_policy_conformance.
-    Gate ids absent from the product registry (e.g. an adopter's declared native gates)
-    fall back to a trust-bearing test run — conformance only checks registry gates.
-    """
+def conformant_proof_check(gate_id: str, root: Path) -> dict[str, object]:
+    """Build one terminal check result matching the live gate policy identity."""
     gate = gate_registry(root).get(gate_id)
     if gate is None:
         command: tuple[str, ...] = ("pytest",)
@@ -331,18 +577,33 @@ def conformant_proof_run(gate_id: str, root: Path) -> object:
         command = canonical_gate_command(gate.command)
         trust_bearing = gate.trust_bearing
         evidence_class = gate.evidence_class
-    # ProofRun enforces trust_bearing <=> state == "proven"; a non-trust-bearing gate's
-    # passing run is "executed", not "proven".
-    state = "proven" if trust_bearing else "executed"
-    return ProofRun(
-        action_id=gate_id,
-        command=command,
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state=state,
-        evidence_class=evidence_class,
-        verdict="passed",
-        trust_bearing=trust_bearing,
-        diagnostics=(),
+    return {
+        "action_id": gate_id,
+        "command": list(command),
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "",
+        "verdict": "pass",
+        "evidence_class": evidence_class,
+        "trust_bearing": trust_bearing,
+        "diagnostics": [],
+    }
+
+
+def _lease(
+    *, branch: str, holder_ref: str, expected_head: str, base_change_contract_digest: str
+) -> LaneLease:
+    now = datetime.now(UTC)
+    return LaneLease(
+        lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
+        lease_id=f"lease:{uuid.uuid4()}",
+        lane_ref=branch,
+        holder_ref=holder_ref,
+        epoch=1,
+        issued_at=now,
+        renewed_at=now,
+        expires_at=now + timedelta(days=1),
+        expected_head=expected_head,
+        base_change_contract_digest=base_change_contract_digest,
+        path_scope=(),
     )

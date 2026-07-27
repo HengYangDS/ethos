@@ -15,7 +15,7 @@ from ethos.contracts.gates import GateDescriptor
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
-from ethos.normalization.core import string_mapping
+from ethos.normalization.coercion import string_mapping
 from ethos.repository.context import is_product_root
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
@@ -39,7 +39,7 @@ def _adopter_gate_overlay(
     tree_ref: str | None = None,
 ) -> tuple[dict[str, GateDescriptor], tuple[str, ...]]:
     """Compile repository-native gate descriptors from an adopter profile."""
-    if not _adopter_profile_active(root, tree_ref=tree_ref):
+    if not adopter_profile_active(root, tree_ref=tree_ref):
         return {}, ()
     assert root is not None
     declaration = load_repository_profile(root, tree_ref=tree_ref).declaration
@@ -85,7 +85,7 @@ def adopter_gate_descriptor_gaps(
     return gaps
 
 
-def _adopter_profile_active(root: Path | None, *, tree_ref: str | None = None) -> bool:
+def adopter_profile_active(root: Path | None, *, tree_ref: str | None = None) -> bool:
     """Return True only for a VALID adopter profile on a non-product root.
 
     Keying the floor on bare `.exists` let any `.ethos/profile.toml` — 0-byte, invalid
@@ -225,7 +225,7 @@ def adopter_code_correctness_gaps(
     cannot detect an honest-shaped semantic no-op (a real-looking harness over zero checks)
     — that residual closes via governed profile-diff review and DR-0006 re-execution.
     """
-    if not _adopter_profile_active(root, tree_ref=tree_ref):
+    if not adopter_profile_active(root, tree_ref=tree_ref):
         return ()
     assert root is not None
     profile = load_repository_profile(root, tree_ref=tree_ref)
@@ -262,7 +262,7 @@ def adopter_code_correctness_gaps(
 def default_gate_ids(
     *, full: bool = False, root: Path | None = None, tree_ref: str | None = None
 ) -> tuple[str, ...]:
-    if _adopter_profile_active(root, tree_ref=tree_ref):
+    if adopter_profile_active(root, tree_ref=tree_ref):
         # Adopted repositories expose their proof depth through `.ethos/profile.toml`
         # and repository-native gates. The product code-correctness floor must not
         # assume product-owned `tools/ci/scripts/*` exist in every adopter — but the

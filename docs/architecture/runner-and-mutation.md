@@ -76,15 +76,19 @@ second proof-carry receipt. The projection exposes
 `mints_proof = false`, `same_head_only = true`, and source/target verification
 flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
 closeout can prove the candidate head without requiring a redundant runner pass.
-The standard Work Lane lifecycle is command-bound: `ethos lane start` creates
-and leases the lane, `ethos lane bind-claim` attaches claim boundary evidence
-when needed, `ethos lane refresh-base` replays a stale lane onto the configured
-candidate branch, `ethos land` advances the configured candidate branch, and
-`ethos lane retire landed` removes only an explicitly named clean landed Work Lane at
-the expected Work Lane HEAD.
+The standard Work Lane lifecycle is command-bound: `ethos lane start` resolves
+the unique active ChangeContract at the exact candidate HEAD, creates the lane,
+and records its immutable base digest in the Lease. Missing or ambiguous active
+contracts block before any ref, worktree, or SQLite effect. `ethos lane
+refresh-base` replays a stale lane onto the configured candidate branch, `ethos
+land` advances the configured candidate branch, and `ethos lane retire landed`
+removes only an explicitly named clean landed Work Lane at the expected Work
+Lane HEAD. Prewrite, PlanIR, proof, head advance, handoff, closeout, retirement,
+and status all consume the same strict Lease observation and exact base-digest
+binding.
 `ethos lane retire unbound` inspects only an explicitly named unbound Work Lane
 ref that status already exposed. Its exceptional path stays exact-head,
-Chronicle, Claim, and explicit-control bound. A live lease blocks by default;
+accepted-judgment-Attestation, and explicit-control bound. A live lease blocks by default;
 the only native exception is a current `ETHOS_ACTOR` holder relinquishing its
 same observed lease ID, epoch, and target head through the local CAS before the
 separate compare-and-delete effect. The command records that exact lease
@@ -165,10 +169,9 @@ non-blocking package that records the source branch, planned proposal branch,
 deferred remote state, and required local steps: land the Work Lane to the
 candidate branch, fast-forward the accepted root from the candidate branch, then
 create and push the configured proposal branch when remote publication is
-available. `ethos campaign closeout` aggregates this package with workspace
-closeout support, release policy, parity backlog, and shadow parity execution
-packages, but it remains read-only; actual mutation still goes through
-`ethos land --apply`.
+available. Local closeout facts remain inputs to the current land and publish
+boundaries; actual mutation still requires the command's explicit guarded
+options.
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

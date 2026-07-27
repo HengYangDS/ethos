@@ -267,7 +267,7 @@ def _tool_route_findings(rel: str, active_text: str, full_text: str) -> list[dic
         *_ruff_route_findings(rel, producer_text, full_text),
         *_import_linter_route_findings(rel, producer_text, full_text),
         *_pytest_runner_findings(rel, producer_text, full_text),
-        *_package_build_route_findings(rel, producer_text),
+        *package_build_route_findings(rel, producer_text),
         *_gitlab_local_route_findings(rel, producer_text),
     ]
 
@@ -396,7 +396,7 @@ def _pytest_runner_findings(rel: str, producer_text: str, full_text: str) -> lis
     ]
 
 
-def _package_build_route_findings(rel: str, producer_text: str) -> list[dict[str, str]]:
+def package_build_route_findings(rel: str, producer_text: str) -> list[dict[str, str]]:
     assignments: dict[str, str] = {}
     findings: list[dict[str, str]] = []
     for line in producer_text.splitlines():

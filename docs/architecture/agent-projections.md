@@ -8,38 +8,27 @@ relations:
 
 # Agent Projections
 
-ETHOS is agentic-native, but assistant files, MCP resources, ACP adapters,
-hosted runners, provider-specific prompts, and provider-visible skill packages
-are projections. They expose repository truth; they do not become truth.
+Status: canonical.
 
-`ethos assistants doctor --json` reports the projection contract.
-`ethos assistants mcp-manifest --json` emits resources, prompts, and tools that
-agent hosts can load without copying ETHOS semantics into host-local state.
-MCP resources, prompts, and tools carry capability classifications so hosts can
-distinguish read-only context, prompt templates, proof commands, and guarded
-mutation affordances.
+Purpose: define the boundary between repository truth and agent-facing
+projections.
 
-Repo-local Skills V2 packages follow the same boundary. `SKILL.md` is a
-loadable workflow package, `package.toml` is package inventory and digest
-metadata, and `.agents/skills/activation.toml` is the ETHOS activation registry
-input. None of those surfaces can introduce repository truth outside source,
-tests, schemas, canonical docs, promoted OpenSpec records, claims, evidence, and
-command JSON.
+See also: [Repo-local Skills](../governance/playbooks-and-skills.md) and
+[Command Plane](../reference/command-plane.md).
 
-Projection rules:
+Assistant files, protocol adapters, hosted runners, provider prompts, and
+repo-local skills may expose repository facts. None becomes a task, workflow,
+or repository source of truth.
 
-- Keep the kernel free of assistant imports and host runtime dependencies.
-- Keep MCP and ACP as protocol adapters over command JSON and docs.
-- Keep skill package manifests authority-thin: they declare package files,
-  digest state, required sections, and capability classes, not product truth.
-- Use `ethos prove --gate playbooks-v2 --json` to compare skill package,
-  registry, and playbook-generator digests before treating projections as fresh.
-- Keep host-local credentials, caches, and session logs out of repository truth.
-- Retire a projection by removing the adapter while preserving kernel schemas,
-  evidence, docs, and command contracts.
+The canonical repo-local skill portfolio lives in `.agents/skills/`. Its
+integrity is checked by the portfolio owner and the current proof gate:
 
-Status: see front matter.
+```bash
+.agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .
+ethos prove --gate playbooks-v2 --json
+```
 
-Purpose: explain the repository truth represented by this ETHOS document.
-
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+Agent protocols are optional adapter boundaries, not a public lifecycle. A
+projection may read and format repository facts; durable results must be
+promoted into source, tests, schemas, docs, OpenSpec, or evidence before they can
+support a claim.

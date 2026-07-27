@@ -40,7 +40,7 @@ description = "Evidence under evidence/."
 [[order]]
 rank = 7
 source = "rules_skills_projections"
-description = "Rules, skills, MCP descriptors, CI files, and host projections."
+description = "Rules, skills, protocol descriptors, CI files, and host projections."
 
 [conflict_resolution]
 principle = "obey_higher_authority"

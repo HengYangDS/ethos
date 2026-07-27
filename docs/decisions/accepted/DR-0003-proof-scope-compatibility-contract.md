@@ -10,9 +10,9 @@ relations:
 
 Status: accepted.
 
-Purpose: record the durable ruling that external ETHOS must accept scoped proof
-commands used by adopters during migration while keeping host-local probes
-outside repository proof truth.
+Purpose: record the durable ruling that a conforming ETHOS product must accept
+scoped proof commands used by adopters during migration while keeping host-local
+probes outside repository proof truth.
 
 See also: [Command Plane](../../reference/command-plane.md),
 [Generated Artifact Topology](DR-0001-generated-artifact-topology-contract.md),
@@ -27,26 +27,26 @@ and [Documentation Topology](DR-0004-native-documentation-topology-contract.md).
 | Decision Makers | Repository maintainers through accepted repository instruction; implemented by local ETHOS Work Lane. |
 | Status | accepted |
 | Decision Date | 2026-07-08 |
-| Decision Version | 1 |
-| Decision Change Date | 2026-07-08 |
+| Decision Version | 2 |
+| Decision Change Date | 2026-07-27 |
 | Record Review Date | 2026-10-08 |
 | Supersedes | None |
 | Superseded By | None |
 | Scope | `ethos prove` scoped proof compatibility and host-probe boundary for adopter migration. |
-| Boundary | Owns accepted proof-scope flags and host/probe truth classification; does not make host-local readiness, hosted CI, or adopter retirement complete. |
-| Context | a reference adopter repository may invoke `ethos prove --objective ... --scope proof-kernel` and `--host --probe`. External ETHOS must not be weaker than adopter-local governance during retirement migration. |
+| Boundary | Owns accepted proof-scope flags and host/probe truth classification; does not make host-local readiness, hosted CI, or a governed transition complete. |
+| Context | a reference adopter repository may invoke `ethos prove --objective ... --scope proof-kernel` and `--host --probe`. A conforming ETHOS product must not be weaker than adopter-local governance during a transition. |
 | Decision | `ethos prove` accepts known proof scopes including `proof-kernel`; unknown scopes become explicit proof gaps. `--host --probe` is accepted as optional host-readiness boundary metadata and cannot satisfy repository proof. |
-| Consequences | External ETHOS can run adopter proof-kernel commands without CLI option failure, while payloads still separate repository proof, host-local probes, hosted CI, and retirement readiness. |
+| Consequences | The conforming product can run adopter proof-kernel commands without CLI option failure, while payloads still separate repository proof, host-local probes, hosted CI, and execution-substrate transition judgment. |
 | Proof or Evidence | Focused CLI tests for scoped proof, host/probe boundary, and unknown-scope rejection; command-plane docs; HEAD-bound proof gates. |
 | Revisit Trigger | Reopen if adopters require a stronger scope-to-gate router or if host readiness becomes a separate product gate with explicit evidence promotion. |
 
 ## Context
 
-External ETHOS is intended to replace embedded adopter-local ETHOS without
-capability loss. During adopter migration, repository rules and common
+A conforming ETHOS product may replace an incumbent adopter-local substrate
+without capability loss. During adopter migration, repository rules and common
 commands may already reference `--scope proof-kernel`, and host-readiness checks may
 append `--host --probe`. A product CLI that rejects these flags cannot be the
-default backend without making the adopter weaker.
+selected execution substrate without making the adopter weaker.
 
 ## Decision
 
@@ -61,13 +61,13 @@ default backend without making the adopter weaker.
   not fail at CLI parsing.
 - Host/probe metadata is emitted under `data.host_probe` with
   `satisfies_repository_proof=false`; it is not repository truth, hosted CI
-  truth, publication proof, or embedded-backend retirement authorization.
+  truth, publication proof, or execution-substrate transition authorization.
 
 ## Consequences
 
-Adopters can call the external product through their current proof-kernel
-commands during shadow parity and rollback-window work. This narrows one
-capability gap without switching defaults or retiring embedded ETHOS. Any later
+Adopters can call a conforming product through their current proof-kernel
+commands during comparative assurance and recovery work. This narrows one
+capability gap without authorizing a transition effect. Any later
 implementation that maps scopes to specific gate bundles must preserve this
 truth-boundary split and provide tests proving no host-local probe can satisfy a
 repository proof claim by itself.

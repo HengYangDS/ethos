@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from typing import cast
 
-from ethos.normalization.core import string_list
+from ethos.normalization.coercion import string_list
 
 SKILL_PACKAGE_FILE_LIMIT = 6
 INTENT_TOKEN_OWNER_LIMIT = 2

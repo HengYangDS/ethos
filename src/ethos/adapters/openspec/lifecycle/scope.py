@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.contracts.semantic import load_change_contract_file
-from ethos.normalization.core import string_sequence
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.audit import change_tasks_complete
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile

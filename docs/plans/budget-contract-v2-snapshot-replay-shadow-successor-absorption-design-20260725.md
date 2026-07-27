@@ -73,7 +73,7 @@ resolution lifecycle.
 
 | Historical concern | Current accepted owner | Disposition |
 | --- | --- | --- |
-| Public immutable-source ELOC | ethos_core.measure.effective_code_lines_for_source and current test_measure | Exact working blobs are already accepted |
+| Public immutable-source ELOC | ethos.domain.source_budget.measurement and current test_measure | Exact working blobs are already accepted |
 | Taxonomy compilation from immutable bytes | adapters.config.source_budget_taxonomy_from_bytes and current config tests | Absorbed; current file additionally preserves the v2 policy loader |
 | Carrier measurement from admitted bytes | measurement.measure_carrier_bytes | Absorbed through a closed public signature and private admitted helper |
 | Snapshot measurement from immutable bytes | measurement.measure_snapshot_bytes | Absorbed through ordered path-byte pairs and exact inventory order |

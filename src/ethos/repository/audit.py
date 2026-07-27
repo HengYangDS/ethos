@@ -7,17 +7,15 @@ from typing import cast
 
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.system.contracts import system_contracts_report
-from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.context import governance_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
-from ethos.repository.evidence.claims import claims_report
 from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.repository.openspec.audit import openspec_shape_report
-from ethos.repository.policy.coupling.core import coupling_audit_report
+from ethos.repository.policy.coupling.audit import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.authority import authority_graph_report
-from ethos.repository.release.core import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
+from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
 
@@ -38,7 +36,6 @@ REQUIRED_DOCS = (
     "docs/governance/authority.md",
     "docs/governance/product-design-contract.md",
     "docs/governance/product-boundary-convergence.md",
-    "docs/governance/capability-parity-ledger.md",
     "docs/governance/repository-profile-contract.md",
     "docs/governance/config-boundary-model.md",
     "docs/governance/adopter-boundary-and-retirement.md",
@@ -55,16 +52,10 @@ REQUIRED_SCHEMAS = (
     "change-contract.schema.json",
     "attestation.schema.json",
     "repository-facts.schema.json",
-    "claim.schema.json",
     "commit-policy.schema.json",
     "plan-ir.schema.json",
-    "proof-run.schema.json",
-    "evidence-set.schema.json",
     "provenance.schema.json",
-    "semantic-attestation-receipt.schema.json",
-    "evolution.schema.json",
     "docs-registry.schema.json",
-    "evolution-ledger.schema.json",
     "gate.schema.json",
     "assistant-projection.schema.json",
     "skill-activation.schema.json",
@@ -84,10 +75,7 @@ REQUIRED_SCHEMAS = (
     "host-capability.schema.json",
 )
 
-REQUIRED_RELEASE_FILES = (
-    *PRODUCT_RELEASE_FILES,
-    "evolution/ledger.toml",
-)
+REQUIRED_RELEASE_FILES = PRODUCT_RELEASE_FILES
 
 REQUIRED_PLAYBOOK_FILES = (
     ".agents/skills/README.md",
@@ -152,7 +140,6 @@ def repository_audit(
     *,
     openspec_mode: str = "deep",
     openspec_reporter: OpenSpecReporter | None = None,
-    current_head: str = "",
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -172,9 +159,7 @@ def repository_audit(
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
     authority_graph = authority_graph_report(root)
-    claim_report = claims_report(root, current_head=current_head)
     schema_report = schema_validation_report(root)
-    evolution = evolution_report(root)
     coupling = coupling_audit_report(root)
     design_integrity = design_integrity_report(root)
     if openspec_mode == "shape":
@@ -183,9 +168,7 @@ def repository_audit(
         openspec = openspec_provider_missing_report(root)
     else:
         openspec = openspec_reporter(root)
-    claim_gaps = [str(gap) for gap in cast("list[str]", claim_report["required_gaps"])]
     schema_gaps = [str(gap) for gap in cast("list[str]", schema_report["required_gaps"])]
-    evolution_gaps = [str(gap) for gap in cast("list[str]", evolution["required_gaps"])]
     coupling_gaps = [str(gap) for gap in coupling["required_gaps"]]
     design_integrity_gaps = [
         str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
@@ -205,9 +188,7 @@ def repository_audit(
         + release_files_missing
         + [f"playbook_projection_missing:{path}" for path in playbooks_missing]
         + [f"openspec_capability_missing:{path}" for path in openspec_capability_missing]
-        + claim_gaps
         + schema_gaps
-        + evolution_gaps
         + coupling_gaps
         + design_integrity_gaps
         + openspec_gaps
@@ -248,8 +229,6 @@ def repository_audit(
             "missing": openspec_capability_missing,
         },
         "authority_graph": authority_graph,
-        "claims": claim_report,
-        "evolution": evolution,
         "coupling": coupling,
         "design_integrity": design_integrity,
         "openspec": openspec,

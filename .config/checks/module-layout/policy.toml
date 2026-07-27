@@ -1,4 +1,4 @@
-semantic_paths = ["."]
+semantic_paths = [".agents/skills", "src/ethos", "tests", "tools"]
 package_paths = ["src/ethos"]
 
 ambiguous_module_names = [
@@ -11,7 +11,4 @@ ambiguous_module_names = [
   "service",
   "shared",
   "utils",
-]
-
-ambiguous_module_roles = [
 ]

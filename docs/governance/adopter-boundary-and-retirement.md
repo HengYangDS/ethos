@@ -3,7 +3,7 @@ subject: ethos:adopter-boundary-and-retirement
 role: policy
 state: canonical
 relations:
-  canonical_for: adopter migration, embedded implementation retirement, and no-regression shadow proof
+  canonical_for: adopter migration, execution-substrate transition, and no-regression comparative proof
 ---
 
 # Adopter Boundary And Retirement
@@ -20,8 +20,8 @@ ETHOS owns generic mechanisms:
 - gate planning and evidence auditing;
 - work-lane, proof, publication, and profile transition semantics;
 - adapter command contracts;
-- shadow comparison;
-- retirement readiness checks.
+- bounded comparative-assurance proof Attestations; and
+- effect and judgment Attestations for governed transitions.
 
 The adopter owns domain truth:
 
@@ -37,105 +37,71 @@ bindings. It does not change ETHOS command semantics or kernel ontology.
 
 Independent proof re-execution is one such adapter binding. It is default-off,
 may be selected only for particular actions, and keeps provider identity, keys,
-anchors, and receipt paths outside the adopter repository. A generic product
-self-shadow cannot establish the external subject and evidence ownership needed
-for adopter parity.
+anchors, and receipt paths outside the adopter repository. A bounded
+comparative-assurance proof Attestation must bind the target subject, verifier,
+and evidence before it can support a governed transition.
 
-## Migration Lifecycle
+## Comparative Assurance
 
-The safe lifecycle is:
-
-```text
-profile contract
--> dual-read compatibility
--> external shadow parity
--> reversible backend switch
--> embedded freeze
--> rollback window
--> retirement decision
--> embedded removal or historical archive
-```
-
-## External Greater Than Or Equal Embedded
-
-An embedded implementation may be retired only after external ETHOS is proven
-at least as strong for the adopter. This proof must be same repository, same
-HEAD, same changed paths, same evidence inputs, structured shadow diff, and a
-clean documentation-topology audit for the adopter target. The first retirement
-gate is the shadow identity envelope: tracked evidence must bind target root,
-target HEAD, product HEAD, compared command identities, changed paths, and
-evidence input digests before semantic diff results can be used.
+A successor execution substrate may replace an incumbent only after it is proven
+at least as strong for the adopter. This proof must use the same repository,
+HEAD, changed paths, evidence inputs, structured comparative diff, and a clean
+documentation-topology audit for the adopter target. The first transition gate is
+the identity envelope: tracked evidence must bind target root, target HEAD,
+product HEAD, compared command identities, changed paths, and evidence input
+digests before semantic diff results can be used.
 
 Allowed outcomes:
 
 ```text
-external == embedded
-external stricter than embedded
+successor == incumbent
+successor stricter than incumbent
 ```
 
-"Stricter" means the external product preserves every embedded blocking
+"Stricter" means the successor preserves every incumbent blocking
 `required_gaps` item and may add additional blocking obligations. A missing
-embedded blocking gap is a shadow false negative even when external records an
-advisory signal for the same condition.
+incumbent blocking gap is a comparative false negative even when the successor
+records an advisory signal for the same condition.
 
 Blocking outcomes:
 
 ```text
-external misses a required gap
-external accepts stale evidence
-external turns blocking into advisory
-external treats dry-run as live proof
-external loses domain gate planning obligations
-external permits embedded retirement while the common docs kernel is missing
+successor misses a required gap
+successor accepts stale evidence
+successor turns blocking into advisory
+successor treats dry-run as live proof
+successor loses domain gate planning obligations
+successor permits removal while the common docs kernel is missing
 ```
 
-## Rollback Window
+## Exact Effects And Recovery
 
-A rollback window must include real use, not only dry runs:
+Switch, removal, and rollback are exact-HEAD/tree `effect` Attestations bound
+to a reachable Git recovery anchor. Git revert alone is not sufficient recovery
+evidence. Present configuration and Git state remain fresh `RepositoryFacts`;
+comparison evidence remains a `proof` Attestation rather than a transition
+state.
 
-- multiple proof and report runs;
-- at least one Work Lane closeout;
-- at least one domain gate planning path;
-- at least one assistant or playbook route;
-- one OpenSpec or Claim review path;
-- one publish-readiness inspection.
+## Retirement Judgment
 
-Rollback must be configuration-based while the fallback exists. Git revert alone
-is not sufficient rollback evidence. Once external ETHOS becomes the reversible
-default, the adopter profile must expose a `[rollback_window]` table with a
-tracked evidence manifest and completed minimum scenarios for proof/report, Work
-Lane closeout, domain-gate planning, and assistant/playbook routing.
+A retirement judgment must record:
 
-The evidence manifest is not a narrative placeholder. It must be tracked inside
-the adopter repository, parse as TOML, bind the evidence to reachable adopter
-and external-ETHOS heads, and include one entry per required scenario. Each
-scenario entry records the scenario id, the evidence path, the command that
-produced or checked the evidence, an evidence digest, and the same target and
-product heads. Profile `completed_scenarios` are therefore admitted only when
-the manifest independently proves the same scenarios.
-
-## Retirement Decision
-
-A retirement decision must record:
-
-- which embedded capabilities migrated;
+- which capabilities transition;
 - which surfaces remain adopter-owned;
-- shadow evidence proving external is equivalent or stricter;
+- comparative evidence proving the successor is equivalent or stricter;
 - profile validation evidence;
 - domain false-negative evidence;
-- rollback-window evidence;
-- which embedded packages, commands, and compatibility shims are deleted,
-  frozen, or archived;
-- what historical evidence remains.
+- exact-head/tree effects and their reachable Git recovery anchor;
+- the deletion or retention scope; and
+- what historical evidence remains derived.
 
-Until that decision is accepted, the state is migration in progress, dual-run
-phase, or external adoption preview. It is not embedded retirement.
+Until that judgment is accepted, no effect is authorized. History supplies
+context only and does not create a transition state machine.
 
 Status: see front matter.
 
 Purpose: define the no-regression lifecycle for moving adopter governance from
-an embedded implementation to external ETHOS.
+an incumbent execution substrate to a conforming replacement.
 
-See also: [Repository Profile Contract](repository-profile-contract.md),
-[Config Boundary Model](config-boundary-model.md), and
-[Capability Parity Ledger](capability-parity-ledger.md).
+See also: [Repository Profile Contract](repository-profile-contract.md) and
+[Config Boundary Model](config-boundary-model.md).

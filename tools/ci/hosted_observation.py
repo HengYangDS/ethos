@@ -8,19 +8,99 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 from cyclopts import App
 
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
-from ethos.repository.evidence.hosted.core import FLAGS
-from ethos.repository.evidence.hosted.core import observation_summary
-from ethos.repository.evidence.hosted.core import provider_command
-from ethos.repository.evidence.hosted.core import provider_facts
-from ethos.repository.evidence.hosted.core import provider_output_valid
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / ".config/checks/ci/hosted-observation.toml"
+COMMANDS = {
+    "github": ("gh", "run", "list", "--limit", "1", "--json", "status,conclusion,headSha,url"),
+    "gitlab": ("glab", "ci", "list", "--per-page", "1", "--output", "json"),
+}
+FACTS = {
+    "github": (
+        ("latest_head", "headSha"),
+        ("latest_status", "status"),
+        ("latest_conclusion", "conclusion"),
+        ("latest_url", "url"),
+    ),
+    "gitlab": (
+        ("latest_head", "sha", "commit_sha"),
+        ("latest_status", "status"),
+        ("latest_conclusion", "status"),
+        ("latest_url", "web_url", "url"),
+        ("latest_ref", "ref"),
+    ),
+}
+GAPS = {
+    "not_configured": "provider_not_configured",
+    "tool_unavailable": "provider_tool_unavailable",
+    "observation_failed": "provider_observation_failed",
+}
+FLAGS = (
+    "hosted_github_status_claimed",
+    "hosted_gitlab_status_claimed",
+    "remote_publication_claimed",
+)
+
+
+def provider_command(provider: str, target: str) -> list[str]:
+    """Return one provider query bound to an explicit repository target."""
+    command = list(COMMANDS[provider])
+    if target:
+        command[3:3] = ["--repo", target]
+    return command
+
+
+def provider_output_valid(value: object) -> bool:
+    """Return whether provider output has the required non-empty list shape."""
+    return isinstance(value, list) and bool(value) and isinstance(value[0], dict)
+
+
+def provider_facts(provider: str, value: object) -> dict[str, str]:
+    """Normalize bounded facts without claiming provider success."""
+    if not provider_output_valid(value):
+        return {}
+    item = cast("list[dict[str, Any]]", value)[0]
+    return {
+        name: str(next((item.get(key) for key in keys if item.get(key)), ""))
+        for name, *keys in FACTS[provider]
+    }
+
+
+def observation_summary(
+    observations: list[dict[str, Any]], *, execute: bool
+) -> tuple[str, list[str], bool]:
+    """Derive aggregate state without minting provider authority."""
+    if not execute:
+        return "dry_run", [], True
+    if not observations:
+        return "observation_failed", ["provider_configuration_empty"], False
+    states = [str(item.get("observation_state") or "") for item in observations]
+    gaps = []
+    for item, state in zip(observations, states, strict=True):
+        prefix = (
+            "provider_output_invalid"
+            if state == "observation_failed" and item.get("returncode") == 0
+            else GAPS.get(state)
+        )
+        if prefix:
+            gaps.append(f"{prefix}:{item.get('provider')}")
+    observed = states.count("observed")
+    state = (
+        "observed"
+        if observed == len(states)
+        else "partial"
+        if observed
+        else "not_configured"
+        if set(states) == {"not_configured"}
+        else "observation_failed"
+    )
+    return state, gaps, state == "observed"
 
 
 def _observe(provider: str, config: dict[str, Any], *, execute: bool) -> dict[str, Any]:

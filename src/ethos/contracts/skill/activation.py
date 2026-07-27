@@ -4,7 +4,7 @@ import hashlib
 import json
 from typing import Any
 
-from ethos.normalization.core import string_list
+from ethos.normalization.coercion import string_list
 
 
 def normalize_skill_activation(

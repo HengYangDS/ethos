@@ -1,42 +1,18 @@
-# Governance Command Map — ETHOS Repository Governance
+# Governance Map
 
-Skill-specific map of which ETHOS command governs which concern. A lookup for
-choosing the right command; the live `ethos <cmd> --help` and the command JSON remain
-authoritative.
+Use this reference to choose the current owner without creating a second
+command plane.
 
-## The loop (state transitions)
-
-| command | concern | mutates? |
+| Concern | Current owner | Evidence |
 | --- | --- | --- |
-| `status` | checkout role, dirty state, write-readiness gaps | no |
-| `plan --changed` | which rules match changed paths, which gates are required | no |
-| `prove` | readiness; `prove --execute` mints HEAD-bound executed proof | only `--execute` writes a proof record |
-| `land` | fast-forward the work lane to the candidate role | `--apply` mutates (enforced) |
-| `publish` | local publication readiness | `--apply` mutates (enforced) |
-## Governance surfaces (read-only reports)
+| Repository facts and authority | `ethos status --json` | Current command JSON |
+| Changed-scope gates | `ethos plan --changed --json` | PlanIR and required gaps |
+| Local proof readiness | `ethos prove --json` | Current proof result |
+| Focused capability proof | `ethos prove --gate <gate-id> --json` | Gate result |
+| Full local proof plan | `ethos prove --full --json` | Full configured proof result |
+| Work Lane write admission | `ethos lane prewrite ... --json` | Current lane decision |
+| OpenSpec lifecycle | official `openspec` CLI | Official command JSON |
+| Repo-local skills | portfolio audit plus `playbooks-v2` proof gate | Script and proof result |
 
-| command | governs |
-| --- | --- |
-| `audit --mode shape` | repository shape: packages, docs, schemas, playbooks, claims |
-| `rules check` / `rules eval` | rule→gate matching and rule-fact evaluation |
-| `quality <tool>` | determinism gates (types, markdown-links, shell, toml, yaml, docs) |
-| `quality claims` | claim/evidence binding and HEAD-freshness |
-| `parity gaps` | adopter capability-parity ledger |
-| `playbooks check` / `playbooks route` | skills registry validity and intent routing |
-| `openspec` | OpenSpec change lifecycle state |
-
-## Work Lane lifecycle
-
-| command | step |
-| --- | --- |
-| `lane start` | create the work lane + lease (arms admission) |
-| `lane prewrite <paths>` | write-admission check before a tracked write |
-| `land --closeout` | promote candidate to the accepted root |
-| `lane retire-landed` | remove a fully-landed lane + release its lease |
-
-## Authority order (who wins on conflict)
-
-Read `system/authority.toml`: user instruction outranks contracts, which outrank
-generated projections. A generated surface never outranks its source. Skills are
-projections — repository truth (source/tests/schemas/docs/OpenSpec/claims/evidence
-and command JSON) is always higher authority than skill text.
+Repository source, tests, schemas, docs, OpenSpec, claims, and evidence remain
+above this map. The map routes work; it does not create durable truth.

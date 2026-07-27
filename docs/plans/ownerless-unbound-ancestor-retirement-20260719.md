@@ -40,4 +40,4 @@ The inventory additionally observed active leases on
 `work/quality-zero-exceptions-successor-v2-20260719`; they are explicitly out
 of scope and remain protected pending their lease holders' own lifecycle.
 
-See also: [All Work Lanes Convergence Implementation Plan](all-work-lanes-convergence-implementation-plan-20260716.md), [Runner and Mutation](../architecture/runner-and-mutation.md), and [Repository Governance OpenSpec](../../openspec/specs/repository-governance/spec.md).
+See also: [Terminal Governance Product Design](terminal-governance-product-design.md), [Runner and Mutation](../architecture/runner-and-mutation.md), and [Repository Governance OpenSpec](../../openspec/specs/repository-governance/spec.md).

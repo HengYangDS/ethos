@@ -217,16 +217,11 @@ def independent_verification_request(*, root: Path, action: str) -> dict[str, ob
     }
 
 
-def independent_verification_report(  # noqa: C901
-    *,
-    root: Path,
-    policy: IndependentVerificationPolicy,
-    request: dict[str, object],
-    receipt_path: Path | None,
-    signature_verifier: Any | None = None,
+def _local_verification_report(
+    *, root: Path, policy: IndependentVerificationPolicy
 ) -> dict[str, object]:
-    """Validate one receipt without upgrading it beyond exact re-execution."""
-    base = {
+    """Describe receipt evaluation before independently verified evidence exists."""
+    return {
         "root": root.resolve().as_posix(),
         "mode": policy.mode,
         "receipt": {},
@@ -234,29 +229,29 @@ def independent_verification_report(  # noqa: C901
         "mints_authority": False,
         "required_gaps": [],
     }
-    if policy.mode == "disabled":
-        return {**base, "ok": True, "state": "disabled"}
-    if receipt_path is None:
-        if policy.mode == "optional":
-            return {**base, "ok": True, "state": "local_readiness"}
-        return {
-            **base,
-            "ok": False,
-            "state": "blocked",
-            "required_gaps": ["independent_verification_receipt_required"],
-        }
-    payload, gap = _read_mapping(receipt_path, "independent_verification_receipt_invalid")
-    if gap:
-        return {**base, "ok": False, "state": "invalid", "required_gaps": [gap]}
-    try:
-        receipt = IndependentVerificationReceipt.model_validate(payload)
-    except ValidationError:
-        return {
-            **base,
-            "ok": False,
-            "state": "invalid",
-            "required_gaps": ["independent_verification_receipt_invalid"],
-        }
+
+
+def _absent_receipt_report(
+    *, base: dict[str, object], policy: IndependentVerificationPolicy
+) -> dict[str, object]:
+    """Return the action-policy outcome when no provider receipt was supplied."""
+    if policy.mode == "optional":
+        return {**base, "ok": True, "state": "local_readiness"}
+    return {
+        **base,
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": ["independent_verification_receipt_required"],
+    }
+
+
+def _receipt_validation_gaps(
+    *,
+    receipt: IndependentVerificationReceipt,
+    request: dict[str, object],
+    signature_verifier: Any | None,
+) -> list[str]:
+    """Return deterministic failures for one supplied independent-verification receipt."""
     now = datetime.now(UTC)
     gaps: list[str] = []
     if receipt.result != "pass":
@@ -279,6 +274,40 @@ def independent_verification_report(  # noqa: C901
             break
     if signature_verifier is None or not bool(signature_verifier(receipt)):
         gaps.append("independent_verification_signature_invalid")
+    return gaps
+
+
+def independent_verification_report(
+    *,
+    root: Path,
+    policy: IndependentVerificationPolicy,
+    request: dict[str, object],
+    receipt_path: Path | None,
+    signature_verifier: Any | None = None,
+) -> dict[str, object]:
+    """Validate one receipt without upgrading it beyond exact re-execution."""
+    base = _local_verification_report(root=root, policy=policy)
+    if policy.mode == "disabled":
+        return {**base, "ok": True, "state": "disabled"}
+    if receipt_path is None:
+        return _absent_receipt_report(base=base, policy=policy)
+    payload, gap = _read_mapping(receipt_path, "independent_verification_receipt_invalid")
+    if gap:
+        return {**base, "ok": False, "state": "invalid", "required_gaps": [gap]}
+    try:
+        receipt = IndependentVerificationReceipt.model_validate(payload)
+    except ValidationError:
+        return {
+            **base,
+            "ok": False,
+            "state": "invalid",
+            "required_gaps": ["independent_verification_receipt_invalid"],
+        }
+    gaps = _receipt_validation_gaps(
+        receipt=receipt,
+        request=request,
+        signature_verifier=signature_verifier,
+    )
     return {
         **base,
         "ok": not gaps,

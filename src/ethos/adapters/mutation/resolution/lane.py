@@ -5,14 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from pathlib import Path
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.resolution._shared import accepted_preserve_retire_chronicle
-from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.chronicle import read_accepted_preserve_retire_chronicle
+from ethos.adapters.mutation.resolution.closeout.ownerless.effect import (
+    OwnerlessCloseoutEffectContext,
+)
 from ethos.adapters.mutation.resolution.closeout.recovery import apply_resolution
 from ethos.adapters.mutation.resolution.closeout.recovery import ownerless_recovery_context
 from ethos.adapters.mutation.resolution.closeout.recovery import recover_ownerless_resolution
@@ -22,43 +24,40 @@ from ethos.adapters.mutation.resolution.observation import git_object_bytes
 from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos.adapters.mutation.resolution.observation import read_root_bound_regular_file
 from ethos.adapters.mutation.resolution.receipts import chronicle_event
-from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
-from ethos.adapters.mutation.resolution.records.core import write_json_atomic
-from ethos.adapters.mutation.resolution.records.current.core import current_record_integrity_gap
+from ethos.adapters.mutation.resolution.records.current.reader import current_record_integrity_gap
 from ethos.adapters.mutation.resolution.records.current.snapshot import read_current_record_path
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.json_store import canonical_current_record_bytes
+from ethos.adapters.mutation.resolution.records.json_store import write_json_atomic
 from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
 from ethos.adapters.mutation.resolution.records.roots import canonical_record_path
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos.contracts.coordination import MutationAdmissionRequest
 from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 from ethos.contracts.lifecycle.reducer import TransitionFacts
 from ethos.contracts.lifecycle.reducer import TransitionRequest
 from ethos.contracts.lifecycle.reducer import reduce_transition
 from ethos.contracts.resolution.lane import LaneObservation
 from ethos.contracts.resolution.lane import LaneResolutionDecision
+from ethos.contracts.resolution.lane import LaneResolutionPlanRequest
+from ethos.contracts.resolution.lane import is_lane_decision_id
 from ethos.repository.policy.schema import validate_schema_instance
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _DISPOSITIONS = {"block", "preserve", "retire", "preserve-retire"}
 _CURRENT_RECORD_INVALID = "lane_resolution_current_record_invalid"
 
 
-def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    root: Path,
-    branch: str,
-    disposition: str,
-    reason: str,
-    evidence_refs: tuple[str, ...],
-    chronicle_ref: str,
-    recovery_plan: str,
-    decision_path: Path,
-    break_glass: bool,
-    apply: bool,
-) -> dict[str, object]:
+def plan_lane_resolution(*, root: Path, request: LaneResolutionPlanRequest) -> dict[str, object]:
     """Create the first-phase exceptional judgment; no lane effect occurs."""
+    branch = request.branch
+    disposition = request.disposition
+    reason = request.reason
+    evidence_refs = request.evidence_refs
+    chronicle_ref = request.chronicle_ref
+    recovery_plan = request.recovery_plan
+    decision_path = Path(request.decision_path)
+    break_glass = request.break_glass
+    apply = request.apply
     observation, gaps = observe_lane(root, branch)
     chronicle, chronicle_digest, chronicle_gaps = _accepted_chronicle(
         root,
@@ -224,12 +223,18 @@ def apply_lane_resolution(
         report = _report(branch, evaluation)
         if apply and evaluation.ok and control_root is not None and artifact_root is not None:
             recover_ownerless_resolution(
-                control_root=control_root,
-                artifact_root=artifact_root,
-                decision_path=decision_path,
-                decision=decision,
-                observation=observation,
-                reservation=recovery,
+                context=OwnerlessCloseoutEffectContext(
+                    control_root=control_root,
+                    artifact_root=artifact_root,
+                    decision_path=decision_path,
+                    decision=decision,
+                    observation=observation,
+                    disposition=disposition,
+                    recover_receipt_reservation=True,
+                    admission=None,
+                    receipt_reservation=None,
+                    reservation=recovery,
+                ),
                 report=report,
             )
         return _finish(
@@ -338,7 +343,7 @@ def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]
         if not validate_schema_instance("lane-resolution-decision.schema.json", payload, root=root)[
             "ok"
         ]
-        or not valid_decision_id(str(payload.get("decision_id") or ""))
+        or not is_lane_decision_id(str(payload.get("decision_id") or ""))
         else _CURRENT_RECORD_INVALID
         if content != canonical_current_record_bytes(cast("dict[str, object]", payload))
         else "lane_resolution_decision_digest_invalid"
@@ -387,7 +392,7 @@ def _preserve_retire_chronicle_digest(
             if control_gap.startswith("lane_resolution_")
             else "lane_resolution_chronicle_invalid"
         ]
-    working, gap = accepted_preserve_retire_chronicle(
+    working, gap = read_accepted_preserve_retire_chronicle(
         control_root,
         chronicle_ref=relative,
         target_branch=observation.lane_ref,
@@ -458,7 +463,7 @@ def _report(branch: str, evaluation: Any) -> dict[str, object]:
     }
 
 
-def _finish(  # noqa: PLR0913, RUF100
+def _finish(
     report: dict[str, object],
     *,
     command: str,
@@ -470,15 +475,22 @@ def _finish(  # noqa: PLR0913, RUF100
 ) -> dict[str, object]:
     gaps = tuple(str(gap) for gap in cast("list[object]", report["required_gaps"]))
     report["mutation"] = mutation_envelope(
-        TransitionRequest(command=command, apply=apply, authorized=confirmation, expect_head=None),
-        action=action,
-        resource=resource,
-        expected_state=expected_state,
-        verdict=cast("Any", "allow" if report["ok"] else "block"),
-        required_gaps=gaps,
-        state=str(report["state"]),
-        evidence_boundary="accepted_chronicle_decision_and_recomputed_observation",
-        enforcement_boundary="local_git_and_filesystem_transition",
-        verifier_provenance="current_runner",
+        TransitionRequest(
+            command=command,
+            apply=apply,
+            authorized=confirmation,
+            expect_head=None,
+        ),
+        MutationAdmissionRequest(
+            action=action,
+            resource=resource,
+            expected_state=expected_state,
+            verdict=cast("Any", "allow" if report["ok"] else "block"),
+            required_gaps=gaps,
+            state=str(report["state"]),
+            evidence_boundary="accepted_chronicle_decision_and_recomputed_observation",
+            enforcement_boundary="local_git_and_filesystem_transition",
+            verifier_provenance="current_runner",
+        ),
     )
     return report

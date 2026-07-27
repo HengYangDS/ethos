@@ -1,5 +1,5 @@
 # system/surfaces.toml
-# CLI, MCP, SDK, skill, CI, and host projection contract.
+# Current product-surface contract.
 # The CLI is NOT the semantic center. All surfaces consume the same contracts,
 # schemas, and command JSON. Derived from the terminal design "Product Surfaces" table.
 
@@ -11,41 +11,19 @@ purpose = "Human and script workflow."
 carrier = "src/ethos"
 
 [[surface]]
-name = "mcp"
-purpose = "Agent resource, prompt, and guarded tool surface."
-carrier = "src/ethos"
-contract = "system/surfaces.toml"
-
-[[surface]]
 name = "skills"
 purpose = "Agent workflow packages generated from repository truth."
-carrier = "skills/"
+carrier = ".agents/skills"
 projection = "generated_host_projections"
-
-[[surface]]
-name = "sdk"
-purpose = "Stable client API for command JSON and governance records."
-carrier = "sdks/typescript"
-when = "needed"
 
 [[surface]]
 name = "distributions"
 purpose = "Thin launchers and runner packages."
 carrier = "distributions/"
 
-[[surface]]
-name = "scaffolds"
-purpose = "Bootstrap and adopt profiles."
-carrier = "scaffolds/"
-
-[[surface]]
-name = "extensions"
-purpose = "Ecosystem plugins and integrations."
-carrier = "extensions/"
-
-# Host projection generation: skills/ + system/projections/ + this file -> host projection.
+# Host projection generation remains derived and optional.
 # Generated projection output must carry a source digest and fail drift checks when stale.
 [projection]
-inputs = ["skills/", "system/projections/", "system/surfaces.toml"]
+inputs = [".agents/skills/", "system/projections/", "system/surfaces.toml"]
 output = "host_projection"
 drift_check = "source_digest_required"

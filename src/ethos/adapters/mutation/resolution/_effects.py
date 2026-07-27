@@ -7,23 +7,24 @@ import json
 import os
 import subprocess
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.mutation.resolution._shared import canonical_package_path
-from ethos.adapters.mutation.resolution._shared import display_path
-from ethos.adapters.mutation.resolution._shared import sha256_digest
+from ethos.adapters.mutation.resolution.capture import write_git_preservation_payloads
+from ethos.adapters.mutation.resolution.capture import write_untracked_archive
 from ethos.adapters.mutation.resolution.observation import untracked_files
-from ethos.adapters.mutation.resolution.preservation.core import write_git_preservation_payloads
-from ethos.adapters.mutation.resolution.preservation.core import write_untracked_archive
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
+from ethos.adapters.mutation.resolution.records.roots import display_record_path
+from ethos.adapters.mutation.resolution.records.roots import record_path_is_safe
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.closeout import probe_closeout_fence
 from ethos.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos.contracts.resolution.closeout import LaneResolutionState
+from ethos.contracts.resolution.lane import is_lane_decision_id
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
@@ -65,6 +66,19 @@ class OwnerlessCloseoutError(ValueError):
     def reservation_visible(self) -> bool:
         """Return whether the error is bound to a durable reservation."""
         return self.phase is not None
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerlessCloseoutPostconditionContext:
+    """Exact immutable facts required for one ownerless postcondition check."""
+
+    root: Path
+    database: Path
+    decision_path: Path
+    decision_sha256: str
+    observation: LaneObservation
+    accepted_branch: str
+    accepted_head: str
 
 
 def retire_clean_ownerless_cas(
@@ -227,23 +241,21 @@ def probe_ownerless_path(path: str) -> str:
         return "unverifiable"
 
 
-def verify_ownerless_postconditions(  # noqa: PLR0913, RUF100 - exact postcondition dimensions
+def verify_ownerless_postconditions(
     *,
-    root: Path,
-    database: Path,
-    decision_path: Path,
-    decision_sha256: str,
-    observation: LaneObservation,
-    accepted_branch: str,
-    accepted_head: str,
+    context: OwnerlessCloseoutPostconditionContext,
     fence: dict[str, object] | None,
     decision_bytes: bytes | None = None,
 ) -> dict[str, object]:
     """Verify exact ref, registration, path, coordination, decision, and fence state."""
+    root = context.root
+    observation = context.observation
     target_ref_state, _ = probe_ownerless_ref(root, observation.lane_ref)
     registration_state = probe_ownerless_worktree_registration(root, observation.path)
     path_state = probe_ownerless_path(observation.path)
-    fence_state, current_fence = probe_closeout_fence(database, subject=observation.lane_ref)
+    fence_state, current_fence = probe_closeout_fence(
+        context.database, subject=observation.lane_ref
+    )
     try:
         coordinated = observation.lane_ref in leases_by_branch(root)
     except (OSError, RuntimeError, TypeError, ValueError):
@@ -252,14 +264,16 @@ def verify_ownerless_postconditions(  # noqa: PLR0913, RUF100 - exact postcondit
         "target_ref_absent": target_ref_state == "absent",
         "worktree_registration_absent": registration_state == "absent",
         "target_path_absent": path_state == "absent",
-        "accepted_head_unchanged": ref_head(root, accepted_branch) == accepted_head,
+        "accepted_head_unchanged": (
+            ref_head(root, context.accepted_branch) == context.accepted_head
+        ),
         "coordination_absent": not coordinated,
         "decision_unchanged": (
             hashlib.sha256(decision_bytes).hexdigest()
             if decision_bytes is not None
-            else _path_digest(decision_path)
+            else _path_digest(context.decision_path)
         )
-        == decision_sha256,
+        == context.decision_sha256,
         "fence_unchanged": fence_state == ("absent" if fence is None else "present")
         and current_fence == fence,
     }
@@ -330,6 +344,13 @@ def prepare_resolution_effect(
     return package, receipt, state, ""
 
 
+def _preservation_package_path(artifact_root: Path, decision_id: str) -> Path | None:
+    if not is_lane_decision_id(decision_id):
+        return None
+    candidate = artifact_root / decision_id
+    return candidate if record_path_is_safe(artifact_root, candidate) else None
+
+
 def prepare_preservation_package(
     *,
     root: Path,
@@ -341,7 +362,7 @@ def prepare_preservation_package(
     """Create one no-clobber preservation package when required."""
     if disposition not in {"preserve", "preserve-retire"}:
         return {}, ""
-    package_path = canonical_package_path(artifact_root, str(decision.get("decision_id") or ""))
+    package_path = _preservation_package_path(artifact_root, str(decision.get("decision_id") or ""))
     if package_path is None:
         return {}, "lane_resolution_preservation_path_outside_root"
     package_path.parent.mkdir(parents=True, exist_ok=True)
@@ -384,10 +405,12 @@ def preserve_package(
         "lane_ref": observation.lane_ref,
         "head": observation.head,
         "observation_digest": observation.digest(),
-        "bundle_sha256": sha256_digest(bundle),
-        "patch_sha256": sha256_digest(patch),
-        "index_patch_sha256": sha256_digest(index_patch),
-        "untracked_archive_sha256": sha256_digest(archive) if archive.is_file() else "",
+        "bundle_sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(),
+        "patch_sha256": hashlib.sha256(patch.read_bytes()).hexdigest(),
+        "index_patch_sha256": hashlib.sha256(index_patch.read_bytes()).hexdigest(),
+        "untracked_archive_sha256": (
+            hashlib.sha256(archive.read_bytes()).hexdigest() if archive.is_file() else ""
+        ),
         "source_lease_transferred": False,
     }
     manifest_path = package / "manifest.json"
@@ -395,9 +418,9 @@ def preserve_package(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return {
-        "path": display_path(root, package),
+        "path": display_record_path(root, package),
         "manifest": manifest,
-        "manifest_sha256": sha256_digest(manifest_path),
+        "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
     }
 
 

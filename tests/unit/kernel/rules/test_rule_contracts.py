@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING
 
 from ethos.contracts.rules import PolicyException
 from ethos.contracts.rules import Rule
-from ethos.contracts.rules import RuleAttestation
-from ethos.contracts.rules import RuleEvalRequest
 from ethos.contracts.rules import RuleSet
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.policy.rules.check import rules_check_report
@@ -35,30 +33,6 @@ def test_rule_contract_schemas_validate_minimal_payloads() -> None:
         "profile_layers": ["generic"],
         "rules": [rule],
     }
-    fact_snapshot = (
-        RuleEvalRequest(
-            phase="plan",
-            changed_paths=("docs/index.md",),
-        )
-        .to_fact_snapshot(head="untracked")
-        .to_dict()
-    )
-    evaluation = {
-        "schema_version": 1,
-        "state": "allow",
-        "head": "untracked",
-        "rule_set_digest": "0" * 64,
-        "compiled_policy_digest": "0" * 64,
-        "source_refs": ["product:starter-rules"],
-        "fact_snapshot_digest": fact_snapshot["digest"],
-        "input_snapshot": fact_snapshot,
-        "decisions": [],
-        "obligations": [],
-        "required_gates": [],
-        "evidence_requirements": [],
-        "required_gaps": [],
-        "digest": "1" * 64,
-    }
     surface_coverage = {
         "ok": True,
         "coverage_tier": "starter",
@@ -87,27 +61,11 @@ def test_rule_contract_schemas_validate_minimal_payloads() -> None:
         created_at="2026-07-01",
         expires_at="2026-07-31",
     ).to_dict()
-    attestation = RuleAttestation(
-        head="untracked",
-        evaluation_digest="1" * 64,
-        rule_set_digest="0" * 64,
-        compiled_policy_digest="0" * 64,
-        fact_snapshot_digest=fact_snapshot["digest"],
-        actor="local",
-        scope="repository",
-        runner_identity="ethos",
-        input=fact_snapshot,
-        output={"state": "allow", "required_gaps": [], "required_gates": []},
-    ).to_dict()
-
     assert validate_schema_instance("rule.schema.json", rule)["ok"] is True
     assert validate_schema_instance("rule-set.schema.json", rule_set)["ok"] is True
-    assert validate_schema_instance("rule-evaluation.schema.json", evaluation)["ok"] is True
     assert validate_schema_instance("surface-coverage.schema.json", surface_coverage)["ok"]
     assert validate_schema_instance("rule-report.schema.json", rule_report)["ok"] is True
     assert validate_schema_instance("policy-exception.schema.json", policy_exception)["ok"]
-    assert validate_schema_instance("rule-fact-snapshot.schema.json", fact_snapshot)["ok"]
-    assert validate_schema_instance("rule-attestation.schema.json", attestation)["ok"]
 
 
 def test_rule_contract_schema_rejects_missing_owner() -> None:
@@ -146,12 +104,7 @@ def test_contract_dataclasses_serialize_to_schema_payloads() -> None:
         stop_condition="docs_gap",
     )
     rule_set = RuleSet(id="custom", profile_layers=("generic",), rules=(rule,))
-    request = RuleEvalRequest(phase="plan", changed_paths=("docs/index.md",))
-
     assert validate_schema_instance("rule-set.schema.json", rule_set.to_dict())["ok"]
-    assert request.to_fact_snapshot(head="abc123").to_dict()["facts"]["changed_paths"]["value"] == [
-        "docs/index.md"
-    ]
 
 
 def test_compile_rules_rejects_v1_keys_without_normalization(tmp_path: Path) -> None:
@@ -163,7 +116,7 @@ id = "legacy.docs"
 risk = "docs"
 paths = ["docs/**"]
 requires = ["docs-registry"]
-evidence = ["rule-evaluation"]
+evidence = ["governance-proof"]
 """.lstrip(),
         encoding="utf-8",
     )

@@ -5,6 +5,7 @@ from pathlib import Path
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos.contracts.resolution.lane import LaneResolutionPlanRequest
 from tests.support.contract_helpers import write_chronicle_decision
 
 
@@ -20,17 +21,19 @@ def preserve_lane(repo: Path, lane: Path) -> dict[str, object]:
     decision_path = current_record_root(repo) / "decisions/test-preserve.json"
     planned = plan_lane_resolution(
         root=repo,
-        branch="work/orphan",
-        disposition="preserve",
-        reason="Preserve this exact lane state.",
-        evidence_refs=("evidence:current-enumeration",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-current-enumeration", token="preserve"
+        request=LaneResolutionPlanRequest(
+            branch="work/orphan",
+            disposition="preserve",
+            reason="Preserve this exact lane state.",
+            evidence_refs=("evidence:current-enumeration",),
+            chronicle_ref=write_chronicle_decision(
+                repo, topic="lane-resolution-current-enumeration", token="preserve"
+            ),
+            recovery_plan="Retain the exact observed bytes.",
+            decision_path=decision_path.as_posix(),
+            break_glass=False,
+            apply=True,
         ),
-        recovery_plan="Retain the exact observed bytes.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
     )
     assert planned["ok"] is True
     applied = apply_lane_resolution(

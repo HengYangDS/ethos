@@ -30,20 +30,15 @@ Its unique value is not another workflow engine. ETHOS makes repository change
 deterministic, authority-bounded, recoverable, evidence-bearing, and portable
 across humans, agents, tools, repositories, and forge providers.
 
-The public lifecycle is:
+The public command plane is:
 
 ```text
 status -> plan -> prove -> land -> publish
 ```
 
-Setup and explanation remain separate:
-
-```text
-inspect  adopt  doctor  explain
-```
-
-`orient` folds into `status`. `report` is removed. Facts, gaps, evidence, and
-next actions replace scores and self-awarded readiness.
+`adopt` binds a repository to that lifecycle. `lane` and `hook` remain hidden
+operational roots. Facts, gaps, evidence, and next actions replace scores and
+self-awarded readiness.
 
 ## Root Constraints
 
@@ -91,7 +86,7 @@ Only two persistent semantic entity types exist.
 An immutable contract for one intended repository transition. It contains:
 
 - intent, subject, scope, invariants, acceptance, risks, authority, permissions;
-- hypotheses, experiment strategy, dependencies, campaign membership;
+- hypotheses, experiment strategy, dependencies, and optional program relation;
 - collaboration strategy, compatibility stance, and publication boundary.
 
 Intent amendments are `Attestation` records folded over the immutable base
@@ -106,6 +101,23 @@ transitions, reviews, handoffs, recovery, experiments, evaluations, and release
 provenance. An attestation records an observation or judgment; it never creates
 authority by itself.
 
+Its `kind` discriminator forms one small typed algebra, not six entity families:
+
+| Kind | Irreducible meaning |
+| --- | --- |
+| `observation` | A bound fact reported without deciding policy. |
+| `judgment` | A conclusion plus its explicit basis. |
+| `proof` | Exact-head gate execution and artifact evidence. |
+| `effect` | The durable result of an admitted state transition. |
+| `external-assurance` | Time-bounded assurance backed by provider-native evidence. |
+| `amendment` | An authorized, ordered patch over an immutable ChangeContract. |
+
+Each variant has distinct content and binding invariants, but all share one
+content-addressed envelope, schema owner, storage protocol, and reader algebra.
+Adding a parallel receipt, claim, decision, or event entity is therefore an
+architecture defect unless the single envelope is first proven unable to carry
+the meaning without semantic loss.
+
 Everything else is derived or transient:
 
 - `RepositoryFacts`: freshly observed Git, filesystem, config, tool, provider,
@@ -116,9 +128,23 @@ Everything else is derived or transient:
   state-machine views, and metrics: projections over the two entities and
   current facts.
 
+A campaign is a derived program view over dependency-connected
+`ChangeContract` instances, not a third persistent entity. Its progress and
+terminal acceptance are compiled from each effective contract, current
+`RepositoryFacts`, and bound Attestations. There is no separately mutable
+Campaign state, step ledger, closeout ledger, manifest authority, or campaign
+CEL plane.
+
 This model absorbs ontology, knowledge graph, finite-state-machine, DAG,
 persistent execution, hypothesis, feedback, and collaboration needs without
 creating separate truth stores.
+
+### Model Promotion
+
+Model Promotion is the conflict adjudication defined by the
+[Product Design Contract](../governance/product-design-contract.md#model-promotion).
+This terminal architecture consumes that canonical rule; it does not define a
+second procedure or assert runtime effect and retirement enforcement.
 
 ## Transition Semantics
 
@@ -189,6 +215,12 @@ product complexity.
 Default JSON is bounded and stable. It carries only verdict, summary, required
 gaps, next actions, and references to larger artifacts.
 
+`status` keeps assurance planes explicit: required gaps, non-blocking
+advisories, exact-head local proof, and every profile-declared provider's
+observation and publication state remain separate `pass | block | unknown`
+projections. They are recomputed from current facts and Attestations; status does
+not persist a ledger or infer one plane from another.
+
 | Surface | Maximum default payload |
 | --- | ---: |
 | `status` | 16 KiB |
@@ -227,6 +259,14 @@ law.
 
 One `ChangeContract` derives one Worktree Family. The family is a Git/resource
 projection, not another semantic entity.
+
+The family lease persists exactly one intent binding: the immutable base
+`ChangeContract` digest that identifies its lineage. Ordered amendment
+Attestations fold that base into an effective contract and digest without
+rewriting the lease. PlanIR and proof/effect Attestations bind the effective
+digest they actually evaluated. Status may derive the current binding from the
+base plus amendments, but no claim identifier, alias, fallback, or second
+persistent binding survives the cutover.
 
 A family may contain:
 
@@ -273,7 +313,10 @@ rebase/reproof, never an overwrite. Queue scheduling favors high-impact,
 low-conflict, old, fully-proven changes without starving urgent fixes.
 
 Campaign iterations run local closeout only. Remote CI and publication run once
-after the campaign's terminal acceptance is satisfied.
+after the derived terminal predicate for the campaign's ChangeContracts passes.
+At terminal closeout the immutable head first reaches local candidate and
+protected `dev`; its Worktree Families and records then close locally before any
+proposal ref or provider mutation is created.
 
 ## Branch And Publication Topology
 
@@ -300,6 +343,9 @@ Three independent planes exist:
 The final immutable commit is proposed to both providers. Each provider emits
 its own CI and release attestations. The same signed tag and artifact digests
 must be observed on both; one provider's success never proves the other.
+Local replay of either provider workflow is useful only as exact-head local
+proof bound to the provider-template and artifact digests. It cannot mint
+provider assurance or satisfy hosted observation or publication state.
 
 ## Records, Evidence, And Recovery
 
@@ -358,6 +404,11 @@ One owner exists for every quality property:
 | CI binary supply | Aqua |
 | version coordination | bump-my-version |
 | local GitHub workflow replay | act, where runner semantics permit |
+
+The active registry contains only admitted implementations with a current
+consumer. A durable `admit`, `defer`, or `reject` rationale is a `judgment`
+Attestation with its basis and review condition, never another tool roadmap or
+disposition ledger.
 
 Warnings are errors in local, build, test, provider CI, packaging, docs, and
 deprecation output. Production `fmt off`, `fmt skip`, `noqa`, and type-ignore
@@ -451,7 +502,7 @@ campaigns remain outside the local kernel.
 | Candidate throughput/races | parallel proof plus serialized CAS | contention and stale-head tests |
 | Worktree Family and records | self-profile projections and attestations | repo-family audit and record verify |
 | Vendor neutrality | opaque actor refs and adapter profiles | three unlike reference adopters |
-| Workstation-control-plane independence | zero active dependencies | repository-wide zero-coupling scan |
+| External-product independence | only baseline-admitted bindings | repository-wide positive-boundary proof |
 | Local/GitLab/GitHub separation | three authority planes | independent immutable receipts |
 | Branch semantics | main/dev/candidate/work/proposal roles | policy and remote-ref tests |
 | OpenSpec shape/archive naming | self-profile carrier and one grammar | official strict validation and archive audit |
@@ -468,19 +519,19 @@ campaigns remain outside the local kernel.
 
 The campaign is complete only when all are true:
 
-1. `status`, `plan`, `prove`, `land`, and `publish` share one verdict algebra and
-   cannot emit a green state with a hard gap.
-2. `report`, standalone `orient`, parallel command registries, custom graph
-   layers, source-budget worker/protocol/replay/shadow stacks, empty template
-   machinery, workstation-control-plane coupling, and compatibility residue are absent.
+1. `status`, `plan`, `prove`, `land`, `publish`, and `adopt` share one command
+   contract and cannot emit a green state with a hard gap.
+2. Parallel command registries, custom graph layers, source-budget
+   worker/protocol/replay/shadow stacks, empty template machinery, unadmitted
+   external-product coupling, and compatibility residue are absent.
 3. ChangeContract, Attestation, RepositoryFacts, and PlanIR own the semantic
    center; old package/model/schema owners are deleted in the same cutover.
 4. Python ELOC is <=54,000 and global owned-source ELOC is <=68,000.
 5. Warnings and production suppressions are zero; quality, coverage, mutation,
    concurrency, source, docs, shell, config, and supply-chain gates pass.
-6. Python package, Node/polyglot, and docs/infra adopters complete inspect,
-   adopt, status, plan, prove, land, publish, handoff, recovery, and offline
-   install without Python layout or OpenSpec assumptions.
+6. Python package, Node/polyglot, and docs/infra adopters complete adoption,
+   status, plan, prove, land, publish, handoff, recovery, and offline install
+   without Python layout or OpenSpec assumptions.
 7. Local, GitLab, and GitHub receipts remain distinct and bind the same final
    commit, signed tag, and artifact digests.
 8. All campaign Worktree Families are absorbed or retired through native
@@ -508,9 +559,10 @@ One campaign, deletion first, no repeated remote closeout:
 6. **Prove homomorphism**: three reference adopters and offline lifecycle.
 7. **Expose the minimum ecosystem**: schemas, TCK, manifests, permissions,
    subprocess/data packs, MCP/A2A, optional scaffold pack.
-8. **Close once**: complete local proof, create one final proposal, run both
-   provider planes, fast-forward `dev` then release `main`, verify immutable
-   artifacts, retire all families, and verify records.
+8. **Close once**: complete local proof, close local candidate and protected
+   `dev`, retire all campaign families and verify records, create one final
+   proposal, run both provider planes, publish `dev`, release `main`, and verify
+   immutable artifacts.
 
 No later stage may preserve an earlier implementation merely to reduce cutover
 risk. The shortest safe path is replacement followed immediately by deletion.

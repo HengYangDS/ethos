@@ -2,31 +2,36 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 from pathlib import Path
 
 import pytest
 
-from ethos.adapters.admission import identity as admission_identity
-from ethos.adapters.admission import prewrite as admission_prewrite
-from ethos.adapters.admission.core import hook_admission_report
-from ethos.adapters.admission.core import push_admission_report
+import ethos.adapters.admission.identity as admission_identity
+from ethos.adapters.admission.git_admission import hook_admission_report
+from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.identity import push_identity_policy_report
-from ethos.adapters.mutation.core import proof_gaps
-from ethos.adapters.mutation.proof import _promotion_required_gate_ids
-from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import attestation_store_dir
+from ethos.adapters.mutation.proof import issue_proof_attestation
+from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import promotion_required_gate_ids
+from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof import proof_state_dir
-from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.contracts.admission import HookAdmissionRequest
-from ethos.repository.evidence.core import EvidenceSet
-from ethos.repository.evidence.core import ProofRun
 from tests.support.contract_helpers import adopt_and_commit
-from tests.support.contract_helpers import conformant_proof_run
+from tests.support.contract_helpers import conformant_proof_check
 from tests.support.contract_helpers import write_publication_topology
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import leased_worktree as create_leased_worktree
+
+
+def _assert_fields(actual: dict[str, object], **expected: object) -> None:
+    assert {key: actual[key] for key in expected} == expected
+
+
+def _hook(root: Path, layer: str, **values: object) -> dict[str, object]:
+    return hook_admission_report(HookAdmissionRequest(root=root, layer=layer, **values))
 
 
 def _identity_repo(path: Path) -> Path:
@@ -51,247 +56,218 @@ def _identity_commit(
 ) -> str:
     for role, identity in (("AUTHOR", author), ("COMMITTER", committer)):
         monkeypatch.setenv(f"GIT_{role}_NAME", identity)
-        email = (
+        monkeypatch.setenv(
+            f"GIT_{role}_EMAIL",
             "canonical@example.invalid"
             if identity == "Canonical User"
-            else f"{identity.lower().replace(' ', '-')}@example.invalid"
+            else f"{identity.lower().replace(' ', '-')}@example.invalid",
         )
-        monkeypatch.setenv(f"GIT_{role}_EMAIL", email)
     (repo / f"{name}.txt").write_text(f"{name}\n", encoding="utf-8")
     git(repo, "add", f"{name}.txt")
     git(repo, "commit", "-m", f"{name} identity")
     return git(repo, "rev-parse", "HEAD")
 
 
-def test_push_admission_rejects_candidate_and_undeclared_remote_targets(
-    tmp_path: Path,
+def _proof_attestation_for_head(root: Path, head: str):
+    plan = proof_plan(root, head=head)
+    checks = tuple(
+        conformant_proof_check(gate, root)
+        for gate in promotion_required_gate_ids(root, tree_ref=head)
+    )
+    return issue_proof_attestation(
+        root,
+        {
+            "plan": plan,
+            "checks": checks,
+            "verdict": "pass",
+            "issuer": "agent:test:case:hook",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+
+
+def _clear_attestation_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in (
+        "ETHOS_TEST_ATTESTATION_STATE_DIR",
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_XDIST_WORKER",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture
+def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    worktree = create_leased_worktree(init_repo(tmp_path / "repo"), tmp_path / "repo-work-feature")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
+    return worktree
+
+
+@pytest.mark.parametrize(
+    ("target_ref", "remote_name", "gap", "proof_check"),
+    [
+        (
+            "refs/heads/candidate/dev",
+            "origin",
+            "publication_candidate_branch_remote_forbidden:candidate/dev",
+            "any",
+        ),
+        ("refs/heads/dev", "unknown", "publication_remote_target_unknown:unknown", "any"),
+        (
+            "refs/heads/work/dual-remote",
+            "github",
+            "publication_remote_branch_forbidden:work/dual-remote",
+            "absent",
+        ),
+    ],
+)
+def test_push_admission_rejects_invalid_targets_before_or_without_proof(
+    tmp_path: Path, target_ref: str, remote_name: str, gap: str, proof_check: str
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     write_publication_topology(repo)
-    head = git(repo, "rev-parse", "HEAD")
-
-    candidate = push_admission_report(
+    report = push_admission_report(
         root=repo,
-        target_ref="refs/heads/candidate/dev",
-        pushed_head=head,
-        remote_name="origin",
+        target_ref=target_ref,
+        pushed_head=git(repo, "rev-parse", "HEAD"),
+        remote_name=remote_name,
     )
-    unknown = push_admission_report(
-        root=repo,
-        target_ref="refs/heads/dev",
-        pushed_head=head,
-        remote_name="unknown",
-    )
-
-    assert candidate["ok"] is False
-    assert (
-        "publication_candidate_branch_remote_forbidden:candidate/dev" in candidate["required_gaps"]
-    )
-    assert unknown["ok"] is False
-    assert "publication_remote_target_unknown:unknown" in unknown["required_gaps"]
+    assert report["ok"] is False
+    assert gap in report["required_gaps"]
+    if proof_check == "absent":
+        assert not any("proof" in str(item) for item in report["required_gaps"])
 
 
 def test_push_admission_rejects_legacy_topology_without_enforcement_bypass(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "release.toml").write_text(
-        '[publication]\nremotes = ["origin", "github"]\n',
-        encoding="utf-8",
+        '[publication]\nremotes = ["origin", "github"]\n', encoding="utf-8"
     )
-    head = git(repo, "rev-parse", "HEAD")
-
     report = push_admission_report(
         root=repo,
         target_ref="refs/heads/dev",
-        pushed_head=head,
+        pushed_head=git(repo, "rev-parse", "HEAD"),
         remote_name="origin",
     )
-
     assert report["publication_branch_admission"]["enforcement_gaps"] == [
         "publication_topology_declaration_invalid"
     ]
     assert "publication_topology_declaration_invalid" in report["required_gaps"]
 
 
-def test_push_admission_rejects_work_branch_before_proof_lookup(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    write_publication_topology(repo)
-    head = git(repo, "rev-parse", "HEAD")
-
-    report = push_admission_report(
-        root=repo,
-        target_ref="refs/heads/work/dual-remote",
-        pushed_head=head,
-        remote_name="github",
-    )
-
-    assert report["ok"] is False
-    assert "publication_remote_branch_forbidden:work/dual-remote" in report["required_gaps"]
-    assert not any("proof" in str(gap) for gap in report["required_gaps"])
-
-
-@pytest.fixture
-def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    repo = init_repo(tmp_path / "repo")
-    worktree = create_leased_worktree(repo, tmp_path / "repo-work-feature")
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
-    return worktree
-
-
 def test_context_hook_rejects_stale_target_root(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    other = init_repo(tmp_path / "other")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
-            layer="context",
-            expected_root=other,
-        )
+    repo, other = init_repo(tmp_path / "repo"), init_repo(tmp_path / "other")
+    report = _hook(repo, "context", expected_root=other)
+    _assert_fields(
+        report,
+        ok=False,
+        state="blocked",
+        decision={"action": "block", "reason": "hook_context_root_mismatch"},
+        target_root=repo.resolve().as_posix(),
+        expected_root=other.resolve().as_posix(),
     )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "hook_context_root_mismatch",
-    }
-    assert report["target_root"] == repo.resolve().as_posix()
-    assert report["expected_root"] == other.resolve().as_posix()
     assert "hook_context_root_mismatch" in report["required_gaps"]
 
 
-def test_pre_tool_hook_blocks_protected_root_before_mutation(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
-            layer="pre-tool",
-            paths=[repo / "README.md"],
-            editor_root=repo,
-            require_editor_root=True,
-        )
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["role"] == "accepted_root"
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "protected_lane_prewrite_blocked",
-    }
-    assert report["admission"]["error"] == "protected_lane_prewrite_blocked"
-    assert "protected_lane_prewrite_blocked" in report["required_gaps"]
-
-
-def test_pre_tool_hook_blocks_protected_root_write_tool_without_declared_paths(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("kind", "expected_role", "reason", "admission_error"),
+    [
+        (
+            "protected-path",
+            "accepted_root",
+            "protected_lane_prewrite_blocked",
+            "protected_lane_prewrite_blocked",
+        ),
+        ("protected-no-path", "accepted_root", "protected_root_pretool_paths_required", ""),
+        ("unleased-work", "work_lane", "work_lane_missing_lease:work/feature", ""),
+    ],
+)
+def test_pre_tool_hook_blocks_protected_or_unleased_mutation(
+    tmp_path: Path, kind: str, expected_role: str, reason: str, admission_error: str
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
-            layer="pre-tool",
-            editor_root=repo,
-            require_editor_root=True,
-        )
+    root = repo
+    values: dict[str, object] = {"editor_root": repo, "require_editor_root": True}
+    if kind == "protected-path":
+        values["paths"] = [repo / "README.md"]
+    elif kind == "unleased-work":
+        root = tmp_path / "repo-work-feature"
+        git(repo, "worktree", "add", "-b", "work/feature", root.as_posix(), "dev")
+        values.update(editor_root=root, paths=[root / "README.md"])
+    report = _hook(root, "pre-tool", **values)
+    _assert_fields(
+        report,
+        ok=False,
+        state="blocked",
+        role=expected_role,
+        decision={"action": "block", "reason": reason},
     )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["role"] == "accepted_root"
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "protected_root_pretool_paths_required",
-    }
-    assert "protected_root_pretool_paths_required" in report["required_gaps"]
-
-
-def test_pre_tool_hook_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=worktree,
-            layer="pre-tool",
-            paths=[worktree / "README.md"],
-            editor_root=worktree,
-            require_editor_root=True,
+    assert reason in report["required_gaps"]
+    if admission_error:
+        assert report["admission"]["error"] == admission_error
+    else:
+        assert (
+            report["admission"]["work_lane_lease"]["ok"] is False
+            if kind == "unleased-work"
+            else True
         )
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["role"] == "work_lane"
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "work_lane_missing_lease:work/feature",
-    }
-    assert report["admission"]["work_lane_lease"]["ok"] is False
-    assert "work_lane_missing_lease:work/feature" in report["required_gaps"]
 
 
 @pytest.mark.parametrize(
-    ("actor", "expected"),
+    ("actor", "state", "action", "reason"),
     [
-        ("agent:test:case:agent-a", ("admitted", "allow", "matched")),
-        (
-            "agent:test:case:agent-b",
-            ("blocked", "block", "lease_holder_mismatch:work/feature"),
-        ),
+        ("agent:test:case:agent-a", "admitted", "allow", "matched"),
+        ("agent:test:case:agent-b", "blocked", "block", "lease_holder_mismatch:work/feature"),
     ],
-    ids=["matching-actor", "actor-mismatch"],
 )
 def test_pre_tool_hook_evaluates_leased_work_lane_actor(
     leased_worktree: Path,
     monkeypatch: pytest.MonkeyPatch,
     actor: str,
-    expected: tuple[str, str, str],
+    state: str,
+    action: str,
+    reason: str,
 ) -> None:
-    expected_state, expected_action, expected_lease_reason = expected
     monkeypatch.setenv("ETHOS_ACTOR", actor)
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=leased_worktree,
-            layer="pre-tool",
-            paths=[leased_worktree / "README.md"],
-            editor_root=leased_worktree,
-            require_editor_root=True,
-        )
+    report = _hook(
+        leased_worktree,
+        "pre-tool",
+        paths=[leased_worktree / "README.md"],
+        editor_root=leased_worktree,
+        require_editor_root=True,
     )
-
-    assert report["ok"] is (expected_state == "admitted")
-    assert report["state"] == expected_state
-    assert report["role"] == "work_lane"
-    assert report["decision"] == {
-        "action": expected_action,
-        "reason": "prewrite_admitted" if expected_state == "admitted" else expected_lease_reason,
-    }
-    lease_check = report["admission"]["work_lane_lease"]
-    assert report["admission"]["ok"] is (expected_state == "admitted")
-    assert lease_check["ok"] is (expected_state == "admitted")
-    assert lease_check["required"] is True
-    assert lease_check["branch"] == "work/feature"
-    assert lease_check["holder_ref"] == "agent:test:case:agent-a"
-    assert lease_check["invocation_holder_ref"] == actor
-    assert lease_check["lease_id"].startswith("lease:")
-    assert lease_check["epoch"] == 1
-    assert lease_check["expected_head"] == git(leased_worktree, "rev-parse", "HEAD")
-    assert lease_check["reason"] == expected_lease_reason
-    if expected_state == "blocked":
+    _assert_fields(
+        report,
+        ok=state == "admitted",
+        state=state,
+        role="work_lane",
+        decision={
+            "action": action,
+            "reason": "prewrite_admitted" if state == "admitted" else reason,
+        },
+    )
+    lease = report["admission"]["work_lane_lease"]
+    _assert_fields(
+        lease,
+        ok=state == "admitted",
+        required=True,
+        branch="work/feature",
+        holder_ref="agent:test:case:agent-a",
+        invocation_holder_ref=actor,
+        epoch=1,
+        reason=reason,
+    )
+    assert lease["lease_id"].startswith("lease:")
+    assert lease["expected_head"] == git(leased_worktree, "rev-parse", "HEAD")
+    if state == "blocked":
         assert report["next_actions"] == [
             "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, or obtain handoff",
             "ethos lane prewrite <path>",
         ]
 
 
-def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
-    leased_worktree: Path,
-) -> None:
+def test_pre_tool_hook_handles_rebase_context(leased_worktree: Path) -> None:
     branch_head = git(leased_worktree, "rev-parse", "HEAD")
     git(leased_worktree, "checkout", "--detach")
     (leased_worktree / "REBASE.md").write_text("# replay checkpoint\n", encoding="utf-8")
@@ -307,243 +283,149 @@ def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
         "replay checkpoint",
     )
     detached_head = git(leased_worktree, "rev-parse", "HEAD")
-    assert detached_head != branch_head
-    git_dir = Path(git(leased_worktree, "rev-parse", "--absolute-git-dir"))
-    rebase_dir = git_dir / "rebase-merge"
+    rebase_dir = Path(git(leased_worktree, "rev-parse", "--absolute-git-dir")) / "rebase-merge"
     rebase_dir.mkdir()
     (rebase_dir / "head-name").write_text("refs/heads/work/feature\n", encoding="utf-8")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=leased_worktree,
-            layer="pre-tool",
-            paths=[leased_worktree / "README.md"],
-            editor_root=leased_worktree,
-            require_editor_root=True,
-        )
+    report = _hook(
+        leased_worktree,
+        "pre-tool",
+        paths=[leased_worktree / "README.md"],
+        editor_root=leased_worktree,
+        require_editor_root=True,
+    )
+    _assert_fields(report, ok=True, role="work_lane", branch="work/feature")
+    _assert_fields(
+        report["admission"],
+        status_role="detached",
+        effective_context={
+            "role": "work_lane",
+            "branch": "work/feature",
+            "source": "git_rebase_head_name",
+            "rebase_head_name": "work/feature",
+        },
+    )
+    _assert_fields(
+        report["admission"]["work_lane_lease"],
+        current_head=detached_head,
+        binding_head=branch_head,
+        head_source="rebase_branch_ref",
     )
 
-    assert report["ok"] is True
-    assert report["role"] == "work_lane"
-    assert report["branch"] == "work/feature"
-    assert report["admission"]["status_role"] == "detached"
-    assert report["admission"]["effective_context"] == {
-        "role": "work_lane",
-        "branch": "work/feature",
-        "source": "git_rebase_head_name",
-        "rebase_head_name": "work/feature",
-    }
-    lease_check = report["admission"]["work_lane_lease"]
-    assert lease_check["current_head"] == detached_head
-    assert lease_check["binding_head"] == branch_head
-    assert lease_check["head_source"] == "rebase_branch_ref"
 
-
-def test_git_path_falls_back_to_dot_git_when_git_path_is_unavailable(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    def fail_rev_parse(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(["git"], 1, "", "not a git repo")
-
-    monkeypatch.setattr(admission_prewrite.subprocess, "run", fail_rev_parse)
-
-    assert admission_prewrite._git_path(tmp_path) == tmp_path / ".git"
-
-
-def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(
-    tmp_path: Path,
-) -> None:
+def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     git(repo, "checkout", "--detach")
-    git_dir = Path(git(repo, "rev-parse", "--absolute-git-dir"))
-    rebase_dir = git_dir / "rebase-merge"
+    rebase_dir = Path(git(repo, "rev-parse", "--absolute-git-dir")) / "rebase-merge"
     rebase_dir.mkdir()
     (rebase_dir / "head-name").write_text("refs/heads/dev\n", encoding="utf-8")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
-            layer="pre-tool",
-            paths=[repo / "README.md"],
-            editor_root=repo,
-            require_editor_root=True,
-        )
+    report = _hook(
+        repo, "pre-tool", paths=[repo / "README.md"], editor_root=repo, require_editor_root=True
     )
-
-    assert report["ok"] is False
-    assert report["role"] == "detached"
+    _assert_fields(
+        report,
+        ok=False,
+        role="detached",
+        decision={"action": "block", "reason": "protected_lane_prewrite_blocked"},
+    )
     assert report["admission"]["effective_context"] == {
         "role": "detached",
         "branch": "detached",
         "source": "prewrite_context",
         "rebase_head_name": "dev",
     }
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "protected_lane_prewrite_blocked",
-    }
-
-
-def test_pre_run_hook_blocks_mutation_risk_without_target_paths(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
-            layer="pre-run",
-            command='python -c \'from pathlib import Path; Path("README.md").write_text("x")\'',
-            editor_root=repo,
-            require_editor_root=True,
-        )
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["command_risk"] == {
-        "tracked_mutation_risk": True,
-        "reason": "command_text_matches_mutation_pattern",
-    }
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "hook_prerun_paths_required",
-    }
-    assert "hook_prerun_paths_required" in report["required_gaps"]
 
 
 @pytest.mark.parametrize(
     "command",
     [
+        'python -c \'from pathlib import Path; Path("README.md").write_text("x")\'',
         "python scripts/generate.py",
         "git apply patch.diff",
         "touch README.md",
     ],
 )
-def test_pre_run_hook_blocks_unknown_or_mutating_protected_root_commands_without_paths(
-    tmp_path: Path,
-    command: str,
+def test_pre_run_hook_blocks_mutation_risk_without_target_paths(
+    tmp_path: Path, command: str
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
-            layer="pre-run",
-            command=command,
-            editor_root=repo,
-            require_editor_root=True,
-        )
+    report = _hook(repo, "pre-run", command=command, editor_root=repo, require_editor_root=True)
+    _assert_fields(
+        report,
+        ok=False,
+        state="blocked",
+        decision={"action": "block", "reason": "hook_prerun_paths_required"},
     )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["role"] == "accepted_root"
     assert report["command_risk"]["tracked_mutation_risk"] is True
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "hook_prerun_paths_required",
-    }
     assert "hook_prerun_paths_required" in report["required_gaps"]
 
 
-def test_post_write_hook_fuses_protected_root_dirty_state(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("kind", "role", "reason"),
+    [
+        ("protected", "accepted_root", "post_write_protected_root_dirty"),
+        ("work", "work_lane", "post_write_unexpected_path"),
+    ],
+)
+def test_post_write_hook_fuses_dirty_state(
+    tmp_path: Path, kind: str, role: str, reason: str
+) -> None:
     repo = init_repo(tmp_path / "repo")
-    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
-            layer="post-write",
-            paths=[repo / "README.md"],
-            editor_root=repo,
-            require_editor_root=True,
-        )
+    root = repo
+    values: dict[str, object] = {"editor_root": repo, "require_editor_root": True}
+    if kind == "work":
+        root = tmp_path / "repo-work-feature"
+        git(repo, "worktree", "add", "-b", "work/feature", root.as_posix(), "dev")
+        values["editor_root"] = root
+    else:
+        values["paths"] = [repo / "README.md"]
+    (root / "README.md").write_text("# changed\n", encoding="utf-8")
+    report = _hook(root, "post-write", **values)
+    _assert_fields(
+        report,
+        ok=False,
+        state="fused",
+        role=role,
+        decision={"action": "fuse", "reason": reason},
+        changed_paths=["README.md"],
     )
-
-    assert report["ok"] is False
-    assert report["state"] == "fused"
-    assert report["role"] == "accepted_root"
-    assert report["decision"] == {
-        "action": "fuse",
-        "reason": "post_write_protected_root_dirty",
-    }
-    assert report["changed_paths"] == ["README.md"]
-    assert "post_write_protected_root_dirty" in report["required_gaps"]
+    assert reason in report["required_gaps"]
+    if kind == "work":
+        assert report["unexpected_paths"] == ["README.md"]
 
 
-def test_post_write_hook_fuses_work_lane_dirty_state_without_expected_paths(
+def test_push_admission_blocks_unproven_protected_and_work_lane_pushes(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    write_publication_topology(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    for ref, gap in (
+        ("refs/heads/dev", "proof"),
+        ("refs/heads/work/feature", "publication_remote_branch_forbidden:work/feature"),
+    ):
+        report = push_admission_report(root=repo, target_ref=ref, pushed_head=head)
+        assert report["ok"] is False
+        assert report["state"] == "blocked"
+        assert any(gap in str(item) for item in report["required_gaps"])
+
+
+@pytest.mark.parametrize(
+    ("author", "committer", "expected_result"),
+    [
+        ("Canonical User", "Canonical User", "allowed"),
+        ("Codex", "Codex", "blocked"),
+        ("Other Author", "Canonical User", "blocked"),
+        ("Canonical User", "Other Committer", "blocked"),
+    ],
+)
+def test_push_identity_policy_checks_configured_author_and_committer(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    author: str,
+    committer: str,
+    expected_result: str,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    (worktree / "README.md").write_text("# changed\n", encoding="utf-8")
-
-    report = hook_admission_report(
-        HookAdmissionRequest(
-            root=worktree,
-            layer="post-write",
-            editor_root=worktree,
-            require_editor_root=True,
-        )
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "fused"
-    assert report["role"] == "work_lane"
-    assert report["decision"] == {
-        "action": "fuse",
-        "reason": "post_write_unexpected_path",
-    }
-    assert report["changed_paths"] == ["README.md"]
-    assert report["unexpected_paths"] == ["README.md"]
-    assert "post_write_unexpected_path" in report["required_gaps"]
-
-
-def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None:
-    """The push tail: a push to an accepted/candidate ref requires an executed proof
-    bound to the pushed HEAD (same reducer as land). Work-lane pushes are admitted."""
-    subprocess.run(["git", "init", "-q", "-b", "dev"], cwd=tmp_path, check=True)
-    (tmp_path / "a.txt").write_text("x\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
-    subprocess.run(
-        ["git", "-c", "user.name=T", "-c", "user.email=t@e.x", "commit", "-qm", "init"],
-        cwd=tmp_path,
-        check=True,
-    )
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-
-    write_publication_topology(tmp_path)
-
-    # protected accepted root without proof -> blocked
-    protected = push_admission_report(root=tmp_path, target_ref="refs/heads/dev", pushed_head=head)
-    assert protected["ok"] is False
-    assert protected["state"] == "blocked"
-    assert any("not_proven" in str(g) or "proof" in str(g) for g in protected["required_gaps"])
-
-    # work lanes remain local-only even with a canonical remote declaration
-    lane = push_admission_report(
-        root=tmp_path, target_ref="refs/heads/work/feature", pushed_head=head
-    )
-    assert lane["ok"] is False
-    assert lane["state"] == "blocked"
-    assert "publication_remote_branch_forbidden:work/feature" in lane["required_gaps"]
-
-
-@pytest.mark.parametrize(("identity", "allowed"), [("Canonical User", True), ("Codex", False)])
-def test_push_identity_policy_matches_configured_user(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, identity: str, allowed: object
-) -> None:
-    expected = bool(allowed)
     repo = _identity_repo(tmp_path / "repo")
     remote_head = git(repo, "rev-parse", "HEAD")
-    pushed_head = _identity_commit(repo, monkeypatch, author=identity, committer=identity)
+    pushed_head = _identity_commit(repo, monkeypatch, author=author, committer=committer)
     policy = push_identity_policy_report(repo, pushed_head, remote_head)
     report = push_admission_report(
         root=repo,
@@ -551,262 +433,140 @@ def test_push_identity_policy_matches_configured_user(
         pushed_head=pushed_head,
         remote_head=remote_head,
     )
-
-    assert (policy["ok"], policy["checked_commit_count"]) == (expected, 1)
+    _assert_fields(policy, ok=expected_result == "allowed", checked_commit_count=1)
     assert report["identity_policy"] == policy
-    assert bool(policy["violations"]) is not expected
     assert "publication_remote_branch_forbidden:work/identity" in report["required_gaps"]
-    if not expected:
-        assert all(
+    for kind, identity in (("author", author), ("committer", committer)):
+        assert (
             f"pushed_commit_{kind}_not_configured_identity:{pushed_head}" in report["required_gaps"]
-            for kind in ("author", "committer")
-        )
+        ) is (identity != "Canonical User")
 
 
-@pytest.mark.parametrize("baseline", ["valid", "missing", "diverged"])
+@pytest.mark.parametrize(
+    ("baseline", "count", "gap"),
+    [
+        ("valid", 1, ""),
+        ("missing", 0, "push_identity_proposal_baseline_missing:origin/dev"),
+        ("diverged", 0, "push_identity_proposal_baseline_not_ancestor:origin/dev"),
+    ],
+)
 def test_new_proposal_push_validates_origin_accepted_baseline(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, baseline: str
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, baseline: str, count: int, gap: str
 ) -> None:
     repo = _identity_repo(tmp_path / "repo")
     if baseline == "valid":
-        accepted = _identity_commit(
+        git(
             repo,
-            monkeypatch,
-            author="Legacy User",
-            committer="Legacy User",
-            name="legacy",
+            "update-ref",
+            "refs/remotes/origin/dev",
+            _identity_commit(
+                repo, monkeypatch, author="Legacy User", committer="Legacy User", name="legacy"
+            ),
         )
-        git(repo, "update-ref", "refs/remotes/origin/dev", accepted)
-    elif baseline == "diverged":
+    if baseline == "diverged":
         git(repo, "checkout", "-b", "remote-source")
-        accepted = _identity_commit(repo, monkeypatch, name="remote")
-        git(repo, "update-ref", "refs/remotes/origin/dev", accepted)
+        git(
+            repo,
+            "update-ref",
+            "refs/remotes/origin/dev",
+            _identity_commit(repo, monkeypatch, name="remote"),
+        )
         git(repo, "checkout", "dev")
-    pushed_head = _identity_commit(repo, monkeypatch)
-    identity = push_admission_report(
+    policy = push_admission_report(
         root=repo,
         target_ref="refs/heads/proposal/identity-baseline",
-        pushed_head=pushed_head,
+        pushed_head=_identity_commit(repo, monkeypatch),
         remote_head="0" * 40,
     )["identity_policy"]
-    expected_gap = {
-        "valid": "",
-        "missing": "push_identity_proposal_baseline_missing:origin/dev",
-        "diverged": "push_identity_proposal_baseline_not_ancestor:origin/dev",
-    }[baseline]
-    assert identity["checked_commit_count"] == (1 if baseline == "valid" else 0)
-    assert expected_gap in identity["required_gaps"] if expected_gap else identity["ok"] is True
+    assert policy["checked_commit_count"] == count
+    assert (gap in policy["required_gaps"]) if gap else policy["ok"] is True
 
 
-def test_push_identity_policy_reports_missing_configured_user_and_unreadable_head(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_push_identity_helpers_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
-    gaps = push_identity_policy_report(root=repo, pushed_head="missing-head")["required_gaps"]
-    assert set(gaps) >= {
+    assert set(push_identity_policy_report(repo, "missing-head")["required_gaps"]) >= {
         "push_identity_user_name_missing",
         "push_identity_user_email_missing",
         "push_identity_commit_range_unreadable",
     }
+    git(repo, "config", "user.name", "Test User")
+    git(repo, "config", "user.email", "test@example.com")
+    head = git(repo, "rev-parse", "HEAD")
+    run = admission_identity.subprocess.run
 
-
-@pytest.mark.parametrize(
-    ("author", "committer"),
-    [("Other Author", "Canonical User"), ("Canonical User", "Other Committer")],
-)
-def test_push_identity_policy_reports_author_and_committer_independently(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, author: str, committer: str
-) -> None:
-    repo = _identity_repo(tmp_path / "repo")
-    remote_head = git(repo, "rev-parse", "HEAD")
-    head = _identity_commit(repo, monkeypatch, author=author, committer=committer)
-    gaps = push_identity_policy_report(repo, head, remote_head)["required_gaps"]
-    for kind, identity in (("author", author), ("committer", committer)):
-        gap = f"pushed_commit_{kind}_not_configured_identity:{head}"
-        assert (gap in gaps) is (identity != "Canonical User")
-
-
-def test_push_identity_helpers_tolerate_git_failures(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    def fake_range_run(args, **kwargs):
-        if args[:3] == ["git", "cat-file", "-e"]:
-            return subprocess.CompletedProcess(args, 0, "", "")
+    def fail_rev_list(args, **kwargs):
         if args[:2] == ["git", "rev-list"]:
-            return subprocess.CompletedProcess(args, 1, "", "fatal")
-        raise AssertionError(args)
+            return admission_identity.subprocess.CompletedProcess(args, 1, "", "fatal")
+        return run(args, **kwargs)
 
-    assert admission_identity._pushed_commit_range(tmp_path, pushed_head="", remote_head="") == []
+    monkeypatch.setattr(admission_identity.subprocess, "run", fail_rev_list)
 
-    monkeypatch.setattr(admission_identity.subprocess, "run", fake_range_run)
-    assert admission_identity._pushed_commit_range(tmp_path, pushed_head="h1", remote_head="") == []
+    report = push_identity_policy_report(repo, head)
 
-    def fake_identity_run(args, **kwargs):
-        return subprocess.CompletedProcess(args, 0, "malformed", "")
-
-    monkeypatch.setattr(admission_identity.subprocess, "run", fake_identity_run)
-    assert admission_identity._commit_identity(tmp_path, "h1") == {
-        "author_name": "",
-        "author_email": "",
-        "committer_name": "",
-        "committer_email": "",
-    }
+    assert report["ok"] is False
+    assert report["checked_commit_count"] == 0
+    assert report["required_gaps"] == ["push_identity_commit_range_unreadable"]
 
 
-def _trust_bearing_evidence(head: str, root: Path | None = None) -> dict[str, object]:
-    """Seed a COMPLETE, POLICY-CONFORMANT executed-proof evidence body.
-
-    A promotion proof must cover the required land floor AND each run must conform to its
-    gate's live policy identity (canonical command / trust_bearing / evidence_class).
-    Generate one conformant run per required gate id for `root` (product floor when root
-    is None) — the shape a real `ethos prove --execute` produces.
-    """
-    resolved = root if root is not None else Path()
-    required = _promotion_required_gate_ids(resolved)
-    runs = tuple(conformant_proof_run(gate_id, resolved) for gate_id in required)
-    return EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
-
-
-def test_proof_state_dir_defaults_to_repository_local_state(
+def test_attestation_store_defaults_and_worker_override(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.delenv("ETHOS_TEST_PROOF_STATE_DIR", raising=False)
-    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
-    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
-
-    assert proof_state_dir(tmp_path) == tmp_path / ".ethos" / "state" / "proof"
-
-
-def test_proof_state_dir_test_override_is_worker_local(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+    _clear_attestation_env(monkeypatch)
+    assert attestation_store_dir(tmp_path) == tmp_path / ".ethos" / "state" / "attestations"
     repo = init_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
-    proof_dir = tmp_path / ".ethos" / "state" / "proof-gw1"
+    store = tmp_path / ".ethos" / "state" / "attestations-gw1"
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw1")
-    monkeypatch.setenv("ETHOS_TEST_PROOF_STATE_DIR", proof_dir.as_posix())
+    monkeypatch.setenv("ETHOS_TEST_ATTESTATION_STATE_DIR", store.as_posix())
+    attestation = _proof_attestation_for_head(repo, head)
 
-    path = record_executed_proof(
-        repo,
-        _trust_bearing_evidence(head, repo),
-        plan=proof_plan(repo, head=head),
-    )
-
-    assert path == proof_dir / f"{head}.json"
-    assert executed_proof_record(repo, head) is not None
+    assert persist_proof_attestation(repo, attestation) == store / f"{attestation.id}.json"
+    assert proof_attestation(repo, head) == attestation
     assert not (repo / ".ethos" / "state" / "proof" / f"{head}.json").exists()
 
 
-def test_executed_proof_record_rejects_forgery(
+def test_proof_attestation_ignores_legacy_forgery_and_requires_complete_floor(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The proof record is tamper-evident: a hand-authored file that did not come from
-    an executed proof is rejected, so the write-admission moat cannot be minted with
-    `echo`. Only a record whose digest recomputes from its own sealed evidence body,
-    with every run proven, is accepted."""
-    monkeypatch.delenv("ETHOS_TEST_PROOF_STATE_DIR", raising=False)
-    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
-    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+    _clear_attestation_env(monkeypatch)
     repo = init_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
-    proof_dir = repo / ".ethos" / "state" / "proof"
-    proof_dir.mkdir(parents=True)
+    legacy = repo / ".ethos" / "state" / "proof" / f"{head}.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(json.dumps({"head": head, "state": "proven"}), encoding="utf-8")
 
-    # bare forgery — no evidence body
-    (proof_dir / f"{head}.json").write_text(
-        json.dumps({"head": head, "state": "proven", "evidence_digest": "x"}),
-        encoding="utf-8",
-    )
-    assert executed_proof_record(repo, head) is None
-    assert "proof_not_proven" in proof_gaps(repo, head)
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_not_proven"]
 
-    # Non-proven local state never admits a proof even if the file is present.
-    (proof_dir / f"{head}.json").write_text(
-        json.dumps({"head": head, "state": "pending", "evidence_digest": "x"}),
-        encoding="utf-8",
-    )
-    assert executed_proof_record(repo, head) is None
-
-    # forgery with a fabricated failing run + wrong digest
-    (proof_dir / f"{head}.json").write_text(
-        json.dumps(
-            {
-                "head": head,
-                "state": "proven",
-                "evidence_digest": "z",
-                "evidence": {
-                    "id": "p",
-                    "head": head,
-                    "durability": "local",
-                    "runs": [{"verdict": "failed"}],
-                    "digest": "z",
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    assert executed_proof_record(repo, head) is None
-
-    # Non-trust-bearing executed/proven-looking records are rejected: a diagnostic pass
-    # without any trust-bearing proven gate cannot promote a HEAD.
-    non_trust_run = ProofRun(
-        action_id="ruff",
-        command=("ruff", "check", "."),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="executed",
-        evidence_class="diagnostic",
-        verdict="passed",
-        trust_bearing=False,
-        diagnostics=(),
-    )
-    non_trust_evidence = EvidenceSet.from_runs(
-        evidence_id="proof", head=head, runs=(non_trust_run,)
-    ).to_dict()
-    record_executed_proof(repo, non_trust_evidence, plan=proof_plan(repo, head=head))
-    assert executed_proof_record(repo, head) is None
-
-    # Real CLI proof records may combine non-trust diagnostic passes with
-    # trust-bearing proven gates. Lock that shape so land accepts valid executed proof
-    # without confusing state with verdict. `executed_proof_record` is integrity-only,
-    # so a mixed non-trust + trust shape verifies as a valid record.
-    trust_run = ProofRun(
-        action_id="unit-architecture",
-        command=("pytest",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
-    )
-    evidence = EvidenceSet.from_runs(
-        evidence_id="proof", head=head, runs=(non_trust_run, trust_run)
-    ).to_dict()
-    record_executed_proof(repo, evidence, plan=proof_plan(repo, head=head))
-    assert executed_proof_record(repo, head) is not None
-    # This mixed proof is a valid record but does NOT cover the required land floor,
-    # so proof_gaps reports incomplete (completeness is a promotion-gate concern,
-    # separate from record integrity). A complete proof clears it.
-    assert any(g.startswith("proof_incomplete") for g in proof_gaps(repo, head))
-    record_executed_proof(
+    focused_gate = promotion_required_gate_ids(repo, tree_ref=head)[0]
+    focused_plan = proof_plan(repo, head=head, gate_ids=(focused_gate,))
+    focused_check = conformant_proof_check(focused_gate, repo)
+    focused_check["trust_bearing"] = False
+    focused = issue_proof_attestation(
         repo,
-        _trust_bearing_evidence(head, repo),
-        plan=proof_plan(repo, head=head),
+        {
+            "plan": focused_plan,
+            "checks": (focused_check,),
+            "verdict": "pass",
+            "issuer": "agent:test:case:hook",
+            "scope": "repository",
+            "boundary": "focused",
+        },
     )
+    persist_proof_attestation(repo, focused)
+    assert proof_attestation(repo, head) is None
+    assert "trust_bearing_proof_missing" in proof_gaps(repo, head)
+    assert any(gap.startswith("proof_incomplete") for gap in proof_gaps(repo, head))
+
+    complete = _proof_attestation_for_head(repo, head)
+    persist_proof_attestation(repo, complete)
+    assert proof_attestation(repo, head) == complete
     assert proof_gaps(repo, head) == []
 
 
 def test_promotion_completeness_helper_edges(tmp_path: Path) -> None:
-    """No record leaves completeness to the caller's proof-not-proven gap."""
-    from ethos.adapters.mutation.proof import promotion_completeness_gaps
-
-    assert promotion_completeness_gaps(tmp_path, "f" * 40) == []
+    assert proof_gaps(tmp_path, "f" * 40) == ["proof_not_proven"]

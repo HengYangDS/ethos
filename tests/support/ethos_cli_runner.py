@@ -141,7 +141,7 @@ def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedPr
 
 def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     from ethos.cli import app
-    from ethos.surface.cli._base import load_command_groups
+    from ethos.surface.cli.application import load_command_groups
 
     load_command_groups(list(args))
     previous_cwd = Path.cwd()
@@ -158,7 +158,7 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
             except SystemExit as exc:
                 code = exc.code if isinstance(exc.code, int) else 1
                 returncode = code
-    except BaseException as exc:  # pragma: no cover - exercised through failing tests.
+    except BaseException as exc:
         returncode = 1
         stderr.write(f"{type(exc).__name__}: {exc}")
     finally:

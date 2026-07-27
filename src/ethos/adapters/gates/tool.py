@@ -11,11 +11,16 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import git_files
-from ethos.repository.evidence.core import trim_output
 from ethos.repository.policy.layout.report import module_layout_report
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def _trim_output(text: str, *, limit: int = 4000) -> str:
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}\n[trimmed {len(text) - limit} bytes]"
 
 
 def quality_tool_report(
@@ -62,8 +67,8 @@ def quality_tool_report(
         "file_count": len(files),
         "command": command,
         "exit_code": completed.returncode,
-        "stdout": trim_output(completed.stdout),
-        "stderr": trim_output(completed.stderr),
+        "stdout": _trim_output(completed.stdout),
+        "stderr": _trim_output(completed.stderr),
         "required_gaps": [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"],
     }
 

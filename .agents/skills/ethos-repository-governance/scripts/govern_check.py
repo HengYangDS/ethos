@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic governance-health summary for an ETHOS repository.
-
-Runs the read-only governance checks — status -> audit (shape) — in order,
-parses each JSON verdict, and prints a compact summary: role, the number of
-required gaps per surface, and the first few blockers. It does NOT mutate and does
-not run deep OpenSpec validation. It is a lens over the public command plane; the
-live command JSON remains authoritative.
-
-Usage:
-    govern_check.py [--root PATH]
-
-Exit status: 0 when status+audit are all ok, 1 when any reports a gap, 2 on a
-harness error.
-"""
+"""Read-only ETHOS governance summary for one checkout."""
 
 from __future__ import annotations
 
@@ -24,13 +11,14 @@ from cyclopts import App
 
 STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("status", ("status", "--json")),
-    ("audit", ("audit", "--mode", "shape", "--json")),
+    ("plan", ("plan", "--changed", "--json")),
+    ("prove", ("prove", "--json")),
 )
 
 
 def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
     completed = subprocess.run(
-        ["ethos", *args, "--root", root],
+        ["uv", "run", "--group", "dev", "ethos", *args, "--root", root],
         capture_output=True,
         text=True,
         check=False,
@@ -38,8 +26,11 @@ def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
     try:
         return json.loads(completed.stdout)
     except json.JSONDecodeError:
-        stderr = completed.stderr.strip()[:200]
-        return {"ok": False, "state": "unparseable", "required_gaps": [stderr]}
+        return {
+            "ok": False,
+            "state": "unparseable",
+            "required_gaps": [completed.stderr.strip()[:200]],
+        }
 
 
 app = App(name="ethos-govern-check")
@@ -50,10 +41,9 @@ def main(*, root: str = ".") -> int:
     all_ok = True
     for name, args in STEPS:
         payload = _run(args, root)
+        gaps = [str(gap) for gap in payload.get("required_gaps", [])]
         ok = bool(payload.get("ok"))
-        gaps = list(payload.get("required_gaps", []))
-        marker = "ok" if ok else "GAP"
-        print(f"[{marker}] {name}: {payload.get('state', '?')} ({len(gaps)} gaps)")
+        print(f"[{'ok' if ok else 'GAP'}] {name}: {payload.get('state', '?')} ({len(gaps)} gaps)")
         if not ok:
             all_ok = False
             for gap in gaps[:5]:
@@ -63,8 +53,4 @@ def main(*, root: str = ".") -> int:
 
 
 if __name__ == "__main__":
-    try:
-        app(sys.argv[1:])
-    except FileNotFoundError:
-        print("error: `ethos` command not found on PATH", file=sys.stderr)
-        raise SystemExit(2) from None
+    raise SystemExit(app(sys.argv[1:]))

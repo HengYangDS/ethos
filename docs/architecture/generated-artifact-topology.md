@@ -43,7 +43,7 @@ table.
 | `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
 | `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
 | `build/artifacts/` | Local package and build artifacts, grouped by artifact kind. | Yes | No |
-| `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Curated, dated, reviewable evidence summaries. | No raw output | Yes, after review |
+| `docs/evidence/`, `evidence/` | Curated summaries, durable Attestations, and immutable historical evidence. | No raw output | Yes, after review |
 | `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/` | Source, tests, rules, schemas, and contracts. | No | Yes, after review |
 
@@ -57,15 +57,11 @@ of owning a second hand-written layout table.
 
 Profile-mapped durable evidence roots preserve the same logical evidence
 boundary without forcing every repository to copy the product repository's
-physical `evidence/` kernel layout. When a governed repository declares
-`[roots] durable_evidence = "docs/evidence"`, ETHOS treats that root as a
-curated profile evidence home: reviewed, dated evidence subtrees such as
-`docs/evidence/delivery/` or rollback-window summaries are allowed, while root
-file clutter outside documented entrypoints remains blocked. Product-default
-`evidence/` and other custom durable evidence roots keep the stricter kernel
-layout with `claims/`, `chronicle/`, and `parity/` subroots. This keeps adopter
-compatibility profile-driven instead of hardcoding adopter directories in the
-ETHOS product.
+physical layout. `evidence/attestations/` is the only current durable carrier.
+The retained `claims`, `chronicle`, and `parity` directories are immutable
+historical bytes: they have no current producer or authority. A repository that
+declares `[roots] durable_evidence = "docs/evidence"` keeps curated summaries
+there without creating a parallel evidence owner.
 
 Package metadata and lock files such as `package.json`, `package-lock.json`,
 `pyproject.toml`, and `uv.lock` remain source/package authority. They are not
@@ -99,7 +95,7 @@ how is it regenerated, and how is it cleaned up?
 | Runtime cache | `.cache/local-state/`, `.ethos/state/`, `build/runtime/tool-cache/`, `build/runtime/venv/`, `build/runtime/work/` | Disposable host-local or provider-local state. | Never promote. Delete or recreate from source commands. |
 | Machine evidence | `build/evidence/`, `build/ethos/` | Generated, HEAD-bound command output before review. | Regenerate on HEAD movement. Promote only by explicit review or command into curated evidence. |
 | Local artifact | `build/artifacts/` | Rebuildable package/build output. | Never treat as repository truth. Rebuild from package metadata or release commands. |
-| Curated evidence | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Reviewed, dated, tracked repository evidence. | Retire or supersede through tracked change; do not clean as cache. |
+| Curated evidence | `docs/evidence/`, `evidence/` | Durable Attestations plus immutable historical evidence. | Review or supersede current records; do not clean historical bytes as cache. |
 
 This is the reason `.import_linter_cache/` in repo root is wrong even when it is
 ignored: it has a tool owner but no semantic lifecycle home. The right location
@@ -113,15 +109,15 @@ Machine evidence does not become repository truth by living under
 `build/evidence/` or `build/ethos/`. Those homes are ignored, generated, and
 HEAD-bound. A reviewer or explicit ETHOS command must summarize the bounded
 claim, bind the command, scope, verifier, digest, and HEAD, and then promote the
-reviewed record into `docs/evidence/`, `evidence/chronicle/`, or
-`evidence/parity/`.
+reviewed Attestation into `evidence/attestations/` and may publish a
+curated summary under `docs/evidence/`.
 
 The path is therefore:
 
 ```text
 runtime command -> build/evidence/<concern>/... or build/ethos/<concern>/...
   -> reviewed summary with command, scope, verifier, digest, HEAD
-  -> curated tracked evidence under docs/evidence/, evidence/chronicle/, or evidence/parity/
+  -> durable Attestation under evidence/attestations/ and curated summary under docs/evidence/
 ```
 
 Runtime caches under `.cache/local-state/`, `.ethos/state/`,
@@ -186,10 +182,9 @@ remove or relax the adopter declaration, move raw generated outputs back to an
 ignored local/build home, and keep only curated evidence that has already been
 reviewed and promoted.
 
-`ethos fleet retirement-readiness --target <repo> --root <product> --json`
-consumes this same audit before it can approve an embedded-backend retirement. A
-retirement candidate must be clean under
-`ethos prove --gate generated-artifacts --root <repo> --json`; generated drift in repo
+`ethos prove --gate generated-artifacts --root <repo> --json` consumes this
+same audit before it can support an execution-substrate transition. A transition
+candidate must be clean under that proof gate; generated drift in repo
 root, `.config/`, semantic docs truth, or source trees remains a blocking
 adoption/rollback gap until moved to ignored runtime/build homes or promoted as
 curated evidence.

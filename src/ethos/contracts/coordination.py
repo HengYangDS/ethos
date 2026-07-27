@@ -17,6 +17,8 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
+_HOLDER_REF_PART_COUNT = 4
+
 
 class HolderRef(BaseModel):
     """Provider-neutral reference to one concrete local execution instance."""
@@ -33,10 +35,12 @@ class HolderRef(BaseModel):
     def parse(cls, value: str) -> Self:
         """Parse ``kind:namespace:instance-kind:opaque-id`` without role semantics."""
         if value != value.strip():
-            raise ValueError("holder_ref must not contain surrounding whitespace")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
+            msg = "holder_ref must not contain surrounding whitespace"
+            raise ValueError(msg)
         parts = value.split(":")
-        if len(parts) != 4 or any(not part for part in parts):  # noqa: PLR2004, RUF100 - fixed wire-format arity is a protocol invariant
-            raise ValueError("holder_ref must have four non-empty segments")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
+        if len(parts) != _HOLDER_REF_PART_COUNT or any(not part for part in parts):
+            msg = "holder_ref must have four non-empty segments"
+            raise ValueError(msg)
         return cls(
             kind=parts[0],
             namespace=parts[1],
@@ -47,6 +51,21 @@ class HolderRef(BaseModel):
     def serialize(self) -> str:
         """Return the stable equality serialization."""
         return f"{self.kind}:{self.namespace}:{self.instance_kind}:{self.opaque_id}"
+
+
+class LeaseHandoffOffer(BaseModel):
+    """One exact pending holder transfer offer inside a Lane Lease."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    offer_id: str = Field(min_length=1)
+    target_holder_ref: str = Field(min_length=1)
+    offered_at: AwareDatetime
+
+    @field_validator("target_holder_ref")
+    @classmethod
+    def validate_target_holder_ref(cls, value: str) -> str:
+        return HolderRef.parse(value).serialize()
 
 
 class LaneLease(BaseModel):
@@ -62,21 +81,29 @@ class LaneLease(BaseModel):
     issued_at: AwareDatetime
     renewed_at: AwareDatetime
     expires_at: AwareDatetime
-    expected_head: str = ""
-    claim_id: str = ""
+    expected_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    base_change_contract_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     path_scope: tuple[str, ...] = ()
+    handoff: LeaseHandoffOffer | None = None
+
+    @field_validator("holder_ref", mode="before")
+    @classmethod
+    def parse_holder_ref(cls, value: object) -> object:
+        return HolderRef.parse(value) if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def validate_times(self) -> LaneLease:
         """Keep renewal and expiry ordered without claiming clock authority."""
         if self.renewed_at < self.issued_at:
-            raise ValueError("renewed_at must not precede issued_at")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
+            msg = "renewed_at must not precede issued_at"
+            raise ValueError(msg)
         if self.expires_at < self.renewed_at:
-            raise ValueError("expires_at must not precede renewed_at")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
+            msg = "expires_at must not precede renewed_at"
+            raise ValueError(msg)
         return self
 
     def to_payload(self) -> dict[str, Any]:
-        """Project the local contract with explicit non-authority boundaries."""
+        """Return the complete canonical persisted Lease payload."""
         return {
             "lane_incarnation_id": self.lane_incarnation_id,
             "lease_id": self.lease_id,
@@ -87,13 +114,63 @@ class LaneLease(BaseModel):
             "renewed_at": self.renewed_at.isoformat(),
             "expires_at": self.expires_at.isoformat(),
             "expected_head": self.expected_head,
-            "claim_id": self.claim_id,
+            "base_change_contract_digest": self.base_change_contract_digest,
             "path_scope": list(self.path_scope),
-            "coordination_scope": "git_common_directory",
-            "mints_authority": False,
-            "filesystem_fence": False,
-            "distributed_lock": False,
+            "handoff": self.handoff.model_dump(mode="json") if self.handoff else None,
         }
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any]) -> Self:
+        """Parse only the strict terminal persisted Lease wire."""
+        expected = {
+            "lane_incarnation_id",
+            "lease_id",
+            "lane_ref",
+            "holder_ref",
+            "epoch",
+            "issued_at",
+            "renewed_at",
+            "expires_at",
+            "expected_head",
+            "base_change_contract_digest",
+            "path_scope",
+            "handoff",
+        }
+        if set(payload) != expected:
+            msg = "lane_lease_payload_fields_invalid"
+            raise ValueError(msg)
+        string_fields = expected - {"epoch", "path_scope", "handoff"}
+        if any(not isinstance(payload[field], str) for field in string_fields):
+            msg = "lane_lease_payload_type_invalid"
+            raise ValueError(msg)
+        epoch = payload["epoch"]
+        path_scope = payload["path_scope"]
+        handoff = payload["handoff"]
+        if isinstance(epoch, bool) or not isinstance(epoch, int):
+            msg = "lane_lease_payload_type_invalid"
+            raise TypeError(msg)
+        if not isinstance(path_scope, list) or any(
+            not isinstance(path, str) for path in path_scope
+        ):
+            msg = "lane_lease_payload_type_invalid"
+            raise TypeError(msg)
+        if handoff is not None and not isinstance(handoff, dict):
+            msg = "lane_lease_payload_type_invalid"
+            raise TypeError(msg)
+        return cls(
+            lane_incarnation_id=payload["lane_incarnation_id"],
+            lease_id=payload["lease_id"],
+            lane_ref=payload["lane_ref"],
+            holder_ref=HolderRef.parse(payload["holder_ref"]),
+            epoch=epoch,
+            issued_at=payload["issued_at"],
+            renewed_at=payload["renewed_at"],
+            expires_at=payload["expires_at"],
+            expected_head=payload["expected_head"],
+            base_change_contract_digest=payload["base_change_contract_digest"],
+            path_scope=tuple(path_scope),
+            handoff=handoff,
+        )
 
 
 class HandoffArtifact(BaseModel):
@@ -111,7 +188,8 @@ class HandoffArtifact(BaseModel):
         """Reject absolute, URI-like, and parent-traversing artifact paths."""
         parts = value.split("/")
         if value.startswith("/") or ":" in parts[0] or ".." in parts:
-            raise ValueError("handoff artifact path must stay package-relative")  # noqa: EM101, RUF100, TRY003 - wire contract failure text
+            msg = "handoff artifact path must stay package-relative"
+            raise ValueError(msg)
         return value
 
 
@@ -130,6 +208,7 @@ class CrossHostHandoff(BaseModel):
     source_lease_epoch: int = Field(ge=1)
     source_lease_expires_at: str = Field(min_length=1)
     source_lease_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    base_change_contract_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_holder_ref: HolderRef
     artifacts: tuple[HandoffArtifact, ...] = ()
 
@@ -142,6 +221,7 @@ class CrossHostHandoff(BaseModel):
             "target_holder_ref": self.target_holder_ref.serialize(),
             "context_digest": self.context_digest,
             "dirty_content_sha256": self.dirty_content_sha256,
+            "base_change_contract_digest": self.base_change_contract_digest,
             "source_lease_binding": {
                 "lease_id": self.source_lease_id,
                 "epoch": self.source_lease_epoch,
@@ -155,6 +235,73 @@ class CrossHostHandoff(BaseModel):
             "destination_creates_local_incarnation": True,
             "truth_boundary": "content_addressed_context_until_promoted",
         }
+
+
+class CrossHostHandoffExportRequest(BaseModel):
+    """Exact source-lane admission inputs for one portable handoff package."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    root: str
+    branch: str = Field(min_length=1)
+    holder_ref: str = Field(min_length=1)
+    target_holder_ref: str = Field(min_length=1)
+    lease_id: str = Field(min_length=1)
+    epoch: int = Field(ge=1)
+    expected_expires_at: str = Field(min_length=1)
+    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    context_text: str = ""
+    context_file: str | None = None
+    output_root: str | None = None
+    apply: bool = False
+
+
+class CrossHostHandoffImportRequest(BaseModel):
+    """Exact destination admission inputs for one verified handoff package."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    root: str
+    package: str
+    target_holder_ref: str = Field(min_length=1)
+    apply: bool = False
+
+
+class CrossHostHandoffSourceRevocationRequest(BaseModel):
+    """Exact source-lease revocation inputs after destination acknowledgement."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    root: str
+    package: str
+    acknowledgement: str
+    holder_ref: str = Field(min_length=1)
+    lease_id: str = Field(min_length=1)
+    epoch: int = Field(ge=1)
+    expected_expires_at: str = Field(min_length=1)
+    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    apply: bool = False
+
+
+class MutationAdmissionRequest(BaseModel):
+    """Bound inputs used to project one mutation admission decision."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    action: str = Field(min_length=1)
+    resource: str = Field(min_length=1)
+    expected_state: dict[str, object]
+    verdict: Literal["allow", "block", "defer"]
+    required_gaps: tuple[str, ...] = ()
+    why: tuple[str, ...] = ()
+    next_actions: tuple[str, ...] = ()
+    state: str = ""
+    identity_basis: str = "not_evaluated"
+    evidence_boundary: str = "current_local_observation"
+    enforcement_boundary: str = "local_process_guard"
+    verifier_provenance: str = "current_runner"
 
 
 class LeaseOperationRequest(BaseModel):

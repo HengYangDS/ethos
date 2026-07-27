@@ -14,7 +14,7 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.admission.evidence.external import load_independent_verification_provider
 from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
-from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.rules import stable_digest
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos.repository.profile import IndependentVerificationPolicy
@@ -127,9 +127,8 @@ def _verification_subject(
     candidate_tree = git.git_stdout(root, "rev-parse", f"{candidate_head}^{{tree}}")
     accepted_digest = _control_digest(root, accepted_head, control_paths)
     candidate_digest = _control_digest(root, candidate_head, control_paths)
-    proof = executed_proof_record(root, candidate_head)
-    evidence = proof.get("evidence") if isinstance(proof, dict) else None
-    proof_digest = str(evidence.get("digest") or "") if isinstance(evidence, dict) else ""
+    proof = proof_attestation(root, candidate_head)
+    proof_digest = proof.id if proof is not None else ""
     if not accepted_tree or not candidate_tree or not accepted_digest or not candidate_digest:
         return {}, {}, ["control_replacement_control_snapshot_unavailable"]
     if not proof_digest:

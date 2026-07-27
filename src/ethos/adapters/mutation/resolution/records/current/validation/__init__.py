@@ -1,1 +1,0 @@
-"""Canonical current-record validation."""

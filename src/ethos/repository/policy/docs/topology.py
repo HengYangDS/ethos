@@ -15,6 +15,8 @@ from ethos.contracts.docs.topology import required_docs_topology_paths
 if TYPE_CHECKING:
     from pathlib import Path
 
+_DOCS_ROOT_PATH_MIN_PARTS = 3
+
 
 def docs_topology_report(root: Path) -> dict[str, object]:
     """Report whether a repository exposes the common governed docs topology."""
@@ -194,7 +196,7 @@ def _extension_root_law(root: Path) -> dict[str, set[str]]:
 
 def _root_of(rel_path: str) -> str:
     parts = rel_path.split("/")
-    return "/".join(parts[:2]) if len(parts) > 2 else "docs"
+    return "/".join(parts[:2]) if len(parts) >= _DOCS_ROOT_PATH_MIN_PARTS else "docs"
 
 
 def _role_root_mismatches(root: Path) -> list[tuple[str, str, str]]:

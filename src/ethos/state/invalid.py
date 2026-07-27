@@ -1,14 +1,9 @@
-"""Optional invalid-state explanations over an open-world gap vocabulary.
+"""Optional invalid-state explanations over terminal-kernel concepts.
 
-ETHOS is a repository trust-transition system: a transition is trustworthy iff every
-node of the chain (Authority -> Subject -> Commitment -> Change -> Evidence -> Claim
--> Chronicle) is satisfied. Every gap ETHOS emits is therefore a FAILED PRECONDITION
-of exactly one node or boundary precondition. This module loads the SSOT taxonomy
-(system/invalid_states.toml) and classifies any gap string into its category, so
-known gap strings may be grouped for readers without constraining new signals.
-
-Pure kernel: TOML read only, no IO/subprocess/network. Derive-don't-store — the
-categories live in the contract, this module is the projection.
+ETHOS evaluates an immutable ChangeContract against fresh RepositoryFacts,
+transient PlanIR, and verifier-bounded Attestations. This module reads the
+contract taxonomy and groups gap strings for readers without constraining new
+signals. It does not create lifecycle state or replace the original verifier.
 """
 
 from __future__ import annotations
@@ -20,31 +15,23 @@ from pathlib import Path
 
 from ethos._resources import declaration_text
 
-# The seven chain-node failures plus carrier/substrate boundary failures, in order.
-# A gap that classifies to none of these remains an explicit unknown signal.
-NODE_ORDER: tuple[str, ...] = (
-    "authority_gap",
-    "subject_ambiguous",
-    "commitment_missing",
-    "change_unbounded",
-    "carrier_invalid",
-    "evidence_missing_or_stale",
-    "claim_unbound_or_overreaching",
-    "chronicle_missing",
-    "substrate_untrusted",
+CATEGORY_ORDER: tuple[str, ...] = (
+    "change_contract_invalid",
+    "repository_facts_invalid",
+    "plan_invalid",
+    "attestation_invalid",
+    "execution_substrate_invalid",
 )
-
 UNCLASSIFIED = "unclassified_invalid_state"
 _TAXONOMY_RESOURCE = "data/invalid_states.toml"
 
 
 @dataclass(frozen=True, slots=True)
 class InvalidStateCategory:
-    """One node-derived failure class. chain_term names the node whose precondition
-    failed; match_prefixes are the gap-string prefixes that reduce to it."""
+    """One terminal-kernel failure class and its recognized gap prefixes."""
 
     id: str
-    node: str
+    concept: str
     question: str
     summary: str
     match_prefixes: tuple[str, ...]
@@ -59,12 +46,7 @@ def _taxonomy_path() -> Path:
 
 
 def _taxonomy_text() -> str:
-    """Read the invalid-state taxonomy from source checkout or packaged resource.
-
-    Source checkouts keep the governance contract in `system/invalid_states.toml`.
-    Installed wheels run outside that checkout, so they need the release resource
-    mirror packaged inside `ethos`.
-    """
+    """Read the taxonomy from the checkout or its packaged declaration resource."""
     taxonomy_path = _taxonomy_path()
     if taxonomy_path.exists():
         return taxonomy_path.read_text(encoding="utf-8")
@@ -77,29 +59,23 @@ def _taxonomy_text() -> str:
 
 @lru_cache(maxsize=1)
 def invalid_state_categories() -> tuple[InvalidStateCategory, ...]:
-    """Load the taxonomy in chain order (NODE_ORDER). Cached: the contract is static."""
+    """Load terminal categories in deterministic declaration order."""
     payload = tomllib.loads(_taxonomy_text())
     by_id = {
         str(entry["id"]): InvalidStateCategory(
             id=str(entry["id"]),
-            node=str(entry["node"]),
+            concept=str(entry["concept"]),
             question=str(entry["question"]),
             summary=str(entry["summary"]),
             match_prefixes=tuple(str(prefix) for prefix in entry.get("match_prefixes", ())),
         )
         for entry in payload.get("category", ())
     }
-    return tuple(by_id[node] for node in NODE_ORDER if node in by_id)
+    return tuple(by_id[category_id] for category_id in CATEGORY_ORDER if category_id in by_id)
 
 
 def classify(gap: str) -> str:
-    """Return the invalid-state category id a gap string reduces to.
-
-    Longest-prefix wins so specific prefixes beat generic ones; chain order breaks
-    ties (an earlier node's precondition is the more fundamental failure). Returns
-    UNCLASSIFIED when a gap matches no category. Unknown signals are preserved rather
-    than forced into an unsuitable existing category.
-    """
+    """Return the narrowest terminal-kernel category for one verifier signal."""
     best_id = UNCLASSIFIED
     best_len = -1
     segments = (gap, *gap.split(":"))
@@ -111,7 +87,7 @@ def classify(gap: str) -> str:
 
 
 def classify_all(gaps: tuple[str, ...]) -> dict[str, list[str]]:
-    """Group gaps by their node-derived category (chain order preserved)."""
+    """Group verifier signals by terminal-kernel category in declaration order."""
     grouped: dict[str, list[str]] = {category.id: [] for category in invalid_state_categories()}
     grouped[UNCLASSIFIED] = []
     for gap in gaps:
@@ -120,7 +96,7 @@ def classify_all(gaps: tuple[str, ...]) -> dict[str, list[str]]:
 
 
 def invalid_state_projection(gaps: tuple[str, ...] | list[str]) -> dict[str, object]:
-    """Project a gap collection into grouped invalid-state categories."""
+    """Project a verifier gap collection without changing its authority."""
     grouped = classify_all(tuple(str(gap) for gap in gaps))
     return {
         "categories": grouped,
@@ -130,33 +106,32 @@ def invalid_state_projection(gaps: tuple[str, ...] | list[str]) -> dict[str, obj
 
 
 def explain_gap(gap: str) -> dict[str, object]:
-    """Project one gap into taxonomy metadata for read-only command surfaces."""
+    """Project one gap into taxonomy metadata for read-only surfaces."""
     category_id = classify(gap)
     categories = {category.id: category for category in invalid_state_categories()}
     category = categories.get(category_id)
     invalid_state = (
         {
             "id": category.id,
-            "node": category.node,
+            "concept": category.concept,
             "question": category.question,
             "summary": category.summary,
         }
         if category is not None
         else {
             "id": UNCLASSIFIED,
-            "node": "boundary:taxonomy",
-            "question": "Does an existing explanation category fit this signal?",
-            "summary": "No current category fits; the original signal remains authoritative.",
+            "concept": "taxonomy",
+            "question": "Does a terminal-kernel category fit this signal?",
+            "summary": (
+                "No current category fits; the original verifier signal remains authoritative."
+            ),
         }
     )
     return {
         "gap": gap,
         "signal": gap,
         "kind": "invalid_state_projection",
-        "meaning": (
-            "A governance gap or advisory signal names a failed or weakened "
-            "precondition in the ETHOS trust-transition chain."
-        ),
+        "meaning": "A verifier reports a missing or invalid terminal-kernel precondition.",
         "invalid_state": invalid_state,
         "taxonomy": {
             "source": "system/invalid_states.toml",

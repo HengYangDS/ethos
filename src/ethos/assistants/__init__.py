@@ -1,1 +1,1 @@
-"""ETHOS assistant and context boundary package."""
+"""Internal skill-registry and planning projections."""

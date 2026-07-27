@@ -3380,16 +3380,18 @@ bindings and SHALL NOT support a parallel legacy fingerprint.
 
 ### Requirement: Work Lane start is no-clobber and compensation-bound
 
-ETHOS SHALL reject a Work Lane start before lease acquisition when the target
-path or lane ref already exists. It SHALL recheck both after acquiring the new
-lease. If Git worktree creation fails, ETHOS SHALL remove only a linked
-worktree and ref proven to match the requested path, branch, and leased expected
-head. It SHALL revoke the newly acquired lease only after both exact carriers
-are proven absent.
+ETHOS SHALL reject a Work Lane start before initialization when the target path
+or lane ref already exists. It SHALL initialize one detached candidate-based
+carrier, derive its deterministic initialization HEAD from the exact source
+commit metadata, acquire the Lease for that final HEAD, and only then
+compare-and-create the lane ref. On failure, ETHOS SHALL remove only a linked
+worktree and a ref whose successful creation at that exact HEAD is proven. It
+SHALL revoke the newly acquired Lease only after both exact carriers are proven
+absent.
 
 #### Scenario: Target carrier already exists
 
-- **WHEN** the requested target path or lane ref exists before lease acquisition
+- **WHEN** the requested target path or lane ref exists before initialization
 - **THEN** ETHOS blocks Work Lane start
 - **AND** it creates no lease and does not modify the existing carrier.
 
@@ -3406,6 +3408,13 @@ are proven absent.
   is proven absent
 - **THEN** ETHOS revokes only the newly acquired exact lease generation
 - **AND** unrelated leases, paths, and refs remain unchanged.
+
+#### Scenario: Foreign ref appears during failed creation
+
+- **WHEN** lane ref compare-and-create fails and a same-name foreign ref is then
+  observed
+- **THEN** ETHOS does not delete that ref
+- **AND** retains the Lease because carrier absence is not proven.
 
 ### Requirement: Resolution Decisions and Receipts are semantically disjoint
 

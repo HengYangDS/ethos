@@ -12,18 +12,23 @@ from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import NoReturn
 from uuid import UUID
 from uuid import uuid4
 
+from ethos.adapters.store.state.lease.projection import observe_lease_row
 from ethos.adapters.store.state.schema import initialize_closeout_fence_connection
 from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos.adapters.store.state.schema import read_only_state_uri
 from ethos.adapters.store.state.schema import validate_current_closeout_fence_schema
 from ethos.adapters.store.state.schema import validate_current_lease_schema
 from ethos.contracts.coordination import HolderRef
-from ethos.contracts.coordination import LaneLease
+from ethos.contracts.resolution.closeout import OwnerlessCloseoutFenceBinding
+
+if TYPE_CHECKING:
+    from ethos.contracts.coordination import LaneLease
 
 _SELECT = """select subject, expected_head, decision_id, executor_ref, accepted_branch,
 accepted_head, target_binding_digest, payload_json from closeout_fences where subject = ?"""
@@ -41,18 +46,6 @@ _PAYLOAD_FIELDS = {
     "decision_sha256",
     "chronicle_digest",
 }
-_LEASE_TEXT_FIELDS = {
-    "lane_incarnation_id",
-    "lease_id",
-    "lane_ref",
-    "holder_ref",
-    "issued_at",
-    "renewed_at",
-    "expected_head",
-    "claim_id",
-    "coordination_scope",
-}
-_LEASE_BOOL_FIELDS = {"mints_authority", "filesystem_fence", "distributed_lock"}
 
 
 def _canonical(value: object) -> str:
@@ -80,16 +73,19 @@ def _record(row: sqlite3.Row | tuple[Any, ...]) -> dict[str, object]:
         "accepted_head": row[5],
         "payload": {
             **_validated_payload(
-                subject=subject,
-                expected_head=row[1],
-                decision_id=row[2],
-                accepted_branch=row[4],
-                accepted_head=row[5],
-                target_path=payload["target_path"],
-                lane_incarnation_id=payload["lane_incarnation_id"],
-                observation_digest=payload["observation_digest"],
-                decision_sha256=payload["decision_sha256"],
-                chronicle_digest=payload["chronicle_digest"],
+                OwnerlessCloseoutFenceBinding(
+                    subject=subject,
+                    expected_head=row[1],
+                    decision_id=row[2],
+                    executor_ref=executor_ref,
+                    accepted_branch=row[4],
+                    accepted_head=row[5],
+                    target_path=payload["target_path"],
+                    lane_incarnation_id=payload["lane_incarnation_id"],
+                    observation_digest=payload["observation_digest"],
+                    decision_sha256=payload["decision_sha256"],
+                    chronicle_digest=payload["chronicle_digest"],
+                )
             ),
             "acquisition_id": _validated_acquisition_id(payload["acquisition_id"], subject),
         },
@@ -145,19 +141,18 @@ def _has_unexpired_lease(connection: sqlite3.Connection, *, subject: str) -> boo
     )
 
 
-def _validated_payload(  # noqa: PLR0913, RUF100 - exact durable fence binding
-    *,
-    subject: str,
-    expected_head: str,
-    decision_id: str,
-    accepted_branch: str,
-    accepted_head: str,
-    target_path: str,
-    lane_incarnation_id: str,
-    observation_digest: str,
-    decision_sha256: str,
-    chronicle_digest: str,
-) -> dict[str, str]:
+def _validated_payload(binding: OwnerlessCloseoutFenceBinding) -> dict[str, str]:
+    """Validate and render the durable target facts for one exact fence binding."""
+    subject = binding.subject
+    expected_head = binding.expected_head
+    decision_id = binding.decision_id
+    accepted_branch = binding.accepted_branch
+    accepted_head = binding.accepted_head
+    target_path = binding.target_path
+    lane_incarnation_id = binding.lane_incarnation_id
+    observation_digest = binding.observation_digest
+    decision_sha256 = binding.decision_sha256
+    chronicle_digest = binding.chronicle_digest
     values = (
         subject,
         expected_head,
@@ -206,35 +201,17 @@ def closeout_fence_exists_from_connection(connection: sqlite3.Connection, *, sub
     )
 
 
-def acquire_closeout_fence(  # noqa: PLR0913, RUF100 - exact durable fence binding
-    db_path: Path,
-    *,
-    subject: str,
-    expected_head: str,
-    decision_id: str,
-    executor_ref: str,
-    accepted_branch: str,
-    accepted_head: str,
-    target_path: str,
-    lane_incarnation_id: str,
-    observation_digest: str,
-    decision_sha256: str,
-    chronicle_digest: str,
+def acquire_closeout_fence(
+    db_path: Path, *, binding: OwnerlessCloseoutFenceBinding
 ) -> dict[str, object]:
     """Atomically reserve one ownerless target against lease acquisition."""
-    executor_ref = _canonical_holder(executor_ref, "unknown")
-    payload_base = _validated_payload(
-        subject=subject,
-        expected_head=expected_head,
-        decision_id=decision_id,
-        accepted_branch=accepted_branch,
-        accepted_head=accepted_head,
-        target_path=target_path,
-        lane_incarnation_id=lane_incarnation_id,
-        observation_digest=observation_digest,
-        decision_sha256=decision_sha256,
-        chronicle_digest=chronicle_digest,
-    )
+    subject = binding.subject
+    expected_head = binding.expected_head
+    decision_id = binding.decision_id
+    executor_ref = _canonical_holder(binding.executor_ref, "unknown")
+    accepted_branch = binding.accepted_branch
+    accepted_head = binding.accepted_head
+    payload_base = _validated_payload(binding)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
@@ -369,7 +346,7 @@ def observe_ownerless_closeout_state(
     now = datetime.now(UTC)
     for lease, expires in leases:
         if lease.lane_ref == subject and expires.astimezone(UTC) > now:
-            _state_error("coordinated", "claim" if lease.claim_id else "lease")
+            _state_error("coordinated", "lease")
     if observed_fence is not None:
         if not fence_schema:
             _state_error("fence_unverifiable", "state")
@@ -421,56 +398,12 @@ def _validated_lease_rows(
 def _validated_lease(
     row: sqlite3.Row | tuple[Any, ...],
 ) -> tuple[LaneLease, datetime]:
-    if len(row) != _LEASE_ROW_FIELDS or any(type(value) is not str for value in row):
+    if len(row) != _LEASE_ROW_FIELDS:
         raise ValueError(_LEASE_INVALID)
-    raw_id, raw_subject, raw_owner, raw_expires, raw_payload = row
-    payload = json.loads(raw_payload)
-    if not isinstance(payload, dict):
-        raise TypeError(_LEASE_INVALID)
-    if any(type(payload.get(field)) is not str for field in _LEASE_TEXT_FIELDS):
+    observation = observe_lease_row(row)
+    if observation.state == "unknown" or observation.lease is None:
         raise ValueError(_LEASE_INVALID)
-    if type(payload.get("epoch")) is not int or isinstance(payload.get("epoch"), bool):
-        raise ValueError(_LEASE_INVALID)
-    path_scope = payload.get("path_scope")
-    if type(path_scope) is not list or any(type(item) is not str for item in path_scope):
-        raise ValueError(_LEASE_INVALID)
-    if any(type(payload.get(field)) is not bool for field in _LEASE_BOOL_FIELDS):
-        raise ValueError(_LEASE_INVALID)
-    if payload["expected_head"] and not _GIT_OID.fullmatch(payload["expected_head"]):
-        raise ValueError(_LEASE_INVALID)
-    holder = HolderRef.parse(payload["holder_ref"])
-    times = [datetime.fromisoformat(payload[field]) for field in ("issued_at", "renewed_at")]
-    expires = datetime.fromisoformat(raw_expires)
-    if any(value.tzinfo is None for value in [*times, expires]):
-        raise ValueError(_LEASE_INVALID)
-    lease = LaneLease.model_validate(
-        {
-            "lane_incarnation_id": payload["lane_incarnation_id"],
-            "lease_id": payload["lease_id"],
-            "lane_ref": payload["lane_ref"],
-            "holder_ref": holder,
-            "epoch": payload["epoch"],
-            "issued_at": times[0],
-            "renewed_at": times[1],
-            "expires_at": max(expires, times[1]),
-            "expected_head": payload["expected_head"],
-            "claim_id": payload["claim_id"],
-            "path_scope": tuple(path_scope),
-        },
-        strict=True,
-    )
-    if (
-        raw_id != lease.lease_id
-        or raw_subject != lease.lane_ref
-        or raw_owner != lease.holder_ref.serialize()
-        or payload["holder_ref"] != lease.holder_ref.serialize()
-        or payload["coordination_scope"] != "git_common_directory"
-        or payload["mints_authority"] is not False
-        or payload["filesystem_fence"] is not False
-        or payload["distributed_lock"] is not False
-    ):
-        raise ValueError(_LEASE_INVALID)
-    return lease, expires
+    return observation.lease, observation.lease.expires_at
 
 
 def _validated_observed_fence(

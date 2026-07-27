@@ -33,9 +33,11 @@ def rules_check_report(root: Path) -> dict[str, object]:
         rule_ids.add(rule_id)
         if not rule.get("owner"):
             required_gaps.append(f"rule_missing_owner:{rule_id}")
-        for gate in cast("list[object]", rule.get("required_gates", [])):
-            if str(gate) not in gate_definitions:
-                required_gaps.append(f"unknown_rule_gate:{rule_id}:{gate}")
+        required_gaps.extend(
+            f"unknown_rule_gate:{rule_id}:{gate}"
+            for gate in cast("list[object]", rule.get("required_gates", []))
+            if str(gate) not in gate_definitions
+        )
     return {
         "ok": not required_gaps,
         "profile_stack": compiled["profile_stack"],
@@ -52,7 +54,7 @@ def rules_check_report(root: Path) -> dict[str, object]:
         "required_gaps": required_gaps,
         "next_action_contract": []
         if not required_gaps
-        else ["repair .ethos/rules.toml", "ethos rules explain <gap>"],
+        else ["repair .ethos/rules.toml", "ethos plan --changed --json"],
     }
 
 

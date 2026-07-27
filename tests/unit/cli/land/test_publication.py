@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.domain.land.publication import local_ci_owner_scripts
+from ethos.domain.land.publication import local_proposal_package
 from ethos.domain.land.publication import publication_readiness
+from ethos.domain.land.publication import publication_with_remote_matrix
+from ethos.domain.land.publication import remote_publication_deferred
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
@@ -152,3 +157,45 @@ def test_publish_uses_configured_proposal_branch_role_policy(tmp_path: Path) -> 
     publication = payload["data"]["publication"]
     assert publication["local_proposal_package"]["source_branch"] == "lane/topic"
     assert publication["local_proposal_package"]["proposal_branch"] == "review/topic"
+
+
+@pytest.mark.parametrize(
+    ("availability", "expected_reason"),
+    [
+        (
+            {"state": "unavailable", "available": False},
+            "remote unavailable; use local-ci fallback evidence",
+        ),
+        (
+            {"state": "available", "available": True},
+            "remote publication adapter unavailable",
+        ),
+    ],
+    ids=("unavailable", "available"),
+)
+def test_remote_publication_deferred_preserves_local_only_boundary(
+    availability: dict[str, object], expected_reason: str
+) -> None:
+    deferred = remote_publication_deferred(availability)
+
+    assert deferred["remote_push"] == "not_performed"
+    assert deferred["state"] == "deferred"
+    assert deferred["reason"] == expected_reason
+    assert deferred["availability"] == availability
+    assert deferred["fallback"]["hosted_ci_status_claimed"] is False
+
+
+def test_local_proposal_package_uses_safe_fallback_and_reconciliation_only_when_needed() -> None:
+    proposal = local_proposal_package(branch="lane/topic", proposal_branch="review/topic")
+
+    assert proposal["remote_availability"]["state"] == "not_probed"
+    assert proposal["local_ci_fallback"]["evidence_status"]["state"] == "not_checked"
+    assert (
+        publication_with_remote_matrix(
+            proposal, {"state": "reconciliation_required"}, remote_available=False
+        )
+        == proposal
+    )
+    assert publication_with_remote_matrix(
+        proposal, {"state": "reconciliation_required"}, remote_available=True
+    )["next_actions"] == ["reconcile diverged remotes before creating a proposal branch"]

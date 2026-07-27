@@ -13,7 +13,7 @@ use = "Durable repository config, routing, workflows, manifests, tool catalog, e
 not_for = "Public API output or high-volume events."
 
 [carriers.json]
-use = "Command output, MCP payloads, external standards, JSON Schema instances, SPDX, SLSA, in-toto."
+use = "Command output, protocol payloads, external standards, JSON Schema instances, SPDX, SLSA, in-toto."
 not_for = "Hand-authored repository truth when TOML is clearer."
 
 [carriers.yaml]

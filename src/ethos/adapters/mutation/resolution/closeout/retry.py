@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.fence import (
     ownerless_retry_fence,
 )
 from ethos.adapters.mutation.resolution.records.reservations import (
@@ -19,7 +19,7 @@ _OWNERLESS_FENCE_UNVERIFIABLE = "lane_resolution_ownerless_fence_unverifiable"
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
+    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.fence import (
         OwnerlessCloseoutAdmission,
     )
 

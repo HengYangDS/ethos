@@ -478,14 +478,9 @@ def _artifact_checks(
 ) -> tuple[tuple[dict[str, Any], ...] | None, list[str]]:
     artifact = attestation.content.get("artifact")
     expected_relative = (_ARTIFACT_SUBDIR / f"{attestation.effect_digest}.json").as_posix()
-    if not isinstance(artifact, Mapping):
-        return None, ["proof_attestation_artifact_missing"]
-    if (
-        artifact.get("path") != expected_relative
-        or artifact.get("sha256") != f"sha256:{attestation.effect_digest}"
-        or attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",)
-    ):
-        return None, ["proof_attestation_artifact_binding_mismatch"]
+    artifact, gap = _artifact_binding(artifact, attestation, expected_relative)
+    if gap:
+        return None, [gap]
     path = attestation_store_dir(root) / expected_relative
     try:
         payload = path.read_bytes()
@@ -505,20 +500,50 @@ def _artifact_checks(
     )
     if integrity_gap:
         return None, [integrity_gap]
-    try:
-        document = json.loads(payload)
-    except json.JSONDecodeError:
-        return None, ["proof_attestation_artifact_invalid"]
+    document, gap = _artifact_document(payload)
+    if gap:
+        return None, [gap]
+    checks, gap = _artifact_content_checks(document, attestation)
+    return checks, [gap] if gap else []
+
+
+def _artifact_content_checks(
+    document: object,
+    attestation: Attestation,
+) -> tuple[tuple[dict[str, Any], ...] | None, str | None]:
     if (
         not isinstance(document, dict)
         or document.get("schema_version") != 1
         or document.get("head") != attestation.content.get("head")
     ):
-        return None, ["proof_attestation_artifact_content_mismatch"]
+        return None, "proof_attestation_artifact_content_mismatch"
     try:
-        return _normalize_checks(document.get("checks"), allow_empty=True), []
-    except (TypeError, ValueError) as error:
-        return None, [str(error)]
+        return _normalize_checks(document["checks"], allow_empty=True), None
+    except (KeyError, TypeError, ValueError) as error:
+        return None, str(error)
+
+
+def _artifact_binding(
+    artifact: object,
+    attestation: Attestation,
+    expected_relative: str,
+) -> tuple[Mapping[str, Any] | None, str | None]:
+    if not isinstance(artifact, Mapping):
+        return None, "proof_attestation_artifact_missing"
+    if (
+        artifact.get("path") != expected_relative
+        or artifact.get("sha256") != f"sha256:{attestation.effect_digest}"
+        or attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",)
+    ):
+        return None, "proof_attestation_artifact_binding_mismatch"
+    return artifact, None
+
+
+def _artifact_document(payload: bytes) -> tuple[object, str | None]:
+    try:
+        return json.loads(payload), None
+    except json.JSONDecodeError:
+        return None, "proof_attestation_artifact_invalid"
 
 
 def _attestation_binding_gaps(attestation: Attestation, plan: PlanIR) -> list[str]:

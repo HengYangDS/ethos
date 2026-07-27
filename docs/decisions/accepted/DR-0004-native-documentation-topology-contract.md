@@ -27,17 +27,17 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | Decision Makers | Repository maintainers through accepted repository instruction; implemented by local ETHOS Work Lane. |
 | Status | accepted |
 | Decision Date | 2026-07-08 |
-| Decision Version | 2 |
-| Decision Change Date | 2026-07-20 |
+| Decision Version | 3 |
+| Decision Change Date | 2026-07-27 |
 | Record Review Date | 2026-10-08 |
 | Supersedes | DR-0002 |
 | Superseded By | None |
-| Scope | The documentation topology checked by the explicit docs-topology capability and retirement readiness. |
+| Scope | The documentation topology checked by the explicit docs-topology capability and attested transition proof. |
 | Boundary | Owns one strict docs kernel and rejects lifecycle state as physical topology; does not make documentation a bootstrap prerequisite. |
 | Context | `docs/current/` and `docs/future/` encoded lifecycle state as directory structure, while full adoption scaffolding confused optional capability readiness with repository binding. |
 | Decision | When docs-topology is executed, require one repository-form-invariant kernel and reject `current` and `future` as roots or state values. `ethos adopt` writes only `.ethos/profile.toml` and does not activate this capability. |
-| Consequences | Product and adopter repositories may add domain roots, but no compatibility exception or alternate kernel exists. Missing docs carriers block only explicit docs-topology or retirement boundaries, not default adoption proof. |
-| Proof or Evidence | `ethos prove --gate docs-topology --json`, focused strict-topology tests, retirement-readiness tests, and explicit HEAD-bound proof gate execution. |
+| Consequences | Product and adopter repositories may add domain roots, but no compatibility exception or alternate kernel exists. Missing docs carriers block only explicit docs-topology or attested transition proof, not default adoption proof. |
+| Proof or Evidence | `ethos prove --gate docs-topology --json`, focused strict-topology tests, attested-transition tests, and explicit HEAD-bound proof gate execution. |
 | Revisit Trigger | Reopen only if evidence proves that a new minimal semantic recovery root is universally necessary without turning lifecycle state into topology. |
 
 ## Decision
@@ -63,5 +63,5 @@ shim, or alternate kernel. Governed lifecycle state uses explicit metadata plus
 repository evidence.
 
 Adoption binds a repository through `.ethos/profile.toml` only. The official
-docs-topology command or retirement readiness activates this decision's strict
-requirements; bootstrap does not create or claim them.
+docs-topology command or attested transition proof activates this decision's
+strict requirements; bootstrap does not create or claim them.

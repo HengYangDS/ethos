@@ -66,7 +66,7 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['/absolute']\n",
         (
             "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[roots]\nclaims = '../claims'\n"
+            "[roots]\ndurable_evidence = '../evidence'\n"
         ),
         (
             "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
@@ -86,11 +86,22 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
         ),
         (
             "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[external_backend]\nstate = 'default'\ncontrol = '../control.toml'\n"
+            "[external_backend]\nstate = 'default'\n"
+            "minimum_version = 'successor>=incumbent'\n"
+            "control = 'control.toml'\nretirement_policy = 'retirement.toml'\n"
         ),
         (
             "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[rollback_window]\nstate = 'complete'\nevidence_manifest = '../rollback.toml'\n"
+            "[embedded_backend]\nstate = 'frozen'\n"
+            "minimum_version = 'incumbent'\n"
+            "control = 'control.toml'\nretirement_policy = 'retirement.toml'\n"
+        ),
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[rollback_window]\nstate = 'complete'\n"
+            "evidence_manifest = 'rollback.toml'\n"
+            "completed_scenarios = ['proof_report']\n"
+            "required_scenarios = ['proof_report']\n"
         ),
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\nextra = true\n",
     ],
@@ -109,7 +120,7 @@ def test_profile_contract_rejects_non_string_paths() -> None:
             {
                 "profile_id": "sample",
                 "openspec": {"material_paths": ["openspec/**"]},
-                "roots": {"claims": 1},
+                "roots": {"durable_evidence": 1},
             }
         )
 
@@ -163,7 +174,6 @@ def test_profile_includes_declared_normative_sources_without_root_escape(tmp_pat
         ".ethos/profile.toml",
         "rules",
         "guidelines.md",
-        "evidence/claims",
         "openspec",
         "evidence",
         "docs",
@@ -191,7 +201,7 @@ def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> No
     profile.parent.mkdir()
     profile.write_text(
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-        "[roots]\nclaims = '../claims'\n",
+        "[roots]\ndurable_evidence = '../evidence'\n",
         encoding="utf-8",
     )
 
@@ -199,4 +209,4 @@ def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> No
 
     assert loaded.state == "invalid"
     with pytest.raises(ValueError, match="adopter_profile_invalid"):
-        profile_root(tmp_path, "claims")
+        profile_root(tmp_path, "durable_evidence")

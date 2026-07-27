@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -25,6 +26,14 @@ _STANDARDS_RESOURCE = "data/standards.toml"
 def _raise_declaration_error(message: str) -> NoReturn:
     """Raise a stable declaration-validation error."""
     raise ValueError(message)
+
+
+def normalize_binding_command(command: str) -> str:
+    """Return one whitespace-normalized command identity without dropping options."""
+    try:
+        return shlex.join(shlex.split(command))
+    except ValueError:
+        return command.strip()
 
 
 class AdapterAdmission(BaseModel):
@@ -59,6 +68,34 @@ class NativeProtocols(BaseModel):
     provider_optional: bool
 
 
+class LatentBindingReferences(BaseModel):
+    """Explicitly justified binding identities not expected on current surfaces."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    reason: str = Field(min_length=1)
+    distribution: str | None = None
+    import_roots: tuple[str, ...] = ()
+    executables: tuple[str, ...] = ()
+    references: tuple[str, ...] = ()
+    commands: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_nonempty(self) -> Self:
+        """Require at least one identity for every latent declaration."""
+        if not any(
+            (
+                self.distribution,
+                self.import_roots,
+                self.executables,
+                self.references,
+                self.commands,
+            )
+        ):
+            _raise_declaration_error("latent binding references missing")
+        return self
+
+
 class CouplingBinding(BaseModel):
     """One strict, declaration-first coupling binding."""
 
@@ -73,20 +110,22 @@ class CouplingBinding(BaseModel):
     config_keys: tuple[str, ...] = ()
     commands: tuple[str, ...] = ()
     forbidden_workflow_state: tuple[str, ...] = ()
-    mandatory_paths: tuple[str, ...] = ()
-    declared_executables: tuple[str, ...] = ()
-    audit_root_bound: bool = False
     not_a_second_command_plane: bool = False
     not_product_substrate: bool = False
     required_for: tuple[str, ...] = Field(min_length=1)
     replaceability: str = Field(min_length=1)
     degradation_state: str = Field(min_length=1)
     proof_gate: str = Field(min_length=1)
+    distribution: str | None = None
+    import_roots: tuple[str, ...] = ()
+    executables: tuple[str, ...] = ()
+    references: tuple[str, ...] = ()
     admission: AdapterAdmission | None = None
     surfaces: tuple[str, ...] = ()
     formats: tuple[str, ...] = ()
     toolchains: tuple[str, ...] = ()
     gates: tuple[str, ...] = ()
+    latent: LatentBindingReferences | None = None
 
     @model_validator(mode="after")
     def validate_admission_boundary(self) -> Self:
@@ -96,18 +135,17 @@ class CouplingBinding(BaseModel):
             _raise_declaration_error("adapter binding admission missing")
         if not is_adapter and self.admission is not None:
             _raise_declaration_error("binding admission outside adapter layer")
-        return self
-
-    @model_validator(mode="after")
-    def validate_executable_audit_boundary(self) -> Self:
-        """Require one closed active or inactive executable-audit state."""
-        if self.audit_root_bound:
-            if not self.mandatory_paths:
-                _raise_declaration_error("executable audit root requires mandatory paths")
-        elif self.mandatory_paths or self.declared_executables:
-            _raise_declaration_error(
-                "inactive executable audit cannot declare paths or executables"
-            )
+        if self.latent is not None:
+            if self.latent.distribution and self.latent.distribution != self.distribution:
+                _raise_declaration_error("latent distribution is not declared by binding")
+            for field in ("import_roots", "executables", "references"):
+                undeclared = set(getattr(self.latent, field)) - set(getattr(self, field))
+                if undeclared:
+                    _raise_declaration_error(f"latent {field} is not declared by binding")
+            declared_commands = {normalize_binding_command(value) for value in self.commands}
+            latent_commands = {normalize_binding_command(value) for value in self.latent.commands}
+            if latent_commands - declared_commands:
+                _raise_declaration_error("latent commands is not declared by binding")
         return self
 
     def projection(self) -> dict[str, object]:
@@ -125,8 +163,6 @@ class CouplingDeclaration(BaseModel):
     layers: dict[str, str] = Field(min_length=1)
     ui_projection_fields: tuple[str, ...] = ()
     product_semantic_docs: tuple[str, ...] = ()
-    product_vendor_terms: tuple[str, ...] = ()
-    product_host_projection_terms: tuple[str, ...] = ()
     git_native_terms: tuple[str, ...] = ()
     native_protocol_formats: tuple[str, ...] = ()
     product_repository_gates: tuple[str, ...] = ()
@@ -143,6 +179,21 @@ class CouplingDeclaration(BaseModel):
         unknown = sorted({binding.layer for binding in self.bindings} - set(self.layers))
         if unknown:
             _raise_declaration_error(f"unknown coupling binding layer:{','.join(unknown)}")
+        for field in ("distribution", "import_roots", "executables", "references", "commands"):
+            values = [
+                normalize_binding_command(value) if field == "commands" else value
+                for binding in self.bindings
+                for value in (
+                    (getattr(binding, field),)
+                    if field == "distribution" and getattr(binding, field)
+                    else getattr(binding, field)
+                    if field != "distribution"
+                    else ()
+                )
+            ]
+            duplicate = next((value for value in values if values.count(value) > 1), "")
+            if duplicate:
+                _raise_declaration_error(f"duplicate coupling {field}:{duplicate}")
         return self
 
     def binding(self, binding_id: str) -> CouplingBinding:

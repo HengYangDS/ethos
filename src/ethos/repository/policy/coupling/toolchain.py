@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-from ethos.contracts.registry.declarations import load_coupling_declaration
+from typing import TYPE_CHECKING
+
 from ethos.repository.policy.gates import gate_registry
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def gate_profile_gaps() -> list[str]:
+    from ethos.contracts.registry.declarations import CouplingDeclaration
+
+
+def gate_profile_gaps(root: Path, declaration: CouplingDeclaration) -> list[str]:
     """Return gaps when product repository gates drift from toolchain policy."""
-    registry = gate_registry()
-    gates = load_coupling_declaration().product_repository_gates
+    registry = gate_registry(root)
+    gates = declaration.product_repository_gates
     gaps = []
     for gate_id in gates:
         gate = registry[gate_id]
@@ -20,10 +26,10 @@ def gate_profile_gaps() -> list[str]:
     return gaps
 
 
-def product_toolchain() -> dict[str, object]:
+def product_toolchain(root: Path, declaration: CouplingDeclaration) -> dict[str, object]:
     """Return machine-readable product-toolchain binding metadata."""
-    registry = gate_registry()
-    gates = load_coupling_declaration().product_repository_gates
+    registry = gate_registry(root)
+    gates = declaration.product_repository_gates
     return {
         "profile": "product-toolchain",
         "layer": "product_toolchain_binding",

@@ -7,7 +7,7 @@ digest_algorithm = "sha256"
 include = ["SKILL.md"]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:fae03de6c78d610315d8830fda6e05de2d0480a97ecd64bcef915c33b8a3f4b3"
+expected_digest = "sha256:a93b0b7f2fe4ac0dadd4d879e91bd7585030e861662f6d1360de3856dc290205"
 
 [quality]
 placeholder_allowed = false
@@ -25,11 +25,6 @@ kind = "command_readonly"
 command = ["ethos", "status", "--json"]
 
 [[capability]]
-id = "ethos.playbooks.check"
-kind = "command_readonly"
-command = ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"]
-
-[[capability]]
 id = "ethos.prove"
 kind = "command_proof"
-command = ["ethos", "prove", "--json"]
+command = ["ethos", "prove", "--root", "<repo>", "--full", "--json"]

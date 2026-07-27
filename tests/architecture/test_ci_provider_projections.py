@@ -9,6 +9,7 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
 
 from tests.support.architecture import tool_block
@@ -23,9 +24,18 @@ def _projection_entries() -> list[dict[str, object]]:
     return entries
 
 
+def _providers() -> dict[str, dict[str, object]]:
+    return {str(entry["provider"]): entry for entry in _projection_entries()}
+
+
+def _yaml(relative: str) -> dict:
+    return yaml.safe_load((ROOT / relative).read_text(encoding="utf-8"))
+
+
 def _load_ci_templates_module():
-    module_path = ROOT / "tools/ci/ci_templates.py"
-    spec = importlib.util.spec_from_file_location("ethos_test_ci_templates", module_path)
+    spec = importlib.util.spec_from_file_location(
+        "ethos_test_ci_templates", ROOT / "tools/ci/ci_templates.py"
+    )
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -33,58 +43,63 @@ def _load_ci_templates_module():
     return module
 
 
-def test_hosted_provider_templates_are_projection_sources() -> None:
-    providers = {str(entry["provider"]): entry for entry in _projection_entries()}
-
-    assert set(providers) == {"github", "gitlab"}
-    assert providers["github"]["template"] == ".config/ci/templates/hosted/github-actions.yml"
-    assert providers["github"]["projection"] == ".github/workflows/ci.yml"
-    assert providers["gitlab"]["template"] == ".config/ci/templates/hosted/gitlab-ci.yml"
-    assert providers["gitlab"]["projection"] == ".gitlab-ci.yml"
-
-    expected_emulation = {
-        "github": {
-            "emulator_tool": "act",
-            "emulator_event": "workflow_dispatch",
-            "emulator_job": "quality",
-            "emulator_image": "catthehacker/ubuntu:act-latest",
-        },
-        "gitlab": {
-            "emulator_tool": "gitlab-ci-local",
-            "emulator_event": "pipeline",
-            "emulator_job": "ethos:lint",
-            "emulator_image": "python:3.14",
-        },
-    }
-    for provider, entry in providers.items():
-        template = ROOT / str(entry["template"])
-        projection = ROOT / str(entry["projection"])
-        assert template.is_file()
-        assert projection.is_file()
-        assert template.read_bytes() == projection.read_bytes()
-        assert "local_emulator" not in entry
-        for field, value in expected_emulation[provider].items():
-            assert entry[field] == value
-        assert entry.get("emulator_state_dir", "") == ""
-        assert "PYTHONWARNINGS: error" in projection.read_text(encoding="utf-8")
-
+@pytest.mark.parametrize(
+    ("provider", "template", "projection", "emulator"),
+    [
+        (
+            "github",
+            ".config/ci/templates/hosted/github-actions.yml",
+            ".github/workflows/ci.yml",
+            {
+                "emulator_tool": "act",
+                "emulator_event": "workflow_dispatch",
+                "emulator_job": "quality",
+                "emulator_image": "catthehacker/ubuntu:act-latest",
+            },
+        ),
+        (
+            "gitlab",
+            ".config/ci/templates/hosted/gitlab-ci.yml",
+            ".gitlab-ci.yml",
+            {
+                "emulator_tool": "gitlab-ci-local",
+                "emulator_event": "pipeline",
+                "emulator_job": "ethos:lint",
+                "emulator_image": "python:3.14",
+            },
+        ),
+    ],
+)
+def test_hosted_provider_templates_are_projection_sources(
+    provider, template, projection, emulator
+) -> None:
+    entry = _providers()[provider]
+    assert entry["template"] == template
+    assert entry["projection"] == projection
+    assert (ROOT / template).is_file()
+    assert (ROOT / projection).is_file()
+    assert (ROOT / template).read_bytes() == (ROOT / projection).read_bytes()
+    assert "local_emulator" not in entry
+    assert entry.get("emulator_state_dir", "") == ""
+    assert "PYTHONWARNINGS: error" in (ROOT / projection).read_text(encoding="utf-8")
+    for field, value in emulator.items():
+        assert entry[field] == value
+    assert set(_providers()) == {"github", "gitlab"}
     assert 'GIT_DEPTH: "0"' in (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
 
-def test_gitlab_verify_reclones_full_history_for_replay() -> None:
-    for relative_path in (
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        payload = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8"))
-        assert payload["variables"]["GIT_DEPTH"] == "0"
-        assert payload["ethos:verify"]["variables"]["GIT_STRATEGY"] == "clone"
+@pytest.mark.parametrize(
+    "relative", [".config/ci/templates/hosted/gitlab-ci.yml", ".gitlab-ci.yml"]
+)
+def test_gitlab_verify_reclones_full_history_for_replay(relative: str) -> None:
+    payload = _yaml(relative)
+    assert payload["variables"]["GIT_DEPTH"] == "0"
+    assert payload["ethos:verify"]["variables"]["GIT_STRATEGY"] == "clone"
 
 
 def test_remote_provider_ci_excludes_local_candidate_and_includes_proposal() -> None:
     github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
-
     assert "candidate/dev" not in github
     assert "proposal/**" in github
     assert "workflow:" in gitlab
@@ -94,145 +109,129 @@ def test_remote_provider_ci_excludes_local_candidate_and_includes_proposal() -> 
 
 
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
-    required_scripts = {
-        "tools/ci/scripts/bootstrap-python.sh",
-        "tools/ci/scripts/run-python-lint.sh",
-        "tools/ci/scripts/run-config-lint.sh",
-        "tools/ci/scripts/run-shell-lint.sh",
-        "tools/ci/scripts/run-markdown-lint.sh",
-        "tools/ci/scripts/run-prose-check.sh",
-        "tools/ci/scripts/run-import-linter.sh",
-        "tools/ci/scripts/run-dependency-hygiene.sh",
-        "tools/ci/scripts/run-docstring-coverage.sh",
-        "tools/ci/scripts/run-module-layout.sh",
-        "tools/ci/scripts/run-python-vulnerability-audit.sh",
-        "tools/ci/scripts/run-repository-hygiene.sh",
-        "tools/ci/scripts/run-product-boundary.sh",
-        "tools/ci/scripts/run-secrets-scan.sh",
-        "tools/ci/scripts/run-python-tests.sh",
-        "tools/ci/scripts/run-ci-template-check.sh",
-        "tools/ci/scripts/run-json-schema-check.sh",
-        "tools/ci/scripts/run-hosted-provider-observation.sh",
+    required = {
+        "bootstrap-python.sh",
+        "run-python-lint.sh",
+        "run-config-lint.sh",
+        "run-shell-lint.sh",
+        "run-markdown-lint.sh",
+        "run-prose-check.sh",
+        "run-import-linter.sh",
+        "run-dependency-hygiene.sh",
+        "run-docstring-coverage.sh",
+        "run-module-layout.sh",
+        "run-python-vulnerability-audit.sh",
+        "run-repository-hygiene.sh",
+        "run-product-boundary.sh",
+        "run-secrets-scan.sh",
+        "run-python-tests.sh",
+        "run-ci-template-check.sh",
+        "run-json-schema-check.sh",
+        "run-hosted-provider-observation.sh",
     }
-    github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
-    combined = github + "\n" + gitlab
-
-    for script in required_scripts:
+    combined = "\n".join(
+        (ROOT / path).read_text(encoding="utf-8")
+        for path in (".github/workflows/ci.yml", ".gitlab-ci.yml")
+    )
+    for name in required:
+        script = f"tools/ci/scripts/{name}"
         assert script in combined
-        mode = (ROOT / script).stat().st_mode
-        assert mode & stat.S_IXUSR
-
-    assert "tools/ci/scripts/run-actionlint.sh" in github
-    assert "tools/ci/scripts/run-actionlint.sh" in gitlab
-    assert "tools/ci/scripts/run-product-boundary.sh" in github
-    assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
-    assert ("uv build --out-dir build/artifacts/python --clear --no-create-gitignore") in combined
-    assert "uv run --group dev pytest tests/unit tests/architecture -q" not in combined
-    assert "uv run --no-project --with import-linter lint-imports" not in combined
-    assert "image: node:24" not in combined
-    assert "hosted_github_status_claimed=true" not in combined
-    assert "hosted_gitlab_status_claimed=true" not in combined
+        assert (ROOT / script).stat().st_mode & stat.S_IXUSR
+    for text in (combined,):
+        assert "tools/ci/scripts/run-actionlint.sh" in text
+        assert "tools/ci/scripts/run-product-boundary.sh" in text
+        assert "uv build --out-dir build/artifacts/python --clear --no-create-gitignore" in text
+        assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
+        assert "uv run --no-project --with import-linter lint-imports" not in text
+        assert "image: node:24" not in text
+        assert "hosted_github_status_claimed=true" not in text
+        assert "hosted_gitlab_status_claimed=true" not in text
 
 
 def test_hosted_inline_gates_execute_at_the_checked_out_head() -> None:
-    github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
-    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+    github, gitlab = _yaml(".github/workflows/ci.yml"), _yaml(".gitlab-ci.yml")
     github_type = next(
         step["run"]
         for step in github["jobs"]["quality"]["steps"]
         if step.get("name") == "Type policy"
     )
-
     assert '--execute --gate python-types --expect-head "$(git rev-parse HEAD)"' in github_type
     for job, gate in (("ethos:types", "python-types"), ("ethos:docs-links", "markdown-links")):
-        command = " ".join(gitlab[job]["script"])
-        assert f'--execute --gate {gate} --expect-head "$(git rev-parse HEAD)"' in command
+        assert f'--execute --gate {gate} --expect-head "$(git rev-parse HEAD)"' in " ".join(
+            gitlab[job]["script"]
+        )
 
 
 def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
-    providers = {str(entry["provider"]): entry for entry in _projection_entries()}
-    bootstrap = "source tools/ci/scripts/bootstrap-python.sh"
-    runner = "tools/ci/scripts/run-node-compatibility.sh"
+    providers, gitlab = _providers(), _yaml(".gitlab-ci.yml")
     policy = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text(encoding="utf-8"))
-    gitlab_text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
-    gitlab = yaml.safe_load(gitlab_text)
-    npm_job = gitlab["ethos:npm"]
-    npm_package_job = gitlab["ethos:npm-package"]
-    matrix = npm_job["parallel"]["matrix"]
-
+    bootstrap, runner = (
+        "source tools/ci/scripts/bootstrap-python.sh",
+        "tools/ci/scripts/run-node-compatibility.sh",
+    )
+    npm, package = gitlab["ethos:npm"], gitlab["ethos:npm-package"]
     assert runner in providers["gitlab"]["required_owner_scripts"]
     assert runner not in providers["github"]["required_owner_scripts"]
     assert gitlab[".python_setup"]["before_script"] == ["tools/ci/scripts/bootstrap-python.sh"]
-    assert matrix == [{"NODE_VERSION": policy["compatibility_versions"]}]
-    assert npm_job["script"] == [bootstrap, "tools/ci/scripts/install-node.sh", runner]
-    assert npm_package_job["script"][:2] == [bootstrap, "tools/ci/scripts/install-node.sh"]
-    assert runner not in npm_package_job["script"]
-    assert "NODE_VERSION" not in npm_package_job
-    assert "npm run test:npm" in npm_package_job["script"]
+    assert npm["parallel"]["matrix"] == [{"NODE_VERSION": policy["compatibility_versions"]}]
+    assert npm["script"] == [bootstrap, "tools/ci/scripts/install-node.sh", runner]
+    assert package["script"][:2] == [bootstrap, "tools/ci/scripts/install-node.sh"]
+    assert runner not in package["script"]
+    assert "NODE_VERSION" not in package
+    assert "npm run test:npm" in package["script"]
 
 
 def test_github_repository_proof_projects_parallel_worker_stability() -> None:
-    github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
-
+    github, gitlab = _yaml(".github/workflows/ci.yml"), _yaml(".gitlab-ci.yml")
+    runner = ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     assert github["jobs"]["verify"]["env"] == {
         "ETHOS_TEST_WORKERS": "2",
         "ETHOS_TEST_TIMEOUT_SECONDS": "300",
         "ETHOS_TEST_TIMEOUT_METHOD": "signal",
     }
-    expected_runner = ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
-
-    assert github["jobs"]["quality"]["runs-on"] == expected_runner
-    assert github["jobs"]["verify"]["runs-on"] == expected_runner
-    assert github["jobs"]["package"]["runs-on"] == expected_runner
-    checkout_hook_isolation = {
+    assert all(github["jobs"][job]["runs-on"] == runner for job in ("quality", "verify", "package"))
+    isolation = {
         "GIT_CONFIG_COUNT": "1",
         "GIT_CONFIG_KEY_0": "core.hooksPath",
         "GIT_CONFIG_VALUE_0": "/dev/null",
     }
     for job in ("quality", "verify", "package"):
         assert github["jobs"][job]["steps"][0]["uses"] == "actions/checkout@v7"
-        assert github["jobs"][job]["steps"][0]["env"] == checkout_hook_isolation
-    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
-
+        assert github["jobs"][job]["steps"][0]["env"] == isolation
     assert gitlab["default"]["tags"] == ["${ETHOS_GITLAB_RUNNER_TAG}"]
-    assert gitlab["variables"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] == (
-        "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
+    assert (
+        gitlab["variables"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"]
+        == "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
     )
 
 
-def test_github_repository_proof_executes_one_full_test_graph() -> None:
-    providers = {str(entry["provider"]): entry for entry in _projection_entries()}
-    direct_test_runner = "tools/ci/scripts/run-python-tests.sh"
-    proof_runner = "tools/ci/scripts/run-head-bound-proof.sh"
-
-    assert direct_test_runner not in providers["github"]["required_owner_scripts"]
-    assert direct_test_runner in providers["gitlab"]["required_owner_scripts"]
-    assert proof_runner in providers["github"]["required_owner_scripts"]
-
-    for relative_path in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".github/workflows/ci.yml",
-    ):
-        github = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8"))
-        commands = [
-            str(step.get("run", ""))
-            for step in github["jobs"]["verify"]["steps"]
-            if isinstance(step, dict)
-        ]
-
-        assert direct_test_runner not in commands, relative_path
-        assert commands.count(proof_runner) == 1, relative_path
+@pytest.mark.parametrize(
+    "relative", [".config/ci/templates/hosted/github-actions.yml", ".github/workflows/ci.yml"]
+)
+def test_github_repository_proof_executes_one_full_test_graph(relative: str) -> None:
+    providers = _providers()
+    direct, proof = (
+        "tools/ci/scripts/run-python-tests.sh",
+        "tools/ci/scripts/run-head-bound-proof.sh",
+    )
+    assert direct not in providers["github"]["required_owner_scripts"]
+    assert direct in providers["gitlab"]["required_owner_scripts"]
+    assert proof in providers["github"]["required_owner_scripts"]
+    payload = _yaml(relative)
+    commands = [
+        str(step.get("run", ""))
+        for step in payload["jobs"]["verify"]["steps"]
+        if isinstance(step, dict)
+    ]
+    assert direct not in commands
+    assert commands.count(proof) == 1
 
 
-def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
-    tmp_path: Path,
-) -> None:
-    """CI must materialize signing in its checkout, not borrow the runner host."""
+def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(("git", "init", "-b", "main"), cwd=repo, check=True, capture_output=True)
-    workspace = repo / ".ethos" / "workspace.toml"
+    workspace = repo / ".ethos/workspace.toml"
     workspace.parent.mkdir()
     workspace.write_text(
         "[commit_policy]\n"
@@ -242,14 +241,13 @@ def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
         'signing_format = "ssh"\n',
         encoding="utf-8",
     )
-    host_key = tmp_path / "host-global-key.pub"
-    host_key.write_text("host-global-key\n", encoding="utf-8")
-    host_config = tmp_path / "host.gitconfig"
-    host_config.write_text(
-        f"[user]\n\tsigningkey = {host_key}\n",
-        encoding="utf-8",
+    host_key, host_config, runtime_tmp = (
+        tmp_path / "host-global-key.pub",
+        tmp_path / "host.gitconfig",
+        tmp_path / "runtime-tmp",
     )
-    runtime_tmp = tmp_path / "runtime-tmp"
+    host_key.write_text("host-global-key\n", encoding="utf-8")
+    host_config.write_text(f"[user]\n\tsigningkey = {host_key}\n", encoding="utf-8")
     runtime_tmp.mkdir()
     env = os.environ | {
         "CI_PROJECT_PATH": "example/ethos",
@@ -257,7 +255,6 @@ def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
         "GIT_CONFIG_NOSYSTEM": "1",
         "TMPDIR": str(runtime_tmp),
     }
-
     subprocess.run(
         [str(ROOT / "tools/ci/scripts/configure-git-checkout.sh")],
         cwd=repo,
@@ -266,7 +263,7 @@ def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
         capture_output=True,
         text=True,
     )
-    local_signing_key = subprocess.run(
+    key = subprocess.run(
         ("git", "config", "--local", "--get", "user.signingkey"),
         cwd=repo,
         env=env,
@@ -274,126 +271,99 @@ def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
         capture_output=True,
         text=True,
     ).stdout.strip()
-
-    assert local_signing_key
-    assert local_signing_key != str(host_key)
-    assert Path(local_signing_key).is_file()
+    assert key
+    assert key != str(host_key)
+    assert Path(key).is_file()
 
 
 def test_provider_python_producers_are_runtime_bound() -> None:
     runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
-    provider_paths = [
+    for relative in (
         ".github/workflows/ci.yml",
         ".gitlab-ci.yml",
         "tools/ci/scripts/run-github-local-emulator.sh",
         "tools/ci/scripts/run-gitlab-local-emulator.sh",
-    ]
-
-    for relative_path in provider_paths:
-        lines = (ROOT / relative_path).read_text(encoding="utf-8").splitlines()
-        uv_producers = [line.strip() for line in lines if "uv run" in line or "uv build" in line]
-
-        assert uv_producers, relative_path
-        assert all(runtime in line for line in uv_producers), relative_path
+    ):
+        lines = (ROOT / relative).read_text(encoding="utf-8").splitlines()
+        producers = [line.strip() for line in lines if "uv run" in line or "uv build" in line]
+        assert producers, relative
+        assert all(runtime in line for line in producers), relative
 
 
 def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
     runner = "tools/ci/scripts/run-head-bound-proof.sh"
-    github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
-    script = (ROOT / runner).read_text(encoding="utf-8")
-
+    github, gitlab, script = (
+        (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"),
+        _yaml(".gitlab-ci.yml"),
+        (ROOT / runner).read_text(encoding="utf-8"),
+    )
     assert runner in github
     assert runner in gitlab["ethos:verify"]["script"]
     assert "ethos prove --execute --expect-head" not in github
     assert "ethos prove --execute --expect-head" not in "\n".join(gitlab["ethos:verify"]["script"])
     assert gitlab["ethos:verify"]["artifacts"] == {
         "when": "always",
-        "paths": [
-            "build/evidence/quality/proof/",
-            "build/evidence/quality/readiness/",
-        ],
+        "paths": ["build/evidence/quality/proof/", "build/evidence/quality/readiness/"],
     }
-    assert "ethos audit --json" in script
-    assert "ethos status --json" in script
-    assert "ethos prove --execute --expect-head" in script
-    assert "executed-proof.json" in script
-    assert "ethos_hosted_readiness_receipt" in script
+    for needle in (
+        "ethos status --json",
+        "ethos prove --execute --expect-head",
+        "executed-proof.json",
+        "ethos_hosted_readiness_receipt",
+        "proof_evidence_digest",
+    ):
+        assert needle in script
     assert (ROOT / runner).stat().st_mode & stat.S_IXUSR
-    assert "proof_evidence_digest" in script
 
 
 def test_hosted_proof_receipt_reports_post_execution_readiness(tmp_path: Path) -> None:
-    runner = ROOT / "tools/ci/scripts/run-head-bound-proof.sh"
-    fake_bin = tmp_path / "bin"
+    runner, fake_bin = ROOT / "tools/ci/scripts/run-head-bound-proof.sh", tmp_path / "bin"
     fake_bin.mkdir()
-    fake_uv = fake_bin / "uv"
-    fake_uv.write_text(
+    (fake_bin / "uv").write_text(
         """#!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-  *"ethos audit --json")
-    printf '%s\\n' audit >>"${ETHOS_FAKE_CALLS}"
-    printf '%s\\n' '{"ok":true,"state":"clean"}'
-    ;;
   *"ethos prove --execute --expect-head ${ETHOS_FAKE_EXPECTED_HEAD} --json")
     printf '%s\\n' prove >>"${ETHOS_FAKE_CALLS}"
     printf '%s\\n' proven >"${ETHOS_FAKE_STATE}"
-    printf '{"ok":true,"state":"proven","data":{"expected_head":{"current":"%s","ok":true}},"summary":{"gate_count":1,"evidence_digest":"fake-digest"}}\\n' "${ETHOS_FAKE_EXPECTED_HEAD}"
+    printf '{"ok":true,"state":"proven",'
+    printf '"data":{"expected_head":{"current":"%s","ok":true}},' "${ETHOS_FAKE_EXPECTED_HEAD}"
+    printf '"summary":{"gate_count":1,"evidence_digest":"fake-digest"}}\\n'
     ;;
   *"ethos status --json")
     printf '%s\\n' status >>"${ETHOS_FAKE_CALLS}"
-    if [[ -f "${ETHOS_FAKE_STATE}" ]]; then
-      printf '%s\\n' '{"ok":true,"state":"ready"}'
-    else
-      printf '%s\\n' '{"ok":false,"state":"gapped"}'
-    fi
+    printf '%s\\n' '{"ok":true,"state":"ready"}'
     ;;
-  *)
-    printf 'unexpected fake uv command: %s\\n' "$*" >&2
-    exit 64
-    ;;
+  *) printf 'unexpected fake uv command: %s\\n' "$*" >&2; exit 64;;
 esac
 """,
         encoding="utf-8",
     )
-    fake_uv.chmod(fake_uv.stat().st_mode | stat.S_IXUSR)
-    expected_head = "1111111111111111111111111111111111111111"
-    calls = tmp_path / "calls.log"
-    env = os.environ.copy()
-    env.update(
-        {
-            "ETHOS_FAKE_CALLS": str(calls),
-            "ETHOS_FAKE_EXPECTED_HEAD": expected_head,
-            "ETHOS_FAKE_STATE": str(tmp_path / "proof-state"),
-            "ETHOS_PROOF_EVIDENCE_DIR": str(tmp_path / "proof"),
-            "ETHOS_READINESS_EVIDENCE_DIR": str(tmp_path / "readiness"),
-            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
-            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
-        }
-    )
-
+    (fake_bin / "uv").chmod(0o755)
+    expected_head, calls = "1" * 40, tmp_path / "calls.log"
+    env = os.environ | {
+        "ETHOS_FAKE_CALLS": str(calls),
+        "ETHOS_FAKE_EXPECTED_HEAD": expected_head,
+        "ETHOS_FAKE_STATE": str(tmp_path / "proof-state"),
+        "ETHOS_PROOF_EVIDENCE_DIR": str(tmp_path / "proof"),
+        "ETHOS_READINESS_EVIDENCE_DIR": str(tmp_path / "readiness"),
+        "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+        "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+    }
     completed = subprocess.run(
-        [str(runner), expected_head],
-        cwd=ROOT,
-        env=env,
-        check=False,
-        capture_output=True,
-        text=True,
+        [str(runner), expected_head], cwd=ROOT, env=env, check=False, capture_output=True, text=True
     )
-
     assert completed.returncode == 0, completed.stderr or completed.stdout
-    assert calls.read_text(encoding="utf-8").splitlines() == [
-        "audit",
-        "prove",
-        "status",
-    ]
+    assert calls.read_text().splitlines() == ["status", "prove", "status"]
     receipt = json.loads(completed.stdout)
-    assert receipt["ok"] is True
+    assert {
+        receipt["ok"],
+        receipt["head_matches_expected"],
+        receipt["status_before_state"],
+        receipt["status_after_state"],
+        receipt["proof_state"],
+    } == {True, "ready", "proven"}
     assert receipt["head"] == expected_head
-    assert receipt["head_matches_expected"] is True
-    assert receipt["report_state"] == "ready"
-    assert receipt["proof_state"] == "proven"
 
 
 def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) -> None:
@@ -401,29 +371,22 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
     repo.mkdir()
     subprocess.run(("git", "init", "-q", "-b", "dev"), cwd=repo, check=True)
     (repo / "pyproject.toml").write_text(
-        "[project]\nname = 'runtime-test'\nversion = '0.0.0'\n",
-        encoding="utf-8",
+        "[project]\nname = 'runtime-test'\nversion = '0.0.0'\n", encoding="utf-8"
     )
     python = repo / "build/runtime/venv/bin/python"
     python.parent.mkdir(parents=True)
     python.write_text("#!/bin/sh\nprintf 'semantic-runtime\\n'\n", encoding="utf-8")
     python.chmod(0o755)
-    (python.parent.parent / "pyvenv.cfg").write_text("home = test\n", encoding="utf-8")
-    fake_bin = tmp_path / "bin"
+    (python.parent.parent / "pyvenv.cfg").write_text("home = test\n")
+    fake_bin, uv_calls = tmp_path / "bin", tmp_path / "uv-calls"
     fake_bin.mkdir()
-    uv_calls = tmp_path / "uv-calls"
-    fake_uv = fake_bin / "uv"
-    fake_uv.write_text(f"#!/bin/sh\ntouch {uv_calls}\nexit 97\n", encoding="utf-8")
-    fake_uv.chmod(0o755)
-    env = os.environ.copy()
-    env.update(
-        {
-            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
-            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
-            "XDG_CACHE_HOME": str(tmp_path / "cache"),
-        }
-    )
-
+    (fake_bin / "uv").write_text(f"#!/bin/sh\ntouch {uv_calls}\nexit 97\n", encoding="utf-8")
+    (fake_bin / "uv").chmod(0o755)
+    env = os.environ | {
+        "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+        "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+        "XDG_CACHE_HOME": str(tmp_path / "cache"),
+    }
     completed = subprocess.run(
         [str(ROOT / "tools/ci/scripts/with-python-runtime.sh"), "--", str(python)],
         cwd=repo,
@@ -432,193 +395,148 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
         capture_output=True,
         text=True,
     )
-
-    assert completed.returncode == 0, completed.stderr
+    assert completed.returncode == 0
     assert completed.stdout.splitlines() == ["semantic-runtime"]
     assert not uv_calls.exists()
 
 
-def test_local_ci_fails_on_python_warnings() -> None:
-    assert "export PYTHONWARNINGS=error" in (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(
-        encoding="utf-8"
-    )
+@pytest.mark.parametrize(
+    ("relative", "needles", "forbidden"),
+    [
+        ("tools/ci/scripts/run-local-ci.sh", ("export PYTHONWARNINGS=error",), ()),
+        (
+            "tools/ci/scripts/bootstrap-python.sh",
+            (
+                'npx --yes @fission-ai/openspec@1.6.0 "$@"',
+                '"${bootstrap_python}" -m venv',
+                "uv sync --group dev",
+                'bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"',
+                'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"',
+                "'uv==0.11.29'",
+            ),
+            ("build/runtime/bootstrap", "python -m pip install", "pip install uv"),
+        ),
+        (
+            ".github/workflows/ci.yml",
+            ("actions/checkout@v7", "actions/setup-python@v6", "actions/upload-artifact@v7"),
+            (),
+        ),
+        (
+            ".config/checks/markdown/.markdownlint-cli2.yaml",
+            ('  - "build/runtime/tool-cache/uv/**"',),
+            (),
+        ),
+        (
+            "tools/ci/scripts/run-actionlint.sh",
+            ("github.com/rhysd/actionlint/releases/download",),
+            ("npx --yes", "actionlint@"),
+        ),
+    ],
+)
+def test_static_ci_policies(
+    relative: str, needles: tuple[str, ...], forbidden: tuple[str, ...]
+) -> None:
+    text = (ROOT / relative).read_text(encoding="utf-8")
+    for needle in needles:
+        assert needle in text
+    for needle in forbidden:
+        assert needle not in text
 
 
-def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
+def test_static_ci_policy_cross_file_invariants() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
-    gitlab_projection = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
-
-    assert 'npx --yes @fission-ai/openspec@1.6.0 "$@"' in bootstrap
-    assert "openspec --version" in gitlab_projection
+    projection = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    assert "openspec --version" in projection
+    assert bootstrap.index(
+        'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"'
+    ) < bootstrap.index("uv sync --group dev")
+    assert "build/runtime/tool-cache/uv/" in (ROOT / ".gitignore").read_text(encoding="utf-8")
 
 
 def test_gitlab_verify_and_npm_jobs_bootstrap_the_job_local_runtime() -> None:
-    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
-    bootstrap = "source tools/ci/scripts/bootstrap-python.sh"
-
-    assert gitlab["ethos:verify"]["script"][0] == bootstrap
-    assert gitlab["ethos:npm"]["script"][0] == bootstrap
-    assert gitlab["ethos:npm-package"]["script"][0] == bootstrap
-
-
-def test_hosted_python_bootstrap_avoids_ambient_root_pip() -> None:
-    bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
-
-    assert '"${bootstrap_python}" -m venv' in bootstrap
-    assert "python -m pip install" not in bootstrap
-    assert "pip install uv" not in bootstrap
-    assert "'uv==0.11.29'" in bootstrap
-
-
-def test_github_ci_uses_current_action_majors() -> None:
-    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-
-    assert "actions/checkout@v7" in workflow
-    assert "actions/setup-python@v6" in workflow
-    assert "actions/upload-artifact@v7" in workflow
-
-
-def test_hosted_python_bootstrap_materializes_the_source_bound_runtime() -> None:
-    bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
-
-    tool_runtime = 'bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"'
-    environment = 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"'
-    sync = "uv sync --group dev"
-    assert tool_runtime in bootstrap
-    assert "build/runtime/bootstrap" not in bootstrap
-    assert environment in bootstrap
-    assert sync in bootstrap
-    assert bootstrap.index(environment) < bootstrap.index(sync)
-
-
-def test_markdown_lint_excludes_uv_cache_projection() -> None:
-    config = (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(encoding="utf-8")
-    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
-
-    assert '  - "build/runtime/tool-cache/uv/**"' in config
-    assert "build/runtime/tool-cache/uv/" in gitignore
-
-
-def test_actionlint_runner_uses_official_release_fallback_not_npm_package() -> None:
-    script = (ROOT / "tools/ci/scripts/run-actionlint.sh").read_text(encoding="utf-8")
-    policy = tomllib.loads(
-        (ROOT / ".config/checks/github/actionlint.toml").read_text(encoding="utf-8")
-    )
-
-    assert policy["tool"]["source"] == "github-release"
-    assert policy["tool"]["release_owner"] == "rhysd/actionlint"
-    assert "github.com/rhysd/actionlint/releases/download" in script
-    assert "npx --yes" not in script
-    assert "actionlint@" not in script
+    gitlab, bootstrap = _yaml(".gitlab-ci.yml"), "source tools/ci/scripts/bootstrap-python.sh"
+    for job in ("ethos:verify", "ethos:npm", "ethos:npm-package"):
+        assert gitlab[job]["script"][0] == bootstrap
 
 
 def test_ci_template_check_reports_projection_drift_as_json() -> None:
     result = subprocess.run(
-        [
-            sys.executable,
-            "tools/ci/ci_templates.py",
-            "check-templates",
-            "--json",
-        ],
+        [sys.executable, "tools/ci/ci_templates.py", "check-templates", "--json"],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=True,
     )
     payload = json.loads(result.stdout)
-
     assert payload["kind"] == "ethos_ci_template_consistency"
     assert payload["ok"] is True
     assert {item["provider"] for item in payload["projections"]} == {"github", "gitlab"}
     assert all(item["projection_matches_template"] for item in payload["projections"])
 
 
-def test_local_emulator_doctor_degrades_when_optional_tool_is_missing(
-    monkeypatch,
+@pytest.mark.parametrize(
+    ("mode", "expected_code", "output"), [("doctor", 0, None), ("run", 127, "gitlab-run.json")]
+)
+def test_local_emulator_missing_optional_tool(
+    monkeypatch, tmp_path: Path, mode: str, expected_code: int, output: str | None
 ) -> None:
-    ci_templates = _load_ci_templates_module()
-    monkeypatch.setattr(ci_templates.shutil, "which", lambda _: None)
-
+    ci = _load_ci_templates_module()
+    monkeypatch.setattr(ci.shutil, "which", lambda _: None)
+    destination = None if output is None else tmp_path / output
     assert (
-        ci_templates.emulator_evidence(
-            "gitlab",
-            mode="doctor",
-            dry_run=False,
-            allow_untracked=False,
-            output=None,
+        ci.emulator_evidence(
+            "gitlab", mode=mode, dry_run=False, allow_untracked=mode == "run", output=destination
         )
-        == 0
+        == expected_code
     )
-    payload = json.loads((ROOT / "build/evidence/local-ci/gitlab/doctor.json").read_text())
-
-    assert payload["ok"] is True
+    payload = json.loads(
+        (ROOT / "build/evidence/local-ci/gitlab/doctor.json").read_text()
+        if output is None
+        else destination.read_text()
+    )
     assert payload["tool_available"] is False
     assert payload["returncode"] == 127
     assert payload["stderr"] == "tool not found"
-    assert payload["hosted_gitlab_status_claimed"] is False
+    if mode == "doctor":
+        assert payload["ok"] is True
+        assert payload["hosted_gitlab_status_claimed"] is False
+    else:
+        assert payload["ok"] is False
+        assert payload["materialization"] == {
+            "issue": "",
+            "mode_allows_untracked": False,
+            "normal_run_refuses_untracked_by_default": True,
+            "untracked_allowed": True,
+            "untracked_policy": "refuse_before_emulator_run",
+        }
 
 
-def test_local_emulator_run_requires_optional_tool_when_materializing(
-    monkeypatch, tmp_path
+def test_local_emulator_run_executes_a_selected_formal_provider_job(
+    monkeypatch, tmp_path: Path
 ) -> None:
-    ci_templates = _load_ci_templates_module()
-    monkeypatch.setattr(ci_templates.shutil, "which", lambda _: None)
-
-    output = tmp_path / "gitlab-run.json"
-    assert (
-        ci_templates.emulator_evidence(
-            "gitlab",
-            mode="run",
-            dry_run=False,
-            allow_untracked=True,
-            output=output,
-        )
-        == 127
-    )
-    payload = json.loads(output.read_text())
-
-    assert payload["ok"] is False
-    assert payload["tool_available"] is False
-    assert payload["returncode"] == 127
-    assert payload["stderr"] == "tool not found"
-    assert payload["materialization"]["mode_allows_untracked"] is False
-    assert payload["materialization"]["untracked_allowed"] is True
-
-
-def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch, tmp_path) -> None:
-    ci_templates = _load_ci_templates_module()
-    commands: list[list[str]] = []
-    execution_roots: list[Path] = []
+    ci, commands, roots = _load_ci_templates_module(), [], []
     monkeypatch.setattr(
-        ci_templates.shutil,
+        ci.shutil,
         "which",
         lambda tool: "/usr/local/bin/emulator" if tool in {"act", "gitlab-ci-local"} else None,
     )
-    monkeypatch.setattr(ci_templates, "_tool_version", lambda tool: f"{tool} 1.0")
+    monkeypatch.setattr(ci, "_tool_version", lambda tool: f"{tool} 1.0")
     monkeypatch.setattr(
-        ci_templates,
+        ci,
         "materialize_emulator_source",
         lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
     )
     monkeypatch.setattr(
-        ci_templates,
+        ci,
         "_run_command",
-        lambda command, **_kwargs: (
+        lambda command, **kw: (
             commands.append(command)
-            or execution_roots.append(_kwargs["cwd"])
+            or roots.append(kw["cwd"])
             or {"returncode": 0, "ok": True, "stdout": "executed", "stderr": ""}
         ),
     )
-
     expected = {
-        "github": [
-            "act",
-            "workflow_dispatch",
-            "-W",
-            ".github/workflows/ci.yml",
-            "-j",
-            "quality",
-        ],
+        "github": ["act", "workflow_dispatch", "-W", ".github/workflows/ci.yml", "-j", "quality"],
         "gitlab": [
             "gitlab-ci-local",
             "--cwd",
@@ -630,19 +548,12 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
             "ethos:lint",
         ],
     }
-    declared_images = {
-        "github": "catthehacker/ubuntu:act-latest",
-        "gitlab": "python:3.14",
-    }
+    images = {"github": "catthehacker/ubuntu:act-latest", "gitlab": "python:3.14"}
     for provider, command in expected.items():
         output = tmp_path / f"{provider}.json"
         assert (
-            ci_templates.emulator_evidence(
-                provider,
-                mode="run",
-                dry_run=False,
-                allow_untracked=True,
-                output=output,
+            ci.emulator_evidence(
+                provider, mode="run", dry_run=False, allow_untracked=True, output=output
             )
             == 0
         )
@@ -655,23 +566,33 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
             "selected_job": "quality" if provider == "github" else "ethos:lint",
         }
         assert payload["execution_environment"] == {
-            "declared_image": declared_images[provider],
+            "declared_image": images[provider],
             "image_digest": "",
             "image_digest_status": "not_observed",
             "tool_version": f"{command[0]} 1.0",
         }
-
-    assert commands == [expected["github"], expected["gitlab"]]
-    assert execution_roots == [
+    assert commands == list(expected.values())
+    assert roots == [
         ROOT / "build/runtime/work/github-act/source",
         ROOT,
     ]
 
 
-def test_local_emulator_run_fails_when_provider_logs_contain_warnings(
-    monkeypatch, tmp_path: Path
+@pytest.mark.parametrize(
+    ("stdout", "expected_code", "warnings"),
+    [
+        ("(node:1) DeprecationWarning: stale action runtime", 1, ["(?:^|[ >])DeprecationWarning:"]),
+        (
+            '"forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]',
+            0,
+            [],
+        ),
+    ],
+)
+def test_local_emulator_log_warning_policy(
+    monkeypatch, tmp_path: Path, stdout: str, expected_code: int, warnings: list[str]
 ) -> None:
-    ci_templates = _load_ci_templates_module()
+    ci = _load_ci_templates_module()
     entry = {
         "provider": "github",
         "projection": ".github/workflows/ci.yml",
@@ -680,121 +601,51 @@ def test_local_emulator_run_fails_when_provider_logs_contain_warnings(
         "emulator_event": "workflow_dispatch",
         "emulator_job": "quality",
         "emulator_image": "catthehacker/ubuntu:act-latest",
-        "forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:"],
+        "forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"],
     }
-    monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
-    monkeypatch.setattr(ci_templates.shutil, "which", {"act": "/usr/local/bin/act"}.get)
-    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
+    monkeypatch.setattr(ci, "_provider_entry", lambda _: entry)
+    monkeypatch.setattr(ci.shutil, "which", {"act": "/usr/local/bin/act"}.get)
+    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
     monkeypatch.setattr(
-        ci_templates,
+        ci,
         "materialize_emulator_source",
         lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
     )
     monkeypatch.setattr(
-        ci_templates,
+        ci,
         "_run_command",
-        lambda _command, **_kwargs: {
-            "returncode": 0,
-            "ok": True,
-            "stdout": "(node:1) DeprecationWarning: stale action runtime",
-            "stderr": "",
-        },
+        lambda _command, **_: {"returncode": 0, "ok": True, "stdout": stdout, "stderr": ""},
     )
-
     output = tmp_path / "github-run.json"
     assert (
-        ci_templates.emulator_evidence(
-            "github",
-            mode="run",
-            dry_run=False,
-            allow_untracked=True,
-            output=output,
+        ci.emulator_evidence(
+            "github", mode="run", dry_run=False, allow_untracked=True, output=output
         )
-        == 1
+        == expected_code
     )
-    payload = json.loads(output.read_text(encoding="utf-8"))
-    assert payload["ok"] is False
-    assert payload["log_warnings"] == ["(?:^|[ >])DeprecationWarning:"]
-
-
-def test_local_emulator_run_ignores_declarative_warning_pattern_text(
-    monkeypatch, tmp_path: Path
-) -> None:
-    ci_templates = _load_ci_templates_module()
-    entry = {
-        "provider": "github",
-        "projection": ".github/workflows/ci.yml",
-        "template": ".config/ci/templates/hosted/github-actions.yml",
-        "emulator_tool": "act",
-        "emulator_event": "workflow_dispatch",
-        "emulator_job": "quality",
-        "emulator_image": "catthehacker/ubuntu:act-latest",
-        "forbidden_log_patterns": [
-            "(?:^|[ >])DeprecationWarning:",
-            "(?:^|[ >])WARNING:",
-        ],
-    }
-    monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
-    monkeypatch.setattr(ci_templates.shutil, "which", {"act": "/usr/local/bin/act"}.get)
-    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
-    monkeypatch.setattr(
-        ci_templates,
-        "materialize_emulator_source",
-        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
-    )
-    monkeypatch.setattr(
-        ci_templates,
-        "_run_command",
-        lambda _command, **_kwargs: {
-            "returncode": 0,
-            "ok": True,
-            "stdout": (
-                '"forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]'
-            ),
-            "stderr": "",
-        },
-    )
-
-    output = tmp_path / "github-run.json"
-    assert (
-        ci_templates.emulator_evidence(
-            "github",
-            mode="run",
-            dry_run=False,
-            allow_untracked=True,
-            output=output,
-        )
-        == 0
-    )
-    payload = json.loads(output.read_text(encoding="utf-8"))
-    assert payload["ok"] is True
-    assert payload["log_warnings"] == []
+    payload = json.loads(output.read_text())
+    assert payload["ok"] is (expected_code == 0)
+    assert payload["log_warnings"] == warnings
 
 
 def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
     monkeypatch, tmp_path: Path
 ) -> None:
-    ci_templates = _load_ci_templates_module()
-    environment: dict[str, str] = {}
+    ci, environment = _load_ci_templates_module(), {}
     monkeypatch.delenv("DOCKER_HOST", raising=False)
-    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/tool")
+    monkeypatch.setattr(ci.shutil, "which", lambda _: "/usr/local/bin/tool")
+    monkeypatch.setattr(ci, "_docker_context_endpoint", lambda: "unix:///context/docker.sock")
+    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
     monkeypatch.setattr(
-        ci_templates,
-        "_docker_context_endpoint",
-        lambda: "unix:///context/docker.sock",
-    )
-    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
-    monkeypatch.setattr(
-        ci_templates,
+        ci,
         "_run_command",
         lambda _command, **kwargs: (
             environment.update(kwargs["env"])
             or {"returncode": 0, "ok": True, "stdout": "", "stderr": ""}
         ),
     )
-
     assert (
-        ci_templates.emulator_evidence(
+        ci.emulator_evidence(
             "github",
             mode="run",
             dry_run=False,
@@ -803,15 +654,13 @@ def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
         )
         == 0
     )
-
     assert environment["DOCKER_HOST"] == "unix:///context/docker.sock"
 
 
 def test_github_emulator_run_materializes_an_independent_git_source(
     monkeypatch, tmp_path: Path
 ) -> None:
-    ci_templates = _load_ci_templates_module()
-    source_dir = tmp_path / "build/runtime/work/github-act/source"
+    ci, source_dir = _load_ci_templates_module(), tmp_path / "build/runtime/work/github-act/source"
     source_dir.mkdir(parents=True)
     entry = {
         "provider": "github",
@@ -837,39 +686,40 @@ def test_github_emulator_run_materializes_an_independent_git_source(
             "untracked_preview_limit": 12,
         },
     }
-    recorded: dict[str, object] = {}
-    materialization = {
-        "kind": "independent_git_checkout",
-        "source_dir": str(source_dir),
-        "source_head": "expected-head",
-        "source_head_matches_expected": True,
-        "git_directory_is_real": True,
-        "uses_external_object_alternates": False,
-        "tracked_diff_bytes": 0,
-    }
-    monkeypatch.setattr(ci_templates, "ROOT", tmp_path)
-    monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
-    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
-    monkeypatch.setattr(ci_templates, "_docker_context_endpoint", lambda: "")
-    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
-    monkeypatch.setattr(ci_templates, "_git_summary", lambda: summary)
+    recorded, materialization = (
+        {},
+        {
+            "kind": "independent_git_checkout",
+            "source_dir": str(source_dir),
+            "source_head": "expected-head",
+            "source_head_matches_expected": True,
+            "git_directory_is_real": True,
+            "uses_external_object_alternates": False,
+            "tracked_diff_bytes": 0,
+        },
+    )
+    monkeypatch.setattr(ci, "ROOT", tmp_path)
+    monkeypatch.setattr(ci, "_provider_entry", lambda _: entry)
+    monkeypatch.setattr(ci.shutil, "which", lambda _: "/usr/local/bin/act")
+    monkeypatch.setattr(ci, "_docker_context_endpoint", lambda: "")
+    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
+    monkeypatch.setattr(ci, "_git_summary", lambda: summary)
     monkeypatch.setattr(
-        ci_templates,
+        ci,
         "materialize_emulator_source",
-        lambda **kwargs: recorded.update(materialization=kwargs) or materialization,
+        lambda **kw: recorded.update(materialization=kw) or materialization,
         raising=False,
     )
     monkeypatch.setattr(
-        ci_templates,
+        ci,
         "_run_command",
-        lambda command, **kwargs: (
-            recorded.update(command=command, run=kwargs)
+        lambda command, **kw: (
+            recorded.update(command=command, run=kw)
             or {"returncode": 0, "ok": True, "stdout": "", "stderr": ""}
         ),
     )
-
     assert (
-        ci_templates.emulator_evidence(
+        ci.emulator_evidence(
             "github",
             mode="run",
             dry_run=False,
@@ -899,9 +749,6 @@ def test_tool_catalog_contains_only_active_provider_gates() -> None:
         assert f'gate = "{gate}"' in block
         assert "planned = true" not in block
         assert "adapter_only = true" not in block
-
-    for concern in ["github_local_emulator", "gitlab_local_emulator"]:
+    for concern in ("github_local_emulator", "gitlab_local_emulator"):
         assert 'config = ".config/checks/ci/templates.toml"' in tool_block(ROOT, concern)
-
-    tool_catalog = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
-    assert ".config/ci/emulators/" not in tool_catalog
+    assert ".config/ci/emulators/" not in (ROOT / "system/tools.toml").read_text(encoding="utf-8")

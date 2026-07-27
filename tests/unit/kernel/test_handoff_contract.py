@@ -7,8 +7,10 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from ethos.adapters.mutation.lane_lifecycle.handoff import package as handoff_package
-from ethos.adapters.repo.dirty import core as dirty_core
+import ethos.adapters.mutation.lane_lifecycle.handoff.destination_import as destination_import
+import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
+import ethos.adapters.repo.dirty.change_provenance as change_provenance
+from ethos.adapters.store.state.lease.projection import LeaseObservation
 from ethos.contracts.coordination import CrossHostHandoff
 from ethos.contracts.coordination import HolderRef
 
@@ -26,6 +28,7 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
         source_lease_epoch=3,
         source_lease_expires_at="2026-07-20T00:00:00+00:00",
         source_lease_payload_sha256="e" * 64,
+        base_change_contract_digest="f" * 64,
         source_holder_ref=HolderRef.parse("agent:source:run:one"),
         artifacts=({"path": "repository.bundle", "sha256": "d" * 64, "kind": "git_bundle"},),
     )
@@ -35,6 +38,7 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
     assert payload["source_tree"] == "b" * width
     assert payload["target_holder_ref"] == "agent:other:run:two"
     assert payload["dirty_content_sha256"] == "f" * 64
+    assert payload["base_change_contract_digest"] == "f" * 64
     assert payload["transfers_source_lease"] is False
     assert payload["destination_creates_local_incarnation"] is True
     assert payload["source_lease_binding"]["epoch"] == 3
@@ -43,6 +47,24 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
     assert payload["truth_boundary"] == "content_addressed_context_until_promoted"
     assert CrossHostHandoff.model_fields["source_lease_expires_at"].is_required()
     assert CrossHostHandoff.model_fields["source_lease_payload_sha256"].is_required()
+    assert CrossHostHandoff.model_fields["base_change_contract_digest"].is_required()
+
+
+def test_cross_host_handoff_rejects_missing_base_change_contract_digest() -> None:
+    with pytest.raises(ValidationError):
+        CrossHostHandoff(
+            source_lane_ref="work/example",
+            source_head="a" * 40,
+            source_tree="b" * 40,
+            target_holder_ref=HolderRef.parse("agent:other:run:two"),
+            context_digest="c" * 64,
+            dirty_content_sha256="f" * 64,
+            source_lease_id="lease:one",
+            source_lease_epoch=3,
+            source_lease_expires_at="2026-07-20T00:00:00+00:00",
+            source_lease_payload_sha256="e" * 64,
+            source_holder_ref=HolderRef.parse("agent:source:run:one"),
+        )
 
 
 @pytest.mark.parametrize("width", [41, 63])
@@ -59,6 +81,7 @@ def test_cross_host_handoff_rejects_intermediate_oid_widths(width: int) -> None:
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
+            base_change_contract_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
         )
 
@@ -77,6 +100,7 @@ def test_cross_host_handoff_rejects_legacy_dirty_disposition() -> None:
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
+            base_change_contract_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
         )
 
@@ -95,6 +119,7 @@ def test_cross_host_handoff_rejects_coercive_lease_epochs(epoch: object) -> None
             source_lease_epoch=epoch,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
+            base_change_contract_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
         )
 
@@ -127,6 +152,7 @@ def test_cross_host_handoff_rejects_noncanonical_artifacts(
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
+            base_change_contract_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
             artifacts=(artifact,),
         )
@@ -146,6 +172,7 @@ def test_handoff_export_rejects_a_bundle_from_another_generation(
         source_lease_epoch=1,
         source_lease_expires_at="2026-07-21T00:00:00+00:00",
         source_lease_payload_sha256="e" * 64,
+        base_change_contract_digest="f" * 64,
         source_holder_ref=HolderRef.parse("agent:source:run:one"),
     )
 
@@ -193,6 +220,47 @@ def test_handoff_manifest_rejects_a_symlinked_manifest(
     assert gaps == ["handoff_manifest_unsafe"]
 
 
+@pytest.mark.parametrize("state", ["valid", "expired", "unknown"])
+def test_handoff_import_rejects_destination_lease_before_git_effects(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    branch = "work/example"
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    git_calls: list[tuple[str, ...]] = []
+
+    monkeypatch.setattr(
+        destination_import,
+        "observe_lease",
+        lambda _database, subject: LeaseObservation(state=state, subject=subject),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        destination_import, "state_database", lambda _root: tmp_path / "state.sqlite"
+    )
+
+    def unexpected_git(_root, *args, **_kwargs):
+        git_calls.append(args)
+        raise AssertionError
+
+    monkeypatch.setattr(destination_import, "run_git", unexpected_git)
+
+    with pytest.raises(ValueError, match=r"^handoff_import_lease_conflict$"):
+        destination_import.apply_handoff_import(
+            destination=destination,
+            package=tmp_path / "package",
+            manifest={
+                "package_id": f"handoff:{'c' * 64}",
+                "source_lane_ref": branch,
+                "source_head": "a" * 40,
+                "base_change_contract_digest": "b" * 64,
+            },
+            target_holder_ref="agent:test:case:target",
+        )
+
+    assert git_calls == []
+
+
 def test_dirty_content_digest_frames_path_and_content(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -205,11 +273,11 @@ def test_dirty_content_digest_frames_path_and_content(
         assert kwargs["text"] is False
         return SimpleNamespace(stdout=b"" if args[0] == "diff" else selected)
 
-    monkeypatch.setattr(dirty_core, "run_git", run_git)
-    first = dirty_core.dirty_content_sha256(tmp_path)
+    monkeypatch.setattr(change_provenance, "run_git", run_git)
+    first = change_provenance.dirty_content_sha256(tmp_path)
     selected = b"ab\0"
 
-    assert dirty_core.dirty_content_sha256(tmp_path) != first
+    assert change_provenance.dirty_content_sha256(tmp_path) != first
 
 
 def test_dirty_content_digest_rejects_an_untracked_symlink(
@@ -220,7 +288,7 @@ def test_dirty_content_digest_rejects_an_untracked_symlink(
     (tmp_path / "link").symlink_to(outside)
 
     monkeypatch.setattr(
-        dirty_core,
+        change_provenance,
         "run_git",
         lambda _root, *args, **_kwargs: SimpleNamespace(
             stdout=b"" if args[0] == "diff" else b"link\0"
@@ -228,7 +296,7 @@ def test_dirty_content_digest_rejects_an_untracked_symlink(
     )
 
     with pytest.raises(ValueError, match="dirty_content_unsafe_path:link"):
-        dirty_core.dirty_content_sha256(tmp_path)
+        change_provenance.dirty_content_sha256(tmp_path)
 
 
 @pytest.mark.parametrize("drift", ["patch", "inventory"])
@@ -247,10 +315,10 @@ def test_dirty_content_digest_rejects_snapshot_drift(
         changed = drift == "inventory" and calls[command] == 2
         return SimpleNamespace(stdout=b"other\0" if changed else b"file\0")
 
-    monkeypatch.setattr(dirty_core, "run_git", run_git)
+    monkeypatch.setattr(change_provenance, "run_git", run_git)
 
     with pytest.raises(ValueError, match="dirty_content_snapshot_drift"):
-        dirty_core.dirty_content_sha256(tmp_path)
+        change_provenance.dirty_content_sha256(tmp_path)
 
 
 def test_dirty_content_digest_rejects_a_symlinked_root(
@@ -262,7 +330,7 @@ def test_dirty_content_digest_rejects_a_symlinked_root(
     linked_root = tmp_path / "linked"
     linked_root.symlink_to(real_root, target_is_directory=True)
     monkeypatch.setattr(
-        dirty_core,
+        change_provenance,
         "run_git",
         lambda _root, *args, **_kwargs: SimpleNamespace(
             stdout=b"" if args[0] == "diff" else b"file\0"
@@ -270,7 +338,7 @@ def test_dirty_content_digest_rejects_a_symlinked_root(
     )
 
     with pytest.raises(ValueError, match="dirty_content_unsafe_path:file"):
-        dirty_core.dirty_content_sha256(linked_root)
+        change_provenance.dirty_content_sha256(linked_root)
 
 
 def test_dirty_content_digest_rejects_path_replacement_after_read(
@@ -281,13 +349,13 @@ def test_dirty_content_digest_rejects_path_replacement_after_read(
     outside = tmp_path / "outside"
     outside.write_bytes(b"outside")
     monkeypatch.setattr(
-        dirty_core,
+        change_provenance,
         "run_git",
         lambda _root, *args, **_kwargs: SimpleNamespace(
             stdout=b"" if args[0] == "diff" else b"file\0"
         ),
     )
-    original_fstat = dirty_core.os.fstat
+    original_fstat = change_provenance.os.fstat
     regular_fstat_calls = 0
 
     def replace_after_read(descriptor: int):
@@ -300,10 +368,10 @@ def test_dirty_content_digest_rejects_path_replacement_after_read(
                 target.symlink_to(outside)
         return observed
 
-    monkeypatch.setattr(dirty_core.os, "fstat", replace_after_read)
+    monkeypatch.setattr(change_provenance.os, "fstat", replace_after_read)
 
     with pytest.raises(ValueError, match="dirty_content_unstable_path:file"):
-        dirty_core.dirty_content_sha256(tmp_path)
+        change_provenance.dirty_content_sha256(tmp_path)
 
 
 def test_dirty_content_digest_opens_special_files_nonblocking(
@@ -312,20 +380,20 @@ def test_dirty_content_digest_opens_special_files_nonblocking(
     fifo = tmp_path / "fifo"
     os.mkfifo(fifo)
     monkeypatch.setattr(
-        dirty_core,
+        change_provenance,
         "run_git",
         lambda _root, *args, **_kwargs: SimpleNamespace(
             stdout=b"" if args[0] == "diff" else b"fifo\0"
         ),
     )
-    original_open = dirty_core.os.open
+    original_open = change_provenance.os.open
 
     def guarded_open(path, flags, *args, **kwargs):
         if path == "fifo":
             assert flags & os.O_NONBLOCK
         return original_open(path, flags, *args, **kwargs)
 
-    monkeypatch.setattr(dirty_core.os, "open", guarded_open)
+    monkeypatch.setattr(change_provenance.os, "open", guarded_open)
 
     with pytest.raises(ValueError, match="dirty_content_unsafe_path:fifo"):
-        dirty_core.dirty_content_sha256(tmp_path)
+        change_provenance.dirty_content_sha256(tmp_path)

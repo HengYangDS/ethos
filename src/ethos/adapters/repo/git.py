@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -24,9 +25,22 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
-    from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
+    from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
 
 _GIT = shutil.which("git") or "git"
+_SHA256_HEX_LENGTH = 64
+
+
+@dataclass(frozen=True, slots=True)
+class GitEffectExecutionRequest:
+    """Immutable bindings required to execute one Git effect."""
+
+    issuer: str
+    permissions: tuple[str, ...]
+    change_contract_digest: str
+    repository_facts_digest: str
+    policy_digest: str
+    attestations: tuple[Attestation, ...] = ()
 
 
 @overload
@@ -67,19 +81,20 @@ def run_git(
         message = "git_observation_environment_override_forbidden"
         raise ValueError(message)
     effective_env = (
+        {"PATH": os.environ.get("PATH", os.defpath)}
+        if observation
+        else {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    )
+    effective_env.update(
         {
-            "PATH": os.environ.get("PATH", os.defpath),
             "LC_ALL": "C",
             "GIT_NO_REPLACE_OBJECTS": "1",
             "GIT_OPTIONAL_LOCKS": "0",
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_ATTR_NOSYSTEM": "1",
+            **(env or {}),
         }
-        if observation
-        else None
-        if env is None
-        else {**os.environ, **env}
     )
     return subprocess.run(
         [_GIT, *args],
@@ -404,39 +419,45 @@ def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[s
 def execute_git_effect(
     root: Path,
     effect: GitEffect,
-    *,
-    issuer: str,
-    attestations: tuple[Attestation, ...] = (),
-    permissions: tuple[str, ...],
+    request: GitEffectExecutionRequest,
 ) -> Attestation:
     """Execute, recover, or replay one exact Git ref transaction."""
+    issuer = request.issuer
+    attestations = request.attestations
+    permissions = request.permissions
+    change_contract_digest = request.change_contract_digest
+    repository_facts_digest = request.repository_facts_digest
+    policy_digest = request.policy_digest
+    _require_effect_bindings(
+        change_contract_digest=change_contract_digest,
+        repository_facts_digest=repository_facts_digest,
+        policy_digest=policy_digest,
+    )
     _require_effect_permission(effect, permissions)
-    digest = effect.digest()
-    matching = tuple(attestation for attestation in attestations if attestation.id == effect.id)
-    if matching:
-        if any(
-            attestation.kind != "git-effect"
-            or attestation.subject != effect.plan_digest
-            or attestation.content.get("effect_digest") != digest
-            for attestation in matching
-        ):
-            message = "git_effect_identity_collision"
-            raise ValueError(message)
-        attestation = matching[-1]
-        if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
-            message = "git_effect_cas_mismatch"
-            raise ValueError(message)
-        if any(_effect_ref(root, ref) != update.desired for ref, update in effect.updates.items()):
-            message = "git_effect_postcondition_failed"
-            raise ValueError(message)
-        return attestation
+    replayed = _replay_git_effect(
+        root,
+        effect,
+        attestations=attestations,
+        change_contract_digest=change_contract_digest,
+        repository_facts_digest=repository_facts_digest,
+        policy_digest=policy_digest,
+    )
+    if replayed is not None:
+        return replayed
     observed = {ref: _effect_ref(root, ref) for ref in effect.updates}
     if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
         message = "git_effect_cas_mismatch"
         raise ValueError(message)
     desired = {ref: update.desired for ref, update in effect.updates.items()}
     if observed == desired:
-        return _attestation(effect, issuer=issuer, state="recovered")
+        return _attestation(
+            effect,
+            issuer=issuer,
+            state="recovered",
+            change_contract_digest=change_contract_digest,
+            repository_facts_digest=repository_facts_digest,
+            policy_digest=policy_digest,
+        )
     expected = {ref: update.expected for ref, update in effect.updates.items()}
     if observed != expected:
         message = "git_effect_cas_mismatch"
@@ -466,7 +487,110 @@ def execute_git_effect(
     if {ref: _effect_ref(root, ref) for ref in effect.updates} != desired:
         message = "git_effect_postcondition_failed"
         raise ValueError(message)
-    return _attestation(effect, issuer=issuer, state="applied")
+    return _attestation(
+        effect,
+        issuer=issuer,
+        state="applied",
+        change_contract_digest=change_contract_digest,
+        repository_facts_digest=repository_facts_digest,
+        policy_digest=policy_digest,
+    )
+
+
+def _replay_git_effect(
+    root: Path,
+    effect: GitEffect,
+    *,
+    attestations: tuple[Attestation, ...],
+    change_contract_digest: str,
+    repository_facts_digest: str,
+    policy_digest: str,
+) -> Attestation | None:
+    digest = effect.digest()
+    matching = tuple(
+        attestation
+        for attestation in attestations
+        if attestation.subject == effect.id or attestation.effect_digest == digest
+    )
+    if not matching:
+        return None
+    if len(matching) > 1:
+        if len({attestation.canonical_json() for attestation in matching}) > 1:
+            message = "git_effect_identity_collision"
+            raise ValueError(message)
+        message = "git_effect_attestation_duplicate"
+        raise ValueError(message)
+    attestation = matching[0]
+    _validate_git_effect_attestation(
+        effect,
+        attestation,
+        change_contract_digest=change_contract_digest,
+        repository_facts_digest=repository_facts_digest,
+        policy_digest=policy_digest,
+    )
+    if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
+        message = "git_effect_cas_mismatch"
+        raise ValueError(message)
+    if any(_effect_ref(root, ref) != update.desired for ref, update in effect.updates.items()):
+        message = "git_effect_postcondition_failed"
+        raise ValueError(message)
+    return attestation
+
+
+def _validate_git_effect_attestation(
+    effect: GitEffect,
+    attestation: Attestation,
+    *,
+    change_contract_digest: str,
+    repository_facts_digest: str,
+    policy_digest: str,
+) -> None:
+    if (
+        attestation.kind != "effect"
+        or attestation.subject != effect.id
+        or attestation.plan_digest != effect.plan_digest
+        or attestation.effect_digest != effect.digest()
+    ):
+        message = "git_effect_identity_collision"
+        raise ValueError(message)
+    for name, expected in (
+        ("change_contract_digest", change_contract_digest),
+        ("repository_facts_digest", repository_facts_digest),
+        ("policy_digest", policy_digest),
+    ):
+        if getattr(attestation, name) != expected:
+            message = f"git_effect_attestation_binding_mismatch:{name}"
+            raise ValueError(message)
+    if attestation.verdict != "pass":
+        message = f"git_effect_attestation_verdict_{attestation.verdict}"
+        raise ValueError(message)
+    if (
+        attestation.content.get("state") not in {"applied", "recovered"}
+        or attestation.content.get("updates") != effect.model_dump(mode="json")["updates"]
+    ):
+        message = "git_effect_attestation_content_mismatch"
+        raise ValueError(message)
+
+
+def _require_effect_bindings(
+    *,
+    change_contract_digest: str,
+    repository_facts_digest: str,
+    policy_digest: str,
+) -> None:
+    for name, value in (
+        ("change_contract_digest", change_contract_digest),
+        ("repository_facts_digest", repository_facts_digest),
+        ("policy_digest", policy_digest),
+    ):
+        if not value:
+            message = f"git_effect_binding_missing:{name}"
+            raise ValueError(message)
+        if len(value) != _SHA256_HEX_LENGTH or any(
+            character not in "0123456789abcdef" for character in value
+        ):
+            message = f"git_effect_binding_invalid:{name}"
+            raise ValueError(message)
 
 
 def _require_effect_permission(effect: GitEffect, permissions: tuple[str, ...]) -> None:
@@ -478,18 +602,35 @@ def _require_effect_permission(effect: GitEffect, permissions: tuple[str, ...]) 
 
 def git_effect_attestations(
     root: Path,
-    effect_id: str,
+    effect: GitEffect,
     record: Attestation | None = None,
 ) -> tuple[Attestation, ...]:
-    path = Path(git_common_dir(root), "ethos", "git-effects", f"{effect_id.replace(':', '-')}.json")
+    path = Path(git_common_dir(root), "ethos", "git-effects", f"{effect.digest()}.json")
     if record is not None:
+        existing = git_effect_attestations(root, effect)
+        if existing:
+            if existing[0].canonical_json() != record.canonical_json():
+                message = "git_effect_attestation_collision"
+                raise ValueError(message)
+            return existing
+        if (
+            record.kind != "effect"
+            or record.subject != effect.id
+            or record.plan_digest != effect.plan_digest
+            or record.effect_digest != effect.digest()
+        ):
+            message = "git_effect_attestation_binding_mismatch"
+            raise ValueError(message)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(record.model_dump_json(), encoding="utf-8")
+        path.write_text(record.canonical_json(), encoding="utf-8")
         return (record,)
+    if not path.exists():
+        return ()
     try:
         return (Attestation.model_validate_json(path.read_text(encoding="utf-8")),)
-    except (OSError, ValueError):
-        return ()
+    except (OSError, ValueError) as error:
+        message = "git_effect_attestation_invalid"
+        raise ValueError(message) from error
 
 
 def git_ref_effect(
@@ -586,16 +727,27 @@ def _effect_ref(root: Path, ref: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def _attestation(effect: GitEffect, *, issuer: str, state: str) -> Attestation:
-    return Attestation(
-        id=effect.id,
-        kind="git-effect",
-        issuer=issuer,
-        subject=effect.plan_digest,
-        issued_at=datetime.now(UTC),
-        content={
+def _attestation(
+    effect: GitEffect,
+    *,
+    issuer: str,
+    state: str,
+    change_contract_digest: str,
+    repository_facts_digest: str,
+    policy_digest: str,
+) -> Attestation:
+    return Attestation.issue(
+        {
+            "kind": "effect",
+            "issuer": issuer,
+            "subject": effect.id,
+            "issued_at": datetime.now(UTC),
+            "verdict": "pass",
+            "change_contract_digest": change_contract_digest,
+            "repository_facts_digest": repository_facts_digest,
+            "plan_digest": effect.plan_digest,
+            "policy_digest": policy_digest,
             "effect_digest": effect.digest(),
-            "state": state,
-            "updates": effect.model_dump(mode="json")["updates"],
-        },
+            "content": {"state": state, "updates": effect.model_dump(mode="json")["updates"]},
+        }
     )

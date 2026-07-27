@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -10,9 +11,10 @@ from ethos.result import EthosResult
 
 def test_ethos_result_is_frozen_strict_schema_model() -> None:
     result = EthosResult(command="status", ok=True, state="ready")
+    mutable: Any = result
 
     with pytest.raises(ValidationError) as exc_info:
-        result.state = "dirty"  # type: ignore[misc]
+        mutable.state = "dirty"
 
     assert exc_info.value.errors()[0]["type"] == "frozen_instance"
     schema = EthosResult.model_json_schema(mode="serialization")

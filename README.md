@@ -12,27 +12,30 @@ ETHOS is Evidence-grounded Trust for Human-Agent Operational Stewardship.
 
 See the [Brand Kit](docs/reference/brand-kit.md) for repository-owned public identity and presentation assets.
 
+Design status: projection. The canonical semantic owner is the
+[Product Design Contract](docs/governance/product-design-contract.md#semantic-kernel).
+
 It gives a Git repository a safe operating loop for human-agent change: inspect
 where you are, plan the required proof, run that proof, land through a controlled
 review path, and publish only when local and hosted evidence are separated.
 
 ETHOS does not take over your domain model, CI provider, assistant host, or issue
 tracker. Those systems stay adapters or projections. Repository source, tests,
-schemas, docs, evidence, and promoted decisions remain the truth.
+schemas, docs, effective ChangeContracts, and Attestations remain the truth.
 
 ## Isomorphic Governance
 
 ETHOS governs the ETHOS product repository and adopted repositories through the
-same kernel: authority, subject, commitment, change, evidence, claim, and chronicle.
-Product and adopter work differ by profiles and adapters, not by separate command
-planes or private truth stores. This is not product cloning: each governed
-repository keeps its domain model, provider surfaces, and local shape while ETHOS
-applies one evidence-bound transition loop.
+same kernel: `(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR ->
+new Attestations`. Product and adopter work differ by profiles and adapters, not
+by separate command planes or private truth stores. This is not product cloning:
+each governed repository keeps its domain model, provider surfaces, and local
+shape while ETHOS applies one evidence-bound transition loop.
 
 The same commands answer the same transition questions in every governed
 repository: where am I, what may mutate, which proof is required, can this land,
 and what publication boundary remains. Repository truth stays in source, tests,
-schemas, docs, evidence, and promoted decisions; profiles tune checks and proof
+schemas, docs, ChangeContracts, and Attestations; profiles tune checks and proof
 depth, while adapters project local providers without becoming truth stores.
 
 ## First Hour
@@ -83,17 +86,16 @@ README / docs index / AGENTS.md -> status -> plan -> prove -> land -> publish
 
 ## Kernel
 
-ETHOS product truth is judged from one source and projected through one canonical
-chain:
+This section is a reader projection of the
+[canonical semantic model](docs/governance/product-design-contract.md#semantic-kernel):
 
 ```text
-ChangeContract + Attestation -> RepositoryFacts -> PlanIR
+(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations
 ```
 
-`ChangeContract` owns immutable intent and authority references. `Attestation`
-binds observations and judgments to evidence. `RepositoryFacts` is re-observed;
-`PlanIR` is transient. No parallel subject, commitment, evidence, claim, or
-chronicle model owns truth.
+Only ChangeContract and Attestation persist. Model Promotion is the canonical
+conflict adjudication; its full definition remains in the Product Design
+Contract rather than this projection.
 
 ## Product Shape
 
@@ -112,18 +114,16 @@ The npm package is a thin launcher over the Python command plane:
 npm run ethos -- --version
 ```
 
-## Maintainer Reference
+## Command Plane
 
-ETHOS can inspect and evolve the governed repository through
-maintainer/reference commands:
+ETHOS exposes one governed lifecycle rather than a parallel maintainer surface:
 
 ```bash
-ethos audit
-ethos campaign hypotheses
-ethos prove --gate docs-registry --json
-ethos prove --json
+ethos status --json
+ethos plan --changed --json
+ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+ethos land --json
 ethos publish --json
-ethos assistants mcp-manifest
 ```
 
 The same evidence, docs, schema, and proof-gate rules used for adopter

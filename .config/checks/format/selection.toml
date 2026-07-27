@@ -4,17 +4,18 @@ summary = "Fail-closed executable-carrier admission audit."
 runner = "tools/ci/scripts/run-format-selection.sh"
 
 [source_budget]
-contract_version = 1
+contract_version = 2
 cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--count-as", "c4:md,mmd:md", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
 terminal = { python_total = 54000, global_total = 68000 }
 aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "shell", "js", "toml", "yaml", "json", "ini", "diagram"] }
 exclude = ["package-lock.json"]
+immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
 line_width = 100
 
 [[format]]
 extensions = [".py", ".pyi"]
 carrier = "Python source"
-owner = ".config/checks/ruff/ruff.toml"
+owner = "ruff.toml"
 execution = "tools/ci/scripts/run-python-lint.sh"
 truth_boundary = "source"
 budget = [
@@ -134,19 +135,12 @@ yaml_allowed_roots = [
 ".ini" = { roots = [".config/"] }
 ".json" = { roots = [
   "system/schemas/",
-  "evidence/parity/",
+  "evidence/",
   "distributions/npm/",
   "tests/fixtures/container-contract/",
 ], files = [
   "package.json",
   "package-lock.json",
-  "evidence/chronicle/all-work-lanes-convergence-20260716/lane-inventory.json",
-  "evidence/chronicle/all-lanes-convergence-replay-20260718/lane-resolution-matrix.json",
-  "evidence/chronicle/all-lanes-authorized-closeout-20260718/current-lane-matrix.json",
-  "evidence/chronicle/all-lanes-resolution-execution-20260718/lane-resolution-matrix.json",
-  "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/family-analysis.json",
-  "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/lane-dispositions.json",
-  "evidence/chronicle/post-lease-ownerless-remainder-absorption-20260725/lane-dispositions.json",
 ] }
 ".mjs" = { roots = ["distributions/npm/"] }
 ".c4" = { roots = [".config/checks/architecture/models/"] }

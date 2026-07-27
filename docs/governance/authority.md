@@ -12,7 +12,7 @@ relations:
 Status: canonical.
 
 Purpose: define the source of product judgment before reader-facing summaries,
-derived views, or evidence claims.
+derived views, or attested evidence.
 
 See also: [Product Design Contract](product-design-contract.md), [Command Plane](../reference/command-plane.md),
 and [Quickstart](../start/quickstart.md).
@@ -28,13 +28,15 @@ The authority fixes four irreducible anchors:
 Authority
 Subject
 Change
-Chronicle
+Attestation
 ```
 
 `Commitment` collects the Subject's contracts, policies, specs, rules, promises,
-and decisions. `Evidence` stores proof material. `Claim` binds evidence to a
-Change. `Claim` is not the lifecycle owner and does not prove semantic truth
-unless a semantic verifier actually checked that truth.
+and decisions. `Evidence` is material carried by an Attestation. The effective
+ChangeContract owns intent, scope, acceptance propositions, and amendment
+lineage; Attestations own verifier-bounded observations, judgments, proof,
+effects, and historical preservation. Neither a proposition nor a historical
+view is a persistent authority surface.
 
 DocOS authority graph data under `docs/_meta/authority_graph.toml` is a typed
 read model and drift gate. It records relation type, owner, canonical target,

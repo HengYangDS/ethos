@@ -34,41 +34,43 @@ def open_directory_path(path: Path, *, create: bool) -> int:
     except BaseException:
         os.close(descriptor)
         raise
-    return descriptor
+    else:
+        return descriptor
 
 
-def open_directory_child(parent_descriptor: int, name: str, *, create: bool) -> int:
-    """Open one child after matching its lstat, descriptor, and final lstat identities."""
-    before = entry_directory_identity(parent_descriptor, name)
+def open_directory_child(parent: int, name: str, *, create: bool) -> int:
+    """Open one child only while its entry and descriptor identities agree."""
+    before = entry_directory_identity(parent, name)
     if before is None and create:
         with suppress(FileExistsError):
-            os.mkdir(name, mode=0o700, dir_fd=parent_descriptor)
-        before = entry_directory_identity(parent_descriptor, name)
-    descriptor = os.open(name, directory_flags(), dir_fd=parent_descriptor)
+            os.mkdir(name, mode=0o700, dir_fd=parent)
+        before = entry_directory_identity(parent, name)
+    descriptor = os.open(name, directory_flags(), dir_fd=parent)
     try:
         opened = directory_identity(os.fstat(descriptor))
-        after = entry_directory_identity(parent_descriptor, name)
-        _require_stable(condition=before is not None and before == opened == after, name=name)
+        _require_stable(
+            condition=before is not None
+            and before == opened == entry_directory_identity(parent, name),
+            name=name,
+        )
     except BaseException:
         os.close(descriptor)
         raise
-    return descriptor
+    else:
+        return descriptor
 
 
 def directory_binding(path: Path, child: str) -> tuple[DirectoryIdentity, DirectoryIdentity]:
     """Reopen one lexical root and child directory and return their identities."""
-    root_descriptor = open_directory_path(path, create=False)
-    child_descriptor: int | None = None
+    root = open_directory_path(path, create=False)
+    nested: int | None = None
     try:
-        child_descriptor = open_directory_child(root_descriptor, child, create=False)
-        return (
-            directory_identity(os.fstat(root_descriptor)),
-            directory_identity(os.fstat(child_descriptor)),
-        )
+        nested = open_directory_child(root, child, create=False)
+        return directory_identity(os.fstat(root)), directory_identity(os.fstat(nested))
     finally:
-        if child_descriptor is not None:
-            os.close(child_descriptor)
-        os.close(root_descriptor)
+        if nested is not None:
+            os.close(nested)
+        os.close(root)
 
 
 def directory_path_identity(path: Path) -> DirectoryIdentity:
@@ -80,23 +82,15 @@ def directory_path_identity(path: Path) -> DirectoryIdentity:
         os.close(descriptor)
 
 
-def directory_descriptor_is_live(
-    path: Path,
-    descriptor: int,
-    expected_identity: DirectoryIdentity,
-) -> bool:
+def directory_descriptor_is_live(path: Path, descriptor: int, expected: DirectoryIdentity) -> bool:
     """Return whether a held directory is still the exact lexical path binding."""
     try:
-        return (
-            directory_identity(os.fstat(descriptor))
-            == expected_identity
-            == directory_path_identity(path)
-        )
+        return directory_identity(os.fstat(descriptor)) == expected == directory_path_identity(path)
     except OSError:
         return False
 
 
-def child_directory_is_live(  # noqa: PLR0913, RUF100 - exact root and child bindings
+def child_directory_is_live(
     path: Path,
     root_descriptor: int,
     root_identity: DirectoryIdentity,
@@ -106,86 +100,59 @@ def child_directory_is_live(  # noqa: PLR0913, RUF100 - exact root and child bin
 ) -> bool:
     """Return whether held root and child descriptors still match their lexical names."""
     try:
-        visible_root, visible_child = directory_binding(path, child_name)
-        return visible_root == root_identity == directory_identity(
-            os.fstat(root_descriptor)
-        ) and visible_child == child_identity == directory_identity(os.fstat(child_descriptor))
+        visible = directory_binding(path, child_name)
+        held = (
+            directory_identity(os.fstat(root_descriptor)),
+            directory_identity(os.fstat(child_descriptor)),
+        )
     except OSError:
         return False
+    return visible == held == (root_identity, child_identity)
 
 
-def rename_no_replace(
-    directory_descriptor: int,
-    source_name: str,
-    target_name: str,
-) -> None:
+def rename_no_replace(directory_descriptor: int, source_name: str, target_name: str) -> None:
     """Rename one descriptor-relative entry without replacing a competitor."""
     library = ctypes.CDLL(None, use_errno=True)
-    source_bytes = os.fsencode(source_name)
-    target_bytes = os.fsencode(target_name)
+    arguments = (
+        directory_descriptor,
+        os.fsencode(source_name),
+        directory_descriptor,
+        os.fsencode(target_name),
+    )
     if hasattr(library, "renameatx_np"):
-        result = library.renameatx_np(
-            directory_descriptor,
-            source_bytes,
-            directory_descriptor,
-            target_bytes,
-            4,
-        )
+        result = library.renameatx_np(*arguments, 4)
     elif hasattr(library, "renameat2"):
-        result = library.renameat2(
-            directory_descriptor,
-            source_bytes,
-            directory_descriptor,
-            target_bytes,
-            1,
-        )
+        result = library.renameat2(*arguments, 1)
     else:
         raise OSError(errno.ENOTSUP, os.strerror(errno.ENOTSUP), target_name)
-    if result == 0:
-        return
-    error = ctypes.get_errno()
-    exception = FileExistsError if error == errno.EEXIST else OSError
-    raise exception(error, os.strerror(error), target_name)
+    if result:
+        error = ctypes.get_errno()
+        exception = FileExistsError if error == errno.EEXIST else OSError
+        raise exception(error, os.strerror(error), target_name)
 
 
 def directory_flags() -> int:
     """Return no-follow flags for opening one descriptor-bound directory."""
-    return (
-        os.O_RDONLY
-        | getattr(os, "O_CLOEXEC", 0)
-        | getattr(os, "O_DIRECTORY", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_NONBLOCK", 0)
-    )
+    return _flags(os.O_RDONLY, "O_CLOEXEC", "O_DIRECTORY", "O_NOFOLLOW", "O_NONBLOCK")
 
 
 def file_flags() -> int:
     """Return no-follow flags for opening one descriptor-bound regular file."""
-    return (
-        os.O_RDONLY
-        | getattr(os, "O_CLOEXEC", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_NONBLOCK", 0)
-    )
+    return _flags(os.O_RDONLY, "O_CLOEXEC", "O_NOFOLLOW", "O_NONBLOCK")
+
+
+def _flags(base: int, *names: str) -> int:
+    return base | sum(getattr(os, name, 0) for name in names)
 
 
 def create_bound_file(directory_descriptor: int, name: str) -> int:
     """Create one exclusive no-follow file relative to a held directory."""
-    flags = (
-        os.O_RDWR
-        | os.O_CREAT
-        | os.O_EXCL
-        | getattr(os, "O_CLOEXEC", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_NONBLOCK", 0)
-    )
+    flags = _flags(os.O_RDWR | os.O_CREAT | os.O_EXCL, "O_CLOEXEC", "O_NOFOLLOW", "O_NONBLOCK")
     return os.open(name, flags, 0o600, dir_fd=directory_descriptor)
 
 
 def prepare_bound_file(
-    directory_descriptor: int,
-    target_name: str,
-    content: bytes,
+    directory_descriptor: int, target_name: str, content: bytes
 ) -> tuple[str, FileIdentity]:
     """Create and sync one temporary file with cleanup armed before its first write."""
     temporary = f".{target_name}.{uuid.uuid4().hex}.tmp"
@@ -213,14 +180,11 @@ def prepare_bound_file(
 
 def staging_name(target_name: str, expected: bytes) -> str:
     """Return one unique CAS staging name bound to the expected bytes."""
-    digest = hashlib.sha256(expected).hexdigest()
-    return f".{target_name}.{digest}.{uuid.uuid4().hex}.cas"
+    return f".{target_name}.{hashlib.sha256(expected).hexdigest()}.{uuid.uuid4().hex}.cas"
 
 
 def create_locked_file_link(
-    directory_descriptor: int,
-    name: str,
-    content: bytes,
+    directory_descriptor: int, name: str, content: bytes
 ) -> tuple[int, FileIdentity]:
     """Create, lock, and link one immutable file relative to a held directory."""
     temporary = f".{name}.{uuid.uuid4().hex}.tmp"
@@ -241,17 +205,13 @@ def create_locked_file_link(
             follow_symlinks=False,
         )
         linked = True
-        identity = file_identity(os.fstat(descriptor))
-        _require_stable(
-            condition=entry_file_identity(directory_descriptor, name) == identity,
-            name=name,
-        )
-        remove_owned_entry(directory_descriptor, temporary, identity, sync=False)
-        identity = file_identity(os.fstat(descriptor))
-        _require_stable(
-            condition=entry_file_identity(directory_descriptor, name) == identity,
-            name=name,
-        )
+        for remove_temporary in (True, False):
+            identity = file_identity(os.fstat(descriptor))
+            _require_stable(
+                condition=entry_file_identity(directory_descriptor, name) == identity, name=name
+            )
+            if remove_temporary:
+                remove_owned_entry(directory_descriptor, temporary, identity, sync=False)
         os.fsync(directory_descriptor)
     except BaseException:
         if linked:
@@ -264,7 +224,8 @@ def create_locked_file_link(
             fcntl.flock(descriptor, fcntl.LOCK_UN)
         os.close(descriptor)
         raise
-    return descriptor, identity
+    else:
+        return descriptor, identity
 
 
 def lock_regular_file(directory_descriptor: int, name: str) -> int:
@@ -275,7 +236,8 @@ def lock_regular_file(directory_descriptor: int, name: str) -> int:
     except BaseException:
         os.close(descriptor)
         raise
-    return descriptor
+    else:
+        return descriptor
 
 
 def unlock_close(descriptor: int) -> None:
@@ -294,27 +256,18 @@ def open_regular_file(directory_descriptor: int, name: str) -> int:
 
 
 def read_bound_file(
-    directory_descriptor: int,
-    name: str,
-    expected_identity: FileIdentity,
-    *,
-    max_bytes: int,
+    directory_descriptor: int, name: str, expected: FileIdentity, *, max_bytes: int
 ) -> bytes | None:
     """Read one identity-bound file while enforcing a fixed byte ceiling."""
-    descriptor = open_identity_bound_file(directory_descriptor, name, expected_identity)
+    descriptor = open_identity_bound_file(directory_descriptor, name, expected)
     try:
-        if expected_identity[3] > max_bytes:
+        if expected[3] > max_bytes:
             return None
-        remaining = max_bytes + 1
-        chunks: list[bytes] = []
-        while remaining and (chunk := os.read(descriptor, min(1024 * 1024, remaining))):
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        content = b"".join(chunks)
+        content = _read_chunks(descriptor, max_bytes + 1, 1024 * 1024)
         return (
             content
             if len(content) <= max_bytes
-            and _file_binding_matches(directory_descriptor, name, descriptor, expected_identity)
+            and _file_binding_matches(directory_descriptor, name, descriptor, expected)
             else None
         )
     finally:
@@ -327,31 +280,30 @@ def read_stable_descriptor(descriptor: int, *, max_bytes: int) -> bytes:
     if not stat.S_ISREG(before[2]) or before[3] > max_bytes:
         raise ValueError
     os.lseek(descriptor, 0, os.SEEK_SET)
-    remaining = max_bytes + 1
-    chunks: list[bytes] = []
-    while remaining and (chunk := os.read(descriptor, min(64 * 1024, remaining))):
-        chunks.append(chunk)
-        remaining -= len(chunk)
-    content = b"".join(chunks)
+    content = _read_chunks(descriptor, max_bytes + 1, 64 * 1024)
     if len(content) > max_bytes or before != file_identity(os.fstat(descriptor)):
         raise ValueError
     return content
 
 
-def digest_bound_file(
-    directory_descriptor: int,
-    name: str,
-    expected_identity: FileIdentity,
-) -> str | None:
+def _read_chunks(descriptor: int, remaining: int, size: int) -> bytes:
+    chunks: list[bytes] = []
+    while remaining and (chunk := os.read(descriptor, min(size, remaining))):
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def digest_bound_file(directory_descriptor: int, name: str, expected: FileIdentity) -> str | None:
     """Hash one identity-bound file and reject any path or descriptor drift."""
-    descriptor = open_identity_bound_file(directory_descriptor, name, expected_identity)
+    descriptor = open_identity_bound_file(directory_descriptor, name, expected)
     try:
         digest = hashlib.sha256()
         while chunk := os.read(descriptor, 1024 * 1024):
             digest.update(chunk)
         return (
             digest.hexdigest()
-            if _file_binding_matches(directory_descriptor, name, descriptor, expected_identity)
+            if _file_binding_matches(directory_descriptor, name, descriptor, expected)
             else None
         )
     finally:
@@ -359,58 +311,43 @@ def digest_bound_file(
 
 
 def digest_matches_identity(
-    directory_descriptor: int,
-    name: str,
-    expected_identity: FileIdentity,
-    expected_sha256: str,
+    directory_descriptor: int, name: str, expected: FileIdentity, expected_sha256: str
 ) -> bool:
     """Match a digest only while the exact current-file identity remains bound."""
     identity = entry_file_identity(directory_descriptor, name)
     return (
-        identity == expected_identity
+        identity == expected
         and digest_bound_file(directory_descriptor, name, identity) == expected_sha256
     )
 
 
-def open_identity_bound_file(
-    directory_descriptor: int,
-    name: str,
-    expected_identity: FileIdentity,
-) -> int:
-    if entry_file_identity(directory_descriptor, name) != expected_identity:
+def open_identity_bound_file(directory_descriptor: int, name: str, expected: FileIdentity) -> int:
+    if entry_file_identity(directory_descriptor, name) != expected:
         raise OSError(errno.ESTALE, os.strerror(errno.ESTALE), name)
     descriptor = open_regular_file(directory_descriptor, name)
     try:
         _require_stable(
-            condition=_file_binding_matches(
-                directory_descriptor, name, descriptor, expected_identity
-            ),
+            condition=_file_binding_matches(directory_descriptor, name, descriptor, expected),
             name=name,
         )
     except BaseException:
         os.close(descriptor)
         raise
-    return descriptor
+    else:
+        return descriptor
 
 
 def _file_binding_matches(
-    directory_descriptor: int,
-    name: str,
-    descriptor: int,
-    expected_identity: FileIdentity,
+    directory_descriptor: int, name: str, descriptor: int, expected: FileIdentity
 ) -> bool:
     return (
         file_identity(os.fstat(descriptor))
-        == expected_identity
+        == expected
         == entry_file_identity(directory_descriptor, name)
     )
 
 
-def descriptor_matches_entry(
-    directory_descriptor: int,
-    name: str,
-    descriptor: int,
-) -> bool:
+def descriptor_matches_entry(directory_descriptor: int, name: str, descriptor: int) -> bool:
     """Return whether an open descriptor remains the exact visible entry."""
     try:
         return entry_file_identity(directory_descriptor, name) == file_identity(
@@ -421,55 +358,36 @@ def descriptor_matches_entry(
 
 
 def stage_locked_file(
-    directory_descriptor: int,
-    source_name: str,
-    staging_name: str,
-    locked_descriptor: int,
+    directory_descriptor: int, source_name: str, target_name: str, locked_descriptor: int
 ) -> tuple[int, FileIdentity]:
     """Rename one visible file to staging with restoration armed before reopening it."""
-    staging_identity = file_identity(os.fstat(locked_descriptor))
+    identity = file_identity(os.fstat(locked_descriptor))
     renamed = False
     try:
-        rename_no_replace(directory_descriptor, source_name, staging_name)
+        rename_no_replace(directory_descriptor, source_name, target_name)
         renamed = True
-        locked_identity = file_identity(os.fstat(locked_descriptor))
-        staging_identity = locked_identity
-        visible_identity = entry_file_identity(directory_descriptor, staging_name)
-        _require_stable(
-            condition=visible_identity is not None,
-            name=staging_name,
-        )
-        staging_identity = cast("FileIdentity", visible_identity)
-        _require_stable(condition=staging_identity == locked_identity, name=staging_name)
-        descriptor = open_identity_bound_file(
-            directory_descriptor,
-            staging_name,
-            staging_identity,
-        )
+        locked = file_identity(os.fstat(locked_descriptor))
+        identity = locked
+        visible = entry_file_identity(directory_descriptor, target_name)
+        _require_stable(condition=visible is not None, name=target_name)
+        identity = cast("FileIdentity", visible)
+        _require_stable(condition=identity == locked, name=target_name)
+        return open_identity_bound_file(directory_descriptor, target_name, identity), identity
     except BaseException:
         if renamed:
-            restore_staged_file(
-                directory_descriptor,
-                staging_name,
-                source_name,
-                staging_identity,
-            )
+            restore_staged_file(directory_descriptor, target_name, source_name, identity)
         raise
-    return descriptor, staging_identity
 
 
 def restore_staged_file(
-    directory_descriptor: int,
-    staging_name: str,
-    target_name: str,
-    expected_identity: FileIdentity,
+    directory_descriptor: int, staging_name: str, target_name: str, expected: FileIdentity
 ) -> None:
     """Restore only the exact staged inode when its canonical name is vacant."""
-    staged_identity = entry_file_identity(directory_descriptor, staging_name)
-    if staged_identity is None:
+    staged = entry_file_identity(directory_descriptor, staging_name)
+    if staged is None:
         return
     _require_stable(
-        condition=staged_identity == expected_identity
+        condition=staged == expected
         and entry_file_identity(directory_descriptor, target_name) is None,
         name=staging_name,
     )
@@ -486,16 +404,11 @@ def write_all(descriptor: int, content: bytes) -> None:
     """Write every byte to one already-open descriptor."""
     view = memoryview(content)
     while view:
-        written = os.write(descriptor, view)
-        view = view[written:]
+        view = view[os.write(descriptor, view) :]
 
 
 def remove_owned_entry(
-    directory_descriptor: int,
-    name: str,
-    expected: FileIdentity,
-    *,
-    sync: bool = True,
+    directory_descriptor: int, name: str, expected: FileIdentity, *, sync: bool = True
 ) -> None:
     """Quarantine, verify, and remove one exact entry without deleting a competitor."""
     fcntl.flock(directory_descriptor, fcntl.LOCK_EX)
@@ -508,16 +421,11 @@ def remove_owned_entry(
             rename_no_replace(directory_descriptor, name, tombstone)
             moved = True
             moved_identity = file_identity(os.fstat(descriptor))
-            visible_identity = entry_file_identity(directory_descriptor, tombstone)
-            if visible_identity != moved_identity:
-                if visible_identity is not None:
+            visible = entry_file_identity(directory_descriptor, tombstone)
+            if visible != moved_identity:
+                if visible is not None:
                     moved = False
-                    restore_staged_file(
-                        directory_descriptor,
-                        tombstone,
-                        name,
-                        visible_identity,
-                    )
+                    restore_staged_file(directory_descriptor, tombstone, name, visible)
                 _require_stable(condition=False, name=tombstone)
             os.unlink(tombstone, dir_fd=directory_descriptor)
             moved = False
@@ -552,20 +460,17 @@ def directory_identity(metadata: os.stat_result) -> DirectoryIdentity:
 
 def entry_file_identity(directory_descriptor: int, name: str) -> FileIdentity | None:
     """Return one no-follow entry identity relative to a held directory."""
-    try:
-        metadata = os.stat(name, dir_fd=directory_descriptor, follow_symlinks=False)
-    except FileNotFoundError:
-        return None
-    return file_identity(metadata)
+    return _entry_identity(directory_descriptor, name, file_identity)
 
 
-def entry_directory_identity(
-    directory_descriptor: int,
-    name: str,
-) -> DirectoryIdentity | None:
+def entry_directory_identity(directory_descriptor: int, name: str) -> DirectoryIdentity | None:
     """Return one no-follow directory-entry identity relative to a held parent."""
+    return _entry_identity(directory_descriptor, name, directory_identity)
+
+
+def _entry_identity(directory_descriptor: int, name: str, convert):
     try:
         metadata = os.stat(name, dir_fd=directory_descriptor, follow_symlinks=False)
     except FileNotFoundError:
         return None
-    return directory_identity(metadata)
+    return convert(metadata)

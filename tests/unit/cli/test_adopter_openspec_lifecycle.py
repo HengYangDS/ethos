@@ -2,20 +2,42 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 import ethos.surface.cli.root.planning as planning_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.openspec.core import openspec_governance_report
-from ethos.adapters.openspec.lifecycle.core import OpenSpecRequest
-from ethos.adapters.openspec.lifecycle.core import lifecycle_report
+from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
+from ethos.adapters.openspec.lifecycle.report import lifecycle_report
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.openspec.audit import openspec_shape_report
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
+from tests.support.contract_helpers import write_active_change_contract
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def _write_valid_accepted_specs(repo: Path) -> None:
+    openspec = repo / "openspec"
+    specs = openspec / "specs"
+    (specs / "contracts").mkdir(parents=True)
+    (openspec / "config.yaml").write_text(
+        "schema: spec-driven\n"
+        "context: test repository\n"
+        "rules:\n"
+        "  proposal: [write intent]\n"
+        "  specs: [write requirements]\n"
+        "  tasks: [track work]\n"
+        "  design: [record decisions]\n",
+        encoding="utf-8",
+    )
+    (specs / "README.md").write_text("# Specs\n", encoding="utf-8")
+    (specs / "contracts" / "spec.md").write_text("# Contracts\n", encoding="utf-8")
 
 
 def test_fresh_adopter_without_material_change_does_not_require_openspec_workspace(
@@ -51,6 +73,40 @@ def test_fresh_adopter_material_change_requires_openspec_workspace(tmp_path: Pat
         "openspec_material_path_uncovered:docs/governance/policy.md",
     } <= set(report["required_gaps"])
     assert report["lifecycle"]["scope_binding"]["state"] == "uncovered"
+
+
+@pytest.mark.parametrize(
+    ("relative", "expected_gap"),
+    [
+        (
+            "families.toml",
+            "openspec_specs_root_entry_unexpected:families.toml",
+        ),
+        (
+            "contracts/capability.toml",
+            "openspec_spec_capability_entry_unexpected:contracts:capability.toml",
+        ),
+        (
+            "contracts/notes.md",
+            "openspec_spec_capability_entry_unexpected:contracts:notes.md",
+        ),
+    ],
+)
+def test_openspec_shape_rejects_non_spec_capability_carriers(
+    tmp_path: Path, relative: str, expected_gap: str
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _write_valid_accepted_specs(repo)
+    assert openspec_shape_report(repo)["required_gaps"] == []
+    unexpected = repo / "openspec" / "specs" / relative
+    unexpected.parent.mkdir(parents=True, exist_ok=True)
+    unexpected.write_text("retired or unexpected\n", encoding="utf-8")
+
+    report = openspec_shape_report(repo)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [expected_gap]
 
 
 def test_change_contract_scope_is_the_only_active_material_coverage(tmp_path: Path) -> None:
@@ -160,6 +216,7 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
 def test_valid_adopter_plan_and_prove_surface_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
+    write_active_change_contract(repo)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt generic profile")
     gap = "change_contract_missing:material-change"
@@ -227,7 +284,9 @@ def test_plan_uses_one_change_selector_for_contract_and_lifecycle(
     assert calls == ["selected"]
 
 
-def test_plan_surfaces_plan_ir_block_as_top_level_block(tmp_path: Path) -> None:
+def test_plan_surfaces_plan_ir_block_as_top_level_block(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
     carrier = repo / "openspec" / "changes" / "foreign"
@@ -239,8 +298,20 @@ def test_plan_surfaces_plan_ir_block_as_top_level_block(tmp_path: Path) -> None:
     )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "foreign contract")
+    monkeypatch.setattr(
+        planning_cli,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {"ok": True, "required_gaps": []},
+    )
 
-    payload = run_ethos("plan", "--root", repo.as_posix(), "--json")
+    payload = run_ethos(
+        "plan",
+        "--change",
+        "foreign",
+        "--root",
+        repo.as_posix(),
+        "--json",
+    )
 
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
@@ -250,6 +321,7 @@ def test_plan_surfaces_plan_ir_block_as_top_level_block(tmp_path: Path) -> None:
 def test_plan_emits_one_plan_ir_without_parallel_read_models(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
+    write_active_change_contract(repo)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
 
@@ -263,6 +335,7 @@ def test_plan_emits_one_plan_ir_without_parallel_read_models(tmp_path: Path) -> 
 def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
+    write_active_change_contract(repo)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
     blocked = proof_plan(repo, head=git(repo, "rev-parse", "HEAD")).model_copy(

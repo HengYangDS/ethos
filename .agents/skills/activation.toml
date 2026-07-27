@@ -1,8 +1,6 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:8048aa923781ec0524c651f2d334f8a05b5c7d3023da4d9c24e36b046368e6b9"
-expected_generator_digest = "sha256:8eca948c2d864dd5da0f6ca29b34e37cc3a44e95ad3ce7ade6a0c4305d0ccb69"
 
 [coverage]
 required_primary_subjects = [
@@ -38,7 +36,6 @@ path_globs = [
   "docs/governance/product-design-contract.md",
   "src/ethos/repository/audit*.py",
   "tests/unit/audit/**",
-  "evolution/**",
   "rules/**",
   "schemas/**",
 ]
@@ -49,7 +46,7 @@ during_rules = [
   "use ETHOS command JSON as machine evidence",
 ]
 post_checks = [
-  "ethos playbooks check --mode v2-strict --json",
+  "ethos plan --changed --json",
   "ethos status --json",
 ]
 commands = ["ethos status", "ethos plan", "ethos prove"]
@@ -78,7 +75,6 @@ path_globs = [
   "system/**",
   "openspec/**",
   "evidence/**",
-  "claims/**",
   "tests/**",
 ]
 intent_tokens = [
@@ -152,15 +148,14 @@ during_rules = [
 ]
 post_checks = [
   ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .",
-  "ethos playbooks check --mode v2-strict --json",
   "ethos prove --gate playbooks-v2 --json",
+  "ethos plan --changed --json",
 ]
 may_coactivate = ["ethos-repository-governance"]
 commands = [
-  "ethos playbooks check",
-  "ethos playbooks route",
+  ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .",
   "ethos prove --gate playbooks-v2",
-  "ethos prove",
+  "ethos plan --changed",
 ]
 boundary = "workflow-package-projection"
 
@@ -243,25 +238,23 @@ subjects = [
   "profile",
   "adapter",
   "external-repository",
-  "fleet",
+  "adopter-boundary",
 ]
 path_globs = [
   "docs/architecture/adoption-profiles.md",
   "docs/architecture/fleet-and-adopters.md",
   "src/ethos/repository/adoption/**",
   "src/ethos/repository/profile*.py",
-  "system/capability-profiles/**",
   "openspec/specs/adapters/**",
   "openspec/specs/repository-governance/**",
   "tests/unit/adoption/**",
-  "tests/unit/product/parity/**",
 ]
 intent_tokens = [
   "adopt",
   "adoption",
   "profile",
   "adapter",
-  "fleet",
+  "adopter-boundary",
   "other repository",
   "external repo",
 ]
@@ -275,14 +268,13 @@ during_rules = [
   "durable adopter truth must be promoted into tracked repository surfaces",
 ]
 post_checks = [
-  "ethos playbooks check --mode v2-strict --json",
+  "ethos prove --root <repo> --full --json",
   "ethos status --json",
 ]
 may_coactivate = ["ethos-repository-governance"]
 commands = [
   "ethos adopt",
   "ethos status",
-  "ethos playbooks check",
-  "ethos prove",
+  "ethos prove --root <repo> --full",
 ]
 boundary = "workflow-package-projection"

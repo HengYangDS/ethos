@@ -15,7 +15,7 @@ fi
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-ruff_config_path=".config/checks/ruff/ruff.toml"
+ruff_config_path="ruff.toml"
 ruff_cache_dir="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 mkdir -p "${ruff_cache_dir}"
 

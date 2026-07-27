@@ -87,7 +87,7 @@ def _open_parent(
     return parent
 
 
-def _read_optional_file(  # noqa: PLR0913, RUF100 - exact descriptor-bound read context
+def _read_optional_file(
     root: Path,
     root_descriptor: int,
     root_identity: DescriptorIdentity,
@@ -117,7 +117,7 @@ def _read_optional_file(  # noqa: PLR0913, RUF100 - exact descriptor-bound read 
     return ExactFileSnapshot(raw, DescriptorIdentity(*identity))
 
 
-def _entry_absent(  # noqa: PLR0913, RUF100 - exact descriptor-chain revalidation context
+def _entry_absent(
     root: Path,
     root_descriptor: int,
     root_identity: DescriptorIdentity,

@@ -10,7 +10,7 @@ from typing import cast
 
 from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.capabilities import contained_package_path
-from ethos.normalization.core import string_list
+from ethos.normalization.coercion import string_list
 
 SKILL_PACKAGE_SCHEMA_VERSION = 2
 FRONTMATTER_PART_COUNT = 3
@@ -67,15 +67,19 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
     entrypoint = str(manifest.get("entrypoint") or "SKILL.md")
     include = string_list(manifest.get("include"), drop_empty=True) or [entrypoint]
     gaps.extend(_manifest_schema_gaps(skill_id, manifest))
-    for relative in [entrypoint, *include]:
-        if not contained_package_path(package_dir, relative):
-            gaps.append(f"skill_package_path_escape:{skill_id}:{relative}")
+    gaps.extend(
+        f"skill_package_path_escape:{skill_id}:{relative}"
+        for relative in [entrypoint, *include]
+        if not contained_package_path(package_dir, relative)
+    )
     safe_include = [
         relative for relative in include if contained_package_path(package_dir, relative)
     ]
-    for relative in safe_include:
-        if not (package_dir / relative).exists():
-            gaps.append(f"skill_package_file_missing:{skill_id}:{relative}")
+    gaps.extend(
+        f"skill_package_file_missing:{skill_id}:{relative}"
+        for relative in safe_include
+        if not (package_dir / relative).exists()
+    )
 
     digest = ""
     has_missing_files = any(gap.startswith("skill_package_file_missing:") for gap in gaps)
@@ -174,9 +178,11 @@ def validate_skill_markdown(
         gaps.append(f"skill_quality_missing_frontmatter:{skill_id}")
     gaps.extend(_frontmatter_gaps(skill_id, text))
     gaps.extend(_progressive_disclosure_gaps(skill_id, text))
-    for section in required_sections:
-        if f"## {section}" not in text:
-            gaps.append(f"skill_quality_missing_section:{skill_id}:{section}")
+    gaps.extend(
+        f"skill_quality_missing_section:{skill_id}:{section}"
+        for section in required_sections
+        if f"## {section}" not in text
+    )
     lower_text = text.lower()
     if (
         "source of truth" not in lower_text
@@ -326,12 +332,16 @@ def _eval_metadata(skill_id: str, value: Any) -> tuple[list[str], dict[str, Any]
     metrics = string_list(value.get("metrics"), drop_empty=True)
     if not metrics:
         gaps.append(f"skill_package_eval_metrics_missing:{skill_id}")
-    for metric in metrics:
-        if metric not in _ALLOWED_EVAL_METRICS:
-            gaps.append(f"skill_package_eval_metric_unknown:{skill_id}:{metric}")
-    for key in _ALLOWED_EVAL_METRICS:
-        if key in value and not _unit_interval(value.get(key)):
-            gaps.append(f"skill_package_eval_metric_out_of_bounds:{skill_id}:{key}")
+    gaps.extend(
+        f"skill_package_eval_metric_unknown:{skill_id}:{metric}"
+        for metric in metrics
+        if metric not in _ALLOWED_EVAL_METRICS
+    )
+    gaps.extend(
+        f"skill_package_eval_metric_out_of_bounds:{skill_id}:{key}"
+        for key in _ALLOWED_EVAL_METRICS
+        if key in value and not _unit_interval(value.get(key))
+    )
     evidence_refs = string_list(value.get("evidence_refs"), drop_empty=True)
     if not evidence_refs:
         gaps.append(f"skill_package_eval_evidence_refs_missing:{skill_id}")

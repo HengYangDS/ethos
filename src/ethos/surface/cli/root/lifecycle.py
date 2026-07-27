@@ -1,10 +1,8 @@
 """Root land and publish lifecycle commands."""
 
-from __future__ import annotations
-
+from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Annotated
 from typing import Any
 from typing import cast
@@ -12,46 +10,45 @@ from typing import cast
 from cyclopts import Parameter
 
 import ethos.adapters.repo.git as git
-import ethos.domain.land.core as land_core
+import ethos.domain.land.closeout as land_core
 import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
-from ethos.adapters.mutation.core import apply_candidate_to_accepted
-from ethos.adapters.mutation.core import apply_land_to_candidate
-from ethos.adapters.mutation.core import candidate_base_report
-from ethos.adapters.mutation.core import evaluate_closeout_mutation
-from ethos.adapters.mutation.core import evaluate_mutation
-from ethos.adapters.mutation.core import proof_readiness_report
+from ethos.adapters.mutation.decision import evaluate_closeout_mutation
+from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.openspec.metadata.core import completed_active_changes_report
-from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.mutation.landing import apply_candidate_to_accepted
+from ethos.adapters.mutation.landing import apply_land_to_candidate
+from ethos.adapters.mutation.landing import candidate_base_report
+from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof import proof_readiness_report
+from ethos.adapters.openspec.metadata.completion import completed_active_changes_report
+from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.coordination import MutationAdmissionRequest
 from ethos.contracts.lifecycle.reducer import TransitionDecision
 from ethos.contracts.lifecycle.reducer import TransitionRequest
-from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.domain.readiness.quality import adopter_quality_floor_report
 from ethos.domain.readiness.quality import hard_quality_floor_report
-from ethos.normalization.core import string_mapping
-from ethos.normalization.core import string_sequence
+from ethos.normalization.coercion import string_mapping
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import context_for_root
 from ethos.repository.context import is_product_root
+from ethos.repository.openspec.audit import active_change_names
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.profile import load_repository_profile
-from ethos.repository.release.core import release_config
+from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
-from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import emit_invalid_adopter_profile
-from ethos.surface.cli._base import resolve_root
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from ethos.surface.cli.application import app
+from ethos.surface.cli.output import JsonFlag
+from ethos.surface.cli.output import emit
+from ethos.surface.cli.output import emit_invalid_adopter_profile
+from ethos.surface.cli.root_binding import RootOption
+from ethos.surface.cli.root_binding import resolve_root
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +67,19 @@ class _CloseoutPayload:
 
 
 @dataclass(frozen=True, slots=True)
+class _LandOptions:
+    """CLI options for `ethos land`."""
+
+    apply: bool = False
+    authorize: bool = False
+    expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    closeout: bool = False
+    independent_verification_receipt: Annotated[
+        Path | None, Parameter(name="--independent-verification-receipt")
+    ] = None
+
+
+@dataclass(frozen=True, slots=True)
 class _PublishOptions:
     """CLI options for `ethos publish`."""
 
@@ -80,6 +90,7 @@ class _PublishOptions:
     remote: Annotated[str | None, Parameter(name="--remote")] = None
 
 
+_DEFAULT_LAND_OPTIONS = _LandOptions()
 _DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
 
 
@@ -137,22 +148,28 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             ),
             "mutation": mutation_envelope(
                 payload.mutation,
-                action="accepted.advance",
-                resource=f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}",
-                expected_state=_closeout_expected_state(payload),
-                verdict=(
-                    "allow"
-                    if payload.ok
-                    else "defer"
-                    if payload.control_replacement.get("verdict") == "defer"
-                    else "block"
+                MutationAdmissionRequest(
+                    action="accepted.advance",
+                    resource=(
+                        f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}"
+                    ),
+                    expected_state=_closeout_expected_state(payload),
+                    verdict=(
+                        "allow"
+                        if payload.ok
+                        else "defer"
+                        if payload.control_replacement.get("verdict") == "defer"
+                        else "block"
+                    ),
+                    required_gaps=payload.gaps,
+                    why=(
+                        ("candidate_already_current",)
+                        if payload.ok and payload.decision.state == "current"
+                        else ()
+                    ),
+                    next_actions=mutation_next_actions,
+                    state=payload.decision.state,
                 ),
-                required_gaps=payload.gaps,
-                why=("candidate_already_current",)
-                if payload.ok and payload.decision.state == "current"
-                else (),
-                next_actions=mutation_next_actions,
-                state=payload.decision.state,
             ),
         },
     )
@@ -291,164 +308,130 @@ def _stable_control_replacement(
     return report, tuple(string_sequence(report.get("required_gaps")))
 
 
-@app.command
-def land(
+def _closeout_land_result(
     *,
-    apply: bool = False,
-    authorize: bool = False,
-    expect_head: str | None = None,
-    closeout: bool = False,
-    independent_verification_receipt: Annotated[
-        Path | None, Parameter(name="--independent-verification-receipt")
-    ] = None,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report land readiness."""
-    repo = resolve_root(root)
-    profile = load_repository_profile(repo)
-    if not is_product_root(repo) and profile.state == "invalid":
-        emit_invalid_adopter_profile(
-            command="land",
-            json_output=json_output,
-            enforce=apply,
-        )
-        return
-    current_head = git.current_head(repo)
-    if closeout:
-        request = TransitionRequest(
-            command="closeout", apply=apply, authorized=authorize, expect_head=expect_head
-        )
-        decision = evaluate_closeout_mutation(request, root=repo, current_head=current_head)
-        audit_root = land_core.closeout_audit_root(repo, decision)
-        audited_candidate_head = _observed_candidate_head(repo, current_head)
-        audit = land_core.repository_audit_after_admission(
-            audit_root, decision, current_head=audited_candidate_head
-        )
-        lifecycle = completed_active_changes_report(audit_root)
-        control_replacement, control_gaps = _stable_control_replacement(
+    repo: Path,
+    request: TransitionRequest,
+    current_head: str,
+    independent_verification_receipt: Path | None,
+) -> EthosResult:
+    """Evaluate candidate-to-accepted closeout as one semantic transition."""
+    decision = evaluate_closeout_mutation(request, root=repo, current_head=current_head)
+    audit_root = land_core.closeout_audit_root(repo, decision)
+    audited_candidate_head = _observed_candidate_head(repo, current_head)
+    audit = land_core.repository_audit_after_admission(audit_root, decision)
+    lifecycle = completed_active_changes_report(audit_root)
+    control_replacement, control_gaps = _stable_control_replacement(
+        repo=repo,
+        audit_root=audit_root,
+        accepted_head=current_head,
+        candidate_head=audited_candidate_head,
+        independent_verification_receipt=independent_verification_receipt,
+    )
+    gaps = (
+        tuple(string_sequence(audit.get("required_gaps")))
+        + decision.gaps
+        + tuple(string_sequence(lifecycle.get("required_gaps")))
+        + control_gaps
+    )
+    ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
+    update: dict[str, object] = {}
+    if ok and request.apply:
+        control_replacement, fresh_control_gaps = _stable_control_replacement(
             repo=repo,
             audit_root=audit_root,
             accepted_head=current_head,
             candidate_head=audited_candidate_head,
             independent_verification_receipt=independent_verification_receipt,
         )
-        terminal_gaps = (
-            tuple(string_sequence(campaign_publication_report(audit_root).get("required_gaps")))
-            if is_product_root(audit_root)
-            else ()
+        gaps = (*gaps, *fresh_control_gaps)
+        ok = not fresh_control_gaps
+    if ok and request.apply:
+        update = apply_candidate_to_accepted(
+            root=repo,
+            authorized=request.authorized,
+            expect_head=request.expect_head,
+            candidate_head=audited_candidate_head,
         )
-        gaps = (
-            tuple(string_sequence(audit.get("required_gaps")))
-            + decision.gaps
-            + tuple(string_sequence(lifecycle.get("required_gaps")))
-            + control_gaps
-            + terminal_gaps
+        gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
+        ok = bool(update["ok"])
+    return _closeout_result(
+        _CloseoutPayload(
+            repo=repo,
+            mutation=request,
+            decision=decision,
+            audit_root=audit_root,
+            audit=audit,
+            lifecycle=lifecycle,
+            update=update,
+            gaps=gaps,
+            ok=ok,
+            current_head=current_head,
+            control_replacement=control_replacement,
         )
-        ok = (
-            bool(audit["ok"])
-            and decision.ok
-            and bool(lifecycle["ok"])
-            and not control_gaps
-            and not terminal_gaps
-        )
-        update: dict[str, object] = {}
-        if ok and apply:
-            control_replacement, fresh_control_gaps = _stable_control_replacement(
-                repo=repo,
-                audit_root=audit_root,
-                accepted_head=current_head,
-                candidate_head=audited_candidate_head,
-                independent_verification_receipt=independent_verification_receipt,
-            )
-            gaps = (*gaps, *fresh_control_gaps)
-            ok = not fresh_control_gaps
-        if ok and apply:
-            update = apply_candidate_to_accepted(
-                root=repo,
-                authorized=authorize,
-                expect_head=expect_head,
-                candidate_head=audited_candidate_head,
-            )
-            gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
-            ok = bool(update["ok"])
-        result = _closeout_result(
-            _CloseoutPayload(
-                repo=repo,
-                mutation=request,
-                decision=decision,
-                audit_root=audit_root,
-                audit=audit,
-                lifecycle=lifecycle,
-                update=update,
-                gaps=gaps,
-                ok=ok,
-                current_head=current_head,
-                control_replacement=control_replacement,
-            )
-        )
-        emit(result, json_output=json_output, enforce=apply)
-        return
+    )
 
+
+def _candidate_land_result(
+    *, repo: Path, request: TransitionRequest, current_head: str
+) -> EthosResult:
+    """Evaluate work-lane integration into the configured candidate role."""
     governance = context_for_root(repo)
     status_payload = workspace_status(repo, include_foreign_path_scope=False)
     closeout_support = string_mapping(status_payload.get("closeout_support"))
     closeout_gaps: tuple[str, ...] = ()
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
         closeout_gaps = tuple(string_sequence(closeout_support.get("required_gaps")))
-    request = TransitionRequest(
-        command="land", apply=apply, authorized=authorize, expect_head=expect_head
-    )
     decision = evaluate_mutation(
-        request, root=repo, current_head=current_head, status=None if apply else status_payload
+        request,
+        root=repo,
+        current_head=current_head,
+        status=None if request.apply else status_payload,
     )
     audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
-    terminal_gaps = (
-        tuple(string_sequence(campaign_publication_report(repo).get("required_gaps")))
-        if is_product_root(repo)
-        else ()
+    archive_gaps = tuple(
+        f"openspec_active_change_unarchived:{name}:work_lane"
+        for name in active_change_names(repo / "openspec")
     )
     gaps = (
         tuple(string_sequence(audit.get("required_gaps")))
         + decision.gaps
         + closeout_gaps
         + tuple(string_sequence(lifecycle.get("required_gaps")))
-        + terminal_gaps
+        + archive_gaps
     )
-    ok = (
-        bool(audit["ok"])
-        and decision.ok
-        and bool(lifecycle["ok"])
-        and not closeout_gaps
-        and not terminal_gaps
-    )
+    ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
     update: dict[str, object] = {}
-    if ok and apply:
+    if ok and not archive_gaps and request.apply:
         update = apply_land_to_candidate(
-            root=repo, authorized=authorize, expect_head=expect_head, admitted_decision=decision
+            root=repo,
+            authorized=request.authorized,
+            expect_head=request.expect_head,
+            admitted_decision=decision,
         )
         gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
         ok = bool(update["ok"])
-    elif ok:
+    elif ok and not archive_gaps:
         update = candidate_base_report(root=repo, status=status_payload)
         if not update["ok"]:
             gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = False
     proof_readiness: dict[str, object] = {}
-    if ok and not apply:
+    if ok and not archive_gaps and not request.apply:
         proof_readiness = proof_readiness_report(repo, current_head)
         gaps = gaps + tuple(string_sequence(proof_readiness.get("required_gaps")))
         ok = not bool(proof_readiness["blocking"])
+    ok = ok and not gaps
     state = (
         "ready_to_land"
-        if ok and not apply
+        if ok and not request.apply
         else "blocked"
         if gaps
         else str(update.get("state") or decision.state)
     )
     mutation_next_actions = land_core.land_next_actions(ok=ok, gaps=gaps, current_head=current_head)
-    result = EthosResult(
+    return EthosResult(
         command="land",
         ok=ok,
         state=state,
@@ -463,22 +446,60 @@ def land(
             "proof_readiness": proof_readiness,
             "mutation": mutation_envelope(
                 request,
-                action="candidate.integrate",
-                resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}",
-                expected_state=_land_expected_state(
-                    repo=repo,
-                    current_head=current_head,
-                    status_payload=status_payload,
-                    closeout_support=closeout_support,
+                MutationAdmissionRequest(
+                    action="candidate.integrate",
+                    resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}",
+                    expected_state=_land_expected_state(
+                        repo=repo,
+                        current_head=current_head,
+                        status_payload=status_payload,
+                        closeout_support=closeout_support,
+                    ),
+                    verdict="allow" if ok else "block",
+                    required_gaps=gaps,
+                    next_actions=mutation_next_actions,
+                    state=state,
                 ),
-                verdict="allow" if ok else "block",
-                required_gaps=gaps,
-                next_actions=mutation_next_actions,
-                state=state,
             ),
         },
     )
-    emit(result, json_output=json_output, enforce=apply)
+
+
+@app.command
+def land(
+    options: Annotated[_LandOptions, Parameter(name="*")] = _DEFAULT_LAND_OPTIONS,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report land readiness."""
+    repo = resolve_root(root)
+    profile = load_repository_profile(repo)
+    if not is_product_root(repo) and profile.state == "invalid":
+        emit_invalid_adopter_profile(
+            command="land",
+            json_output=json_output,
+            enforce=options.apply,
+        )
+        return
+    current_head = git.current_head(repo)
+    request = TransitionRequest(
+        command="closeout" if options.closeout else "land",
+        apply=options.apply,
+        authorized=options.authorize,
+        expect_head=options.expect_head,
+    )
+    result = (
+        _closeout_land_result(
+            repo=repo,
+            request=request,
+            current_head=current_head,
+            independent_verification_receipt=options.independent_verification_receipt,
+        )
+        if options.closeout
+        else _candidate_land_result(repo=repo, request=request, current_head=current_head)
+    )
+    emit(result, json_output=json_output, enforce=options.apply)
 
 
 @app.command
@@ -508,7 +529,6 @@ def publish(
         if governance.get("profile") == "product"
         else adopter_quality_floor_report()
     )
-    quality_gates = cast("dict[str, dict[str, object]]", hard_quality_floor.get("gates") or {})
     independent_verification = independent_verification_admission_report(
         root=repo,
         action="publish",
@@ -518,18 +538,7 @@ def publish(
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
-    terminal_gaps = (
-        tuple(
-            string_sequence(
-                campaign_publication_report(
-                    repo,
-                    budget=quality_gates.get("source-budget"),
-                ).get("required_gaps")
-            )
-        )
-        if is_product_root(repo)
-        else ()
-    )
+    terminal_gaps = tuple(proof_gaps(repo, current_head))
     gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
@@ -673,16 +682,18 @@ def publish(
                     authorized=options.authorize,
                     expect_head=options.expect_head,
                 ),
-                action="remote.publish",
-                resource=str(publish_expected_state["target_ref"]),
-                expected_state=publish_expected_state,
-                verdict=publication_verdict,
-                required_gaps=gaps,
-                why=(str(publication.get("remote_state") or "remote_publication_deferred"),),
-                next_actions=publish_next_actions,
-                state=remote_state,
-                evidence_boundary="local_readiness_and_remote_availability",
-                enforcement_boundary="remote_ref_transition",
+                MutationAdmissionRequest(
+                    action="remote.publish",
+                    resource=str(publish_expected_state["target_ref"]),
+                    expected_state=publish_expected_state,
+                    verdict=publication_verdict,
+                    required_gaps=gaps,
+                    why=(str(publication.get("remote_state") or "remote_publication_deferred"),),
+                    next_actions=publish_next_actions,
+                    state=remote_state,
+                    evidence_boundary="local_readiness_and_remote_availability",
+                    enforcement_boundary="remote_ref_transition",
+                ),
             ),
         },
     )

@@ -49,7 +49,7 @@ default:
 # Python vulnerability audit, gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
 # markdown lint, lychee (doc links), provider projection drift, local emulator
 # boundaries, format selection, architecture projection, runbook/MCP smoke,
-# closeout evidence, local-state, and release supply-chain checks.
+# local-state, and release supply-chain checks.
 # A gate that does not run in CI is not a gate.
 .python_setup: &python_setup
   image: python:3.14
@@ -196,18 +196,6 @@ ethos:runbook-registry:
   stage: quality
   script:
     - tools/ci/scripts/run-runbook-registry-check.sh
-
-ethos:mcp-smoke:
-  <<: *python_setup
-  stage: quality
-  script:
-    - tools/ci/scripts/run-mcp-smoke.sh
-
-ethos:closeout-evidence-manifest:
-  <<: *python_setup
-  stage: quality
-  script:
-    - tools/ci/scripts/run-closeout-evidence-manifest.sh
 
 ethos:local-state-audit:
   <<: *python_setup

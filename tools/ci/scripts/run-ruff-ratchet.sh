@@ -45,7 +45,7 @@ completed = subprocess.run(
         "ruff",
         "check",
         "--config",
-        ".config/checks/ruff/ruff.toml",
+        "ruff.toml",
         *python_quality_paths,
         "--select",
         select,

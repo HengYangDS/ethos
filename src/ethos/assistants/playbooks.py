@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import fnmatch
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -154,52 +153,6 @@ def _collect_playbook_records(
     }
 
 
-def route_playbook(
-    root: Path,
-    subject: str,
-    *,
-    require_explicit_subject: bool = False,
-    mode: str = "v2-strict",
-    changed_paths: tuple[str, ...] = (),
-) -> dict[str, object]:
-    report = playbooks_report(root, mode=mode)
-    normalized = subject.strip().lower()
-    changed = subject == "changed-scope"
-    selected = [
-        record
-        for record in cast("list[dict[str, object]]", report["records"])
-        if _matches_route_subject(
-            record,
-            normalized,
-            require_explicit_subject=require_explicit_subject,
-        )
-    ]
-    unmatched_paths: list[str] = []
-    if changed:
-        if changed_paths:
-            selected, unmatched_paths = _select_for_changed_paths(selected, changed_paths)
-        else:
-            selected = []
-    gaps = list(cast("list[str]", report["required_gaps"]))
-    if not selected and not (changed and not changed_paths):
-        gaps.append(f"playbook_route_missing:{subject}")
-    gaps.extend(f"playbook_changed_path_unmatched:{path}" for path in unmatched_paths)
-    return {
-        "ok": not gaps,
-        "schema_version": 2,
-        "mode": report["mode"],
-        "subject": subject,
-        "changed": changed,
-        "changed_paths": list(changed_paths),
-        "selected": selected,
-        "unmatched_paths": unmatched_paths,
-        "route_hints": {"registry_digest": cast("dict[str, object]", report["registry"])["digest"]},
-        "required_gaps": list(dict.fromkeys(gaps)),
-        "advisory_gaps": list(cast("list[str]", report["advisory_gaps"])),
-        "skills_root": report["skills_root"],
-    }
-
-
 def _playbook_record(record: dict[str, Any]) -> dict[str, object]:
     return {
         "id": record["id"],
@@ -290,18 +243,6 @@ def _root_relative(root: Path, relative_path: str) -> str:
         return ""
 
 
-def _matches_route_subject(
-    record: dict[str, object],
-    normalized: str,
-    *,
-    require_explicit_subject: bool,
-) -> bool:
-    subjects = [str(item).strip().lower() for item in cast("list[str]", record["subjects"])]
-    if require_explicit_subject:
-        return normalized in subjects
-    return normalized in str(record["id"]).lower() or any(normalized in item for item in subjects)
-
-
 def _coverage(records: list[dict[str, object]]) -> dict[str, object]:
     return {
         "record_count": len(records),
@@ -310,33 +251,6 @@ def _coverage(records: list[dict[str, object]]) -> dict[str, object]:
             {subject for record in records for subject in cast("list[str]", record["subjects"])}
         ),
     }
-
-
-def _select_for_changed_paths(
-    records: list[dict[str, object]],
-    changed_paths: tuple[str, ...],
-) -> tuple[list[dict[str, object]], list[str]]:
-    selected: list[dict[str, object]] = []
-    matched_paths: set[str] = set()
-    for record in records:
-        path_globs = [str(item) for item in cast("list[str]", record["path_globs"])]
-        matches = [
-            path
-            for path in changed_paths
-            if any(fnmatch.fnmatch(path, pattern) for pattern in path_globs)
-        ]
-        if not matches:
-            continue
-        enriched = dict(record)
-        enriched["matched_paths"] = matches
-        enriched["matched_globs"] = [
-            pattern
-            for pattern in path_globs
-            if any(fnmatch.fnmatch(path, pattern) for path in matches)
-        ]
-        selected.append(enriched)
-        matched_paths.update(matches)
-    return selected, [path for path in changed_paths if path not in matched_paths]
 
 
 def _mode(mode: str) -> str:

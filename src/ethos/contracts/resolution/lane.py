@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel
@@ -11,6 +13,33 @@ from pydantic import ConfigDict
 from pydantic import Field
 
 LaneDisposition = Literal["block", "preserve", "retire", "preserve-retire"]
+
+
+@dataclass(frozen=True, slots=True)
+class LaneResolutionPlanRequest:
+    """Immutable inputs for one first-phase exceptional lane judgment."""
+
+    branch: str
+    disposition: str
+    reason: str
+    evidence_refs: tuple[str, ...]
+    chronicle_ref: str
+    recovery_plan: str
+    decision_path: str
+    break_glass: bool
+    apply: bool
+
+
+def is_lane_decision_id(value: str) -> bool:
+    """Return whether the identifier is exactly lane-decision:<canonical UUID>."""
+    prefix = "lane-decision:"
+    if not value.startswith(prefix):
+        return False
+    try:
+        parsed = uuid.UUID(value.removeprefix(prefix))
+    except ValueError:
+        return False
+    return value == f"{prefix}{parsed}"
 
 
 class LaneObservation(BaseModel):
@@ -31,8 +60,8 @@ class LaneObservation(BaseModel):
     untracked_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
     def digest(self) -> str:
-        body = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(body.encode()).hexdigest()
+        payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode()).hexdigest()
 
 
 class LaneResolutionDecision(BaseModel):
@@ -51,19 +80,12 @@ class LaneResolutionDecision(BaseModel):
     break_glass: bool = False
 
     def to_payload(self) -> dict[str, object]:
-        return {
-            "schema_version": 1,
-            "decision_id": self.decision_id,
-            "disposition": self.disposition,
-            "observation": self.observation.model_dump(mode="json"),
-            "observation_digest": self.observation.digest(),
-            "evidence_refs": list(self.evidence_refs),
-            "chronicle_ref": self.chronicle_ref,
-            "chronicle_digest": self.chronicle_digest,
-            "recovery_plan": self.recovery_plan,
-            "reason": self.reason,
-            "break_glass": self.break_glass,
-            "recompute_before_effect": True,
-            "reusable_authorization": False,
-            "mints_authority": False,
-        }
+        payload = self.model_dump(mode="json")
+        payload.update(
+            schema_version=1,
+            observation_digest=self.observation.digest(),
+            recompute_before_effect=True,
+            reusable_authorization=False,
+            mints_authority=False,
+        )
+        return payload

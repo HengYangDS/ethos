@@ -1,46 +1,39 @@
 ---
 name: ethos-change-lifecycle
-description: Use when driving an ETHOS change through status, plan, prove, land, publish, evidence, readiness, or accepted-root closeout.
+description: Use when driving an ETHOS change through the public status, plan, prove, land, and publish commands.
 ---
 
 # ETHOS Change Lifecycle
 
 ## When to Use
 
-Use this skill when driving a repository change through the one canonical loop —
-`status -> plan -> prove -> land -> publish` — or when checking readiness, compiling
-a change plan, running proof, landing to the candidate role, or publishing. ETHOS
-governs whether a change may land or publish, based on evidence, not assertion.
+Use this skill for the public lifecycle loop
+`status -> plan -> prove -> land -> publish`. ETHOS
+governs whether a change may land or publish from evidence, not assertion.
 
 ## Workflow
 
-1. Run `ethos status --json`; confirm the checkout role (work_lane vs accepted_root)
-   and read `required_gaps`. Never mutate an accepted root directly.
-2. Run `ethos plan --changed --json` to compile the change plan: which rules match
-   the changed paths, which gates are required, what evidence must exist.
-3. After committing parity-relevant source changes, run `ethos parity gaps --json`.
-   When it reports stale tracked parity, run `ethos parity shadow --adopter generic
-   --target . --execute --write-evidence --json` **in the admitted Work Lane**, then
-   commit the written evidence in that same lane. Candidate and accepted roots are
-   intentionally write-protected, so parity cannot be deferred until after land.
-4. Run `ethos prove --json` for readiness; `ethos prove --execute --expect-head
-   "$(git rev-parse HEAD)" --json` for an EXECUTED proof. Dry-run readiness is not
-   executed proof — only `--execute` produces trust-bearing, HEAD-bound evidence.
-5. Run `ethos land --json`; the verdict gates the fast-forward to the candidate
+1. Run `ethos status --json`; confirm the checkout role and read `required_gaps`.
+   Never mutate an accepted root directly.
+2. Run `ethos plan --changed --json` to compile the plan for the changed paths,
+   required gates, and required evidence.
+3. Run `ethos prove --json` for a dry-run check; run
+   `ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json` for an
+   executed proof. Only `--execute` produces HEAD-bound evidence.
+4. Run `ethos land --json`; the verdict gates the fast-forward to the candidate
    role. A blocked verdict refuses (non-zero exit); read `required_gaps`.
-6. Run `ethos publish --json` for local publication readiness. Remote push is a
+5. Run `ethos publish --json` for local publication readiness. Remote push is a
    deferred, separately human-authorized step — stop before it.
 
 ## Evidence
 
-Use the `ethos ...` public command plane; the JSON is machine evidence:
+Use the public `ethos` command plane; its JSON is machine evidence:
 
 ```bash
 ethos status --json
 ethos plan --changed --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ethos land --json
-ethos parity shadow --adopter generic --target . --execute --write-evidence --json
 ethos status --json
 ```
 

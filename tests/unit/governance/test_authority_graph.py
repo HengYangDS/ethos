@@ -2,11 +2,26 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import TypedDict
+from typing import cast
+
+if TYPE_CHECKING:
+    from ethos.repository.registry.authority import AuthorityEntry
 
 
-def authority_graph_report(root: Path) -> dict[str, object]:
+class AuthorityGraphReport(TypedDict):
+    """Authority-graph read-model payload consumed by these tests."""
+
+    ok: bool
+    path: str
+    entries: list[AuthorityEntry]
+    required_gaps: list[str]
+
+
+def authority_graph_report(root: Path) -> AuthorityGraphReport:
     module = importlib.import_module("ethos.repository.registry.authority")
-    return module.authority_graph_report(root)
+    return cast("AuthorityGraphReport", module.authority_graph_report(root))
 
 
 def test_authority_graph_declares_authority_and_derived_views() -> None:
@@ -224,3 +239,52 @@ stable_path = "docs/a.md"
             "relation_type": "authority",
         }
     ]
+
+
+def test_authority_graph_sorts_projected_supersession_edges(tmp_path: Path) -> None:
+    (tmp_path / "docs" / "_meta").mkdir(parents=True)
+    (tmp_path / "docs" / "authority.md").write_text("# Authority\n", encoding="utf-8")
+    (tmp_path / "evidence" / "authority.md").parent.mkdir(parents=True)
+    (tmp_path / "evidence" / "authority.md").write_text("# Evidence\n", encoding="utf-8")
+    (tmp_path / "docs" / "_meta" / "authority_graph.toml").write_text(
+        """
+[[node]]
+id = "source"
+owner = "owner"
+relation_type = "authority"
+canonical_for = []
+derived_from = []
+supersedes = []
+doc_refs = ["docs/authority.md"]
+evidence_refs = ["evidence/authority.md"]
+stable_path = "docs/authority.md"
+
+[[node]]
+id = "z-successor"
+owner = "owner"
+relation_type = "decision"
+canonical_for = []
+derived_from = []
+supersedes = ["source"]
+doc_refs = ["docs/authority.md"]
+evidence_refs = ["evidence/authority.md"]
+stable_path = "docs/authority.md"
+
+[[node]]
+id = "a-successor"
+owner = "owner"
+relation_type = "decision"
+canonical_for = []
+derived_from = []
+supersedes = ["source"]
+doc_refs = ["docs/authority.md"]
+evidence_refs = ["evidence/authority.md"]
+stable_path = "docs/authority.md"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    report = authority_graph_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["entries"][0]["superseded_by"] == ["a-successor", "z-successor"]

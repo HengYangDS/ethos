@@ -4,10 +4,10 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from ethos.normalization.core import string_list
+from ethos.normalization.coercion import string_list
 
 POLICY_PATH = Path(".config/checks/module-layout/policy.toml")
-DEFAULT_SEMANTIC_PATHS = (".",)
+DEFAULT_SEMANTIC_PATHS = (".agents/skills", "src/ethos", "tests", "tools")
 DEFAULT_PACKAGE_PATHS = ("src/ethos",)
 
 

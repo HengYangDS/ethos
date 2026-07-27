@@ -1,1 +1,0 @@
-"""Assistant context projection package."""

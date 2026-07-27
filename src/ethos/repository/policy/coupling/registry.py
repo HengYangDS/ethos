@@ -16,9 +16,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def branch_role_policy_metadata(root: Path) -> dict[str, object]:
+def branch_role_policy_metadata(root: Path, declaration: CouplingDeclaration) -> dict[str, object]:
     """Return declared branch-role policy source metadata for coupling reports."""
-    binding = load_coupling_declaration().binding("branch_role_policy")
+    binding = declaration.binding("branch_role_policy")
     path = root / str(binding.config_source)
     configured = False
     if path.exists():
@@ -36,16 +36,16 @@ def branch_role_policy_metadata(root: Path) -> dict[str, object]:
 
 def binding_registry(root: Path) -> list[dict[str, object]]:
     """Compile declared bindings and overlay only live adapter facts."""
-    declaration = load_coupling_declaration()
+    declaration = load_coupling_declaration(root / "system/coupling.toml")
     policy = load_branch_role_policy(root)
     runtime = {
         "branch_role_policy": {
-            **branch_role_policy_metadata(root),
+            **branch_role_policy_metadata(root, declaration),
             "role_order": [str(record["role"]) for record in policy.semantic_order()],
             "configured_patterns": [str(record["pattern"]) for record in policy.semantic_order()],
         },
-        "uv_workspace_toolchain": {"gates": product_toolchain()["gates"]},
-        "gitlab_release_profile": {
+        "uv_workspace_toolchain": {"gates": product_toolchain(root, declaration)["gates"]},
+        "hosted_release_profiles": {
             "provider": release_host_profile(root).get("provider", ""),
             "surfaces": release_host_profile(root).get("surfaces", {}),
         },
@@ -86,9 +86,11 @@ def adapter_admission_gaps(entry_id: str, entry: dict[str, object]) -> list[str]
     if not isinstance(admission, dict):
         return [f"binding_registry_adapter_admission_missing:{entry_id}"]
     gaps = []
-    for field in ("authority_ref", "decision_state", "truth_boundary"):
-        if not admission.get(field):
-            gaps.append(f"binding_registry_adapter_admission_field:{entry_id}:{field}")
+    gaps.extend(
+        f"binding_registry_adapter_admission_field:{entry_id}:{field}"
+        for field in ("authority_ref", "decision_state", "truth_boundary")
+        if not admission.get(field)
+    )
     if admission.get("truth_boundary") != "profile_or_adapter":
         gaps.append(
             f"binding_registry_adapter_truth_boundary:{entry_id}:{admission.get('truth_boundary')}"
@@ -101,10 +103,10 @@ def adapter_admission_gaps(entry_id: str, entry: dict[str, object]) -> list[str]
 
 
 def binding_registry_gaps(
-    entries: list[dict[str, object]], declaration: CouplingDeclaration | None = None
+    entries: list[dict[str, object]], declaration: CouplingDeclaration
 ) -> list[str]:
     """Return binding-registry shape and taxonomy gaps."""
-    contract = declaration or load_coupling_declaration()
+    contract = declaration
     gaps: list[str] = []
     entry_by_id: dict[str, dict[str, object]] = {}
     for entry in entries:
@@ -118,8 +120,10 @@ def binding_registry_gaps(
         layer = str(entry.get("layer", ""))
         if layer not in contract.layers:
             gaps.append(f"binding_registry_unknown_layer:{entry_id}:{layer}")
-        for field in sorted(set(contract.ui_projection_fields) & set(entry)):
-            gaps.append(f"binding_registry_ui_projection:{entry_id}:{field}")
+        gaps.extend(
+            f"binding_registry_ui_projection:{entry_id}:{field}"
+            for field in sorted(set(contract.ui_projection_fields) & set(entry))
+        )
         gaps.extend(adapter_admission_gaps(entry_id, entry))
 
     for expected in contract.bindings:

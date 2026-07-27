@@ -27,7 +27,6 @@ DEFAULT_ROOTS = {
     "docs": "docs",
     "durable_evidence": "evidence",
     "openspec": "openspec",
-    "claims": "evidence/claims",
     "agent_skills": ".agents/skills",
     "local_state": ".ethos/state",
 }
@@ -103,7 +102,6 @@ class RepositoryRoots(_ProfileModel):
     docs: RepositoryPath = DEFAULT_ROOTS["docs"]
     durable_evidence: RepositoryPath = DEFAULT_ROOTS["durable_evidence"]
     openspec: RepositoryPath = DEFAULT_ROOTS["openspec"]
-    claims: RepositoryPath = DEFAULT_ROOTS["claims"]
     agent_skills: RepositoryPath = DEFAULT_ROOTS["agent_skills"]
     local_state: RepositoryPath = DEFAULT_ROOTS["local_state"]
 
@@ -152,21 +150,6 @@ class AdoptionBoundaryPolicy(_ProfileModel):
     forbidden_external_product_roots: RepositoryPathTuple = ()
 
 
-class BackendPolicy(_ProfileModel):
-    state: NonEmpty
-    minimum_version: str = ""
-    shadow_required: bool = False
-    control: RepositoryPath | Literal[""] = ""
-    retirement_policy: RepositoryPath | Literal[""] = ""
-
-
-class RollbackWindowPolicy(_ProfileModel):
-    state: NonEmpty
-    evidence_manifest: RepositoryPath | Literal[""] = ""
-    completed_scenarios: NonEmptyTuple = ()
-    required_scenarios: NonEmptyTuple = ()
-
-
 class RepositoryProfileDeclaration(_ProfileModel):
     """The one typed adopter binding contract shared by every profile reader."""
 
@@ -181,9 +164,6 @@ class RepositoryProfileDeclaration(_ProfileModel):
     )
     container_contract: ContainerContractPolicy | None = None
     adoption_boundary: AdoptionBoundaryPolicy = Field(default_factory=AdoptionBoundaryPolicy)
-    external_backend: BackendPolicy | None = None
-    embedded_backend: BackendPolicy | None = None
-    rollback_window: RollbackWindowPolicy | None = None
 
     @classmethod
     def bootstrap(cls, profile_id: str) -> RepositoryProfileDeclaration:
@@ -270,7 +250,6 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
         ".ethos/profile.toml",
         roots.rules,
         *declaration.normative_sources,
-        roots.claims,
         roots.openspec,
         roots.durable_evidence,
         roots.docs,

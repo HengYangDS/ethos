@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:3cf7f20551cbf2f5331eee9c2c905d4fadb5e28f056fc49e320723bbf228feec"
+expected_digest = "sha256:ae977d01321e8299deab37b649c9f20d4b9d0f54e56f78d016d7e5c4ba2ab2c8"
 
 [quality]
 placeholder_allowed = false
@@ -25,9 +25,14 @@ command = ["ethos", "status", "--json"]
 [[capability]]
 id = "ethos.plan"
 kind = "command_readonly"
-command = ["ethos", "plan", "--changed"]
+command = ["ethos", "plan", "--changed", "--json"]
 
 [[capability]]
 id = "ethos.prove"
 kind = "command_proof"
 command = ["ethos", "prove", "--json"]
+
+[[capability]]
+id = "repository.govern-check"
+kind = "script_readonly"
+command = ["scripts/govern_check.py", "--root", "."]

@@ -44,12 +44,10 @@ folder shape. Every governed module MUST have:
 5. a path whose words state that concept and role.
 
 `core.py`, `common.py`, `shared.py`, `utils.py`, `helpers.py`, `misc.py`,
-`base.py`, `manager.py`, and `service.py` are ambiguous by default. They are
-blocked unless `.config/checks/module-layout/policy.toml` contains a closed role
-contract proving that the module is either an irreducible semantic kernel or a
-report aggregator. Such a contract declares the exact path, role, concept,
-authority references, public symbols, effective-LOC ceiling, and allowed import
-roots. Wildcards, free-text exemptions, and baseline suppression are forbidden.
+`base.py`, `manager.py`, and `service.py` do not identify a narrow concept and
+are blocked without exception. A genuine kernel, report, registry, transition,
+adapter, or aggregator uses that exact semantic name. Configuration cannot
+exempt an ambiguous path, and a baseline cannot normalize it.
 
 An ambiguous or mixed module has exactly one terminal disposition:
 
@@ -163,14 +161,11 @@ architecture; these rules make the claim honest and checkable.
 
 ## 3. Size and split
 
-Per-role effective-LOC limits live in
-`.ethos/rules.toml [quality.code_size]` and are enforced by the code-size gate:
-
-- logic modules: soft 400 / hard 600
-- surface (CLI command groups): soft 800
-- global hard ceiling: 1200 (no role buys unbounded growth)
-- a size breach is a design-review trigger, not split authority; the terminal
-  disposition still follows concept, invariant, authority, and change reason.
+The single effective-LOC limit for each carrier role lives in
+`.ethos/rules.toml [quality.code_size]` and is enforced by the code-size gate.
+There is no soft/hard split and no per-file exemption. A breach requires semantic
+review, but only a distinct concept, invariant, authority, or reason to change can
+justify a split; otherwise the module is simplified or absorbed.
 
 ## 4. Why this matters
 

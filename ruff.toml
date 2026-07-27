@@ -1,5 +1,134 @@
-# Ruff configuration owner. This root file is the native discovery surface for
-# IDEs, agents, and direct invocation; policy is extended from the canonical
-# check configuration while checkout-relative runtime cache routing stays here.
+# Ruff configuration owner. This root file is the sole native Ruff policy
+# surface for IDEs, hooks, CI, agents, and direct invocation. Every path glob is
+# resolved from the repository root.
+
+line-length = 100
+target-version = "py312"
 cache-dir = "build/runtime/tool-cache/ruff"
-extend = ".config/checks/ruff/ruff.toml"
+
+# Format IS a quality/determinism gate (user: format 也是质量的一种; 代码确定性很重要).
+# ruff format is enforced in CI (ruff format --check) so every file has one canonical
+# shape — no formatting drift, deterministic diffs.
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+
+[lint]
+# Broad rule set: raise the quality
+# floor and make low-quality code unrepresentable. Correctness + determinism + elegance +
+# security + exception hygiene + boolean-trap + private-access + logging.
+select = [
+  "E",
+  "W",
+  "F",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "C4",
+  "RET",
+  "PTH",
+  "PT",
+  "N",
+  "A",
+  "ISC",
+  "FLY",
+  "PERF",
+  "TC",
+  "TID",
+  "PIE",
+  "RUF",
+  "C90",
+  "PL",
+  "TRY",
+  "FBT",
+  "SLF",
+  "ARG",
+  "PGH",
+  "FURB",
+  "G",
+  "DTZ",
+  "EM",
+  "LOG",
+  "BLE",
+  "RSE",
+  "SLOT",
+  "INP",
+  "T20",
+  "YTT",
+  "ASYNC",
+]
+# Ratchet: correctness rules are enforced everywhere. A bounded set of
+# pre-existing style/idiom debt is frozen here and must shrink as focused refactors
+# dissolve legacy report reducers and wide command handlers. New code gets the full set.
+ignore = [
+  "PERF401", # manual list-comprehension: junk-drawer modules to be dissolved
+  "TRY003",  # long exception messages: pervasive, low-value to reflow now
+  "EM101",   # string-literal in exception: idiom churn, dissolves on rewrite
+  "PLC0415", # import-not-at-top: lazy imports are the perf design (surface split)
+  "PLR2004", # magic-value-comparison: pervasive in report reducers; ratchet debt
+  "PLR0911", # too-many-return-statements: report reducers branch by verdict
+  "PLR0912", # too-many-branches: existing report reducers; dissolves on split
+  "PLR0915", # too-many-statements: same; C90 complexity already caps the worst
+  "BLE001",  # blind-except: temporary defensive adapter debt; reduce case-by-case
+  "ARG001",  # unused-function-argument: cyclopts/adapter signatures need the arg
+  "SLF001",  # private-member-access remains visible whole-repo ratchet debt;
+  # product code should stay SLF001-clean while tests dissolve private reach-throughs.
+  "PLR0402", # "from package import submodule" conflicts with ETHOS concrete-submodule
+  # import discipline; module-layout owns that gate.
+  "S101", # runtime assertions are visible security debt; ratchet owns the exact count
+  "S105", # token literals used as sentinels are visible security debt
+  "S603", # subprocess list-form invocations are visible security debt
+  "S607", # PATH-resolved tool invocations are visible security debt
+]
+
+[lint.mccabe]
+# Cyclomatic complexity cap — no function may branch beyond this (borrowed from
+# the configured product complexity ceiling). Forces decomposition of tangled logic.
+max-complexity = 10
+
+[lint.pylint]
+# Public lifecycle contracts carry bounded authority/CAS coordinates. Seven
+# fields is the admitted semantic ceiling; wider signatures must use a contract
+# object or split by reason to change.
+max-args = 7
+
+[lint.isort]
+# One import per line keeps diffs and grep line-addressable. Absolute imports only
+# (TID enforces the ban on relative). The sole runtime package is first-party.
+force-single-line = true
+known-first-party = ["ethos"]
+
+[lint.pydocstyle]
+# Google style is the admitted structured-docstring convention. The dedicated
+# ETHOS docstring gate owns coverage and signature checks so Ruff does not become
+# a second truth center.
+convention = "google"
+
+[lint.per-file-ignores]
+# Repo-local skill scripts are executable host adapters; `quality_audit.py` keeps
+# a defensive Python<3.11 uv re-exec path for direct host invocation even though
+# the product runtime floor is Python 3.12.
+".agents/skills/**/scripts/*.py" = ["T201", "INP001"]
+# These reflect pytest's DESIGN, not fixable debt: S101 (pytest uses `assert`),
+# INP001 (test dirs are deliberately not import packages), PLR2004 (asserting against
+# a literal expected value is the correct test idiom), E501 (unbreakable assertion
+# payloads/fixtures; logic still wraps). No refactor removes the need for these.
+# SLF001 is NOT here — private-member access IS reducible debt governed by the
+# exact shrinking baseline in .config/checks/ruff/ratchet.toml, not a blanket ignore.
+"tests/**" = [
+  "E501",
+  "INP001",
+  "PLR2004",
+  "S101",
+  "S105",
+  "S106",
+  "S603",
+  "S607",
+]
+# C901 cyclomatic-complexity ratchet: pre-existing tangled functions are frozen
+# and decompose during the package/surface split. New code: cap 10.
+"src/ethos/repository/adoption/evolution.py" = ["C901"]

@@ -38,32 +38,30 @@ def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[
         ]
         if matching_rules:
             covered_paths.append(path)
-            for rule in matching_rules:
-                matched_rules.append(
-                    {
-                        "path": path,
-                        "rule_id": rule["id"],
-                        "owner": rule["owner"],
-                        "subject": rule.get("subject", ""),
-                        "authority_ref": rule["authority_ref"],
-                        "contract_ref": rule["contract_ref"],
-                        "severity": rule["severity"],
-                        "required_gates": list(
-                            cast("list[object]", rule.get("required_gates", []))
-                        ),
-                        "required_gates_detail": [
-                            gate_definitions[str(gate)]
-                            for gate in cast("list[object]", rule.get("required_gates", []))
-                            if str(gate) in gate_definitions
-                        ],
-                        "evidence_requirements": list(
-                            cast("list[object]", rule.get("evidence_requirements", []))
-                        ),
-                        "blocking": rule.get("severity") == "blocking",
-                        "stop_condition": rule["stop_condition"],
-                        "non_waivable": bool(rule.get("non_waivable", False)),
-                    }
-                )
+            matched_rules.extend(
+                {
+                    "path": path,
+                    "rule_id": rule["id"],
+                    "owner": rule["owner"],
+                    "subject": rule.get("subject", ""),
+                    "authority_ref": rule["authority_ref"],
+                    "contract_ref": rule["contract_ref"],
+                    "severity": rule["severity"],
+                    "required_gates": list(cast("list[object]", rule.get("required_gates", []))),
+                    "required_gates_detail": [
+                        gate_definitions[str(gate)]
+                        for gate in cast("list[object]", rule.get("required_gates", []))
+                        if str(gate) in gate_definitions
+                    ],
+                    "evidence_requirements": list(
+                        cast("list[object]", rule.get("evidence_requirements", []))
+                    ),
+                    "blocking": rule.get("severity") == "blocking",
+                    "stop_condition": rule["stop_condition"],
+                    "non_waivable": bool(rule.get("non_waivable", False)),
+                }
+                for rule in matching_rules
+            )
         else:
             uncovered_paths.append(path)
     required_gaps = [f"rules_uncovered_path:{path}" for path in uncovered_paths]
@@ -76,5 +74,5 @@ def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[
         "required_gaps": required_gaps,
         "next_action_contract": []
         if not required_gaps
-        else ["repair .ethos/rules.toml", "ethos rules explain <path>"],
+        else ["repair .ethos/rules.toml", "ethos plan --changed --json"],
     }

@@ -6,32 +6,27 @@ relations:
   canonical_for: external repository governance
 ---
 
-# Fleet And Adopters
+# Adopters
 
-ETHOS is the product; governed repositories are adopters. A fleet is a set of
-external repository roots and their independently tracked facts.
+Status: canonical.
 
-`ethos fleet inspect --target <repo> --json` reads an adopter in place. It
-separates the required `.ethos/profile.toml` binding from optional capabilities
-such as OpenSpec, skills, docs, claims, evidence, and provider projections.
-Missing optional capabilities do not invalidate the binding.
+Purpose: define how ETHOS governs one external repository without creating a
+second command plane or a central adopter task store.
 
-Fleet onboarding starts with `ethos adopt --root <repo> --json`, which plans only
-the binding manifest. Existing repository files remain untouched. A differing
-nonempty binding fails closed; ETHOS provides no overlay or force mode. Apply
-requires explicit authorization and a matching Git HEAD.
+See also: [Adoption Profiles](adoption-profiles.md) and
+[Repository Profile Contract](../governance/repository-profile-contract.md).
 
-Repository-specific branch roles, domain contracts, assistant surfaces,
-tool-native configuration, and hosted providers stay under adopter authority.
-Later capability commands may project those surfaces explicitly, but the
-adoption bootstrap does not reserve directories or generate provider files.
+ETHOS governs a repository through one explicit binding and its declared
+profile. Profiles choose repository facts, adapters, and proof depth; they do
+not change the public command meanings.
 
-This keeps the kernel reusable: every adopter receives the same lifecycle
-semantics while supplying its own facts and gates through the one typed profile
-contract.
+```bash
+ethos adopt --root <repo> --json
+ethos status --root <repo> --json
+ethos prove --root <repo> --full --json
+```
 
-Status: see front matter.
-
-Purpose: explain the repository truth represented by this ETHOS document.
-
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), [Glossary](../reference/glossary.md), [Repository Profile Contract](../governance/repository-profile-contract.md), and [Adopter Boundary And Retirement](../governance/adopter-boundary-and-retirement.md).
+Adopter evidence remains in that repository's tracked surfaces. Provider state,
+editor state, and generated projections are adapters. They must be promoted
+into source, tests, schemas, docs, OpenSpec, claims, or evidence before they
+support an adopter claim.

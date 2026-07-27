@@ -5,22 +5,24 @@ from __future__ import annotations
 from datetime import UTC
 from datetime import datetime
 
-from ethos.adapters.openspec.core import openspec_governance_report
-from ethos.adapters.repo.change_contract import load_proof_contract
+from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
 from ethos.adapters.repo.change_contract import load_repository_contract
-from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 from ethos.contracts.semantic import RepositoryFacts
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.context import context_for_root
 from ethos.result import EthosResult
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
-from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.application import app
+from ethos.surface.cli.output import JsonFlag
+from ethos.surface.cli.output import emit
+from ethos.surface.cli.root_binding import RootOption
+from ethos.surface.cli.root_binding import resolve_root
 
 
 @app.command
@@ -37,7 +39,20 @@ def plan(
     governance = context_for_root(repo)
     paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     try:
-        change_contract = load_proof_contract(repo, change_id=change)
+        support = status_payload.get("closeout_support")
+        lease = support if isinstance(support, dict) else {}
+        change_contract = (
+            load_lease_bound_change_contract(
+                repo,
+                change_id=change,
+                expected_head=str(lease.get("lease_expected_head") or ""),
+                base_change_contract_digest=str(lease.get("base_change_contract_digest") or ""),
+            )
+            if status_payload.get("role") == ROLE_WORK_LANE
+            else load_change_contract(repo, change_id=change)
+            if change is not None
+            else load_repository_contract(repo)
+        )
     except ValueError as exc:
         gap = str(exc)
         emit(
@@ -114,7 +129,7 @@ def plan(
         else (
             "repair .ethos/rules.toml and rerun ethos plan --json"
             if rule_validation_gaps
-            else "ethos openspec --lifecycle --json",
+            else "openspec validate --all --strict --json",
         ),
         governance_context=governance,
         data={

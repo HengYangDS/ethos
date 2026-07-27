@@ -6,20 +6,20 @@ if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != 1 ]]; then exec "${dir}/with-python-r
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 [[ $# -le 1 ]] || { echo "usage: $0 [expected-head]" >&2; exit 2; }
 head="${1:-$(git rev-parse HEAD)}"; out="${ETHOS_PROOF_EVIDENCE_DIR:-build/evidence/quality/proof}"; readiness="${ETHOS_READINESS_EVIDENCE_DIR:-build/evidence/quality/readiness}"
-receipt="${out}/executed-proof.json"; stderr="${out}/executed-proof.stderr.log"; audit="${readiness}/audit.json"; report="${readiness}/report.json"
-mkdir -p "${out}" "${readiness}"; rm -f "${receipt}" "${stderr}" "${audit}" "${report}"
-uv run ethos audit --json >"${audit}"
+receipt="${out}/executed-proof.json"; stderr="${out}/executed-proof.stderr.log"; status_before="${readiness}/status-before.json"; status_after="${readiness}/status-after.json"
+mkdir -p "${out}" "${readiness}"; rm -f "${receipt}" "${stderr}" "${status_before}" "${status_after}"
+uv run ethos status --json >"${status_before}"
 set +e; uv run ethos prove --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"; proof_status=$?; set -e
-uv run ethos status --json >"${report}"
+uv run ethos status --json >"${status_after}"
 set +e
-python3 - "${audit}" "${report}" "${receipt}" <<'PY'
+python3 - "${status_before}" "${status_after}" "${receipt}" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 paths = tuple(map(Path, sys.argv[1:4]))
-try: audit, report, proof = (json.loads(path.read_text()) for path in paths)
+try: status_before, status_after, proof = (json.loads(path.read_text()) for path in paths)
 except (OSError, json.JSONDecodeError) as error: raise SystemExit(f"invalid readiness receipt: {error}") from error
-data = proof.get("data", {}); head = data.get("expected_head", {}) if isinstance(data, dict) else {}; summary = proof.get("summary", {}); ok = all(item.get("ok") is True for item in (audit, report, proof))
-print(json.dumps({"kind": "ethos_hosted_readiness_receipt", "ok": ok, "audit_state": audit.get("state", ""), "report_state": report.get("state", ""), "proof_state": proof.get("state", ""), "head": head.get("current", ""), "head_matches_expected": head.get("ok", False), "proof_gate_count": summary.get("gate_count", 0), "proof_evidence_digest": summary.get("evidence_digest", ""), "reports": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}}, sort_keys=True))
+data = proof.get("data", {}); head = data.get("expected_head", {}) if isinstance(data, dict) else {}; summary = proof.get("summary", {}); ok = all(item.get("ok") is True for item in (status_before, status_after, proof))
+print(json.dumps({"kind": "ethos_hosted_readiness_receipt", "ok": ok, "status_before_state": status_before.get("state", ""), "status_after_state": status_after.get("state", ""), "proof_state": proof.get("state", ""), "head": head.get("current", ""), "head_matches_expected": head.get("ok", False), "proof_gate_count": summary.get("gate_count", 0), "proof_evidence_digest": summary.get("evidence_digest", ""), "reports": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}}, sort_keys=True))
 raise SystemExit(not ok)
 PY
 receipt_status=$?; set -e

@@ -1,13 +1,6 @@
 from __future__ import annotations
 
-from ethos.domain import prove
-
-
-def test_role_for_classifies_tests_surface_and_logic():
-    assert prove._role_for("tests/unit/test_sample.py", ()) == "test"
-    assert prove._role_for("packages/pkg/tests/test_sample.py", ()) == "test"
-    assert prove._role_for("src/ethos/surface/cli/rules.py", ("**/surface/**",)) == "surface"
-    assert prove._role_for("src/ethos/domain/plan.py", ("**/surface/**",)) == "logic"
+import ethos.domain.prove as prove
 
 
 def test_code_size_report_applies_role_limits_and_global_cap(tmp_path, monkeypatch):

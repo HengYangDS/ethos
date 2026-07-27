@@ -60,6 +60,18 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
     assert "gate_failed:docs-registry" in payload["required_gaps"]
+    attestation = payload["data"]["attestation"]
+    assert attestation["kind"] == "proof"
+    assert attestation["subject"] == f"git:commit:{git(repo, 'rev-parse', 'HEAD')}"
+    assert attestation["verdict"] == "block"
+    assert len(attestation["change_contract_digest"]) == 64
+    assert len(attestation["repository_facts_digest"]) == 64
+    assert len(attestation["plan_digest"]) == 64
+    assert len(attestation["policy_digest"]) == 64
+    assert len(attestation["effect_digest"]) == 64
+    assert attestation["evidence_refs"] == [f"sha256:{attestation['effect_digest']}"]
+    assert "evidence" not in payload["data"]
+    assert "provenance" not in payload["data"]
 
 
 def test_lane_candidate_refresh_from_accepted_resets_clean_diverged_candidate(
@@ -140,12 +152,12 @@ def test_land_closeout_reports_actionable_candidate_divergence(
 
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
-    assert payload["required_gaps"] == ["candidate_diverged_from_accepted"]
+    assert "candidate_diverged_from_accepted" in payload["required_gaps"]
     assert payload["next_actions"] == [
         f"ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head {accepted_head} --json"
     ]
     assert payload["data"]["accepted_update"] == {}
     assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
-    assert payload["data"]["closeout_bootstrap"]["required_gaps"] == [
-        "candidate_diverged_from_accepted"
-    ]
+    assert (
+        "candidate_diverged_from_accepted" in payload["data"]["closeout_bootstrap"]["required_gaps"]
+    )

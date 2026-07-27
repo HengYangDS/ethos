@@ -10,27 +10,22 @@ from typing import Any
 from typing import cast
 
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
+from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutPostconditionContext
 from ethos.adapters.mutation.resolution._effects import ref_head
 from ethos.adapters.mutation.resolution._effects import retire_clean_ownerless_cas
 from ethos.adapters.mutation.resolution._effects import verify_ownerless_postconditions
-from ethos.adapters.mutation.resolution._shared import current_chronicle_matches
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
-    admit_ownerless_closeout,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
-    reobserve_ownerless_closeout_under_fence,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core import (
-    admit_ownerless_closeout_facts,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core import (
-    reobserve_ownerless_closeout_facts,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
+from ethos.adapters.mutation.resolution.chronicle import current_resolution_chronicle_matches
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.fence import (
     OwnerlessCloseoutAdmission,
 )
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.fence import (
     OwnerlessCloseoutAdmissionError,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.observation import (
+    admit_ownerless_closeout,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.observation import (
+    reobserve_ownerless_closeout,
 )
 from ethos.adapters.mutation.resolution.closeout.retry import reset_reserved_no_effect_retry
 from ethos.adapters.mutation.resolution.receipts import canonical_resolution_decision_snapshot
@@ -48,11 +43,12 @@ from ethos.adapters.store.state.closeout import probe_closeout_fence
 from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.resolution.closeout import OwnerlessCloseoutBinding
+from ethos.contracts.resolution.closeout import OwnerlessCloseoutFenceBinding
 from ethos.contracts.resolution.closeout import OwnerlessCloseoutReservation
 from ethos.contracts.resolution.lane import LaneObservation
 
 if TYPE_CHECKING:
-    from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
+    from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.reservation import (
         OwnerlessReceiptReservationContext,
     )
 
@@ -77,19 +73,12 @@ def _admit_ownerless_effect_target(
     receipt_reservation: OwnerlessReceiptReservationContext | None,
 ) -> OwnerlessCloseoutAdmission:
     try:
-        if receipt_reservation is not None:
-            return admit_ownerless_closeout_facts(
-                root=root,
-                decision_path=decision_path,
-                decision=decision,
-                executor_ref=executor_ref,
-                receipt_reservation=receipt_reservation,
-            )
         return admit_ownerless_closeout(
             root=root,
             decision_path=decision_path,
             decision=decision,
             executor_ref=executor_ref,
+            receipt_reservation=receipt_reservation,
         )
     except OwnerlessCloseoutAdmissionError as error:
         raise OwnerlessCloseoutError(error.gap) from error
@@ -97,7 +86,7 @@ def _admit_ownerless_effect_target(
         raise OwnerlessCloseoutError(_ownerless_gap("admission_unverifiable")) from error
 
 
-def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect bindings
+def retire_clean_ownerless_lane(
     *,
     root: Path,
     decision_path: Path,
@@ -140,17 +129,10 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect binding
         )
     fence = _acquire_fresh_fence(admission, database)
     try:
-        admission = (
-            reobserve_ownerless_closeout_facts(
-                admission=admission,
-                fence=fence,
-                receipt_reservation=receipt_reservation,
-            )
-            if receipt_reservation is not None
-            else reobserve_ownerless_closeout_under_fence(
-                admission=admission,
-                fence=fence,
-            )
+        admission = reobserve_ownerless_closeout(
+            admission=admission,
+            fence=fence,
+            receipt_reservation=receipt_reservation,
         )
     except OwnerlessCloseoutAdmissionError as error:
         _release_unreserved_fence(admission, database, fence)
@@ -176,13 +158,15 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect binding
             accepted_head=admission.accepted_head,
         )
         postconditions = verify_ownerless_postconditions(
-            root=admission.root,
-            database=database,
-            decision_path=admission.decision_path,
-            decision_sha256=admission.decision_sha256,
-            observation=admission.observation,
-            accepted_branch=admission.accepted_branch,
-            accepted_head=admission.accepted_head,
+            context=OwnerlessCloseoutPostconditionContext(
+                root=admission.root,
+                database=database,
+                decision_path=admission.decision_path,
+                decision_sha256=admission.decision_sha256,
+                observation=admission.observation,
+                accepted_branch=admission.accepted_branch,
+                accepted_head=admission.accepted_head,
+            ),
             fence=fence,
         )
     except OwnerlessCloseoutError as error:
@@ -239,17 +223,19 @@ def _acquire_fresh_fence(
     try:
         return acquire_closeout_fence(
             database,
-            subject=admission.observation.lane_ref,
-            expected_head=admission.observation.head,
-            decision_id=admission.decision.decision_id,
-            executor_ref=admission.executor_ref,
-            accepted_branch=admission.accepted_branch,
-            accepted_head=admission.accepted_head,
-            target_path=admission.observation.path,
-            lane_incarnation_id=admission.observation.lane_incarnation_id,
-            observation_digest=admission.observation.digest(),
-            decision_sha256=admission.decision_sha256,
-            chronicle_digest=admission.decision.chronicle_digest,
+            binding=OwnerlessCloseoutFenceBinding(
+                subject=admission.observation.lane_ref,
+                expected_head=admission.observation.head,
+                decision_id=admission.decision.decision_id,
+                executor_ref=admission.executor_ref,
+                accepted_branch=admission.accepted_branch,
+                accepted_head=admission.accepted_head,
+                target_path=admission.observation.path,
+                lane_incarnation_id=admission.observation.lane_incarnation_id,
+                observation_digest=admission.observation.digest(),
+                decision_sha256=admission.decision_sha256,
+                chronicle_digest=admission.decision.chronicle_digest,
+            ),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as error:
         gap = str(error).strip()
@@ -294,7 +280,7 @@ def _reservation(
     ).to_payload()
 
 
-def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recovery bindings
+def recover_completed_ownerless_closeout(
     *,
     root: Path,
     decision_path: Path,
@@ -325,7 +311,7 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
             recovery_state="effect_complete_receipt_missing",
         )
     decision = cast("dict[str, Any]", snapshot)
-    if not current_chronicle_matches(root, decision):
+    if not current_resolution_chronicle_matches(root, decision):
         raise OwnerlessCloseoutError(
             _OWNERLESS_CHRONICLE_STALE,
             phase="receipt",
@@ -386,7 +372,7 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
             phase="receipt",
             recovery_state="effect_complete_receipt_missing",
         )
-    postconditions = verify_ownerless_postconditions(
+    postcondition_context = OwnerlessCloseoutPostconditionContext(
         root=root,
         database=database,
         decision_path=decision_path,
@@ -394,6 +380,9 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
         observation=observation,
         accepted_branch=accepted_branch,
         accepted_head=accepted_head,
+    )
+    postconditions = verify_ownerless_postconditions(
+        context=postcondition_context,
         fence=fence,
         decision_bytes=decision_bytes,
     )

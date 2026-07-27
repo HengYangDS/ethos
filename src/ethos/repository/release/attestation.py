@@ -6,7 +6,7 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.repository.release.core import version_manifest
+from ethos.repository.release.configuration import version_manifest
 
 if TYPE_CHECKING:
     from pathlib import Path

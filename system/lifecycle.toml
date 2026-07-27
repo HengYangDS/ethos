@@ -1,4 +1,4 @@
-# Lifecycle policy, PlanIR actions, lease operations, and campaign CEL.
+# Lifecycle policy, PlanIR actions, and lease operations.
 # Repository facts and attestations derive state; this file stores no run state.
 
 schema = "system/schemas/contracts/lifecycle.schema.json"
@@ -21,50 +21,3 @@ node = [
   { id = "land", kind = "effect", enforcement = "guarded", requires = ["proof_evidence", "change_contract"], produces = ["candidate_update"] },
   { id = "publish", kind = "effect", enforcement = "evidence-only", requires = ["candidate_update", "release_readiness"], produces = ["publication_readiness"] },
 ]
-
-[campaign]
-topology_kind = "openspec_lane_sequence"
-topology_mode = "strict_serial"
-dependency_rule = "closeout_retired_before_activation"
-publication_kind = "campaign_publication"
-publication_scope = "repository"
-publication_terminal_mode = "campaign_terminal"
-admitted_state = "admitted"
-blocked_state = "blocked"
-continuation_action_id = "campaign_continuation"
-publication_action_id = "protected_publication"
-campaign_active_states = ["active", "experimenting"]
-campaign_terminal_states = ["closed", "retired"]
-step_planned_states = ["planned"]
-step_execution_states = ["active", "in_progress"]
-step_archived_states = ["archive_ready", "landed"]
-step_terminal_states = ["closed", "retired"]
-step_retired_states = ["retired"]
-closeout_planned_states = ["planned"]
-closeout_terminal_states = ["closed", "retired"]
-closeout_retired_states = ["retired"]
-publication_projection = '''{
-  "kind": policy.publication_kind,
-  "scope": policy.publication_scope,
-  "mode": size(facts.report.required_gaps) > 0 ? "invalid" :
-    size(facts.campaigns) == 0 ? "unconfigured" :
-    policy.publication_terminal_mode,
-  "campaign_count": size(facts.campaigns),
-  "terminal_ready": size(facts.required_gaps) == 0 && size(facts.advisory_gaps) == 0,
-  "local_change_closeout": size(facts.report.required_gaps) == 0 ? policy.admitted_state : policy.blocked_state,
-  "remote_publication_admission": size(facts.required_gaps) == 0 ? policy.admitted_state : policy.blocked_state,
-  "required_gaps": facts.required_gaps,
-  "advisory_gaps": facts.advisory_gaps,
-  "next_action_id": size(facts.required_gaps) == 0 && size(facts.advisory_gaps) == 0 ? policy.publication_action_id : policy.continuation_action_id
-}'''
-
-[campaign.rules]
-campaign = [{ expression = "facts.campaign.steps.all(step, size(facts.campaign.steps.filter(candidate, candidate.id == step.id)) == 1)", gap = '''"campaign_step_id_duplicate:" + facts.campaign.id''' }, { expression = "size(facts.campaign.lane_topology.active_steps) <= 1", gap = '''"campaign_active_step_not_serial:" + facts.campaign.id''' }]
-step = [{ expression = "facts.step.ordinal == facts.position", gap = '''"campaign_step_ordinal_invalid:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "facts.step.depends_on == facts.expected_dependency", gap = '''"campaign_step_dependency_not_serial:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(facts.step.state in policy.step_terminal_states) || facts.step.closeout.state in policy.closeout_terminal_states", gap = '''"campaign_step_closeout_state_incomplete:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(facts.step.closeout.state in policy.closeout_terminal_states) || (facts.step.closeout.accepted_head != '' && facts.step.closeout.candidate_head != '')", gap = '''"campaign_step_closeout_head_missing:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(facts.step.closeout.state in policy.closeout_terminal_states) || size(facts.step.closeout.evidence) > 0", gap = '''"campaign_step_closeout_evidence_missing:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(facts.step.state in policy.step_execution_states) || !(facts.step.closeout.state in policy.closeout_terminal_states)", gap = '''"campaign_step_execution_closeout_terminal:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(facts.step.closeout.state in policy.closeout_terminal_states) || facts.step.state in policy.step_terminal_states", gap = '''"campaign_step_terminal_closeout_nonterminal:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "facts.carrier.state != 'ambiguous'", gap = '''"campaign_step_openspec_ambiguous:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!((facts.step.state in policy.step_execution_states) && facts.carrier.state == 'archived')", gap = '''"campaign_step_active_openspec_archived:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(facts.step.state in policy.step_archived_states) || facts.carrier.state == 'archived'", gap = '''"campaign_step_preland_openspec_not_archived:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(facts.step.state in policy.step_terminal_states) || facts.carrier.state == 'archived'", gap = '''"campaign_step_terminal_openspec_not_archived:" + facts.campaign.id + ":" + facts.step.id''' }, { expression = "!(!(facts.step.state in policy.step_planned_states) || !(facts.step.closeout.state in policy.closeout_planned_states)) || facts.carrier.state != 'missing'", gap = '''"campaign_step_openspec_missing:" + facts.campaign.id + ":" + facts.step.id''' }]
-dependency = [{ expression = "!(facts.dependency == null)", gap = '''"campaign_step_dependency_missing:" + facts.campaign.id + ":" + facts.step.id + ":" + facts.dependency_id''' }, { expression = "facts.step.state in policy.step_planned_states || facts.dependency == null || facts.dependency.closeout.state in policy.closeout_retired_states", gap = '''"campaign_step_dependency_not_retired:" + facts.campaign.id + ":" + facts.step.id + ":" + facts.dependency_id''' }]
-publication = [{ expression = "!facts.campaigns.exists(campaign, !(campaign.state in policy.campaign_terminal_states))", gap = '''"campaign_publication_campaign_active"''' }, { expression = "!facts.campaigns.exists(campaign, campaign.steps.exists(step, !(step.state in policy.step_retired_states && step.closeout.state in policy.closeout_retired_states)))", gap = '''"campaign_publication_step_not_retired"''' }]
-publication_advisory = []
-
-[campaign.publication]
-gap_groups = [{ values = "facts.report.required_gaps", prefix = "''" }, { values = "facts.budget.required_gaps", prefix = "''" }]
-advisory_gap_groups = []

@@ -49,21 +49,23 @@ def _exists(root: Path, revision: str) -> bool:
     )
 
 
-def _pushed_commit_range(root: Path, *, pushed_head: str, remote_head: str) -> list[str]:
+def _pushed_commit_range(
+    root: Path, *, pushed_head: str, remote_head: str
+) -> tuple[list[str], bool]:
     if not _exists(root, pushed_head):
-        return []
+        return [], False
     revision = f"{remote_head}..{pushed_head}" if _exists(root, remote_head) else pushed_head
     result = _git(root, "rev-list", revision, text=True)
-    return result.stdout.splitlines() if result.returncode == 0 else []
+    return (result.stdout.splitlines(), True) if result.returncode == 0 else ([], False)
 
 
 def _pushed_commit_range_excluding(
     root: Path, *, pushed_head: str, trusted_baselines: tuple[str, ...]
-) -> list[str]:
+) -> tuple[list[str], bool]:
     if not _exists(root, pushed_head):
-        return []
+        return [], False
     result = _git(root, "rev-list", pushed_head, "--not", *trusted_baselines, text=True)
-    return result.stdout.splitlines() if result.returncode == 0 else []
+    return (result.stdout.splitlines(), True) if result.returncode == 0 else ([], False)
 
 
 def _commit_identity(root: Path, revision: str) -> dict[str, str]:
@@ -216,14 +218,14 @@ def push_identity_policy_report(
     gaps.extend(reconciliation_gaps)
     if not baselines:
         gaps.extend(baseline_gaps)
-    commits = (
+    commits, range_readable = (
         _pushed_commit_range_excluding(root, pushed_head=pushed_head, trusted_baselines=baselines)
         if baselines
         else _pushed_commit_range(root, pushed_head=pushed_head, remote_head=range_base)
         if head_exists and not baseline_gaps
-        else []
+        else ([], True)
     )
-    if pushed_head and not head_exists:
+    if pushed_head and (not head_exists or not range_readable):
         gaps.append("push_identity_commit_range_unreadable")
     violations = []
     for commit in commits:

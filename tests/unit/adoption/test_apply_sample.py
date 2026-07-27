@@ -9,7 +9,7 @@ from ethos.adapters.repo.change_contract import load_repository_contract
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
-from ethos.repository.policy.gates import _adopter_profile_active
+from ethos.repository.policy.gates import adopter_profile_active
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.profile import load_repository_profile
 from tests.support.contract_helpers import git
@@ -32,7 +32,7 @@ def test_adopt_apply_writes_profile_and_repository_contract(tmp_path: Path) -> N
         "docs/governance/**",
         "rules/**",
     )
-    assert _adopter_profile_active(tmp_path) is True
+    assert adopter_profile_active(tmp_path) is True
     assert default_gate_ids(root=tmp_path) == ADOPTER_DEFAULT_GATE_IDS
     assert ADOPTER_DEFAULT_GATE_IDS != PRODUCT_DEFAULT_GATE_IDS
     assert sorted(path.as_posix() for path in tmp_path.rglob("*") if path.is_file()) == [

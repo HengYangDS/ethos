@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.repository.audit as repository_audit_module
-from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.context import context_for_root
 from ethos.repository.context import is_product_root
@@ -21,27 +21,20 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def audit_for_root(
-    root: Path, *, openspec_mode: str = "shape", current_head: str = ""
-) -> dict[str, object]:
+def audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
     """Dispatch to the product-repository or adopter audit for the given root."""
     if is_product_root(root):
-        return product_repository_audit(
-            root, openspec_mode=openspec_mode, current_head=current_head
-        )
+        return product_repository_audit(root, openspec_mode=openspec_mode)
     return adopter_audit(root)
 
 
-def product_repository_audit(
-    root: Path, *, openspec_mode: str, current_head: str = ""
-) -> dict[str, object]:
+def product_repository_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
     """Run the product repository audit (deep openspec validation when requested)."""
     reporter = openspec_governance_report if openspec_mode == "deep" else None
     return repository_audit_module.repository_audit(
         root,
         openspec_mode=openspec_mode,
         openspec_reporter=reporter,
-        current_head=current_head,
     )
 
 

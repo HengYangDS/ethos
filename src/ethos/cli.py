@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import sys
 
-from ethos.surface.cli._base import app
-from ethos.surface.cli._base import emit_invalid_adopter_profile
-from ethos.surface.cli._base import load_command_groups
+from ethos.surface.cli.application import app
+from ethos.surface.cli.application import command_name
+from ethos.surface.cli.application import dispatch_arguments
+from ethos.surface.cli.application import load_command_groups
+from ethos.surface.cli.output import emit_invalid_adopter_profile
 
 
 def main() -> None:
@@ -14,27 +16,11 @@ def main() -> None:
     argv = sys.argv[1:]
     load_command_groups(argv)
     try:
-        app(argv)
+        app(dispatch_arguments(argv))
     except ValueError as exc:
         if str(exc) != "adopter_profile_invalid:.ethos/profile.toml":
             raise
-        _emit_invalid_profile(_command(argv), argv)
-
-
-def _command(argv: list[str]) -> str:
-    """Return the declared root command without mistaking an option value for it."""
-    skip_value = False
-    for argument in argv:
-        if skip_value:
-            skip_value = False
-            continue
-        if argument == "--root":
-            skip_value = True
-            continue
-        if argument.startswith("-"):
-            continue
-        return argument
-    return "ethos"
+        _emit_invalid_profile(command_name(argv) or "ethos", argv)
 
 
 def _emit_invalid_profile(command: str, argv: list[str]) -> None:

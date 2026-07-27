@@ -1,5 +1,5 @@
 ---
-subject: ethos:openspec-repository governance
+subject: ethos:openspec-repository-governance
 role: policy
 state: canonical
 relations:
@@ -8,139 +8,41 @@ relations:
 
 # OpenSpec Governance
 
-ETHOS keeps `openspec/` as an official repository governance capability for
-spec-driven planning, change deltas, and canonical capability records.
-In the current product state, this is a mandatory official governance
-dependency: records that do not satisfy the OpenSpec workspace and validation
-contract are not equivalent ETHOS governance records.
+Status: canonical.
 
-OpenSpec is not a second public command plane. User-facing workflows still enter
-through `ethos ...`; ETHOS then calls the official OpenSpec CLI when it needs to
-prove planning artifact health. The CLI invocation remains an adapter execution
-surface even though the governance dependency is mandatory.
+Purpose: define the boundary between official OpenSpec lifecycle ownership and
+ETHOS lifecycle consumption.
 
-The required invariant is stricter than directory presence:
+See also: [Command Plane](../reference/command-plane.md) and
+[Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
+
+OpenSpec is the official repository carrier for change proposals, deltas,
+validation, and archive operations. The official CLI owns that lifecycle:
 
 ```bash
-ethos openspec --json
-ethos openspec --lifecycle --json
+openspec list --json
+openspec status --change <id> --json
+openspec validate --all --strict --json
+openspec archive <id> --yes --json
 ```
 
-That command reports official OpenSpec `doctor`, `status`, and strict
-validation results. Invalid placeholder changes are residue and should be
-completed, archived, or removed before release.
+ETHOS does not reproduce those operations as public roots. `ethos plan --changed
+--json`, `ethos prove --full --json`, and `ethos land --json` consume the current
+OpenSpec facts when the repository contract requires them.
 
-Lifecycle mode does not replace the official OpenSpec CLI. It composes official
-validation with ETHOS carrier checks. Every active change must have proposal,
-design, tasks, delta specs, and one strict ChangeContract whose scope owns active
-material coverage.
+An OpenSpec archive is valid only when the official command completes its
+required validation and updates the accepted specification surface. ETHOS
+records no parallel lifecycle log and does not infer archive success from a
+folder name or a prior command output.
 
-Lifecycle also asks the configured official CLI to archive each active change
-inside a disposable copy of `openspec/`. This is an archiveability preflight,
-not a second delta parser: ETHOS neither rewrites delta operations nor mutates
-the source workspace. An official failure becomes
-`openspec_archive_preflight_failed:<change>:<code>` with the official diagnostic
-projected under `archive_preflight`. The same lifecycle projection is consumed
-by `ethos plan --changed`, `ethos prove`, and `ethos land`; accepted-root
-closeout evaluates it against the admitted candidate root.
+Archive follows absorption. Before a Change is archived, its accepted semantics
+must be integrated into the owner-native specification surface and any durable
+architectural ruling must be represented by the canonical document or decision
+record that owns it. The archived Change then preserves change history; it does
+not remain a second source of current instructions.
 
-For adopters, the official active or archiving Change selection also feeds one
-ETHOS-owned material-scope read model. An adopter declares the material path
-families in `[openspec].material_paths`; an active Change may declare its
-covered paths in `openspec/changes/<id>/contract.toml`. The contract is not an
-official OpenSpec workflow-schema extension and cannot replace the official
-lifecycle. `lane prewrite`, `plan --changed`, and `prove` consume the same scope.
-An uncovered material path fails with
-`openspec_material_path_uncovered:<path>`; lifecycle scope is not a
-code-correctness gate and no method package carries Change authority.
-
-There is no bootstrap exception or parallel scope carrier. A ChangeContract must
-exist and validate before it can authorize material work. There is no blanket
-exemption for an OpenSpec directory, `.ethos/`, or a path family.
-
-Canonical capability profiles live beside canonical specs as
-`openspec/specs/<capability>/capability.toml`. They are validated by
-`capability-profile.schema.json` and record the family owner, primary invariant,
-routing question, boundary rules, and proof profile. They are routing and
-contract metadata; promoted truth still lives in source, tests, schemas,
-canonical docs, claims, and dated evidence.
-
-## Product Protocol
-
-OpenSpec changes are ETHOS cases:
-
-```text
-case = ChangeContract + proposal + design + tasks + spec deltas
-```
-
-The active change folder records intended change. It does not supersede current
-source, tests, schemas, docs, accepted specs, claims, or evidence until closeout
-promotes those surfaces. Complete or archived changes are history, not default
-containers for new semantic work.
-
-Proposal capability entries must route directly to canonical live capability
-names. ETHOS should reject or flag proposal metadata that cannot answer:
-
-1. Which capability owns the primary behavior?
-1. Which stable subject is changing?
-1. Is the reuse stance `reuse`, `extend`, `extract`, or `new`?
-1. Which lifecycle, surface, and authority facets explain the change?
-1. What is deliberately out of scope?
-
-`design.md` is mandatory for new capabilities, extracted ownership, cross-surface
-topology changes, and product-shape changes. It must state why reuse or
-extension is insufficient, where the official OpenSpec boundary ends, how ETHOS
-adds repo-local validation, what proof is required, and how rollback works.
-
-Archive closeout is an ETHOS product operation around the official OpenSpec
-archive command. After the official command runs, ETHOS must guard live-spec
-scope, archived task state, archive directory identity, retained evidence refs,
-and Markdown links from the archived path.
-
-Logical Change IDs are date-free lower-kebab identifiers beginning with a
-letter. The only archive date is the leading directory component:
-`openspec/changes/archive/YYYY-MM-DD-<change-id>/`. A numeric-leading ID,
-terminal `YYYYMMDD` Change-ID suffix, or two dated carriers for one logical ID
-is invalid; the repository keeps no alias, redirect, or date-based fallback.
-Claim IDs and Chronicle paths may remain independently dated evidence labels.
-
-Adoption does not create an OpenSpec workspace. When an adopter invokes the
-OpenSpec capability, the official OpenSpec command owns workspace creation and
-ETHOS validates the resulting tracked surface.
-
-## Productized Workspace Substrate
-
-A complete ETHOS OpenSpec workspace is inspectable by humans and machines. It
-contains workspace guidance, change guidance, accepted capability guidance,
-`specs/families.toml`, `specs/capability.template.toml`, and
-`changes/template.md`. The workspace is intentionally more than directory
-presence: adopters should understand official OpenSpec duties, ETHOS
-repo-local lifecycle checks, direct capability names, proposal facets, claim
-binding, evidence refs, archive closeout, and rollback before writing a change.
-
-Capability profiles expose `decision_axes` and `recommended_facets` as routing
-metadata. These fields are inspired by external OpenSpec governance practice,
-but the values are ETHOS-owned vocabulary. Aliases are diagnostic only and do
-not replace live capability directory names as routing truth.
-
-Agent invocation and closeout evidence are part of the product protocol. An
-agent or host may provide an invocation envelope or host-readiness evidence, but
-repository mutation still requires Work Lane admission and repository proof.
-Closeout evidence should be topic-scoped and digest-bound so it remains
-reviewable rather than becoming unstructured transcript truth.
-
-Status: see front matter.
-
-Purpose: explain the repository truth represented by this ETHOS document.
-
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
-
-## Adopter Lifecycle Parity
-
-`ethos plan` and `ethos prove` evaluate official OpenSpec lifecycle when the
-repository has a workspace or a changed path matches the adopter's declared
-material scope. Otherwise a valid adopter reports OpenSpec as not applicable.
-Lifecycle gaps remain OpenSpec and repository-governance obligations: they are
-not code-correctness gates, and no Superpowers or other method package carries
-Change authority. Material-path scope admission remains fail-closed
-`adopter-material-change-scope-20260714`.
+If a proposed delta conflicts with current specifications and both meanings are
+valid, the conflict is a model gap. The Change must first raise the affected
+taxonomy, ontology, contract, or boundary so both cases are represented without
+ambiguity. Forcing the new case into an unsuitable category, silently dropping
+one side, or archiving before that integration is complete is invalid.

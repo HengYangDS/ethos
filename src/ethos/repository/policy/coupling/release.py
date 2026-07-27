@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.repository.release.core import REQUIRED_RELEASE_FILES
-from ethos.repository.release.core import release_policy_report
+from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES
+from ethos.repository.release.configuration import release_policy_report
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -77,7 +77,7 @@ for raw in sys.argv[1:]:
             failed = True
     try:
         tomllib.loads(data.decode("utf-8"))
-    except Exception as exc:  # noqa: BLE001 - style gate reports parser detail.
+    except Exception as exc:
         print(f"{path}: TOML parse failed: {exc}", file=sys.stderr)
         failed = True
 raise SystemExit(1 if failed else 0)

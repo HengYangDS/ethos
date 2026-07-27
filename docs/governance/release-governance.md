@@ -31,8 +31,8 @@ uv build --out-dir build/artifacts/python --clear --no-create-gitignore
 npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm
-ethos audit --mode deep
-ethos status
+ethos prove --full --json
+ethos status --json
 ```
 
 The commands above are the current product-toolchain toolchain profile for proving

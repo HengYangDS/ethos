@@ -7,18 +7,17 @@ import json
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.mutation.resolution._shared import display_path
-from ethos.adapters.mutation.resolution._shared import preservation_payloads_match
-from ethos.adapters.mutation.resolution._shared import sha256_digest
-from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
-from ethos.adapters.mutation.resolution.records.core import receipt_path
-from ethos.adapters.mutation.resolution.records.core import write_json_atomic
-from ethos.adapters.mutation.resolution.records.io.core import read_record_bytes
+from ethos.adapters.mutation.resolution.capture import preservation_payloads_match
+from ethos.adapters.mutation.resolution.records.io.descriptor_store import read_record_bytes
+from ethos.adapters.mutation.resolution.records.json_store import canonical_current_record_bytes
+from ethos.adapters.mutation.resolution.records.json_store import write_json_atomic
 from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos.adapters.mutation.resolution.records.roots import display_record_path
+from ethos.adapters.mutation.resolution.records.roots import receipt_path
 from ethos.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos.contracts.resolution.lane import LaneResolutionDecision
+from ethos.contracts.resolution.lane import is_lane_decision_id
 from ethos.repository.policy.schema import validate_schema_instance
 
 _RECEIPT_INVALID = "lane_resolution_receipt_invalid"
@@ -137,7 +136,7 @@ def write_resolution_receipt(
     )
     record_root = artifact_root or current_record_root(root)
     write_json_atomic(destination, payload, record_root=record_root)
-    return display_path(root, destination)
+    return display_record_path(root, destination)
 
 
 def read_resolution_receipt(
@@ -169,7 +168,7 @@ def read_resolution_receipt(
         raise ValueError(_RECEIPT_INVALID)
     if content != canonical_current_record_bytes(payload):
         raise ValueError(_RECEIPT_INVALID)
-    return payload, display_path(root, destination)
+    return payload, display_record_path(root, destination)
 
 
 def _validated_resolution_receipt(
@@ -191,7 +190,7 @@ def _validated_resolution_receipt(
         str(payload["lane_ref"]), str(payload["head"])
     ):
         raise ValueError(_RECEIPT_INVALID)
-    if not valid_decision_id(str(payload["decision_id"])):
+    if not is_lane_decision_id(str(payload["decision_id"])):
         raise ValueError(_RECEIPT_INVALID)
     _validate_schema(root, "lane-resolution-receipt.schema.json", payload)
     return payload
@@ -212,7 +211,11 @@ def verify_preservation_package(
         raise ValueError(_PRESERVATION_PACKAGE_OUTSIDE_ROOT)
     manifest = _preservation_manifest(destination, package)
     payload_sha256 = {
-        name: None if path.is_symlink() or not path.is_file() else sha256_digest(path)
+        name: (
+            None
+            if path.is_symlink() or not path.is_file()
+            else hashlib.sha256(path.read_bytes()).hexdigest()
+        )
         for name in ("repository.bundle", "tracked.patch", "index.patch", "untracked.tar")
         for path in (destination / name,)
     }
@@ -232,12 +235,12 @@ def _preservation_manifest(destination: Path, package: dict[str, object]) -> dic
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, OverflowError, RecursionError, json.JSONDecodeError) as error:
         raise TypeError(_PRESERVATION_MANIFEST_INVALID) from error
-    if not isinstance(manifest, dict) or not valid_decision_id(
+    if not isinstance(manifest, dict) or not is_lane_decision_id(
         str(manifest.get("decision_id") or "")
     ):
         raise TypeError(_PRESERVATION_MANIFEST_INVALID)
     expected_manifest = str(package.get("manifest_sha256") or "")
-    actual_manifest = sha256_digest(manifest_path)
+    actual_manifest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     if expected_manifest and expected_manifest != actual_manifest:
         raise ValueError(_PRESERVATION_PACKAGE_INVALID)
     if supplied_manifest is not None:

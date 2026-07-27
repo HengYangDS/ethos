@@ -4,13 +4,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.projection_rebase.core import resolve_projection_rebase
 from ethos.adapters.mutation.lanes import default_candidate_path
-from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -281,9 +280,7 @@ def _replay_work_lane(
     completed = run_git(
         root, "-c", "rebase.updateRefs=false", "rebase", candidate_head, current_head, check=False
     )
-    projection_resolution = resolve_projection_rebase(root, completed)
-    projection_recovered = completed.returncode != 0 and projection_resolution["ok"]
-    if completed.returncode != 0 and not projection_recovered:
+    if completed.returncode != 0:
         run_git(root, "rebase", "--abort", check=False)
         restored = run_git(root, "switch", branch, check=False)
         return report(
@@ -294,7 +291,7 @@ def _replay_work_lane(
                 "refresh_base_failed",
                 *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
             ],
-            stderr=str(projection_resolution["stderr"] or completed.stderr).strip(),
+            stderr=completed.stderr.strip(),
         )
 
     def finish(rebased_head: str) -> dict[str, object]:
@@ -346,36 +343,12 @@ def _replay_work_lane(
                 head=refreshed_head,
                 stderr="work-lane branch advanced after refresh compare-and-swap",
             )
-        result = report(
+        return report(
             ok=True,
             state="base_refreshed",
             head=refreshed_head,
             gaps=[],
             previous_head=current_head,
         )
-        if projection_recovered:
-            projection_gaps = [
-                gap
-                for gap in projection_resolution["gaps"]
-                if gap.startswith("projection_regeneration_required:")
-            ]
-            projection_paths = [
-                path
-                for path in projection_resolution["paths"]
-                if path.startswith("evidence/parity/")
-            ]
-            result.update(
-                {
-                    "state": (
-                        "base_refreshed_projection_stale" if projection_gaps else "base_refreshed"
-                    ),
-                    "projection_refresh_required": bool(projection_gaps),
-                    "projection_refresh_gaps": projection_resolution["gaps"],
-                    "stale_projection_paths": projection_paths,
-                    "next_actions": projection_resolution["next_actions"]
-                    + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
-                }
-            )
-        return result
 
     return finish(_ref_head(root, "HEAD"))

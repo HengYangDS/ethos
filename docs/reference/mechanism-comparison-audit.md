@@ -44,8 +44,8 @@ multi-contributor enterprise adopters.
 | Docs, prose, and config lint | Markdown/prose/config hygiene, documentation metadata, and generated report checks. | Markdownlint, Taplo, Yamllint, JSON syntax, docs registry/topology, shell lint. | Prose and metadata breadth remain maturity debt until owner config, runner, CI projection, and proof exist. |
 | Security and dependency hygiene | Secret scanning, dependency audits, vulnerability scans, tool-supply governance. | Gitleaks, Ruff security rules, dependency hygiene, native `uv audit` over `uv.lock`, schema hygiene, prose spelling, SBOM, and release attestation active; image scanning remains planned. | Keep one native lock audit owner and activate image scanners only through pinned tool supply and owner surfaces. |
 | Architecture and diagrams | Import boundaries, package topology, dependency graphs, C4-like model projections. | Import-linter, module-layout, source-owned C4-like model, Mermaid projection, architecture drift gate. | Keep lightweight source-to-projection gate; richer diagram stacks remain optional. |
-| OpenSpec schema/profile | Official OpenSpec plus repo-local schemas, facets, capability profiles, provider specs, claims, and evidence. | Official validation first, then ETHOS lifecycle/schema/profile/claim/evidence checks. | Use compatible extension; do not fork OpenSpec syntax or `WHEN`/`THEN` semantics. |
-| Claims, evidence, chronicle | Delivery evidence, closeout logs, parity, retained manifests, cleanup operations. | Claims, chronicle, parity ledger, closeout evidence manifest, local-state audit, proof evidence. | Add retained digest and cleanup fixed points later; keep evidence classes explicit. |
+| OpenSpec carriers | Official OpenSpec plus accepted specs, active deltas, ChangeContract, and evidence refs. | Official validation first, then ETHOS carrier, proposal-intent, contract, scope, evidence, and archive checks. | Use compatible extension; do not fork OpenSpec syntax or `WHEN`/`THEN` semantics. |
+| Claims, evidence, chronicle | Delivery evidence, closeout logs, parity, retained manifests, cleanup operations. | Claims, chronicle, parity ledger, local-state audit, proof evidence. | Add retained digest and cleanup fixed points later; keep evidence classes explicit. |
 | Local and generated state | Generated-state grammar, cache routing, local-state audit/clean, reproducible runtime hygiene. | Build/evidence/runtime boundaries and local-state audit gate. | ETHOS has the invariant; add cleanup apply modes separately. |
 | Runbook and operator UX | Recipe files and generated runbook views expose local CI, worktree, proof, OpenSpec, and closeout commands. | `docs/reference/runbook-registry.md` plus drift checks. | Derive future views from Cyclopts/API operations and gate declarations, not manual command tables. |
 | MCP and agent projections | MCP readiness, assembly catalogs, materialized overlays, host probes, and assistant directives. | Agent projection docs, Skills V2, MCP smoke gate. | Keep MCP replaceable and read-mostly; do not make MCP semantic center. |
@@ -90,8 +90,8 @@ ETHOS is deliberately or temporarily lighter in these areas:
 
 Use these rules when judging future tooling proposals:
 
-1. A mechanism enters ETHOS only as one of: kernel contract, capability profile,
-   adapter, evidence class, projection, or quality gate.
+1. A mechanism enters ETHOS only as one of: kernel contract, adapter, evidence
+   class, projection, or quality gate.
 1. A tool becomes an active gate only after it has a `system/tools.toml` entry,
    owner config, reusable runner or `ethos ...` surface, provider/hook
    projection, and proof coverage.
@@ -122,8 +122,8 @@ Completed current baseline:
    observation are separate evidence classes with hosted success unclaimed by
    local evidence.
 1. OpenSpec remains an official mandatory governance dependency, extended by
-   ETHOS-compatible capability/profile, claim, evidence, and archive checks
-   after official validation.
+   accepted-spec identity, proposal intent, ChangeContract, evidence, and archive
+   checks after official validation.
 1. Format selection, lint, dependency hygiene, JSON Schema hygiene, prose
    spelling, Python vulnerability audit over uv-exported resolved requirements,
    architecture/C4 projection drift, runbook, MCP smoke, local-state, closeout

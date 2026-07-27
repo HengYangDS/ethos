@@ -34,18 +34,6 @@ category = "architecture-projection"
 evidence = "JSON stdout"
 
 [[entry]]
-id = "RUN-MCP-SMOKE"
-command = "tools/ci/scripts/run-mcp-smoke.sh"
-category = "agent-projection"
-evidence = "build/evidence/agent/mcp/smoke.json"
-
-[[entry]]
-id = "RUN-CLOSEOUT-MANIFEST"
-command = "tools/ci/scripts/run-closeout-evidence-manifest.sh"
-category = "evidence-operation"
-evidence = "build/evidence/workflow/closeout/manifest.json"
-
-[[entry]]
 id = "RUN-LOCAL-STATE-AUDIT"
 command = "tools/ci/scripts/run-local-state-audit.sh"
 category = "local-state"

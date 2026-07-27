@@ -45,16 +45,16 @@ stale until it is repaired.
 1. Read [Rules System](rules/README.md).
 1. Read the rule file matching the task.
 1. Use [Skill Activation](.agents/skills/activation.toml) to select candidate skills.
-1. Run `ethos status --json` for first-glance role, capability, gaps, visible
-   Work Lanes, and unbound Work Lane refs.
-1. Run `ethos status --json` before mutation planning.
+1. Run `ethos status --json` to read the checkout role, capability, gaps,
+   visible Work Lanes, and unbound Work Lane refs.
+1. Run `ethos plan --changed --json` before mutation planning.
 
 ## Agent First Glance
 
-`ethos status --json` is the shared reader view for humans and agents. It
+`ethos status --json` is the shared public reader for humans and agents. It
 projects current repository state, actor capability, foreign Work Lanes,
 unbound Work Lane refs, readiness gaps, and next commands; it does not mint
-truth and does not authorize mutation.
+truth or authorize mutation.
 
 For multi-agent concurrency, visible foreign Work Lanes and unbound Work Lane
 refs are coordination signals by default. Visibility does not authorize write,

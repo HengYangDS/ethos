@@ -8,9 +8,16 @@ no-UI-projection assertion — are the setup every split imports.
 
 from __future__ import annotations
 
+import uuid
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos.adapters.store.state.lease.lifecycle import core as state
+from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.contracts.coordination import LaneLease
+from tests.support.contract_helpers import commit_active_change_contract
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo as init_repo
 
@@ -25,16 +32,20 @@ def add_candidate_worktree(repo: Path, path: Path) -> Path:
 
 def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:case:agent-a") -> Path:
     """Create one owned worktree with a matching lease for admission tests."""
+    base_digest = (
+        commit_active_change_contract(repo)
+        if not (repo / ".ethos/contract.toml").exists()
+        else load_change_contract(repo).digest()
+    )
     git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
-    state.acquire_lease(
+    acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref=holder_ref,
-        payload={
-            "path": path.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(path, "rev-parse", "HEAD"),
-        },
+        lease=_lease(
+            branch="work/feature",
+            holder_ref=holder_ref,
+            expected_head=git(path, "rev-parse", "HEAD"),
+            base_change_contract_digest=base_digest,
+        ),
     )
     return path
 
@@ -72,6 +83,7 @@ def superseded_work_lane(
 ) -> tuple[Path, Path, str, str, Path]:
     """Create an owned obsolete lane and optionally absorb its change on dev."""
     repo = init_repo(tmp_path / "repo")
+    base_digest = commit_active_change_contract(repo)
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     lane = tmp_path / "repo-work-superseded"
     git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
@@ -92,12 +104,15 @@ def superseded_work_lane(
         absorb_obsolete_delta_in_accepted(repo) if absorbed else git(repo, "rev-parse", "dev")
     )
     database = repo / ".ethos" / "state" / "state.sqlite"
-    state.acquire_lease(
+    acquire_lease(
         database,
-        subject="work/superseded",
-        holder_ref=holder_ref,
-        ttl_seconds=3600,
-        payload={"expected_head": head},
+        lease=_lease(
+            branch="work/superseded",
+            holder_ref=holder_ref,
+            expected_head=head,
+            base_change_contract_digest=base_digest,
+            ttl_seconds=3600,
+        ),
     )
     return repo, lane, head, accepted, database
 
@@ -111,3 +126,27 @@ def assert_no_ui_projection(value: object) -> None:
     elif isinstance(value, list):
         for child in value:
             assert_no_ui_projection(child)
+
+
+def _lease(
+    *,
+    branch: str,
+    holder_ref: str,
+    expected_head: str,
+    base_change_contract_digest: str,
+    ttl_seconds: int = 86_400,
+) -> LaneLease:
+    now = datetime.now(UTC)
+    return LaneLease(
+        lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
+        lease_id=f"lease:{uuid.uuid4()}",
+        lane_ref=branch,
+        holder_ref=holder_ref,
+        epoch=1,
+        issued_at=now,
+        renewed_at=now,
+        expires_at=now + timedelta(seconds=ttl_seconds),
+        expected_head=expected_head,
+        base_change_contract_digest=base_change_contract_digest,
+        path_scope=(),
+    )

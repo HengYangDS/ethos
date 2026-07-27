@@ -151,11 +151,11 @@ dirty predecessor, missing Change, or strict OpenSpec failure.
 
 **Files:**
 
-- Create: `packages/ethos-core/src/ethos_core/contracts/resolution/closeout.py`
-- Modify: `packages/ethos-core/src/ethos_core/contracts/resolution/lane.py`
+- Create: `src/ethos/contracts/resolution/closeout.py`
+- Modify: `src/ethos/contracts/resolution/lane.py`
 - Modify: `system/schemas/kernel/lane-resolution-receipt.schema.json`
 - Modify: `system/schemas/kernel/lane-resolution-clear-receipt.schema.json`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/roots.py`
 - Test: `tests/unit/kernel/test_lane_resolution_contract.py`
 - Test: `tests/unit/cli/test_contracts_lane_resolution.py`
 - Test: `tests/unit/lanes/test_lane_resolution_artifacts.py`
@@ -215,24 +215,24 @@ persistence, effect, or retired-provider cleanup in this commit.
 
 **Files:**
 
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/core.py`
+- Modify: `src/ethos/adapters/mutation/resolution/records/core.py`
 - Create declaration-only:
-  `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/__init__.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/core.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/posix.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/inventory.py`
-- Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/records/release.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/core.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/snapshot.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/validation/core.py`
-- Create declaration-only package roots under `records/current/` and
+  `src/ethos/adapters/mutation/resolution/records/io/__init__.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/io/core.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/io/posix.py`
+- Modify: `src/ethos/adapters/mutation/resolution/records/roots.py`
+- Modify: `src/ethos/adapters/mutation/resolution/records/inventory.py`
+- Delete: `src/ethos/adapters/mutation/resolution/records/release.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/current/core.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/current/snapshot.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/current/validation/core.py`
+- Create declaration-only source directories under `records/current/` and
   `records/current/validation/`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/clear/core.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/clear/quarantine.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/clear/core.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/clear/quarantine.py`
 - Create declaration-only `records/clear/__init__.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/reservations.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
+- Create: `src/ethos/adapters/mutation/resolution/records/reservations.py`
+- Modify: `src/ethos/adapters/mutation/resolution/receipts.py`
 - Test: `tests/unit/coverage/test_lane_resolution_record_edges.py`
 - Test: `tests/unit/coverage/test_lane_resolution_reservation_edges.py`
 - Test: `tests/unit/lanes/test_lane_resolution_clear_quarantine.py`
@@ -248,11 +248,11 @@ persistence, effect, or retired-provider cleanup in this commit.
 Independent-review repairs may also modify the concrete effect/recovery owners
 and their existing tests when required to preserve current-record exclusion:
 
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/_shared.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/receipt.py`
+- Modify: `src/ethos/adapters/mutation/resolution/_shared.py`
+- Modify: `src/ethos/adapters/mutation/resolution/lane.py`
+- Create: `src/ethos/adapters/mutation/resolution/closeout/receipt.py`
 - Modify concrete modules under
-  `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/`
+  `src/ethos/adapters/mutation/resolution/closeout/`
 - Modify existing lane-resolution and ownerless recovery/effect tests under
   `tests/unit/coverage/` and `tests/unit/lanes/retirement/`
 
@@ -331,11 +331,11 @@ current bytes are skipped, or reservation replacement is not exact CAS.
 
 **Files:**
 
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py`
+- Create: `src/ethos/adapters/mutation/resolution/preservation/core.py`
 - Create declaration-only:
-  `packages/ethos/src/ethos/adapters/mutation/resolution/preservation/__init__.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
+  `src/ethos/adapters/mutation/resolution/preservation/__init__.py`
+- Modify: `src/ethos/adapters/mutation/resolution/_effects.py`
+- Modify: `src/ethos/adapters/mutation/resolution/receipts.py`
 - Modify: `tests/unit/lanes/test_lane_resolution.py`
 - Create: `tests/unit/lanes/resolution/test_preservation.py`
 - Modify: `tests/unit/coverage/test_lane_resolution_edges.py`
@@ -386,8 +386,8 @@ run_git_bytes(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]
 
    ```text
    git diff candidate/dev -- \
-     packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py \
-     packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py \
+     src/ethos/adapters/mutation/resolution/_effects.py \
+     src/ethos/adapters/mutation/resolution/receipts.py \
      tests/unit/lanes/test_lane_resolution.py
    ```
 
@@ -411,7 +411,7 @@ patch capture, or whole-commit cherry-pick of `21142430c`.
 
 **Files:**
 
-- Modify: `packages/ethos/src/ethos/repository/policy/layout/growth/core.py`
+- Modify: `src/ethos/repository/policy/layout/growth/core.py`
 - Modify: `tests/unit/policy/test_module_layout_growth_edges.py`
 
 1. Add three focused regressions:
@@ -449,10 +449,10 @@ patch capture, or whole-commit cherry-pick of `21142430c`.
 
 **Files:**
 
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/observation.py`
-- Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/_observation.py`
-- Modify direct imports in `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
-  and `packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py`
+- Create: `src/ethos/adapters/mutation/resolution/observation.py`
+- Delete: `src/ethos/adapters/mutation/resolution/_observation.py`
+- Modify direct imports in `src/ethos/adapters/mutation/resolution/lane.py`
+  and `src/ethos/adapters/mutation/resolution/_effects.py`
 - Create declaration-only:
   `tests/unit/lanes/retirement/admission/__init__.py`
 - Create: `tests/unit/lanes/retirement/admission/test_git_observation.py`
@@ -525,11 +525,11 @@ not regular, or exact bytes are normalized.
 
 **Files:**
 
-- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/admission.py`
-- Modify: `packages/ethos/src/ethos/adapters/store/state/closeout.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/validation/core.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/inventory.py`
-- Modify: `packages/ethos-core/src/ethos_core/contracts/branch/roles.py` only if a
+- Create: `src/ethos/adapters/mutation/resolution/closeout/admission.py`
+- Modify: `src/ethos/adapters/store/state/closeout.py`
+- Modify: `src/ethos/adapters/mutation/resolution/records/current/validation/core.py`
+- Modify: `src/ethos/adapters/mutation/resolution/records/inventory.py`
+- Modify: `src/ethos/contracts/branch/roles.py` only if a
   pure strict text parser is required; preserve the existing tolerant reader for
   non-admission call sites.
 - Test: `tests/unit/lanes/retirement/test_ownerless_closeout_admission.py`
@@ -605,14 +605,14 @@ or mutable/callable admission state.
 
 **Files:**
 
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/effect.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/retry.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/recovery.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/cleanup/core.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
-- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
-- Modify: `packages/ethos/src/ethos/adapters/store/state/closeout.py`
+- Modify: `src/ethos/adapters/mutation/resolution/closeout/effect.py`
+- Modify: `src/ethos/adapters/mutation/resolution/closeout/retry.py`
+- Modify: `src/ethos/adapters/mutation/resolution/closeout/recovery.py`
+- Modify: `src/ethos/adapters/mutation/resolution/closeout/cleanup/core.py`
+- Modify: `src/ethos/adapters/mutation/resolution/_effects.py`
+- Modify: `src/ethos/adapters/mutation/resolution/lane.py`
+- Modify: `src/ethos/adapters/mutation/resolution/receipts.py`
+- Modify: `src/ethos/adapters/store/state/closeout.py`
 - Delete the retired external-verifier adapter package under ownerless closeout.
 - Delete the retired provider-response edge test.
 - Modify all ownerless effect/retry/recovery/cleanup tests under
@@ -695,11 +695,11 @@ reservation removal
 - Modify first: `openspec/changes/native-lane-resolution-authority/scope.toml` to
   include the exact contract, audit, schema, and test paths below
 - Modify: `system/coupling.toml`
-- Modify: `packages/ethos-core/src/ethos_core/contracts/registry/declarations.py`
+- Modify: `src/ethos/contracts/registry/declarations.py`
 - Create declaration-only:
-  `packages/ethos/src/ethos/repository/policy/coupling/execution/__init__.py`
-- Create: `packages/ethos/src/ethos/repository/policy/coupling/execution/audit.py`
-- Modify: `packages/ethos/src/ethos/repository/policy/coupling/core.py`
+  `src/ethos/repository/policy/coupling/execution/__init__.py`
+- Create: `src/ethos/repository/policy/coupling/execution/audit.py`
+- Modify: `src/ethos/repository/policy/coupling/core.py`
 - Modify: `system/schemas/kernel/coupling-audit.schema.json`
 - Create: `tests/unit/governance/test_coupling_executables.py`
 - Modify: `tests/unit/governance/validation/test_schemas.py`
@@ -865,7 +865,7 @@ a historical Git commit is rewritten, or local predecessor records are edited.
 
 **Files:**
 
-- Refine: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/admission.py`
+- Refine: `src/ethos/adapters/mutation/resolution/closeout/admission.py`
 - Split: `tests/unit/coverage/test_lane_resolution_record_edges.py`
 - Create declaration-only: `tests/unit/coverage/lane_resolution_records/__init__.py`
 - Create: `tests/unit/coverage/lane_resolution_records/test_current_records.py`

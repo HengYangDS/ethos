@@ -1,17 +1,19 @@
 ---
 subject: ethos:glossary
 role: reference
-state: canonical
+state: projection
 relations:
-  canonical_for: shared terminology
+  projects: ../governance/product-design-contract.md#semantic-kernel
 ---
 
 # Glossary
 
-Status: canonical.
+Design status: projection.
 
 Purpose: keep ETHOS terms discoverable for humans, agents, docs, and command
 outputs.
+
+Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
 
 See also: [Command Plane](command-plane.md), [Kernel Model](../concepts/kernel-model.md),
 and [Docs Registry](../governance/docs-registry.md).
@@ -36,6 +38,31 @@ The authority used for product decisions: user instruction, repository truth,
 accepted decisions, authority order, and truth boundaries. North Star language
 is derived from this source; it is not the source.
 
+## ChangeContract
+
+The persistent semantic entity that owns immutable intent, authority references,
+subject, scope, acceptance propositions, and amendment lineage. Its effective
+digest is derived deterministically from the base contract and amendment
+Attestations.
+
+## RepositoryFacts
+
+Fresh observations of the repository and its governed environment. They are
+re-observed for compilation and are not a persistent semantic entity or truth
+store.
+
+## PlanIR
+
+The deterministic, transient plan compiled from a ChangeContract, current
+RepositoryFacts, and prior Attestations. It is executed or discarded, never
+promoted into a persistent lifecycle owner.
+
+## Attestation
+
+The persistent semantic entity that records a content-addressed observation,
+judgment, proof, effect, external assurance, or amendment with its verifier and
+validity boundary.
+
 ## Subject
 
 The governed object, such as a repository, path, package, domain, surface,
@@ -44,7 +71,7 @@ evidence set, or release target.
 ## Commitment
 
 A rule or commitment that binds a subject. Contracts may come from schemas,
-claims, OpenSpec families, release policy, quality policy, or adopter profiles.
+OpenSpec families, release policy, quality policy, or adopter profiles.
 
 ## Change
 
@@ -53,16 +80,13 @@ prove, Work Lane to candidate, candidate to accepted root, or release readiness.
 
 ## Evidence
 
-Digest-bound proof material that supports claims and lifecycle decisions.
+Digest-bound proof material that supports Attestation verdicts and lifecycle decisions.
 
-## Claim
+## Model Promotion
 
-A trust-bearing statement bound to evidence.
-
-## Chronicle
-
-The judged history index for decisions, evidence used, supersession, and current
-state movement.
+The named conflict adjudication owned by the
+[Product Design Contract](../governance/product-design-contract.md#model-promotion).
+It is an algorithm, not a persistent entity.
 
 ## Accepted Root
 

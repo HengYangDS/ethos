@@ -16,13 +16,13 @@ ETHOS proof executes a validated PlanIR and records evidence; it is not a shell-
 exit code. It is useful for fast local admission, but it is not promotion
 evidence.
 
-`ethos prove --execute --gate repository-audit --gate claims --json` executes
+`ethos prove --execute --gate repository-audit --gate attestations --json` executes
 selected gates through the workspace runner and returns a digest-bound evidence set. An
 executed result can report `state=proven` only when every selected gate passes
 and each run records an exit code.
 
 Default execute gates are intentionally local and deterministic: repository
-audit, claims, docs registry, and schema validation. Full verification adds
+audit, attestation validation, docs registry, and schema validation. Full verification adds
 tests, Ruff, and package build gates without changing the proof contract.
 `ethos prove --full --json` without `--execute` is a gap by design because full
 proof needs execution-backed evidence.

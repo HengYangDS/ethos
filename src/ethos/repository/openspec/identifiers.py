@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -33,6 +34,10 @@ def archive_name_parts(name: str) -> tuple[str, str] | None:
     """Return archive date and logical ID only for the canonical archive form."""
     match = ARCHIVE_NAME_PATTERN.fullmatch(name)
     if match is None:
+        return None
+    try:
+        date.fromisoformat(match.group("archive_date"))
+    except ValueError:
         return None
     logical_id = match.group("logical_id")
     if not is_logical_change_identifier(logical_id):

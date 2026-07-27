@@ -12,7 +12,7 @@ relations:
 Purpose: govern the exact legacy Work Lane cohort through evidence-preserving
 local convergence without claiming unverified remote or foreign-owner outcomes.
 
-See also: [Implementation Plan](all-work-lanes-convergence-implementation-plan-20260716.md),
+See also: [Terminal Governance Product Design](terminal-governance-product-design.md),
 [Repository Governance Specification](../../openspec/specs/repository-governance/spec.md),
 and [Evidence Rules](../../rules/evidence.md).
 

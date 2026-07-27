@@ -10,9 +10,7 @@ import ethos.contracts.artifacts.topology as topology_contract
 from ethos.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
-from ethos.contracts.lifecycle.declaration import CampaignGapGroup
 from ethos.contracts.policy.cel import CelEvaluationError
-from ethos.contracts.policy.cel import evaluate_cel_gap_groups
 from ethos.contracts.policy.cel import evaluate_cel_predicate
 from ethos.contracts.policy.cel import evaluate_cel_value
 
@@ -63,13 +61,6 @@ def test_cel_evaluation_errors_fail_closed() -> None:
         evaluate_cel_value("1 / 0", facts={}, policy={}, rule={})
 
 
-def test_cel_gap_group_rejects_non_list_value() -> None:
-    group = CampaignGapGroup(prefix='"gap:"', values='"not-a-list"')
-
-    with pytest.raises(TypeError, match="must return a list"):
-        evaluate_cel_gap_groups((group,), facts={}, policy={})
-
-
 def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions() -> None:
     payload = load_generated_artifact_topology_declaration().model_dump(mode="json")
     payload["cel_rule"] = payload["cel_rule"][:-1]
@@ -91,8 +82,13 @@ def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions()
 
 
 def test_named_cel_helpers_fail_closed_for_missing_rule() -> None:
+    declaration = load_generated_artifact_topology_declaration()
+    incomplete = declaration.model_copy(
+        update={"cel_rule": tuple(rule for rule in declaration.cel_rule if rule.id != "generated")}
+    )
+
     with pytest.raises(ValueError, match="missing topology CEL rule"):
-        topology_contract._cel_rule(load_generated_artifact_topology_declaration(), "missing")
+        path_policy_from_declaration("build/generated.json", incomplete)
 
 
 def test_external_method_pack_shadow_authority_is_denied() -> None:

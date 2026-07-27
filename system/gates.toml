@@ -3,8 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-product_default = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "no-compat", "python-size", "config-quality", "shell-lint"]
-product_full = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "no-compat", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
+product_default = ["repository-audit", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "python-size", "config-quality", "shell-lint"]
+product_full = ["repository-audit", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
 adopter_default = []
 
 [[gates]]
@@ -26,24 +26,6 @@ network_policy = "offline"
 version_source = "product"
 
 [[gates]]
-id = "claims"
-registries = ["runtime"]
-kind = "governance"
-providers = ["ethos.repository.evidence.claims:claims_report"]
-policy = "required"
-profile = "product"
-toolchain = "ethos"
-asset_classes = ["evidence"]
-dimensions = ["digest", "freshness", "provenance"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-claims"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
 id = "evidence-freshness"
 registries = ["runtime"]
 kind = "governance"
@@ -51,9 +33,8 @@ providers = ["ethos.repository.evidence.freshness:evidence_freshness_report"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
-depends_on = ["claims"]
 asset_classes = ["evidence"]
-dimensions = ["digest", "freshness", "chronicle", "evolution"]
+dimensions = ["digest", "freshness", "chronicle"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
@@ -120,7 +101,7 @@ version_source = "product"
 id = "product-boundary"
 registries = ["runtime"]
 kind = "governance"
-providers = ["ethos.repository.policy.boundary.product:product_boundary_report", "ethos.repository.policy.boundary.product:contributor_policy_report", "ethos.repository.policy.governance.kernel:governance_kernel_report"]
+providers = ["ethos.repository.policy.boundary.product:product_boundary_report", "ethos.repository.policy.boundary.product:contributor_policy_report"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
@@ -229,7 +210,7 @@ version_source = "locked-toolchain"
 id = "docstrings"
 registries = ["runtime", "quality"]
 kind = "docs"
-providers = ["ethos.repository.policy.docstrings.core:docstring_coverage_report"]
+providers = ["ethos.repository.policy.docstrings.coverage:docstring_coverage_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
@@ -257,24 +238,6 @@ execution_mode = "provider"
 evidence_class = "diagnostic"
 trust_bearing = true
 tool_adapter = "ethos-module-layout"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "no-compat"
-registries = ["runtime"]
-kind = "architecture"
-providers = ["ethos.repository.policy.no_compat.core:no_compat_report"]
-policy = "required"
-profile = "product"
-toolchain = "ethos"
-asset_classes = ["python-code", "markdown-docs", "governance"]
-dimensions = ["compatibility-residue", "semantic-cutover", "product-boundary"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-no-compat"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
@@ -392,7 +355,7 @@ version_source = "product"
 id = "source-budget"
 registries = ["quality", "runtime"]
 kind = "determinism"
-providers = ["ethos.domain.source_budget.core:source_budget_report"]
+providers = ["ethos.domain.source_budget.measurement:source_budget_report"]
 policy = "required"
 profile = "product"
 toolchain = "quality-adapter"

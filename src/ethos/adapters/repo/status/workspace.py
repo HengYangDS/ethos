@@ -158,6 +158,12 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
         coordination_required_gaps=required,
     )
     landing = landing_readiness(repo, branch=branch, role=role, candidate=candidate)
+    workspace_gaps = workspace_required_gaps(
+        cast("list[str]", support["required_gaps"]), candidate=candidate
+    )
+    workspace_gaps.extend(
+        gap for gap in cast("list[str]", landing["required_gaps"]) if gap not in workspace_gaps
+    )
     return _status_payload(
         _StatusPayload(
             root=root,
@@ -177,9 +183,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
             required=required,
             advisory=advisory,
             coordination=coordination,
-            workspace_gaps=workspace_required_gaps(
-                cast("list[str]", support["required_gaps"]), candidate=candidate
-            ),
+            workspace_gaps=workspace_gaps,
         )
     )
 

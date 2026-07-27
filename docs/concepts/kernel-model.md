@@ -1,18 +1,21 @@
 ---
 subject: ethos:kernel
 role: explanation
-state: projection
+state: active
 relations:
   projects: ../governance/product-design-contract.md#semantic-kernel
 ---
 
 # Semantic Kernel
 
-Design status: projection.
+Status: active projection.
 
 Purpose: give a short reader explanation of the canonical semantic model.
 
 Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
+
+See also: [Command Plane](../reference/command-plane.md) and
+[Glossary](../reference/glossary.md).
 
 ```text
 (ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations

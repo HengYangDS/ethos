@@ -54,7 +54,7 @@ _DENIED_ENTRYPOINT_HOME_TOKENS = (
     "dist/",
 )
 _RUNTIME_BOOTSTRAP_PATH = "tools/ci/scripts/with-python-runtime.sh"
-_ROOT_VENV_RUNTIME_TOKEN = ".venv/bin/python"
+_ROOT_VENV_RUNTIME_MARKER = ".venv/bin/python"
 _PYTHON_EXECUTION_PATTERN = re.compile(r"(?:^|[;&|()]|\s)(?:python(?:[0-9.]*)?)(?:\s|$)")
 _PYTHON_BOOTSTRAP_EXEMPTIONS = frozenset(
     {
@@ -210,7 +210,7 @@ def _structured_task_commands(task: object) -> list[str]:
     if isinstance(task, str):
         return [task]
     if isinstance(task, list):
-        return [" ".join(str(token) for token in task)]
+        return [" ".join(str(argument) for argument in task)]
     if not isinstance(task, dict):
         return []
     for key in ("cmd", "command"):
@@ -218,7 +218,7 @@ def _structured_task_commands(task: object) -> list[str]:
         if isinstance(command, str):
             return [command]
         if isinstance(command, list):
-            return [" ".join(str(token) for token in command)]
+            return [" ".join(str(argument) for argument in command)]
     return []
 
 
@@ -232,7 +232,7 @@ def _denied_home_findings(rel: str, active_text: str) -> list[dict[str, str]]:
             rel,
             check=check,
             boundary=boundary,
-            required_gap=f"{gap_prefix}:{rel}:{token}",
+            required_gap=f"{gap_prefix}:{rel}:{marker}",
         )
         for line in active_text.splitlines()
         if not _is_cleanup_line(line)
@@ -250,8 +250,8 @@ def _denied_home_findings(rel: str, active_text: str) -> list[dict[str, str]]:
                 _DENIED_ENTRYPOINT_HOME_TOKENS,
             ),
         )
-        for token in tokens
-        if _contains_denied_home_token(line, token)
+        for marker in tokens
+        if _contains_denied_home_token(line, marker)
     ]
 
 
@@ -279,7 +279,7 @@ def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, 
     bootstrap_bound = "with-python-runtime.sh" in producer_text
     checks = (
         (
-            _ROOT_VENV_RUNTIME_TOKEN in producer_text,
+            _ROOT_VENV_RUNTIME_MARKER in producer_text,
             "root-venv-runtime",
             "active execution must not fall back to root .venv",
             "root_venv_runtime",
@@ -446,10 +446,10 @@ def _gitlab_local_route_findings(rel: str, producer_text: str) -> list[dict[str,
     )
 
 
-def _contains_denied_home_token(line: str, token: str) -> bool:
-    if token not in line:
+def _contains_denied_home_token(line: str, marker: str) -> bool:
+    if marker not in line:
         return False
-    if token != "dist/":
+    if marker != "dist/":
         return True
     return line.startswith("dist/") or any(
         marker in line

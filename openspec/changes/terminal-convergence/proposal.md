@@ -66,13 +66,14 @@ with the canonical terminal design. It intentionally provides no compatibility
 shim. Intermediate code growth is allowed, but terminal Python ELOC is at most
 54,000 and global owned-source ELOC is at most 68,000. Local operation remains
 remote-independent; GitLab and GitHub are separately verified publication
-planes. Foreign Work Lanes remain read-only unless their owners hand them off or
-an accepted native resolution authorizes absorption.
+planes. Foreign Work Lanes remain read-only unless their holders hand them off
+or an explicitly authorized Lease takeover succeeds against fresh exact facts.
 
 
 ## Out of Scope
 
 - Historical compatibility aliases, import shims, re-exports, redirects, dual runtimes, or old command and schema preservation.
-- Mutation, landing, retirement, cleanup, or ownership takeover of foreign Work Lanes without native handoff or accepted resolution authority.
+- Mutation, landing, retirement, cleanup, or ownership takeover of foreign Work
+  Lanes without holder handoff or exact authorized Lease takeover.
 - A claim that the terminal implementation, terminal ELOC, provider CI/CD, protected branch advancement, release, or campaign closeout is already complete.
 - A mandatory central marketplace, hosted workflow runtime, DI container, event bus, policy server, graph database, or workstation-specific control plane.

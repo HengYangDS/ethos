@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.cli import app
+from ethos.surface.cli.application import load_command_groups
+
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
 
@@ -140,9 +143,6 @@ def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedPr
 
 
 def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    from ethos.cli import app
-    from ethos.surface.cli.application import load_command_groups
-
     load_command_groups(list(args))
     previous_cwd = Path.cwd()
     removed_git_env: dict[str, str] = {}

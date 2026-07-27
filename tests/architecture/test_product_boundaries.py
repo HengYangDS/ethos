@@ -204,6 +204,20 @@ def test_attestation_carrier_is_current_and_legacy_evidence_is_historical() -> N
     ]
 
 
+def test_lane_resolution_parallel_truth_plane_is_absent() -> None:
+    forbidden = (
+        "src/ethos/adapters/mutation/resolution",
+        "src/ethos/contracts/resolution",
+        "src/ethos/adapters/store/state/closeout.py",
+        "src/ethos/surface/cli/lane/resolution.py",
+        "system/schemas/kernel/lane-resolution-decision.schema.json",
+        "system/schemas/kernel/lane-resolution-receipt.schema.json",
+        "system/schemas/kernel/lane-resolution-clear-receipt.schema.json",
+    )
+
+    assert [path for relative in forbidden if (path := ROOT / relative).exists()] == []
+
+
 @pytest.mark.parametrize(
     ("paths", "terms", "lower"),
     [

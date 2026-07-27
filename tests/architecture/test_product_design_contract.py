@@ -276,7 +276,9 @@ def test_review_f1_archive_has_unique_requirements_and_explicit_scenario_migrati
     )
     final_lifecycle = scenario_obligations("repository-governance", final["repository-governance"])
     expected_lifecycle = [
-        scenario for _, requirement, scenario, _ in baseline_lifecycle if requirement == duplicate
+        scenario_map.get(scenario, scenario)
+        for _, requirement, scenario, _ in baseline_lifecycle
+        if requirement == duplicate
     ]
     actual_lifecycle = [
         scenario
@@ -332,32 +334,29 @@ def test_review_f2_archive_forbids_retired_carriers_and_has_two_persistent_owner
 
     exceptional = repository_scenario(
         "Exact Work Lane Lifecycle Effects",
-        "exceptional cleanup consumes prior accepted judgment",
+        "exceptional state does not widen lifecycle effects",
     )
     for phrase in (
+        "no generic cleanup or Resolution transition",
+        "observe-only and blocked",
+        "holder-bound handoff",
+        "future generic recovery effect",
         "selected ChangeContract",
-        "accepted judgment Attestation",
-        "exact target",
-        "policy",
-        "effect Attestation",
     ):
         assert phrase in exceptional
-    assert "derived historical projection" in exceptional
-    assert "does not authorize" in exceptional
 
     cohort = repository_scenario(
         "Cohort-bound full Work Lane convergence",
         "exceptional cohort resolution consumes accepted judgment",
     )
-    assert "selected ChangeContract" in cohort
-    assert "accepted judgment Attestation" in cohort
-    assert "exact policy and target" in cohort
-    assert "derived historical projection" in cohort
-    assert "does not authorize" in cohort
+    assert "fresh RepositoryFacts" in cohort
+    assert "observe-only and blocked" in cohort
+    assert "authorized Lease takeover" in cohort
+    assert "never falls back to raw Git deletion" in cohort
 
     handoff = repository_scenario(
         "Exact Work Lane Lifecycle Effects",
-        "lane handoff is recorded as Chronicle resolution",
+        "exceptional handoff is attested",
     )
     assert "exceptional handoff becomes disputed" in handoff
     assert "routine local handoff" not in handoff
@@ -662,7 +661,7 @@ def test_canonical_product_docs_are_provider_neutral_and_residue_free() -> None:
     governed = [
         entry["path"]
         for entry in registry
-        if entry["state"] in {"canonical", "projection"}
+        if entry["state"] in {"canonical", "active"}
         and entry["path"].startswith(
             (
                 "docs/governance/",

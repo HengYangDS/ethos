@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import sqlite3
-import subprocess
-import tarfile
 from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 import pytest
 
-import ethos.adapters.mutation.resolution._effects as resolution_effects
-import ethos.adapters.mutation.resolution.capture as preservation
 import ethos.adapters.store.state.lease.lifecycle.transitions as lease_transitions
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
@@ -32,73 +31,8 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.lifecycle.declaration import LeaseTransitionDeclaration
 from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
-from ethos.contracts.resolution.lane import LaneObservation
 from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.lane_helpers import superseded_work_lane
-
-
-def test_preservation_package_is_deterministic_for_its_observed_payload(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    source = tmp_path / "source"
-    source.mkdir()
-    payload = b"binary\x00payload\xff\n"
-    (source / "listed.bin").write_bytes(payload)
-    package = tmp_path / "package"
-    package.mkdir()
-    calls: list[tuple[str, ...]] = []
-
-    def fixed_git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
-        assert root == source
-        calls.append(args)
-        if args[:2] == ("bundle", "create"):
-            Path(args[2]).write_bytes(b"bundle")
-            return subprocess.CompletedProcess(["git", *args], 0, stdout=b"", stderr=b"")
-        return subprocess.CompletedProcess(
-            ["git", *args],
-            0,
-            stdout=b"index\n" if "--cached" in args else b"tracked\n",
-            stderr=b"",
-        )
-
-    monkeypatch.setattr(preservation, "run_git_bytes", fixed_git)
-    monkeypatch.setattr(resolution_effects, "untracked_files", lambda _source: [b"listed.bin"])
-    result = resolution_effects.preserve_package(
-        tmp_path,
-        package,
-        LaneObservation(
-            lane_ref="work/example",
-            head="a" * 40,
-            lane_incarnation_id="lane:one",
-            path=source.as_posix(),
-            dirty=True,
-            foreign=True,
-            orphan=True,
-            ambiguous=False,
-            tracked_digest="b" * 64,
-            untracked_digest="c" * 64,
-        ),
-        {"decision_id": "decision:one"},
-    )
-
-    assert calls == [
-        ("bundle", "create", (package / "repository.bundle").as_posix(), "work/example"),
-        ("diff", "--no-ext-diff", "--no-textconv", "--binary", "HEAD", "--"),
-        ("diff", "--cached", "--no-ext-diff", "--no-textconv", "--binary", "HEAD", "--"),
-    ]
-    with tarfile.open(package / "untracked.tar") as archive:
-        stored = archive.extractfile("listed.bin")
-        assert archive.getnames() == ["listed.bin"]
-        assert stored is not None
-        assert stored.read() == payload
-    assert (package / "tracked.patch").read_bytes() == b"tracked\n"
-    assert (package / "index.patch").read_bytes() == b"index\n"
-    manifest = result["manifest"]
-    assert isinstance(manifest, dict)
-    assert manifest["package_format_version"] == "v2"
-    assert manifest["patch_sha256"] == hashlib.sha256(b"tracked\n").hexdigest()
-    assert manifest["index_patch_sha256"] == hashlib.sha256(b"index\n").hexdigest()
 
 
 def _lease_request(

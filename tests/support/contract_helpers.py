@@ -13,7 +13,7 @@ import uuid
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import NamedTuple
 
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -32,6 +32,9 @@ from ethos.repository.policy.gates import gate_registry
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class WorkLaneFixture(NamedTuple):
@@ -159,18 +162,6 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
                 os.environ["ETHOS_ACTOR"] = original
         assert report["state"] == "lease_head_advanced"
     return head
-
-
-def write_chronicle_decision(repo: Path, *, topic: str, token: str) -> str:
-    """Write and commit a minimal accepted Chronicle decision fixture."""
-    relative = Path("evidence") / "chronicle" / topic / f"{token}.md"
-    commit_fixture_file(
-        repo,
-        relative.as_posix(),
-        f"decision: lane_resolution/{token}\n",
-        f"record {token} decision",
-    )
-    return relative.as_posix()
 
 
 def git(root: Path, *args: str) -> str:

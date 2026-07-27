@@ -1,15 +1,16 @@
 ---
 subject: ethos:ownerless-unbound-ancestor-retirement-20260719
 role: plan
-state: active
+state: superseded
 relations:
   implements: ownerless-unbound-ancestor-retirement-20260719
   extends: worktree-retirement-exceptional-unbound-v2-20260719
+  superseded_by: ethos:terminal-governance-product-design
 ---
 
 # Ownerless Unbound Accepted-Ancestor Retirement — 2026-07-19
 
-Status: active, local-only retirement-evidence carrier.
+Status: superseded historical carrier; it grants no current lifecycle authority.
 
 Purpose: record exact accepted absorption and target-specific authority for one
 currently lease-free unbound `work/*` ref that is a strict ancestor of the

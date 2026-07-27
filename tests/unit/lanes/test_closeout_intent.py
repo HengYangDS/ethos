@@ -9,6 +9,7 @@ the linked-worktree-safe path resolution.
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -214,8 +215,6 @@ def test_sweep_reclaims_naive_timestamp_marker_without_crashing(tmp_path: Path) 
 def testcloseout_intent_dir_resolves_inside_real_git_dir(tmp_path: Path) -> None:
     """In a real repo, `git rev-parse --git-path` resolves the marker dir under the git
     dir (the linked-worktree-safe path), not a hardcoded <root>/.git."""
-    import subprocess
-
     subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
     marker = _write(tmp_path)
 

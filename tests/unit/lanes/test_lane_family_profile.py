@@ -9,6 +9,10 @@ import ethos.adapters.mutation.lanes as lanes
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.change_contract import load_change_contract
 from ethos.adapters.repo.change_contract import load_repository_contract
+from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
+from ethos.adapters.repo.coordination import ForeignLaneContext
+from ethos.adapters.repo.coordination import coordination_package
+from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -250,6 +254,66 @@ def test_start_work_lane_preserves_foreign_ref_created_during_failed_cas(
     assert "work/feature" in leases_by_branch(repo)
     assert ref_head(repo, "work/feature") == foreign_head
     assert not target.exists()
+
+
+def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    foreign = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-foreign",
+        branch="work/foreign",
+        holder_ref="agent:test:case:foreign",
+    )
+    branch = "work/foreign"
+    lane = foreign_work_lane(
+        {
+            "path": foreign.as_posix(),
+            "head": git(foreign, "rev-parse", "HEAD"),
+            "branch": branch,
+            "role": "work_lane",
+            "worktree_binding": "linked",
+        },
+        ForeignLaneContext(
+            current_role="work_lane",
+            current_path_scope=("openspec",),
+            current_scope_state="bounded",
+            candidate_branch="candidate/dev",
+            lease=leases_by_branch(repo)[branch],
+            root=repo,
+        ),
+    )
+
+    coordination = coordination_package(
+        [lane],
+        required_gaps=[],
+        advisory_gaps=[],
+        unbound_work_lane_refs=[
+            {
+                "branch": "work/unbound",
+                "head": "a" * 40,
+                "base_change_contract_digest": "",
+                "contract_binding": "missing",
+                "lease_state": "missing",
+                "relation_to_accepted": "unknown",
+                "next_action": "ignored",
+            }
+        ],
+    )
+
+    assert lane["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
+    assert lane["action_preview"] == {
+        "candidate_actions": ["observe"],
+        "blocked_actions": ["write", "land", "retire"],
+        "why": ["foreign_lane_requires_handoff_or_exact_authorized_lease_takeover"],
+        "mints_authority": False,
+        "recheck_required": True,
+    }
+    assert coordination["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
+    unbound = coordination["unbound_work_lane_refs"]
+    assert isinstance(unbound, list)
+    assert unbound[0]["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
 
 
 def test_start_work_lane_initialization_head_is_checkout_and_identity_independent(

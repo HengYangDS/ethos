@@ -16,6 +16,7 @@ from ethos.normalization.coercion import string_list
 from ethos.quality.gates import product_gate_plan
 from ethos.quality.profiles import product_quality_profile
 from ethos.repository.policy.container_contract.validation import container_contract_report
+from ethos.repository.policy.coupling.audit import coupling_audit_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.registry.docs.health import docs_health_report
 
@@ -153,8 +154,6 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
 
 
 def _instance_validation_report(root: Path) -> dict[str, Mapping[str, object]]:
-    from ethos.repository.policy.coupling.audit import coupling_audit_report
-
     instances: dict[str, Mapping[str, object]] = {}
     docs = docs_health_report(root)
     instances["docs-registry"] = validate_schema_instance(

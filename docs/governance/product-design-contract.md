@@ -182,10 +182,11 @@ provider class: `human:local:shell:<id>`, `agent:runtime:task:<id>`, and
 or role label alone is not a holder identity. ETHOS therefore does not add a
 first-class Principal, Actor, Participant, Party, Session, or Agent registry.
 Temporary cooperative write coordination remains the Lane Lease. Routine lease
-renewal, resume, accepted handoff, and mechanically proven retirement stay in
-ignored local state; only exceptional preservation, block, foreign or orphan
-resolution, and break-glass reconciliation persist as verifier-bound judgment or
-effect Attestations.
+renewal, resume, accepted handoff, takeover, and mechanically proven linked
+retirement stay in ignored local state. Unknown, dirty, unbound, foreign, or
+owner-uncertain state remains observe-only and blocked; separately admitted
+emergency or recovery effects may persist as verifier-bound Attestations but do
+not widen normal Work Lane lifecycle authority.
 The product default is therefore an external role policy: enterprises declare
 the maintainer, team, reviewer, bot, service, and adopter-side owner identities
 they trust. Package metadata, active docs, tests, command defaults, and release
@@ -289,10 +290,9 @@ Work Lane lifecycle commands are also product semantics: `ethos lane start`,
 `ethos lane prewrite`, `ethos lane refresh-base`, `ethos land`,
 `ethos lane retire landed`, and `ethos lane retire superseded` define local
 ownership, ChangeContract-scoped write admission, stale-observation, base replay,
-candidate closeout, landed-lane retirement, and absorbed linked-lane retirement. The
-`ethos lane retire unbound` reader preserves unbound-ref residue for separately
-admitted exceptional deletion rather than treating absent registration as safe
-cleanup.
+candidate closeout, landed-lane retirement, and absorbed linked-lane retirement.
+Unbound Work Lane refs remain read-only observations; absent registration is
+never interpreted as cleanup or retirement authority.
 Git worktree facts remain observable, but raw worktree creation is not the
 standard ETHOS lifecycle state because it bypasses ETHOS lease, ChangeContract,
 and Attestation boundaries.
@@ -307,10 +307,10 @@ Foreign Work Lanes are product-observable and observe-only by default. Status
 payloads expose a non-authoritative `action_preview`; visibility never grants
 write, land, or retire permission. Every mutation re-evaluates the exact holder,
 lease ID, epoch, HEAD, policy, and evidence bindings. Routine lifecycle stays
-local; exceptional foreign, orphan, preserve, block, or break-glass judgment
-must first exist as a verifier-bound judgment Attestation and is then consumed by
-a recomputed two-phase resolution. Collaboration therefore starts as a read model
-over Git, lease, effective ChangeContract, RepositoryFacts, and Attestations; a
+local. Foreign holder change requires handoff or exact authorized Lease takeover;
+unknown, dirty, unbound, or owner-uncertain state remains observe-only and
+blocked. Collaboration therefore starts as a read model over Git, lease,
+effective ChangeContract, RepositoryFacts, and Attestations; a
 host chat, thread, or message bus may project those facts but cannot become the
 semantic center.
 

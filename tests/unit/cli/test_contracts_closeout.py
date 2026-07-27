@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import ethos.surface.cli.root.lifecycle as lifecycle_cli
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
@@ -329,8 +330,6 @@ def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(tmp_p
 def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     tmp_path: Path, monkeypatch
 ) -> None:
-    import ethos.surface.cli.root.lifecycle as lifecycle_cli
-
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")

@@ -1,14 +1,14 @@
 ---
 subject: ethos:command-plane
 role: reference
-state: projection
+state: active
 relations:
   projects: ../governance/product-design-contract.md#semantic-kernel
 ---
 
 # Command Plane
 
-Design status: projection.
+Status: active projection.
 
 Purpose: define the complete public ETHOS command plane and its ownership
 boundaries.

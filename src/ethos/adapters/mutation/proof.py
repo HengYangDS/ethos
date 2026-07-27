@@ -10,7 +10,6 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from typing import cast
 
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
@@ -83,7 +82,28 @@ def _content_addressed_write(path: Path, payload: bytes, *, collision: str) -> P
     return path
 
 
-def _normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict[str, Any], ...]:
+def _normalized_diagnostics(diagnostics: object, *, action_id: str) -> list[dict[str, object]]:
+    if not isinstance(diagnostics, list | tuple):
+        message = f"proof_attestation_check_invalid:{action_id}"
+        raise TypeError(message)
+    normalized: list[dict[str, object]] = []
+    for diagnostic in diagnostics:
+        if not isinstance(diagnostic, Mapping):
+            message = f"proof_attestation_check_invalid:{action_id}"
+            raise TypeError(message)
+        item: dict[str, object] = {}
+        for name, value in diagnostic.items():
+            if not isinstance(name, str):
+                message = f"proof_attestation_check_invalid:{action_id}"
+                raise TypeError(message)
+            item[name] = value
+        normalized.append(item)
+    return normalized
+
+
+def _normalize_checks(
+    checks: object, *, allow_empty: bool = False
+) -> tuple[dict[str, object], ...]:
     if not isinstance(checks, list | tuple):
         msg = "proof_attestation_checks_required"
         raise TypeError(msg)
@@ -92,26 +112,25 @@ def _normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dic
             return ()
         msg = "proof_attestation_checks_required"
         raise ValueError(msg)
-    normalized: list[dict[str, Any]] = []
+    normalized: list[dict[str, object]] = []
     for raw in checks:
         if not isinstance(raw, Mapping):
             msg = "proof_attestation_check_invalid"
             raise TypeError(msg)
-        action_id = str(raw.get("action_id") or "")
+        action_id = raw.get("action_id")
         command = raw.get("command")
-        verdict = str(raw.get("verdict") or "")
+        verdict = raw.get("verdict")
         exit_code = raw.get("exit_code")
-        diagnostics = raw.get("diagnostics", ())
         if (
-            not action_id
+            not isinstance(action_id, str)
+            or not action_id
             or not isinstance(command, list | tuple)
             or not command
             or any(not isinstance(token, str) or not token for token in command)
+            or not isinstance(verdict, str)
             or verdict not in {"pass", "block", "unknown"}
             or isinstance(exit_code, bool)
             or (exit_code is not None and not isinstance(exit_code, int))
-            or not isinstance(diagnostics, list | tuple)
-            or any(not isinstance(item, Mapping) for item in diagnostics)
         ):
             message = f"proof_attestation_check_invalid:{action_id}"
             raise ValueError(message)
@@ -125,7 +144,9 @@ def _normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dic
                 "verdict": verdict,
                 "evidence_class": str(raw.get("evidence_class") or ""),
                 "trust_bearing": raw.get("trust_bearing") is True,
-                "diagnostics": [dict(cast("Mapping[str, Any]", item)) for item in diagnostics],
+                "diagnostics": _normalized_diagnostics(
+                    raw.get("diagnostics", ()), action_id=action_id
+                ),
             }
         )
     if len({check["action_id"] for check in normalized}) != len(normalized):
@@ -185,21 +206,45 @@ def _proof_issue_values(
     if not isinstance(checks, tuple):
         msg = "proof_attestation_checks_invalid"
         raise TypeError(msg)
+    if (
+        not isinstance(verdict, str)
+        or not isinstance(issuer, str)
+        or not isinstance(scope, str)
+        or not isinstance(boundary, str)
+        or not isinstance(objective, str)
+    ):
+        msg = "proof_attestation_payload_invalid"
+        raise TypeError(msg)
+    if not issuer or not scope or not boundary or not objective:
+        msg = "proof_attestation_payload_invalid"
+        raise TypeError(msg)
     if verdict not in {"pass", "block", "unknown"}:
         msg = "proof_attestation_verdict_invalid"
         raise ValueError(msg)
-    if not all(isinstance(value, str) and value for value in (issuer, scope, boundary, objective)):
-        msg = "proof_attestation_payload_invalid"
-        raise TypeError(msg)
     if issued_at is not None and not isinstance(issued_at, datetime):
         msg = "proof_attestation_issued_at_invalid"
         raise TypeError(msg)
-    if not isinstance(required_gaps, tuple) or any(
-        not isinstance(gap, str) for gap in required_gaps
-    ):
+    if not isinstance(required_gaps, tuple):
         msg = "proof_attestation_required_gaps_invalid"
         raise TypeError(msg)
-    return plan, checks, verdict, issuer, scope, boundary, issued_at, objective, required_gaps
+    normalized_required_gaps: tuple[str, ...] = tuple(
+        gap for gap in required_gaps if isinstance(gap, str)
+    )
+    if len(normalized_required_gaps) != len(required_gaps):
+        msg = "proof_attestation_required_gaps_invalid"
+        raise TypeError(msg)
+    normalized_checks = _normalize_checks(checks, allow_empty=verdict != "pass")
+    return (
+        plan,
+        normalized_checks,
+        verdict,
+        issuer,
+        scope,
+        boundary,
+        issued_at,
+        objective,
+        normalized_required_gaps,
+    )
 
 
 def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attestation:
@@ -214,7 +259,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if not head or not _proof_plan_matches(root, head, plan):
         msg = "proof_plan_binding_mismatch"
         raise ValueError(msg)
-    supplied_checks = _normalize_checks(checks, allow_empty=verdict != "pass")
+    supplied_checks = checks
     execution_order = tuple(node.id for node in plan.ordered_nodes())
     checks_by_id = {str(check["action_id"]): check for check in supplied_checks}
     if set(checks_by_id) != set(execution_order):
@@ -433,79 +478,42 @@ def _artifact_checks(
 ) -> tuple[tuple[dict[str, Any], ...] | None, list[str]]:
     artifact = attestation.content.get("artifact")
     expected_relative = (_ARTIFACT_SUBDIR / f"{attestation.effect_digest}.json").as_posix()
-    payload = None
-    document = None
-    checks = None
-    gap = "proof_attestation_artifact_missing" if not isinstance(artifact, Mapping) else ""
-    if not gap:
-        gap = next(
-            (
-                name
-                for invalid, name in (
-                    (
-                        artifact.get("path") != expected_relative,
-                        "proof_attestation_artifact_binding_mismatch",
-                    ),
-                    (
-                        artifact.get("sha256") != f"sha256:{attestation.effect_digest}",
-                        "proof_attestation_artifact_binding_mismatch",
-                    ),
-                    (
-                        attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",),
-                        "proof_attestation_artifact_binding_mismatch",
-                    ),
-                )
-                if invalid
-            ),
-            "",
-        )
-    if not gap:
-        path = attestation_store_dir(root) / expected_relative
-        try:
-            payload = path.read_bytes()
-        except OSError:
-            gap = (
-                "proof_attestation_artifact_missing"
-                if not path.is_file()
-                else "proof_attestation_artifact_unavailable"
-            )
-    if not gap:
-        gap = next(
-            (
-                name
-                for invalid, name in (
-                    (
-                        hashlib.sha256(payload).hexdigest() != attestation.effect_digest,
-                        "proof_attestation_artifact_digest_mismatch",
-                    ),
-                    (
-                        artifact.get("size_bytes") != len(payload),
-                        "proof_attestation_artifact_size_mismatch",
-                    ),
-                )
-                if invalid
-            ),
-            "",
-        )
-    if not gap:
-        try:
-            document = json.loads(payload)
-        except json.JSONDecodeError:
-            gap = "proof_attestation_artifact_invalid"
-    if not gap:
+    if not isinstance(artifact, Mapping):
+        return None, ["proof_attestation_artifact_missing"]
+    if (
+        artifact.get("path") != expected_relative
+        or artifact.get("sha256") != f"sha256:{attestation.effect_digest}"
+        or attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",)
+    ):
+        return None, ["proof_attestation_artifact_binding_mismatch"]
+    path = attestation_store_dir(root) / expected_relative
+    try:
+        payload = path.read_bytes()
+    except OSError:
         gap = (
-            "proof_attestation_artifact_content_mismatch"
-            if not isinstance(document, dict)
-            or document.get("schema_version") != 1
-            or document.get("head") != attestation.content.get("head")
-            else ""
+            "proof_attestation_artifact_missing"
+            if not path.is_file()
+            else "proof_attestation_artifact_unavailable"
         )
-    if not gap:
-        try:
-            checks = _normalize_checks(document.get("checks"), allow_empty=True)
-        except (TypeError, ValueError) as error:
-            gap = str(error)
-    return (checks, []) if not gap else (None, [gap])
+        return None, [gap]
+    if hashlib.sha256(payload).hexdigest() != attestation.effect_digest:
+        return None, ["proof_attestation_artifact_digest_mismatch"]
+    if artifact.get("size_bytes") != len(payload):
+        return None, ["proof_attestation_artifact_size_mismatch"]
+    try:
+        document = json.loads(payload)
+    except json.JSONDecodeError:
+        return None, ["proof_attestation_artifact_invalid"]
+    if (
+        not isinstance(document, dict)
+        or document.get("schema_version") != 1
+        or document.get("head") != attestation.content.get("head")
+    ):
+        return None, ["proof_attestation_artifact_content_mismatch"]
+    try:
+        return _normalize_checks(document.get("checks"), allow_empty=True), []
+    except (TypeError, ValueError) as error:
+        return None, [str(error)]
 
 
 def _attestation_binding_gaps(attestation: Attestation, plan: PlanIR) -> list[str]:

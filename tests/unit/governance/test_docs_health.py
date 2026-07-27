@@ -68,3 +68,39 @@ def test_docs_health_accepts_registered_nested_command(tmp_path: Path) -> None:
     report = docs_registry_report(tmp_path)
 
     assert report["invalid_command_examples"] == []
+
+
+def test_docs_health_rejects_unindexed_current_plan(tmp_path: Path) -> None:
+    """Every active or planned plan must be reachable from the plan index."""
+    plans = tmp_path / "docs" / "plans"
+    plans.mkdir(parents=True)
+    (plans / "README.md").write_text(
+        """\
+---
+subject: docs:plans
+role: index
+state: planned
+relations: none
+---
+
+# Plans
+""",
+        encoding="utf-8",
+    )
+    (plans / "orphan.md").write_text(
+        """\
+---
+subject: ethos:orphan-plan
+role: plan
+state: active
+relations: none
+---
+
+# Orphan Plan
+""",
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["unindexed_current_plans"] == ["unindexed_current_plan:docs/plans/orphan.md"]

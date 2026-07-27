@@ -22,25 +22,6 @@ def _count(value: object) -> int:
     return len(value) if isinstance(value, list | tuple) else 0
 
 
-def _next(status: dict[str, object], gaps: tuple[str, ...]) -> tuple[str, ...]:
-    if gaps:
-        return ("ethos plan --changed --json",)
-    if status.get("dirty"):
-        return ("git status --short",)
-    role = str(status.get("role") or "")
-    actions = {
-        "work_lane": ("ethos plan --changed --json",),
-        "accepted_root": (
-            "ethos lane start <name> --path <path> "
-            "--holder-ref <kind:namespace:instance-kind:id> --apply --json",
-        ),
-        "candidate": ("ethos land --closeout --json",),
-    }
-    coordination = cast("dict[str, object]", status.get("coordination") or {})
-    fallback = str(coordination.get("next_action") or "")
-    return actions.get(role, (fallback,) if fallback else ())
-
-
 @app.command
 def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
@@ -98,7 +79,11 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         },
         diagnostics=(validation,),
         required_gaps=gaps,
-        next_actions=_next(observed, gaps),
+        next_actions=tuple(
+            string_sequence(
+                cast("dict[str, object]", observed.get("stage_gates") or {}).get("next_commands")
+            )
+        ),
         governance_context=context_for_root(repo),
         data=data,
     )

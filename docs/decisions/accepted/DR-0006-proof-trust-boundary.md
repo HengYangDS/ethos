@@ -101,11 +101,12 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
   provider executable. It remains default-off: implementation, installation,
   provider-local trust anchors, key ownership, and any daemon, hook, or hosted
   service remain operator choices rather than product defaults.
-- Legacy `IdentityAssertion` and `EnforcementReceipt` remain provider-neutral contract
-  types, but no product admission path treats their former file-report wrapper as a trust
-  root. The active optional path verifies signed `IndependentVerificationReceipt` values
-  against protected provider-local configuration, an exact proof floor, and exact Git
-  bindings before projecting `independently_reexecuted`.
+- Provider-native identity and hosted-enforcement artifacts remain outside the product
+  semantic model. Adapters may inspect them as external inputs, but no product admission
+  path treats a provider-specific file wrapper as a trust root. The active optional path
+  verifies the provider's exact re-execution input against protected provider-local
+  configuration, an exact proof floor, and exact Git bindings before projecting
+  `independently_reexecuted`.
 - Same-UID multi-agent forgery remains possible in the default (verifier-off) posture. This
   is disclosed, not hidden; it is an OS-level fact, not an ETHOS defect. Operators who need
   the stronger guarantee opt into the lightweight local verifier.

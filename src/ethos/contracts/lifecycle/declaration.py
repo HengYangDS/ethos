@@ -1,9 +1,10 @@
-"""Typed declarations for lifecycle policy, PlanIR actions, leases, and campaigns."""
+"""Typed declarations for lifecycle policy, PlanIR actions, and leases."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
@@ -18,8 +19,6 @@ from pydantic import model_validator
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
-from ethos.contracts.policy.cel import evaluate_cel_rules
-from ethos.contracts.policy.cel import validate_cel_expression
 from ethos.contracts.system.contracts import load_system_contract
 
 if TYPE_CHECKING:
@@ -29,18 +28,71 @@ if TYPE_CHECKING:
 _LEASE_TRANSITION_MATRIX_INVALID = "lease_transition_matrix_invalid"
 _TRANSITION_POLICY_MATRIX_INVALID = "transition_policy_matrix_invalid"
 _PLAN_ACTION_MATRIX_INVALID = "plan_action_matrix_invalid"
-_LEASE_EFFECT_FIELDS = frozenset(
-    {
-        "holder_ref",
-        "target_holder_ref",
-        "offer_id",
-        "expected_epoch",
-        "expected_expires_at",
-        "expected_payload_sha256",
-        "holder_quiesced",
-        "ttl_seconds",
-    }
-)
+
+
+@dataclass(frozen=True, slots=True)
+class LeaseTransitionSpec:
+    """One exact operation-owned Lease transition contract."""
+
+    effect_fields: tuple[str, ...]
+    kind: Literal["refresh", "offer", "accept"]
+    actor_field: Literal["holder_ref", "target_holder_ref"]
+    blocks_contrary_decision: bool
+
+
+LEASE_TRANSITION_MATRIX = {
+    "renew": LeaseTransitionSpec(
+        effect_fields=(
+            "holder_ref",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "ttl_seconds",
+        ),
+        kind="refresh",
+        actor_field="holder_ref",
+        blocks_contrary_decision=False,
+    ),
+    "resume": LeaseTransitionSpec(
+        effect_fields=(
+            "holder_ref",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "ttl_seconds",
+        ),
+        kind="refresh",
+        actor_field="holder_ref",
+        blocks_contrary_decision=True,
+    ),
+    "handoff_offer": LeaseTransitionSpec(
+        effect_fields=(
+            "holder_ref",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "target_holder_ref",
+        ),
+        kind="offer",
+        actor_field="holder_ref",
+        blocks_contrary_decision=False,
+    ),
+    "handoff_accept": LeaseTransitionSpec(
+        effect_fields=(
+            "holder_ref",
+            "target_holder_ref",
+            "offer_id",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "holder_quiesced",
+            "ttl_seconds",
+        ),
+        kind="accept",
+        actor_field="target_holder_ref",
+        blocks_contrary_decision=False,
+    ),
+}
 
 
 class _Declaration(BaseModel):
@@ -80,10 +132,27 @@ class LeaseTransitionDeclaration(TransitionPolicy):
             raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
         return fields
 
+    @property
+    def spec(self) -> LeaseTransitionSpec:
+        """Return the exact operation-owned transition specification."""
+        transition = LEASE_TRANSITION_MATRIX.get(self.id)
+        if (
+            transition is None
+            or self.effect_fields != transition.effect_fields
+            or self.actor_field != transition.actor_field
+            or self.blocks_contrary_decision != transition.blocks_contrary_decision
+        ):
+            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        return transition
+
+    @property
+    def kind(self) -> Literal["refresh", "offer", "accept"]:
+        """Project the effect kind from the singular transition matrix."""
+        return self.spec.kind
+
     @model_validator(mode="after")
     def bind_actor_to_effect(self) -> Self:
-        if self.actor_field not in self.effect_fields:
-            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        _ = self.spec
         return self
 
 
@@ -126,81 +195,6 @@ class PlanAction(_Declaration):
         )
 
 
-class CampaignRule(_Declaration):
-    """One declaration-owned CEL rule over campaign facts."""
-
-    expression: str
-    gap: str
-
-    @field_validator("expression", "gap")
-    @classmethod
-    def validate_cel(cls, value: str) -> str:
-        return validate_cel_expression(value)
-
-
-class CampaignGapGroup(_Declaration):
-    """One declaration-owned CEL gap-list projection."""
-
-    values: str
-    prefix: str
-
-    @field_validator("values", "prefix")
-    @classmethod
-    def validate_cel(cls, value: str) -> str:
-        return validate_cel_expression(value)
-
-
-class CampaignPublicationDeclaration(_Declaration):
-    """Structural and terminal-progress gap aggregation."""
-
-    gap_groups: tuple[CampaignGapGroup, ...]
-    advisory_gap_groups: tuple[CampaignGapGroup, ...]
-
-
-class CampaignLifecycleDeclaration(_Declaration):
-    """Campaign lifecycle and publication policy."""
-
-    topology_kind: str
-    topology_mode: str
-    dependency_rule: str
-    publication_kind: str
-    publication_scope: str
-    publication_terminal_mode: str
-    admitted_state: str
-    blocked_state: str
-    continuation_action_id: str
-    publication_action_id: str
-    campaign_active_states: tuple[str, ...]
-    campaign_terminal_states: tuple[str, ...]
-    step_planned_states: tuple[str, ...]
-    step_execution_states: tuple[str, ...]
-    step_archived_states: tuple[str, ...]
-    step_terminal_states: tuple[str, ...]
-    step_retired_states: tuple[str, ...]
-    closeout_planned_states: tuple[str, ...]
-    closeout_terminal_states: tuple[str, ...]
-    closeout_retired_states: tuple[str, ...]
-    rules: dict[str, tuple[CampaignRule, ...]] = Field(min_length=1)
-    publication: CampaignPublicationDeclaration
-    publication_projection: str
-
-    @field_validator("publication_projection")
-    @classmethod
-    def validate_cel_projection(cls, value: str) -> str:
-        return validate_cel_expression(value)
-
-    def evaluate(self, scope: str, *, facts: dict[str, object]) -> list[str]:
-        """Evaluate one declared rule group over immutable facts."""
-        return evaluate_cel_rules(
-            self.rules.get(scope, ()),
-            facts=facts,
-            policy=self.model_dump(
-                mode="json",
-                exclude={"rules", "publication", "publication_projection"},
-            ),
-        )
-
-
 class LifecycleContract(_Declaration):
     """The singular declaration for lifecycle policy and PlanIR compilation."""
 
@@ -208,7 +202,6 @@ class LifecycleContract(_Declaration):
     transition_policy: tuple[TransitionPolicy, ...]
     lease_transition: tuple[LeaseTransitionDeclaration, ...]
     node: tuple[PlanAction, ...]
-    campaign: CampaignLifecycleDeclaration
 
     @field_validator("lease_transition")
     @classmethod
@@ -216,11 +209,7 @@ class LifecycleContract(_Declaration):
         cls, value: tuple[LeaseTransitionDeclaration, ...]
     ) -> tuple[LeaseTransitionDeclaration, ...]:
         operations = tuple(item.id for item in value)
-        if len(operations) != len(set(operations)) or any(
-            field not in _LEASE_EFFECT_FIELDS
-            for transition in value
-            for field in transition.effect_fields
-        ):
+        if operations != tuple(LEASE_TRANSITION_MATRIX):
             raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
         return value
 

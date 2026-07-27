@@ -26,7 +26,7 @@ _STRICT_BRANCH_ROLE_FIELDS = {
     "accepted_branch",
     "candidate_branch",
     "work_branch_prefix",
-    "submit_branch_prefix",
+    "proposal_branch_prefix",
     "release_mirror",
     "repository_family_worktrees",
 }

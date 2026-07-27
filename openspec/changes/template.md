@@ -7,7 +7,7 @@ Create these files under `openspec/changes/<change-id>/`.
 ```markdown
 ## Why
 
-Explain the problem and why existing capabilities are insufficient.
+Explain the problem and why the accepted behavior must change.
 
 ## What Changes
 
@@ -16,7 +16,7 @@ Explain the problem and why existing capabilities are insufficient.
 
 ## Capabilities
 
-- `repository-governance`: subject=<stable-subject>; reuse=<reuse|extend|extract|new>; change=<add|modify|remove|rename|retire>; facet:lifecycle=<authoring|validation|runtime|archive|release>; facet:surface=<cli|docs|schema|openspec|evidence|skill|mcp|scaffold|ci|package>; facet:authority=<source|test|schema|docs|openspec|claim|evidence>
+- `repository-governance`: subject=<stable-subject>; reuse=<reuse|extend|extract|new>; change=<add|modify|remove|rename|retire>
 
 ## Out Of Scope
 
@@ -32,7 +32,7 @@ Name the official OpenSpec boundary and the ETHOS repo-local product boundary.
 
 ## Design
 
-Explain ownership, routing, proof, rollback, and promotion targets.
+Explain ownership, proof, rollback, and promotion targets.
 
 ## Alternatives
 
@@ -50,6 +50,6 @@ Name static checks, executed proof, OpenSpec validation, and evidence locations.
 
 - [ ] Update OpenSpec deltas.
 - [ ] Update source/docs/schemas/tests.
-- [ ] Bind claim and evidence.
-- [ ] Run `ethos openspec --lifecycle --json`.
+- [ ] Bind acceptance and evidence.
+- [ ] Run `openspec validate --all --strict --json` and `ethos plan --changed --json`.
 ```

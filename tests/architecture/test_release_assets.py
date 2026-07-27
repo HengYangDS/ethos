@@ -38,8 +38,12 @@ def test_merge_request_template_uses_current_ethos_command_plane() -> None:
     template = (ROOT / ".gitlab/merge_request_templates/default.md").read_text(encoding="utf-8")
     contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
 
-    assert "ethos audit --mode shape --json" in template
-    assert "ethos audit --mode shape --json" in contributing
+    assert "ethos plan --changed --json" in template
+    assert "ethos prove --json" in template
+    assert "ethos plan --changed --json" in contributing
+    assert "ethos prove --json" in contributing
+    assert "ethos audit" not in template
+    assert "ethos audit" not in contributing
     assert "ethos self audit" not in template
     assert "ethos self audit" not in contributing
 
@@ -91,7 +95,7 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
 
 def test_configuration_layout_is_separated_by_concern() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    ruff = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
+    ruff = (ROOT / "ruff.toml").read_text(encoding="utf-8")
     pytest = (ROOT / ".config/checks/pytest/pytest.ini").read_text(encoding="utf-8")
     config_readme = (ROOT / ".config/README.md").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
@@ -102,14 +106,18 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
         "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
     }
-    assert tomllib.loads((ROOT / "ruff.toml").read_text(encoding="utf-8")) == {
-        "cache-dir": "build/runtime/tool-cache/ruff",
-        "extend": ".config/checks/ruff/ruff.toml",
-    }
+    ruff_config = tomllib.loads(ruff)
+    assert ruff_config["cache-dir"] == "build/runtime/tool-cache/ruff"
+    assert ruff_config["line-length"] == 100
+    assert ruff_config["target-version"] == "py312"
+    assert "extend" not in ruff_config
+    assert not (ROOT / ".config/checks/ruff/ruff.toml").exists()
     assert not (ROOT / "pytest.ini").exists()
     assert "[lint.per-file-ignores]" in ruff
-    assert '"src/ethos/repository/evidence/core.py" = ["C901"]' in ruff
-    assert '"src/ethos/repository/evidence/core.py" = ["C901", "A002"]' not in ruff
+    assert '"tests/**" = [' in ruff
+    assert '"INP001"' in ruff
+    assert "src/ethos/repository/evidence/core.py" not in ruff
+    assert "src/ethos/repository/evidence/proof.py" not in ruff
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
     assert "error" in pytest
@@ -118,7 +126,8 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (
         'config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"' in tools
     )
-    assert 'config = ".config/checks/ruff/ruff.toml + .config/checks/ruff/ratchet.toml"' in tools
+    assert 'config = "ruff.toml + .config/checks/ruff/ratchet.toml"' in tools
+    assert 'config = ".config/checks/ruff/ruff.toml"' not in tools
     assert 'config = ".config/checks/import-linter/"' in tools
     assert 'config = ".config/checks/lychee/"' in tools
     assert 'config = ".config/checks/coverage/coverage.ini"' in tools
@@ -137,11 +146,8 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
     assert (ROOT / "tools/ci/scripts/require-stable-head.sh").exists()
     assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-governance-kernel.sh").exists()
     assert 'concern = "product_boundary"' in tools
     assert 'gate = "tools/ci/scripts/run-product-boundary.sh"' in tools
-    assert 'concern = "governance_kernel"' in tools
-    assert 'gate = "tools/ci/scripts/run-governance-kernel.sh"' in tools
     assert 'concern = "local_ci_fallback"' in tools
     assert "tools/ci/scripts/require-stable-head.sh" in tools
     assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
@@ -421,7 +427,7 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
 
     assert "ethos prove --execute --gate module-layout" in runner
     assert "--flat-directory-limit" not in runner
-    assert 'semantic_paths = ["."]' in policy
+    assert 'semantic_paths = [".agents/skills", "src/ethos", "tests", "tools"]' in policy
     assert 'package_paths = ["src/ethos"]' in policy
     assert "flat_directory_limit" not in policy
     assert "baseline_gap_limit" not in policy
@@ -431,17 +437,12 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert "baseline_gap_limit" not in runner
     assert 'concern = "python_module_layout"' in tools
     assert 'tool = "ethos-module-layout"' in tools
-    assert 'concern = "compatibility_residue"' in tools
-    assert 'tool = "ethos-no-compat"' in tools
-    assert 'gate = "tools/ci/scripts/run-no-compat.sh"' in tools
     assert 'config = ".config/checks/module-layout/policy.toml"' in tools
     assert 'gate = "tools/ci/scripts/run-module-layout.sh"' in tools
     assert "tools/ci/scripts/run-module-layout.sh" in local_ci
-    assert "tools/ci/scripts/run-no-compat.sh" in local_ci
     assert "tools/ci/scripts/run-module-layout.sh" in gitlab
     assert "tools/ci/scripts/run-module-layout.sh" in precommit
     assert "tools/ci/scripts/run-product-boundary.sh" in local_ci
-    assert "tools/ci/scripts/run-governance-kernel.sh" in local_ci
     assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
     assert "tools/ci/scripts/run-product-boundary.sh" in precommit
 
@@ -485,19 +486,19 @@ def test_quality_audit_uses_policy_derived_coverage_floor() -> None:
     assert "quality_python_tests_missing:--cov-fail-under=100" not in audit
 
 
-def test_quality_audit_requires_the_ruff_discovery_adapter() -> None:
+def test_quality_audit_requires_the_native_ruff_owner() -> None:
     audit = (
         ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
     ).read_text(encoding="utf-8")
     required_files = audit.split("REQUIRED_FILES = (", 1)[1].split(")", 1)[0]
 
-    assert '".config/checks/ruff/ruff.toml"' in required_files
     assert '"ruff.toml"' in required_files
+    assert '".config/checks/ruff/ruff.toml"' not in required_files
     assert '".config/checks/pytest/pytest.ini"' in required_files
     assert '"pytest.ini"' not in required_files
 
 
-def test_quality_audit_detects_owner_script_gate_mismatch() -> None:
+def test_quality_audit_detects_owner_script_gate_mismatch(monkeypatch) -> None:
     audit_path = ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
     spec = importlib.util.spec_from_file_location("quality_audit_under_test", audit_path)
     assert spec is not None
@@ -505,19 +506,16 @@ def test_quality_audit_detects_owner_script_gate_mismatch() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    assert module._tool_gate_gaps(
-        "tests",
-        "tools/ci/scripts/run-python-tests.sh",
-        {"gate": "pytest"},
-    ) == ["quality_gate_owner_mismatch:tests:pytest"]
-    assert (
-        module._tool_gate_gaps(
-            "tests",
-            "tools/ci/scripts/run-python-tests.sh",
-            {"gate": "tools/ci/scripts/run-python-tests.sh"},
-        )
-        == []
-    )
+    assert module.owner_gaps(ROOT) == []
+    records, gaps = module.tool_records(ROOT)
+    assert gaps == []
+    mismatched = [
+        {**record, "gate": "pytest"} if record.get("concern") == "tests" else record
+        for record in records
+    ]
+    monkeypatch.setattr(module, "tool_records", lambda _root: (mismatched, []))
+
+    assert module.owner_gaps(ROOT) == ["quality_gate_owner_mismatch:tests:pytest"]
 
 
 def test_quality_openspec_uses_current_coverage_floor_language() -> None:

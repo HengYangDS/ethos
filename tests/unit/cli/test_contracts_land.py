@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
+import ethos.surface.cli.root.proof as proof_cli
+from ethos.adapters.openspec.cli import openspec_base_command
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
@@ -29,7 +32,7 @@ def _expected_proof_readiness(
     blocking = bool(required_gaps)
     next_action = f"ethos prove --execute --expect-head {head} --json" if blocking else ""
     return {
-        "kind": "executed_proof_readiness",
+        "kind": "proof_attestation_readiness",
         "head": head,
         "state": state,
         "blocking": blocking,
@@ -50,6 +53,57 @@ def _expected_proof_readiness(
     }
 
 
+def _archive_fixture_change(
+    monkeypatch: pytest.MonkeyPatch,
+    worktree: Path,
+) -> str:
+    """Archive the fixture Change through the official OpenSpec CLI and advance its Lease."""
+    completed_head = commit_fixture_file(
+        worktree,
+        "openspec/changes/fixture-change/tasks.md",
+        "- [x] Exercise fixture lifecycle\n",
+        "complete fixture change",
+    )
+    archive_command = openspec_base_command()
+    assert archive_command is not None
+    archive = subprocess.run(
+        [*archive_command, "archive", "fixture-change", "--yes", "--json"],
+        cwd=worktree,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert archive.returncode == 0, archive.stderr
+    git(worktree, "add", ".")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "archive fixture change",
+    )
+    archived_head = git(worktree, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    hook = run_ethos(
+        "hook",
+        "ref-transaction",
+        f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        completed_head,
+        archived_head,
+        "--phase",
+        "committed",
+        "--root",
+        worktree.as_posix(),
+        "--json",
+        cwd=worktree,
+    )
+    assert hook["ok"] is True
+    return archived_head
+
+
 def test_land_dry_run_reports_dirty_work_lane_gap(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-feature"
@@ -68,11 +122,8 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
     worktree = tmp_path / "repo-work-feature"
     run_ethos(*lane_start_arguments(repo, worktree), cwd=repo)
 
-    def fake_audit(
-        root: Path, *, openspec_mode: str = "shape", current_head: str = ""
-    ) -> dict[str, object]:
+    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         assert openspec_mode == "shape"
-        assert current_head == ""
         return {"ok": True, "required_gaps": [], "root": root.as_posix()}
 
     def fake_openspec_lifecycle(root: Path) -> dict[str, object]:
@@ -95,11 +146,13 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
     assert payload["data"]["openspec_lifecycle"]["completed_changes"] == ["sample-change"]
 
 
-def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(tmp_path: Path) -> None:
-    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
+def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
+    monkeypatch, tmp_path: Path
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    work_head = git(worktree, "rev-parse", "HEAD")
+    work_head = _archive_fixture_change(monkeypatch, worktree)
     candidate_head = git(candidate, "rev-parse", "HEAD")
     payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
     assert payload["ok"] is False
@@ -129,10 +182,12 @@ def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(tmp_path:
     }
 
 
-def test_land_dry_run_requires_executed_proof_before_ready_state(tmp_path: Path) -> None:
-    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
+def test_land_dry_run_requires_executed_proof_before_ready_state(
+    monkeypatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    work_head = git(worktree, "rev-parse", "HEAD")
+    work_head = _archive_fixture_change(monkeypatch, worktree)
     payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
@@ -143,18 +198,19 @@ def test_land_dry_run_requires_executed_proof_before_ready_state(tmp_path: Path)
     )
 
 
-def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None:
-    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
+def test_land_blocks_active_change_even_when_exact_head_is_proven(tmp_path: Path) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     work_head = git(worktree, "rev-parse", "HEAD")
     seed_executed_proof(worktree, work_head)
     payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
-    assert payload["ok"] is True
-    assert payload["state"] == "ready_to_land"
-    assert payload["required_gaps"] == []
-    assert payload["data"]["proof_readiness"] == _expected_proof_readiness(
-        worktree, work_head, state="proven", required_gaps=()
-    )
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == [
+        "openspec_active_change_unarchived:fixture-change:work_lane"
+    ]
+    assert payload["next_actions"] == ["openspec archive fixture-change --yes --json"]
+    assert payload["data"]["proof_readiness"] == {}
     mutation = payload["data"]["mutation"]
     assert mutation["request"] == {
         "command": "land",
@@ -162,7 +218,7 @@ def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None
         "confirmation_present": False,
         "expect_head": None,
     }
-    assert mutation["decision"]["verdict"] == "allow"
+    assert mutation["decision"]["verdict"] == "block"
     assert mutation["decision"]["subject"]["action"] == "candidate.integrate"
     expected_state = mutation["decision"]["subject"]["expected_state"]
     assert expected_state["source_head"] == work_head
@@ -171,13 +227,61 @@ def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None
     assert expected_state["holder_ref"] == "agent:test:case:agent-test"
     assert expected_state["lease_id"].startswith("lease:")
     assert expected_state["lease_epoch"] == 1
-    assert mutation["decision"]["required_gaps"] == []
+    assert mutation["decision"]["required_gaps"] == payload["required_gaps"]
     assert mutation["decision"]["mints_authority"] is False
     assert "authorized" not in mutation
 
 
+def test_land_apply_refuses_active_change_without_updating_candidate(tmp_path: Path) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    work_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_executed_proof(worktree, work_head)
+
+    payload = run_ethos_blocked(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        work_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == [
+        "openspec_active_change_unarchived:fixture-change:work_lane"
+    ]
+    assert payload["next_actions"] == ["openspec archive fixture-change --yes --json"]
+    assert payload["data"]["candidate_update"] == {}
+    assert git(candidate, "rev-parse", "HEAD") == candidate_head
+
+
+def test_land_allows_officially_archived_work_lane_head(monkeypatch, tmp_path: Path) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    archived_head = _archive_fixture_change(monkeypatch, worktree)
+    seed_executed_proof(worktree, archived_head)
+    payload = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        archived_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "candidate_validated"
+    assert payload["required_gaps"] == []
+    assert git(candidate, "rev-parse", "HEAD") == archived_head
+
+
 def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None:
-    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     previous_head = git(worktree, "rev-parse", "HEAD")
@@ -299,7 +403,7 @@ def test_product_publish_blocks_current_hard_quality_gap(tmp_path: Path, monkeyp
 def test_publish_apply_defers_when_remote_transition_is_not_performed(
     monkeypatch, tmp_path: Path
 ) -> None:
-    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     lease_head = git(worktree, "rev-parse", "HEAD")
     head = git(worktree, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -443,6 +547,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
         cwd=worktree,
     )
     assert hook_payload["ok"] is True
+    work_head = _archive_fixture_change(monkeypatch, worktree)
     seed_executed_proof(worktree, work_head)
     publish_payload = run_ethos("publish", "--json", cwd=worktree)
     assert publish_payload["ok"] is True
@@ -475,7 +580,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     )
     assert land_payload["ok"] is True
     assert land_payload["data"]["candidate_update"]["branch"] == "stage/integration"
-    assert land_payload["data"]["candidate_update"]["attestation"]["kind"] == "git-effect"
+    assert land_payload["data"]["candidate_update"]["attestation"]["kind"] == "effect"
     assert git(candidate_path, "rev-parse", "HEAD") == work_head
     assert git(repo, "rev-parse", "integration") == accepted_head
     seed_executed_proof(candidate_path, work_head)
@@ -498,7 +603,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     assert accepted_update["head"] == work_head
     assert accepted_update["previous_head"] == accepted_head
     assert accepted_update["required_gaps"] == []
-    assert accepted_update["attestation"]["kind"] == "git-effect"
+    assert accepted_update["attestation"]["kind"] == "effect"
     assert accepted_update["attestation"]["content"]["state"] == "applied"
     retire_payload = run_ethos(
         "lane",
@@ -600,41 +705,146 @@ def test_publish_reports_local_ci_fallback_evidence(
         assert payload["next_actions"] == list(expected_actions)
 
 
-def test_land_blocks_campaign_terminal_gaps(tmp_path: Path, monkeypatch) -> None:
-    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
-    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    seed_executed_proof(worktree, git(worktree, "rev-parse", "HEAD"))
-    monkeypatch.setattr(lifecycle_cli, "is_product_root", lambda _repo: True)
-    monkeypatch.setattr(
-        lifecycle_cli,
-        "campaign_publication_report",
-        lambda _repo: {"required_gaps": ["campaign_publication_campaign_active"]},
-    )
-
-    payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
-
-    assert payload["ok"] is False
-    assert "campaign_publication_campaign_active" in payload["required_gaps"]
-
-
-def test_publish_blocks_campaign_terminal_gaps(tmp_path: Path, monkeypatch) -> None:
+def test_publish_blocks_without_exact_head_plan_proof(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    seed_executed_proof(repo, git(repo, "rev-parse", "HEAD"))
-    monkeypatch.setattr(lifecycle_cli, "is_product_root", lambda _repo: True)
-    monkeypatch.setattr(
-        lifecycle_cli,
-        "campaign_publication_report",
-        lambda _repo, **_kwargs: {
-            "required_gaps": [
-                "campaign_publication_campaign_active",
-                "source_budget_terminal_exceeded:python_total:2>1",
-            ]
-        },
-    )
 
     payload = run_ethos("publish", "--json", cwd=repo)
 
     assert payload["ok"] is False
-    assert "campaign_publication_campaign_active" in payload["required_gaps"]
-    assert payload["required_gaps"].count("source_budget_terminal_exceeded:python_total:2>1") == 1
+    assert "proof_not_proven" in payload["required_gaps"]
+
+
+def test_prove_scope_helpers_bind_known_and_unknown_scopes_without_host_claims() -> None:
+    known = proof_cli.proof_scope_binding("  docs  ")
+    unknown = proof_cli.proof_scope_binding("custom scope")
+
+    assert known["scope"] == "docs"
+    assert known["accepted"] is True
+    assert known["required_gaps"] == []
+    assert unknown["scope"] == "custom scope"
+    assert unknown["accepted"] is False
+    assert unknown["required_gaps"] == ["unknown_proof_scope:custom scope"]
+    assert proof_cli.host_probe_boundary(host=True, probe=False) == {
+        "requested": True,
+        "host": True,
+        "probe": False,
+        "evidence_class": "optional_host_readiness",
+        "satisfies_repository_proof": False,
+        "truth_boundary": "host-local projection",
+        "state": "boundary_recorded",
+    }
+
+
+def test_prove_dependency_remediation_orders_dependencies_before_selected_gates(
+    monkeypatch, tmp_path: Path
+) -> None:
+    class Gate:
+        def __init__(self, *depends_on: str) -> None:
+            self.depends_on = depends_on
+
+    monkeypatch.setattr(
+        proof_cli,
+        "gate_registry",
+        lambda _root: {"quality": Gate("lint", "tests"), "lint": Gate(), "tests": Gate("lint")},
+    )
+
+    assert proof_cli.missing_gate_dependency_next_actions(
+        selected_gate_ids=("quality",),
+        validation_gaps=("missing_dependency:quality->lint",),
+        current_head="a" * 40,
+        root=tmp_path,
+    ) == (
+        "ethos prove --execute --gate lint --gate tests --gate quality "
+        f"--expect-head {'a' * 40} --json",
+    )
+
+
+def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+
+    def rejected_plan(*_args, **_kwargs):
+        class RejectedPlan:
+            verdict = "block"
+
+            @staticmethod
+            def gaps() -> tuple[str, ...]:
+                return ("repository_subject_mismatch",)
+
+        return RejectedPlan()
+
+    monkeypatch.setattr(proof_cli, "proof_plan", rejected_plan)
+    rejected = run_ethos_blocked("prove", "--json", cwd=repo)
+    assert rejected["required_gaps"] == ["repository_subject_mismatch"]
+    assert rejected["next_actions"] == ["repair the ChangeContract or repository facts"]
+
+    monkeypatch.setattr(
+        proof_cli,
+        "proof_plan",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("change_missing")),
+    )
+    missing = run_ethos_blocked("prove", "--json", cwd=repo)
+    assert missing["required_gaps"] == ["change_missing"]
+    assert missing["next_actions"] == ["ethos adopt"]
+
+
+def test_prove_public_command_keeps_focused_host_probe_evidence_separate(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+
+    class ReadyPlan:
+        verdict = "pass"
+        nodes: tuple[object, ...] = ()
+
+        @staticmethod
+        def gaps() -> tuple[str, ...]:
+            return ()
+
+        @staticmethod
+        def ordered_nodes() -> tuple[object, ...]:
+            return ()
+
+        @staticmethod
+        def to_dict() -> dict[str, object]:
+            return {}
+
+    monkeypatch.setattr(
+        proof_cli.status_domain,
+        "audit_for_root",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "required_gaps": [],
+            "governance_context": {},
+            "openspec": {},
+        },
+    )
+    monkeypatch.setattr(proof_cli, "change_scope_paths_from_status", lambda *_args: ())
+    monkeypatch.setattr(
+        proof_cli,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {"ok": True, "required_gaps": [], "summary": {}},
+    )
+    monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: ReadyPlan())
+    monkeypatch.setattr(proof_cli, "gate_registry", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(proof_cli, "adopter_code_correctness_gaps", lambda *_args, **_kwargs: [])
+
+    payload = run_ethos("prove", "--scope", "docs", "--host", "--probe", "--json", cwd=repo)
+
+    assert payload["ok"] is True
+    assert payload["state"] == "ready"
+    assert payload["summary"]["boundary"] == "focused"
+    assert payload["data"]["scope_binding"]["scope"] == "docs"
+    assert payload["data"]["host_probe"] == {
+        "requested": True,
+        "host": True,
+        "probe": True,
+        "evidence_class": "optional_host_readiness",
+        "satisfies_repository_proof": False,
+        "truth_boundary": "host-local projection",
+        "state": "boundary_recorded",
+    }

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Annotated
+from typing import Literal
 from typing import cast
 
 from cyclopts import Parameter
@@ -13,31 +16,27 @@ import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.adapters.mutation.proof import issue_proof_attestation
+from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof import record_executed_proof
-from ethos.adapters.openspec.core import openspec_governance_report
-from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
-from ethos.adapters.repo.status.core import workspace_status
-from ethos.domain.campaign.closeout import campaign_publication_report
-from ethos.normalization.core import string_sequence
-from ethos.repository.context import is_product_root
-from ethos.repository.evidence.core import AdapterProofResult
-from ethos.repository.evidence.core import EvidenceSet
-from ethos.repository.evidence.core import ProofRun
-from ethos.repository.evidence.core import provenance_envelope
-from ethos.repository.evidence.core import trim_output
+from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_registry
 from ethos.result import EthosResult
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
-from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.application import app
+from ethos.surface.cli.output import JsonFlag
+from ethos.surface.cli.output import emit
+from ethos.surface.cli.root_binding import RootOption
+from ethos.surface.cli.root_binding import resolve_root
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.plan import PlanIR
 KNOWN_PROOF_SCOPES = frozenset(
     {"repository", "change", "proof-kernel", "code", "docs", "openspec", "quality"}
 )
@@ -129,6 +128,93 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
     }
 
 
+def _terminal_check_verdict(adapter_state: str) -> str:
+    if adapter_state == "passed":
+        return "pass"
+    if adapter_state == "failed":
+        return "block"
+    return "unknown"
+
+
+def _run_plan_checks(
+    *, repo: Path, plan: PlanIR, execute: bool
+) -> tuple[list[dict[str, object]], bool]:
+    """Run or project the admitted PlanIR gate sequence."""
+    gates_by_id = gate_registry(repo)
+    runner = LocalGateRunner() if execute else DryRunRunner()
+    checks: list[dict[str, object]] = []
+    adapter_states: list[str] = []
+    for run_result in (
+        runner.run(node, gates_by_id[node.id], root=repo) for node in plan.ordered_nodes()
+    ):
+        gate = gates_by_id[run_result.action_id]
+        adapter_states.append(run_result.state)
+        checks.append(
+            {
+                "action_id": run_result.action_id,
+                "command": list(run_result.command),
+                "exit_code": run_result.exit_code,
+                "stdout": run_result.stdout,
+                "stderr": run_result.stderr,
+                "verdict": _terminal_check_verdict(run_result.state),
+                "evidence_class": gate.evidence_class,
+                "trust_bearing": gate.trust_bearing,
+                "diagnostics": list(run_result.diagnostics),
+            }
+        )
+    verdicts_ok = bool(checks) and all(check["verdict"] == "pass" for check in checks)
+    trust_bearing_ok = any(
+        check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
+    )
+    runs_ok = (
+        verdicts_ok and trust_bearing_ok
+        if execute
+        else all(state == "planned" for state in adapter_states)
+    )
+    return checks, runs_ok
+
+
+def _check_summaries(checks: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Project proof checks without embedding diagnostic payloads in command output."""
+    return [
+        {
+            "action_id": check["action_id"],
+            "command": check["command"],
+            "exit_code": check["exit_code"],
+            "verdict": check["verdict"],
+            "evidence_class": check["evidence_class"],
+            "trust_bearing": check["trust_bearing"],
+            "diagnostic_count": len(cast("list[object]", check["diagnostics"])),
+        }
+        for check in checks
+    ]
+
+
+def _proof_next_actions(
+    *,
+    options: _ProofOptions,
+    plan_gaps: tuple[str, ...],
+    current_head: str,
+    repo: Path,
+    result_state: str,
+) -> tuple[str, ...]:
+    """Return the next public lifecycle command for one proof outcome."""
+    dependency_actions = missing_gate_dependency_next_actions(
+        selected_gate_ids=options.gate,
+        validation_gaps=plan_gaps,
+        current_head=current_head,
+        root=repo,
+    )
+    if dependency_actions:
+        return dependency_actions
+    if result_state == "proven":
+        focused = bool(options.gate) or proof_scope_binding(options.scope)["scope"] != "repository"
+        return ("ethos prove --json",) if focused else ("ethos land",)
+    if result_state == "ready":
+        return ("ethos prove --execute",)
+    return ("ethos plan --changed --json",)
+
+
 @app.command
 def prove(
     options: Annotated[_ProofOptions, Parameter(name="*")] = _DEFAULT_PROOF_OPTIONS,
@@ -136,12 +222,10 @@ def prove(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Produce a local proof-readiness summary."""
+    """Produce proof readiness or one executed generic proof Attestation."""
     repo = resolve_root(root)
     current_head = git.current_head(repo)
-    audit = status_domain.audit_for_root(
-        repo, openspec_mode="deep" if options.full else "shape", current_head=current_head
-    )
+    audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
     changed_paths = change_scope_paths_from_status(
         repo, workspace_status(repo, include_foreign_path_scope=False)
     )
@@ -152,26 +236,28 @@ def prove(
         changed_paths=changed_paths,
         require_workspace=False,
     )
-    lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
-    gate_ids = options.gate or (
-        default_gate_ids(full=True, root=repo, tree_ref=current_head) if options.full else ()
-    )
     try:
         plan = proof_plan(
             repo,
             head=current_head,
             change_id=options.change,
-            gate_ids=gate_ids,
+            gate_ids=(
+                options.gate
+                or (
+                    default_gate_ids(full=True, root=repo, tree_ref=current_head)
+                    if options.full
+                    else ()
+                )
+            ),
             changed_paths=changed_paths,
         )
     except ValueError as exc:
-        gap = str(exc)
         emit(
             EthosResult(
                 command="prove",
                 ok=False,
                 state="gapped",
-                required_gaps=(gap,),
+                required_gaps=(str(exc),),
                 next_actions=("ethos adopt",),
             ),
             json_output=json_output,
@@ -190,82 +276,47 @@ def prove(
             json_output=json_output,
         )
         return
-    correctness_gaps = adopter_code_correctness_gaps(repo)
-    gates_by_id = gate_registry(repo)
-    runner = LocalGateRunner() if options.execute else DryRunRunner()
-    proof_runs = tuple(
-        ProofRun.from_adapter_result(
-            AdapterProofResult(
-                action_id=run_result.action_id,
-                command=run_result.command,
-                exit_code=run_result.exit_code,
-                stdout=trim_output(run_result.stdout),
-                stderr=trim_output(run_result.stderr),
-                adapter_state=run_result.state,
-                evidence_class=gates_by_id[run_result.action_id].evidence_class,
-                trust_bearing=gates_by_id[run_result.action_id].trust_bearing,
-                diagnostics=run_result.diagnostics,
-            )
-        )
-        for run_result in (
-            runner.run(node, gates_by_id[node.id], root=repo) for node in plan.ordered_nodes()
-        )
-    )
-    evidence = EvidenceSet.from_runs(
-        evidence_id=f"ethos:{options.objective}",
-        head=current_head,
-        runs=proof_runs,
-        durability="local",
-    )
-    verdicts_ok = all(run.verdict == "passed" for run in proof_runs)
-    trust_bearing_runs = tuple(run for run in proof_runs if run.trust_bearing)
-    trust_bearing_ok = bool(trust_bearing_runs) and all(
-        run.state == "proven" for run in trust_bearing_runs
-    )
-    runs_ok = (
-        verdicts_ok and trust_bearing_ok
-        if options.execute
-        else all(run.state == "planned" for run in proof_runs)
+    checks, runs_ok = _run_plan_checks(repo=repo, plan=plan, execute=options.execute)
+    verdicts_ok = bool(checks) and all(check["verdict"] == "pass" for check in checks)
+    trust_bearing_ok = any(
+        check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
     )
     failed_gate_gaps: tuple[str, ...] = (
-        tuple(f"gate_failed:{run.action_id}" for run in proof_runs if run.verdict != "passed")
+        tuple(
+            (
+                f"gate_failed:{check['action_id']}"
+                if check["verdict"] == "block"
+                else f"gate_unknown:{check['action_id']}"
+            )
+            for check in checks
+            if check["verdict"] != "pass"
+        )
         if options.execute
         else ()
-    )
-    proof_gaps: tuple[str, ...] = (
-        ("full_proof_requires_execute",) if options.full and not options.execute else ()
     )
     trust_gaps: tuple[str, ...] = (
         ("trust_bearing_proof_missing",)
-        if options.execute and verdicts_ok and (not trust_bearing_ok)
-        else ()
-    )
-    head_gaps: tuple[str, ...] = (
-        ("expected_head_mismatch",)
-        if options.expect_head is not None and options.expect_head != current_head
+        if options.execute and verdicts_ok and not trust_bearing_ok
         else ()
     )
     scope_binding = proof_scope_binding(options.scope)
-    scope_gaps = tuple(cast("list[str]", scope_binding["required_gaps"]))
     host_probe = host_probe_boundary(host=options.host, probe=options.probe)
     focused = bool(options.gate) or scope_binding["scope"] != "repository"
-    terminal_gaps = (
-        tuple(string_sequence(campaign_publication_report(repo).get("required_gaps")))
-        if is_product_root(repo) and not focused
-        else ()
-    )
     required_gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
-            + lifecycle_gaps
+            + tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
             + plan_gaps
-            + correctness_gaps
+            + tuple(adopter_code_correctness_gaps(repo))
             + failed_gate_gaps
-            + proof_gaps
+            + (("full_proof_requires_execute",) if options.full and not options.execute else ())
             + trust_gaps
-            + head_gaps
-            + scope_gaps
-            + terminal_gaps
+            + (
+                ("expected_head_mismatch",)
+                if options.expect_head is not None and options.expect_head != current_head
+                else ()
+            )
+            + tuple(cast("list[str]", scope_binding["required_gaps"]))
         )
     )
     ok = (
@@ -275,31 +326,63 @@ def prove(
         and not plan_gaps
         and not required_gaps
     )
+    boundary = "focused" if focused else "repository"
+    attestation = None
+    if options.execute:
+        verdict: Literal["pass", "block", "unknown"] = (
+            "block" if required_gaps else "pass" if ok else "unknown"
+        )
+        attestation = issue_proof_attestation(
+            repo,
+            {
+                "plan": plan,
+                "checks": tuple(checks),
+                "verdict": verdict,
+                "issuer": os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+                "scope": str(scope_binding["scope"]),
+                "boundary": boundary,
+                "objective": options.objective,
+                "required_gaps": required_gaps,
+            },
+        )
+        if attestation.verdict == "pass":
+            try:
+                persist_proof_attestation(repo, attestation)
+            except ValueError as error:
+                required_gaps = tuple(
+                    dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
+                )
+                ok = False
+                attestation = issue_proof_attestation(
+                    repo,
+                    {
+                        "plan": plan,
+                        "checks": tuple(checks),
+                        "verdict": "block",
+                        "issuer": os.environ.get("ETHOS_ACTOR", "").strip()
+                        or "agent:local:process:ethos",
+                        "scope": str(scope_binding["scope"]),
+                        "boundary": boundary,
+                        "objective": options.objective,
+                        "required_gaps": required_gaps,
+                    },
+                )
     result_state = "proven" if ok and options.execute else "ready" if ok else "gapped"
-    if result_state == "proven" and plan.verdict == "pass":
-        record_executed_proof(repo, evidence.to_dict(), plan=plan)
-    dependency_next_actions = missing_gate_dependency_next_actions(
-        selected_gate_ids=options.gate,
-        validation_gaps=plan_gaps,
+    next_actions = _proof_next_actions(
+        options=options,
+        plan_gaps=plan_gaps,
         current_head=current_head,
-        root=repo,
-    )
-    next_actions = dependency_next_actions or (
-        ("ethos prove --json",)
-        if focused and result_state == "proven"
-        else ("ethos land",)
-        if result_state == "proven"
-        else ("ethos prove --execute",)
-        if result_state == "ready"
-        else ("ethos campaign status --json",)
-        if terminal_gaps
-        else ("ethos audit --mode deep",)
+        repo=repo,
+        result_state=result_state,
     )
     detailed = options.execute or bool(options.gate) or options.full
-    boundary = "focused" if focused else "repository"
     audit_openspec = cast("dict[str, object]", audit.get("openspec") or {})
     lifecycle_summary = cast("dict[str, object]", openspec_lifecycle.get("summary") or {})
     lifecycle_change_count = lifecycle_summary.get("change_count")
+    check_summaries = _check_summaries(checks)
+    attestation_payload = attestation.model_dump(mode="json") if attestation is not None else {}
+    artifact = attestation.content.get("artifact") if attestation is not None else {}
+    artifact_reference = dict(artifact) if isinstance(artifact, Mapping) else {}
     data = (
         {
             "governance_context": audit["governance_context"],
@@ -312,8 +395,9 @@ def prove(
             "scope_binding": scope_binding,
             "host_probe": host_probe,
             "plan_ir": plan.to_dict(),
-            "evidence": evidence.to_dict(),
-            "provenance": provenance_envelope(evidence),
+            "attestation": attestation_payload,
+            "artifact_reference": artifact_reference,
+            "checks": check_summaries,
             "expected_head": {
                 "expected": options.expect_head or "",
                 "current": current_head,
@@ -327,7 +411,7 @@ def prove(
             "scope": scope_binding["scope"],
             "scope_binding": scope_binding,
             "host_probe": host_probe,
-            "gate_ids": [run.action_id for run in proof_runs],
+            "gate_ids": [check["action_id"] for check in checks],
             "changed_path_count": len(changed_paths),
             "audit": {
                 "ok": bool(audit.get("ok")),
@@ -344,22 +428,9 @@ def prove(
                 ),
                 "required_gaps": list(string_sequence(openspec_lifecycle.get("required_gaps"))),
             },
-            "evidence": {
-                "id": evidence.id,
-                "head": evidence.head,
-                "digest": evidence.digest,
-                "durability": evidence.durability,
-                "runs": [
-                    {
-                        "action_id": run.action_id,
-                        "state": run.state,
-                        "verdict": run.verdict,
-                        "evidence_class": run.evidence_class,
-                        "trust_bearing": run.trust_bearing,
-                    }
-                    for run in proof_runs
-                ],
-            },
+            "attestation": attestation_payload,
+            "artifact_reference": artifact_reference,
+            "checks": check_summaries,
             "expected_head": {
                 "expected": options.expect_head or "",
                 "current": current_head,
@@ -374,8 +445,8 @@ def prove(
         summary={
             "objective": options.objective,
             "boundary": boundary,
-            "evidence_digest": evidence.digest,
-            "gate_count": len(proof_runs),
+            "attestation_id": attestation.id if attestation is not None else "",
+            "gate_count": len(checks),
         },
         required_gaps=required_gaps,
         next_actions=next_actions,

@@ -33,7 +33,7 @@ _SHELL_MUTATION_COMMANDS = _words(
     "chmod chown cp install mkdir mv patch rm rmdir rsync sed tee touch truncate"
 )
 _PROTECTED_READ_COMMANDS = _words("cat find grep head less ls pwd rg tail tree wc")
-_ETHOS_READ_COMMANDS = _words("audit openspec parity plan playbooks quality status")
+_ETHOS_READ_COMMANDS = _words("audit openspec plan playbooks quality status")
 _BRANCH_MUTATION_FLAGS = _words("-d -D -m -M -c -C -f --delete --move --copy --force")
 _BRANCH_VALUE_FLAGS = _words("--format --color --sort --points-at")
 

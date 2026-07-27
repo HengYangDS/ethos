@@ -146,13 +146,7 @@ def local_ci_owner_scripts(*, root: Path | None = None) -> list[str]:
                 )
             )
         )
-    names = """run-python-lint run-config-lint run-shell-lint run-markdown-lint
-run-import-linter run-docstring-coverage run-module-layout
-run-repository-hygiene run-secrets-scan run-ci-template-check run-format-selection
-run-architecture-projection-drift run-runbook-registry-check run-mcp-smoke
-run-closeout-evidence-manifest run-local-state-audit run-release-supply-chain
-run-python-tests"""
-    return [f"tools/ci/scripts/{name}.sh" for name in names.split()]
+    return []
 
 
 def publication_readiness(

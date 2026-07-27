@@ -11,7 +11,7 @@ relations:
 Status: accepted.
 
 Purpose: record the durable ruling that generated artifact placement is an ETHOS product
-contract, not housekeeping, before adopter repositories retire embedded ETHOS.
+contract, not housekeeping, while governed repositories preserve evidence boundaries.
 
 ## Record
 
@@ -22,14 +22,14 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Decision Makers | Repository maintainers through accepted repository instruction; implemented by local ETHOS Work Lane. |
 | Status | accepted |
 | Decision Date | 2026-07-07 |
-| Decision Version | 2 |
-| Decision Change Date | 2026-07-09 |
+| Decision Version | 3 |
+| Decision Change Date | 2026-07-27 |
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
 | Superseded By | None |
-| Scope | Generated artifact topology, producer-entrypoint routing, lifecycle classes, adopter-neutral product roots, evidence promotion, proof/report placement, and adoption rollback readiness. |
+| Scope | Generated artifact topology, producer-entrypoint routing, lifecycle classes, adopter-neutral product roots, Attestation promotion, proof/report placement, and immutable historical evidence. |
 | Boundary | Owns generic path policy, path router behavior, entrypoint audit behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
-| Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping a small shared docs kernel across governed repositories. |
+| Context | A governed repository needs a small shared docs kernel while keeping generated output, durable Attestations, and historical bytes in distinct boundaries. |
 | Decision | Promote the Generated Artifact Topology Contract, producer-entrypoint routing audit, lifecycle classes, and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
 | Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; ignored tool runtime caches live under `build/runtime/tool-cache/<tool>/`, provider scratch state lives under `build/runtime/work/<provider>/`, local package artifacts live under `build/artifacts/<kind>/`; adopter-specific product roots are rejected; retired `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
 | Proof or Evidence | `ethos prove --gate generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
@@ -50,7 +50,7 @@ configuration policy, cache/runtime state, generated proof output, curated evide
 semantic docs truth, reference docs, and durable rulings have different authority
 and cleanup rules.
 Without a topology contract, generated output can become a hidden authority store
-and pollute closeout, proof, and retirement decisions.
+and pollute closeout, proof, and judgment decisions.
 
 ## Decision
 
@@ -64,8 +64,8 @@ Adopt the Generated Artifact Topology Contract:
 - `build/ethos/` owns machine generated ETHOS proof, logs, reports, artifacts,
   and projections.
 - `build/evidence/` owns machine generated quality/proof evidence artifacts.
-- `docs/evidence/`, `evidence/chronicle/`, and `evidence/parity/` own curated
-  or promoted evidence after explicit review or command promotion.
+- `evidence/attestations/` is the current durable carrier; retained historical
+  bytes remain immutable context, while `docs/evidence/` may publish summaries.
 - Runtime cache, machine evidence, local artifacts, and curated evidence are
   distinct lifecycle classes: runtime cache is disposable and never promoted;
   machine evidence is generated and HEAD-bound before review; local artifacts are
@@ -95,10 +95,9 @@ Adopt the Generated Artifact Topology Contract:
 ## Consequences
 
 Future ETHOS work must route generated artifacts through the contract or update
-this Decision Record with evidence. Adopter retirement cannot be justified by
-narrative alone; it needs proof that external ETHOS can audit artifact placement,
-keep adopter-specific state in adopter-owned declarative config, and preserve a
-rollback path.
+this Decision Record with evidence. A governed transition requires current
+Attestations that audit artifact placement, keep adopter-specific state in
+adopter-owned declarative config, and bind any recovery effect to Git.
 
 The docs organization should preserve the shared decisions, evidence,
 reference, and history kernel across governed repositories. Product or domain

@@ -1,9 +1,10 @@
 """Shared pytest fixtures for the ETHOS test suite.
 
-Some in-process CLI tests run `ethos prove --execute`, which persists a HEAD-keyed
-proof record under local `.ethos/state/proof/`. A single shared test store races
-under xdist, so this autouse fixture points each worker at its own ignored proof
-state directory and clears only that worker-owned directory around each test.
+Some in-process CLI tests run `ethos prove --execute`, which persists a generic
+content-addressed proof Attestation under local `.ethos/state/attestations/`. A
+single shared test store races under xdist, so this autouse fixture points each
+worker at its own ignored Attestation store and clears only that worker-owned
+store around each test.
 
 A second autouse fixture gives the suite a HERMETIC git identity: many tests shell out
 to `git commit` in throwaway repos, which fails when the runner has no global
@@ -31,7 +32,7 @@ import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_TEST_PROOF_STATE_DIR_ENV = "ETHOS_TEST_PROOF_STATE_DIR"
+_TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
 set_hypothesis_home_dir(
     _REPO_ROOT
     / "build/runtime/tool-cache/hypothesis"
@@ -39,18 +40,18 @@ set_hypothesis_home_dir(
 )
 
 
-def _worker_proof_dir() -> Path:
+def _worker_attestation_dir() -> Path:
     worker = os.environ.get("PYTEST_XDIST_WORKER", "local")
-    return Path(".ethos") / "state" / f"proof-{worker}"
+    return Path(".ethos") / "state" / f"attestations-{worker}"
 
 
 @pytest.fixture(autouse=True)
-def _isolate_proof_records(monkeypatch: pytest.MonkeyPatch) -> object:
-    proof_dir = _worker_proof_dir()
-    monkeypatch.setenv(_TEST_PROOF_STATE_DIR_ENV, proof_dir.as_posix())
-    shutil.rmtree(proof_dir, ignore_errors=True)
+def _isolate_attestations(monkeypatch: pytest.MonkeyPatch) -> object:
+    store = _worker_attestation_dir()
+    monkeypatch.setenv(_TEST_ATTESTATION_STATE_DIR_ENV, store.as_posix())
+    shutil.rmtree(store, ignore_errors=True)
     yield
-    shutil.rmtree(proof_dir, ignore_errors=True)
+    shutil.rmtree(store, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

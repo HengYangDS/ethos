@@ -27,8 +27,11 @@ and role-policy `branch_bindings`. Release root and accepted root are separate
 semantic roles. The role order is
 release_root -> accepted_root -> candidate -> work_lane -> proposal_lane. Bindings
 are ordered by that semantic order, then by branch name for additional bound
-branches. Work Lane bindings include `claim_id` and `claim_binding` so closeout
-can distinguish local write ownership from trust-bearing claim evidence.
+branches. Work Lane bindings include `lease_state`,
+`base_change_contract_digest`, and `contract_binding`. The Lease state vocabulary
+is exactly `valid`, `expired`, `unknown`, or `missing`; non-Work-Lane bindings use
+`none`. This keeps invalid persisted state observable without converting it or
+collapsing it to absence.
 
 `ethos status --json` and `ethos lane status --json` validate the live
 workspace-status payload before emitting it. The validation verdict is reported
@@ -61,29 +64,29 @@ Skills V2 adds three provider-neutral schemas:
 
 `data.closeout_support` is part of the workspace-status schema. It exposes
 whether the current checkout can be locally closed out to the configured
-candidate branch, the target worktree path, the planned operation, the lease
-owner when one is known, the bound claim when one is known, and the same
-required-gap vocabulary used by mutation admission.
+candidate branch, the target worktree path, the planned operation, the strict
+Lease observation, its immutable base ChangeContract digest when valid or
+expired, and the same required-gap vocabulary used by mutation admission.
 
-Trust and promotion contracts are explicit:
+Terminal semantic contracts are explicit:
 
-- `claim.schema.json` accepts enriched active claim TOML with boundary,
-  carrier, fallback, kill signal, and promotion fields.
-- `trust-envelope.schema.json` governs the active claim envelope emitted by
-  claim governance.
-- `promotion-target.schema.json` restricts promoted authority references to
-  repository-relative source, test, docs, schema, OpenSpec, or evidence paths.
-- `capability-profile.schema.json` governs `openspec/specs/*/capability.toml`
-  records that map each capability family to owner, invariant, routing, boundary,
-  and proof metadata.
+- `change-contract.schema.json` governs immutable intent, repository subject,
+  material scope, and ordered lifecycle commitment.
+- `attestation.schema.json` governs the single content-addressed evidence
+  envelope and its six typed variants.
+- `repository-facts.schema.json` governs freshly observed repository facts.
+- `plan-ir.schema.json` governs deterministic transient transition plans.
 
-`ethos prove --gate schemas --json` validates the schemas, sample contract instances,
-and any canonical capability profiles present under `openspec/specs/`.
+Accepted OpenSpec capability identity and requirements live in each capability's
+`spec.md`; schema validation does not maintain a parallel capability model.
+
+`ethos prove --gate schemas --json` validates the schemas and sample contract
+instances.
 
 Schema validation is product governance. A command that returns JSON without a
 tracked schema is not mature enough for automation.
 `ethos prove --gate schemas --json` validates both schemas and representative
-instances for docs registry, gate registry, workspace status, campaign closeout,
-shadow parity, and Skills V2 contracts. Product-root runs also validate the live
+instances for docs registry, gate registry, workspace status, and Skills V2
+contracts. Product-root runs also validate the live
 `.agents/skills/activation.toml`, the normalized live skill registry, and every
 live `.agents/skills/*/package.toml` against the Skills V2 schemas.

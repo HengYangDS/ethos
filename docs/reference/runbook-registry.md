@@ -25,8 +25,6 @@ and [Forge Provider Contract](../governance/forge-provider-contract.md).
 | RUN-GITLAB-EMULATOR | `ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-gitlab-local-emulator.sh doctor` | provider-emulator | `build/evidence/local-ci/gitlab/doctor.json` |
 | RUN-FORMAT-SELECTION | `tools/ci/scripts/run-format-selection.sh` | format-boundary | JSON stdout |
 | RUN-ARCHITECTURE-PROJECTION | `tools/ci/scripts/run-architecture-projection-drift.sh` | architecture-projection | JSON stdout |
-| RUN-MCP-SMOKE | `tools/ci/scripts/run-mcp-smoke.sh` | agent-projection | `build/evidence/agent/mcp/smoke.json` |
-| RUN-CLOSEOUT-MANIFEST | `tools/ci/scripts/run-closeout-evidence-manifest.sh` | evidence-operation | `build/evidence/workflow/closeout/manifest.json` |
 | RUN-LOCAL-STATE-AUDIT | `tools/ci/scripts/run-local-state-audit.sh` | local-state | `build/evidence/local-state/audit.json` |
 | RUN-RELEASE-SUPPLY-CHAIN | `tools/ci/scripts/run-release-supply-chain.sh` | release-supply-chain | `build/evidence/release/supply-chain.json` |
 

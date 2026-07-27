@@ -88,9 +88,11 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, str]]
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8")
-        for label in VISIBLE_SECTION_LABELS:
-            if label not in text:
-                gaps.append(f"missing_visible_section:{entry['path']}:{label[:-1].lower()}")
+        gaps.extend(
+            f"missing_visible_section:{entry['path']}:{label[:-1].lower()}"
+            for label in VISIBLE_SECTION_LABELS
+            if label not in text
+        )
     return gaps
 
 

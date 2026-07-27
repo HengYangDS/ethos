@@ -1,1 +1,0 @@
-"""Context contract semantic package."""

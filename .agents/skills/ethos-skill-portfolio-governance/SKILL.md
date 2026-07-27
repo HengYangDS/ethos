@@ -1,55 +1,37 @@
 ---
 name: ethos-skill-portfolio-governance
-description: Use when creating, updating, routing, validating, projecting, or retiring ETHOS repo-local skills. Use this for meta-skill work, skill coverage, activation registry changes, package manifests, projection drift, and skill creator workflows.
+description: Use when creating, updating, routing, validating, projecting, or retiring ETHOS repo-local skills.
 ---
 
 # ETHOS Skill Portfolio Governance
 
 ## When to Use
 
-Use this skill when the work changes repo-local skills, skill activation,
-package manifests, provider projections, skill coverage, or the skill creation
-process. It is the meta-skill for the skills portfolio; it does not replace
-repository rules, docs, schemas, OpenSpec records, evidence, or command JSON as
-repository truth.
+Use this skill when changing repo-local skills, activation metadata, package
+manifests, projection drift controls, or the skill creation process.
 
 ## Workflow
 
 1. Read `AGENTS.md`, `rules/skills.md`, and
    `docs/governance/playbooks-and-skills.md` before changing skill semantics.
-2. Decide whether the repeated procedure truly needs a skill; otherwise update
-   docs, rules, tests, or scripts instead.
-3. Keep `SKILL.md` narrow: trigger, workflow, evidence, and trust boundary.
-   Put longer explanation in `references/` and executable checks in `scripts/`.
-4. Use `references/portfolio-design.md` before creating a new skill; prefer
-   strengthening the existing MECE portfolio unless a new repeated procedure has
-   a distinct owner. Treat route overlap, weak triggers, oversized entrypoints,
-   missing creator-admission evidence, and stale digests as first-class disorder
-   signals, not cosmetic issues.
-5. Keep skill creator activity inside this skill's workflow: scaffold helpers may
-   draft files, but admission requires owner subject, truth boundary, activation
-   route, package digest, proof commands, and projection-drift evidence.
-6. Update `.agents/skills/activation.toml` and `package.toml` together so route
-   metadata, included files, required sections, capabilities, and digests stay
-   aligned.
-7. Run the bundled portfolio audit plus `ethos playbooks check --mode v2-strict
-   --json` and `ethos prove --gate playbooks-v2 --json` before claiming the
-   projection is fresh.
+2. Keep each skill narrow: trigger, workflow, evidence, and trust boundary.
+   Put executable checks in its owner script and longer criteria in references.
+3. Update `SKILL.md`, `package.toml`, and `activation.toml` together so the
+   route, package digest, and command metadata remain aligned.
+4. Route durable truth to source, tests, schemas, docs, OpenSpec, claims, or
+   evidence; a skill must not create a shadow task store or lifecycle ledger.
+5. Run the bundled owner script, current proof gate, and changed-scope plan
+   before claiming portfolio readiness.
 
 ## Evidence
 
-Use these commands as machine evidence:
-
 ```bash
 .agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .
-ethos playbooks check --mode v2-strict --json
-ethos playbooks route --changed --json
-ethos prove --gate playbooks-v2 --json
-ethos prove --execute --gate playbooks-v2 --json
+uv run ethos prove --gate playbooks-v2 --json
+uv run ethos plan --changed --json
 ```
 
 ## Trust Boundary
 
-This skill governs skill projections only. Repository source, tests, schemas,
-governed docs, OpenSpec records, claims, evidence, and ETHOS command JSON remain
-the source of truth. Skills expose procedures; they do not create product truth.
+This skill governs skill projections only. Repository truth remains in source,
+tests, schemas, docs, OpenSpec, claims, evidence, and ETHOS command JSON.

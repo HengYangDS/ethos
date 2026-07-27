@@ -132,12 +132,8 @@ prefix = "docs/evidence"
 boundary = "curated dated reviewable evidence"
 
 [[review_prefix]]
-prefix = "evidence/chronicle"
-boundary = "curated judged history evidence"
-
-[[review_prefix]]
-prefix = "evidence/parity"
-boundary = "tracked parity evidence promoted by explicit command"
+prefix = "evidence"
+boundary = "durable Attestations plus immutable historical evidence"
 
 [[review_prefix]]
 prefix = "tools/ci/scripts"
@@ -249,7 +245,7 @@ cleanup = "rebuild from package metadata or release commands"
 
 [[lifecycle_class]]
 id = "curated_evidence"
-homes = ["docs/evidence", "evidence/chronicle", "evidence/parity"]
+homes = ["docs/evidence", "evidence"]
 tracked = true
 promotion_allowed = false
 cleanup = "retire or supersede by tracked review, not by cache cleanup"

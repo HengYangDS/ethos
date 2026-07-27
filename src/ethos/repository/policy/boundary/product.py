@@ -48,7 +48,24 @@ class Finding:
         return {"path": self.path, "line": self.line, "kind": self.kind, "detail": self.detail}
 
 
-def _is_text_product_file(path: Path, *, root: Path) -> bool:
+def declared_product_surface_roots(root: Path) -> tuple[str, ...]:
+    """Return policy roots plus carriers declared by the product surface contract."""
+    path = root / "system/surfaces.toml"
+    try:
+        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        payload = {}
+    declared = payload.get("surface", [])
+    carriers = (
+        str(surface.get("carrier", "")).strip("/")
+        for surface in declared
+        if isinstance(surface, dict)
+    )
+    active = (*PRODUCT_SURFACES, *carriers, "openspec/changes")
+    return tuple(dict.fromkeys(surface for surface in active if surface))
+
+
+def _is_text_product_file(path: Path, *, root: Path, surfaces: tuple[str, ...]) -> bool:
     rel = path.relative_to(root).as_posix()
     if rel == ".ethos/state" or rel.startswith(".ethos/state/"):
         return False
@@ -58,17 +75,23 @@ def _is_text_product_file(path: Path, *, root: Path) -> bool:
         return False
     if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name == "LICENSE")):
         return False
-    return any(rel == surface or rel.startswith(f"{surface}/") for surface in PRODUCT_SURFACES)
+    return any(rel == surface or rel.startswith(f"{surface}/") for surface in surfaces)
 
 
 def product_surface_files(root: Path) -> list[Path]:
+    """Return active text files from every policy and declared product surface."""
     files: list[Path] = []
-    for surface in PRODUCT_SURFACES:
+    surfaces = declared_product_surface_roots(root)
+    for surface in surfaces:
         base = root / surface
-        if base.is_file() and _is_text_product_file(base, root=root):
+        if base.is_file() and _is_text_product_file(base, root=root, surfaces=surfaces):
             files.append(base)
         elif base.is_dir():
-            files.extend(path for path in base.rglob("*") if _is_text_product_file(path, root=root))
+            files.extend(
+                path
+                for path in base.rglob("*")
+                if _is_text_product_file(path, root=root, surfaces=surfaces)
+            )
     return sorted(set(files))
 
 
@@ -268,7 +291,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         "findings": [finding.to_dict() for finding in findings],
         "required_gaps": [finding.code() for finding in findings],
         "policy": {
-            "product_surfaces": list(PRODUCT_SURFACES),
+            "product_surfaces": list(declared_product_surface_roots(root)),
             "historical_surface_prefixes": list(HISTORICAL_SURFACE_PREFIXES),
             "release_visible_historical_surface_prefixes": list(
                 RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
@@ -287,7 +310,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
                 "repositories or personal work history"
             ),
             "release_visible_historical_boundary": (
-                "release-visible chronicles, parity evidence, archived changes, "
+                "release-visible chronicles, comparison evidence, archived changes, "
                 "history, and superseded decisions preserve judged provenance "
                 "without raw workstation paths, personal attribution, named "
                 "private adopters, or private project dependency literals"

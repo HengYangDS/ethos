@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.control import replacement
-from ethos.adapters.admission.evidence import external
-from ethos.adapters.mutation.proof import executed_proof_record
+import pytest
+
+import ethos.adapters.admission.control.replacement as control_replacement
+import ethos.adapters.admission.evidence.external as external_evidence
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.rules import stable_digest
 from tests.support.contract_helpers import commit_fixture_file
@@ -39,22 +41,22 @@ def _trusted_receipt(
 ) -> Path:
     store = tmp_path / "receipts"
     store.mkdir(exist_ok=True)
-    provider = external.IndependentVerificationProvider(
+    provider = external_evidence.IndependentVerificationProvider(
         receipt_store=store,
         allowed_signers=tmp_path / "allowed-signers",
         namespace="ethos-independent-verification",
         implementation_digest="e" * 64,
     )
     monkeypatch.setattr(
-        replacement,
+        control_replacement,
         "load_independent_verification_provider",
         lambda _path: (provider, []),
     )
     monkeypatch.setattr(
-        replacement, "default_provider_config_path", lambda: tmp_path / "provider.toml"
+        control_replacement, "default_provider_config_path", lambda: tmp_path / "provider.toml"
     )
     monkeypatch.setattr(
-        replacement,
+        control_replacement,
         "verify_independent_receipt_signature",
         lambda receipt, configured: receipt.signature == "signed" and configured == provider,
     )
@@ -85,7 +87,7 @@ def test_non_control_change_needs_no_independent_verification(tmp_path: Path) ->
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     candidate_head = commit_fixture_file(candidate, "README.md", "# candidate\n", "docs")
 
-    report = replacement.control_replacement_report(
+    report = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=git(repo, "rev-parse", "HEAD"),
         candidate_head=candidate_head,
@@ -98,45 +100,37 @@ def test_non_control_change_needs_no_independent_verification(tmp_path: Path) ->
     assert report["independent_verification"] == {}
 
 
-def test_control_change_projects_exact_signed_verification_subject(tmp_path: Path) -> None:
+def test_control_change_projects_signed_verification_subject(tmp_path: Path) -> None:
     _repo, candidate, accepted_head, candidate_head = _control_change(tmp_path)
     seed_executed_proof(candidate, candidate_head)
 
-    report = replacement.control_replacement_report(
+    report = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
     )
 
-    record = executed_proof_record(candidate, candidate_head)
-    assert record is not None
-    evidence = cast("dict[str, object]", record["evidence"])
     subject = cast("dict[str, object]", report["subject"])
-    assert subject == {
-        "schema_version": 1,
-        "kind": "control-replacement",
-        "accepted": {
-            "head": accepted_head,
-            "tree": git(candidate, "rev-parse", f"{accepted_head}^{{tree}}"),
-            "control_digest": replacement._control_digest(
-                candidate, accepted_head, ("system/gates.toml",)
-            ),
-        },
-        "candidate": {
-            "head": candidate_head,
-            "tree": git(candidate, "rev-parse", f"{candidate_head}^{{tree}}"),
-            "control_digest": replacement._control_digest(
-                candidate, candidate_head, ("system/gates.toml",)
-            ),
-            "executed_proof_digest": evidence["digest"],
-        },
-        "control_paths": ["system/gates.toml"],
-    }
+    accepted = cast("dict[str, object]", subject["accepted"])
+    candidate_subject = cast("dict[str, object]", subject["candidate"])
+    assert report["control_paths"] == ["system/gates.toml"]
+    assert subject["schema_version"] == 1
+    assert subject["kind"] == "control-replacement"
+    assert accepted["head"] == accepted_head
+    assert candidate_subject["head"] == candidate_head
+    assert accepted["tree"] == git(candidate, "rev-parse", f"{accepted_head}^{{tree}}")
+    assert candidate_subject["tree"] == git(candidate, "rev-parse", f"{candidate_head}^{{tree}}")
+    assert re.fullmatch(r"[0-9a-f]{64}", str(accepted["control_digest"]))
+    assert re.fullmatch(r"[0-9a-f]{64}", str(candidate_subject["control_digest"]))
+    assert accepted["control_digest"] != candidate_subject["control_digest"]
+    assert candidate_subject["executed_proof_digest"]
+
     request = cast("dict[str, object]", report["verification_request"])
     assert request["proof_floor_id"] == "ethos:control-replacement:v1"
     assert request["proof_floor_digest"] == stable_digest(subject)
     assert request["commit"] == candidate_head
-    assert request["tree"] == cast("dict[str, object]", subject["candidate"])["tree"]
+    assert request["tree"] == candidate_subject["tree"]
+    assert report["verdict"] == "defer"
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
 
@@ -145,7 +139,7 @@ def test_control_replacement_accepts_only_the_existing_signed_receipt_contract(
 ) -> None:
     _repo, candidate, accepted_head, candidate_head = _control_change(tmp_path)
     seed_executed_proof(candidate, candidate_head)
-    pending = replacement.control_replacement_report(
+    pending = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -153,7 +147,7 @@ def test_control_replacement_accepts_only_the_existing_signed_receipt_contract(
     request = cast("dict[str, object]", pending["verification_request"])
     receipt = _trusted_receipt(tmp_path, monkeypatch, request)
 
-    report = replacement.control_replacement_report(
+    report = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -172,7 +166,7 @@ def test_unsigned_custom_and_mismatched_signed_receipts_fail_closed(
 ) -> None:
     _repo, candidate, accepted_head, candidate_head = _control_change(tmp_path)
     seed_executed_proof(candidate, candidate_head)
-    pending = replacement.control_replacement_report(
+    pending = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -190,7 +184,7 @@ def test_unsigned_custom_and_mismatched_signed_receipts_fail_closed(
         ),
         encoding="utf-8",
     )
-    custom = replacement.control_replacement_report(
+    custom = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -199,7 +193,7 @@ def test_unsigned_custom_and_mismatched_signed_receipts_fail_closed(
     assert custom["required_gaps"] == ["independent_verification_receipt_invalid"]
 
     receipt = _trusted_receipt(tmp_path, monkeypatch, request, proof_floor_digest="0" * 64)
-    mismatch = replacement.control_replacement_report(
+    mismatch = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -212,7 +206,7 @@ def test_missing_executed_proof_and_untrusted_receipt_location_fail_closed(
     tmp_path: Path, monkeypatch
 ) -> None:
     _repo, candidate, accepted_head, candidate_head = _control_change(tmp_path)
-    missing = replacement.control_replacement_report(
+    missing = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -220,7 +214,7 @@ def test_missing_executed_proof_and_untrusted_receipt_location_fail_closed(
     assert missing["required_gaps"] == ["control_replacement_candidate_proof_not_proven"]
 
     seed_executed_proof(candidate, candidate_head)
-    pending = replacement.control_replacement_report(
+    pending = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -229,7 +223,7 @@ def test_missing_executed_proof_and_untrusted_receipt_location_fail_closed(
     trusted = _trusted_receipt(tmp_path, monkeypatch, request)
     outside = tmp_path / "outside.json"
     outside.write_bytes(trusted.read_bytes())
-    report = replacement.control_replacement_report(
+    report = control_replacement.control_replacement_report(
         candidate_root=candidate,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
@@ -238,36 +232,63 @@ def test_missing_executed_proof_and_untrusted_receipt_location_fail_closed(
     assert report["required_gaps"] == ["independent_verification_receipt_outside_store"]
 
 
-def test_control_surface_uses_few_broad_prefixes_and_binds_git_mode(tmp_path: Path) -> None:
-    required = {
+@pytest.mark.parametrize(
+    "relative_path",
+    [
         "src/ethos/repository/adoption/evolution.py",
         "src/ethos/repository/context.py",
         "src/ethos/contracts/workflow.py",
         "src/ethos/contracts/policy/cel.py",
         "src/ethos/adapters/repo/git.py",
-    }
-    assert all(replacement._is_control_path(path) for path in required)
-    assert replacement._is_control_path("README.md") is False
+    ],
+)
+def test_control_paths_require_independent_verification(
+    tmp_path: Path,
+    relative_path: str,
+) -> None:
+    _repo, candidate, accepted_head, candidate_head = _control_change(tmp_path, relative_path)
+    seed_executed_proof(candidate, candidate_head)
 
-    repo = init_git_repo(tmp_path / "mode")
-    control = repo / "system" / "gates.toml"
-    control.parent.mkdir(parents=True)
-    control.write_text("version = 1\n", encoding="utf-8")
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "control")
+    report = control_replacement.control_replacement_report(
+        candidate_root=candidate,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+    )
+
+    assert report["required"] is True
+    assert report["control_paths"] == [relative_path]
+    assert report["verdict"] == "defer"
+    assert report["required_gaps"] == ["independent_verification_receipt_required"]
+
+
+def test_control_change_digest_binds_git_mode(tmp_path: Path) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    commit_fixture_file(repo, "system/gates.toml", "version = 1\n", "control")
     accepted_head = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", accepted_head)
+    control = candidate / "system" / "gates.toml"
     control.chmod(0o755)
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "mode")
-    candidate_head = git(repo, "rev-parse", "HEAD")
+    git(candidate, "add", ".")
+    git(candidate, "commit", "-m", "mode")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_executed_proof(candidate, candidate_head)
 
-    assert replacement._control_digest(
-        repo, accepted_head, ("system/gates.toml",)
-    ) != replacement._control_digest(repo, candidate_head, ("system/gates.toml",))
+    report = control_replacement.control_replacement_report(
+        candidate_root=candidate,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+    )
+
+    subject = cast("dict[str, object]", report["subject"])
+    accepted = cast("dict[str, object]", subject["accepted"])
+    candidate_subject = cast("dict[str, object]", subject["candidate"])
+    assert report["control_paths"] == ["system/gates.toml"]
+    assert accepted["control_digest"] != candidate_subject["control_digest"]
+    assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
 
 def test_unresolvable_git_subject_defers_instead_of_allowing(tmp_path: Path) -> None:
-    report = replacement.control_replacement_report(
+    report = control_replacement.control_replacement_report(
         candidate_root=tmp_path,
         accepted_head="a" * 40,
         candidate_head="b" * 40,

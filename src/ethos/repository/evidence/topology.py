@@ -12,21 +12,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _relative(path: Path, root: Path) -> str:
-    return path.relative_to(root).as_posix()
-
-
 def evidence_topology_report(root: Path) -> dict[str, Any]:
-    """Report whether tracked evidence follows the declared evidence layout.
-
-    Args:
-        root: Repository root whose durable evidence tree should be inspected.
-
-    Returns:
-        A deterministic read model with declaration source refs, layout metadata,
-        counts, and required gaps. The report is read-only and does not claim
-        proof freshness.
-    """
+    """Report whether tracked evidence follows the declared evidence layout."""
     repo = root.resolve()
     declaration = load_evidence_layout_declaration()
     profile = load_repository_profile(repo)
@@ -56,13 +43,16 @@ def evidence_topology_report(root: Path) -> dict[str, Any]:
 
 def _empty_counts(*, curated_profile: bool = False) -> dict[str, int]:
     counts = {
-        "claim_files": 0,
-        "chronicle_records": 0,
-        "parity_artifacts": 0,
+        "attestation_files": 0,
+        "historical_artifacts": 0,
     }
     if curated_profile:
         counts["curated_artifacts"] = 0
     return counts
+
+
+def _files(root: Path) -> list[Path]:
+    return sorted(path for path in root.rglob("*") if path.is_file()) if root.is_dir() else []
 
 
 def _kernel_evidence_report(
@@ -72,9 +62,6 @@ def _kernel_evidence_report(
     declaration: EvidenceLayoutDeclaration,
 ) -> dict[str, Any]:
     kernel = declaration.kernel
-    claims_root = evidence_root / "claims"
-    chronicle_root = evidence_root / "chronicle"
-    parity_root = evidence_root / "parity"
     gaps: list[str] = []
 
     if not evidence_root.exists():
@@ -85,49 +72,24 @@ def _kernel_evidence_report(
             "counts": _empty_counts(),
         }
 
-    root_entries = sorted(evidence_root.iterdir(), key=lambda path: path.name)
-    for path in root_entries:
-        if path.is_file() and path.name not in kernel.allowed_root_files:
-            gaps.append(f"{kernel.root_file_not_allowed_gap_prefix}:{path.name}")
-        if path.is_dir() and path.name not in kernel.allowed_root_dirs:
-            gaps.append(f"{kernel.root_dir_not_allowed_gap_prefix}:{path.name}")
+    allowed_dirs = {*kernel.allowed_root_dirs, *kernel.historical_root_dirs}
+    for item in sorted(evidence_root.iterdir(), key=lambda path: path.name):
+        if item.is_file() and item.name not in kernel.allowed_root_files:
+            gaps.append(f"{kernel.root_file_not_allowed_gap_prefix}:{item.name}")
+        if item.is_dir() and item.name not in allowed_dirs:
+            gaps.append(f"{kernel.root_dir_not_allowed_gap_prefix}:{item.name}")
 
-    claim_files = sorted(claims_root.glob(kernel.claim_file_glob)) if claims_root.is_dir() else []
-    nested_claim_files = (
-        sorted(claims_root.glob(kernel.nested_claim_file_glob)) if claims_root.is_dir() else []
+    attestation_files = _files(evidence_root / kernel.allowed_root_dirs[0])
+    historical_artifacts = sum(
+        len(_files(evidence_root / directory)) for directory in kernel.historical_root_dirs
     )
-    gaps.extend(
-        f"{kernel.claim_nested_file_gap_prefix}:{_relative(path, claims_root)}"
-        for path in nested_claim_files
-    )
-
-    chronicle_records = (
-        sorted(chronicle_root.glob(kernel.chronicle_record_glob)) if chronicle_root.is_dir() else []
-    )
-    flat_chronicle_markdown = (
-        sorted(chronicle_root.glob(kernel.flat_chronicle_glob)) if chronicle_root.is_dir() else []
-    )
-    gaps.extend(
-        f"{kernel.chronicle_flat_markdown_gap_prefix}:{path.name}"
-        for path in flat_chronicle_markdown
-    )
-
-    parity_artifacts = (
-        sorted(parity_root.glob(kernel.parity_artifact_glob)) if parity_root.is_dir() else []
-    )
-
-    gaps.extend(
-        item.gap for item in kernel.required_subroot if not (evidence_root / item.name).is_dir()
-    )
-
     return {
         "ok": not gaps,
         "required_gaps": gaps,
         "layout": declaration.layout_payload(evidence_root_relative),
         "counts": {
-            "claim_files": len(claim_files),
-            "chronicle_records": len(chronicle_records),
-            "parity_artifacts": len([path for path in parity_artifacts if path.is_file()]),
+            "attestation_files": len(attestation_files),
+            "historical_artifacts": historical_artifacts,
         },
     }
 
@@ -154,7 +116,6 @@ def _curated_profile_evidence_report(
         for path in root_entries
         if path.is_file() and path.name not in curated.allowed_root_files
     )
-
     curated_artifacts = [
         path
         for path in evidence_root.rglob("*")
@@ -165,9 +126,8 @@ def _curated_profile_evidence_report(
         "required_gaps": gaps,
         "layout": declaration.layout_payload(evidence_root_relative, curated_profile=True),
         "counts": {
-            "claim_files": 0,
-            "chronicle_records": 0,
-            "parity_artifacts": 0,
+            "attestation_files": len(_files(evidence_root / "attestations")),
+            "historical_artifacts": 0,
             "curated_artifacts": len(curated_artifacts),
         },
     }

@@ -129,7 +129,7 @@ ETHOS should keep official OpenSpec, but wrap it:
 
 - `openspec/specs` = accepted behavioral spec projection.
 - `openspec/changes` = spec delta carrier.
-- `ethos openspec` = adapter that validates lifecycle, archive fusion, evidence/claim refs, and no silent delta loss.
+- official OpenSpec CLI = lifecycle owner; ETHOS consumes validated carrier facts through its lifecycle gates.
 
 ## Spec Kit findings
 
@@ -258,7 +258,7 @@ For repo-local skills:
 - manifest -> deterministic IR.
 - path/symlink/escape validation.
 - eval metadata model: task, treatment, pass@k, instability gap.
-- integrate with `ethos playbooks check` / skill portfolio gates.
+- integrate with the repo-local portfolio audit and the `playbooks-v2` proof gate.
 
 ### Milestone 5: Decision record
 

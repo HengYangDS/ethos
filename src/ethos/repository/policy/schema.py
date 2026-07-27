@@ -12,13 +12,12 @@ from jsonschema.exceptions import SchemaError
 
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.contracts.skill.activation import skill_registry_digest
-from ethos.normalization.core import string_list
+from ethos.normalization.coercion import string_list
 from ethos.quality.gates import product_gate_plan
 from ethos.quality.profiles import product_quality_profile
-from ethos.repository.policy.container_contract.core import container_contract_report
+from ethos.repository.policy.container_contract.validation import container_contract_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.registry.docs.health import docs_health_report
-from ethos.repository.registry.profiles import governance_profile_report
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -85,7 +84,16 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
         and schema_dir.resolve() == product_schema_dir.resolve()
         else "adopter"
     )
+    retired_schema = local_schema_dir / "capability-profile.schema.json"
+    if retired_schema.exists():
+        gaps.append("schema_retired:capability-profile.schema.json")
+        schemas[retired_schema.name] = {
+            "ok": False,
+            "error": "retired semantic schema",
+        }
     for path in sorted(schema_dir.glob("*.schema.json")):
+        if path.resolve() == retired_schema.resolve():
+            continue
         try:
             schema = json.loads(path.read_text(encoding="utf-8"))
             Draft202012Validator.check_schema(schema)
@@ -94,7 +102,7 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             schemas[path.name] = {"ok": False, "error": str(exc)}
         else:
             schemas[path.name] = {"ok": True, "title": schema.get("title", "")}
-    instances = _instance_validation_report(repo, mode=mode)
+    instances = _instance_validation_report(repo)
     for name, instance in instances.items():
         if instance.get("ok") is not True:
             gaps.extend(
@@ -144,22 +152,10 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
     return {key: _bundle_node(item, root=root, seen=seen) for key, item in value.items()}
 
 
-def _instance_validation_report(root: Path, *, mode: str) -> dict[str, Mapping[str, object]]:
-    from ethos.repository.policy.coupling.core import coupling_audit_report
+def _instance_validation_report(root: Path) -> dict[str, Mapping[str, object]]:
+    from ethos.repository.policy.coupling.audit import coupling_audit_report
 
     instances: dict[str, Mapping[str, object]] = {}
-    ledger_path = root / "evolution" / "ledger.toml"
-    if ledger_path.exists():
-        try:
-            ledger = tomllib.loads(ledger_path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError as exc:
-            instances["evolution-ledger"] = {"ok": False, "required_gaps": [str(exc)]}
-        else:
-            instances["evolution-ledger"] = validate_schema_instance(
-                "evolution-ledger.schema.json",
-                ledger,
-                root=root,
-            )
     docs = docs_health_report(root)
     instances["docs-registry"] = validate_schema_instance(
         "docs-registry.schema.json",
@@ -191,12 +187,6 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, Mapping[s
         product_gate_plan(),
         root=root,
     )
-    instances["governance-profile-contract"] = validate_schema_instance(
-        "governance-profile.schema.json",
-        governance_profile_report(),
-        root=root,
-    )
-    instances["capability-profiles"] = _capability_profiles_report(root, mode=mode)
     instances["container-contract"] = container_contract_report(root)
     instances["coupling-audit-contract"] = validate_schema_instance(
         "coupling-audit.schema.json",
@@ -257,37 +247,6 @@ def _live_skill_contract_instances(root: Path) -> dict[str, Mapping[str, object]
         "required_gaps": package_gaps,
     }
     return instances
-
-
-def _capability_profiles_report(root: Path, *, mode: str) -> dict[str, object]:
-    profile_paths = sorted((root / "openspec" / "specs").glob("*/capability.toml"))
-    gaps: list[str] = []
-    advisory_gaps: list[str] = []
-    for path in profile_paths:
-        try:
-            payload = tomllib.loads(path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError as exc:
-            gaps.append(f"{path.relative_to(root).as_posix()}:{exc}")
-            continue
-        validation = validate_schema_instance(
-            "capability-profile.schema.json",
-            payload,
-            root=root,
-        )
-        if validation.get("ok") is not True:
-            gaps.extend(
-                f"{path.relative_to(root).as_posix()}:{gap}"
-                for gap in string_list(validation.get("required_gaps"))
-            )
-    if mode == "adopter":
-        advisory_gaps = gaps
-        gaps = []
-    return {
-        "ok": not gaps,
-        "profile_count": len(profile_paths),
-        "required_gaps": gaps,
-        "advisory_gaps": advisory_gaps,
-    }
 
 
 def validate_ethos_result(

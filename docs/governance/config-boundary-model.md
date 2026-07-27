@@ -15,13 +15,13 @@ and machine contracts. No single directory owns every governance fact.
 
 | Surface | Role | Owns | Does Not Own |
 | --- | --- | --- | --- |
-| `.ethos/` | ETHOS binding layer | profile entrypoint, backend selection, ignored ETHOS local state | tool-native config, domain truth, durable evidence |
+| `.ethos/` | ETHOS binding layer | profile entrypoint and ignored local runtime state | tool-native config, domain truth, durable evidence, execution-substrate selection |
 | `.config/` | execution/config layer | tool configuration, reusable gate policy, CI scripts, boundary configs, worktree configs | ETHOS ontology, evidence truth, user decisions |
 | `rules/` | governance rule layer | human and agent rules, domain contracts, projection policies | tool implementation details, generated state |
-| `docs/` | truth/evidence/explanation layer | canonical docs, decisions, dated evidence, reference material | local runtime state |
+| `docs/` | explanation layer | canonical docs, decisions, reference material | local runtime state, durable evidence ownership |
+| `evidence/` | durable evidence layer | Attestations and immutable historical evidence | generated output, local runtime state, parallel lifecycle ownership |
 | `system/` | optional machine-contract layer | machine-readable product or system contracts | adopter-only domain truth when absent |
 | `openspec/` | specification projection | official OpenSpec changes and specs | promoted runtime truth by itself |
-| `claims/` | claim lifecycle layer | semantic claim records and evidence bindings | local execution state |
 | `.agents/` | repo-local agent projection | skills and activation projections | independent truth store |
 
 ## `.ethos/` And `.config/`
@@ -46,14 +46,15 @@ unless the profile explicitly requires it.
 
 ## Evidence Boundaries
 
-Durable evidence belongs in the repository's durable evidence roots, commonly
-`evidence/` or a profile-declared adopter equivalent. Generated evidence belongs in generated
-artifact roots, commonly `build/evidence/`. Host-local state belongs under
-ignored state roots such as `.ethos/state/` or `.cache/local-state/`.
+Durable evidence belongs in the repository's durable evidence root. Current
+records are Attestations; retained historical bytes remain readable without
+becoming a current owner. Generated evidence belongs in generated artifact roots,
+commonly `build/evidence/`. Host-local state belongs under ignored state roots
+such as `.ethos/state/` or `.cache/local-state/`.
 
 ETHOS must not turn generated artifacts or host-local state into durable truth.
-A proof can cite generated evidence for a current HEAD, but durable claims need
-reviewed evidence or an accepted repository authority surface.
+A proof can cite generated evidence for a current HEAD, but a durable Attestation
+requires reviewed evidence and an accepted repository authority surface.
 
 ## Tool Boundary
 

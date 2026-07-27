@@ -38,6 +38,18 @@ class QuarantinedPackageBinding:
     file_identities: dict[str, CurrentFileIdentity]
 
 
+@dataclass(frozen=True, slots=True)
+class _BoundQuarantineDirectory:
+    """Descriptor and identity facts retained for exact quarantined-child removal."""
+
+    root: Path
+    root_descriptor: int
+    root_identity: posix.DirectoryIdentity
+    descriptor: int
+    name: str
+    identity: tuple[int, int, int]
+
+
 class CurrentRecordSnapshot:
     """Hold the current root and opened child directories by verified descriptors."""
 
@@ -305,21 +317,26 @@ def remove_quarantined_package(
         ):
             names = _quarantined_package_names(package_descriptor, binding)
             if names is not None and _remove_bound_children(
-                root,
-                root_descriptor,
-                root_identity,
-                package_descriptor,
-                quarantine_name,
+                _BoundQuarantineDirectory(
+                    root=root,
+                    root_descriptor=root_descriptor,
+                    root_identity=root_identity,
+                    descriptor=package_descriptor,
+                    name=quarantine_name,
+                    identity=binding.identity,
+                ),
                 binding,
                 names,
             ):
                 removed = _remove_quarantine_directory(
-                    root,
-                    root_descriptor,
-                    root_identity,
-                    package_descriptor,
-                    quarantine_name,
-                    binding.identity,
+                    _BoundQuarantineDirectory(
+                        root=root,
+                        root_descriptor=root_descriptor,
+                        root_identity=root_identity,
+                        descriptor=package_descriptor,
+                        name=quarantine_name,
+                        identity=binding.identity,
+                    )
                 )
     except OSError:
         removed = False
@@ -369,24 +386,15 @@ def _quarantined_package_names(
     return names if valid else None
 
 
-def _remove_bound_children(  # noqa: PLR0913, RUF100 - exact quarantine binding
-    root: Path,
-    root_descriptor: int,
-    root_identity: posix.DirectoryIdentity,
-    descriptor: int,
-    quarantine_name: str,
+def _remove_bound_children(
+    directory: _BoundQuarantineDirectory,
     binding: QuarantinedPackageBinding,
     names: tuple[str, ...],
 ) -> bool:
     deletion_order = sorted(names, key=lambda name: name == "manifest.json")
     return all(
         _remove_bound_child(
-            root,
-            root_descriptor,
-            root_identity,
-            descriptor,
-            quarantine_name,
-            binding.identity,
+            directory,
             name,
             binding.file_identities[name],
             binding.sha256[name],
@@ -395,35 +403,30 @@ def _remove_bound_children(  # noqa: PLR0913, RUF100 - exact quarantine binding
     )
 
 
-def _remove_bound_child(  # noqa: PLR0913, RUF100 - exact payload binding
-    root: Path,
-    root_descriptor: int,
-    root_identity: posix.DirectoryIdentity,
-    descriptor: int,
-    quarantine_name: str,
-    quarantine_identity: tuple[int, int, int],
+def _remove_bound_child(
+    directory: _BoundQuarantineDirectory,
     name: str,
     identity: CurrentFileIdentity,
     expected_sha256: str,
 ) -> bool:
     if not posix.child_directory_is_live(
-        root,
-        root_descriptor,
-        root_identity,
-        descriptor,
-        quarantine_name,
-        quarantine_identity,
+        directory.root,
+        directory.root_descriptor,
+        directory.root_identity,
+        directory.descriptor,
+        directory.name,
+        directory.identity,
     ):
         return False
     staging_name = _staging_name(name, identity)
     source_descriptor: int | None = None
-    if _entry_identity_at(descriptor, staging_name) is None:
+    if _entry_identity_at(directory.descriptor, staging_name) is None:
         with suppress(OSError):
-            source_descriptor = posix.open_identity_bound_file(descriptor, name, identity)
+            source_descriptor = posix.open_identity_bound_file(directory.descriptor, name, identity)
     if source_descriptor is None:
         return False
     try:
-        posix.rename_no_replace(descriptor, name, staging_name)
+        posix.rename_no_replace(directory.descriptor, name, staging_name)
     except OSError:
         os.close(source_descriptor)
         return False
@@ -433,38 +436,38 @@ def _remove_bound_child(  # noqa: PLR0913, RUF100 - exact payload binding
         staging_identity = posix.file_identity(os.fstat(source_descriptor))
         exact_identity = staging_identity
         recovery_identity = exact_identity
-        if posix.entry_file_identity(descriptor, staging_name) != exact_identity:
-            _restore_staged_entry(descriptor, staging_name, name, identity)
+        if posix.entry_file_identity(directory.descriptor, staging_name) != exact_identity:
+            _restore_staged_entry(directory.descriptor, staging_name, name, identity)
             return False
         _require_safe(
             condition=posix.child_directory_is_live(
-                root,
-                root_descriptor,
-                root_identity,
-                descriptor,
-                quarantine_name,
-                quarantine_identity,
+                directory.root,
+                directory.root_descriptor,
+                directory.root_identity,
+                directory.descriptor,
+                directory.name,
+                directory.identity,
             )
         )
-        os.fsync(descriptor)
-        if not _file_matches(descriptor, staging_name, exact_identity, expected_sha256):
-            _restore_staged_entry(descriptor, staging_name, name, identity)
+        os.fsync(directory.descriptor)
+        if not _file_matches(directory.descriptor, staging_name, exact_identity, expected_sha256):
+            _restore_staged_entry(directory.descriptor, staging_name, name, identity)
             return False
-        posix.remove_owned_entry(descriptor, staging_name, exact_identity)
+        posix.remove_owned_entry(directory.descriptor, staging_name, exact_identity)
         deleted = True
         _require_safe(
             condition=posix.child_directory_is_live(
-                root,
-                root_descriptor,
-                root_identity,
-                descriptor,
-                quarantine_name,
-                quarantine_identity,
+                directory.root,
+                directory.root_descriptor,
+                directory.root_identity,
+                directory.descriptor,
+                directory.name,
+                directory.identity,
             )
         )
     except BaseException:
         if not deleted:
-            _restore_staged_entry(descriptor, staging_name, name, recovery_identity)
+            _restore_staged_entry(directory.descriptor, staging_name, name, recovery_identity)
         raise
     finally:
         os.close(source_descriptor)
@@ -476,29 +479,26 @@ def _require_safe(*, condition: bool) -> None:
         raise OSError(_RECORD_PATH_UNSAFE)
 
 
-def _remove_quarantine_directory(  # noqa: PLR0913, RUF100 - exact directory binding
-    root: Path,
-    root_descriptor: int,
-    root_identity: posix.DirectoryIdentity,
-    package_descriptor: int,
-    quarantine_name: str,
-    expected_identity: tuple[int, int, int],
+def _remove_quarantine_directory(
+    directory: _BoundQuarantineDirectory,
 ) -> bool:
-    os.fsync(package_descriptor)
+    os.fsync(directory.descriptor)
     if not posix.child_directory_is_live(
-        root,
-        root_descriptor,
-        root_identity,
-        package_descriptor,
-        quarantine_name,
-        expected_identity,
+        directory.root,
+        directory.root_descriptor,
+        directory.root_identity,
+        directory.descriptor,
+        directory.name,
+        directory.identity,
     ):
         return False
-    os.rmdir(quarantine_name, dir_fd=root_descriptor)
-    os.fsync(root_descriptor)
+    os.rmdir(directory.name, dir_fd=directory.root_descriptor)
+    os.fsync(directory.root_descriptor)
     return (
-        posix.directory_descriptor_is_live(root, root_descriptor, root_identity)
-        and _entry_token_at(root_descriptor, quarantine_name) is None
+        posix.directory_descriptor_is_live(
+            directory.root, directory.root_descriptor, directory.root_identity
+        )
+        and _entry_token_at(directory.root_descriptor, directory.name) is None
     )
 
 

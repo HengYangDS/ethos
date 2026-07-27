@@ -57,8 +57,12 @@ def test_lifecycle_declaration_is_frozen_and_source_bound() -> None:
         "handoff_offer",
         "handoff_accept",
     )
-    assert declaration.campaign is not None
-
+    assert tuple(item.kind for item in declaration.lease_transition) == (
+        "refresh",
+        "refresh",
+        "offer",
+        "accept",
+    )
     with pytest.raises(ValidationError) as frozen:
         declaration.node[0].id = "plan"
     assert frozen.value.errors()[0]["type"] == "frozen_instance"
@@ -90,12 +94,30 @@ def test_lifecycle_declaration_is_frozen_and_source_bound() -> None:
             id="unknown-effect-field",
         ),
         pytest.param(
+            lambda payload: payload["lease_transition"][0].update(
+                effect_fields=deepcopy(payload["lease_transition"][2]["effect_fields"])
+            ),
+            id="operation-effect-fields-mismatch",
+        ),
+        pytest.param(
             lambda payload: payload["lease_transition"][0].pop("actor_field"),
             id="missing-actor-field",
         ),
         pytest.param(
             lambda payload: payload["lease_transition"][0].update(actor_field="actor_ref"),
             id="invalid-actor-field",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][3].update(actor_field="holder_ref"),
+            id="operation-actor-field-mismatch",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].update(blocks_contrary_decision=True),
+            id="operation-blocks-contrary-decision-mismatch",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].update(kind="offer"),
+            id="derived-kind-cannot-be-overridden",
         ),
     ],
 )
@@ -149,13 +171,3 @@ def test_lifecycle_contract_reports_missing_action_and_external_fact() -> None:
         "lifecycle_plan_action_missing:missing",
         "lifecycle_external_fact_missing:plan:openspec_carrier",
     )
-
-
-def test_campaign_projection_cel_fails_closed() -> None:
-    payload = load_system_contract(Path(), "lifecycle")
-    campaign = dict(payload["campaign"])
-    campaign["publication_projection"] = "{"
-    payload["campaign"] = campaign
-
-    with pytest.raises(ValidationError):
-        LifecycleContract.model_validate(payload)

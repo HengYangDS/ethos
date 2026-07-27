@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import json
 import operator
+import re
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from types import MappingProxyType
+from typing import Literal
 
 import jsonschema
 import pytest
+from pydantic import ValidationError
 
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
@@ -18,7 +21,10 @@ from ethos.contracts.semantic import RepositoryFacts
 from ethos.contracts.semantic import apply_amendments
 from ethos.contracts.semantic import semantic_schema_documents
 from ethos.contracts.system.contracts import load_system_contract
+from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
+from ethos.repository.context import LIFECYCLE_COMMANDS
+from ethos.repository.context import governance_context
 from ethos.result import EthosResult
 
 _PLAN_INPUTS = {
@@ -34,29 +40,78 @@ _PLAN_INPUTS = {
         "source_refs": [],
     },
 }
+_BASE = {"id": "change:terminal-kernel", "intent": "Base", "subjects": ("repo",)}
+_ISSUED_AT = datetime(2026, 7, 25, tzinfo=UTC)
+
+
+def _contract(**updates: object) -> ChangeContract:
+    return ChangeContract(**(_BASE | updates))
+
+
+def _attestation(
+    *,
+    content: object,
+    verdict: Literal["pass", "block", "unknown"] = "pass",
+    advisories: tuple[str, ...] = (),
+) -> Attestation:
+    return Attestation.issue(
+        {
+            "kind": "observation",
+            "issuer": "agent:local:task:one",
+            "subject": "change:terminal-kernel",
+            "issued_at": _ISSUED_AT,
+            "verdict": verdict,
+            "content": content,
+            "advisories": advisories,
+            "change_contract_digest": "a" * 64,
+            "repository_facts_digest": "b" * 64,
+            "plan_digest": "c" * 64,
+            "policy_digest": "d" * 64,
+            "effect_digest": "",
+        }
+    )
+
+
+def _amendment(
+    base: ChangeContract,
+    patch: dict[str, object],
+    *,
+    issuer: str = "agent:local:task:one",
+    issued_at: datetime = _ISSUED_AT,
+    change_contract_digest: str | None = None,
+    kind: str = "amendment",
+    sequence: int = 0,
+) -> Attestation:
+    return Attestation.issue(
+        {
+            "kind": kind,
+            "issuer": issuer,
+            "subject": base.id,
+            "issued_at": issued_at,
+            "verdict": "pass",
+            "sequence": sequence,
+            "content": {"patch": patch} if kind == "amendment" else {"state": "seen"},
+            "change_contract_digest": base.digest()
+            if change_contract_digest is None
+            else change_contract_digest,
+            "repository_facts_digest": "",
+            "plan_digest": "",
+            "policy_digest": "",
+            "effect_digest": "",
+        }
+    )
 
 
 def test_plan_ir_is_deterministic_and_digest_bound() -> None:
-    first = PlanNode(
-        id="prove",
-        kind="check",
-        command=("ethos", "prove", "--json"),
-    )
-    second = PlanNode(
-        id="status",
-        kind="check",
-        command=("ethos", "status", "--json"),
-    )
-
-    plan = PlanIR(**_PLAN_INPUTS, nodes=(first, second))
-    serialized = plan.to_dict()
-
-    assert [node["id"] for node in serialized["nodes"]] == ["prove", "status"]
-    assert plan.digest() == PlanIR(**_PLAN_INPUTS, nodes=(second, first)).digest()
+    prove = PlanNode(id="prove", kind="check", command=("ethos", "prove", "--json"))
+    status = PlanNode(id="status", kind="check", command=("ethos", "status", "--json"))
+    plan = PlanIR(**_PLAN_INPUTS, nodes=(prove, status))
+    assert [node["id"] for node in plan.to_dict()["nodes"]] == ["prove", "status"]
+    assert plan.digest() == PlanIR(**_PLAN_INPUTS, nodes=(status, prove)).digest()
 
 
 def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None:
-    contract = ChangeContract(
+    contract = _contract(
         id="change:terminal-kernel",
         intent="Replace parallel semantic owners with one terminal kernel.",
         subjects=("repository:ethos",),
@@ -74,25 +129,17 @@ def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None
         values={"branch_role": "work_lane", "dirty": False},
         source_refs=("git:HEAD", "git:tree"),
     )
-
     assert contract.digest() == ChangeContract.model_validate(contract.model_dump()).digest()
     assert facts.digest() == RepositoryFacts.model_validate(facts.model_dump()).digest()
-    assert contract.model_config["frozen"] is True
-    assert facts.model_config["frozen"] is True
+    assert contract.model_config["frozen"] is facts.model_config["frozen"] is True
 
 
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ("/absolute",),
-        ("docs/../secrets",),
-        (r"docs\\windows",),
-        ("docs/**", "docs/**"),
-    ],
+    "scope", [("/absolute",), ("docs/../secrets",), (r"docs\\windows",), ("docs/**", "docs/**")]
 )
 def test_change_contract_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None:
     with pytest.raises(ValueError, match=r"change_scope_invalid|change_scope_duplicate"):
-        ChangeContract(
+        _contract(
             id="change:invalid-scope",
             intent="Reject ambiguous scope.",
             subjects=("repository:test",),
@@ -108,304 +155,391 @@ def test_repository_facts_digest_ignores_observation_time() -> None:
         observed_at=datetime(2026, 7, 25, tzinfo=UTC),
         values={"changed_paths": ("src/ethos/result.py",)},
     )
-
-    later = facts.model_copy(update={"observed_at": datetime(2026, 7, 26, tzinfo=UTC)})
-
-    assert facts.digest() == later.digest()
-
-
-def test_attestation_content_and_repository_facts_are_deeply_immutable() -> None:
-    attestation = Attestation(
-        id="attestation:immutable",
-        kind="observation",
-        issuer="agent:local:task:one",
-        subject="change:terminal-kernel",
-        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-        content={"nested": {"values": ["one", {"two": True}]}},
+    assert (
+        facts.digest()
+        == facts.model_copy(update={"observed_at": datetime(2026, 7, 26, tzinfo=UTC)}).digest()
     )
+
+
+def test_attestation_identity_and_serialization_are_content_addressed() -> None:
+    first = _attestation(
+        content={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+        advisories=("non_blocking_note",),
+    )
+    reordered = _attestation(
+        content={"a": {"nested": "value"}, "z": ["one", {"two": True}]},
+        advisories=("non_blocking_note",),
+    )
+
+    assert len(first.id) == len(first.content_digest) == 64
+    assert first.id == reordered.id
+    assert first.canonical_json() == reordered.canonical_json()
+    assert json.loads(first.canonical_json()) == first.model_dump(mode="json")
+    assert first.verdict == "pass"
+    assert first.advisories == ("non_blocking_note",)
+    assert first.mints_authority is False
+    assert (
+        _attestation(
+            content={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+            verdict="unknown",
+            advisories=("non_blocking_note",),
+        ).id
+        != first.id
+    )
+
+    forged = first.model_dump(mode="json")
+    forged["id"] = "f" * 64
+    with pytest.raises(ValueError, match="attestation_identity_mismatch"):
+        Attestation.model_validate_json(json.dumps(forged))
+
+
+def test_attestation_requires_closed_verdict_and_explicit_digest_bindings() -> None:
+    attestation = _attestation(content={"state": "observed"})
+    payload = attestation.model_dump(mode="json")
+    payload["verdict"] = "allow"
+    with pytest.raises(ValidationError):
+        Attestation.model_validate(payload)
+
+    payload = attestation.model_dump(mode="json")
+    payload["repository_facts_digest"] = "not-a-digest"
+    with pytest.raises(ValidationError):
+        Attestation.model_validate(payload)
+
+    payload = attestation.model_dump(mode="json")
+    payload.pop("policy_digest")
+    with pytest.raises(ValidationError):
+        Attestation.model_validate(payload)
+
+
+def test_attestation_kind_algebra_is_closed() -> None:
+    with pytest.raises(ValidationError):
+        Attestation.issue(
+            {
+                "kind": "claim",
+                "issuer": "agent:local:task:one",
+                "subject": "change:terminal-kernel",
+                "issued_at": _ISSUED_AT,
+                "verdict": "pass",
+                "content": {"summary": "legacy parallel entity"},
+            }
+        )
+
+
+def test_judgment_attestation_requires_basis_and_semantic_binding() -> None:
+    with pytest.raises(ValueError, match="attestation_judgment_content_invalid"):
+        Attestation.issue(
+            {
+                "kind": "judgment",
+                "issuer": "agent:local:task:one",
+                "subject": "capability:context-projection",
+                "issued_at": _ISSUED_AT,
+                "verdict": "pass",
+                "content": {"judgment": "semantic-disposition"},
+            }
+        )
+
+    attestation = Attestation.issue(
+        {
+            "kind": "judgment",
+            "issuer": "agent:local:task:one",
+            "subject": "capability:context-projection",
+            "issued_at": _ISSUED_AT,
+            "verdict": "pass",
+            "content": {
+                "judgment": "semantic-disposition",
+                "basis": "terminal product boundary",
+                "state": "superseded",
+            },
+            "change_contract_digest": "a" * 64,
+        }
+    )
+
+    assert attestation.kind == "judgment"
+
+
+def test_external_assurance_requires_native_evidence_binding() -> None:
+    with pytest.raises(ValueError, match="attestation_external_assurance_content_invalid"):
+        Attestation.issue(
+            {
+                "kind": "external-assurance",
+                "issuer": "provider:gitlab:project:ethos",
+                "subject": "git:commit:" + "a" * 40,
+                "issued_at": _ISSUED_AT,
+                "verdict": "pass",
+                "content": {"provider": "gitlab"},
+            }
+        )
+
+    attestation = Attestation.issue(
+        {
+            "kind": "external-assurance",
+            "issuer": "provider:gitlab:project:ethos",
+            "subject": "git:commit:" + "a" * 40,
+            "issued_at": _ISSUED_AT,
+            "verdict": "pass",
+            "content": {
+                "provider": "gitlab",
+                "verification_method": "hosted-ci",
+                "valid_until": "2026-07-27T00:00:00+00:00",
+            },
+            "evidence_refs": ("provider:gitlab:pipeline:1",),
+            "effect_digest": "a" * 64,
+        }
+    )
+
+    assert attestation.kind == "external-assurance"
+
+
+def test_semantic_values_are_immutable_and_digest_bound() -> None:
+    issued_at = datetime(2026, 7, 25, tzinfo=UTC)
+    attestation = _attestation(content={"nested": {"values": ["one", {"two": True}]}})
     facts = RepositoryFacts(
         repository="repository:ethos",
         head="a" * 40,
         tree="b" * 40,
-        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        observed_at=issued_at,
         values={"nested": {"values": ["one", {"two": True}]}},
     )
-
     assert isinstance(attestation.content, MappingProxyType)
-    assert isinstance(attestation.content["nested"], MappingProxyType)
-    assert attestation.content["nested"]["values"] == (
-        "one",
-        MappingProxyType({"two": True}),
-    )
+    assert attestation.content["nested"]["values"] == ("one", MappingProxyType({"two": True}))
     assert isinstance(facts.values, MappingProxyType)
-    assert isinstance(facts.values["nested"], MappingProxyType)
     with pytest.raises(TypeError):
         operator.setitem(attestation.content, "new", "forbidden")
     with pytest.raises(TypeError):
         operator.setitem(facts.values["nested"], "new", "forbidden")
-
-
-def test_attestation_binds_and_validates_its_content_digest() -> None:
-    issued_at = datetime(2026, 7, 25, tzinfo=UTC)
-    attestation = Attestation(
-        id="attestation:digest",
-        kind="observation",
-        issuer="agent:local:task:one",
-        subject="change:terminal-kernel",
-        issued_at=issued_at,
-        content={"state": "observed", "nested": {"count": 1}},
-    )
-
-    assert len(attestation.content_digest) == 64
-    assert Attestation.model_validate(attestation.model_dump()).content_digest == (
-        attestation.content_digest
+    assert (
+        Attestation.model_validate(attestation.model_dump()).content_digest
+        == attestation.content_digest
     )
     with pytest.raises(ValueError, match="attestation_content_digest_mismatch"):
-        Attestation(
-            id="attestation:forged",
-            kind="observation",
-            issuer="agent:local:task:one",
-            subject="change:terminal-kernel",
-            issued_at=issued_at,
-            content={"state": "changed"},
-            content_digest=attestation.content_digest,
+        Attestation.model_validate_json(
+            json.dumps(attestation.model_dump(mode="json") | {"content": {"state": "changed"}})
         )
 
 
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf"), b"bytes"])
 def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: object) -> None:
     with pytest.raises(TypeError, match="json_value_invalid"):
-        Attestation(
-            id="attestation:invalid-json",
-            kind="observation",
-            issuer="agent:local:task:one",
-            subject="change:terminal-kernel",
-            issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-            content={"invalid": invalid},
-        )
+        _attestation(content={"invalid": invalid})
 
 
-@pytest.mark.parametrize("invalid", ["scalar", ("array",), {1: "non-string-key"}])
+@pytest.mark.parametrize(
+    "invalid",
+    ["scalar", ("array",), {1: "non-string-key"}, {"nested": {1: "non-string-key"}}],
+)
 def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: object) -> None:
     with pytest.raises(TypeError, match=r"json_object_invalid|json_object_key_invalid"):
-        Attestation(
-            id="attestation:invalid-object",
-            kind="observation",
-            issuer="agent:local:task:one",
-            subject="change:terminal-kernel",
-            issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-            content=invalid,
-        )
+        _attestation(content=invalid)
 
 
-def test_amendment_attestations_fold_in_sequence_and_bind_prior_digest() -> None:
-    base = ChangeContract(
-        id="change:terminal-kernel",
-        intent="Establish the terminal kernel.",
-        subjects=("repository:ethos",),
-        acceptance=("base",),
-    )
-    first = Attestation(
-        id="attestation:first",
-        kind="amendment",
-        issuer="agent:local:task:one",
-        subject=base.id,
+def test_amendments_fold_in_order_and_require_authorized_fields() -> None:
+    base = _contract(acceptance=("base",))
+    authority = {"agent:local:task:one": ("acceptance",), "human:local:shell:owner": ("intent",)}
+    first = _amendment(
+        base,
+        {"acceptance": ["base", "deterministic"]},
         issued_at=datetime(2026, 7, 25, 1, tzinfo=UTC),
-        prior_digest=base.digest(),
-        content={"patch": {"acceptance": ["base", "deterministic"]}},
     )
-    authority = {
-        "agent:local:task:one": ("acceptance",),
-        "human:local:shell:owner": ("intent",),
-    }
     after_first = apply_amendments(base, (first,), issuer_permissions=authority)
-    second = Attestation(
-        id="attestation:second",
-        kind="amendment",
+    second = _amendment(
+        after_first,
+        {"intent": "Establish the smallest deterministic terminal kernel."},
         issuer="human:local:shell:owner",
-        subject=base.id,
         issued_at=datetime(2026, 7, 25, 2, tzinfo=UTC),
-        prior_digest=after_first.digest(),
-        content={"patch": {"intent": "Establish the smallest deterministic terminal kernel."}},
     )
-
     effective = apply_amendments(base, (second, first), issuer_permissions=authority)
-
-    assert effective.intent == "Establish the smallest deterministic terminal kernel."
-    assert effective.acceptance == ("base", "deterministic")
+    assert (effective.intent, effective.acceptance) == (
+        "Establish the smallest deterministic terminal kernel.",
+        ("base", "deterministic"),
+    )
     assert (
         effective.digest()
         == apply_amendments(base, (first, second), issuer_permissions=authority).digest()
     )
 
 
-def test_amendment_fold_requires_explicit_authority_map() -> None:
-    base = ChangeContract(id="change:test", intent="Base", subjects=("repository:test",))
-    amendment = Attestation(
-        id="attestation:test",
-        kind="amendment",
-        issuer="agent:local:task:one",
-        subject=base.id,
-        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-        prior_digest=base.digest(),
-        content={"patch": {"intent": "Changed"}},
-    )
-
-    with pytest.raises(ValueError, match="amendment_authority_missing"):
-        apply_amendments(base, (amendment,))
-
-
-def test_amendment_fold_rejects_digest_break_or_non_amendment_attestation() -> None:
-    base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
-    broken = Attestation(
-        id="attestation:broken",
-        kind="amendment",
-        issuer="agent:local:task:one",
-        subject=base.id,
-        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-        prior_digest="0" * 64,
-        content={"patch": {"intent": "Unbound"}},
-    )
-    observation = Attestation(
-        id="attestation:observation",
-        kind="observation",
-        issuer="agent:local:task:one",
-        subject=base.id,
-        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-        content={"state": "seen"},
-    )
-
-    with pytest.raises(ValueError, match="amendment_prior_digest_mismatch"):
-        apply_amendments(base, (broken,))
-    with pytest.raises(ValueError, match="attestation_not_amendment"):
-        apply_amendments(base, (observation,))
-
-
-def test_amendment_fold_rejects_unknown_contract_fields() -> None:
-    base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
-    amendment = Attestation(
-        id="attestation:unknown-field",
-        kind="amendment",
-        issuer="agent:local:task:one",
-        subject=base.id,
-        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-        prior_digest=base.digest(),
-        content={"patch": {"invented": "parallel ontology"}},
-    )
-
-    with pytest.raises(ValueError, match="amendment_field_unknown:invented"):
-        apply_amendments(
+@pytest.mark.parametrize(
+    ("patch", "authority", "error", "change_contract_digest", "kind"),
+    [
+        ({"intent": "Changed"}, None, "amendment_authority_missing", None, "amendment"),
+        (
+            {"intent": "Unbound"},
+            None,
+            "amendment_change_contract_digest_mismatch",
+            "0" * 64,
+            "amendment",
+        ),
+        ({"intent": "Ignored"}, None, "attestation_not_amendment", None, "observation"),
+        (
+            {"invented": "parallel ontology"},
+            {"agent:local:task:one": ("invented",)},
+            "amendment_field_unknown:invented",
+            None,
+            "amendment",
+        ),
+        (
+            {"permissions": ["repository.write"]},
+            {"authority:maintainer": ("intent",)},
+            "amendment_issuer_unauthorized",
+            None,
+            "amendment",
+        ),
+        (
+            {"permissions": ["repository.write"]},
+            {"authority:maintainer": ("intent",)},
+            "amendment_field_unauthorized:permissions",
+            None,
+            "amendment-authority",
+        ),
+    ],
+)
+def test_amendments_fail_closed_for_invalid_authority(
+    patch: dict[str, object],
+    authority: dict[str, tuple[str, ...]] | None,
+    error: str,
+    change_contract_digest: str | None,
+    kind: str,
+) -> None:
+    base = _contract(authority_refs=("authority:maintainer",))
+    if kind == "amendment-authority":
+        amendment = _amendment(base, patch, issuer="authority:maintainer")
+    else:
+        amendment = _amendment(
             base,
-            (amendment,),
-            issuer_permissions={"agent:local:task:one": ("invented",)},
+            patch,
+            change_contract_digest=change_contract_digest,
+            kind=kind,
         )
+    with pytest.raises(ValueError, match=error):
+        apply_amendments(base, (amendment,), issuer_permissions=authority)
 
 
 def test_amendment_fold_rejects_ambiguous_equal_sequence() -> None:
-    base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
+    base = _contract()
     issued_at = datetime(2026, 7, 25, tzinfo=UTC)
-    first = Attestation(
-        id="attestation:first",
-        kind="amendment",
-        issuer="agent:local:task:one",
-        subject=base.id,
-        issued_at=issued_at,
-        sequence=1,
-        prior_digest=base.digest(),
-        content={"patch": {"intent": "First"}},
-    )
-    second = Attestation(
-        id="attestation:second",
-        kind="amendment",
+    first = _amendment(base, {"intent": "First"}, issued_at=issued_at, sequence=1)
+    second = _amendment(
+        base,
+        {"intent": "Second"},
         issuer="agent:local:task:two",
-        subject=base.id,
         issued_at=issued_at,
         sequence=1,
-        prior_digest=base.digest(),
-        content={"patch": {"intent": "Second"}},
     )
-
     with pytest.raises(ValueError, match="amendment_order_ambiguous"):
         apply_amendments(base, (second, first))
 
 
-def test_amendment_fold_requires_explicit_issuer_and_field_authority() -> None:
-    base = ChangeContract(
-        id="change:terminal-kernel",
-        intent="Base",
-        subjects=("repo",),
-        authority_refs=("authority:maintainer",),
-    )
-    amendment = Attestation(
-        id="attestation:unauthorized",
-        kind="amendment",
-        issuer="agent:local:task:one",
-        subject=base.id,
-        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-        prior_digest=base.digest(),
-        content={"patch": {"permissions": ["repository.write"]}},
-    )
+def test_amendment_fold_rejects_duplicate_attestation_identity() -> None:
+    base = _contract()
+    amendment = _amendment(base, {"intent": "Changed"})
 
-    with pytest.raises(ValueError, match="amendment_issuer_unauthorized"):
+    with pytest.raises(ValueError, match="attestation_duplicate"):
         apply_amendments(
             base,
-            (amendment,),
-            issuer_permissions={
-                "authority:maintainer": ("intent",),
-            },
+            (amendment, amendment),
+            issuer_permissions={"agent:local:task:one": ("intent",)},
         )
 
 
-def test_amendment_fold_rejects_fields_outside_issuer_capability() -> None:
-    base = ChangeContract(
-        id="change:terminal-kernel",
-        intent="Base",
-        subjects=("repo",),
-        authority_refs=("authority:maintainer",),
-    )
-    amendment = Attestation(
-        id="attestation:overreach",
-        kind="amendment",
-        issuer="authority:maintainer",
-        subject=base.id,
-        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-        prior_digest=base.digest(),
-        content={"patch": {"permissions": ["repository.write"]}},
-    )
-
-    with pytest.raises(ValueError, match="amendment_field_unauthorized:permissions"):
-        apply_amendments(
-            base,
-            (amendment,),
-            issuer_permissions={"authority:maintainer": ("intent",)},
-        )
-
-
-def test_terminal_semantic_schemas_are_generated_from_python_contracts() -> None:
+def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     generated = semantic_schema_documents()
-
     assert set(generated) == {
         "change-contract.schema.json",
         "attestation.schema.json",
         "repository-facts.schema.json",
     }
-    for name, schema in generated.items():
-        path = Path("system/schemas/kernel") / name
-        assert json.loads(path.read_text(encoding="utf-8")) == schema
+    attestation_schema = generated["attestation.schema.json"]
+    assert {
+        "id",
+        "verdict",
+        "change_contract_digest",
+        "repository_facts_digest",
+        "plan_digest",
+        "policy_digest",
+        "effect_digest",
+        "content_digest",
+    } <= set(attestation_schema["required"])
+    assert attestation_schema["properties"]["verdict"]["enum"] == [
+        "pass",
+        "block",
+        "unknown",
+    ]
+    assert attestation_schema["properties"]["kind"]["enum"] == [
+        "observation",
+        "judgment",
+        "proof",
+        "effect",
+        "external-assurance",
+        "amendment",
+    ]
+    assert {
+        clause["if"]["properties"]["kind"]["const"] for clause in attestation_schema["allOf"]
+    } == set(attestation_schema["properties"]["kind"]["enum"])
+    schema_dir = Path("system/schemas/kernel")
+    expected = {
+        "result.schema.json",
+        *generated,
+        "commit-policy.schema.json",
+        "plan-ir.schema.json",
+        "provenance.schema.json",
+        "docs-registry.schema.json",
+        "gate.schema.json",
+        "assistant-projection.schema.json",
+        "lane-lease.schema.json",
+        "mutation-decision.schema.json",
+        "workspace-status.schema.json",
+        "authority.schema.json",
+        "authority-graph.schema.json",
+    }
+    paths = tuple(schema_dir.glob("*.schema.json"))
+    assert expected <= {path.name for path in paths}
+    for path in paths:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+        assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+        assert schema["title"].startswith("ETHOS")
         jsonschema.Draft202012Validator.check_schema(schema)
+        if path.name in generated:
+            assert schema == generated[path.name]
+    workspace_schema = json.loads(
+        (schema_dir / "workspace-status.schema.json").read_text(encoding="utf-8")
+    )
+    serialized_workspace_schema = json.dumps(workspace_schema, sort_keys=True)
+    assert "claim_id" not in serialized_workspace_schema
+    assert "claim_binding" not in serialized_workspace_schema
+    for definition in (
+        "branchBinding",
+        "closeoutSupport",
+        "foreignWorkLane",
+        "unboundWorkLaneRef",
+    ):
+        properties = workspace_schema["$defs"][definition]["properties"]
+        assert {
+            "base_change_contract_digest",
+            "contract_binding",
+            "lease_state",
+        } <= set(properties)
+    assert workspace_schema["$defs"]["foreignWorkLane"]["properties"]["lease_state"]["enum"] == [
+        "valid",
+        "expired",
+        "unknown",
+        "missing",
+    ]
+    plan = PlanIR(
+        **_PLAN_INPUTS, nodes=(PlanNode(id="land", kind="effect", command=("ethos", "land")),)
+    )
+    jsonschema.Draft202012Validator(
+        json.loads((schema_dir / "plan-ir.schema.json").read_text())
+    ).validate(plan.to_dict())
 
 
 def test_result_contract_has_stable_top_level_fields() -> None:
-    result = EthosResult(
+    payload = EthosResult(
         command="status",
         ok=True,
         state="ready",
         summary={"branch": "dev"},
         next_actions=("ethos plan --changed",),
-    )
-
-    payload = result.to_dict()
-
+    ).to_dict()
     assert tuple(payload) == (
         "schema_version",
         "command",
@@ -421,161 +555,63 @@ def test_result_contract_has_stable_top_level_fields() -> None:
     json.dumps(payload)
 
 
-def test_json_schemas_are_declared_for_kernel_protocols() -> None:
-    schema_dir = Path("system/schemas/kernel")
-    expected = {
-        "result.schema.json",
-        "change-contract.schema.json",
-        "attestation.schema.json",
-        "repository-facts.schema.json",
-        "claim.schema.json",
-        "commit-policy.schema.json",
-        "plan-ir.schema.json",
-        "proof-run.schema.json",
-        "evidence-set.schema.json",
-        "provenance.schema.json",
-        "semantic-attestation-receipt.schema.json",
-        "evolution.schema.json",
-        "docs-registry.schema.json",
-        "evolution-ledger.schema.json",
-        "gate.schema.json",
-        "assistant-projection.schema.json",
-        "lane-lease.schema.json",
-        "mutation-decision.schema.json",
-        "workspace-status.schema.json",
-        "authority.schema.json",
-        "authority-graph.schema.json",
-    }
-
-    assert expected <= {path.name for path in schema_dir.glob("*.schema.json")}
-
-
-def test_json_schemas_are_valid_json_documents() -> None:
-    for path in Path("system/schemas/kernel").glob("*.schema.json"):
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-        assert payload["title"].startswith("ETHOS")
-
-
-def test_plan_ir_schema_accepts_the_python_projection() -> None:
-    schema = json.loads(Path("system/schemas/kernel/plan-ir.schema.json").read_text())
-    plan = PlanIR(
-        **_PLAN_INPUTS,
-        nodes=(
-            PlanNode(
-                id="land",
-                kind="effect",
-                command=("ethos", "land"),
-            ),
-        ),
-    )
-
-    jsonschema.Draft202012Validator(schema).validate(plan.to_dict())
-
-
-def test_system_contracts_all_load() -> None:
+def test_system_contracts_load_validate_and_fail_closed() -> None:
     report = system_contracts_report(Path())
-
     assert report["ok"] is True, report["required_gaps"]
-    contracts = report["contracts"]
-    assert isinstance(contracts, dict)
-    # Every declared system-tier contract is present and parseable — system/ is
-    # load-bearing, not inert prose (the parsimony invariant: derive rather than store twice).
-    assert all(contracts.values())
-    assert set(contracts) >= {"authority", "evidence_boundaries", "lifecycle"}
-
-
-def test_evidence_boundary_contract_exposes_decision_and_boundaries() -> None:
+    assert all(report["contracts"].values())
+    assert set(report["contracts"]) >= {"authority", "evidence_boundaries", "lifecycle"}
+    assert not any(
+        "schema_ref_missing" in gap or "schema_violation" in gap for gap in report["required_gaps"]
+    )
     contract = load_system_contract(Path(), "evidence_boundaries")
-
     assert contract["decision"]["verdicts"] == ["allow", "block", "defer"]
     assert "verdict" in contract["decision"]["required_fields"]
-    # The seven evidence boundaries are declared, not merely documented.
-    boundary_ids = {entry["id"] for entry in contract["boundary"]}
-    assert {
-        "dry_run_not_executed_proof",
-        "digest_not_semantic",
-        "promotion_not_absolute",
-    } <= boundary_ids
+    assert {"dry_run_not_executed_proof", "digest_not_semantic", "promotion_not_absolute"} <= {
+        entry["id"] for entry in contract["boundary"]
+    }
     assert contract["truth"]["implies_absolute_correctness"] is False
-
-
-def test_system_contracts_have_real_validating_schemas() -> None:
-    from ethos.contracts.system.contracts import system_contracts_report
-
-    report = system_contracts_report(Path())
-
-    # Every declared schema= ref now resolves AND the contract validates against it —
-    # no decorative schema references.
-    assert report["ok"] is True, report["required_gaps"]
-    assert not any("schema_ref_missing" in g for g in report["required_gaps"])
-    assert not any("schema_violation" in g for g in report["required_gaps"])
-
-
-def test_system_contract_schema_violation_blocks() -> None:
-    from ethos.contracts.system.contracts import _schema_validation_gaps
-
-    schema_path = Path("system/schemas/contracts/authority.schema.json")
-    # An authority contract missing its required `order` violates the schema.
-    gaps = _schema_validation_gaps("authority", {"schema": str(schema_path)}, schema_path)
-
-    assert any("schema_violation" in g for g in gaps)
+    assert any(
+        "schema_violation" in gap
+        for gap in schema_validation_gaps(
+            "authority",
+            {"schema": "system/schemas/contracts/authority.schema.json"},
+            Path("system/schemas/contracts/authority.schema.json"),
+        )
+    )
+    assert load_system_contract(Path("/tmp"), "lifecycle")["node"]
+    with pytest.raises(FileNotFoundError):
+        load_system_contract(Path("/tmp"), "authority")
 
 
 def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
-    """The former head-node vocabulary must not re-enter current truth surfaces.
-
-    This is a drift guard, not a compatibility layer: old vocabulary can be
-    reconstructed only inside the test expression, and repository files must not
-    carry it as code, schema, payload key, filename, heading, or prose phrase.
-    """
-    import re
-
     old_entity_pattern = re.compile(r"judg(?:e)?ment[ _-]*source", re.IGNORECASE)
-    scanned_roots = (
-        Path("src"),
-        Path("system"),
-        Path("docs"),
-        Path("openspec/specs"),
-        Path("README.md"),
-    )
-    offenders: list[str] = []
-    for root in scanned_roots:
-        paths = root.rglob("*") if root.is_dir() else (root,)
-        for path in paths:
-            if not path.is_file():
-                continue
-            try:
-                text = path.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                continue
-            if old_entity_pattern.search(path.as_posix()) or old_entity_pattern.search(text):
-                offenders.append(path.as_posix())
-
+    offenders = [
+        path.as_posix()
+        for root in (
+            Path("src"),
+            Path("system"),
+            Path("docs"),
+            Path("openspec/specs"),
+            Path("README.md"),
+        )
+        for path in (root.rglob("*") if root.is_dir() else (root,))
+        if path.is_file() and _matches_old_entity(path, old_entity_pattern)
+    ]
     assert offenders == []
 
 
-def test_governance_context_projects_repository_authority_without_shadow_models() -> None:
-    from ethos.repository.context import LIFECYCLE_COMMANDS
-    from ethos.repository.context import governance_context
+def _matches_old_entity(path: Path, pattern: re.Pattern[str]) -> bool:
+    try:
+        return bool(
+            pattern.search(path.as_posix()) or pattern.search(path.read_text(encoding="utf-8"))
+        )
+    except UnicodeDecodeError:
+        return False
 
+
+def test_governance_context_projects_repository_authority_without_shadow_models() -> None:
     context = governance_context(Path.cwd(), profile="product")
     assert context["repository"] == str(Path.cwd().resolve())
     assert "user_instruction" in context["authority_refs"]
-    assert context["shared_commands"] == list(LIFECYCLE_COMMANDS)
-    assert context["transition_commands"] == list(LIFECYCLE_COMMANDS)
+    assert context["shared_commands"] == context["transition_commands"] == list(LIFECYCLE_COMMANDS)
     assert context["reader_projection_commands"] == ["ethos status"]
-
-
-def test_load_system_contract_uses_product_lifecycle_resource_when_root_lacks_contract(
-    tmp_path,
-):
-    contract = load_system_contract(tmp_path, "lifecycle")
-
-    assert contract["node"]
-    assert contract["campaign"]
-
-
-def test_load_system_contract_keeps_non_resource_contracts_fail_closed(tmp_path):
-    with pytest.raises(FileNotFoundError):
-        load_system_contract(tmp_path, "authority")

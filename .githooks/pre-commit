@@ -15,7 +15,7 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
 runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
-ruff_config_path=".config/checks/ruff/ruff.toml"
+ruff_config_path="ruff.toml"
 ruff_cache_dir="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 mkdir -p "${ruff_cache_dir}"
 

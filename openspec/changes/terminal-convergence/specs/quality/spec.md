@@ -40,14 +40,23 @@ Ruff, Pyright strict, rumdl, dprint, shfmt/ShellCheck, ast-grep, and import-lint
 - **WHEN** any local or provider quality command emits an unapproved warning
 - **THEN** the quality gate fails even if the command exit code would otherwise be zero
 
-### Requirement: Capability-preserving Test Floor
-Global branch coverage MUST be at least 95%, authority/CAS/transition reducers MUST be 100%, and critical pure reducers MUST pass bounded mutation testing without retaining tests whose only purpose is branch reachability.
-
-#### Scenario: A test raises coverage without asserting behavior
-- **WHEN** deletion of the test leaves all contract, property, mutation, and adopter proofs unchanged
-- **THEN** the test is classified as removable rather than product evidence
-
 ## MODIFIED Requirements
+
+### Requirement: Capability-Preserving Test Floor
+
+The Python test owner SHALL run bounded parallel tests, warnings as errors,
+branch coverage, architecture tests, property tests, and declared concurrency or
+CAS tests. Coverage policy SHALL come only from
+`.config/checks/coverage/policy.toml`.
+
+#### Scenario: Coverage is evaluated
+
+- **WHEN** the unit-architecture gate completes
+- **THEN** it uses the configured hard coverage floor and current hard floor to
+  evaluate measured branch coverage
+- **AND** authority, CAS, and reducer owners may declare stricter local floors
+- **AND** a test that only reaches a branch without asserting behavior is not a
+  substitute for capability proof
 
 ### Requirement: Semantic And Physical Isomorphism
 

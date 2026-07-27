@@ -13,6 +13,7 @@ PRODUCT_SURFACES = (
     ".config",
     ".github",
     ".gitlab",
+    ".gitlab-ci.yml",
     "packages",
     "distributions",
     ".ethos",
@@ -27,7 +28,7 @@ PRODUCT_SURFACES = (
     "docs/decisions/accepted",
     "docs/plans",
     "docs/start",
-    "evolution",
+    "evidence/attestations",
     "openspec/specs",
     "rules",
     "system",
@@ -35,7 +36,9 @@ PRODUCT_SURFACES = (
     "tools/ci/scripts",
 )
 HISTORICAL_SURFACE_PREFIXES = (
-    "evidence/",
+    "evidence/claims/",
+    "evidence/chronicle/",
+    "evidence/parity/",
     "openspec/changes/archive/",
     "docs/history/",
     "docs/decisions/superseded/",
@@ -52,7 +55,7 @@ SKIPPED_PRODUCT_DIR_PARTS = {
     "build",
     "node_modules",
 }
-TEXT_SUFFIXES = {".md", ".toml", ".yaml", ".yml", ".json", ".py", ".sh", ".txt"}
+TEXT_SUFFIXES = {".md", ".toml", ".yaml", ".yml", ".json", ".py", ".sh", ".mjs", ".txt"}
 PERSONAL_PATTERNS = (
     # Product surfaces may use placeholders, reserved example domains, or
     # organization/team identities, but must not bake a real private mailbox
@@ -85,11 +88,6 @@ ADOPTER_LITERAL_PATTERNS = (
     re.compile(
         r"\b(?:adopters|profiles)/(?!(?:<adopter-id>|sample-adopter|reference-adopter)\b)"
         r"[a-z][a-z0-9_-]*(?:/|\b)",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\bevidence/parity/(?!generic-shadow\.json|<adopter-id>-shadow\.json)"
-        r"[a-z][a-z0-9_-]*-shadow\.json\b",
         re.IGNORECASE,
     ),
     re.compile(

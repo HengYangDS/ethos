@@ -1,49 +1,29 @@
 ---
 subject: ethos:kernel
 role: explanation
-state: canonical
+state: projection
 relations:
-  canonical_for: kernel model
+  projects: ../governance/product-design-contract.md#semantic-kernel
 ---
 
 # Semantic Kernel
 
-Status: canonical.
+Design status: projection.
 
-Purpose: define the smallest executable ETHOS semantic kernel.
+Purpose: give a short reader explanation of the canonical semantic model.
 
-See also: [Product Design Contract](../governance/product-design-contract.md) and
-[Glossary](../reference/glossary.md).
-
-ETHOS reduces repository operation to:
+Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
 
 ```text
-ChangeContract + Attestation -> RepositoryFacts -> PlanIR
+(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations
 ```
 
-## Root Interpretation Boundary
+ChangeContract and Attestation are the persistent semantic entities;
+RepositoryFacts is freshly observed and PlanIR is transient. Acceptance
+propositions live inside the effective ChangeContract or an Attestation, and
+historical views are derived projections rather than entities or truth stores.
 
-The canonical root text is `问道` in the Product Design Contract. The kernel
-chain is not a translation of that text and not a philosophical subsystem. It is
-the engineering compression ETHOS uses so the root constraint can govern actual
-repository transitions without becoming a second truth center.
-
-The kernel is compatible with the root text when immutable intent, current facts,
-evidence-bearing attestations, and executable plans remain distinct. Authority,
-subject, commitment, evidence, claim, and chronicle are duties encoded in these
-two persistent entities and their projections, not additional truth stores.
-
-A future surface is valid only when it can state which kernel object it projects,
-which boundary it occupies, and which evidence proves its claims. `system/axioms.md`
-provides derived engineering phrases for checks; it does not own the root text.
-
-`Authority` anchors product decisions. The North Star is
-a derived reader view, not the authority. `Subject` scopes the governed
-object. `Commitment` unifies contracts, specs, policies, rules, and decisions.
-`Change` carries IR, transition, and inscription — the in-flight lifecycle
-movement, and nothing already judged. `Evidence` stores proof, gate, digest, and
-HEAD facts, and asserts no verdict. `Claim` binds evidence to a Change, capped by
-its verifier; digest-only claims do not prove semantic truth, and a Claim does not
-own lifecycle state. `Chronicle` keeps judged memory: what happened, which evidence
-was used, which decision was made, what was superseded, and how current truth
-moved.
+Model Promotion remains the named conflict adjudication defined by the
+[canonical owner](../governance/product-design-contract.md#model-promotion). This
+projection does not restate its procedure or assert runtime effect and retirement
+enforcement.

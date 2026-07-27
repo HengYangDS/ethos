@@ -11,23 +11,23 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:35d24b2b4e845c2c4d44ea77e774a1934f6b88137364b29c96624d7a0c7495f8"
+expected_digest = "sha256:5a71c25b2b8336c009edb7d3e9de96d8470bec72ae9fa701084c03e65540cd85"
 
 [quality]
 placeholder_allowed = false
 host_projection = false
 
 [[capability]]
-id = "ethos.playbooks.check"
-kind = "command_readonly"
-command = ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"]
-
-[[capability]]
-id = "ethos.playbooks.route"
-kind = "command_readonly"
-command = ["ethos", "playbooks", "route", "--changed", "--json"]
+id = "skills.portfolio-audit"
+kind = "script_readonly"
+command = ["scripts/portfolio_audit.py", "."]
 
 [[capability]]
 id = "ethos.prove.playbooks-v2"
 kind = "command_proof"
-command = ["ethos", "prove", "--gate", "playbooks-v2", "--execute", "--json"]
+command = ["ethos", "prove", "--gate", "playbooks-v2", "--json"]
+
+[[capability]]
+id = "ethos.plan"
+kind = "command_readonly"
+command = ["ethos", "plan", "--changed", "--json"]

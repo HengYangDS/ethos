@@ -21,10 +21,10 @@ Purpose: show dependencies between ETHOS durable rulings.
 - Future decisions that alter documentation topology, decision-record routing, or adopter docs kernel requirements must cite DR-0004.
 - Future decisions that alter proof scope compatibility, host-probe flags, or adopter proof command surfaces must cite DR-0003.
 - DR-0006 depends on DR-0005 for the declarative lifecycle spine that hosts proof/evidence contracts.
-- Future decisions that alter the proof trust boundary, the local-vs-enforcement claim semantics, or the independent-identity verification plug (local daemon or hosted forge) must cite DR-0006.
+- Future decisions that alter the proof trust boundary, local-vs-enforcement assurance semantics, or the independent-identity verification plug (local daemon or hosted forge) must cite DR-0006.
 - DR-0007 is superseded: DR-0004 v2 owns strict docs-topology semantics, while
-  the Product Design Contract and Capability Parity Ledger own the locus of
-  external-adopter parity evidence.
+  the Product Design Contract and proof-host contracts own optional adopter
+  migration assurance.
 - DR-0008 is superseded; the terminal design owns direct source measurement and
   the hard repository ELOC limits without a private vector runtime.
 

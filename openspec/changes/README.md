@@ -37,7 +37,8 @@ material writes. No parallel scope carrier or bootstrap exception exists.
 Use `template.md` as the authoring scaffold and validate with:
 
 ```bash
-ethos openspec --lifecycle --json
+openspec validate --all --strict --json
+ethos plan --changed --json
 ```
 
 The official archive creates exactly one dated history path:

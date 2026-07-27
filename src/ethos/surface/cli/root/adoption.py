@@ -7,15 +7,15 @@ from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 from ethos.contracts.lifecycle.reducer import TransitionFacts
 from ethos.contracts.lifecycle.reducer import TransitionRequest
 from ethos.contracts.lifecycle.reducer import reduce_transition
-from ethos.normalization.core import object_sequence
-from ethos.normalization.core import string_sequence
+from ethos.normalization.coercion import object_sequence
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.result import EthosResult
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
-from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.application import app
+from ethos.surface.cli.output import JsonFlag
+from ethos.surface.cli.output import emit
+from ethos.surface.cli.root_binding import RootOption
+from ethos.surface.cli.root_binding import resolve_root
 
 
 def _adoption_result(

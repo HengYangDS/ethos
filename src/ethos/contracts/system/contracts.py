@@ -45,7 +45,7 @@ def load_system_contract(root: Path, name: str) -> dict[str, object]:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
-def _schema_validation_gaps(name: str, payload: dict[str, object], schema_path: Path) -> list[str]:
+def schema_validation_gaps(name: str, payload: dict[str, object], schema_path: Path) -> list[str]:
     """Validate a contract against its declared JSON schema when jsonschema is present.
 
     A schema ref is only a real binding if the contract is actually validated against
@@ -97,7 +97,7 @@ def system_contracts_report(root: Path) -> dict[str, object]:
             if not schema_path.exists():
                 gaps.append(f"system_schema_ref_missing:{name}:{schema_ref}")
             else:
-                gaps.extend(_schema_validation_gaps(name, payload, schema_path))
+                gaps.extend(schema_validation_gaps(name, payload, schema_path))
     return {
         "ok": not gaps,
         "contracts": loaded,

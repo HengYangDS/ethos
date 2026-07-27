@@ -4,7 +4,7 @@ import json
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-from ethos.adapters.gates import runner
+import ethos.adapters.gates.runner as gate_runner
 from ethos.contracts.gates import GateDescriptor
 from ethos.contracts.plan import PlanNode
 
@@ -18,9 +18,11 @@ def _gate(*providers: str) -> GateDescriptor:
     return GateDescriptor(id="gate", kind="test", providers=providers)
 
 
-def _runner(monkeypatch, **providers: object) -> runner.LocalGateRunner:
-    monkeypatch.setattr(runner.importlib, "import_module", lambda _: SimpleNamespace(**providers))
-    return runner.LocalGateRunner()
+def _runner(monkeypatch, **providers: object) -> gate_runner.LocalGateRunner:
+    monkeypatch.setattr(
+        gate_runner.importlib, "import_module", lambda _: SimpleNamespace(**providers)
+    )
+    return gate_runner.LocalGateRunner()
 
 
 def test_provider_success_runs_directly(monkeypatch, tmp_path: Path) -> None:

@@ -14,27 +14,39 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
+import uuid
+from contextlib import closing
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.admission.transitions as transitions
-from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
-from ethos.adapters.admission.closeout_intent.core import _marker_dir
-from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
-from ethos.adapters.admission.core import push_admission_report
-from ethos.adapters.admission.core import ref_move_admission_report
+from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
+from ethos.adapters.admission.closeout_intent.marker import closeout_intent_dir
+from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
+from ethos.adapters.admission.git_admission import push_admission_report
+from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.mutation.proof import _promotion_required_gate_ids
-from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import issue_proof_attestation
+from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import promotion_required_gate_ids
+from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof import record_executed_proof
-from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
+from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import LaneLease
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy.gates import gate_policy_digest
-from tests.support.contract_helpers import conformant_proof_run
+from tests.support.contract_helpers import commit_active_change_contract
+from tests.support.contract_helpers import conformant_proof_check
+from tests.support.contract_helpers import write_active_change_contract
 from tests.support.contract_helpers import write_publication_topology
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -49,21 +61,110 @@ from tests.support.lane_helpers import init_repo
         ("0" * 64, "a" * 64, "lane_creation_saga_started"),
     ],
 )
-def test_work_lane_ref_transition_admits_zero_oid_without_lease(
+def test_work_lane_ref_transition_rejects_zero_oid_without_lease(
     tmp_path: Path, old_value: str, new_value: str, reason: str
 ) -> None:
-    """Git's repository-width zero OID denotes lane creation or teardown."""
+    del reason
+    repo = init_repo(tmp_path / "repo")
     report = work_lane_ref_transition_report(
-        root=tmp_path,
+        root=repo,
         phase="prepared",
         ref_name="refs/heads/work/doomed",
         old_value=old_value,
         new_value=new_value,
     )
 
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
+
+
+@pytest.mark.parametrize(
+    ("case", "reason"),
+    [
+        ("create", "lane_creation_saga_started"),
+        ("delete", "lane_teardown_ref_deletion"),
+    ],
+)
+def test_work_lane_ref_transition_zero_oid_requires_exact_lease_and_base(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+    reason: str,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    base_digest = commit_active_change_contract(repo)
+    branch = "work/zero-bound"
+    head = git(repo, "rev-parse", "HEAD")
+    create = case == "create"
+    if not create:
+        git(repo, "branch", branch, head)
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        lease=_lease(
+            branch=branch,
+            holder_ref="agent:test:case:zero-bound",
+            expected_head=head,
+            base_change_contract_digest=base_digest,
+        ),
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:zero-bound")
+
+    report = work_lane_ref_transition_report(
+        root=repo,
+        phase="prepared",
+        ref_name=f"refs/heads/{branch}",
+        old_value="0" * 40 if create else head,
+        new_value=head if create else "0" * 40,
+    )
+
     assert report["ok"] is True
     assert report["decision"] == {"action": "allow", "reason": reason}
     assert report["required_gaps"] == []
+
+
+def test_work_lane_zero_oid_unknown_lease_is_observe_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    base_digest = commit_active_change_contract(repo)
+    branch = "work/unknown-create"
+    head = git(repo, "rev-parse", "HEAD")
+    database = state_database(repo)
+    lease = acquire_lease(
+        database,
+        lease=_lease(
+            branch=branch,
+            holder_ref="agent:test:case:unknown-create",
+            expected_head=head,
+            base_change_contract_digest=base_digest,
+        ),
+    )
+    payload = dict(lease["payload"])
+    payload["retired_field"] = "retired"
+    raw_payload = json.dumps(payload, sort_keys=True)
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (raw_payload, branch),
+        )
+        connection.commit()
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:unknown-create")
+
+    report = work_lane_ref_transition_report(
+        root=repo,
+        phase="committed",
+        ref_name=f"refs/heads/{branch}",
+        old_value="0" * 40,
+        new_value=head,
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [f"work_lane_lease_unknown:{branch}"]
+    with closing(sqlite3.connect(database)) as connection:
+        stored = connection.execute(
+            "select payload_json from leases where subject = ?", (branch,)
+        ).fetchone()[0]
+    assert stored == raw_payload
 
 
 @pytest.mark.parametrize("width", [1, 39, 41, 63, 65])
@@ -120,16 +221,21 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
+    base_digest = commit_active_change_contract(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
+    target = _advance_candidate(candidate, "target")
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        payload={"expected_head": head},
+        lease=_lease(
+            branch="work/current",
+            holder_ref="agent:codex:thread:first",
+            expected_head=head,
+            base_change_contract_digest=base_digest,
+        ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
 
@@ -144,7 +250,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
         phase="prepared",
         ref_name="refs/heads/work/current",
         old_value=head,
-        new_value="b" * 40,
+        new_value=target,
     )
     assert report["ok"] is True
     assert report["decision"]["action"] == "allow"
@@ -155,7 +261,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
         phase="prepared",
         ref_name="refs/heads/work/current",
         old_value="c" * 40,
-        new_value="b" * 40,
+        new_value=target,
     )
     assert stale["ok"] is False
     assert any("lease_head_stale" in gap for gap in stale["required_gaps"])
@@ -165,17 +271,21 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
+    base_digest = commit_active_change_contract(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
-    new_head = "b" * 40
+    new_head = _advance_candidate(candidate, "target")
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        payload={"expected_head": head},
+        lease=_lease(
+            branch="work/current",
+            holder_ref="agent:codex:thread:first",
+            expected_head=head,
+            base_change_contract_digest=base_digest,
+        ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
 
@@ -191,27 +301,119 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     assert report["lease"]["expected_head"] == new_head
 
 
-def _complete_proof_evidence(head: str, root: Path) -> dict[str, object]:
-    """A COMPLETE, POLICY-CONFORMANT executed-proof body: one passing run per required
-    gate, carrying that gate's canonical command / trust_bearing / evidence_class.
-
-    Post-completeness + policy-conformance binding, a promotion proof must cover the
-    required land floor AND each run must conform to its gate's live policy identity, so
-    the boundary tests reach the boundary check itself rather than a placeholder-command
-    conformance gap.
-    """
-    runs = tuple(
-        conformant_proof_run(gate_id, root) for gate_id in _promotion_required_gate_ids(root)
+def test_work_lane_ref_transition_blocks_target_with_rewritten_base_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    base_digest = commit_active_change_contract(repo)
+    candidate = tmp_path / "repo-candidate"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    lane = tmp_path / "repo-work-current"
+    git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        lease=_lease(
+            branch="work/current",
+            holder_ref="agent:codex:thread:first",
+            expected_head=head,
+            base_change_contract_digest=base_digest,
+        ),
     )
-    return EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
+    contract = candidate / "openspec" / "changes" / "fixture-change" / "contract.toml"
+    contract.write_text(
+        contract.read_text(encoding="utf-8").replace(
+            "Exercise the governed fixture lifecycle.",
+            "Rewrite the governed fixture lifecycle.",
+        ),
+        encoding="utf-8",
+    )
+    git(candidate, "add", contract.relative_to(candidate).as_posix())
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "rewrite base contract",
+    )
+    target = git(candidate, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="committed",
+        ref_name="refs/heads/work/current",
+        old_value=head,
+        new_value=target,
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lease_base_change_contract_digest_mismatch"]
+    assert leases_by_branch(lane)["work/current"]["expected_head"] == head
+
+
+def test_work_lane_ref_transition_rejects_unknown_lease_without_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    base_digest = commit_active_change_contract(repo)
+    lane = tmp_path / "repo-work-current"
+    git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+    database = state_database(repo)
+    lease = acquire_lease(
+        database,
+        lease=_lease(
+            branch="work/current",
+            holder_ref="agent:codex:thread:first",
+            expected_head=head,
+            base_change_contract_digest=base_digest,
+        ),
+    )
+    payload = dict(lease["payload"])
+    payload["retired_field"] = "retired"
+    with closing(sqlite3.connect(database)) as connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (json.dumps(payload, sort_keys=True), "work/current"),
+        )
+        connection.commit()
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="prepared",
+        ref_name="refs/heads/work/current",
+        old_value=head,
+        new_value="b" * 40,
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["work_lane_lease_unknown:work/current"]
 
 
 def _record_complete_proof(root: Path, head: str) -> None:
-    record_executed_proof(
-        root,
-        _complete_proof_evidence(head, root),
-        plan=proof_plan(root, head=head),
+    plan = proof_plan(root, head=head)
+    checks = tuple(
+        conformant_proof_check(gate_id, root)
+        for gate_id in promotion_required_gate_ids(root, tree_ref=head)
     )
+    attestation = issue_proof_attestation(
+        root,
+        {
+            "plan": plan,
+            "checks": checks,
+            "verdict": "pass",
+            "issuer": "agent:test:case:ref-move",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(root, attestation)
 
 
 def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
@@ -231,6 +433,7 @@ def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
     g("config", "user.email", "t@e.x")
     adoption_plan(tmp_path, apply=True)
     write_publication_topology(tmp_path)
+    write_active_change_contract(tmp_path)
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8")
@@ -401,11 +604,9 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
 
 
 def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
-    """Write the closeout-intent marker official closeout would write for this move,
-    carrying the proof's real evidence_digest and the live gate_policy_digest so
-    admission's digest checks pass."""
-    record = executed_proof_record(repo, new_value)
-    evidence_digest = str(record.get("evidence_digest", "")) if isinstance(record, dict) else ""
+    """Write the official marker bound to the current proof Attestation identity."""
+    attestation = proof_attestation(repo, new_value)
+    evidence_digest = attestation.id if attestation is not None else ""
     write_closeout_intent(
         root=repo,
         transition=CloseoutTransition(
@@ -512,7 +713,7 @@ def test_ref_move_admission_blocks_stale_closeout_intent(tmp_path: Path) -> None
 
 def _backdate_markers(repo: Path) -> None:
     """Expire every closeout-intent marker by rewriting expires_at into the past."""
-    marker_dir = _marker_dir(repo)
+    marker_dir = closeout_intent_dir(repo)
     for path in marker_dir.glob("*.json"):
         marker = json.loads(path.read_text(encoding="utf-8"))
         marker["expires_at"] = "2000-01-01T00:00:00+00:00"
@@ -634,6 +835,15 @@ def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
     _advance_candidate(repo, "c1")
     git(repo, "checkout", "-q", "-b", "work/x")
     off_train = _advance_candidate(repo, "d")  # commit on work/x, never on candidate
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        lease=_lease(
+            branch="work/x",
+            holder_ref="agent:test:case:ref-move",
+            expected_head=off_train,
+            base_change_contract_digest=load_change_contract(repo, tree_ref=off_train).digest(),
+        ),
+    )
     _record_complete_proof(repo, off_train)
 
     report = push_admission_report(
@@ -709,3 +919,22 @@ def test_push_admission_rejects_remote_work_lane(tmp_path: Path) -> None:
 
     assert report["ok"] is False
     assert report["required_gaps"] == ["publication_remote_branch_forbidden:work/x"]
+
+
+def _lease(
+    *, branch: str, holder_ref: str, expected_head: str, base_change_contract_digest: str
+) -> LaneLease:
+    now = datetime.now(UTC)
+    return LaneLease(
+        lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
+        lease_id=f"lease:{uuid.uuid4()}",
+        lane_ref=branch,
+        holder_ref=holder_ref,
+        epoch=1,
+        issued_at=now,
+        renewed_at=now,
+        expires_at=now + timedelta(days=1),
+        expected_head=expected_head,
+        base_change_contract_digest=base_change_contract_digest,
+        path_scope=(),
+    )

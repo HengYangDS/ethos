@@ -17,15 +17,6 @@ DECLARATION_PATH = Path("system/policies/evidence-layout.toml")
 _DECLARATION_RESOURCE = "data/evidence_layout.toml"
 
 
-class EvidenceRequiredSubroot(BaseModel):
-    """Declared required evidence subroot and its gap id."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    name: str
-    gap: str
-
-
 class KernelEvidenceLayout(BaseModel):
     """Declared kernel evidence layout."""
 
@@ -34,16 +25,9 @@ class KernelEvidenceLayout(BaseModel):
     mode: str = "kernel_evidence"
     allowed_root_files: tuple[str, ...]
     allowed_root_dirs: tuple[str, ...]
-    claim_file_glob: str
-    nested_claim_file_glob: str
-    chronicle_record_glob: str
-    flat_chronicle_glob: str
-    parity_artifact_glob: str
+    historical_root_dirs: tuple[str, ...]
     root_file_not_allowed_gap_prefix: str
     root_dir_not_allowed_gap_prefix: str
-    claim_nested_file_gap_prefix: str
-    chronicle_flat_markdown_gap_prefix: str
-    required_subroot: tuple[EvidenceRequiredSubroot, ...]
 
 
 class CuratedProfileEvidenceLayout(BaseModel):
@@ -78,18 +62,19 @@ class EvidenceLayoutDeclaration(BaseModel):
                 "mode": self.curated_profile.mode,
                 "allowed_root_files": list(self.curated_profile.allowed_root_files),
                 "allowed_root_dirs": ["*"],
-                "claims_root": "",
-                "chronicle_root": "",
-                "parity_root": "",
+                "attestation_root": f"{root}/attestations",
+                "historical_roots": [],
                 "source_refs": list(self.source_refs),
             }
         return {
             "root": root,
+            "mode": self.kernel.mode,
             "allowed_root_files": list(self.kernel.allowed_root_files),
             "allowed_root_dirs": list(self.kernel.allowed_root_dirs),
-            "claims_root": f"{root}/claims",
-            "chronicle_root": f"{root}/chronicle",
-            "parity_root": f"{root}/parity",
+            "attestation_root": f"{root}/attestations",
+            "historical_roots": [
+                f"{root}/{directory}" for directory in self.kernel.historical_root_dirs
+            ],
             "source_refs": list(self.source_refs),
         }
 

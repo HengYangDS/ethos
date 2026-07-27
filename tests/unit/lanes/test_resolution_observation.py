@@ -4,7 +4,7 @@ import os
 import subprocess
 
 import ethos.adapters.mutation.resolution.observation as observation
-from ethos.adapters.repo import git as git_adapter
+import ethos.adapters.repo.git as git_adapter
 
 
 def test_git_observation_environment_is_isolated(monkeypatch, tmp_path) -> None:
@@ -33,18 +33,26 @@ def test_git_observation_environment_is_isolated(monkeypatch, tmp_path) -> None:
     assert kwargs["shell"] is False
 
 
-def test_default_git_execution_does_not_inherit_observation_profile(monkeypatch, tmp_path) -> None:
+def test_default_git_execution_sanitizes_routing_and_uses_fixed_profile(
+    monkeypatch, tmp_path
+) -> None:
     calls: list[dict[str, object]] = []
 
     def run(argv, **kwargs):
         calls.append(kwargs)
         return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
 
+    monkeypatch.setenv("GIT_OBJECT_DIRECTORY", "hostile")
+    monkeypatch.setenv("GIT_ALTERNATE_OBJECT_DIRECTORIES", "hostile")
     monkeypatch.setattr(git_adapter.subprocess, "run", run)
 
     git_adapter.run_git(tmp_path, "update-ref", "refs/heads/dev", "a" * 40)
 
-    assert calls[0]["env"] is None
+    environment = calls[0]["env"]
+    assert environment["LC_ALL"] == "C"
+    assert environment["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert "GIT_OBJECT_DIRECTORY" not in environment
+    assert "GIT_ALTERNATE_OBJECT_DIRECTORIES" not in environment
 
 
 def test_resolution_observation_uses_one_git_profile(monkeypatch, tmp_path) -> None:

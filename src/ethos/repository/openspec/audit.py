@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
 OPENSPEC_TASK_PATTERN = re.compile(r"- \[( |x|X)\]")
+_OPEN_SPEC_CHANGE_PATH_MIN_PARTS = 4
 
 
 def tasks_complete(text: str) -> bool:
@@ -202,7 +203,7 @@ def active_change_names_in_ref(root: Path, ref: str) -> list[str]:
     active: set[str] = set()
     for line in completed.stdout.splitlines():
         parts = line.split("/")
-        if len(parts) < 4 or parts[:2] != ["openspec", "changes"]:
+        if len(parts) < _OPEN_SPEC_CHANGE_PATH_MIN_PARTS or parts[:2] != ["openspec", "changes"]:
             continue
         change = parts[2]
         if change == "archive":
@@ -300,6 +301,30 @@ def _changed_openspec_spec_obligation_removal_gaps(root: Path) -> list[str]:
     return gaps
 
 
+def _accepted_spec_physical_grammar_gaps(specs_root: Path) -> list[str]:
+    """Require README plus capability directories containing only spec.md."""
+    if not specs_root.is_dir():
+        return ["openspec_specs_not_directory"]
+    gaps: list[str] = []
+    for entry in sorted(specs_root.iterdir(), key=lambda path: path.name):
+        if entry.name == "README.md":
+            if not entry.is_file() or entry.is_symlink():
+                gaps.append("openspec_specs_root_entry_unexpected:README.md")
+            continue
+        if not entry.is_dir() or entry.is_symlink():
+            gaps.append(f"openspec_specs_root_entry_unexpected:{entry.name}")
+            continue
+        spec = entry / "spec.md"
+        gaps.extend(
+            f"openspec_spec_capability_entry_unexpected:{entry.name}:{child.name}"
+            for child in sorted(entry.iterdir(), key=lambda path: path.name)
+            if child.name != "spec.md" or not child.is_file() or child.is_symlink()
+        )
+        if not spec.is_file() or spec.is_symlink():
+            gaps.append(f"openspec_spec_capability_spec_missing:{entry.name}")
+    return gaps
+
+
 def openspec_shape_report(root: Path) -> dict[str, object]:
     """Report OpenSpec repository shape without invoking the OpenSpec CLI."""
     openspec_root = root / "openspec"
@@ -308,8 +333,11 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
         required_gaps.append("openspec_directory_missing")
     official_config = official_config_report(root)
     required_gaps.extend(cast("list[str]", official_config["required_gaps"]))
-    if not (openspec_root / "specs").exists():
+    specs_root = openspec_root / "specs"
+    if not specs_root.exists():
         required_gaps.append("openspec_specs_missing")
+    else:
+        required_gaps.extend(_accepted_spec_physical_grammar_gaps(specs_root))
     current_branch = _current_branch(root)
     required_gaps.extend(
         active_change_violations_for_role(

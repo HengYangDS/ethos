@@ -110,7 +110,8 @@ class AdmissionDecision(BaseModel):
     ) -> dict[str, object]:
         """Return a reader-only preview that cannot be replayed as admission."""
         if not action or not resource:
-            raise ValueError("action preview requires action and resource")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
+            msg = "action preview requires action and resource"
+            raise ValueError(msg)
         return {
             "candidate_actions": [action],
             "blocked_actions": list(blocked_actions),

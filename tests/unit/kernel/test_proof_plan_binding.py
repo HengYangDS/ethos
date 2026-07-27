@@ -2,18 +2,29 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Mapping
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import attestation_store_dir
+from ethos.adapters.mutation.proof import issue_proof_attestation
+from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import promotion_required_gate_ids
+from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.adapters.repo.change_contract import load_repository_contract
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.semantic import Attestation
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.evidence.core import EvidenceSet
-from ethos.repository.evidence.core import ProofRun
+from ethos.repository.policy.gates import canonical_gate_command
+from ethos.repository.policy.gates import gate_registry
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
+from tests.support.contract_helpers import start_adopted_work_lane
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -52,24 +63,78 @@ permissions = ["repository.read"]
 def _adopted_repo(path: Path) -> tuple[Path, str]:
     repo = init_git_repo(path)
     adoption_plan(repo, apply=True)
+    profile = repo / ".ethos" / "profile.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8")
+        + """
+[proof]
+code_correctness_gates = ["sample-tests", "sample-static"]
+
+[proof.code_correctness_map]
+behavior = "sample-tests"
+static-analysis = "sample-static"
+
+[[proof.gates]]
+id = "sample-tests"
+kind = "test"
+command = ["sample", "test"]
+dimensions = ["test", "coverage"]
+execution_mode = "subprocess"
+evidence_class = "proof"
+trust_bearing = true
+tool_adapter = "repository-native"
+
+[[proof.gates]]
+id = "sample-static"
+kind = "typing"
+command = ["sample", "typecheck"]
+dimensions = ["static-analysis"]
+execution_mode = "subprocess"
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "repository-native"
+""",
+        encoding="utf-8",
+    )
     _write_change_contract(repo)
     return repo, _commit(repo, "adopt and bind proof")
 
 
-def _evidence(head: str, action_id: str = "proof") -> dict[str, object]:
-    run = ProofRun(
-        action_id=action_id,
-        command=("true",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
+def _proof_checks(root: Path) -> tuple[dict[str, object], ...]:
+    registry = gate_registry(root)
+    checks: list[dict[str, object]] = []
+    for gate_id in promotion_required_gate_ids(root):
+        gate = registry.get(gate_id)
+        checks.append(
+            {
+                "action_id": gate_id,
+                "command": list(canonical_gate_command(gate.command)) if gate else ["pytest"],
+                "exit_code": 0,
+                "stdout": f"{gate_id} passed",
+                "stderr": "",
+                "verdict": "pass",
+                "evidence_class": gate.evidence_class if gate else "test",
+                "trust_bearing": gate.trust_bearing if gate else True,
+                "diagnostics": [],
+            }
+        )
+    return tuple(checks)
+
+
+def _proof_attestation(root: Path, head: str) -> Attestation:
+    plan = proof_plan(root, head=head)
+    return issue_proof_attestation(
+        root,
+        {
+            "plan": plan,
+            "checks": _proof_checks(root),
+            "verdict": "pass",
+            "issuer": "agent:test:case:proof",
+            "issued_at": datetime(2026, 7, 26, tzinfo=UTC),
+            "scope": "repository",
+            "boundary": "repository",
+        },
     )
-    return EvidenceSet.from_runs(evidence_id="proof", head=head, runs=(run,)).to_dict()
 
 
 def test_proof_plan_binds_contract_facts_and_gate_policy(tmp_path: Path) -> None:
@@ -85,7 +150,47 @@ def test_proof_plan_binds_contract_facts_and_gate_policy(tmp_path: Path) -> None
         "facts": plan.facts_digest,
         "policy": plan.policy_digest,
     }
+    assert plan.facts["values"]["change_id"] == "proof-binding"
     assert plan.permissions == ("repository.read",)
+
+
+def test_work_lane_proof_plan_equals_immutable_lease_base_digest(tmp_path: Path) -> None:
+    fixture = start_adopted_work_lane(tmp_path / "work-lane-proof", name="proof-binding")
+    branch = "work/proof-binding"
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    lease = leases_by_branch(fixture.worktree)[branch]
+
+    plan = proof_plan(fixture.worktree, head=head)
+
+    assert plan.contract_digest == lease["base_change_contract_digest"]
+
+
+def test_work_lane_proof_plan_rejects_base_contract_rewrite(tmp_path: Path) -> None:
+    fixture = start_adopted_work_lane(tmp_path / "work-lane-rewrite", name="proof-binding")
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    contract = fixture.worktree / "openspec" / "changes" / "fixture-change" / "contract.toml"
+    contract.write_text(
+        contract.read_text(encoding="utf-8").replace(
+            "Exercise the governed fixture lifecycle.",
+            "Rewrite the immutable base contract.",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="lease_base_change_contract_digest_mismatch"):
+        proof_plan(fixture.worktree, head=head)
+
+
+def test_work_lane_proof_plan_has_no_digest_override_escape_hatch(tmp_path: Path) -> None:
+    fixture = start_adopted_work_lane(tmp_path / "work-lane-proof", name="proof-binding")
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+
+    with pytest.raises(TypeError):
+        proof_plan(
+            fixture.worktree,
+            head=head,
+            expected_contract_digest="0" * 64,
+        )
 
 
 def test_proof_plan_rejects_a_change_for_another_repository(tmp_path: Path) -> None:
@@ -100,7 +205,9 @@ def test_proof_plan_rejects_a_change_for_another_repository(tmp_path: Path) -> N
     )
     head = _commit(repo, "bind foreign repository")
 
-    assert proof_plan(repo, head=head).gaps() == ("repository_subject_mismatch",)
+    assert proof_plan(repo, head=head, change_id="proof-binding").gaps() == (
+        "repository_subject_mismatch",
+    )
 
 
 def test_proof_plan_identity_is_stable_across_linked_worktrees(tmp_path: Path) -> None:
@@ -141,7 +248,7 @@ def test_proof_plan_identity_changes_with_contract_head_or_policy(tmp_path: Path
     assert len({first.digest(), contract_changed.digest(), policy_changed.digest()}) == 3
 
 
-def test_proof_plan_selects_one_change_when_multiple_active_contracts_exist(
+def test_proof_plan_requires_a_change_selector_when_multiple_active_contracts_exist(
     tmp_path: Path,
 ) -> None:
     repo, _head = _adopted_repo(tmp_path / "repo")
@@ -181,65 +288,103 @@ def test_proof_plan_ignores_complete_contract_at_committed_head(tmp_path: Path) 
         proof_plan(repo, head=head, change_id="complete")
 
 
-def test_record_executed_proof_requires_the_exact_executed_plan(tmp_path: Path) -> None:
+def test_proof_plan_uses_repository_contract_when_no_active_contract_exists(tmp_path: Path) -> None:
+    repo, _head = _adopted_repo(tmp_path / "repo")
+    tasks = repo / "openspec" / "changes" / "proof-binding" / "tasks.md"
+    tasks.write_text("- [x] Complete\n", encoding="utf-8")
+    head = _commit(repo, "complete the only change")
+
+    plan = proof_plan(repo, head=head)
+
+    assert plan.contract_digest == load_repository_contract(repo, tree_ref=head).digest()
+    assert plan.facts["values"]["change_id"] == ""
+
+
+def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head)
+    attestation = _proof_attestation(repo, head)
 
-    with pytest.raises(ValueError, match="proof_plan_digest_required"):
-        record_executed_proof(
-            repo,
-            {
-                "id": "proof",
-                "head": head,
-                "durability": "local",
-                "runs": [],
-            },
-        )
+    path = persist_proof_attestation(repo, attestation)
+
+    assert path == attestation_store_dir(repo) / f"{attestation.id}.json"
+    assert path.read_text(encoding="utf-8") == attestation.canonical_json()
+    assert attestation.kind == "proof"
+    assert attestation.subject == f"git:commit:{head}"
+    assert attestation.verdict == "pass"
+    assert attestation.change_contract_digest == plan.contract_digest
+    assert attestation.repository_facts_digest == plan.facts_digest
+    assert attestation.plan_digest == plan.digest()
+    assert attestation.policy_digest == plan.policy_digest
+    assert attestation.effect_digest
+    assert attestation.evidence_refs == (f"sha256:{attestation.effect_digest}",)
+    assert proof_attestation(repo, head) == attestation
+    assert proof_gaps(repo, head) == []
 
 
-def test_record_executed_proof_rejects_a_blocked_plan(tmp_path: Path) -> None:
+def test_legacy_head_keyed_proof_file_is_immediately_inert(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    blocked = proof_plan(repo, head=head).model_copy(
-        update={"validation_issues": ("repository_subject_mismatch",)}
+    legacy = repo / ".ethos" / "state" / "proof" / f"{head}.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(
+        json.dumps({"schema_version": 4, "head": head, "state": "proven"}),
+        encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="proof_plan_not_admitted"):
-        record_executed_proof(repo, _evidence(head), plan=blocked)
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_not_proven"]
 
 
-def test_recorded_proof_rejects_a_forged_plan_digest(tmp_path: Path) -> None:
+def test_proof_attestation_artifact_tamper_fails_closed(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    path = record_executed_proof(
-        repo,
-        _evidence(head),
-        plan=proof_plan(repo, head=head),
+    attestation = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, attestation)
+    artifact = attestation.content["artifact"]
+    assert isinstance(artifact, Mapping)
+    artifact_path = attestation_store_dir(repo) / str(artifact["path"])
+    artifact_path.write_text("tampered", encoding="utf-8")
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_attestation_artifact_digest_mismatch"]
+
+
+def test_proof_attestation_binding_mismatch_fails_closed_even_with_valid_peer(
+    tmp_path: Path,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, valid)
+    forged = Attestation.issue(
+        {
+            "kind": "proof",
+            "issuer": valid.issuer,
+            "subject": valid.subject,
+            "issued_at": datetime(2026, 7, 26, 0, 0, 1, tzinfo=UTC),
+            "verdict": "pass",
+            "content": valid.content,
+            "evidence_refs": valid.evidence_refs,
+            "change_contract_digest": valid.change_contract_digest,
+            "repository_facts_digest": valid.repository_facts_digest,
+            "plan_digest": "0" * 64,
+            "policy_digest": valid.policy_digest,
+            "effect_digest": valid.effect_digest,
+        }
     )
-    assert executed_proof_record(repo, head) is not None
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    payload["plan_digest"] = "0" * 64
-    path.write_text(json.dumps(payload), encoding="utf-8")
+    store = attestation_store_dir(repo)
+    (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
 
-    assert executed_proof_record(repo, head) is None
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_attestation_binding_mismatch:plan_digest"]
 
 
-def test_recorded_proof_never_merges_evidence_from_a_different_plan(tmp_path: Path) -> None:
+def test_proof_attestation_persistence_replays_identity_and_rejects_collision(
+    tmp_path: Path,
+) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    first = proof_plan(repo, head=head)
-    second = first.model_copy(update={"policy_digest": "f" * 64})
+    attestation = _proof_attestation(repo, head)
+    path = persist_proof_attestation(repo, attestation)
 
-    record_executed_proof(repo, _evidence(head, "first"), plan=first)
-    with pytest.raises(ValueError, match="proof_plan_binding_mismatch"):
-        record_executed_proof(repo, _evidence(head, "second"), plan=second)
-
-    record = executed_proof_record(repo, head)
-    assert record is not None
-    assert [run["action_id"] for run in record["evidence"]["runs"]] == ["first"]
-
-
-def test_record_executed_proof_rejects_a_plan_for_another_head(tmp_path: Path) -> None:
-    repo, first_head = _adopted_repo(tmp_path / "repo")
-    first = proof_plan(repo, head=first_head)
-    (repo / "NEXT.md").write_text("next\n", encoding="utf-8")
-    second_head = _commit(repo, "next")
-
-    with pytest.raises(ValueError, match="proof_plan_head_mismatch"):
-        record_executed_proof(repo, _evidence(second_head), plan=first)
+    assert persist_proof_attestation(repo, attestation) == path
+    path.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="attestation_identity_collision"):
+        persist_proof_attestation(repo, attestation)

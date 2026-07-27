@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from ethos.repository.policy.artifacts import _package_build_route_findings
+from ethos.repository.policy.artifacts import package_build_route_findings
 
 
 @pytest.mark.parametrize(
@@ -31,6 +31,6 @@ from ethos.repository.policy.artifacts import _package_build_route_findings
 def test_package_build_route_requires_semantic_out_dir_assignment(
     producer_text: str, expected_gap_count: int
 ) -> None:
-    findings = _package_build_route_findings("tools/ci/scripts/example.sh", producer_text)
+    findings = package_build_route_findings("tools/ci/scripts/example.sh", producer_text)
 
     assert len(findings) == expected_gap_count

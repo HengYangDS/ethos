@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.resolution.records.clear.quarantine import unsafe_package_path_present
 from ethos.adapters.mutation.resolution.records.clear.quarantine import unsafe_record_path_present
-from ethos.adapters.mutation.resolution.records.current.core import (
+from ethos.adapters.mutation.resolution.records.current.reader import (
     read_current_lane_resolution_records,
 )
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
@@ -213,7 +213,7 @@ def lane_resolution_inventory(*, root: Path) -> dict[str, object]:
         }
 
 
-def ownerless_closeout_reservation_admission(  # noqa: PLR0913, RUF100 - exact record binding
+def ownerless_closeout_reservation_admission(
     *,
     root: Path,
     record_root: Path,

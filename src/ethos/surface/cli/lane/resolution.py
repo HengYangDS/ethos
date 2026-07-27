@@ -1,28 +1,55 @@
 """Exceptional Work Lane resolution commands."""
 
-from __future__ import annotations
-
 import hashlib
 import uuid
 from dataclasses import dataclass
-from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
+from pathlib import Path
 from typing import Annotated
 from typing import cast
 
+from cyclopts import Group
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
-from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
-from ethos.adapters.mutation.resolution.records.clear.core import clear_lane_resolution_package
+from ethos.adapters.mutation.resolution.records.clear.preservation_clear import (
+    LaneResolutionClearRequest,
+)
+from ethos.adapters.mutation.resolution.records.clear.preservation_clear import (
+    clear_lane_resolution_package,
+)
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos.contracts.resolution.lane import LaneResolutionPlanRequest
 from ethos.result import EthosResult
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import lane_resolution_app
-from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.application import lane_resolution_app
+from ethos.surface.cli.output import JsonFlag
+from ethos.surface.cli.output import emit
+from ethos.surface.cli.root_binding import RootOption
+from ethos.surface.cli.root_binding import resolve_root
+
+_DECISION_OPTIONS = Group("Decision")
+
+
+@dataclass(frozen=True, slots=True)
+class _LaneResolutionDecisionOptions:
+    """CLI-only fields for one lane resolution decision request."""
+
+    branch: Annotated[str, Parameter(name="--branch", group=_DECISION_OPTIONS)]
+    disposition: Annotated[str, Parameter(name="--disposition", group=_DECISION_OPTIONS)]
+    reason: Annotated[str, Parameter(name="--reason", group=_DECISION_OPTIONS)]
+    chronicle_ref: Annotated[str, Parameter(name="--chronicle-ref", group=_DECISION_OPTIONS)]
+    recovery_plan: Annotated[str, Parameter(name="--recovery-plan", group=_DECISION_OPTIONS)]
+    evidence_ref: Annotated[
+        tuple[str, ...], Parameter(name="--evidence-ref", group=_DECISION_OPTIONS)
+    ] = ()
+    decision_path: Annotated[
+        Path | None, Parameter(name="--decision-path", group=_DECISION_OPTIONS)
+    ] = None
+    break_glass: Annotated[bool, Parameter(name="--break-glass", group=_DECISION_OPTIONS)] = False
+    apply: Annotated[bool, Parameter(group=_DECISION_OPTIONS)] = False
+    root: RootOption | None = None
+    json_output: JsonFlag = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,33 +97,27 @@ def _emit(command: str, report: dict[str, object], *, json_output: bool) -> None
 @lane_resolution_app.command(name="decide")
 def lane_resolution_decide(
     *,
-    branch: Annotated[str, Parameter(name="--branch")],
-    disposition: Annotated[str, Parameter(name="--disposition")],
-    reason: Annotated[str, Parameter(name="--reason")],
-    evidence_ref: Annotated[tuple[str, ...], Parameter(name="--evidence-ref")] = (),
-    chronicle_ref: Annotated[str, Parameter(name="--chronicle-ref")],
-    recovery_plan: Annotated[str, Parameter(name="--recovery-plan")],
-    decision_path: Annotated[Path | None, Parameter(name="--decision-path")] = None,
-    break_glass: Annotated[bool, Parameter(name="--break-glass")] = False,
-    apply: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
+    options: Annotated[_LaneResolutionDecisionOptions, Parameter(name="*")],
 ) -> None:
     """Record a first-phase exceptional judgment bound to an exact observation."""
-    repo = resolve_root(root)
+    repo = resolve_root(options.root)
     report = plan_lane_resolution(
         root=repo,
-        branch=branch,
-        disposition=disposition,
-        reason=reason,
-        evidence_refs=evidence_ref,
-        chronicle_ref=chronicle_ref,
-        recovery_plan=recovery_plan,
-        decision_path=decision_path or _default_decision_path(repo, branch),
-        break_glass=break_glass,
-        apply=apply,
+        request=LaneResolutionPlanRequest(
+            branch=options.branch,
+            disposition=options.disposition,
+            reason=options.reason,
+            evidence_refs=options.evidence_ref,
+            chronicle_ref=options.chronicle_ref,
+            recovery_plan=options.recovery_plan,
+            decision_path=str(
+                options.decision_path or _default_decision_path(repo, options.branch)
+            ),
+            break_glass=options.break_glass,
+            apply=options.apply,
+        ),
     )
-    _emit("lane resolution decide", report, json_output=json_output)
+    _emit("lane resolution decide", report, json_output=options.json_output)
 
 
 @lane_resolution_app.command(name="apply")

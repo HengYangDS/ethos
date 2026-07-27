@@ -1,50 +1,31 @@
-"""HEAD-keyed executed-proof records — tamper-EVIDENT, not tamper-PROOF.
-
-R3 pinned proof to a HEAD-keyed record. This module makes the record SELF-DESCRIBING:
-it stores the full evidence body (the executed proof-runs: command, exit code, verdict
-per gate), and `executed_proof_record` rederives the evidence digest from that stored
-body, rejecting the record unless (a) the recomputed digest equals the sealed digest,
-(b) the head matches, and (c) every trust-bearing run is recorded as passed.
-
-WHAT THIS DEFENDS AND WHAT IT DOES NOT (read before trusting a proof):
-
-  * Defends (tamper-EVIDENCE): partial edits, bit-rot, a record copied onto a different
-    HEAD, a truncated/half-written record, or a stale record whose policy has since moved
-    — all fail the recompute and are treated as absent. This is discipline against
-    fat-finger, tool-string-mix, and races.
-
-  * Does NOT defend (NOT tamper-PROOF): a same-UID actor who authors a WELL-FORMED record
-    from scratch. Checks (a) and (c) are self-referential — the forger writes every
-    `run` with `verdict="passed"`, then computes the sha256 over their own body — so a
-    hand-authored `.ethos/state/proof/<H>.json` that never ran a real gate is accepted.
-    The digest is UNKEYED (plain sha256, not a MAC/signature): it authenticates NOTHING
-    against the agent this product exists to govern, which runs as the same UID and can
-    write this file.
-
-Therefore a valid local record means only LOCAL READINESS ("this process asserts the
-gates passed"), never a prevention/enforcement guarantee. The genuine trust root against
-a same-UID adversary is RE-EXECUTION under an independent identity the agent cannot write
-(a local independent-identity verifier, or a hosted forge) — see the EnforcementReceipt
-path in adapters/admission/evidence/external.py. Consumers of this record MUST NOT surface
-it as "enforced"/"prevented"; the honest claim is `local_readiness`.
-"""
+"""Generic proof Attestation issuance, persistence, and admission."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+from collections.abc import Mapping
+from datetime import UTC
 from datetime import datetime
-from itertools import chain
 from pathlib import Path
 from typing import Any
+from typing import cast
 
-from ethos.adapters.repo.change_contract import load_proof_contract
+from ethos.adapters.admission.evidence.external import independent_verification_admission_report
+from ethos.adapters.admission.evidence.external import independent_verification_request
+from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
 from ethos.adapters.repo.change_contract import load_repository_contract
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.workspace import current_branch
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import compile_plan
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import RepositoryFacts
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
@@ -54,28 +35,24 @@ from ethos.repository.policy.gates import gate_nodes
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
 
-_DEFAULT_PROOF_DIR = Path(".ethos") / "state" / "proof"
-_TEST_PROOF_STATE_DIR_ENV = "ETHOS_TEST_PROOF_STATE_DIR"
+_DEFAULT_ATTESTATION_DIR = Path(".ethos") / "state" / "attestations"
+_TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
+_ARTIFACT_SUBDIR = Path("artifacts")
+_HEX = frozenset("0123456789abcdef")
+_SHA256_HEX_LENGTH = hashlib.sha256().digest_size * 2
 
 
-def _stable_json(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+def _stable_json(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
 def _pytest_state_active() -> bool:
-    """Return whether the current process is running under pytest."""
     return bool(os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYTEST_XDIST_WORKER"))
 
 
-def proof_state_dir(root: Path) -> Path:
-    """Return the local executed-proof state directory for ``root``.
-
-    Production proof state stays at ``.ethos/state/proof``. Test workers may
-    override the physical directory through ``ETHOS_TEST_PROOF_STATE_DIR`` so
-    xdist workers do not race over one shared mutable local-state projection.
-    The override is ignored outside pytest.
-    """
-    override = os.environ.get(_TEST_PROOF_STATE_DIR_ENV, "").strip()
+def attestation_store_dir(root: Path) -> Path:
+    """Return the one ignored content-addressed local Attestation store."""
+    override = os.environ.get(_TEST_ATTESTATION_STATE_DIR_ENV, "").strip()
     if override and _pytest_state_active():
         path = Path(override).expanduser()
         if path.is_absolute():
@@ -84,74 +61,229 @@ def proof_state_dir(root: Path) -> Path:
         base = Path(common).parent if common else root
         return base / path
     common = git_common_dir(root)
-    return Path(common).parent / _DEFAULT_PROOF_DIR if common else root / _DEFAULT_PROOF_DIR
-
-
-def _proof_path(root: Path, head: str) -> Path:
-    return proof_state_dir(root) / f"{head}.json"
-
-
-def _evidence_digest(body: dict[str, Any]) -> str:
-    """Recompute the EvidenceSet digest over the sealed body — must match
-    ethos.repository.evidence.core.EvidenceSet.from_runs exactly."""
-    canonical = {
-        "id": body.get("id", ""),
-        "head": body.get("head", ""),
-        "durability": body.get("durability", "local"),
-        "runs": body.get("runs", []),
-    }
-    return hashlib.sha256(_stable_json(canonical).encode("utf-8")).hexdigest()
-
-
-def _runs_prove_head(runs: object) -> bool:
-    if not isinstance(runs, list) or not runs:
-        return False
-    typed = [run for run in runs if isinstance(run, dict)]
     return (
-        len(typed) == len(runs)
-        and all(
-            run.get("verdict") == "passed"
-            and (run.get("trust_bearing") is not True or run.get("state") == "proven")
-            for run in typed
-        )
-        and any(run.get("trust_bearing") is True for run in typed)
+        Path(common).parent / _DEFAULT_ATTESTATION_DIR
+        if common
+        else root / _DEFAULT_ATTESTATION_DIR
     )
 
 
-def _run_merge_key(run: dict[str, Any], fallback_index: int) -> str:
-    """Return the stable key used when merging same-HEAD proof runs."""
-    action_id = str(run.get("action_id") or "").strip()
-    if action_id:
-        return f"action:{action_id}"
-    legacy_id = str(run.get("id") or "").strip()
-    if legacy_id:
-        return f"legacy:{legacy_id}"
-    return f"index:{fallback_index}"
+def _content_addressed_write(path: Path, payload: bytes, *, collision: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("xb") as stream:
+            stream.write(payload)
+    except FileExistsError:
+        try:
+            existing = path.read_bytes()
+        except OSError as error:
+            raise ValueError(collision) from error
+        if existing != payload:
+            raise ValueError(collision) from None
+    return path
 
 
-def _merge_same_head_evidence(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
-    """Merge already-verified and newly-proven evidence for one immutable HEAD.
+def _normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict[str, Any], ...]:
+    if not isinstance(checks, list | tuple):
+        msg = "proof_attestation_checks_required"
+        raise TypeError(msg)
+    if not checks:
+        if allow_empty:
+            return ()
+        msg = "proof_attestation_checks_required"
+        raise ValueError(msg)
+    normalized: list[dict[str, Any]] = []
+    for raw in checks:
+        if not isinstance(raw, Mapping):
+            msg = "proof_attestation_check_invalid"
+            raise TypeError(msg)
+        action_id = str(raw.get("action_id") or "")
+        command = raw.get("command")
+        verdict = str(raw.get("verdict") or "")
+        exit_code = raw.get("exit_code")
+        diagnostics = raw.get("diagnostics", ())
+        if (
+            not action_id
+            or not isinstance(command, list | tuple)
+            or not command
+            or any(not isinstance(token, str) or not token for token in command)
+            or verdict not in {"pass", "block", "unknown"}
+            or isinstance(exit_code, bool)
+            or (exit_code is not None and not isinstance(exit_code, int))
+            or not isinstance(diagnostics, list | tuple)
+            or any(not isinstance(item, Mapping) for item in diagnostics)
+        ):
+            message = f"proof_attestation_check_invalid:{action_id}"
+            raise ValueError(message)
+        normalized.append(
+            {
+                "action_id": action_id,
+                "command": [str(token) for token in command],
+                "exit_code": exit_code,
+                "stdout": str(raw.get("stdout") or ""),
+                "stderr": str(raw.get("stderr") or ""),
+                "verdict": verdict,
+                "evidence_class": str(raw.get("evidence_class") or ""),
+                "trust_bearing": raw.get("trust_bearing") is True,
+                "diagnostics": [dict(cast("Mapping[str, Any]", item)) for item in diagnostics],
+            }
+        )
+    if len({check["action_id"] for check in normalized}) != len(normalized):
+        msg = "proof_attestation_check_duplicate"
+        raise ValueError(msg)
+    return tuple(normalized)
 
-    The merge is an availability mechanism, not a bypass: the existing record is
-    read through ``executed_proof_record`` before this function is called, and the
-    incoming evidence is written only by a successful ``ethos prove --execute``.
-    Runs are keyed by action id so a later real gate execution refreshes that
-    gate's evidence while preserving previously proven gates for the same HEAD.
-    """
-    head = str(incoming.get("head", ""))
-    merged_runs: dict[str, dict[str, Any]] = {}
-    sources = (existing.get("runs"), incoming.get("runs"))
-    valid_runs = chain.from_iterable(runs for runs in sources if isinstance(runs, list))
-    for index, run in enumerate(item for item in valid_runs if isinstance(item, dict)):
-        merged_runs[_run_merge_key(run, index)] = run
-    merged = {
-        "id": str(incoming.get("id") or existing.get("id") or ""),
-        "head": head,
-        "durability": str(incoming.get("durability") or existing.get("durability") or "local"),
-        "runs": list(merged_runs.values()),
+
+def _artifact_payload(head: str, checks: tuple[dict[str, Any], ...]) -> bytes:
+    return _stable_json(
+        {
+            "schema_version": 1,
+            "head": head,
+            "checks": list(checks),
+        }
+    ).encode("utf-8")
+
+
+def _write_proof_artifact(
+    root: Path, head: str, checks: tuple[dict[str, Any], ...]
+) -> dict[str, object]:
+    payload = _artifact_payload(head, checks)
+    digest = hashlib.sha256(payload).hexdigest()
+    relative = _ARTIFACT_SUBDIR / f"{digest}.json"
+    path = attestation_store_dir(root) / relative
+    _content_addressed_write(
+        path,
+        payload,
+        collision="proof_attestation_artifact_identity_collision",
+    )
+    return {
+        "path": relative.as_posix(),
+        "sha256": f"sha256:{digest}",
+        "size_bytes": len(payload),
+        "media_type": "application/json",
     }
-    merged["digest"] = _evidence_digest(merged)
-    return merged
+
+
+def _proof_issue_values(
+    payload: Mapping[str, object],
+) -> tuple[
+    PlanIR, tuple[dict[str, object], ...], str, str, str, str, datetime | None, str, tuple[str, ...]
+]:
+    """Validate the entity-free proof issuance payload."""
+    plan = payload.get("plan")
+    checks = payload.get("checks")
+    verdict = payload.get("verdict")
+    issuer = payload.get("issuer")
+    scope = payload.get("scope")
+    boundary = payload.get("boundary")
+    issued_at = payload.get("issued_at")
+    objective = payload.get("objective", "ethos proof")
+    required_gaps = payload.get("required_gaps", ())
+    if not isinstance(plan, PlanIR):
+        msg = "proof_attestation_plan_invalid"
+        raise TypeError(msg)
+    if not isinstance(checks, tuple):
+        msg = "proof_attestation_checks_invalid"
+        raise TypeError(msg)
+    if verdict not in {"pass", "block", "unknown"}:
+        msg = "proof_attestation_verdict_invalid"
+        raise ValueError(msg)
+    if not all(isinstance(value, str) and value for value in (issuer, scope, boundary, objective)):
+        msg = "proof_attestation_payload_invalid"
+        raise TypeError(msg)
+    if issued_at is not None and not isinstance(issued_at, datetime):
+        msg = "proof_attestation_issued_at_invalid"
+        raise TypeError(msg)
+    if not isinstance(required_gaps, tuple) or any(
+        not isinstance(gap, str) for gap in required_gaps
+    ):
+        msg = "proof_attestation_required_gaps_invalid"
+        raise TypeError(msg)
+    return plan, checks, verdict, issuer, scope, boundary, issued_at, objective, required_gaps
+
+
+def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attestation:
+    """Issue one generic proof Attestation and its digest-referenced detail artifact."""
+    plan, checks, verdict, issuer, scope, boundary, issued_at, objective, required_gaps = (
+        _proof_issue_values(payload)
+    )
+    head = str(plan.facts.get("head") or "")
+    if plan.verdict != "pass":
+        msg = "proof_plan_not_admitted"
+        raise ValueError(msg)
+    if not head or not _proof_plan_matches(root, head, plan):
+        msg = "proof_plan_binding_mismatch"
+        raise ValueError(msg)
+    supplied_checks = _normalize_checks(checks, allow_empty=verdict != "pass")
+    execution_order = tuple(node.id for node in plan.ordered_nodes())
+    checks_by_id = {str(check["action_id"]): check for check in supplied_checks}
+    if set(checks_by_id) != set(execution_order):
+        msg = "proof_attestation_check_plan_mismatch"
+        raise ValueError(msg)
+    normalized = tuple(checks_by_id[gate_id] for gate_id in execution_order)
+    if verdict == "pass" and (
+        required_gaps or any(check["verdict"] != "pass" for check in normalized)
+    ):
+        msg = "proof_attestation_verdict_mismatch"
+        raise ValueError(msg)
+    artifact = _write_proof_artifact(root, head, normalized)
+    digest = str(artifact["sha256"]).removeprefix("sha256:")
+    values = plan.facts.get("values")
+    fact_values = values if isinstance(values, Mapping) else {}
+    selected_gate_ids = tuple(str(gate_id) for gate_id in fact_values.get("gate_ids", ()))
+    return Attestation.issue(
+        {
+            "kind": "proof",
+            "issuer": issuer,
+            "subject": f"git:commit:{head}",
+            "issued_at": issued_at or datetime.now(UTC),
+            "verdict": verdict,
+            "content": {
+                "objective": objective,
+                "head": head,
+                "tree": str(plan.facts.get("tree") or ""),
+                "change_id": str(fact_values.get("change_id") or ""),
+                "changed_paths": [str(path) for path in fact_values.get("changed_paths", ())],
+                "gate_ids": list(selected_gate_ids),
+                "scope": scope,
+                "boundary": boundary,
+                "required_gaps": list(required_gaps),
+                "artifact": artifact,
+            },
+            "evidence_refs": (f"sha256:{digest}",),
+            "change_contract_digest": plan.contract_digest,
+            "repository_facts_digest": plan.facts_digest,
+            "plan_digest": plan.digest(),
+            "policy_digest": plan.policy_digest,
+            "effect_digest": digest,
+        }
+    )
+
+
+def persist_proof_attestation(root: Path, attestation: Attestation) -> Path:
+    """Persist one proof Attestation directly by its content-addressed identity."""
+    if (
+        attestation.kind != "proof"
+        or not attestation.subject.startswith("git:commit:")
+        or not all(
+            (
+                attestation.change_contract_digest,
+                attestation.repository_facts_digest,
+                attestation.plan_digest,
+                attestation.policy_digest,
+                attestation.effect_digest,
+            )
+        )
+    ):
+        msg = "proof_attestation_binding_missing"
+        raise ValueError(msg)
+    payload = attestation.canonical_json().encode("utf-8")
+    Attestation.model_validate_json(payload)
+    return _content_addressed_write(
+        attestation_store_dir(root) / f"{attestation.id}.json",
+        payload,
+        collision="attestation_identity_collision",
+    )
 
 
 def proof_plan(
@@ -163,7 +295,28 @@ def proof_plan(
     changed_paths: tuple[str, ...] = (),
 ) -> PlanIR:
     """Compile the exact contract-, fact-, and policy-bound proof plan."""
-    contract = load_proof_contract(root, change_id=change_id, tree_ref=head)
+    branch = current_branch(root)
+    lease = leases_by_branch(root).get(branch, {})
+    if load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE:
+        if lease.get("lease_state") != "valid":
+            message = f"work_lane_lease_{lease.get('lease_state') or 'missing'}:{branch}"
+            raise ValueError(message)
+        if str(lease.get("expected_head") or "") != head:
+            message = f"lease_head_stale:{branch}"
+            raise ValueError(message)
+        contract = load_lease_bound_change_contract(
+            root,
+            change_id=change_id,
+            expected_head=head,
+            base_change_contract_digest=str(lease.get("base_change_contract_digest") or ""),
+        )
+    else:
+        try:
+            contract = load_change_contract(root, change_id=change_id, tree_ref=head)
+        except ValueError as error:
+            if change_id is not None or str(error) != "change_contract_missing":
+                raise
+            contract = load_repository_contract(root, tree_ref=head)
     repository = load_repository_contract(root, tree_ref=head)
     selected_change_id = contract.id.removeprefix("change:") if contract.id != repository.id else ""
     nodes, validation_issues = gate_nodes(gate_ids, root=root, tree_ref=head)
@@ -188,78 +341,56 @@ def proof_plan(
     )
 
 
-def record_executed_proof(
+def _historical_proof_plan(
     root: Path,
-    evidence: dict[str, Any],
-    *,
-    plan: PlanIR | None = None,
-) -> Path:
-    """Persist or extend the executed EvidenceSet for a single HEAD.
-
-    Stores the FULL evidence body (not just a summary) so the record is later
-    self-authenticating: its digest is recomputable from its own contents. If a
-    valid record already exists for the same HEAD, merge the newly proven gate
-    runs into it. This lets agents build promotion-complete proof from short,
-    restartable gate batches without weakening the land completeness check.
-    """
-    if plan is None:
-        message = "proof_plan_digest_required"
-        raise ValueError(message)
-    head = str(evidence.get("head", ""))
-    if plan.facts.get("head") != head:
-        message = "proof_plan_head_mismatch"
-        raise ValueError(message)
-    if plan.verdict != "pass":
-        message = "proof_plan_not_admitted"
-        raise ValueError(message)
-    if not _proof_plan_matches(root, head, plan):
-        message = "proof_plan_binding_mismatch"
-        raise ValueError(message)
-    proof_dir = proof_state_dir(root)
-    proof_dir.mkdir(parents=True, exist_ok=True)
-    path = proof_dir / f"{head}.json"
-    existing_record = executed_proof_record(root, head)
-    existing_evidence = (
-        existing_record.get("evidence")
-        if isinstance(existing_record, dict)
-        and existing_record.get("plan_digest") == plan.digest()
-        and isinstance(existing_record.get("evidence"), dict)
-        else None
+    attestation: Attestation,
+) -> PlanIR:
+    """Recompile an immutable attestation without requiring a live lease."""
+    content = attestation.content
+    gate_ids = content.get("gate_ids")
+    changed_paths = content.get("changed_paths")
+    if not isinstance(gate_ids, tuple | list) or not isinstance(changed_paths, tuple | list):
+        msg = "proof_attestation_content_invalid"
+        raise TypeError(msg)
+    head = str(content.get("head") or "")
+    change_id = str(content.get("change_id") or "") or None
+    repository = load_repository_contract(root, tree_ref=head)
+    contract = (
+        repository
+        if change_id is None and repository.digest() == attestation.change_contract_digest
+        else load_change_contract(
+            root,
+            change_id=change_id,
+            tree_ref=head,
+            expected_digest=attestation.change_contract_digest,
+            require_active=False,
+        )
     )
-    sealed_evidence = (
-        _merge_same_head_evidence(existing_evidence, evidence)
-        if isinstance(existing_evidence, dict)
-        else {**evidence, "digest": _evidence_digest(evidence)}
+    selected_change_id = contract.id.removeprefix("change:") if contract.id != repository.id else ""
+    nodes, validation_issues = gate_nodes(gate_ids, root=root, tree_ref=head)
+    facts = RepositoryFacts(
+        repository=repository.id,
+        head=head,
+        tree=current_tree(root, head),
+        observed_at=datetime.now().astimezone(),
+        values={
+            "changed_paths": tuple(str(path) for path in changed_paths),
+            "change_id": selected_change_id,
+            "gate_ids": tuple(node.id for node in nodes),
+        },
+        source_refs=("git:HEAD", "git:HEAD^{tree}"),
     )
-    record = {
-        "schema_version": 4,
-        "head": head,
-        "state": "proven",
-        "evidence": sealed_evidence,
-        "evidence_digest": sealed_evidence.get("digest", ""),
-        "plan": plan.model_dump(mode="json"),
-        "plan_digest": plan.digest(),
-        # Stamp the policy digest against head's COMMITTED tree so it is a pure function of
-        # the proven commit, matching what the reference-transaction hook recomputes when
-        # it validates a move to this head from a worktree still holding a different tree.
-        # A clean prove lane's HEAD equals its working tree, so this does not change the
-        # value on the stamp path; it removes the check-time worktree dependency. An
-        # unresolvable head (fake test SHA) falls back to the working tree on both sides.
-        "gate_policy_digest": gate_policy_digest(root, tree_ref=head),
-    }
-    path.write_text(_stable_json(record), encoding="utf-8")
-    return path
+    return compile_plan(
+        contract,
+        facts,
+        nodes,
+        policy_digest=gate_policy_digest(root, tree_ref=head),
+        validation_issues=validation_issues,
+    )
 
 
-def _promotion_required_gate_ids(root: Path, *, tree_ref: str | None = None) -> tuple[str, ...]:
-    """Return the gate ids a promotion proof must fully cover for this root.
-
-    This is the LAND floor: exactly the default (non-full) gate set that
-    `ethos prove --execute` runs — verified to equal a real executed proof's
-    action_ids. `full=True` adds release-only gates (build/npm-pack/openspec)
-    that the land proof legitimately does not carry, so completeness binds to
-    the default set, not the full set.
-    """
+def promotion_required_gate_ids(root: Path, *, tree_ref: str | None = None) -> tuple[str, ...]:
+    """Return the exact default proof floor required for promotion."""
     if tree_ref is not None:
         committed = committed_product_default_gate_ids(root, tree_ref)
         if committed is not None:
@@ -267,130 +398,290 @@ def _promotion_required_gate_ids(root: Path, *, tree_ref: str | None = None) -> 
     return default_gate_ids(full=False, root=root, tree_ref=tree_ref)
 
 
-def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
-    """Return completeness gaps for a promotion at head, or [] if the proof covers
-    the required land floor.
+def _valid_identity_name(path: Path) -> bool:
+    return (
+        path.suffix == ".json"
+        and len(path.stem) == _SHA256_HEX_LENGTH
+        and not (set(path.stem) - _HEX)
+    )
 
-    Separate from `executed_proof_record` (record integrity): a proof may be a
-    valid, non-forged record yet be a FOCUSED/diagnostic proof that does not cover
-    the required gate set. Promotion (land/closeout/push) requires full coverage —
-    this closes "proven != required gates passed". Callers already establish record
-    validity via executed_proof_record; this adds the completeness dimension.
-    """
-    record = executed_proof_record(root, head)
-    if record is None:
-        return []  # integrity/existence handled by the caller's proof_not_proven path
-    # An adopter root whose profile declares NO native code-correctness gates has a
-    # proof floor with no tests/lint/types dimension — a contentless proof must not be
-    # promotion-worthy. This is a completeness requirement (not an executable gate), so
-    # it is surfaced here rather than injected into the executable floor.
+
+def _scan_attestations(root: Path) -> tuple[tuple[Attestation, ...], list[str]]:
+    store = attestation_store_dir(root)
+    if not store.is_dir():
+        return (), []
+    attestations: list[Attestation] = []
+    gaps: list[str] = []
+    for path in sorted(item for item in store.iterdir() if item.is_file()):
+        if not _valid_identity_name(path):
+            gaps.append(f"attestation_store_filename_invalid:{path.name}")
+            continue
+        try:
+            attestation = Attestation.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            gaps.append(f"attestation_store_invalid:{path.name}")
+            continue
+        if attestation.id != path.stem:
+            gaps.append(f"attestation_store_identity_mismatch:{path.name}")
+            continue
+        attestations.append(attestation)
+    return tuple(attestations), gaps
+
+
+def _artifact_checks(
+    root: Path, attestation: Attestation
+) -> tuple[tuple[dict[str, Any], ...] | None, list[str]]:
+    artifact = attestation.content.get("artifact")
+    expected_relative = (_ARTIFACT_SUBDIR / f"{attestation.effect_digest}.json").as_posix()
+    payload = None
+    document = None
+    checks = None
+    gap = "proof_attestation_artifact_missing" if not isinstance(artifact, Mapping) else ""
+    if not gap:
+        gap = next(
+            (
+                name
+                for invalid, name in (
+                    (
+                        artifact.get("path") != expected_relative,
+                        "proof_attestation_artifact_binding_mismatch",
+                    ),
+                    (
+                        artifact.get("sha256") != f"sha256:{attestation.effect_digest}",
+                        "proof_attestation_artifact_binding_mismatch",
+                    ),
+                    (
+                        attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",),
+                        "proof_attestation_artifact_binding_mismatch",
+                    ),
+                )
+                if invalid
+            ),
+            "",
+        )
+    if not gap:
+        path = attestation_store_dir(root) / expected_relative
+        try:
+            payload = path.read_bytes()
+        except OSError:
+            gap = (
+                "proof_attestation_artifact_missing"
+                if not path.is_file()
+                else "proof_attestation_artifact_unavailable"
+            )
+    if not gap:
+        gap = next(
+            (
+                name
+                for invalid, name in (
+                    (
+                        hashlib.sha256(payload).hexdigest() != attestation.effect_digest,
+                        "proof_attestation_artifact_digest_mismatch",
+                    ),
+                    (
+                        artifact.get("size_bytes") != len(payload),
+                        "proof_attestation_artifact_size_mismatch",
+                    ),
+                )
+                if invalid
+            ),
+            "",
+        )
+    if not gap:
+        try:
+            document = json.loads(payload)
+        except json.JSONDecodeError:
+            gap = "proof_attestation_artifact_invalid"
+    if not gap:
+        gap = (
+            "proof_attestation_artifact_content_mismatch"
+            if not isinstance(document, dict)
+            or document.get("schema_version") != 1
+            or document.get("head") != attestation.content.get("head")
+            else ""
+        )
+    if not gap:
+        try:
+            checks = _normalize_checks(document.get("checks"), allow_empty=True)
+        except (TypeError, ValueError) as error:
+            gap = str(error)
+    return (checks, []) if not gap else (None, [gap])
+
+
+def _attestation_binding_gaps(attestation: Attestation, plan: PlanIR) -> list[str]:
+    gaps: list[str] = []
+    expected_bindings = {
+        "change_contract_digest": plan.contract_digest,
+        "repository_facts_digest": plan.facts_digest,
+        "plan_digest": plan.digest(),
+        "policy_digest": plan.policy_digest,
+    }
+    for name, expected in expected_bindings.items():
+        if getattr(attestation, name) != expected:
+            gap = (
+                "proof_policy_digest_stale"
+                if name == "policy_digest"
+                else f"proof_attestation_binding_mismatch:{name}"
+            )
+            gaps.append(gap)
+    if attestation.content.get("tree") != plan.facts.get("tree"):
+        gaps.append("proof_attestation_tree_mismatch")
+    return gaps
+
+
+def _attestation_check_gaps(
+    attestation: Attestation,
+    checks: tuple[dict[str, Any], ...],
+    plan: PlanIR,
+) -> list[str]:
+    gaps: list[str] = []
+    execution_order = tuple(node.id for node in plan.ordered_nodes())
+    if tuple(str(check["action_id"]) for check in checks) != execution_order:
+        gaps.append("proof_attestation_check_plan_mismatch")
+    required_gaps = attestation.content.get("required_gaps")
+    if not isinstance(required_gaps, tuple | list):
+        gaps.append("proof_attestation_required_gaps_invalid")
+    elif attestation.verdict == "pass" and required_gaps:
+        gaps.append("proof_attestation_verdict_mismatch")
+    if attestation.verdict != "pass":
+        gaps.append(f"proof_attestation_verdict_{attestation.verdict}")
+    if any(check["verdict"] != "pass" for check in checks):
+        gaps.append("proof_attestation_check_not_passed")
+    if not any(check["trust_bearing"] is True for check in checks):
+        gaps.append("trust_bearing_proof_missing")
+    return gaps
+
+
+def _proof_policy_gaps(root: Path, head: str, checks: tuple[dict[str, Any], ...]) -> list[str]:
     gaps = [
         *adopter_code_correctness_gaps(root, tree_ref=head),
         *adopter_gate_descriptor_gaps(root, tree_ref=head),
     ]
-    evidence = record.get("evidence")
-    runs = evidence.get("runs") if isinstance(evidence, dict) else None
-    required = _promotion_required_gate_ids(root, tree_ref=head)
-    present = (
-        {run.get("action_id") for run in runs if isinstance(run, dict)}
-        if isinstance(runs, list)
-        else set()
-    )
-    if missing := sorted(g for g in required if g not in present):
+    required = promotion_required_gate_ids(root, tree_ref=head)
+    present = {str(check["action_id"]) for check in checks}
+    if missing := sorted(gate_id for gate_id in required if gate_id not in present):
         gaps.append(f"proof_incomplete:{','.join(missing)}")
+    gaps.extend(gate_policy_conformance_gaps(list(checks), root, tree_ref=head))
     return gaps
 
 
-def gate_policy_gaps(root: Path, head: str) -> list[str]:
-    """Gaps where a proof's bound policy identity no longer matches the live policy.
+def _proof_candidate_gaps(
+    root: Path, head: str, attestation: Attestation
+) -> tuple[PlanIR | None, list[str]]:
+    if attestation.subject != f"git:commit:{head}" or attestation.content.get("head") != head:
+        return None, ["proof_attestation_head_mismatch"]
+    checks, artifact_gaps = _artifact_checks(root, attestation)
+    if artifact_gaps or checks is None:
+        return None, artifact_gaps
+    try:
+        plan = _historical_proof_plan(root, attestation)
+    except (TypeError, ValueError) as error:
+        return None, [f"proof_attestation_plan_invalid:{error}"]
+    gaps = [
+        *_attestation_binding_gaps(attestation, plan),
+        *_attestation_check_gaps(attestation, checks, plan),
+        *_proof_policy_gaps(root, head, checks),
+    ]
+    return plan, list(dict.fromkeys(gaps))
 
-    Two dimensions, both defeating a same-UID forgery that satisfies completeness:
-      * proof_policy_digest_stale: the record's stored gate_policy_digest differs from
-        the digest recomputed for the live required gate set (a gate's canonical command
-        or classification changed, or a script gate's content was tampered — B11/B12).
-      * proof_gate_not_policy_conformant:<id>: a covering run did not actually run the
-        gate's canonical command, or mislabeled trust_bearing/evidence_class (finding B).
-    Absence of a record is the caller's proof_not_proven concern (returns []).
-    """
-    record = executed_proof_record(root, head)
-    if record is None:
-        return []
-    gaps = list(adopter_gate_descriptor_gaps(root, tree_ref=head))
-    stored_digest = str(record.get("gate_policy_digest", ""))
-    # Resolve the LIVE digest against head's COMMITTED tree, not the working tree. The
-    # reference-transaction hook validates an accepted-branch move while the accepted
-    # worktree still holds the OLD tree (its sync reset runs after the ref move), so a
-    # working-tree read would compare the proof's NEW-tree digest against the OLD tree and
-    # spuriously flag proof_policy_digest_stale on every gate-policy-changing closeout.
-    # Keying on the promoted head makes stamp-time and check-time read the same tree.
-    if stored_digest != gate_policy_digest(root, tree_ref=head):
-        gaps.append("proof_policy_digest_stale")
-    evidence = record.get("evidence")
-    runs = evidence.get("runs") if isinstance(evidence, dict) else None
-    gaps.extend(gate_policy_conformance_gaps(runs, root, tree_ref=head))
+
+def _proof_validation(root: Path, head: str) -> tuple[Attestation | None, PlanIR | None, list[str]]:
+    attestations, store_gaps = _scan_attestations(root)
+    if store_gaps:
+        return None, None, store_gaps
+    candidates = tuple(
+        attestation
+        for attestation in attestations
+        if attestation.kind == "proof" and attestation.subject == f"git:commit:{head}"
+    )
+    if not candidates:
+        return None, None, ["proof_not_proven"]
+    evaluated = [
+        (attestation, *_proof_candidate_gaps(root, head, attestation)) for attestation in candidates
+    ]
+    integrity_gaps = [
+        gap
+        for _attestation, _plan, gaps in evaluated
+        for gap in gaps
+        if gap.startswith(
+            (
+                "proof_attestation_artifact_",
+                "proof_attestation_binding_mismatch:",
+                "proof_attestation_head_",
+                "proof_attestation_plan_",
+                "proof_attestation_tree_",
+            )
+        )
+    ]
+    if integrity_gaps:
+        return None, None, list(dict.fromkeys(integrity_gaps))
+    valid = [
+        (attestation, plan)
+        for attestation, plan, gaps in evaluated
+        if not gaps and plan is not None
+    ]
+    if valid:
+        selected, plan = max(
+            valid,
+            key=lambda item: (item[0].issued_at, item[0].sequence, item[0].id),
+        )
+        return selected, plan, []
+    latest = max(
+        evaluated,
+        key=lambda item: (item[0].issued_at, item[0].sequence, item[0].id),
+    )
+    return None, None, latest[2]
+
+
+def proof_attestation(root: Path, head: str) -> Attestation | None:
+    """Return the newest fully valid generic proof Attestation for one exact HEAD."""
+    attestation, _plan, gaps = _proof_validation(root, head)
+    return attestation if not gaps else None
+
+
+def proof_plan_for_attestation(root: Path, attestation: Attestation) -> PlanIR:
+    """Recompile and verify the transient PlanIR bound by one proof Attestation."""
+    head = attestation.subject.removeprefix("git:commit:")
+    selected, plan, gaps = _proof_validation(root, head)
+    if gaps or selected is None or plan is None or selected.id != attestation.id:
+        raise ValueError(gaps[0] if gaps else "proof_attestation_not_current")
+    return plan
+
+
+def proof_gaps(root: Path, head: str) -> list[str]:
+    """Return fail-closed proof Attestation gaps for one exact HEAD."""
+    _attestation, _plan, gaps = _proof_validation(root, head)
     return gaps
 
 
-def _json_object(path: Path) -> dict[str, Any] | None:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError, UnicodeError):
-        return None
-    return payload if isinstance(payload, dict) else None
-
-
-def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
-    """Return the verified executed-proof record for head, or None if none is VALID.
-
-    Validity is re-derived, never trusted: recompute the evidence digest from the
-    stored body and require it to equal the sealed digest, the head to match, and every
-    trust-bearing run to have passed. A forged/edited record fails these checks and is
-    treated as absent (so the caller falls back to executed_proof_missing).
-    """
-    path = _proof_path(root, head)
-    if not path.exists():
-        return None
-    record = _json_object(path)
-    if record is None or record.get("state") != "proven" or record.get("head") != head:
-        return None
-    evidence = record.get("evidence")
-    plan_payload = record.get("plan")
-    if not isinstance(plan_payload, dict):
-        return None
-    try:
-        plan = PlanIR.model_validate_json(_stable_json(plan_payload))
-    except ValueError:
-        return None
-    if plan.facts.get("head") != head:
-        return None
-    if not _proof_plan_matches(root, head, plan):
-        return None
-    # (a) the digest must be reproducible from the sealed body. This is tamper-EVIDENCE
-    # (a partial edit / wrong-HEAD copy / truncation fails to recompute), NOT tamper-proof:
-    # a same-UID forger authoring the whole body computes this sha256 themselves. Unkeyed
-    # digest ⇒ local readiness only; real anti-forgery is independent-identity re-execution.
-    # (c) Mirror `ethos prove`: every run must be RECORDED as passed, and at least one
-    # trust-bearing run marked proven. This mirrors what a real prove would produce, but
-    # does not by itself establish the gates truly ran (see module docstring).
-    if (
-        not isinstance(evidence, dict)
-        or evidence.get("head") != head
-        or record.get("plan_digest") != plan.digest()
-        or not (sealed := str(evidence.get("digest", "")))
-        or _evidence_digest(evidence) != sealed
-        or not _runs_prove_head(evidence.get("runs"))
-    ):
-        return None
-    return record
+def proof_readiness_report(root: Path, head: str) -> dict[str, object]:
+    """Describe whether the exact HEAD has a valid generic proof Attestation."""
+    gaps = proof_gaps(root, head)
+    independent = independent_verification_admission_report(
+        root=root,
+        action="publish",
+        request=independent_verification_request(root=root, action="publish"),
+    )
+    return {
+        "kind": "proof_attestation_readiness",
+        "head": head,
+        "state": "proven" if not gaps else "missing",
+        "blocking": bool(gaps),
+        "local_readiness": not gaps,
+        "evidence_class": str(independent.get("evidence_class") or "local_readiness"),
+        "independent_verification": independent,
+        "required_gaps": gaps,
+        "next_action": "" if not gaps else f"ethos prove --execute --expect-head {head} --json",
+    }
 
 
 def _proof_plan_matches(root: Path, head: str, plan: PlanIR) -> bool:
     values = plan.facts.get("values")
-    changed = values.get("changed_paths", ()) if isinstance(values, dict) else ()
+    changed = values.get("changed_paths", ()) if isinstance(values, Mapping) else ()
     changed_paths = (
         tuple(str(path) for path in changed) if isinstance(changed, list | tuple) else ()
     )
-    change_id = str(values.get("change_id") or "") if isinstance(values, dict) else ""
+    change_id = str(values.get("change_id") or "") if isinstance(values, Mapping) else ""
     try:
         expected = proof_plan(
             root,
@@ -402,91 +693,3 @@ def _proof_plan_matches(root: Path, head: str, plan: PlanIR) -> bool:
     except ValueError:
         return False
     return expected.digest() == plan.digest()
-
-
-def proof_retention_inventory(
-    root: Path,
-    *,
-    reachable_heads: set[str],
-    protected_heads: set[str],
-) -> dict[str, Any]:
-    """Classify HEAD-keyed proof records for conservative retention."""
-    proof_dir = proof_state_dir(root)
-    groups: dict[str, list[dict[str, Any]]] = {
-        "delete_candidates": [],
-        "retained": [],
-        "invalid": [],
-    }
-    if not proof_dir.is_dir():
-        return groups
-    for path in sorted(item for item in proof_dir.iterdir() if item.is_file()):
-        item = _proof_retention_item(root, path)
-        if "invalid_reason" in item:
-            groups["invalid"].append(item)
-            continue
-        head = str(item["head"])
-        reasons = [
-            reason
-            for present, reason in (
-                (head in protected_heads, "protected_head"),
-                (head in reachable_heads, "ref_reachable"),
-            )
-            if present
-        ]
-        group = "retained" if reasons else "delete_candidates"
-        groups[group].append({**item, "reasons": reasons} if reasons else item)
-    return groups
-
-
-def apply_proof_retention(root: Path, candidates: list[dict[str, Any]]) -> list[str]:
-    """Delete exact proof candidates after verifying their content digests."""
-    proof_dir = proof_state_dir(root).resolve()
-    verified: list[tuple[Path, str]] = []
-    for candidate in candidates:
-        display_path = str(candidate.get("path") or "")
-        path = Path(display_path)
-        resolved = (path if path.is_absolute() else root / path).resolve()
-        if resolved.parent != proof_dir or resolved.name != f"{candidate.get('head', '')}.json":
-            message = f"proof_retention_candidate_outside_store:{display_path}"
-            raise ValueError(message)
-        if not resolved.is_file() or _file_sha256(resolved) != str(candidate.get("sha256") or ""):
-            message = f"proof_retention_candidate_drift:{display_path}"
-            raise ValueError(message)
-        verified.append((resolved, display_path))
-    for path, _display_path in verified:
-        path.unlink()
-    return [display_path for _path, display_path in verified]
-
-
-def _proof_retention_item(root: Path, path: Path) -> dict[str, Any]:
-    display_path = _display_proof_path(root, path)
-    base = {
-        "path": display_path,
-        "sha256": _file_sha256(path),
-        "size": path.stat().st_size,
-    }
-    head = path.stem
-    if (
-        path.suffix != ".json"
-        or len(head) not in {40, 64}
-        or any(character not in "0123456789abcdef" for character in head)
-    ):
-        return {**base, "invalid_reason": "proof_filename_invalid"}
-    record = _json_object(path)
-    if record is None:
-        return {**base, "invalid_reason": "proof_json_invalid"}
-    if record.get("head") != head or not isinstance(record.get("schema_version"), int):
-        return {**base, "invalid_reason": "proof_record_invalid"}
-    return {**base, "head": head, "schema_version": int(record["schema_version"])}
-
-
-def _display_proof_path(root: Path, path: Path) -> str:
-    try:
-        return path.resolve().relative_to(root.resolve()).as_posix()
-    except ValueError:
-        return path.resolve().as_posix()
-
-
-def _file_sha256(path: Path) -> str:
-    with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()

@@ -31,7 +31,6 @@ def inspect_adopter(root: Path) -> dict[str, object]:
         and (paths["openspec"] / "specs").exists(),
         "skills": (paths["agent_skills"] / "activation.toml").exists(),
         "docs": _has_docs(repo, paths["docs"]),
-        "claims": paths["claims"].exists(),
         "evidence": paths["durable_evidence"].exists(),
     }
     required_gaps = (

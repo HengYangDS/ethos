@@ -14,7 +14,7 @@ cd "${repo_root}"
 shell_files=("$@")
 if (($# == 0)); then
   while IFS= read -r target; do
-    shell_files+=("${target}")
+    [[ -f "${target}" ]] && shell_files+=("${target}")
   done < <(git ls-files '*.sh' '.githooks/*')
 fi
 (( ${#shell_files[@]} )) || exit 0

@@ -16,8 +16,8 @@ Every loop command emits the same envelope:
 | `next_actions` | the next command to run |
 
 A mutation command (`land --apply`, `publish --apply`) with `ok:false` exits
-NON-ZERO — the block is enforced, not advisory. A read-only command (`status`,
-`plan`, `prove` readiness, `report`) reports gaps but exits zero.
+NON-ZERO — the block is enforced, not advisory. `status`, `plan`, and dry-run
+`prove` report gaps without creating a second reader command.
 
 ## Common gaps → what they mean → next action
 

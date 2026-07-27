@@ -24,7 +24,7 @@ Can this land?
 Can this publish?
 ```
 
-The public command plane is:
+The public command plane is exactly:
 
 ```bash
 ethos status
@@ -32,33 +32,19 @@ ethos plan
 ethos prove
 ethos land
 ethos publish
-```
-
-`ethos status` is the single bounded read-only view. It helps humans and agents
-see where they are, what they may do, who else is present, what remains gapped,
-and what should run next without minting repository truth. A hard quality gap
-that blocks proof or local publication must appear as a blocking status gap.
-
-Setup and onboarding commands are outside the transition loop:
-
-```bash
 ethos adopt
-ethos doctor
 ```
 
-Advanced workflows stay under `ethos ...` as maintainer/reference surfaces:
+`ethos status` is the bounded read-only view. It helps humans and agents see
+where they are, what they may do, who else is present, what remains gapped, and
+what should run next without minting repository truth. A hard quality gap that
+blocks proof or local publication must appear as a blocking status gap.
 
-```bash
-ethos campaign
-ethos intake
-ethos assistants
-ethos playbooks
-ethos fleet
-ethos lane
-ethos parity
-ethos explain
-ethos docs
-```
+`status -> plan -> prove -> land -> publish` is the lifecycle loop. `adopt`
+binds one repository to that loop without changing its command semantics.
+`ethos lane` and `ethos hook` are hidden operational roots for admission and
+guard work; they are not additional public lifecycle roots. OpenSpec lifecycle
+remains owned by the official `openspec` CLI.
 
 ## Root Constraint
 
@@ -76,34 +62,42 @@ feature map, or naming scheme. It is the product's root constraint on
 judgment: truth stays deeper than any named tool; small disorder is treated as
 an early signal; governance follows the natural shape of the repository and of
 the systems it touches; distinctions are made only when they decide action;
-conflict is closed through bounded change, evidence, claim, and chronicle;
+conflict is closed through ChangeContracts, fresh facts, and Attestations;
 hidden state is made inspectable; measures stay inside their domains; and Git,
-OpenSpec, CI, local state, agents, adapters, evidence, and claims are allowed
-to remain what they are rather than being absorbed into ETHOS.
+OpenSpec, CI, local state, agents, adapters, and evidence are allowed to remain
+what they are rather than being absorbed into ETHOS.
 
 Read the root text as a constraint on how ETHOS judges, not as a line-by-line
 module map. The engineering reading is deliberately plain: one kernel keeps the center;
-truth and projection remain separate; evidence limits claims; measures fit their
-boundary; transition commands close the loop; adapters stay adapters.
+truth and projection remain separate; verifiers limit propositions; measures
+fit their boundary; transition commands close the loop; adapters stay adapters.
 `system/axioms.md` is only a machine-adjacent derivation for checks and reviews.
 It does not restate the root text, does not create another truth center, and
 must remain subordinate to this contract.
 
-Engineering names therefore stay ordinary: kernel, evidence, claim, chronicle,
-adapter, profile, transition loop, and axiom mean what they say.
+Engineering names therefore stay ordinary: kernel, contract, attestation,
+evidence, proposition, historical projection, adapter, profile, transition loop,
+and axiom mean what they say.
 
 ## Semantic Kernel
+
+This section is the unique canonical owner of the ETHOS semantic model. README,
+kernel-model, glossary, and command-plane documentation are projections and must
+link here rather than restating the full model or Model Promotion procedure.
 
 ETHOS is kernel-first. The executable product model is:
 
 ```text
-ChangeContract + Attestation -> RepositoryFacts -> PlanIR
+(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations
 ```
 
 Only `ChangeContract` and `Attestation` are persistent semantic entities.
-`RepositoryFacts` is freshly observed and `PlanIR` is transient. Authority,
-subject, commitment, evidence, claim, and chronicle remain duties expressed by
-their fields and attestations; they are not additional object models or schemas.
+`RepositoryFacts` is freshly observed and `PlanIR` is transient. Compilation
+evaluates immutable intent, current facts, and prior bounded judgments; execution
+persists only newly issued Attestations. No other model, schema, root, store, or
+lifecycle owner may duplicate those semantics.
+
+North Star is a derived reader view, not the authority.
 
 The center is the **governed passage** from question to repository law: a
 question is bounded to a subject, tested through evidence, judged as a change to
@@ -119,31 +113,44 @@ task graph, scenario system, spec format, or method is only a vessel when it
 helps a commitment become clearer, better evidenced, safer to change, or ready
 to leave.
 
-- Authority: authority order, truth boundaries, product principles, and
-  decision policy. North Star is a derived reader view, not the authority.
-- Subject: the governed object, such as a path, package, domain, surface,
-  evidence set, or release target.
-- Commitment: the Subject's contracts, policies, specs, rules, promises, and
-  durable decisions. A commitment is the thing that can become repository law.
-- Change: the lifecycle owner for planned, active, landed, superseded, or
-  retired repository truth. Contract, IR, Transition, and Inscription are fields
-  or phases inside Commitment and Change, not competing top-level owners.
-- Evidence: gate runs, digests, HEAD binding, CI proof, attestations, and
-  artifacts.
-- Claim: digest-bound or verifier-bound evidence binding.
-  Claim binds evidence; it does not own the Change lifecycle.
-  It must not assert semantic truth unless a semantic verifier actually checked
-  that truth.
-- Chronicle: judged execution and history index: what happened, which evidence
-  was used, which decision was made, what was superseded, and how current truth
-  changed.
+- `ChangeContract` owns authority references, subject, intended change, material
+  scope, acceptance propositions, and immutable amendment lineage. The effective
+  ChangeContract digest is derived by folding ordered amendment Attestations.
+- `RepositoryFacts` records a fresh observation of Git, OpenSpec, policy,
+  worktree, provider, and projection facts. It is never a persistent entity.
+- `PlanIR` is the deterministic, hashable, replayable, and transient compilation
+  result. It orders checks, decisions, and guarded effects without owning truth.
+- `Attestation` is the persistent content-addressed envelope for observations,
+  judgments, proof, effects, external assurance, and amendments. Every
+  Attestation names its verifier and validity boundary.
 
-Practice claims belong under this chain. They are evolution carriers that ask
-whether a reusable way of working should create, compose with, refine,
-supersede, retire, or be rejected from the repository's commitments. The root
-question is therefore not "which mechanism should ETHOS add?" but "what question
-is being governed, which commitment should survive evidence, and what should
-happen to the practices and carriers around it?"
+Acceptance propositions live only inside the effective ChangeContract or an
+Attestation. They are bounded by the verifier that can establish them and cannot
+become a model, schema, root, store, lifecycle owner, or reusable permission.
+Historical views are derived from Git history, OpenSpec archives, and
+Attestations; they are not entities or current truth stores and cannot override
+fresh RepositoryFacts.
+
+Reusable practice proposals belong in a ChangeContract. Their observations,
+judgments, proof, and effects belong in Attestations. The root question is not
+"which mechanism should ETHOS add?" but "what question is governed, which
+contract should survive verification, and what should happen to the surrounding
+carriers?"
+
+### Model Promotion
+
+Model Promotion is the highest product adjudication and creates no new semantic
+entity. When two valid scenarios cannot be reconciled losslessly, the conflict is
+a Model Promotion signal that the current ontology, contract, taxonomy, or
+boundary lacks expressive power. ETHOS must not accommodate it through an
+exception, alias, fallback, shim, compatibility path, or parallel truth. It
+immediately blocks every effect and retirement, preserves both scenarios, raises
+that existing model boundary, recompiles all projections and tests, and
+re-verifies the result. Model Promotion completes only after one authoritative semantic owner remains and no exception, alias, fallback, shim, compatibility, or parallel truth residue remains.
+
+This is a design adjudication contract. It does not assert that runtime effect or
+retirement enforcement is implemented; those effects require separate executable
+proof in the owning runtime changes.
 
 ## Governed Repository
 
@@ -170,16 +177,15 @@ permission, and no product rule may depend on one built-in person, email,
 workstation path, or domain repository. In particular, the product has no
 single built-in personal name that acts as an authority shortcut.
 A Work Lane lease holder identifies the concrete acting instance, not merely a
-provider class: `agent:codex:thread:<id>`, `agent:claude:chat:<id>`,
-`agent:jetbrains:chat:<id>`, `human:shell:<id>`, and
-`service:gitlab-ci:pipeline:<id>` are holder references; `codex`, `claude`, or
-`ci` alone are provider labels or compatibility hints. ETHOS therefore does not add a
+provider class: `human:local:shell:<id>`, `agent:runtime:task:<id>`, and
+`service:automation:run:<id>` are vendor-neutral holder references. A namespace
+or role label alone is not a holder identity. ETHOS therefore does not add a
 first-class Principal, Actor, Participant, Party, Session, or Agent registry.
 Temporary cooperative write coordination remains the Lane Lease. Routine lease
 renewal, resume, accepted handoff, and mechanically proven retirement stay in
 ignored local state; only exceptional preservation, block, foreign or orphan
-resolution, and break-glass reconciliation become evidence-bound Chronicle
-decisions.
+resolution, and break-glass reconciliation persist as verifier-bound judgment or
+effect Attestations.
 The product default is therefore an external role policy: enterprises declare
 the maintainer, team, reviewer, bot, service, and adopter-side owner identities
 they trust. Package metadata, active docs, tests, command defaults, and release
@@ -195,16 +201,16 @@ historical evidence, archived change records, host-local state, tests,
 adopter-private records, local paths, or person attribution metadata as product
 defaults.
 
-Release-visible provenance is also part of the enterprise product boundary.
-Dated chronicles, parity evidence, archived OpenSpec changes, history records,
-and superseded decisions may preserve judged history, but they must preserve it
-with neutral repository-role terms. Raw workstation paths, personal attribution,
-named private adopters, private project dependency literals, and adopter-private
-shadow artifacts belong in the adopter repository, an explicitly ignored local
-state store, or a bounded private evidence archive outside the product
-distribution surface. The ETHOS product repository may keep generic parity
-fixtures such as `generic-shadow.json`; named adopter shadow evidence belongs
-with that adopter's own evidence root.
+Release-visible provenance is also part of the enterprise product boundary. Git
+history, archived OpenSpec changes, Attestations, comparison evidence, and their
+derived historical views may preserve judged history, but they must preserve it
+with neutral repository-role terms. Raw workstation paths, personal
+attribution, named private adopters, private project dependency literals, and
+adopter-private comparison artifacts belong in the adopter repository, an
+explicitly ignored local state store, or a bounded private evidence archive
+outside the product distribution surface. Historical generic comparison
+artifacts may remain as non-authoritative evidence, but no product reader,
+schema, or lifecycle verdict depends on them.
 
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,
@@ -214,9 +220,9 @@ boundary.
 The shared lifecycle semantics are exposed as `shared_commands` and
 `transition_commands`: `ethos status`, `ethos plan`, `ethos prove`,
 `ethos land`, and `ethos publish`. Read-only first-glance semantics are exposed
-as `reader_projection_commands`: `ethos status`. `ethos audit --mode shape` and
-`ethos audit --mode deep` select proof depth for the same governed repository
-contract.
+as `reader_projection_commands`: `ethos status`. `ethos adopt` is the public
+repository-binding root, and `ethos prove --full --json` selects full local
+proof depth for the same governed repository contract.
 
 ## Principles
 
@@ -234,9 +240,10 @@ separate truth centers.
 Logical and physical architecture are isomorphic. Every active module represents
 one narrow concept, one authoritative owner, and one primary reason to change.
 Generic catch-all modules, mixed command registries, and coincidence-based shared
-helpers are rejected unless a closed machine contract proves a genuine kernel or
-report-aggregation role. Remediation absorbs, precisely renames, semantically
-splits, or deletes the owner; it never preserves the old path as a facade.
+helpers are rejected without exception. A genuine kernel, registry, report,
+transition, or adapter names that exact concept. Remediation absorbs, precisely
+renames, semantically splits, or deletes the owner; it never preserves the old
+path as a facade.
 This invariant covers product source, tests, tools, agent scripts, configuration,
 schemas, documentation, OpenSpec, and CI. Enforcement respects each carrier's
 native syntax and never treats file count, directory width, ELOC, or naming
@@ -249,8 +256,8 @@ or simplifying changes are admissible when they produce provable net gain:
 clearer authority, fewer entities, smaller surface area, stronger evidence,
 better rollback, lower coordination risk, or removal of stale projections. A
 disruptive change must declare what it deletes, what invariant it strengthens,
-which evidence proves the gain, and how the repository can recover if the claim
-fails.
+which evidence proves the gain, and how the repository can recover if the
+assertion fails.
 
 ### Contracts before providers
 
@@ -279,16 +286,16 @@ configuration keys, default-policy state, semantic role order, and configured
 patterns; release_root and accepted_root are both protected roles but they are
 not interchangeable.
 Work Lane lifecycle commands are also product semantics: `ethos lane start`,
-`ethos lane bind-claim`, `ethos lane refresh-base`, `ethos land`,
+`ethos lane prewrite`, `ethos lane refresh-base`, `ethos land`,
 `ethos lane retire landed`, and `ethos lane retire superseded` define local
-ownership, evidence binding, stale-observation, base replay, candidate
-closeout, landed-lane retirement, and absorbed linked-lane retirement. The
+ownership, ChangeContract-scoped write admission, stale-observation, base replay,
+candidate closeout, landed-lane retirement, and absorbed linked-lane retirement. The
 `ethos lane retire unbound` reader preserves unbound-ref residue for separately
 admitted exceptional deletion rather than treating absent registration as safe
 cleanup.
 Git worktree facts remain observable, but raw worktree creation is not the
-standard ETHOS lifecycle state because it bypasses ETHOS lease and claim
-boundaries.
+standard ETHOS lifecycle state because it bypasses ETHOS lease, ChangeContract,
+and Attestation boundaries.
 When multiple agents change the repository concurrently, integration is judged
 by repository truth, authority order, lifecycle legality, and bound evidence.
 Candidate integration fuses or rejects conflicts by those measures; it is never
@@ -301,10 +308,11 @@ payloads expose a non-authoritative `action_preview`; visibility never grants
 write, land, or retire permission. Every mutation re-evaluates the exact holder,
 lease ID, epoch, HEAD, policy, and evidence bindings. Routine lifecycle stays
 local; exceptional foreign, orphan, preserve, block, or break-glass judgment
-must first exist as accepted Chronicle evidence and is then consumed by a
-recomputed two-phase resolution. Collaboration therefore starts as a read model
-over Git, lease, claim, and evidence facts; a host chat, thread, or message bus
-may project those facts but cannot become the semantic center.
+must first exist as a verifier-bound judgment Attestation and is then consumed by
+a recomputed two-phase resolution. Collaboration therefore starts as a read model
+over Git, lease, effective ChangeContract, RepositoryFacts, and Attestations; a
+host chat, thread, or message bus may project those facts but cannot become the
+semantic center.
 
 ### Binding taxonomy
 
@@ -350,21 +358,13 @@ never claims hosted CI success.
 
 ### Proof separation
 
-Conformance, parity, golden output, migration replay, and sample repositories
+Conformance, comparative migration assurance, golden output, replay, and sample repositories
 belong in an explicit proof host. They must not be scattered through runtime
-packages as accidental product behavior. Tracked parity evidence binds both the
-commit where comparison ran and the parity-relevant semantic Git tree. This lets
-an evidence-recording commit prove what it actually proves without pretending to
-know its own future commit hash, while any later parity-relevant source or
-contract change still stales the evidence.
-
-When a Work Lane changes that parity-relevant tree, it SHALL refresh and commit
-the tracked generic parity evidence in the same admitted Work Lane after the
-source commit and before executed proof. `quality evidence-freshness` SHALL
-surface a stale configured generic carrier as a first-class proof gap, rather
-than leaving it to an ambient unit assertion. Candidate and accepted roots stay
-write-protected: landing carries the already-committed semantic evidence forward;
-it is not a license to repair evidence after integration.
+packages as accidental product behavior. When an adopter profile requires a
+migration comparison, its identity, inputs, exact HEAD, false-negative boundary,
+and result belong in a proof or external-assurance Attestation artifact. That
+artifact remains evidence for the declared profile; it never becomes a parity
+ledger, command family, or product-wide lifecycle prerequisite.
 
 Generated proof artifacts are physical evidence projections, not truth stores.
 When multiple local or hosted runners can write the same latest artifact, the
@@ -382,19 +382,23 @@ admission requirement for new signals:
 ```text
 authority_gap
 subject_ambiguous
-commitment_missing
-change_unbounded
+change_contract_missing_or_unbound
+repository_facts_missing_or_stale
+plan_uncompilable
+attestation_missing_stale_or_overreaching
 carrier_invalid
-evidence_missing_or_stale
-claim_unbound_or_overreaching
-chronicle_missing
+model_promotion_required
 substrate_untrusted
 ```
 
-The first eight categories are failed preconditions of Authority, Subject,
-Commitment, Change, Evidence, Claim, and Chronicle. `carrier_invalid` is the
-Change-carrier boundary: an OpenSpec workspace, change, archive, delta, or
-metadata record is not valid enough to bound the transition.
+These categories explain failed compilation or effect preconditions without
+creating additional entities. `carrier_invalid` is the OpenSpec carrier boundary:
+an OpenSpec workspace, change, archive, delta, or metadata record is not valid
+enough to bound the transition. `model_promotion_required` means two valid
+scenarios cannot be reconciled losslessly and the current ontology, contract,
+taxonomy, or boundary lacks expressive power, so effects and retirement must stop
+until Model Promotion converges on one semantic owner without exception, alias,
+fallback, shim, compatibility, or parallel truth.
 `substrate_untrusted` is the execution boundary: Git, hooks, worktrees, generated
 projections, command runtimes, Python/uv/node launchers, or local state cannot be
 trusted enough to execute the chain. Projection drift and adapter bypass reduce
@@ -407,7 +411,8 @@ yet evolved. Taxonomy changes follow evidence; evidence never conforms to a
 closed taxonomy merely to pass a gate.
 
 ```text
-Seven obligations judge.
+Two entities persist.
+One compiler judges.
 Five verbs transition.
 Three boundaries constrain.
 Open signals remain visible.
@@ -415,10 +420,11 @@ Open signals remain visible.
 
 ## Truth Boundaries
 
-Repository truth includes source code, tests, schemas, canonical docs, OpenSpec
-records after promotion, claims, and durable evidence. Repo-authored projections
-such as skills, assistant files, MCP descriptors, ACP descriptors, hosted CI
-templates, and npm launchers are not truth by themselves.
+Repository truth includes source code, tests, schemas, canonical docs, Git
+history, OpenSpec records, effective ChangeContracts, and Attestations.
+Repo-authored projections such as skills, assistant files, MCP descriptors, ACP
+descriptors, hosted CI templates, historical views, and npm launchers are not
+truth by themselves.
 
 Superpowers is an external method pack. Assistant host memory, fast mode, goals,
 subagents, and doctor signals are host-local or session capabilities. MCP, ACP,
@@ -426,30 +432,34 @@ editor host surfaces, and assistant context bundles are context providers or
 runtime projections. Agent output is never repository truth until promoted into
 tracked artifacts and evidence.
 
-## Trust Lifecycle
+## Compilation And Assurance Lifecycle
 
-The trust-bearing repository lifecycle is:
+The trust-bearing repository lifecycle uses the same compilation expression at
+every stage:
 
 ```text
-Claim -> Boundary -> Carrier -> Evidence -> Decision -> Promotion
+(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations
 ```
 
-An active claim needs an owner and scope boundary, an OpenSpec carrier, dated
-evidence with a matching digest, fallback and kill-signal text, and promotion
-targets. OpenSpec remains the official specification carrier, but a valid
-OpenSpec change is not trusted without a bound claim and promotion evidence.
-Its evidence freshness is explicit: historical evidence preserves a judged fact;
-head-bound and semantic-scope evidence make currentness assertions that must
-fail closed when their respective binding no longer holds. No missing-freshness
-compatibility mode is permitted.
-Work Lanes prove local ownership and write admission. Intake providers report
-projection evidence. Neither Work Lane presence nor intake completion promotes
-truth by itself.
+An active change needs one effective ChangeContract digest, current
+RepositoryFacts, and any prior Attestations required by its acceptance
+propositions. OpenSpec remains the official specification carrier, while the
+ChangeContract owns semantic intent and scope. Historical evidence preserves a
+bounded judged fact; exact-head and semantic-scope Attestations assert currentness
+only inside their verifier and validity boundaries and fail closed when those
+bindings no longer hold.
 
-Promotion targets are provider-neutral repository paths: source, tests, docs,
-schemas, canonical OpenSpec specs, or dated evidence. Dry-run proof is readiness
-only. Executed proof can support promotion when selected gates record passing
-exit codes and the evidence is bound to a claim.
+Work Lanes prove local ownership and write admission. Intake providers report
+projection evidence. Neither Work Lane presence nor intake completion changes
+truth by itself. Dry-run proof is readiness only. Executed proof may issue new
+Attestations when selected gates record passing exit codes against the effective
+ChangeContract digest and current RepositoryFacts.
+
+Model Promotion is distinct from ordinary repository publication. It resolves a
+model gap before any effect or retirement, then recompiles every dependent
+projection and test. Source, tests, docs, schemas, OpenSpec specs, and evidence
+change only through the resulting single-owner model; no parallel truth plane is
+retained.
 
 ## Build And Release Contract
 

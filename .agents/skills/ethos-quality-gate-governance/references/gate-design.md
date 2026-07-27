@@ -43,7 +43,7 @@ The product hard floor is intentionally compact:
 Root configuration is allowed only when the tool or substrate requires root-native
 discovery and no explicit owner path can preserve the same behavior. `pyproject.toml`
 stays package/workspace metadata. Ruff and pytest are owned explicitly by
-`.config/checks/ruff/ruff.toml` and `.config/checks/pytest/pytest.ini`; owner
+`ruff.toml` and `.config/checks/pytest/pytest.ini`; owner
 scripts pass those paths, so repository root `ruff.toml` and `pytest.ini` are
 stale-root pollution rather than admitted owners.
 

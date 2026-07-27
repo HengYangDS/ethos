@@ -5,7 +5,6 @@ import subprocess
 from ethos.repository.policy.layout.facades import module_facade_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
 from ethos.repository.policy.layout.naming import multiple_command_owner_findings
-from ethos.repository.policy.layout.naming import surface_core_command_findings
 from ethos.repository.policy.layout.policy import package_python_files
 from ethos.repository.policy.layout.policy import semantic_python_files
 
@@ -29,14 +28,20 @@ def test_module_facade_with_all_is_still_blocked(tmp_path) -> None:
     ]
 
 
-def test_ambiguous_module_requires_closed_role_contract(tmp_path) -> None:
+def test_ambiguous_module_name_is_always_blocked(tmp_path) -> None:
     _write(tmp_path, "src/ethos/domain/core.py", "def decide():\n    return True\n")
     policy = {"paths": ["src/ethos"], "ambiguous_module_names": ["core"]}
 
-    assert ambiguous_module_findings(tmp_path, policy)[0]["reasons"] == ["contract_missing"]
+    assert ambiguous_module_findings(tmp_path, policy) == [
+        {
+            "gap": "module_layout_ambiguous_module:src/ethos/domain/core.py",
+            "path": "src/ethos/domain/core.py",
+            "module": "core",
+        }
+    ]
 
 
-def test_exact_kernel_role_contract_admits_matching_module(tmp_path) -> None:
+def test_role_contract_cannot_exempt_ambiguous_module_name(tmp_path) -> None:
     relative = "src/ethos/domain/core.py"
     _write(tmp_path, relative, "def decide():\n    return True\n")
     policy = {
@@ -55,41 +60,7 @@ def test_exact_kernel_role_contract_admits_matching_module(tmp_path) -> None:
         ],
     }
 
-    assert ambiguous_module_findings(tmp_path, policy) == []
-
-
-def test_role_contract_detects_public_and_import_drift(tmp_path) -> None:
-    relative = "src/ethos/domain/core.py"
-    _write(
-        tmp_path,
-        relative,
-        """from pathlib import Path
-
-def decide():
-    return Path('.')
-
-def extra():
-    return True
-""",
-    )
-    policy = {
-        "paths": ["src/ethos"],
-        "ambiguous_module_names": ["core"],
-        "ambiguous_module_roles": [
-            {
-                "path": relative,
-                "role": "kernel",
-                "concept": "pure transition decision",
-                "authority_refs": ["system/lifecycle.toml"],
-                "public_symbols": ["decide"],
-                "max_eloc": 8,
-                "allowed_import_roots": ["ethos.contracts"],
-            }
-        ],
-    }
-
-    reasons = ambiguous_module_findings(tmp_path, policy)[0]["reasons"]
-    assert reasons == ["public_drift", "import_drift"]
+    assert ambiguous_module_findings(tmp_path, policy)[0]["path"] == relative
 
 
 def test_surface_core_command_and_multiple_apps_are_blocked(tmp_path) -> None:
@@ -108,7 +79,7 @@ def retire():
     )
     policy = {"paths": ["src/ethos"]}
 
-    assert surface_core_command_findings(tmp_path, policy)[0]["path"] == relative
+    assert ambiguous_module_findings(tmp_path, policy)[0]["path"] == relative
     assert multiple_command_owner_findings(tmp_path, policy)[0]["owners"] == [
         "lane_app",
         "retire_app",

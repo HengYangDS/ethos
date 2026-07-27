@@ -26,7 +26,8 @@ from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import ROLE_DETACHED
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.repository.policy.coupling.closure import baseline_product_references
+from ethos.contracts.registry.declarations import CouplingDeclaration
+from ethos.repository.policy.coupling.closure import declared_product_references
 from ethos.repository.policy.coupling.closure import product_reference_gaps
 from ethos.repository.policy.coupling.closure import product_references_from_files
 
@@ -44,6 +45,7 @@ _SCOPE_LIST_FIELDS = (
     "required_gaps",
     "advisory_gaps",
 )
+_REFERENCE_KINDS = ("import", "distribution", "executable", "reference", "command")
 
 
 def has_path_whitespace(text: str) -> bool:
@@ -537,7 +539,7 @@ def _patch_admission(
         )
     references: dict[str, set[str]] = {}
     if not reason:
-        baseline_references = baseline_product_references(root, baseline_head)
+        baseline_references = _baseline_product_references(root, baseline_head)
         try:
             references = _patch_references(
                 root,
@@ -548,7 +550,7 @@ def _patch_admission(
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
     if not reason:
-        gaps = product_reference_gaps(root, baseline_head, references)
+        gaps = product_reference_gaps(baseline_references, references)
         reason = gaps[0] if gaps else ""
     return {
         "ok": not reason,
@@ -558,6 +560,15 @@ def _patch_admission(
         "paths": patch_paths,
         "references": {key: sorted(value) for key, value in references.items() if value},
     }
+
+
+def _baseline_product_references(root: Path, head: str) -> dict[str, frozenset[str]]:
+    text = git_stdout(root, "show", f"{head}:system/coupling.toml")
+    try:
+        declaration = CouplingDeclaration.model_validate(tomllib.loads(text))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return {kind: frozenset() for kind in _REFERENCE_KINDS}
+    return declared_product_references(declaration)
 
 
 def _unified_patch_changes(patch: str) -> tuple[list[dict[str, object]], str]:

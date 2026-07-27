@@ -236,8 +236,6 @@ match_prefixes = [
   "critical_stale_hits",
   "stable_paths_invalid",
   "control_replacement_",
-  "hosted_enforcement_receipt_",
-  "identity_assertion_",
   "independent_verification_",
   "incumbent_or_bootstrap_verifier_required",
   "attestation_",

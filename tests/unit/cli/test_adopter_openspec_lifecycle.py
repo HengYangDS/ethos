@@ -160,6 +160,38 @@ def test_commitment_scope_is_the_only_active_material_coverage(tmp_path: Path) -
     )
 
 
+def test_lifecycle_uses_delta_spec_directories_as_capability_truth(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    carrier = repo / "openspec" / "changes" / "plain-proposal"
+    (carrier / "specs" / "contracts").mkdir(parents=True)
+    (carrier / "proposal.md").write_text(
+        "## Why\n\nChange contracts.\n\n"
+        "## Capabilities\n\n- `contracts`: portable contracts\n\n"
+        "## Out of Scope\n\n- Other capabilities.\n",
+        encoding="utf-8",
+    )
+    (carrier / "design.md").write_text("# Design\n", encoding="utf-8")
+    (carrier / "tasks.md").write_text("- [ ] Implement\n", encoding="utf-8")
+    (carrier / "specs" / "contracts" / "spec.md").write_text("# Contracts\n", encoding="utf-8")
+    (carrier / "commitment.toml").write_text(
+        'schema_version = 1\nid = "change:plain-proposal"\n'
+        'intent = "Change contracts."\nsubjects = ["repository:self"]\n',
+        encoding="utf-8",
+    )
+
+    lifecycle = lifecycle_report(
+        repo,
+        request=OpenSpecRequest(change="plain-proposal", lifecycle=True),
+        list_payload={"changes": [{"name": "plain-proposal", "status": "in-progress"}]},
+    )
+
+    assert lifecycle["required_gaps"] == []
+    assert lifecycle["changes"][0]["capabilities"] == ["contracts"]
+    assert "proposal_protocol" not in lifecycle["changes"][0]
+
+
 def test_invalid_commitment_is_a_gap_without_material_paths(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)

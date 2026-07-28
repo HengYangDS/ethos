@@ -17,9 +17,9 @@ from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
 
 PROFILE_PATH = ".ethos/profile.toml"
-CONTRACT_PATH = ".ethos/commitment.toml"
+COMMITMENT_PATH = ".ethos/commitment.toml"
 APPLY_CRITERIA = (
-    "planned_files contains only the adopter profile and repository contract bindings",
+    "planned_files contains only the adopter profile and repository Commitment bindings",
     "existing nonempty binding content is not replaced",
     "rollback path is understood before apply",
 )
@@ -34,21 +34,22 @@ def adoption_plan(
 ) -> dict[str, object]:
     repository_id = repository_id or f"repository:{uuid.uuid4()}"
     current_profile = _current_binding(root, root / PROFILE_PATH)
-    current_contract = _current_binding(root, root / CONTRACT_PATH)
-    repository_id = _repository_id(current_contract) or repository_id
+    current_commitment = _current_binding(root, root / COMMITMENT_PATH)
+    repository_id = _repository_id(current_commitment) or repository_id
     profile = render_repository_profile(RepositoryProfileDeclaration.bootstrap(root.resolve().name))
-    contract = _repository_contract(repository_id)
+    commitment = _repository_commitment(repository_id)
     contents: dict[str, str] = {
         PROFILE_PATH: current_profile[0]
         if isinstance(current_profile[0], str) and _existing_profile_is_valid(root, current_profile)
         else profile,
-        CONTRACT_PATH: current_contract[0]
-        if isinstance(current_contract[0], str) and _existing_contract_is_valid(current_contract)
-        else contract,
+        COMMITMENT_PATH: current_commitment[0]
+        if isinstance(current_commitment[0], str)
+        and _existing_commitment_is_valid(current_commitment)
+        else commitment,
     }
     bindings = {
         PROFILE_PATH: (*current_profile, contents[PROFILE_PATH]),
-        CONTRACT_PATH: (*current_contract, contents[CONTRACT_PATH]),
+        COMMITMENT_PATH: (*current_commitment, contents[COMMITMENT_PATH]),
     }
     conflicts = [
         path
@@ -117,13 +118,13 @@ def adoption_plan(
         ),
         "rollback": {
             "mode": "remove_generated_binding_or_restore_git_state",
-            "planned_files": [PROFILE_PATH, CONTRACT_PATH],
+            "planned_files": [PROFILE_PATH, COMMITMENT_PATH],
             "generated_files": generated,
         },
     }
 
 
-def _repository_contract(repository_id: str) -> str:
+def _repository_commitment(repository_id: str) -> str:
     return (
         "schema_version = 1\n"
         f'id = "{repository_id}"\n'
@@ -140,7 +141,7 @@ def _existing_profile_is_valid(root: Path, binding: tuple[str | None, bool, bool
     return bool(current and safe and load_repository_profile(root).state == "valid")
 
 
-def _existing_contract_is_valid(binding: tuple[str | None, bool, bool]) -> bool:
+def _existing_commitment_is_valid(binding: tuple[str | None, bool, bool]) -> bool:
     current, _exists, safe = binding
     if not current or not safe:
         return False
@@ -159,10 +160,10 @@ def _existing_contract_is_valid(binding: tuple[str | None, bool, bool]) -> bool:
         ):
             if isinstance(payload.get(field), list):
                 payload[field] = tuple(payload[field])
-        contract = Commitment.model_validate(payload)
+        commitment = Commitment.model_validate(payload)
     except (tomllib.TOMLDecodeError, ValidationError):
         return False
-    return contract.id.startswith("repository:") and contract.subjects == (contract.id,)
+    return commitment.id.startswith("repository:") and commitment.subjects == (commitment.id,)
 
 
 def _repository_id(binding: tuple[str | None, bool, bool]) -> str:

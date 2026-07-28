@@ -6,7 +6,7 @@ import pytest
 
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_repository_contract
+from ethos.adapters.repo.commitment import load_repository_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -42,11 +42,11 @@ dependencies = []
         encoding="utf-8",
     )
 
-    contract = load_commitment(tmp_path)
+    commitment = load_commitment(tmp_path)
 
-    assert contract.id == "change:terminal-convergence"
-    assert contract.subjects == ("repository:test",)
-    assert contract.scope == ("src/**",)
+    assert commitment.id == "change:terminal-convergence"
+    assert commitment.subjects == ("repository:test",)
+    assert commitment.scope == ("src/**",)
 
 
 def test_explicit_commitment_carrier_does_not_require_openspec(
@@ -104,7 +104,9 @@ subjects = ["repository:self"]
     assert load_commitment(tmp_path).id == "repository:test"
 
 
-def test_complete_change_does_not_make_active_contract_selection_ambiguous(tmp_path: Path) -> None:
+def test_complete_change_does_not_make_active_commitment_selection_ambiguous(
+    tmp_path: Path,
+) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "commitment.toml").write_text(
         'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
@@ -170,14 +172,14 @@ scope = ["src/**"]
         encoding="utf-8",
     )
 
-    contract = load_commitment(
+    commitment = load_commitment(
         tmp_path, carrier="openspec/changes/terminal-convergence/commitment.toml"
     )
 
-    assert contract.scope == ("src/**",)
+    assert commitment.scope == ("src/**",)
 
 
-def test_repository_contract_owns_stable_subject_across_worktrees(tmp_path: Path) -> None:
+def test_repository_commitment_owns_stable_subject_across_worktrees(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "commitment.toml").write_text(
         """schema_version = 1
@@ -188,13 +190,13 @@ subjects = ["repository:test"]
         encoding="utf-8",
     )
 
-    contract = load_repository_contract(tmp_path)
+    commitment = load_repository_commitment(tmp_path)
 
-    assert contract.id == "repository:test"
-    assert contract.subjects == ("repository:test",)
+    assert commitment.id == "repository:test"
+    assert commitment.subjects == ("repository:test",)
 
 
-def test_repository_contract_requires_id_to_equal_its_single_subject(tmp_path: Path) -> None:
+def test_repository_commitment_requires_id_to_equal_its_single_subject(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "commitment.toml").write_text(
         """schema_version = 1
@@ -206,10 +208,10 @@ subjects = ["repository:second"]
     )
 
     with pytest.raises(ValueError, match="repository_commitment_identity_mismatch"):
-        load_repository_contract(tmp_path)
+        load_repository_commitment(tmp_path)
 
 
-def _repository_contract(root: Path) -> None:
+def _repository_commitment(root: Path) -> None:
     (root / ".ethos").mkdir()
     (root / ".ethos" / "commitment.toml").write_text(
         'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
@@ -236,8 +238,8 @@ def _change_carrier(root: Path, relative: str, change_id: str) -> Path:
     return carrier
 
 
-def test_carrier_path_and_contract_identity_must_match(tmp_path: Path) -> None:
-    _repository_contract(tmp_path)
+def test_carrier_path_and_commitment_identity_must_match(tmp_path: Path) -> None:
+    _repository_commitment(tmp_path)
     _enable_openspec_profile(tmp_path)
     _change_carrier(tmp_path, "terminal-convergence", "other-change")
 

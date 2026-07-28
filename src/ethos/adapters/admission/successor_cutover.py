@@ -18,11 +18,11 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import tomllib
 from pathlib import Path
 from typing import Any
 from typing import cast
 
-from ethos.adapters.repo.change_contract import load_change_contract
 from ethos.adapters.store.state.schema import state_database
 
 _ENVELOPE_ENV = "ETHOS_SUCCESSOR_ENVELOPE"
@@ -34,10 +34,33 @@ _HOOK_OLD_ENV = "ETHOS_SUCCESSOR_HOOK_OLD"
 _HOOK_NEW_ENV = "ETHOS_SUCCESSOR_HOOK_NEW"
 _OPERATION = "semantic-kernel-successor-cutover-v1"
 _ZERO_EXIT = 0
+_LEASE_FIELDS = ("id", "subject", "owner", "expires_at", "payload_json", "payload_sha256")
+_BASELINE_FIELDS = {
+    "schema_version": 1,
+    "id": "",
+    "intent": "",
+    "subjects": [],
+    "scope": [],
+    "invariants": [],
+    "acceptance": [],
+    "risks": [],
+    "authority_refs": [],
+    "permissions": [],
+    "hypotheses": [],
+    "dependencies": [],
+    "campaign": "",
+    "collaboration": "single",
+    "compatibility": "none",
+    "publication": "local",
+}
 
 
 def _sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _canonical_digest(value: object) -> str:
+    return _sha256_bytes(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
 
 
 def _run(root: Path, *args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -121,10 +144,40 @@ def _raw_lease(row: sqlite3.Row | None) -> dict[str, str]:
 
 
 def _assert_raw_lease(actual: dict[str, str], expected: dict[str, Any], label: str) -> None:
-    comparable = {key: str(expected.get(key, "")) for key in actual}
+    if not actual or set(actual) != set(_LEASE_FIELDS):
+        message = f"successor_{label}_lease_drift"
+        raise ValueError(message)
+    comparable = {key: str(expected[key]) for key in _LEASE_FIELDS}
     if actual != comparable:
         message = f"successor_{label}_lease_drift"
         raise ValueError(message)
+
+
+def _read_raw_lease(root: Path, subject: str) -> dict[str, str]:
+    connection, row = _lease_rows(root, subject)
+    try:
+        return _raw_lease(row)
+    finally:
+        connection.close()
+
+
+def _baseline_digest(root: Path, tree_ref: str, carrier: str) -> str:
+    repository = tomllib.loads(_git(root, "show", f"{tree_ref}:.ethos/contract.toml"))
+    repository_id = repository.get("id")
+    if not isinstance(repository_id, str) or not repository_id:
+        raise ValueError("successor_baseline_repository_identity_invalid")
+    payload = tomllib.loads(_git(root, "show", f"{tree_ref}:{carrier}"))
+    if unknown := set(payload) - set(_BASELINE_FIELDS):
+        message = f"successor_baseline_field_invalid:{sorted(unknown)[0]}"
+        raise ValueError(message)
+    normalized = dict(_BASELINE_FIELDS) | payload
+    subjects = normalized.get("subjects")
+    if not isinstance(subjects, list):
+        raise TypeError("successor_baseline_subjects_invalid")
+    normalized["subjects"] = [
+        repository_id if subject == "repository:self" else subject for subject in subjects
+    ]
+    return _canonical_digest(normalized)
 
 
 def _validate_git_coordinates(root: Path, envelope: dict[str, Any]) -> tuple[str, str]:
@@ -163,8 +216,8 @@ def _diff_identity(root: Path, old_head: str, new_head: str) -> tuple[str, tuple
     return _sha256_bytes(completed.stdout), tuple(sorted(name for name in names if name))
 
 
-def validate_transition(root: Path, envelope: dict[str, Any]) -> None:
-    """Validate immutable Git, actor, carrier, patch, and incumbent Lease coordinates."""
+def _validate_static_transition(root: Path, envelope: dict[str, Any]) -> None:
+    """Validate immutable Git, actor, carrier, and patch coordinates."""
     expected_top = {
         "operation",
         "root",
@@ -192,16 +245,16 @@ def validate_transition(root: Path, envelope: dict[str, Any]) -> None:
         raise ValueError("successor_patch_mismatch")
 
     baseline = _exact_keys(envelope["baseline"], {"carrier", "digest"}, "baseline")
-    incumbent = load_change_contract(
-        actual_root,
-        tree_ref=prepare_head,
-        expected_digest=str(baseline["digest"]),
-        require_active=False,
-    )
-    if incumbent.digest() != str(baseline["digest"]):
+    if _baseline_digest(actual_root, prepare_head, str(baseline["carrier"])) != str(
+        baseline["digest"]
+    ):
         raise ValueError("successor_baseline_digest_mismatch")
-    if _git(actual_root, "cat-file", "-e", f"{prepare_head}:{baseline['carrier']}"):
-        raise ValueError("successor_baseline_carrier_missing")
+
+
+def validate_transition(root: Path, envelope: dict[str, Any]) -> None:
+    """Validate immutable transition coordinates and the incumbent Lease."""
+    _validate_static_transition(root, envelope)
+    actual_root = root.resolve()
 
     lease_before = _exact_keys(
         envelope["lease_before"],
@@ -215,9 +268,14 @@ def validate_transition(root: Path, envelope: dict[str, Any]) -> None:
         connection.close()
 
 
-def evaluate_successor(root: Path, envelope: dict[str, Any]) -> dict[str, object]:
+def evaluate_successor(
+    root: Path, envelope: dict[str, Any], *, require_incumbent_lease: bool = True
+) -> dict[str, object]:
     """Execute the successor evaluator from the immutable proposed Git tree."""
-    validate_transition(root, envelope)
+    if require_incumbent_lease:
+        validate_transition(root, envelope)
+    else:
+        _validate_static_transition(root, envelope)
     successor = _exact_keys(envelope["successor"], {"carrier", "digest", "tests"}, "successor")
     head = str(envelope["successor_head"])
     with tempfile.TemporaryDirectory(prefix="ethos-successor-evaluator-") as directory:
@@ -330,6 +388,56 @@ def _require_replaced_row(rowcount: int) -> None:
         raise ValueError("successor_lease_full_row_cas_failed")
 
 
+def _compensate_ref(root: Path, envelope: dict[str, Any]) -> None:
+    compensated = subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "update-ref",
+            str(envelope["ref_name"]),
+            str(envelope["prepare_head"]),
+            str(envelope["successor_head"]),
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if compensated.returncode:
+        raise ValueError("successor_unbound_blocked")
+
+
+def _materialize_successor(root: Path, envelope: dict[str, Any]) -> None:
+    successor_head = str(envelope["successor_head"])
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("ETHOS_SUCCESSOR_")
+    }
+    reset = subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "reset",
+            "--hard",
+            successor_head,
+        ],
+        cwd=root,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if reset.returncode:
+        raise ValueError("successor_worktree_materialization_failed")
+    if (
+        _git(root, "rev-parse", "HEAD") != successor_head
+        or _git(root, "write-tree") != str(envelope["successor_tree"])
+        or _git(root, "status", "--porcelain")
+    ):
+        raise ValueError("successor_worktree_materialization_mismatch")
+
+
 def hook_entry() -> None:
     """Validate the one envelope-bound reference transaction and rebind its Lease."""
     root = Path(os.environ["ETHOS_SUCCESSOR_ROOT"])
@@ -360,9 +468,35 @@ def apply_from_environment() -> None:
     """Evaluate and apply the one successor transition, compensating Git on Lease failure."""
     root = Path(os.environ["ETHOS_SUCCESSOR_ROOT"]).resolve()
     _, envelope = _envelope_from_environment()
-    evaluation = evaluate_successor(root, envelope)
     prepare_head = str(envelope["prepare_head"])
     successor_head = str(envelope["successor_head"])
+    lease_before = cast("dict[str, Any]", envelope["lease_before"])
+    lease_after = cast("dict[str, Any]", envelope["lease_after"])
+    current_ref = _git(root, "rev-parse", str(envelope["ref_name"]))
+    current_lease = _read_raw_lease(root, str(lease_before["subject"]))
+    if current_ref == successor_head:
+        try:
+            _assert_raw_lease(current_lease, lease_after, "successor")
+        except ValueError:
+            try:
+                _assert_raw_lease(current_lease, lease_before, "incumbent")
+            except ValueError:
+                _compensate_ref(root, envelope)
+                raise ValueError("successor_lease_state_invalid") from None
+            _compensate_ref(root, envelope)
+            current_ref = prepare_head
+    if current_ref == successor_head:
+        evaluation = evaluate_successor(root, envelope, require_incumbent_lease=False)
+        _materialize_successor(root, envelope)
+        sys.stdout.write(
+            json.dumps({**evaluation, "state": "successor_cutover_recovered"}, sort_keys=True)
+            + "\n"
+        )
+        return
+    if current_ref != prepare_head:
+        raise ValueError("successor_ref_state_invalid")
+    _assert_raw_lease(current_lease, lease_before, "incumbent")
+    evaluation = evaluate_successor(root, envelope)
     env = {
         **os.environ,
         "ETHOS_SUCCESSOR_ROOT": root.as_posix(),
@@ -384,33 +518,15 @@ def apply_from_environment() -> None:
     if moved.returncode:
         message = f"successor_ref_cas_failed:{moved.stderr.strip()}"
         raise ValueError(message)
-    after = cast("dict[str, Any]", envelope["lease_after"])
-    connection, row = _lease_rows(root, str(after["subject"]))
+    connection, row = _lease_rows(root, str(lease_after["subject"]))
     try:
-        _assert_raw_lease(_raw_lease(row), after, "successor")
+        _assert_raw_lease(_raw_lease(row), lease_after, "successor")
     except Exception:
-        compensation = subprocess.run(
-            [
-                "git",
-                "-c",
-                "core.hooksPath=/dev/null",
-                "update-ref",
-                str(envelope["ref_name"]),
-                prepare_head,
-                successor_head,
-            ],
-            cwd=root,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        state = "successor_unbound_blocked" if compensation.returncode else "successor_compensated"
-        raise ValueError(state) from None
+        _compensate_ref(root, envelope)
+        raise ValueError("successor_compensated") from None
     finally:
         connection.close()
-    reset = _run(root, "git", "reset", "--hard", successor_head)
-    if reset.returncode:
-        raise ValueError("successor_worktree_materialization_failed")
+    _materialize_successor(root, envelope)
     sys.stdout.write(
         json.dumps({**evaluation, "state": "successor_cutover_complete"}, sort_keys=True) + "\n"
     )

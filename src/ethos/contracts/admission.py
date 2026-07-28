@@ -17,7 +17,7 @@ from pydantic import BeforeValidator
 from pydantic import ConfigDict
 from pydantic import Field
 
-Verdict = Literal["allow", "block", "defer"]
+Verdict = Literal["pass", "block", "unknown"]
 _PATH_REQUIRED = "path-bound admission request fields require a filesystem path"
 
 

@@ -128,7 +128,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             else "ready_to_closeout"
             if payload.ok and not payload.mutation.apply
             else "deferred"
-            if payload.control_replacement.get("verdict") == "defer"
+            if payload.control_replacement.get("verdict") == "unknown"
             else "blocked"
             if payload.gaps
             else str(payload.update.get("state") or payload.mutation.command)
@@ -153,10 +153,10 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                     ),
                     expected_state=_closeout_expected_state(payload),
                     verdict=(
-                        "allow"
+                        "pass"
                         if payload.ok
-                        else "defer"
-                        if payload.control_replacement.get("verdict") == "defer"
+                        else "unknown"
+                        if payload.control_replacement.get("verdict") == "unknown"
                         else "block"
                     ),
                     required_gaps=payload.gaps,
@@ -296,7 +296,7 @@ def _stable_control_replacement(
 ) -> tuple[dict[str, object], tuple[str, ...]]:
     if _observed_candidate_head(repo, accepted_head) != candidate_head:
         gaps = ("candidate_head_changed_after_closeout_audit",)
-        return {"verdict": "defer", "required_gaps": list(gaps)}, gaps
+        return {"verdict": "unknown", "required_gaps": list(gaps)}, gaps
     report = control_replacement_report(
         candidate_root=audit_root,
         accepted_head=accepted_head,
@@ -453,7 +453,7 @@ def _candidate_land_result(
                         status_payload=status_payload,
                         closeout_support=closeout_support,
                     ),
-                    verdict="allow" if ok else "block",
+                    verdict="pass" if ok else "block",
                     required_gaps=gaps,
                     next_actions=mutation_next_actions,
                     state=state,
@@ -623,8 +623,8 @@ def publish(
     publish_next_actions = _publish_next_actions(ok=ok, publication=publication)
     # Read-only tracking synchronization observes an existing remote ref; it never
     # upgrades this no-push command into an executed publication transition.
-    publication_verdict = "block" if gaps else "defer"
-    transition_ok = ok and (not options.apply or publication_verdict == "allow")
+    publication_verdict = "block" if gaps else "unknown"
+    transition_ok = ok and (not options.apply or publication_verdict == "pass")
     publish_expected_state = _publish_expected_state(
         repo=repo,
         branch=str(branch),
@@ -640,7 +640,7 @@ def publish(
             "local_publish_ready"
             if ok and not options.apply
             else "publication_deferred"
-            if ok and publication_verdict == "defer"
+            if ok and publication_verdict == "unknown"
             else "blocked"
             if gaps
             else decision.state

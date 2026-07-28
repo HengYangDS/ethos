@@ -144,7 +144,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
             action=f"lane.lease.{request.operation.replace('_', '.')}",
             resource=f"refs/heads/{request.branch}",
             expected_state=expected_state,
-            verdict="allow" if ok else "block",
+            verdict="pass" if ok else "block",
             required_gaps=gaps,
             why=(state,) if ok else (),
             state=state,

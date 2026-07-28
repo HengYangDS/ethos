@@ -360,7 +360,7 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
         "confirmation_present": False,
         "expect_head": None,
     }
-    assert mutation["decision"]["verdict"] == "defer"
+    assert mutation["decision"]["verdict"] == "unknown"
     assert mutation["decision"]["subject"]["action"] == "remote.publish"
     assert mutation["decision"]["required_gaps"] == []
     assert mutation["decision"]["next"]
@@ -425,7 +425,7 @@ def test_publish_apply_defers_when_remote_transition_is_not_performed(
     assert payload["required_gaps"] == []
     assert payload["summary"]["local_readiness"] is True
     assert payload["summary"]["remote_push"] == "not_performed"
-    assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "unknown"
 
 
 @pytest.mark.parametrize(

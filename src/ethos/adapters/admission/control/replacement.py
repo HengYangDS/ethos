@@ -72,7 +72,7 @@ def control_replacement_report(
         "independent_verification": {},
         "self_approval": False,
         "mints_authority": False,
-        "verdict": "allow" if not required else "defer",
+        "verdict": "pass" if not required else "unknown",
         "required_gaps": [],
     }
     if changed is None:
@@ -94,7 +94,7 @@ def control_replacement_report(
     report["independent_verification"] = verification
     report["required_gaps"] = list(cast("list[str]", verification["required_gaps"]))
     if verification["ok"] is True:
-        report["verdict"] = "allow"
+        report["verdict"] = "pass"
     return report
 
 

@@ -431,7 +431,7 @@ def _finish_report(
             action=action,
             resource=resource,
             expected_state=expected_state,
-            verdict=cast("Any", "allow" if report["ok"] else "block"),
+            verdict=cast("Any", "pass" if report["ok"] else "block"),
             required_gaps=gaps,
             why=(str(report["state"]),) if report["ok"] else (),
             state=str(report["state"]),

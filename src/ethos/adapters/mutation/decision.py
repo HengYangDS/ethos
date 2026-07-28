@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Literal
 from typing import cast
 
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
@@ -24,8 +23,6 @@ from ethos.contracts.lifecycle.reducer import reduce_transition
 if TYPE_CHECKING:
     from ethos.contracts.coordination import MutationAdmissionRequest
     from ethos.contracts.lifecycle.reducer import TransitionRequest
-
-MutationVerdict = Literal["allow", "block", "defer"]
 
 
 def _transition_policy(root: Path, identifier: str):
@@ -143,7 +140,7 @@ def mutation_envelope(
         why=admission.why
         or (
             (admission.state or "request_admitted",)
-            if admission.verdict == "allow"
+            if admission.verdict == "pass"
             else admission.required_gaps
         ),
         next=admission.next_actions,

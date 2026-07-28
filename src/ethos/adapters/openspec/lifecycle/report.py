@@ -5,7 +5,6 @@ from typing import Any
 from typing import NamedTuple
 
 from ethos.adapters.openspec.preflight.archive_preflight import openspec_archive_preflight_report
-from ethos.adapters.openspec.protocol.proposal_protocol import proposal_protocol_report
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
@@ -235,8 +234,9 @@ def _change_report(
     gaps.extend(string_sequence(contract.get("required_gaps")))
     if logical_change_identifier_issue(name):
         gaps.append(f"openspec_active_change_identifier_invalid:{name}")
-    protocol = proposal_protocol_report(root, name)
-    gaps.extend(string_sequence(protocol.get("required_gaps")))
+    capabilities = sorted(
+        path.parent.name for path in (change_root / "specs").glob("*/spec.md") if path.is_file()
+    )
     preflight = (
         openspec_archive_preflight_report(root, name, base_command=base_command)
         if base_command is not None
@@ -255,7 +255,7 @@ def _change_report(
         "name": name,
         "path": change_root.relative_to(root).as_posix(),
         "carriers": carriers,
-        "proposal_protocol": protocol,
+        "capabilities": capabilities,
         "archive_preflight": preflight,
         "required_gaps": gaps,
     }, gaps

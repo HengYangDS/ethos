@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import ethos.adapters.mutation.lanes as lanes
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_repository_contract
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import coordination_package
@@ -445,7 +445,7 @@ def test_start_work_lane_blocks_candidate_active_change_carrier(tmp_path: Path) 
     target = tmp_path / "repo-work-feature"
     carrier = candidate / "openspec/changes/stale/commitment.toml"
     carrier.parent.mkdir(parents=True)
-    repository = load_repository_contract(candidate)
+    repository = load_repository_commitment(candidate)
     carrier.write_text(
         'schema_version = 1\nid = "change:stale"\nintent = "Stale."\n'
         f'subjects = ["{repository.id}"]\nscope = ["**"]\n',

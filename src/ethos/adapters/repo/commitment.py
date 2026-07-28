@@ -77,7 +77,7 @@ def _load(
         raise ValueError(message) from exc
 
 
-def load_repository_contract(repo: Path, *, tree_ref: str | None = None) -> Commitment:
+def load_repository_commitment(repo: Path, *, tree_ref: str | None = None) -> Commitment:
     """Load the stable repository identity Commitment."""
     try:
         commitment = _load(repo, _REPOSITORY_COMMITMENT, tree_ref=tree_ref)
@@ -116,7 +116,7 @@ def load_commitment(
     directory discovery. Format-specific selectors belong to their adapters.
     """
     relative = _selected_carrier(repo, tree_ref=tree_ref, carrier=carrier)
-    repository = load_repository_contract(repo, tree_ref=tree_ref)
+    repository = load_repository_commitment(repo, tree_ref=tree_ref)
     commitment = (
         repository
         if relative == _REPOSITORY_COMMITMENT

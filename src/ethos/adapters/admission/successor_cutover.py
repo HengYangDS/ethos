@@ -301,7 +301,12 @@ def evaluate_successor(
             "repository_id='repository:ethos'); "
             f"assert c.digest()=={digest!r}"
         )
-        environment = {**os.environ, "PYTHONPATH": str(target / "src")}
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith("ETHOS_SUCCESSOR_")
+        }
+        environment["PYTHONPATH"] = str(target / "src")
         semantic = subprocess.run(
             [str(python), "-c", script],
             cwd=target,

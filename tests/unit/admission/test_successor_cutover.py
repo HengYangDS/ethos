@@ -177,7 +177,7 @@ def test_lease_cutover_rejects_missing_incumbent_row(
         replace_lease(tmp_path, {"lease_before": before, "lease_after": before})
 
 
-def test_materialization_disables_prepare_reference_hook(tmp_path: Path) -> None:
+def _materialization_case(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "work/test"], cwd=repo, check=True)
@@ -187,65 +187,6 @@ def test_materialization_disables_prepare_reference_hook(tmp_path: Path) -> None
     subprocess.run(["git", "add", "value.txt"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "prepare"], cwd=repo, check=True)
     prepare = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
-    (repo / "value.txt").write_text("successor\n", encoding="utf-8")
-    subprocess.run(["git", "commit", "-qam", "successor"], cwd=repo, check=True)
-    successor = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
-    tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True).strip()
-    subprocess.run(
-        ["git", "-c", "core.hooksPath=/dev/null", "update-ref", "refs/heads/work/test", prepare],
-        cwd=repo,
-        check=True,
-    )
-    subprocess.run(["git", "reset", "--hard", "-q", prepare], cwd=repo, check=True)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "core.hooksPath=/dev/null",
-            "update-ref",
-            "refs/heads/work/test",
-            successor,
-            prepare,
-        ],
-        cwd=repo,
-        check=True,
-    )
-    hooks = tmp_path / "hooks"
-    hooks.mkdir()
-    hook = hooks / "reference-transaction"
-    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    hook.chmod(0o755)
-    subprocess.run(["git", "config", "core.hooksPath", str(hooks)], cwd=repo, check=True)
-
-    cutover._materialize_successor(
-        repo,
-        {
-            "prepare_tree": subprocess.check_output(
-                ["git", "rev-parse", f"{prepare}^{{tree}}"], cwd=repo, text=True
-            ).strip(),
-            "successor_head": successor,
-            "successor_tree": tree,
-            "ref_name": "refs/heads/work/test",
-        },
-    )
-
-    assert (repo / "value.txt").read_text(encoding="utf-8") == "successor\n"
-    assert subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True) == ""
-
-
-def test_materialization_refuses_dirty_prepare_without_deleting_bytes(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    subprocess.run(["git", "init", "-q", "-b", "work/test"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
-    (repo / "value.txt").write_text("prepare\n", encoding="utf-8")
-    subprocess.run(["git", "add", "value.txt"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "prepare"], cwd=repo, check=True)
-    prepare = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
-    prepare_tree = subprocess.check_output(
-        ["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True
-    ).strip()
     (repo / "value.txt").write_text("successor\n", encoding="utf-8")
     subprocess.run(["git", "commit", "-qam", "successor"], cwd=repo, check=True)
     successor = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
@@ -271,20 +212,164 @@ def test_materialization_refuses_dirty_prepare_without_deleting_bytes(tmp_path: 
         cwd=repo,
         check=True,
     )
+    return repo, {
+        "prepare_head": prepare,
+        "prepare_tree": subprocess.check_output(
+            ["git", "rev-parse", f"{prepare}^{{tree}}"], cwd=repo, text=True
+        ).strip(),
+        "successor_head": successor,
+        "successor_tree": successor_tree,
+        "ref_name": "refs/heads/work/test",
+    }
+
+
+def test_materialization_disables_prepare_reference_hook(tmp_path: Path) -> None:
+    repo, envelope = _materialization_case(tmp_path)
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    hook = hooks / "reference-transaction"
+    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    subprocess.run(["git", "config", "core.hooksPath", str(hooks)], cwd=repo, check=True)
+
+    cutover._materialize_successor(repo, envelope)
+    cutover._materialize_successor(repo, envelope)
+
+    assert (repo / "value.txt").read_text(encoding="utf-8") == "successor\n"
+    assert subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True) == ""
+
+
+def test_materialization_refuses_dirty_prepare_without_deleting_bytes(tmp_path: Path) -> None:
+    repo, envelope = _materialization_case(tmp_path)
     (repo / "value.txt").write_text("valuable dirty bytes\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="successor_worktree_not_exact_prepare"):
-        cutover._materialize_successor(
-            repo,
-            {
-                "prepare_tree": prepare_tree,
-                "successor_head": successor,
-                "successor_tree": successor_tree,
-                "ref_name": "refs/heads/work/test",
-            },
-        )
+        cutover._materialize_successor(repo, envelope)
 
     assert (repo / "value.txt").read_text(encoding="utf-8") == "valuable dirty bytes\n"
+
+
+def test_materialization_refuses_raced_tree_without_deleting_bytes(tmp_path: Path) -> None:
+    repo, envelope = _materialization_case(tmp_path)
+    original_run = cutover._run
+    observations = 0
+
+    def race_after_clean_check(
+        root: Path, *args: str, input_text: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal observations
+        result = original_run(root, *args, input_text=input_text)
+        if args == ("git", "diff-files", "--quiet", "--"):
+            observations += 1
+            if observations == 1:
+                (repo / "value.txt").write_text("valuable raced bytes\n", encoding="utf-8")
+        return result
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(cutover, "_run", race_after_clean_check)
+        with pytest.raises(ValueError, match="successor_worktree_materialization_failed"):
+            cutover._materialize_successor(repo, envelope)
+
+    assert (repo / "value.txt").read_text(encoding="utf-8") == "valuable raced bytes\n"
+
+
+def test_materialization_holds_successor_lease_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = tmp_path / "state.sqlite"
+    payload = '{"wire":"after"}'
+    after = {
+        "id": "lease:one",
+        "subject": "work/one",
+        "owner": "actor:one",
+        "expires_at": "after",
+        "payload_json": payload,
+        "payload_sha256": hashlib.sha256(payload.encode()).hexdigest(),
+    }
+    with closing(sqlite3.connect(db)) as connection, connection:
+        connection.execute(
+            "create table leases (id text primary key, subject text, owner text, expires_at text, payload_json text)"
+        )
+        connection.execute(
+            "insert into leases values (?, ?, ?, ?, ?)",
+            tuple(after[key] for key in ("id", "subject", "owner", "expires_at", "payload_json")),
+        )
+    monkeypatch.setattr(cutover, "state_database", lambda _root: db)
+
+    def materialize(_root: Path, _envelope: dict[str, object]) -> None:
+        with (
+            closing(sqlite3.connect(db, timeout=0)) as contender,
+            pytest.raises(sqlite3.OperationalError, match="locked"),
+        ):
+            contender.execute(
+                "update leases set payload_json = ? where subject = ?",
+                ('{"wire":"drift"}', "work/one"),
+            )
+
+    monkeypatch.setattr(cutover, "_materialize_successor", materialize)
+    monkeypatch.setattr(cutover, "_git", lambda *_args: "b" * 40)
+
+    cutover._materialize_successor_with_lease_lock(
+        tmp_path,
+        {
+            "successor_head": "b" * 40,
+            "ref_name": "refs/heads/work/one",
+            "lease_after": after,
+        },
+    )
+
+
+def test_materialization_rereads_successor_lease_after_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = tmp_path / "state.sqlite"
+    payload = '{"wire":"after"}'
+    after = {
+        "id": "lease:one",
+        "subject": "work/one",
+        "owner": "actor:one",
+        "expires_at": "after",
+        "payload_json": payload,
+        "payload_sha256": hashlib.sha256(payload.encode()).hexdigest(),
+    }
+    with closing(sqlite3.connect(db)) as connection, connection:
+        connection.execute(
+            "create table leases (id text primary key, subject text, owner text, expires_at text, payload_json text)"
+        )
+        connection.execute(
+            "insert into leases values (?, ?, ?, ?, ?)",
+            tuple(after[key] for key in ("id", "subject", "owner", "expires_at", "payload_json")),
+        )
+    original_lease_rows = cutover._lease_rows
+
+    def drift_after_initial_read(
+        root: Path, subject: str
+    ) -> tuple[sqlite3.Connection, sqlite3.Row | None]:
+        connection, row = original_lease_rows(root, subject)
+        with closing(sqlite3.connect(db)) as drifter, drifter:
+            drifter.execute(
+                "update leases set payload_json = ? where subject = ?",
+                ('{"wire":"drift"}', subject),
+            )
+        return connection, row
+
+    monkeypatch.setattr(cutover, "state_database", lambda _root: db)
+    monkeypatch.setattr(cutover, "_lease_rows", drift_after_initial_read)
+    monkeypatch.setattr(
+        cutover,
+        "_materialize_successor",
+        lambda *_args: pytest.fail("stale Lease reached materialization"),
+    )
+
+    with pytest.raises(ValueError, match="successor_successor_lease_drift"):
+        cutover._materialize_successor_with_lease_lock(
+            tmp_path,
+            {
+                "successor_head": "b" * 40,
+                "ref_name": "refs/heads/work/one",
+                "lease_after": after,
+            },
+        )
 
 
 def test_apply_resumes_exact_successor_ref_and_lease(
@@ -316,7 +401,8 @@ def test_apply_resumes_exact_successor_ref_and_lease(
     monkeypatch.setenv("ETHOS_SUCCESSOR_ROOT", str(tmp_path))
     monkeypatch.setattr(cutover, "_envelope_from_environment", lambda: (tmp_path, envelope))
     monkeypatch.setattr(cutover, "_validate_static_transition", lambda *_args: None)
-    monkeypatch.setattr(cutover, "_transition_state", lambda *_args: "successor_after")
+    states = iter(("successor_after", "successor_after"))
+    monkeypatch.setattr(cutover, "_transition_state", lambda *_args: next(states))
     monkeypatch.setattr(
         cutover,
         "evaluate_successor",
@@ -324,7 +410,7 @@ def test_apply_resumes_exact_successor_ref_and_lease(
     )
     monkeypatch.setattr(
         cutover,
-        "_materialize_successor",
+        "_materialize_successor_with_lease_lock",
         lambda *_args: calls.append("materialized"),
     )
 
@@ -332,6 +418,44 @@ def test_apply_resumes_exact_successor_ref_and_lease(
 
     assert calls == [{"require_incumbent_lease": False}, "materialized"]
     assert json.loads(capsys.readouterr().out)["state"] == "successor_cutover_recovered"
+
+
+def test_apply_rechecks_successor_state_after_evaluation_before_materialization(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    envelope = {
+        "prepare_head": "a" * 40,
+        "successor_head": "b" * 40,
+        "ref_name": "refs/heads/work/one",
+        "lease_before": {"subject": "work/one"},
+        "lease_after": {"subject": "work/one"},
+    }
+    states = iter(("successor_after", "successor_before"))
+    calls: list[str] = []
+    monkeypatch.setenv("ETHOS_SUCCESSOR_ROOT", str(tmp_path))
+    monkeypatch.setattr(cutover, "_envelope_from_environment", lambda: (tmp_path, envelope))
+    monkeypatch.setattr(cutover, "_validate_static_transition", lambda *_args: None)
+    monkeypatch.setattr(cutover, "_transition_state", lambda *_args: next(states))
+    monkeypatch.setattr(
+        cutover,
+        "evaluate_successor",
+        lambda *_args, **_kwargs: calls.append("evaluated") or {},
+    )
+    monkeypatch.setattr(
+        cutover,
+        "replace_lease",
+        lambda *_args: (_ for _ in ()).throw(ValueError("lease_drift_after_evaluation")),
+    )
+    monkeypatch.setattr(
+        cutover,
+        "_materialize_successor_with_lease_lock",
+        lambda *_args: calls.append("materialized"),
+    )
+
+    with pytest.raises(ValueError, match="lease_drift_after_evaluation"):
+        apply_from_environment()
+
+    assert calls == ["evaluated"]
 
 
 def test_apply_rejects_unknown_successor_lease_without_ref_rollback(

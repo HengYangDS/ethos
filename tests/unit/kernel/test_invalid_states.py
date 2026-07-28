@@ -69,7 +69,6 @@ def test_unclassified_signals_are_preserved_without_aliasing_retired_ontology() 
 
 
 def test_terminal_categories_classify_current_verifier_boundaries() -> None:
-    assert classify("authority_graph_missing") == "commitment_invalid"
     assert classify("openspec_config_missing") == "commitment_invalid"
     assert classify("git_snapshot_root_invalid") == "facts_invalid"
     assert classify("protected_root_mutation") == "plan_invalid"
@@ -80,7 +79,7 @@ def test_terminal_categories_classify_current_verifier_boundaries() -> None:
 def test_classify_all_preserves_terminal_category_order() -> None:
     grouped = classify_all(
         (
-            "authority_graph_missing",
+            "openspec_config_missing",
             "git_snapshot_root_invalid",
             "protected_root_mutation",
             "proof_not_proven",

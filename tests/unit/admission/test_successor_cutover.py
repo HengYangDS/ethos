@@ -31,18 +31,16 @@ def test_evaluator_keeps_virtual_environment_interpreter_path(
     monkeypatch.setenv("ETHOS_SUCCESSOR_ENVELOPE", "/tmp/envelope.json")
     monkeypatch.setenv("ETHOS_SUCCESSOR_ROOT", "/tmp/repository")
     monkeypatch.setattr(cutover, "validate_transition", lambda *_args: None)
-    monkeypatch.setattr(
-        cutover.subprocess,
-        "Popen",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=object(), wait=lambda: 0),
-    )
     stream = SimpleNamespace(extractall=lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cutover.tarfile, "open", lambda **_kwargs: nullcontext(stream))
     commands: list[tuple[list[str], dict[str, str]]] = []
 
     def run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        commands.append((args, _kwargs["env"]))
-        return subprocess.CompletedProcess(args, 0, "", "")
+        environment = _kwargs.get("env")
+        if isinstance(environment, dict):
+            commands.append((args, environment))
+            return subprocess.CompletedProcess(args, 0, "", "")
+        return subprocess.CompletedProcess(args, 0, b"archive", b"")
 
     monkeypatch.setattr(cutover.subprocess, "run", run)
 
@@ -221,11 +219,72 @@ def test_materialization_disables_prepare_reference_hook(tmp_path: Path) -> None
 
     cutover._materialize_successor(
         repo,
-        {"successor_head": successor, "successor_tree": tree},
+        {
+            "prepare_tree": subprocess.check_output(
+                ["git", "rev-parse", f"{prepare}^{{tree}}"], cwd=repo, text=True
+            ).strip(),
+            "successor_head": successor,
+            "successor_tree": tree,
+            "ref_name": "refs/heads/work/test",
+        },
     )
 
     assert (repo / "value.txt").read_text(encoding="utf-8") == "successor\n"
     assert subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True) == ""
+
+
+def test_materialization_refuses_dirty_prepare_without_deleting_bytes(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "work/test"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    (repo / "value.txt").write_text("prepare\n", encoding="utf-8")
+    subprocess.run(["git", "add", "value.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "prepare"], cwd=repo, check=True)
+    prepare = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    prepare_tree = subprocess.check_output(
+        ["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True
+    ).strip()
+    (repo / "value.txt").write_text("successor\n", encoding="utf-8")
+    subprocess.run(["git", "commit", "-qam", "successor"], cwd=repo, check=True)
+    successor = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    successor_tree = subprocess.check_output(
+        ["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True
+    ).strip()
+    subprocess.run(
+        ["git", "-c", "core.hooksPath=/dev/null", "update-ref", "refs/heads/work/test", prepare],
+        cwd=repo,
+        check=True,
+    )
+    subprocess.run(["git", "reset", "--hard", "-q", prepare], cwd=repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "update-ref",
+            "refs/heads/work/test",
+            successor,
+            prepare,
+        ],
+        cwd=repo,
+        check=True,
+    )
+    (repo / "value.txt").write_text("valuable dirty bytes\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="successor_worktree_not_exact_prepare"):
+        cutover._materialize_successor(
+            repo,
+            {
+                "prepare_tree": prepare_tree,
+                "successor_head": successor,
+                "successor_tree": successor_tree,
+                "ref_name": "refs/heads/work/test",
+            },
+        )
+
+    assert (repo / "value.txt").read_text(encoding="utf-8") == "valuable dirty bytes\n"
 
 
 def test_apply_resumes_exact_successor_ref_and_lease(
@@ -256,8 +315,8 @@ def test_apply_resumes_exact_successor_ref_and_lease(
     calls: list[object] = []
     monkeypatch.setenv("ETHOS_SUCCESSOR_ROOT", str(tmp_path))
     monkeypatch.setattr(cutover, "_envelope_from_environment", lambda: (tmp_path, envelope))
-    monkeypatch.setattr(cutover, "_git", lambda *_args: "b" * 40)
-    monkeypatch.setattr(cutover, "_read_raw_lease", lambda *_args: after)
+    monkeypatch.setattr(cutover, "_validate_static_transition", lambda *_args: None)
+    monkeypatch.setattr(cutover, "_transition_state", lambda *_args: "successor_after")
     monkeypatch.setattr(
         cutover,
         "evaluate_successor",
@@ -273,3 +332,30 @@ def test_apply_resumes_exact_successor_ref_and_lease(
 
     assert calls == [{"require_incumbent_lease": False}, "materialized"]
     assert json.loads(capsys.readouterr().out)["state"] == "successor_cutover_recovered"
+
+
+def test_apply_rejects_unknown_successor_lease_without_ref_rollback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    envelope = {
+        "prepare_head": "a" * 40,
+        "successor_head": "b" * 40,
+        "ref_name": "refs/heads/work/one",
+        "lease_before": {"subject": "work/one"},
+        "lease_after": {"subject": "work/one"},
+    }
+    monkeypatch.setenv("ETHOS_SUCCESSOR_ROOT", str(tmp_path))
+    monkeypatch.setattr(cutover, "_envelope_from_environment", lambda: (tmp_path, envelope))
+    monkeypatch.setattr(cutover, "_validate_static_transition", lambda *_args: None)
+    monkeypatch.setattr(
+        cutover,
+        "_transition_state",
+        lambda *_args: (_ for _ in ()).throw(ValueError("successor_successor_lease_drift")),
+    )
+    calls: list[object] = []
+    monkeypatch.setattr(cutover.subprocess, "run", lambda *_args, **_kwargs: calls.append(_args))
+
+    with pytest.raises(ValueError, match="successor_successor_lease_drift"):
+        apply_from_environment()
+
+    assert calls == []

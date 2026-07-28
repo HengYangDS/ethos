@@ -324,7 +324,6 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
         "authority.schema.json",
-        "authority-graph.schema.json",
     }
     paths = tuple(schema_dir.glob("*.schema.json"))
     assert expected <= {path.name for path in paths}

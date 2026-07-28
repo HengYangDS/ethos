@@ -38,7 +38,7 @@ lineage; Attestations own verifier-bounded observations, judgments, proof,
 effects, and historical preservation. Neither a proposition nor a historical
 view is a persistent authority surface.
 
-DocOS authority graph data under `docs/_meta/authority_graph.toml` is a typed
-read model and drift gate. It records relation type, owner, canonical target,
-derivation, supersession, evidence references, and stable path. It does not
-create a new truth store.
+Authority is resolved from the selected Commitment, applicable policy,
+fresh Facts, and current Attestations for the exact subject and context. No
+hand-maintained graph, rank, currentness index, or reader projection owns that
+judgment.

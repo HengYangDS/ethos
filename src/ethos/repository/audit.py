@@ -14,7 +14,6 @@ from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.policy.coupling.audit import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
-from ethos.repository.registry.authority import authority_graph_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
@@ -76,7 +75,6 @@ REQUIRED_SCHEMAS = (
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
     "authority.schema.json",
-    "authority-graph.schema.json",
     "quality-asset.schema.json",
     "quality-gate-plan.schema.json",
     "quality-profile.schema.json",
@@ -167,7 +165,6 @@ def repository_audit(
         for family in REQUIRED_OPENSPEC_CAPABILITIES
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
-    authority_graph = authority_graph_report(root)
     schema_report = schema_validation_report(root)
     coupling = coupling_audit_report(root)
     design_integrity = design_integrity_report(root)
@@ -183,7 +180,6 @@ def repository_audit(
         str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
     ]
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
-    authority_graph_gaps = [str(gap) for gap in cast("list[str]", authority_graph["required_gaps"])]
     playbook_report = playbooks_report(root, mode="v2-strict")
     playbook_gaps = [str(gap) for gap in cast("list[str]", playbook_report["required_gaps"])]
     system_contracts = system_contracts_report(root)
@@ -201,7 +197,6 @@ def repository_audit(
         + coupling_gaps
         + design_integrity_gaps
         + openspec_gaps
-        + authority_graph_gaps
         + playbook_gaps
         + system_contract_gaps
         + _write_admission_armed_gaps(root)
@@ -237,7 +232,6 @@ def repository_audit(
             "expected": list(REQUIRED_OPENSPEC_CAPABILITIES),
             "missing": openspec_capability_missing,
         },
-        "authority_graph": authority_graph,
         "coupling": coupling,
         "design_integrity": design_integrity,
         "openspec": openspec,

@@ -17,7 +17,7 @@ from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.commitment import load_repository_contract
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.semantic import Attestation
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
@@ -180,9 +180,9 @@ def test_proof_plan_has_no_digest_override_escape_hatch(tmp_path: Path) -> None:
 
 def test_proof_plan_rejects_a_change_for_another_repository(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    contract = repo / "openspec" / "changes" / "proof-binding" / "commitment.toml"
-    contract.write_text(
-        contract.read_text(encoding="utf-8").replace(
+    commitment = repo / "openspec" / "changes" / "proof-binding" / "commitment.toml"
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace(
             'subjects = ["repository:self"]',
             'subjects = ["repository:foreign"]',
         ),
@@ -209,20 +209,20 @@ def test_proof_plan_identity_is_stable_across_linked_worktrees(tmp_path: Path) -
     assert proof_plan(repo, head=head).digest() == proof_plan(linked, head=head).digest()
 
 
-def test_proof_plan_identity_changes_with_contract_head_or_policy(tmp_path: Path) -> None:
+def test_proof_plan_identity_changes_with_commitment_head_or_policy(tmp_path: Path) -> None:
     repo, first_head = _adopted_repo(tmp_path / "repo")
     first = proof_plan(repo, head=first_head)
 
-    contract = repo / "openspec" / "changes" / "proof-binding" / "commitment.toml"
-    contract.write_text(
-        contract.read_text(encoding="utf-8").replace(
+    commitment = repo / "openspec" / "changes" / "proof-binding" / "commitment.toml"
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace(
             "Bind proof to the governed change.",
             "Bind the revised proof to the governed change.",
         ),
         encoding="utf-8",
     )
-    contract_head = _commit(repo, "revise contract")
-    contract_changed = proof_plan(repo, head=contract_head)
+    commitment_head = _commit(repo, "revise commitment")
+    commitment_changed = proof_plan(repo, head=commitment_head)
 
     gates = repo / "system" / "gates.toml"
     gates.parent.mkdir()
@@ -230,10 +230,10 @@ def test_proof_plan_identity_changes_with_contract_head_or_policy(tmp_path: Path
     policy_head = _commit(repo, "revise policy")
     policy_changed = proof_plan(repo, head=policy_head)
 
-    assert len({first.digest(), contract_changed.digest(), policy_changed.digest()}) == 3
+    assert len({first.digest(), commitment_changed.digest(), policy_changed.digest()}) == 3
 
 
-def test_proof_plan_requires_a_change_selector_when_multiple_active_contracts_exist(
+def test_proof_plan_requires_a_change_selector_when_multiple_active_commitments_exist(
     tmp_path: Path,
 ) -> None:
     repo, _head = _adopted_repo(tmp_path / "repo")
@@ -254,7 +254,7 @@ def test_proof_plan_requires_a_change_selector_when_multiple_active_contracts_ex
     assert selected.facts["values"]["change_id"] == "proof-binding"
 
 
-def test_proof_plan_ignores_complete_contract_at_committed_head(tmp_path: Path) -> None:
+def test_proof_plan_ignores_complete_commitment_at_committed_head(tmp_path: Path) -> None:
     repo, _head = _adopted_repo(tmp_path / "repo")
     active_tasks = repo / "openspec" / "changes" / "proof-binding" / "tasks.md"
     active_tasks.write_text("- [ ] Prove\n", encoding="utf-8")
@@ -273,7 +273,9 @@ def test_proof_plan_ignores_complete_contract_at_committed_head(tmp_path: Path) 
         proof_plan(repo, head=head, change_id="complete")
 
 
-def test_proof_plan_uses_repository_contract_when_no_active_contract_exists(tmp_path: Path) -> None:
+def test_proof_plan_uses_repository_commitment_when_no_active_commitment_exists(
+    tmp_path: Path,
+) -> None:
     repo, _head = _adopted_repo(tmp_path / "repo")
     tasks = repo / "openspec" / "changes" / "proof-binding" / "tasks.md"
     tasks.write_text("- [x] Complete\n", encoding="utf-8")
@@ -281,7 +283,7 @@ def test_proof_plan_uses_repository_contract_when_no_active_contract_exists(tmp_
 
     plan = proof_plan(repo, head=head)
 
-    assert plan.commitment_digest == load_repository_contract(repo, tree_ref=head).digest()
+    assert plan.commitment_digest == load_repository_commitment(repo, tree_ref=head).digest()
     assert plan.facts["values"]["change_id"] == ""
 
 
@@ -386,7 +388,7 @@ def test_proof_admission_uses_self_contained_closure_not_historical_commitment(
         raise AssertionError("historical_commitment_read")
 
     monkeypatch.setattr(proof_module, "load_commitment", historical_read_forbidden)
-    monkeypatch.setattr(proof_module, "load_repository_contract", historical_read_forbidden)
+    monkeypatch.setattr(proof_module, "load_repository_commitment", historical_read_forbidden)
 
     assert proof_attestation(repo, head) == attestation
     assert proof_gaps(repo, head) == []

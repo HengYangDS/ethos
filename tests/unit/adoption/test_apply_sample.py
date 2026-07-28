@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters.repo.commitment import load_repository_contract
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
@@ -16,7 +16,7 @@ from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 
 
-def test_adopt_apply_writes_profile_and_repository_contract(tmp_path: Path) -> None:
+def test_adopt_apply_writes_profile_and_repository_commitment(tmp_path: Path) -> None:
     result = adoption_plan(tmp_path, apply=True)
 
     profile = load_repository_profile(tmp_path)
@@ -49,7 +49,7 @@ def test_dry_run_plan_can_be_applied_without_changing_identity(tmp_path: Path) -
 
     assert result["repository_id"] == plan["repository_id"]
     assert result["plan_digest"] == plan["plan_digest"]
-    assert load_repository_contract(tmp_path).id == plan["repository_id"]
+    assert load_repository_commitment(tmp_path).id == plan["repository_id"]
 
 
 def test_apply_rejects_a_plan_digest_that_was_not_reviewed(tmp_path: Path) -> None:
@@ -79,7 +79,7 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
     assert second_plan["required_gaps"] == []
     assert {item["action"] for item in second_plan["write_plan"]} == {"keep_existing"}
     assert (second / ".ethos" / "commitment.toml").read_text(encoding="utf-8") == first_contract
-    assert load_repository_contract(first).id == load_repository_contract(second).id
+    assert load_repository_commitment(first).id == load_repository_commitment(second).id
 
 
 def test_apply_is_idempotent_and_replaces_an_empty_binding(tmp_path: Path) -> None:
@@ -211,20 +211,20 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, m
     assert list(target.parent.glob(".profile-*")) == []
 
 
-def test_adopt_rolls_back_profile_when_contract_write_fails(tmp_path: Path, monkeypatch) -> None:
-    contract = tmp_path / ".ethos" / "commitment.toml"
+def test_adopt_rolls_back_profile_when_commitment_write_fails(tmp_path: Path, monkeypatch) -> None:
+    commitment = tmp_path / ".ethos" / "commitment.toml"
     original_replace = Path.replace
-    message = "contract replace failed"
+    message = "commitment replace failed"
 
-    def fail_contract(path: Path, destination: Path) -> Path:
-        if destination == contract:
+    def fail_commitment(path: Path, destination: Path) -> Path:
+        if destination == commitment:
             raise OSError(message)
         return original_replace(path, destination)
 
-    monkeypatch.setattr(Path, "replace", fail_contract)
+    monkeypatch.setattr(Path, "replace", fail_commitment)
 
-    with pytest.raises(OSError, match="contract replace failed"):
+    with pytest.raises(OSError, match="commitment replace failed"):
         adoption_plan(tmp_path, apply=True)
 
     assert not (tmp_path / ".ethos" / "profile.toml").exists()
-    assert not contract.exists()
+    assert not commitment.exists()

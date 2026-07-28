@@ -21,7 +21,7 @@ from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_repository_contract
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -262,7 +262,7 @@ def proof_plan(
         except ValueError as error:
             if change_id is not None or str(error) != "commitment_missing":
                 raise
-            commitment = load_repository_contract(root, tree_ref=head)
+            commitment = load_repository_commitment(root, tree_ref=head)
     elif work_lane:
         commitment = load_profile_lease_bound_commitment(
             root,
@@ -272,7 +272,7 @@ def proof_plan(
         )
     else:
         commitment = load_commitment(root, change_id=change_id, tree_ref=head)
-    repository = load_repository_contract(root, tree_ref=head)
+    repository = load_repository_commitment(root, tree_ref=head)
     selected_change_id = (
         commitment.id.removeprefix("change:") if commitment.id != repository.id else ""
     )

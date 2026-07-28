@@ -7,7 +7,7 @@ from datetime import datetime
 
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import load_repository_contract
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -80,7 +80,7 @@ def plan(
         )
         return
     head = str(status_payload.get("head") or "")
-    repository = load_repository_contract(repo)
+    repository = load_repository_commitment(repo)
     facts = Facts(
         repository=repository.id,
         head=head,

@@ -282,11 +282,11 @@ def write_active_commitment(
 ) -> None:
     """Write one complete-shape active OpenSpec Change for lifecycle fixtures."""
     _enable_openspec_profile(repo)
-    repository_contract = repo / ".ethos" / "commitment.toml"
-    if not repository_contract.exists():
+    repository_commitment = repo / ".ethos" / "commitment.toml"
+    if not repository_commitment.exists():
         repository_id = f"repository:{repo.name}"
-        repository_contract.parent.mkdir(parents=True, exist_ok=True)
-        repository_contract.write_text(
+        repository_commitment.parent.mkdir(parents=True, exist_ok=True)
+        repository_commitment.write_text(
             "\n".join(
                 (
                     "schema_version = 1",

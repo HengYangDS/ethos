@@ -5,6 +5,8 @@ import json
 import sqlite3
 import subprocess
 from contextlib import closing
+from contextlib import nullcontext
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -16,6 +18,48 @@ from ethos.adapters.admission.successor_cutover import replace_lease
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_evaluator_keeps_virtual_environment_interpreter_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    virtual_python = tmp_path / "venv" / "bin" / "python"
+    virtual_python.parent.mkdir(parents=True)
+    virtual_python.symlink_to(cutover.sys.executable)
+    monkeypatch.setattr(cutover.sys, "executable", virtual_python.as_posix())
+    monkeypatch.setattr(cutover, "validate_transition", lambda *_args: None)
+    monkeypatch.setattr(
+        cutover.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=object(), wait=lambda: 0),
+    )
+    stream = SimpleNamespace(extractall=lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cutover.tarfile, "open", lambda **_kwargs: nullcontext(stream))
+    commands: list[list[str]] = []
+
+    def run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(args)
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(cutover.subprocess, "run", run)
+
+    cutover.evaluate_successor(
+        tmp_path,
+        {
+            "successor_head": "a" * 40,
+            "successor": {
+                "carrier": ".ethos/commitment.toml",
+                "digest": "b" * 64,
+                "tests": ["tests/test_successor.py"],
+            },
+        },
+    )
+
+    assert [command[0] for command in commands] == [
+        virtual_python.as_posix(),
+        virtual_python.as_posix(),
+    ]
 
 
 def _write_envelope(path: Path, payload: dict[str, object]) -> str:

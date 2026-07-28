@@ -10,6 +10,7 @@ must never acquire a digest-rebinding capability.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import sqlite3
@@ -35,6 +36,19 @@ _HOOK_NEW_ENV = "ETHOS_SUCCESSOR_HOOK_NEW"
 _OPERATION = "semantic-kernel-successor-cutover-v1"
 _ZERO_EXIT = 0
 _LEASE_FIELDS = ("id", "subject", "owner", "expires_at", "payload_json", "payload_sha256")
+_LEASE_PAYLOAD_FIELDS = {
+    "lane_incarnation_id",
+    "lease_id",
+    "lane_ref",
+    "holder_ref",
+    "epoch",
+    "issued_at",
+    "renewed_at",
+    "expires_at",
+    "expected_head",
+    "path_scope",
+    "handoff",
+}
 _BASELINE_FIELDS = {
     "schema_version": 1,
     "id": "",
@@ -161,6 +175,69 @@ def _read_raw_lease(root: Path, subject: str) -> dict[str, str]:
         connection.close()
 
 
+def _lease_payload(row: dict[str, Any], field: str) -> dict[str, Any]:
+    payload_json = str(row["payload_json"])
+    if _sha256_bytes(payload_json.encode()) != str(row["payload_sha256"]):
+        message = f"successor_{field}_digest_mismatch"
+        raise ValueError(message)
+    payload = json.loads(payload_json)
+    expected = _LEASE_PAYLOAD_FIELDS | {
+        "base_change_contract_digest" if field == "lease_before" else "base_commitment_digest"
+    }
+    return _exact_keys(payload, expected, field)
+
+
+def _validate_lease_coordinates(
+    envelope: dict[str, Any], baseline: dict[str, Any], successor: dict[str, Any]
+) -> None:
+    before = _exact_keys(envelope["lease_before"], set(_LEASE_FIELDS), "lease_before")
+    after = _exact_keys(envelope["lease_after"], set(_LEASE_FIELDS), "lease_after")
+    branch = str(envelope["branch"])
+    actor = str(envelope["actor"])
+    prepare_head = str(envelope["prepare_head"])
+    successor_head = str(envelope["successor_head"])
+    if (before["id"], before["subject"]) != (after["id"], after["subject"]):
+        raise ValueError("successor_lease_identity_mismatch")
+    if before["subject"] != branch or before["owner"] != actor or after["owner"] != actor:
+        raise ValueError("successor_lease_coordinate_mismatch")
+    before_payload = _lease_payload(before, "lease_before")
+    after_payload = _lease_payload(after, "lease_after")
+    shared = (
+        "lane_incarnation_id",
+        "lease_id",
+        "lane_ref",
+        "holder_ref",
+        "issued_at",
+        "path_scope",
+    )
+    if any(before_payload[key] != after_payload[key] for key in shared):
+        raise ValueError("successor_lease_payload_identity_mismatch")
+    if (
+        before_payload["lease_id"] != before["id"]
+        or before_payload["lane_ref"] != branch
+        or before_payload["holder_ref"] != actor
+        or before_payload["expires_at"] != before["expires_at"]
+        or after_payload["expires_at"] != after["expires_at"]
+        or before_payload["expected_head"] != prepare_head
+        or after_payload["expected_head"] != successor_head
+        or before_payload["base_change_contract_digest"] != baseline["digest"]
+        or after_payload["base_commitment_digest"] != successor["digest"]
+        or before_payload["handoff"] is not None
+        or after_payload["handoff"] is not None
+    ):
+        raise ValueError("successor_lease_payload_coordinate_mismatch")
+    before_epoch = before_payload["epoch"]
+    after_epoch = after_payload["epoch"]
+    if (
+        isinstance(before_epoch, bool)
+        or not isinstance(before_epoch, int)
+        or isinstance(after_epoch, bool)
+        or not isinstance(after_epoch, int)
+        or after_epoch != before_epoch + 1
+    ):
+        raise ValueError("successor_lease_epoch_mismatch")
+
+
 def _baseline_digest(root: Path, tree_ref: str, carrier: str) -> str:
     repository = tomllib.loads(_git(root, "show", f"{tree_ref}:.ethos/contract.toml"))
     repository_id = repository.get("id")
@@ -188,6 +265,8 @@ def _validate_git_coordinates(root: Path, envelope: dict[str, Any]) -> tuple[str
     if actor != str(envelope["actor"]):
         raise ValueError("successor_actor_mismatch")
     branch = str(envelope["branch"])
+    if str(envelope["ref_name"]) != f"refs/heads/{branch}":
+        raise ValueError("successor_ref_branch_mismatch")
     if _git(actual_root, "branch", "--show-current") != branch:
         raise ValueError("successor_branch_mismatch")
     prepare_head = str(envelope["prepare_head"])
@@ -239,12 +318,15 @@ def _validate_static_transition(root: Path, envelope: dict[str, Any]) -> None:
     actual_root = root.resolve()
     prepare_head, successor_head = _validate_git_coordinates(actual_root, envelope)
 
+    baseline = _exact_keys(envelope["baseline"], {"carrier", "digest"}, "baseline")
+    successor = _exact_keys(envelope["successor"], {"carrier", "digest", "tests"}, "successor")
+    _validate_lease_coordinates(envelope, baseline, successor)
+
     patch = _exact_keys(envelope["patch"], {"raw_sha256", "paths"}, "patch")
     raw_digest, paths = _diff_identity(actual_root, prepare_head, successor_head)
     if raw_digest != str(patch["raw_sha256"]) or list(paths) != patch["paths"]:
         raise ValueError("successor_patch_mismatch")
 
-    baseline = _exact_keys(envelope["baseline"], {"carrier", "digest"}, "baseline")
     if _baseline_digest(actual_root, prepare_head, str(baseline["carrier"])) != str(
         baseline["digest"]
     ):
@@ -280,17 +362,16 @@ def evaluate_successor(
     head = str(envelope["successor_head"])
     with tempfile.TemporaryDirectory(prefix="ethos-successor-evaluator-") as directory:
         target = Path(directory)
-        archive = subprocess.Popen(
+        archive = subprocess.run(
             ["git", "archive", "--format=tar", head],
             cwd=root,
-            stdout=subprocess.PIPE,
+            check=False,
+            capture_output=True,
         )
-        if archive.stdout is None:
-            raise ValueError("successor_archive_unavailable")
-        with tarfile.open(fileobj=archive.stdout, mode="r|") as stream:
-            stream.extractall(target, filter="data")
-        if archive.wait() != _ZERO_EXIT:
+        if archive.returncode != _ZERO_EXIT:
             raise ValueError("successor_archive_failed")
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout), mode="r:") as stream:
+            stream.extractall(target, filter="data")
         python = Path(sys.executable)
         carrier = str(successor["carrier"])
         digest = str(successor["digest"])
@@ -393,54 +474,64 @@ def _require_replaced_row(rowcount: int) -> None:
         raise ValueError("successor_lease_full_row_cas_failed")
 
 
-def _compensate_ref(root: Path, envelope: dict[str, Any]) -> None:
-    compensated = subprocess.run(
-        [
-            "git",
-            "-c",
-            "core.hooksPath=/dev/null",
-            "update-ref",
-            str(envelope["ref_name"]),
-            str(envelope["prepare_head"]),
-            str(envelope["successor_head"]),
-        ],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if compensated.returncode:
-        raise ValueError("successor_unbound_blocked")
-
-
 def _materialize_successor(root: Path, envelope: dict[str, Any]) -> None:
+    prepare_tree = str(envelope["prepare_tree"])
     successor_head = str(envelope["successor_head"])
-    environment = {
-        key: value for key, value in os.environ.items() if not key.startswith("ETHOS_SUCCESSOR_")
-    }
-    reset = subprocess.run(
+    successor_tree = str(envelope["successor_tree"])
+    ref_name = str(envelope["ref_name"])
+    if _git(root, "rev-parse", ref_name) != successor_head:
+        raise ValueError("successor_ref_state_invalid")
+    if (
+        _git(root, "write-tree") != prepare_tree
+        or _run(root, "git", "diff-files", "--quiet", "--").returncode
+        or _git(root, "ls-files", "--others", "--exclude-standard")
+    ):
+        raise ValueError("successor_worktree_not_exact_prepare")
+    materialized = subprocess.run(
         [
             "git",
             "-c",
             "core.hooksPath=/dev/null",
-            "reset",
-            "--hard",
+            "read-tree",
+            "--reset",
+            "-u",
             successor_head,
         ],
         cwd=root,
-        env=environment,
         check=False,
         capture_output=True,
         text=True,
     )
-    if reset.returncode:
+    if materialized.returncode:
         raise ValueError("successor_worktree_materialization_failed")
     if (
-        _git(root, "rev-parse", "HEAD") != successor_head
-        or _git(root, "write-tree") != str(envelope["successor_tree"])
-        or _git(root, "status", "--porcelain")
+        _git(root, "rev-parse", ref_name) != successor_head
+        or _git(root, "write-tree") != successor_tree
+        or _run(root, "git", "diff-files", "--quiet", "--").returncode
+        or _git(root, "ls-files", "--others", "--exclude-standard")
     ):
         raise ValueError("successor_worktree_materialization_mismatch")
+
+
+def _transition_state(root: Path, envelope: dict[str, Any]) -> str:
+    ref_name = str(envelope["ref_name"])
+    before = cast("dict[str, Any]", envelope["lease_before"])
+    after = cast("dict[str, Any]", envelope["lease_after"])
+    first_ref = _git(root, "rev-parse", ref_name)
+    lease = _read_raw_lease(root, str(before["subject"]))
+    if _git(root, "rev-parse", ref_name) != first_ref:
+        raise ValueError("successor_ref_observation_raced")
+    if first_ref == str(envelope["prepare_head"]):
+        _assert_raw_lease(lease, before, "incumbent")
+        return "prepare_before"
+    if first_ref == str(envelope["successor_head"]):
+        try:
+            _assert_raw_lease(lease, after, "successor")
+        except ValueError:
+            _assert_raw_lease(lease, before, "incumbent")
+            return "successor_before"
+        return "successor_after"
+    raise ValueError("successor_ref_state_invalid")
 
 
 def hook_entry() -> None:
@@ -470,68 +561,49 @@ def hook_entry() -> None:
 
 
 def apply_from_environment() -> None:
-    """Evaluate and apply the one successor transition, compensating Git on Lease failure."""
+    """Evaluate and advance the one successor transition without backward mutation."""
     root = Path(os.environ["ETHOS_SUCCESSOR_ROOT"]).resolve()
     _, envelope = _envelope_from_environment()
     prepare_head = str(envelope["prepare_head"])
     successor_head = str(envelope["successor_head"])
-    lease_before = cast("dict[str, Any]", envelope["lease_before"])
-    lease_after = cast("dict[str, Any]", envelope["lease_after"])
-    current_ref = _git(root, "rev-parse", str(envelope["ref_name"]))
-    current_lease = _read_raw_lease(root, str(lease_before["subject"]))
-    if current_ref == successor_head:
-        try:
-            _assert_raw_lease(current_lease, lease_after, "successor")
-        except ValueError:
-            try:
-                _assert_raw_lease(current_lease, lease_before, "incumbent")
-            except ValueError:
-                _compensate_ref(root, envelope)
-                raise ValueError("successor_lease_state_invalid") from None
-            _compensate_ref(root, envelope)
-            current_ref = prepare_head
-    if current_ref == successor_head:
-        evaluation = evaluate_successor(root, envelope, require_incumbent_lease=False)
-        _materialize_successor(root, envelope)
-        sys.stdout.write(
-            json.dumps({**evaluation, "state": "successor_cutover_recovered"}, sort_keys=True)
-            + "\n"
-        )
-        return
-    if current_ref != prepare_head:
-        raise ValueError("successor_ref_state_invalid")
-    _assert_raw_lease(current_lease, lease_before, "incumbent")
-    evaluation = evaluate_successor(root, envelope)
-    env = {
-        **os.environ,
-        "ETHOS_SUCCESSOR_ROOT": root.as_posix(),
-    }
-    moved = subprocess.run(
-        [
-            "git",
-            "update-ref",
-            str(envelope["ref_name"]),
-            successor_head,
-            prepare_head,
-        ],
-        cwd=root,
-        env=env,
-        check=False,
-        capture_output=True,
-        text=True,
+    _validate_static_transition(root, envelope)
+    initial = _transition_state(root, envelope)
+    evaluation = evaluate_successor(
+        root,
+        envelope,
+        require_incumbent_lease=initial == "prepare_before",
     )
-    if moved.returncode:
-        message = f"successor_ref_cas_failed:{moved.stderr.strip()}"
-        raise ValueError(message)
-    connection, row = _lease_rows(root, str(lease_after["subject"]))
-    try:
-        _assert_raw_lease(_raw_lease(row), lease_after, "successor")
-    except Exception:
-        _compensate_ref(root, envelope)
-        raise ValueError("successor_compensated") from None
-    finally:
-        connection.close()
+    state = initial
+    if state == "prepare_before":
+        moved = subprocess.run(
+            ["git", "update-ref", str(envelope["ref_name"]), successor_head, prepare_head],
+            cwd=root,
+            env={**os.environ, "ETHOS_SUCCESSOR_ROOT": root.as_posix()},
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if moved.returncode:
+            message = f"successor_ref_cas_failed:{moved.stderr.strip()}"
+            raise ValueError(message)
+        state = _transition_state(root, envelope)
+    if state == "successor_before":
+        replace_lease(root, envelope)
+        state = _transition_state(root, envelope)
+    if state != "successor_after":
+        raise ValueError("successor_state_invalid")
     _materialize_successor(root, envelope)
     sys.stdout.write(
-        json.dumps({**evaluation, "state": "successor_cutover_complete"}, sort_keys=True) + "\n"
+        json.dumps(
+            {
+                **evaluation,
+                "state": (
+                    "successor_cutover_complete"
+                    if initial == "prepare_before"
+                    else "successor_cutover_recovered"
+                ),
+            },
+            sort_keys=True,
+        )
+        + "\n"
     )

@@ -79,27 +79,6 @@ resolve_candidate_runner() {
 }
 
 while read -r old_value new_value ref_name; do
-    if [ -n "${ETHOS_SUCCESSOR_ENVELOPE:-}" ]; then
-        verdict="$(
-            ETHOS_SUCCESSOR_ROOT="$repo_root" \
-            ETHOS_SUCCESSOR_HOOK_PHASE="$phase" \
-            ETHOS_SUCCESSOR_HOOK_REF="$ref_name" \
-            ETHOS_SUCCESSOR_HOOK_OLD="$old_value" \
-            ETHOS_SUCCESSOR_HOOK_NEW="$new_value" \
-            PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
-                "${runtime_runner}" -- "${runtime_python}" -c \
-                'from ethos.adapters.admission.successor_cutover import hook_entry; hook_entry()' \
-                2>/dev/null | tr -d ' \n'
-        )"
-        case "$verdict" in
-            *'"ok":true'*'"state":"successor_ref_admitted"'* | \
-            *'"ok":true'*'"state":"successor_lease_rebound"'*) continue ;;
-            *)
-                echo "ethos: exact semantic-kernel successor cutover rejected for $ref_name." >&2
-                exit 1
-                ;;
-        esac
-    fi
     protected_ref="false"
     case "$ref_name" in
         refs/heads/*) ;;

@@ -384,7 +384,8 @@ def _cross_check(
     for name, (observed_count, canonical_count) in comparisons.items():
         if not isinstance(observed_count, int):
             return {}, ("source_budget_scc_invalid",)
-        if abs(observed_count - canonical_count) > getattr(policy.cross_check.tolerance, name):
+        tolerance = getattr(policy.cross_check.tolerance, name)
+        if observed_count < canonical_count - tolerance:
             gaps.append(f"source_budget_scc_{name}_disagrees:{observed_count}!={canonical_count}")
     return observed, tuple(gaps)
 

@@ -7,7 +7,7 @@ runner = "tools/ci/scripts/run-format-selection.sh"
 contract_version = 2
 cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--count-as", "c4:md,mmd:md", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
 terminal = { python_total = 54000, global_total = 68000 }
-aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "shell", "js", "toml", "yaml", "json", "ini", "diagram"] }
+aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "markdown", "shell", "js", "toml", "yaml", "json", "ini", "diagram"] }
 exclude = ["package-lock.json"]
 immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
 line_width = 100
@@ -38,6 +38,7 @@ carrier = "Markdown"
 owner = ".config/checks/markdown/.markdownlint-cli2.yaml"
 execution = "tools/ci/scripts/run-markdown-lint.sh"
 truth_boundary = "human docs and plans"
+budget = [{ category = "markdown" }]
 
 [[format]]
 extensions = [".toml"]

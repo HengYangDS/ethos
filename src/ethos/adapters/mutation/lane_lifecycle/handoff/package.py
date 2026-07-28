@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
@@ -195,24 +195,23 @@ def _verify_export_snapshot(
                 require_expired=False,
             )
             _require(
-                "handoff_export_base_change_contract_digest_mismatch",
-                holds=lease.base_change_contract_digest == handoff.base_change_contract_digest,
+                "handoff_export_base_commitment_digest_mismatch",
+                holds=lease.base_commitment_digest == handoff.base_commitment_digest,
             )
         except ValueError as error:
             message = "handoff_export_lease_drift"
             raise ValueError(message) from error
     try:
-        load_change_contract(
+        load_commitment(
             repo,
             tree_ref=handoff.source_head,
-            expected_digest=handoff.base_change_contract_digest,
-            require_active=False,
+            expected_digest=handoff.base_commitment_digest,
         )
     except ValueError as error:
-        if str(error) == "change_contract_digest_mismatch":
-            message = "handoff_export_base_change_contract_digest_mismatch"
+        if str(error) == "commitment_digest_mismatch":
+            message = "handoff_export_base_commitment_digest_mismatch"
             raise ValueError(message) from error
-        message = "handoff_export_base_change_contract_invalid"
+        message = "handoff_export_base_commitment_invalid"
         raise ValueError(message) from error
 
 
@@ -264,7 +263,7 @@ def validated_handoff_acknowledgement(
         "destination_lease_expected_head": lease["expected_head"],
         "destination_lease_expires_at": lease["expires_at"],
         "destination_lease_payload_sha256": lease["payload_sha256"],
-        "base_change_contract_digest": lease["base_change_contract_digest"],
+        "base_commitment_digest": lease["base_commitment_digest"],
         "source_lease_transferred": False,
         "truth_boundary": "destination_holder_asserted_local_generation",
         "mints_authority": False,

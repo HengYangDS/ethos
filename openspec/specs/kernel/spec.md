@@ -2,13 +2,13 @@
 
 ## Purpose
 
-ETHOS SHALL persist only ChangeContract and Attestation semantic entities and
-derive RepositoryFacts and PlanIR.
+ETHOS SHALL persist only Commitment and Attestation semantic entities and
+derive Facts and TransitionPlan.
 ## Requirements
 ### Requirement: Minimal Semantic Kernel
 
-ETHOS SHALL model repository operation through ChangeContract, Attestation,
-RepositoryFacts, and PlanIR without parallel semantic entity owners.
+ETHOS SHALL model repository operation through Commitment, Attestation,
+Facts, and TransitionPlan without parallel semantic entity owners.
 
 #### Scenario: Repository operation is represented
 - **WHEN** ETHOS records a repository operation
@@ -40,9 +40,9 @@ SHALL NOT turn that text into a subsystem, feature map, or low-level implementat
 - **AND** derived axiom files remain subordinate to product docs and do not create
   a new truth center
 
-#### Scenario: Lifecycle declarations compile directly into PlanIR
+#### Scenario: Lifecycle declarations compile directly into TransitionPlan
 - **WHEN** ETHOS evaluates lifecycle, handoff, or skill-evaluation metadata
-- **THEN** tracked declarations and current facts compile directly into PlanIR
+- **THEN** tracked declarations and current facts compile directly into TransitionPlan
 - **AND** no parallel workflow-runtime read model or state store is required
 - **AND** generated projections do not outrank source, tests, schemas, docs,
   OpenSpec records, attestations, evidence, or command JSON
@@ -55,13 +55,13 @@ ETHOS SHALL emit stable JSON result envelopes with `ok`, `summary`,
 - **WHEN** an automation consumer requests JSON output from an ETHOS command
 - **THEN** the response is one parseable object with the stable result fields
 
-### Requirement: Deterministic PlanIR
-ETHOS SHALL serialize PlanIR deterministically, including validation gaps
+### Requirement: Deterministic TransitionPlan
+ETHOS SHALL serialize TransitionPlan deterministically, including validation gaps
 for invalid dependency sets.
 
 #### Scenario: Proof readiness is planned
 - **WHEN** ETHOS plans or runs proof gates
-- **THEN** selected gates are represented as ordered PlanIR nodes with
+- **THEN** selected gates are represented as ordered TransitionPlan nodes with
   explicit dependencies and validation gaps
 
 ### Requirement: Physical Target Product Homes
@@ -117,7 +117,7 @@ only streams and unused local event logs SHALL be absent.
 #### Scenario: lifecycle declaration is loaded
 
 - **WHEN** the lifecycle declaration is validated and projected
-- **THEN** it SHALL contain only transition policies, lease operations, PlanIR
+- **THEN** it SHALL contain only transition policies, lease operations, TransitionPlan
   actions, and campaign CEL consumed by current product behavior
 - **AND** no event model, event count, or event-locality rule without a producer
   and consumer SHALL be emitted.

@@ -53,9 +53,9 @@ def test_taxonomy_has_only_terminal_kernel_concepts() -> None:
 
     assert tuple(category.id for category in categories) == CATEGORY_ORDER
     assert {category.concept for category in categories} == {
-        "ChangeContract",
-        "RepositoryFacts",
-        "PlanIR",
+        "Commitment",
+        "Facts",
+        "TransitionPlan",
         "Attestation",
         "execution substrate",
     }
@@ -69,9 +69,9 @@ def test_unclassified_signals_are_preserved_without_aliasing_retired_ontology() 
 
 
 def test_terminal_categories_classify_current_verifier_boundaries() -> None:
-    assert classify("authority_graph_missing") == "change_contract_invalid"
-    assert classify("openspec_config_missing") == "change_contract_invalid"
-    assert classify("git_snapshot_root_invalid") == "repository_facts_invalid"
+    assert classify("authority_graph_missing") == "commitment_invalid"
+    assert classify("openspec_config_missing") == "commitment_invalid"
+    assert classify("git_snapshot_root_invalid") == "facts_invalid"
     assert classify("protected_root_mutation") == "plan_invalid"
     assert classify("proof_not_proven") == "attestation_invalid"
     assert classify("projection_drift:skills") == "execution_substrate_invalid"
@@ -96,7 +96,7 @@ def test_projection_counts_grouped_gaps() -> None:
 
     assert projection == {
         "categories": {
-            "change_contract_invalid": ["openspec_config_missing"],
+            "commitment_invalid": ["openspec_config_missing"],
             "attestation_invalid": ["proof_not_proven"],
         },
         "category_count": 2,

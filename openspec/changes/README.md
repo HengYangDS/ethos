@@ -16,12 +16,12 @@ A complete active change must contain:
   product-shape changes, or cross-surface governance changes.
 - `tasks.md` with review-sized checklist items.
 - `specs/<capability>/spec.md` deltas using official OpenSpec sections.
-- `contract.toml` with the governed repository subject and bounded scope.
+- `commitment.toml` with the governed repository subject and bounded scope.
 
-Declare active material coverage in the same ChangeContract:
+Declare active material coverage in the same Commitment:
 
 ```toml
-# openspec/changes/<change-id>/contract.toml
+# openspec/changes/<change-id>/commitment.toml
 schema_version = 1
 id = "change:<change-id>"
 intent = "Describe the intended outcome."

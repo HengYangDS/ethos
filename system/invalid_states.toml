@@ -1,13 +1,13 @@
 schema = "system/schemas/contracts/invalid_states.schema.json"
 
 # This taxonomy groups verifier signals by the terminal kernel. It is a reader
-# projection only: ChangeContract and Attestation remain the only persistent
-# semantic entities; RepositoryFacts and PlanIR are recomputed per evaluation.
+# projection only: Commitment and Attestation remain the only persistent
+# semantic entities; Facts and TransitionPlan are recomputed per evaluation.
 
 [[category]]
-id = "change_contract_invalid"
-concept = "ChangeContract"
-question = "Is the selected ChangeContract complete, valid, and authoritative for this transition?"
+id = "commitment_invalid"
+concept = "Commitment"
+question = "Is the selected Commitment complete, valid, and authoritative for this transition?"
 summary = "The selected contract, its subject, scope, declared policy, or OpenSpec carrier is absent, ambiguous, or invalid."
 match_prefixes = [
   "authority_graph",
@@ -45,7 +45,6 @@ match_prefixes = [
   "commitment_missing",
   "schema_contract_gap",
   "schema_",
-  "container_contract_",
   "profile_invalid",
   "source_budget_",
   "commit_policy_toml_invalid",
@@ -104,13 +103,13 @@ match_prefixes = [
 ]
 
 [[category]]
-id = "repository_facts_invalid"
-concept = "RepositoryFacts"
+id = "facts_invalid"
+concept = "Facts"
 question = "Are the repository facts required for this evaluation fresh and available?"
 summary = "A required Git, filesystem, provider, or observation fact is missing, stale, malformed, or unavailable."
 match_prefixes = [
   "fact_",
-  "repository_facts_",
+  "facts_",
   "facts_",
   "git_snapshot_",
   "provider_configuration_",
@@ -126,7 +125,7 @@ match_prefixes = [
 
 [[category]]
 id = "plan_invalid"
-concept = "PlanIR"
+concept = "TransitionPlan"
 question = "Is the requested transition bounded, admitted, and executable from current facts?"
 summary = "The compiled transition is missing, stale, unauthorized, or cannot satisfy its declared preconditions."
 match_prefixes = [
@@ -198,8 +197,6 @@ match_prefixes = [
   "evidence.historical_freshness_",
   "evidence.semantic_sha256_",
   "evidence.semantic_scope_",
-  "coverage_artifact_missing",
-  "coverage_artifact_writer_",
   "evidence_stale",
   "evidence_required",
   "evidence_gap",

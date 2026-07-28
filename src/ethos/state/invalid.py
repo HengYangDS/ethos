@@ -1,7 +1,7 @@
 """Optional invalid-state explanations over terminal-kernel concepts.
 
-ETHOS evaluates an immutable ChangeContract against fresh RepositoryFacts,
-transient PlanIR, and verifier-bounded Attestations. This module reads the
+ETHOS evaluates an immutable Commitment against fresh Facts,
+transient TransitionPlan, and verifier-bounded Attestations. This module reads the
 contract taxonomy and groups gap strings for readers without constraining new
 signals. It does not create lifecycle state or replace the original verifier.
 """
@@ -16,8 +16,8 @@ from pathlib import Path
 from ethos._resources import declaration_text
 
 CATEGORY_ORDER: tuple[str, ...] = (
-    "change_contract_invalid",
-    "repository_facts_invalid",
+    "commitment_invalid",
+    "facts_invalid",
     "plan_invalid",
     "attestation_invalid",
     "execution_substrate_invalid",

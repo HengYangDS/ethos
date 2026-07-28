@@ -191,11 +191,10 @@ curated evidence.
 
 ## Documentation Kernel
 
-ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel
-defined in [Documentation Topology](docs-topology.md), so governed repositories
-preserve decisions, evidence, reference vocabulary, and history without turning
-product extension roots into mandatory truth lanes. ETHOS product extension
-roots such as `docs/architecture/`, `docs/concepts/`, `docs/governance/`,
-`docs/plans/`, `docs/research/`, and `docs/start/` remain semantic docs truth
-homes; they are not generated-output homes and they are not required physical
-lanes for every adopter.
+ETHOS uses `docs/decisions/` for its own durable rulings. The portable
+documentation contract is [Docs Registry](../governance/docs-registry.md): it
+governs metadata and discoverability, while physical subject roots remain
+repository-native. ETHOS product roots such as `docs/architecture/`,
+`docs/concepts/`, `docs/governance/`, `docs/plans/`, `docs/research/`, and
+`docs/start/` are its own semantic documentation homes; they are not generated
+output homes and are not imposed on adopters.

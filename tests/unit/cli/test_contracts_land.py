@@ -377,27 +377,22 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert mutation["decision"]["decision_basis"]["identity_basis"] == "not_evaluated"
 
 
-def test_product_publish_blocks_current_hard_quality_gap(tmp_path: Path, monkeypatch) -> None:
+def test_publish_blocks_exact_head_proof_gap_without_parallel_quality_verdict(
+    tmp_path: Path, monkeypatch
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
     seed_executed_proof(repo, head)
-    gap = "generated_artifact_root_cache_drift:.ruff_cache"
-    floor = {
-        "ok": False,
-        "state": "blocked",
-        "gate_ids": ["generated-artifacts"],
-        "required_gaps": [gap],
-        "gates": {},
-    }
-    monkeypatch.setattr(lifecycle_cli, "context_for_root", lambda _repo: {"profile": "product"})
-    monkeypatch.setattr(lifecycle_cli, "hard_quality_floor_report", lambda _repo: floor)
+    gap = "proof_attestation_stale:quality-policy"
+    monkeypatch.setattr(lifecycle_cli, "context_for_root", lambda _repo: {"profile": "adopter"})
+    monkeypatch.setattr(lifecycle_cli, "proof_gaps", lambda _repo, _head: [gap])
     payload = run_ethos("publish", "--json", cwd=repo)
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == [gap]
     assert payload["summary"]["local_readiness"] is False
-    assert payload["data"]["hard_quality_floor"] == floor
+    assert "hard_quality_floor" not in payload["data"]
 
 
 def test_publish_apply_defers_when_remote_transition_is_not_performed(
@@ -807,7 +802,7 @@ def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
     monkeypatch.setattr(proof_cli, "proof_plan", rejected_plan)
     rejected = run_ethos_blocked("prove", "--json", cwd=repo)
     assert rejected["required_gaps"] == ["repository_subject_mismatch"]
-    assert rejected["next_actions"] == ["repair the ChangeContract or repository facts"]
+    assert rejected["next_actions"] == ["repair the Commitment or repository facts"]
 
     monkeypatch.setattr(
         proof_cli,

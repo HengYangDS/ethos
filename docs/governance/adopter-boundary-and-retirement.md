@@ -71,14 +71,15 @@ successor accepts stale evidence
 successor turns blocking into advisory
 successor treats dry-run as live proof
 successor loses domain gate planning obligations
-successor permits removal while the common docs kernel is missing
+successor permits removal while the adopter's declared documentation health is
+unverified
 ```
 
 ## Exact Effects And Recovery
 
 Switch, removal, and rollback are exact-HEAD/tree `effect` Attestations bound
 to a reachable Git recovery anchor. Git revert alone is not sufficient recovery
-evidence. Present configuration and Git state remain fresh `RepositoryFacts`;
+evidence. Present configuration and Git state remain fresh `Facts`;
 comparison evidence remains a `proof` Attestation rather than a transition
 state.
 

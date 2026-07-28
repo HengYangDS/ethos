@@ -2,7 +2,7 @@
 
 This workspace is the ETHOS case and specification carrier. It uses the
 official OpenSpec workspace model with repository guardrails for proposal
-intent, ChangeContract binding, archive closeout, and adopter scaffolding.
+intent, Commitment binding, archive closeout, and adopter scaffolding.
 
 OpenSpec is mandatory governance for promoted specification records, but it is
 not a second ETHOS public command plane. The official OpenSpec CLI owns workspace
@@ -12,7 +12,7 @@ authoring, validation, and archive syntax; ETHOS consumes active carriers in
 ## Product Protocol
 
 ```text
-case = ChangeContract + proposal + design + tasks + spec deltas
+case = Commitment + proposal + design + tasks + spec deltas
 ```
 
 - Accepted capability identity and behavior live only at
@@ -22,7 +22,7 @@ case = ChangeContract + proposal + design + tasks + spec deltas
 - Active Change IDs are date-free lower-kebab identifiers that start with a
   letter; intent lives under `openspec/changes/<change-id>/`.
 - Changed behavior lives in that Change's delta specs.
-- `contract.toml` and its ChangeContract own active intent, repository subject,
+- `commitment.toml` and its Commitment own active intent, repository subject,
   scope, invariants, acceptance, permissions, and publication policy.
 - Historical carriers use exactly one archive date:
   `openspec/changes/archive/YYYY-MM-DD-<change-id>/`.
@@ -42,6 +42,6 @@ openspec validate --all --strict --json
 ethos plan --changed --json
 ```
 
-ETHOS validates proposal intent, accepted spec identity, ChangeContract binding,
+ETHOS validates proposal intent, accepted spec identity, Commitment binding,
 scope, and archiveability while compiling the plan. The same preflight blocks
 `plan`, `prove`, and `land` until the delta is archiveable.

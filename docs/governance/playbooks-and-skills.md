@@ -35,4 +35,4 @@ or record durable task state outside tracked repository authority.
 
 Host-native files are projections unless their host owns an official native
 artifact. Repository source, tests, schemas, docs, OpenSpec, effective
-ChangeContracts, Attestations, and current command JSON remain authoritative.
+Commitments, Attestations, and current command JSON remain authoritative.

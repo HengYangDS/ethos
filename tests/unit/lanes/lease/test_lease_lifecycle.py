@@ -133,7 +133,7 @@ def test_lease_observation_keeps_valid_expired_unknown_and_missing_distinct(
         renewed_at=now,
         expires_at=now + timedelta(hours=1),
         expected_head="a" * 40,
-        base_change_contract_digest="b" * 64,
+        base_commitment_digest="b" * 64,
         path_scope=(),
         handoff=None,
     )
@@ -156,7 +156,7 @@ def test_lease_observation_keeps_valid_expired_unknown_and_missing_distinct(
     assert observe_lease(database, expired.lane_ref).state == "expired"
 
     legacy_payload = valid.to_payload() | {"claim_id": "retired"}
-    legacy_payload.pop("base_change_contract_digest")
+    legacy_payload.pop("base_commitment_digest")
     legacy = valid.model_copy(
         update={
             "lane_incarnation_id": "lane-incarnation:legacy",
@@ -413,7 +413,7 @@ def test_full_lease_reissue_rejects_legacy_payload(tmp_path: Path) -> None:
             renewed_at=now,
             expires_at=now + timedelta(days=1),
             expected_head="a" * 40,
-            base_change_contract_digest="b" * 64,
+            base_commitment_digest="b" * 64,
             path_scope=(),
         ),
     )
@@ -442,7 +442,7 @@ def test_full_lease_reissue_rejects_legacy_payload(tmp_path: Path) -> None:
         ),
     )
 
-    assert renewed["base_change_contract_digest"] == initial["base_change_contract_digest"]
+    assert renewed["base_commitment_digest"] == initial["base_commitment_digest"]
     assert set(renewed["payload"]) == set(LaneLease.model_fields)
     assert renewed["payload"]["handoff"] is None
 

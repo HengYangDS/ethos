@@ -11,13 +11,13 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from ethos.contracts.semantic import ChangeContract
+from ethos.contracts.semantic import Commitment
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
 
 PROFILE_PATH = ".ethos/profile.toml"
-CONTRACT_PATH = ".ethos/contract.toml"
+CONTRACT_PATH = ".ethos/commitment.toml"
 APPLY_CRITERIA = (
     "planned_files contains only the adopter profile and repository contract bindings",
     "existing nonempty binding content is not replaced",
@@ -132,8 +132,6 @@ def _repository_contract(repository_id: str) -> str:
         'scope = ["**"]\n'
         'authority_refs = [".ethos/profile.toml"]\n'
         'permissions = ["repository.read", "git.ref.compare-and-swap"]\n'
-        'compatibility = "none"\n'
-        'publication = "local"\n'
     )
 
 
@@ -161,7 +159,7 @@ def _existing_contract_is_valid(binding: tuple[str | None, bool, bool]) -> bool:
         ):
             if isinstance(payload.get(field), list):
                 payload[field] = tuple(payload[field])
-        contract = ChangeContract.model_validate(payload)
+        contract = Commitment.model_validate(payload)
     except (tomllib.TOMLDecodeError, ValidationError):
         return False
     return contract.id.startswith("repository:") and contract.subjects == (contract.id,)

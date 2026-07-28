@@ -1,1 +1,0 @@
-"""Documentation policy semantic package."""

@@ -54,6 +54,10 @@ ETHOS lifecycle state.
    gap.
 1. **Owner-script invocation**: provider jobs SHALL call `tools/ci/scripts/*`
    or `ethos ...` command surfaces instead of duplicating tool policy inline.
+1. **Collaboration-surface homomorphism**: issue and proposed-change forms SHALL
+   project one provider-neutral subject/intent/contract/acceptance/evidence
+   vocabulary into GitHub Issue/Pull Request and GitLab Issue/Merge Request
+   paths. Provider-native syntax may differ; required semantics may not drift.
 1. **Local-first proof**: local proof and local provider emulation SHALL be
    available before hosted publication is claimed.
 1. **Evidence separation**: local owner gates, local provider emulators, hosted
@@ -72,7 +76,15 @@ ETHOS lifecycle state.
 | Syntax gate | `actionlint` | YAML/config lint plus GitLab template checks | Provider syntax, not repository proof |
 | Local emulator | `act` wrapper | `gitlab-ci-local` wrapper | Local provider emulation only |
 | Hosted observation | GitHub Checks / Actions artifacts | GitLab pipeline/job/artifacts | Hosted provider evidence only |
+| Issue intake | `.github/ISSUE_TEMPLATE/task.md` | `.gitlab/issue_templates/task.md` | `.config/forge/issue.md` |
+| Proposed change | `.github/PULL_REQUEST_TEMPLATE.md` | `.gitlab/merge_request_templates/default.md` | `.config/forge/change.md` |
 | ETHOS gate | `ethos prove`, `ethos status`, owner scripts | Same | Repository governance truth |
+
+The checked parity inventory covers CI, issue intake, proposed-change review,
+ownership, security intake, dependency updates, and release publication. A
+capability may be explicitly absent only when the shared contract records the
+absence and the reason. Unknown maintainer identities must not be replaced by a
+fabricated `CODEOWNERS` entry.
 
 ## Evidence Classes
 

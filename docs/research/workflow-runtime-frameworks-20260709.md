@@ -292,6 +292,6 @@ workflow systems as practice carriers so ETHOS can choose what to introduce,
 compose, refine, supersede, retire, reject, or archive without adopting an
 external lifecycle authority.
 
-See also: [PlanIR](../architecture/plan-ir.md),
+See also: [TransitionPlan](../architecture/transition-plan.md),
 [Evolution Campaign](../governance/evolution-campaign.md), and
 [OpenSpec Governance](../governance/openspec-governance.md).

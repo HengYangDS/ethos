@@ -13,7 +13,7 @@ binding manifest: it tells ETHOS which repository surfaces to read, which local
 state roots are host-local, and which optional policies are explicitly active.
 
 The profile does not own repository truth. Source, tests, package metadata,
-machine contracts, docs, rules, evidence, OpenSpec records, ChangeContracts,
+machine contracts, docs, rules, evidence, OpenSpec records, Commitments,
 Attestations, and repo-local projections keep their native authority according
 to the governed repository's own order.
 
@@ -38,8 +38,7 @@ profile in the repository's configuration layer.
 
 The profile may declare identity, roots for repository-owned capabilities,
 explicit normative source files, evidence-root classes, proof gate descriptors,
-independent-verification policy, docs topology, a container contract, and adoption
-boundaries.
+independent-verification policy, and adoption boundaries.
 
 The profile must not declare:
 
@@ -89,18 +88,18 @@ relocate, or otherwise redefine their native authority.
 
 Every adopter profile SHALL declare a non-empty `[openspec].material_paths`
 list. These portable repository-relative glob patterns identify edits that
-require an active ChangeContract. Missing or empty declarations fail with
+require an active Commitment. Missing or empty declarations fail with
 `openspec_material_paths_missing`; malformed declarations fail with
 `openspec_material_paths_invalid`. ETHOS does not interpret an empty list as
 an opt-out.
 
 For every changed material path, `ethos lane prewrite`, `ethos plan --changed`,
 and `ethos prove` use the same official-OpenSpec selected Change list and the
-same `openspec/changes/<id>/contract.toml` scope. A valid contract covering the path admits it; otherwise the stable diagnostic
+same `openspec/changes/<id>/commitment.toml` scope. A valid contract covering the path admits it; otherwise the stable diagnostic
 is `openspec_material_path_uncovered:<path>`.
 
 ```toml
-# openspec/changes/<change-id>/contract.toml
+# openspec/changes/<change-id>/commitment.toml
 schema_version = 1
 id = "change:<change-id>"
 intent = "Describe the intended outcome."
@@ -112,17 +111,16 @@ scope = [
 ]
 ```
 
-Create a Change through the official OpenSpec command and add its ChangeContract
+Create a Change through the official OpenSpec command and add its Commitment
 before later material writes. No bootstrap exception or second scope-write path
 exists.
 
 ## Optional Declarations
 
 The same typed contract can reference existing repository roots, proof gate
-descriptors, independent-verification policy, container contracts, and adoption
-boundaries. These sections are interpreted only when declared; adoption does not
-generate their carriers. Tool-native configuration and provider state remain
-outside the profile.
+descriptors, independent-verification policy, and adoption boundaries. These
+sections are interpreted only when declared; adoption does not generate their
+carriers. Tool-native configuration and provider state remain outside the profile.
 
 A profile does not declare execution-substrate transition state. Unknown tables
 fail closed; ETHOS neither parses nor migrates them into a second lifecycle path.
@@ -158,30 +156,6 @@ An id without a descriptor is not executable truth. ETHOS reports an
 accepting an unverified proof-run id, or raising an implementation exception.
 Invalid, duplicate, profile-mismatched, or product-conflicting descriptors fail
 closed through the corresponding `adopter_gate_descriptor_*` gap.
-
-## Optional Container Contract
-
-An adopter that needs a portable container-delivery assurance boundary may opt
-in through its profile rather than through a new command plane:
-
-```toml
-[container_contract]
-schema_version = 1
-manifest = ".ethos/container-contract.toml"
-```
-
-The manifest is validated against ETHOS-owned schemas. It declares evidence for
-the required Linux architectures, delivery artefacts, trusted and untrusted
-execution boundaries, lifecycle recovery, and the complete asset inventory.
-Every referenced evidence file must remain below the adopter root, be tracked,
-and match its declared SHA-256. The contract is provider-neutral: it does not
-select or certify a workstation runtime, a hosted provider, or an image
-publication.
-
-An absent declaration is advisory and does not impose container requirements.
-A declared malformed manifest, relaxed local schema copy, path escape, stale
-evidence digest, incomplete recovery policy, or invalid untrusted output schema
-is a normal schema-report required gap.
 
 ## Validation
 

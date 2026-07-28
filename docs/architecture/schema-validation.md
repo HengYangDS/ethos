@@ -28,7 +28,7 @@ semantic roles. The role order is
 release_root -> accepted_root -> candidate -> work_lane -> proposal_lane. Bindings
 are ordered by that semantic order, then by branch name for additional bound
 branches. Work Lane bindings include `lease_state`,
-`base_change_contract_digest`, and `contract_binding`. The Lease state vocabulary
+`base_commitment_digest`, and `contract_binding`. The Lease state vocabulary
 is exactly `valid`, `expired`, `unknown`, or `missing`; non-Work-Lane bindings use
 `none`. This keeps invalid persisted state observable without converting it or
 collapsing it to absence.
@@ -65,17 +65,17 @@ Skills V2 adds three provider-neutral schemas:
 `data.closeout_support` is part of the workspace-status schema. It exposes
 whether the current checkout can be locally closed out to the configured
 candidate branch, the target worktree path, the planned operation, the strict
-Lease observation, its immutable base ChangeContract digest when valid or
+Lease observation, its immutable base Commitment digest when valid or
 expired, and the same required-gap vocabulary used by mutation admission.
 
 Terminal semantic contracts are explicit:
 
-- `change-contract.schema.json` governs immutable intent, repository subject,
+- `commitment.schema.json` governs immutable intent, repository subject,
   material scope, and ordered lifecycle commitment.
 - `attestation.schema.json` governs the single content-addressed evidence
   envelope and its six typed variants.
-- `repository-facts.schema.json` governs freshly observed repository facts.
-- `plan-ir.schema.json` governs deterministic transient transition plans.
+- `facts.schema.json` governs freshly observed repository facts.
+- `transition-plan.schema.json` governs deterministic transient transition plans.
 
 Accepted OpenSpec capability identity and requirements live in each capability's
 `spec.md`; schema validation does not maintain a parallel capability model.

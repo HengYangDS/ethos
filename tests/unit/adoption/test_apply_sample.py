@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters.repo.change_contract import load_repository_contract
+from ethos.adapters.repo.commitment import load_repository_contract
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
@@ -21,25 +21,21 @@ def test_adopt_apply_writes_profile_and_repository_contract(tmp_path: Path) -> N
 
     profile = load_repository_profile(tmp_path)
     assert result["applied"] is True
-    assert result["planned_files"] == [".ethos/profile.toml", ".ethos/contract.toml"]
+    assert result["planned_files"] == [".ethos/profile.toml", ".ethos/commitment.toml"]
     assert profile.exists
     assert profile.state == "valid"
     assert profile.declaration is not None
     assert profile.declaration.profile_id == tmp_path.name
-    assert profile.declaration.openspec.material_paths == (
-        ".ethos/profile.toml",
-        "openspec/**",
-        "docs/governance/**",
-        "rules/**",
-    )
+    assert profile.declaration.commitment == ".ethos/commitment.toml"
+    assert profile.declaration.openspec is None
     assert adopter_profile_active(tmp_path) is True
     assert default_gate_ids(root=tmp_path) == ADOPTER_DEFAULT_GATE_IDS
     assert ADOPTER_DEFAULT_GATE_IDS != PRODUCT_DEFAULT_GATE_IDS
     assert sorted(path.as_posix() for path in tmp_path.rglob("*") if path.is_file()) == [
-        (tmp_path / ".ethos/contract.toml").as_posix(),
+        (tmp_path / ".ethos/commitment.toml").as_posix(),
         (tmp_path / ".ethos/profile.toml").as_posix(),
     ]
-    assert 'id = "repository:' in (tmp_path / ".ethos/contract.toml").read_text()
+    assert 'id = "repository:' in (tmp_path / ".ethos/commitment.toml").read_text()
 
 
 def test_dry_run_plan_can_be_applied_without_changing_identity(tmp_path: Path) -> None:
@@ -77,12 +73,12 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
     second = tmp_path / "second"
     git(first, "worktree", "add", "--detach", second.as_posix(), "HEAD")
 
-    first_contract = (first / ".ethos" / "contract.toml").read_text(encoding="utf-8")
+    first_contract = (first / ".ethos" / "commitment.toml").read_text(encoding="utf-8")
     second_plan = adoption_plan(second)
 
     assert second_plan["required_gaps"] == []
     assert {item["action"] for item in second_plan["write_plan"]} == {"keep_existing"}
-    assert (second / ".ethos" / "contract.toml").read_text(encoding="utf-8") == first_contract
+    assert (second / ".ethos" / "commitment.toml").read_text(encoding="utf-8") == first_contract
     assert load_repository_contract(first).id == load_repository_contract(second).id
 
 
@@ -99,15 +95,16 @@ def test_apply_is_idempotent_and_replaces_an_empty_binding(tmp_path: Path) -> No
     assert profile.read_text(encoding="utf-8")
 
 
-def test_existing_nonempty_binding_blocks_adoption(tmp_path: Path) -> None:
+def test_existing_valid_minimal_profile_is_preserved(tmp_path: Path) -> None:
     profile = tmp_path / ".ethos/profile.toml"
     profile.parent.mkdir()
     profile.write_text("profile_id = 'foreign'\n", encoding="utf-8")
 
     result = adoption_plan(tmp_path, apply=True)
 
-    assert result["applied"] is False
-    assert result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
+    assert result["applied"] is True
+    assert result["required_gaps"] == []
+    assert profile.read_text(encoding="utf-8") == "profile_id = 'foreign'\n"
 
 
 def test_existing_repository_surfaces_are_outside_bootstrap_scope(tmp_path: Path) -> None:
@@ -148,7 +145,7 @@ def test_adopt_rejects_symlinked_profile_parent(tmp_path: Path) -> None:
     assert result["applied"] is False
     assert result["required_gaps"] == [
         "adoption_conflict:.ethos/profile.toml",
-        "adoption_conflict:.ethos/contract.toml",
+        "adoption_conflict:.ethos/commitment.toml",
     ]
     assert list(external.iterdir()) == []
 
@@ -215,7 +212,7 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(tmp_path: Path, m
 
 
 def test_adopt_rolls_back_profile_when_contract_write_fails(tmp_path: Path, monkeypatch) -> None:
-    contract = tmp_path / ".ethos" / "contract.toml"
+    contract = tmp_path / ".ethos" / "commitment.toml"
     original_replace = Path.replace
     message = "contract replace failed"
 

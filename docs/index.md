@@ -48,7 +48,6 @@ Start with [Quickstart](start/quickstart.md), then read the
 - [Agent Projections](architecture/agent-projections.md)
 - [MCP Adapter](architecture/mcp-server.md)
 - [Local State](architecture/local-state.md)
-- [Documentation Topology](architecture/docs-topology.md)
 - [Generated Artifact Topology](architecture/generated-artifact-topology.md)
 - [Docs Registry](governance/docs-registry.md)
 - [Evidence Documentation](evidence/README.md)

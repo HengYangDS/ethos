@@ -236,9 +236,7 @@ def _export_handoff_fixture(
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
     exported = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
     assert exported["ok"] is True
-    assert (
-        exported["manifest"]["base_change_contract_digest"] == lease["base_change_contract_digest"]
-    )
+    assert exported["manifest"]["base_commitment_digest"] == lease["base_commitment_digest"]
     package = Path(str(exported["package_path"]))
     repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
     assert (repeated_export["ok"], repeated_export["package_id"]) == (
@@ -309,11 +307,8 @@ def _assert_source_revoked(
         )
     )
     assert imported["ok"] is True
-    assert imported["lease"]["base_change_contract_digest"] == lease["base_change_contract_digest"]
-    assert (
-        imported["acknowledgement"]["base_change_contract_digest"]
-        == lease["base_change_contract_digest"]
-    )
+    assert imported["lease"]["base_commitment_digest"] == lease["base_commitment_digest"]
+    assert imported["acknowledgement"]["base_commitment_digest"] == lease["base_commitment_digest"]
     acknowledgement = package.parent / "acknowledgement.json"
     acknowledgement.write_text(
         json.dumps(imported["acknowledgement"], sort_keys=True) + "\n", encoding="utf-8"

@@ -15,7 +15,6 @@ from ethos.contracts.skill.activation import skill_registry_digest
 from ethos.normalization.coercion import string_list
 from ethos.quality.gates import product_gate_plan
 from ethos.quality.profiles import product_quality_profile
-from ethos.repository.policy.container_contract.validation import container_contract_report
 from ethos.repository.policy.coupling.audit import coupling_audit_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.registry.docs.health import docs_health_report
@@ -186,7 +185,6 @@ def _instance_validation_report(root: Path) -> dict[str, Mapping[str, object]]:
         product_gate_plan(),
         root=root,
     )
-    instances["container-contract"] = container_contract_report(root)
     instances["coupling-audit-contract"] = validate_schema_instance(
         "coupling-audit.schema.json",
         coupling_audit_report(root),

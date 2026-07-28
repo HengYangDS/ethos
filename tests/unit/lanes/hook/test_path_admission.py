@@ -9,7 +9,7 @@ from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import has_path_whitespace
 from ethos.contracts.admission import HookAdmissionRequest
-from tests.support.contract_helpers import write_active_change_contract
+from tests.support.contract_helpers import write_active_commitment
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -19,7 +19,7 @@ from tests.support.lane_helpers import leased_worktree
 @pytest.fixture
 def worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = init_repo(tmp_path / "repo")
-    write_active_change_contract(repo)
+    write_active_commitment(repo)
     git(repo, "add", ".")
     git(
         repo,
@@ -212,16 +212,16 @@ admission.decision_state = "admitted"
         encoding="utf-8",
     )
     (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "contract.toml").write_text(
+    (repo / ".ethos" / "commitment.toml").write_text(
         "schema_version = 1\n"
         'id = "repository:test-product"\n'
         'intent = "Govern the test product."\n'
-        'subjects = ["repository:test-product"]\n',
+        'subjects = ["repository:test-product"]\n' + f"scope = {list(scope)!r}\n".replace("'", '"'),
         encoding="utf-8",
     )
     change = repo / "openspec" / "changes" / "fixture-change"
     change.mkdir(parents=True)
-    change.joinpath("contract.toml").write_text(
+    change.joinpath("commitment.toml").write_text(
         'schema_version = 1\nid = "change:fixture-change"\n'
         'intent = "Exercise the governed fixture lifecycle."\n'
         'subjects = ["repository:self"]\n' + f"scope = {list(scope)!r}\n".replace("'", '"'),
@@ -393,7 +393,7 @@ def test_patch_prewrite_allows_declaration_only_change(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    _product_baseline(repo)
+    _product_baseline(repo, scope=("system/coupling.toml",))
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     patch = (

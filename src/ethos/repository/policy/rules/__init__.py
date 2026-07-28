@@ -1,1 +1,1 @@
-"""Rule configuration and deterministic PlanIR gate compilation."""
+"""Rule configuration and deterministic TransitionPlan gate compilation."""

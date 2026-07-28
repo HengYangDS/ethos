@@ -8,7 +8,7 @@ relations:
 
 # Runner And Mutation Boundary
 
-ETHOS separates planning from execution. The kernel emits PlanIR; the
+ETHOS separates planning from execution. The kernel emits TransitionPlan; the
 workspace layer chooses a runner.
 
 Initial runners are deliberately small:
@@ -16,7 +16,7 @@ Initial runners are deliberately small:
 - `DryRunRunner` records the action without side effects.
 - `LocalSubprocessRunner` executes a node in a chosen repository root.
 - Future Dagger, hosted CI, Temporal, or remote agent runners must consume the
-  same PlanIR contract.
+  same TransitionPlan contract.
 
 Tracked mutation is gated by a mutation decision. `ethos land --apply` and
 `ethos publish --apply` require explicit authorization and an expected HEAD.
@@ -77,19 +77,19 @@ second proof-carry receipt. The projection exposes
 flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
 closeout can prove the candidate head without requiring a redundant runner pass.
 The standard Work Lane lifecycle is command-bound: `ethos lane start` resolves
-the unique active ChangeContract at the exact candidate HEAD, creates the lane,
+the unique active Commitment at the exact candidate HEAD, creates the lane,
 and records its immutable base digest in the Lease. Missing or ambiguous active
 contracts block before any ref, worktree, or SQLite effect. `ethos lane
 refresh-base` replays a stale lane onto the configured candidate branch, `ethos
 land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
-Lane HEAD. Prewrite, PlanIR, proof, head advance, handoff, closeout, retirement,
+Lane HEAD. Prewrite, TransitionPlan, proof, head advance, handoff, closeout, retirement,
 and status all consume the same strict Lease observation and exact base-digest
 binding.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
 HEAD, Lease, and accepted-relation facts, but no lifecycle command deletes them.
 Unknown, dirty, unbound, or owner-uncertain state remains blocked until a future
-generic recovery ChangeContract is independently admitted. Raw Git worktree
+generic recovery Commitment is independently admitted. Raw Git worktree
 creation can exist as a repository fact, but it is not standard ETHOS workflow
 state.
 

@@ -20,8 +20,8 @@ ETHOS documentation is governed as sedimented knowledge, not as a loose page
 pile. Every governed document declares Subject, Role, State, and Relation
 metadata in front matter.
 
-`ethos prove --gate docs-registry --gate docs-topology --json` is the reader-facing quality entrypoint.
-`ethos prove --gate docs-registry --json` is the lower-level machine registry report.
+`ethos prove --gate docs-registry --json` is the reader-facing and machine
+quality entrypoint.
 Missing metadata is a required gap because agents need to distinguish canonical
 truth, active workflow notes, planned material, experimental material, and
 archived history before they act.
@@ -34,3 +34,15 @@ observe -> shape -> canonize -> project -> retire
 
 Archive material may preserve old vocabulary. Canonical docs must lead with the
 single `ethos ...` command plane.
+
+## Portability Boundary
+
+The registry owns portable document metadata, role/state vocabulary, taxonomy
+extensions, visible sections, command examples, and plan discoverability. It
+reads the documentation root declared by the adopter profile, defaulting to
+`docs/`; it does not require ETHOS's physical directories.
+
+ETHOS's own physical documentation shape is a product self-audit concern. It is
+not an adopter contract and is not exposed as a second topology gate. An
+adopter may organize its documentation by its native subject domains while
+retaining the same metadata and authority semantics.

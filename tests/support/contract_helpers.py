@@ -21,7 +21,7 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -262,7 +262,7 @@ def create_change_source_lane(
             branch=branch,
             holder_ref=holder_ref,
             expected_head=git(path, "rev-parse", "HEAD"),
-            base_change_contract_digest=load_change_contract(path).digest(),
+            base_commitment_digest=load_openspec_commitment(path).digest(),
         ),
     )
     return path
@@ -274,14 +274,15 @@ def _lease_holder(root: Path, branch: str) -> str:
     return holder
 
 
-def write_active_change_contract(
+def write_active_commitment(
     repo: Path,
     *,
     change_id: str = "fixture-change",
     scope: tuple[str, ...] = ("**",),
 ) -> None:
     """Write one complete-shape active OpenSpec Change for lifecycle fixtures."""
-    repository_contract = repo / ".ethos" / "contract.toml"
+    _enable_openspec_profile(repo)
+    repository_contract = repo / ".ethos" / "commitment.toml"
     if not repository_contract.exists():
         repository_id = f"repository:{repo.name}"
         repository_contract.parent.mkdir(parents=True, exist_ok=True)
@@ -332,9 +333,10 @@ def _write_openspec_baseline(repo: Path) -> None:
 
 def commit_openspec_baseline(repo: Path) -> None:
     """Commit the OpenSpec baseline before linked candidate/source worktrees."""
+    _enable_openspec_profile(repo)
     _write_openspec_baseline(repo)
-    if git(repo, "status", "--short", "--", "openspec"):
-        git(repo, "add", "openspec/config.yaml", "openspec/specs")
+    if git(repo, "status", "--short", "--", "openspec", ".ethos/profile.toml"):
+        git(repo, "add", "openspec/config.yaml", "openspec/specs", ".ethos/profile.toml")
         git(
             repo,
             "-c",
@@ -377,13 +379,13 @@ def _write_active_change_carrier(
     (carrier / "specs" / "contracts" / "spec.md").write_text(
         "## ADDED Requirements\n\n"
         "### Requirement: Fixture change\n\n"
-        "The fixture ChangeContract SHALL remain the single intent carrier.\n\n"
+        "The fixture Commitment SHALL remain the single intent carrier.\n\n"
         "#### Scenario: Fixture change is selected\n\n"
         "- **WHEN** the fixture lifecycle selects the change\n"
-        "- **THEN** its ChangeContract is the single intent carrier\n",
+        "- **THEN** its Commitment is the single intent carrier\n",
         encoding="utf-8",
     )
-    (carrier / "contract.toml").write_text(
+    (carrier / "commitment.toml").write_text(
         "schema_version = 1\n"
         f'id = "change:{change_id}"\n'
         'intent = "Exercise the governed fixture lifecycle."\n'
@@ -395,14 +397,14 @@ def _write_active_change_carrier(
     (carrier / "tasks.md").write_text("- [ ] Exercise fixture lifecycle\n", encoding="utf-8")
 
 
-def commit_active_change_contract(
+def commit_active_commitment(
     repo: Path,
     *,
     change_id: str = "fixture-change",
     scope: tuple[str, ...] = ("**",),
 ) -> str:
-    """Commit one active fixture ChangeContract and return its canonical digest."""
-    write_active_change_contract(repo, change_id=change_id, scope=scope)
+    """Commit one active fixture Commitment and return its canonical digest."""
+    write_active_commitment(repo, change_id=change_id, scope=scope)
     if git(repo, "status", "--short"):
         git(repo, "add", ".")
         git(
@@ -415,7 +417,20 @@ def commit_active_change_contract(
             "-m",
             "declare active change",
         )
-    return load_change_contract(repo, change_id=change_id).digest()
+    return load_openspec_commitment(repo, change_id=change_id).digest()
+
+
+def _enable_openspec_profile(repo: Path) -> None:
+    """Select the explicit OpenSpec profile adapter for lifecycle fixtures."""
+    profile = repo / ".ethos" / "profile.toml"
+    if not profile.exists():
+        write_test_profile(repo)
+    text = profile.read_text(encoding="utf-8")
+    if "[openspec]" not in text:
+        profile.write_text(
+            text.rstrip() + '\n\n[openspec]\nmaterial_paths = ["openspec/**"]\n',
+            encoding="utf-8",
+        )
 
 
 def write_role_policy(
@@ -460,6 +475,7 @@ def adopt_and_commit(repo: Path) -> None:
     plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
     _declare_minimal_code_correctness(repo)
+    _enable_openspec_profile(repo)
     write_publication_topology(repo)
     _write_openspec_baseline(repo)
     git(repo, "add", ".")
@@ -582,7 +598,7 @@ def conformant_proof_check(gate_id: str, root: Path) -> dict[str, object]:
 
 
 def _lease(
-    *, branch: str, holder_ref: str, expected_head: str, base_change_contract_digest: str
+    *, branch: str, holder_ref: str, expected_head: str, base_commitment_digest: str
 ) -> LaneLease:
     now = datetime.now(UTC)
     return LaneLease(
@@ -595,6 +611,6 @@ def _lease(
         renewed_at=now,
         expires_at=now + timedelta(days=1),
         expected_head=expected_head,
-        base_change_contract_digest=base_change_contract_digest,
+        base_commitment_digest=base_commitment_digest,
         path_scope=(),
     )

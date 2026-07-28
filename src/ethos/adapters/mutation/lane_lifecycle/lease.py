@@ -214,7 +214,7 @@ def _lease_expected_state(
         "offer_id": request.offer_id,
         "actor_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
         "lease_state": lease_state,
-        "base_change_contract_digest": str(observed.get("base_change_contract_digest") or ""),
+        "base_commitment_digest": str(observed.get("base_commitment_digest") or ""),
     }
     gaps = _lease_observation_gaps(request, observed, lease_state)
     for field in ("holder_ref", "target_holder_ref"):
@@ -263,8 +263,8 @@ def _lease_observation_gaps(
             "lease_payload_sha256_stale",
         ),
         (
-            bool(str(observed.get("base_change_contract_digest") or "")),
-            "lease_base_change_contract_digest_missing",
+            bool(str(observed.get("base_commitment_digest") or "")),
+            "lease_base_commitment_digest_missing",
         ),
     )
     return [f"{gap}:{branch}" for valid, gap in checks if not valid]

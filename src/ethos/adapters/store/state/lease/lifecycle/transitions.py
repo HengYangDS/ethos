@@ -209,7 +209,7 @@ def _validated_reissue(
         renewed_at=renewed_at,
         expires_at=expires_at,
         expected_head=expected_head,
-        base_change_contract_digest=current.base_change_contract_digest,
+        base_commitment_digest=current.base_commitment_digest,
         path_scope=current.path_scope,
         handoff=handoff,
     )

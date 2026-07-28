@@ -26,7 +26,7 @@ ETHOS exposes exactly these public roots:
 | Root | Purpose | Read or effect boundary |
 | --- | --- | --- |
 | `ethos status --json` | Inspect repository facts, authority, gaps, coordination, and the next action. | Read-only projection; does not mint truth. |
-| `ethos plan --changed --json` | Compile the changed-scope PlanIR and required gates. | Read-only. |
+| `ethos plan --changed --json` | Compile the changed-scope TransitionPlan and required gates. | Read-only. |
 | `ethos prove --json` | Check proof readiness. | Read-only unless `--execute` is explicit. |
 | `ethos land --json` | Report landing readiness. | Effects require the command's explicit guarded options. |
 | `ethos publish --json` | Report local publication readiness. | Does not push. |

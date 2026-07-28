@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
+from ethos.adapters.gates.tool import module_layout_gate_report
 from ethos.repository.policy.layout.facades import module_facade_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
 from ethos.repository.policy.layout.naming import multiple_command_owner_findings
@@ -122,6 +123,19 @@ def test_semantic_scope_includes_untracked_and_excludes_deleted_python(tmp_path)
     }
 
     assert files == {"src/ethos/model.py", "tools/core.py"}
+
+
+def test_module_layout_gate_includes_untracked_and_excludes_ignored_python(tmp_path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    tracked = _write(tmp_path, "src/ethos/model.py", "VALUE = 1\n")
+    _write(tmp_path, ".gitignore", "tools/ignored.py\n")
+    subprocess.run(["git", "add", tracked, ".gitignore"], cwd=tmp_path, check=True)
+    _write(tmp_path, "tools/core.py", "VALUE = 1\n")
+    _write(tmp_path, "tools/ignored.py", "VALUE = 1\n")
+
+    report = module_layout_gate_report(tmp_path)
+
+    assert report["required_gaps"] == ["module_layout_ambiguous_module:tools/core.py"]
 
 
 def test_ambiguous_names_are_blocked_in_every_owned_python_carrier(tmp_path) -> None:

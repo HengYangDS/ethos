@@ -42,7 +42,7 @@ def test_lane_lease_binds_local_incarnation_holder_generation_and_head() -> None
         renewed_at=now,
         expires_at=now,
         expected_head="a" * 40,
-        base_change_contract_digest="b" * 64,
+        base_commitment_digest="b" * 64,
         path_scope=("packages/example.py",),
     )
 
@@ -57,14 +57,14 @@ def test_lane_lease_binds_local_incarnation_holder_generation_and_head() -> None
         "renewed_at",
         "expires_at",
         "expected_head",
-        "base_change_contract_digest",
+        "base_commitment_digest",
         "path_scope",
         "handoff",
     }
     assert payload["holder_ref"] == "agent:claude:session:abc"
     assert payload["epoch"] == 3
     assert payload["expected_head"] == "a" * 40
-    assert payload["base_change_contract_digest"] == "b" * 64
+    assert payload["base_commitment_digest"] == "b" * 64
     assert payload["handoff"] is None
     assert LaneLease.model_validate(payload) == lease
 
@@ -73,13 +73,13 @@ def test_lane_lease_binds_local_incarnation_holder_generation_and_head() -> None
     "payload",
     [
         pytest.param({}, id="missing-base-digest"),
-        pytest.param({"base_change_contract_digest": "not-a-digest"}, id="bad-base-digest"),
+        pytest.param({"base_commitment_digest": "not-a-digest"}, id="bad-base-digest"),
         pytest.param(
-            {"base_change_contract_digest": "b" * 64, "claim_id": "retired"},
+            {"base_commitment_digest": "b" * 64, "claim_id": "retired"},
             id="retired-claim-field",
         ),
         pytest.param(
-            {"base_change_contract_digest": "b" * 64, "path": "/tmp/worktree"},
+            {"base_commitment_digest": "b" * 64, "path": "/tmp/worktree"},
             id="redundant-worktree-path",
         ),
     ],

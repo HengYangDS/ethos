@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.repository.openspec.audit import active_change_violations_for_role
 from ethos.repository.openspec.audit import completed_unarchived_changes
 
@@ -24,6 +25,8 @@ def openspec_carrier_gaps(root: Path, role: str) -> list[str]:
     the current truth belongs in source, canonical specs, claims, evidence, and
     chronicle.
     """
+    if not openspec_profile_enabled(root):
+        return []
     openspec_root = root / "openspec"
     completed_gaps = completed_unarchived_changes(openspec_root)
     completed_names = {gap.rsplit(":", 1)[-1] for gap in completed_gaps}

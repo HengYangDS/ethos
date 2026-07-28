@@ -153,6 +153,15 @@ ethos:docs-links:
       tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
       --gate markdown-links --expect-head "$(git rev-parse HEAD)" --json
 
+ethos:external-links:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/install-lychee.sh
+    - >-
+      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
+      --gate external-links --expect-head "$(git rev-parse HEAD)" --json
+
 ethos:markdown:
   <<: *python_setup
   stage: quality

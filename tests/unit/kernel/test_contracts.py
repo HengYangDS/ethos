@@ -13,22 +13,20 @@ import jsonschema
 import pytest
 from pydantic import ValidationError
 
-from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import ChangeContract
-from ethos.contracts.semantic import RepositoryFacts
-from ethos.contracts.semantic import apply_amendments
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import semantic_schema_documents
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
-from ethos.repository.context import LIFECYCLE_COMMANDS
 from ethos.repository.context import governance_context
 from ethos.result import EthosResult
 
 _PLAN_INPUTS = {
-    "contract_digest": "a" * 64,
+    "commitment_digest": "a" * 64,
     "facts_digest": "b" * 64,
     "policy_digest": "c" * 64,
     "facts": {
@@ -44,27 +42,27 @@ _BASE = {"id": "change:terminal-kernel", "intent": "Base", "subjects": ("repo",)
 _ISSUED_AT = datetime(2026, 7, 25, tzinfo=UTC)
 
 
-def _contract(**updates: object) -> ChangeContract:
-    return ChangeContract(**(_BASE | updates))
+def _contract(**updates: object) -> Commitment:
+    return Commitment(**(_BASE | updates))
 
 
 def _attestation(
     *,
-    content: object,
+    statement: object,
     verdict: Literal["pass", "block", "unknown"] = "pass",
     advisories: tuple[str, ...] = (),
 ) -> Attestation:
     return Attestation.issue(
         {
-            "kind": "observation",
-            "issuer": "agent:local:task:one",
+            "predicate": "observation:repository",
+            "verifier": "agent:local:task:one",
             "subject": "change:terminal-kernel",
             "issued_at": _ISSUED_AT,
             "verdict": verdict,
-            "content": content,
+            "statement": statement,
             "advisories": advisories,
-            "change_contract_digest": "a" * 64,
-            "repository_facts_digest": "b" * 64,
+            "commitment_digest": "a" * 64,
+            "facts_digest": "b" * 64,
             "plan_digest": "c" * 64,
             "policy_digest": "d" * 64,
             "effect_digest": "",
@@ -72,46 +70,16 @@ def _attestation(
     )
 
 
-def _amendment(
-    base: ChangeContract,
-    patch: dict[str, object],
-    *,
-    issuer: str = "agent:local:task:one",
-    issued_at: datetime = _ISSUED_AT,
-    change_contract_digest: str | None = None,
-    kind: str = "amendment",
-    sequence: int = 0,
-) -> Attestation:
-    return Attestation.issue(
-        {
-            "kind": kind,
-            "issuer": issuer,
-            "subject": base.id,
-            "issued_at": issued_at,
-            "verdict": "pass",
-            "sequence": sequence,
-            "content": {"patch": patch} if kind == "amendment" else {"state": "seen"},
-            "change_contract_digest": base.digest()
-            if change_contract_digest is None
-            else change_contract_digest,
-            "repository_facts_digest": "",
-            "plan_digest": "",
-            "policy_digest": "",
-            "effect_digest": "",
-        }
-    )
-
-
-def test_plan_ir_is_deterministic_and_digest_bound() -> None:
+def test_transition_plan_is_deterministic_and_digest_bound() -> None:
     prove = PlanNode(id="prove", kind="check", command=("ethos", "prove", "--json"))
     status = PlanNode(id="status", kind="check", command=("ethos", "status", "--json"))
-    plan = PlanIR(**_PLAN_INPUTS, nodes=(prove, status))
+    plan = TransitionPlan(**_PLAN_INPUTS, nodes=(prove, status))
     assert [node["id"] for node in plan.to_dict()["nodes"]] == ["prove", "status"]
-    assert plan.digest() == PlanIR(**_PLAN_INPUTS, nodes=(status, prove)).digest()
+    assert plan.digest() == TransitionPlan(**_PLAN_INPUTS, nodes=(status, prove)).digest()
 
 
 def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None:
-    contract = _contract(
+    commitment = _contract(
         id="change:terminal-kernel",
         intent="Replace parallel semantic owners with one terminal kernel.",
         subjects=("repository:ethos",),
@@ -121,7 +89,7 @@ def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None
         authority_refs=("docs/governance/product-design-contract.md",),
         permissions=("repository.read", "work-lane.write"),
     )
-    facts = RepositoryFacts(
+    facts = Facts(
         repository="repository:ethos",
         head="a" * 40,
         tree="b" * 40,
@@ -129,15 +97,41 @@ def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None
         values={"branch_role": "work_lane", "dirty": False},
         source_refs=("git:HEAD", "git:tree"),
     )
-    assert contract.digest() == ChangeContract.model_validate(contract.model_dump()).digest()
-    assert facts.digest() == RepositoryFacts.model_validate(facts.model_dump()).digest()
-    assert contract.model_config["frozen"] is facts.model_config["frozen"] is True
+    assert commitment.digest() == Commitment.model_validate(commitment.model_dump()).digest()
+    assert facts.digest() == Facts.model_validate(facts.model_dump()).digest()
+    assert commitment.model_config["frozen"] is facts.model_config["frozen"] is True
+
+
+def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
+    commitment = _contract(risks=("cutover",), hypotheses=("compiler",), dependencies=("git",))
+
+    assert commitment.identity_projection() == {
+        "schema_version": 1,
+        "id": "change:terminal-kernel",
+        "intent": "Base",
+        "subjects": ["repo"],
+        "scope": [],
+        "invariants": [],
+        "acceptance": [],
+        "risks": ["cutover"],
+        "authority_refs": [],
+        "permissions": [],
+        "hypotheses": ["compiler"],
+        "dependencies": ["git"],
+    }
+    assert commitment.digest() != _contract(risks=("other",)).digest()
+
+
+@pytest.mark.parametrize("field", ["campaign", "collaboration", "compatibility", "publication"])
+def test_commitment_rejects_process_and_distribution_fields(field: str) -> None:
+    with pytest.raises(ValidationError):
+        _contract(**{field: "retired"})
 
 
 @pytest.mark.parametrize(
-    "scope", [("/absolute",), ("docs/../secrets",), (r"docs\\windows",), ("docs/**", "docs/**")]
+    "scope", [("/absolute",), ("docs/../secrets",), (r"docs\windows",), ("docs/**", "docs/**")]
 )
-def test_change_contract_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None:
+def test_commitment_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None:
     with pytest.raises(ValueError, match=r"change_scope_invalid|change_scope_duplicate"):
         _contract(
             id="change:invalid-scope",
@@ -147,8 +141,8 @@ def test_change_contract_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None
         )
 
 
-def test_repository_facts_digest_ignores_observation_time() -> None:
-    facts = RepositoryFacts(
+def test_facts_digest_ignores_observation_time() -> None:
+    facts = Facts(
         repository="repository:ethos",
         head="a" * 40,
         tree="b" * 40,
@@ -161,26 +155,25 @@ def test_repository_facts_digest_ignores_observation_time() -> None:
     )
 
 
-def test_attestation_identity_and_serialization_are_content_addressed() -> None:
+def test_attestation_identity_and_serialization_are_statement_addressed() -> None:
     first = _attestation(
-        content={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+        statement={"z": ["one", {"two": True}], "a": {"nested": "value"}},
         advisories=("non_blocking_note",),
     )
     reordered = _attestation(
-        content={"a": {"nested": "value"}, "z": ["one", {"two": True}]},
+        statement={"a": {"nested": "value"}, "z": ["one", {"two": True}]},
         advisories=("non_blocking_note",),
     )
 
-    assert len(first.id) == len(first.content_digest) == 64
+    assert len(first.id) == len(first.statement_digest) == 64
     assert first.id == reordered.id
     assert first.canonical_json() == reordered.canonical_json()
     assert json.loads(first.canonical_json()) == first.model_dump(mode="json")
     assert first.verdict == "pass"
     assert first.advisories == ("non_blocking_note",)
-    assert first.mints_authority is False
     assert (
         _attestation(
-            content={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+            statement={"z": ["one", {"two": True}], "a": {"nested": "value"}},
             verdict="unknown",
             advisories=("non_blocking_note",),
         ).id
@@ -193,134 +186,83 @@ def test_attestation_identity_and_serialization_are_content_addressed() -> None:
         Attestation.model_validate_json(json.dumps(forged))
 
 
-def test_attestation_requires_closed_verdict_and_explicit_digest_bindings() -> None:
-    attestation = _attestation(content={"state": "observed"})
+def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
+    attestation = _attestation(statement={"state": "observed"})
     payload = attestation.model_dump(mode="json")
     payload["verdict"] = "allow"
     with pytest.raises(ValidationError):
         Attestation.model_validate(payload)
 
     payload = attestation.model_dump(mode="json")
-    payload["repository_facts_digest"] = "not-a-digest"
+    payload["facts_digest"] = "not-a-digest"
     with pytest.raises(ValidationError):
         Attestation.model_validate(payload)
 
-    payload = attestation.model_dump(mode="json")
-    payload.pop("policy_digest")
-    with pytest.raises(ValidationError):
-        Attestation.model_validate(payload)
-
-
-def test_attestation_kind_algebra_is_closed() -> None:
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError, match="attestation_binding_missing"):
         Attestation.issue(
             {
-                "kind": "claim",
-                "issuer": "agent:local:task:one",
+                "predicate": "observation:repository",
+                "verifier": "agent:local:task:one",
                 "subject": "change:terminal-kernel",
                 "issued_at": _ISSUED_AT,
                 "verdict": "pass",
-                "content": {"summary": "legacy parallel entity"},
+                "statement": {"state": "observed"},
             }
         )
 
 
-def test_judgment_attestation_requires_basis_and_semantic_binding() -> None:
-    with pytest.raises(ValueError, match="attestation_judgment_content_invalid"):
-        Attestation.issue(
-            {
-                "kind": "judgment",
-                "issuer": "agent:local:task:one",
-                "subject": "capability:context-projection",
-                "issued_at": _ISSUED_AT,
-                "verdict": "pass",
-                "content": {"judgment": "semantic-disposition"},
-            }
-        )
-
+def test_attestation_predicate_is_open_and_never_amends_a_commitment() -> None:
     attestation = Attestation.issue(
         {
-            "kind": "judgment",
-            "issuer": "agent:local:task:one",
-            "subject": "capability:context-projection",
+            "predicate": "review:human",
+            "verifier": "human:local:owner",
+            "subject": "change:terminal-kernel",
             "issued_at": _ISSUED_AT,
             "verdict": "pass",
-            "content": {
-                "judgment": "semantic-disposition",
-                "basis": "terminal product boundary",
-                "state": "superseded",
-            },
-            "change_contract_digest": "a" * 64,
+            "statement": {"decision": "accept"},
+            "evidence_refs": ("git:commit:" + "a" * 40,),
         }
     )
 
-    assert attestation.kind == "judgment"
-
-
-def test_external_assurance_requires_native_evidence_binding() -> None:
-    with pytest.raises(ValueError, match="attestation_external_assurance_content_invalid"):
-        Attestation.issue(
-            {
-                "kind": "external-assurance",
-                "issuer": "provider:gitlab:project:ethos",
-                "subject": "git:commit:" + "a" * 40,
-                "issued_at": _ISSUED_AT,
-                "verdict": "pass",
-                "content": {"provider": "gitlab"},
-            }
-        )
-
-    attestation = Attestation.issue(
-        {
-            "kind": "external-assurance",
-            "issuer": "provider:gitlab:project:ethos",
-            "subject": "git:commit:" + "a" * 40,
-            "issued_at": _ISSUED_AT,
-            "verdict": "pass",
-            "content": {
-                "provider": "gitlab",
-                "verification_method": "hosted-ci",
-                "valid_until": "2026-07-27T00:00:00+00:00",
-            },
-            "evidence_refs": ("provider:gitlab:pipeline:1",),
-            "effect_digest": "a" * 64,
-        }
-    )
-
-    assert attestation.kind == "external-assurance"
+    assert attestation.predicate == "review:human"
+    assert not hasattr(Attestation, "apply_amendments")
+    assert not hasattr(attestation, "kind")
+    assert not hasattr(attestation, "content")
+    assert not hasattr(attestation, "sequence")
+    assert not hasattr(attestation, "mints_authority")
 
 
 def test_semantic_values_are_immutable_and_digest_bound() -> None:
     issued_at = datetime(2026, 7, 25, tzinfo=UTC)
-    attestation = _attestation(content={"nested": {"values": ["one", {"two": True}]}})
-    facts = RepositoryFacts(
+    attestation = _attestation(statement={"nested": {"values": ["one", {"two": True}]}})
+    facts = Facts(
         repository="repository:ethos",
         head="a" * 40,
         tree="b" * 40,
         observed_at=issued_at,
         values={"nested": {"values": ["one", {"two": True}]}},
     )
-    assert isinstance(attestation.content, MappingProxyType)
-    assert attestation.content["nested"]["values"] == ("one", MappingProxyType({"two": True}))
+    assert isinstance(attestation.statement, MappingProxyType)
+    assert attestation.statement["nested"]["values"] == ("one", MappingProxyType({"two": True}))
     assert isinstance(facts.values, MappingProxyType)
     with pytest.raises(TypeError):
-        operator.setitem(attestation.content, "new", "forbidden")
+        operator.setitem(attestation.statement, "new", "forbidden")
     with pytest.raises(TypeError):
         operator.setitem(facts.values["nested"], "new", "forbidden")
     assert (
-        Attestation.model_validate(attestation.model_dump()).content_digest
-        == attestation.content_digest
+        Attestation.model_validate(attestation.model_dump()).statement_digest
+        == attestation.statement_digest
     )
-    with pytest.raises(ValueError, match="attestation_content_digest_mismatch"):
+    with pytest.raises(ValueError, match="attestation_statement_digest_mismatch"):
         Attestation.model_validate_json(
-            json.dumps(attestation.model_dump(mode="json") | {"content": {"state": "changed"}})
+            json.dumps(attestation.model_dump(mode="json") | {"statement": {"state": "changed"}})
         )
 
 
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf"), b"bytes"])
 def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: object) -> None:
     with pytest.raises(TypeError, match="json_value_invalid"):
-        _attestation(content={"invalid": invalid})
+        _attestation(statement={"invalid": invalid})
 
 
 @pytest.mark.parametrize(
@@ -329,158 +271,51 @@ def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: obj
 )
 def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: object) -> None:
     with pytest.raises(TypeError, match=r"json_object_invalid|json_object_key_invalid"):
-        _attestation(content=invalid)
-
-
-def test_amendments_fold_in_order_and_require_authorized_fields() -> None:
-    base = _contract(acceptance=("base",))
-    authority = {"agent:local:task:one": ("acceptance",), "human:local:shell:owner": ("intent",)}
-    first = _amendment(
-        base,
-        {"acceptance": ["base", "deterministic"]},
-        issued_at=datetime(2026, 7, 25, 1, tzinfo=UTC),
-    )
-    after_first = apply_amendments(base, (first,), issuer_permissions=authority)
-    second = _amendment(
-        after_first,
-        {"intent": "Establish the smallest deterministic terminal kernel."},
-        issuer="human:local:shell:owner",
-        issued_at=datetime(2026, 7, 25, 2, tzinfo=UTC),
-    )
-    effective = apply_amendments(base, (second, first), issuer_permissions=authority)
-    assert (effective.intent, effective.acceptance) == (
-        "Establish the smallest deterministic terminal kernel.",
-        ("base", "deterministic"),
-    )
-    assert (
-        effective.digest()
-        == apply_amendments(base, (first, second), issuer_permissions=authority).digest()
-    )
-
-
-@pytest.mark.parametrize(
-    ("patch", "authority", "error", "change_contract_digest", "kind"),
-    [
-        ({"intent": "Changed"}, None, "amendment_authority_missing", None, "amendment"),
-        (
-            {"intent": "Unbound"},
-            None,
-            "amendment_change_contract_digest_mismatch",
-            "0" * 64,
-            "amendment",
-        ),
-        ({"intent": "Ignored"}, None, "attestation_not_amendment", None, "observation"),
-        (
-            {"invented": "parallel ontology"},
-            {"agent:local:task:one": ("invented",)},
-            "amendment_field_unknown:invented",
-            None,
-            "amendment",
-        ),
-        (
-            {"permissions": ["repository.write"]},
-            {"authority:maintainer": ("intent",)},
-            "amendment_issuer_unauthorized",
-            None,
-            "amendment",
-        ),
-        (
-            {"permissions": ["repository.write"]},
-            {"authority:maintainer": ("intent",)},
-            "amendment_field_unauthorized:permissions",
-            None,
-            "amendment-authority",
-        ),
-    ],
-)
-def test_amendments_fail_closed_for_invalid_authority(
-    patch: dict[str, object],
-    authority: dict[str, tuple[str, ...]] | None,
-    error: str,
-    change_contract_digest: str | None,
-    kind: str,
-) -> None:
-    base = _contract(authority_refs=("authority:maintainer",))
-    if kind == "amendment-authority":
-        amendment = _amendment(base, patch, issuer="authority:maintainer")
-    else:
-        amendment = _amendment(
-            base,
-            patch,
-            change_contract_digest=change_contract_digest,
-            kind=kind,
-        )
-    with pytest.raises(ValueError, match=error):
-        apply_amendments(base, (amendment,), issuer_permissions=authority)
-
-
-def test_amendment_fold_rejects_ambiguous_equal_sequence() -> None:
-    base = _contract()
-    issued_at = datetime(2026, 7, 25, tzinfo=UTC)
-    first = _amendment(base, {"intent": "First"}, issued_at=issued_at, sequence=1)
-    second = _amendment(
-        base,
-        {"intent": "Second"},
-        issuer="agent:local:task:two",
-        issued_at=issued_at,
-        sequence=1,
-    )
-    with pytest.raises(ValueError, match="amendment_order_ambiguous"):
-        apply_amendments(base, (second, first))
-
-
-def test_amendment_fold_rejects_duplicate_attestation_identity() -> None:
-    base = _contract()
-    amendment = _amendment(base, {"intent": "Changed"})
-
-    with pytest.raises(ValueError, match="attestation_duplicate"):
-        apply_amendments(
-            base,
-            (amendment, amendment),
-            issuer_permissions={"agent:local:task:one": ("intent",)},
-        )
+        _attestation(statement=invalid)
 
 
 def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     generated = semantic_schema_documents()
     assert set(generated) == {
-        "change-contract.schema.json",
+        "commitment.schema.json",
         "attestation.schema.json",
-        "repository-facts.schema.json",
+        "facts.schema.json",
     }
+    commitment_schema = generated["commitment.schema.json"]
+    assert commitment_schema["properties"]["schema_version"]["const"] == 1
+    assert not {"campaign", "collaboration", "compatibility", "publication"} & set(
+        commitment_schema["properties"]
+    )
     attestation_schema = generated["attestation.schema.json"]
     assert {
         "id",
+        "predicate",
+        "statement",
+        "statement_digest",
+        "verifier",
         "verdict",
-        "change_contract_digest",
-        "repository_facts_digest",
+        "commitment_digest",
+        "facts_digest",
         "plan_digest",
         "policy_digest",
         "effect_digest",
-        "content_digest",
     } <= set(attestation_schema["required"])
     assert attestation_schema["properties"]["verdict"]["enum"] == [
         "pass",
         "block",
         "unknown",
     ]
-    assert attestation_schema["properties"]["kind"]["enum"] == [
-        "observation",
-        "judgment",
-        "proof",
-        "effect",
-        "external-assurance",
-        "amendment",
-    ]
-    assert {
-        clause["if"]["properties"]["kind"]["const"] for clause in attestation_schema["allOf"]
-    } == set(attestation_schema["properties"]["kind"]["enum"])
+    assert "enum" not in attestation_schema["properties"]["predicate"]
+    assert "allOf" not in attestation_schema
+    assert not {"kind", "content", "sequence", "mints_authority"} & set(
+        attestation_schema["properties"]
+    )
     schema_dir = Path("system/schemas/kernel")
     expected = {
         "result.schema.json",
         *generated,
         "commit-policy.schema.json",
-        "plan-ir.schema.json",
+        "transition-plan.schema.json",
         "provenance.schema.json",
         "docs-registry.schema.json",
         "gate.schema.json",
@@ -523,7 +358,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     ):
         properties = workspace_schema["$defs"][definition]["properties"]
         assert {
-            "base_change_contract_digest",
+            "base_commitment_digest",
             "contract_binding",
             "lease_state",
         } <= set(properties)
@@ -533,12 +368,10 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "unknown",
         "missing",
     ]
-    plan = PlanIR(
+    plan = TransitionPlan(
         **_PLAN_INPUTS, nodes=(PlanNode(id="land", kind="effect", command=("ethos", "land")),)
     )
-    jsonschema.Draft202012Validator(
-        json.loads((schema_dir / "plan-ir.schema.json").read_text())
-    ).validate(plan.to_dict())
+    assert plan.to_dict()["inputs"]["commitment"] == "a" * 64
 
 
 def test_result_contract_has_stable_top_level_fields() -> None:
@@ -618,9 +451,27 @@ def _matches_old_entity(path: Path, pattern: re.Pattern[str]) -> bool:
         return False
 
 
-def test_governance_context_projects_repository_authority_without_shadow_models() -> None:
+def test_governance_context_projects_executable_contextual_authority_without_shadow_models() -> (
+    None
+):
     context = governance_context(Path.cwd(), profile="product")
     assert context["repository"] == str(Path.cwd().resolve())
-    assert "user_instruction" in context["authority_refs"]
-    assert context["shared_commands"] == context["transition_commands"] == list(LIFECYCLE_COMMANDS)
+    assert context["authority"] == {
+        "contract_ref": "system/authority.toml",
+        "resolver": "contextual",
+        "query_axes": ["subject", "predicate", "scope", "plane", "context"],
+        "unknown_verdict": "block",
+        "currentness_requirements": [
+            "integrity",
+            "declared_authority",
+            "binding_match",
+            "validity",
+            "no_more_specific_active_owner",
+        ],
+        "conflict_verdict": "block",
+        "novel_semantics": "model_gap",
+    }
+    assert "authority_refs" not in context
+    assert "shared_commands" not in context
+    assert "transition_commands" not in context
     assert context["reader_projection_commands"] == ["ethos status"]

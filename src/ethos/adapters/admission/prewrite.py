@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import os
-import shlex
-import shutil
 import subprocess
-import tempfile
-import tomllib
+from fnmatch import fnmatchcase
 from pathlib import Path
-from typing import cast
 
-from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
+from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -26,14 +23,10 @@ from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import ROLE_DETACHED
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.registry.declarations import CouplingDeclaration
-from ethos.repository.policy.coupling.closure import declared_product_references
-from ethos.repository.policy.coupling.closure import product_reference_gaps
-from ethos.repository.policy.coupling.closure import product_references_from_files
+from ethos.repository.context import is_product_root
 
 _CONTROL_CHARACTER_UPPER_BOUND = 32
 _DELETE_CONTROL_CODE_POINT = 127
-_UNIFIED_DIFF_HEADER_PART_COUNT = 4
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "lease_id", "epoch", "head")
 _SCOPE_LIST_FIELDS = (
     "changed_paths",
@@ -45,7 +38,6 @@ _SCOPE_LIST_FIELDS = (
     "required_gaps",
     "advisory_gaps",
 )
-_REFERENCE_KINDS = ("import", "distribution", "executable", "reference", "command")
 
 
 def has_path_whitespace(text: str) -> bool:
@@ -78,29 +70,35 @@ def prewrite_guard(
         for path in checked
         if path["tracked_candidate"] is True and path["relative_path"]
     )
-    lifecycle = openspec_governance_report(
-        root,
-        lifecycle=True,
-        changed_paths=requested,
-        require_workspace=False,
-    )
-    scope = _material_scope_from_lifecycle(lifecycle)
     lease = _work_lane_lease_check(
         root=root, status=status, effective=effective, tracked_write_requested=tracked
     )
+    profile_adapter: dict[str, object] = {}
+    if is_product_root(root):
+        from ethos.adapters.openspec.governance import openspec_governance_report
+
+        profile_adapter = openspec_governance_report(
+            root,
+            lifecycle=True,
+            changed_paths=requested,
+            require_workspace=False,
+        )
+        scope = _openspec_scope(profile_adapter)
+    else:
+        scope = _commitment_scope(root, requested, lease)
     editor = _editor_root_check(
         root=root,
         editor_root=editor_root,
         require_editor_root=require_editor_root or tracked,
     )
-    patch_admission = _patch_admission(
+    patch_report = patch_admission(
         root=root,
         requested_paths=requested,
         baseline_head=str(lease.get("expected_head") or ""),
         patch=patch,
     )
     blocked = [path for path in checked if path["allowed"] is False]
-    error = _error(runtime_check, lease, editor, patch_admission, scope, blocked)
+    error = _error(runtime_check, lease, editor, patch_report, scope, blocked)
     decision = _prewrite_decision(root, effective, checked, lease, error)
     return {
         "ok": not error,
@@ -113,8 +111,8 @@ def prewrite_guard(
         "runtime_binding": runtime_check,
         "work_lane_lease": lease,
         "editor_root": editor,
-        "patch_admission": patch_admission,
-        "openspec_lifecycle": lifecycle,
+        "patch_admission": patch_report,
+        **({"profile_adapter": profile_adapter} if profile_adapter else {}),
         "material_scope": scope,
         "paths": checked,
         "blocked_paths": blocked,
@@ -240,6 +238,7 @@ def _lease_report(
         "lease_id": str(lease.get("lease_id") or ""),
         "epoch": integer_value(lease.get("epoch")),
         "expected_head": str(lease.get("expected_head") or ""),
+        "base_commitment_digest": str(lease.get("base_commitment_digest") or ""),
     }
     if observed:
         report.update(current_head=observed[0], binding_head=observed[1], head_source=observed[2])
@@ -255,14 +254,14 @@ def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> d
 def _lease_binding_reason(
     *, root: Path, branch: str, lease: dict[str, object], actor: str, current_head: str
 ) -> str:
-    base_digest = str(lease.get("base_change_contract_digest") or "")
+    base_digest = str(lease.get("base_commitment_digest") or "")
     expected_head = str(lease.get("expected_head") or "")
     contract_reason = ""
     try:
-        load_lease_bound_change_contract(
+        load_profile_lease_bound_commitment(
             root,
             expected_head=expected_head,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         )
     except ValueError as exc:
         reason = str(exc)
@@ -479,12 +478,12 @@ def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     )
 
 
-def _material_scope_from_lifecycle(report: dict[str, object]) -> dict[str, object]:
-    """Return the canonical scope read model projected by OpenSpec lifecycle."""
+def _openspec_scope(report: dict[str, object]) -> dict[str, object]:
+    """Return scope projected by the optional ETHOS self-profile adapter."""
     lifecycle = report.get("lifecycle")
     scope = lifecycle.get("scope_binding") if isinstance(lifecycle, dict) else None
     if isinstance(scope, dict):
-        return cast("dict[str, object]", scope)
+        return scope
     return {
         "ok": True,
         "state": "not_available",
@@ -492,207 +491,44 @@ def _material_scope_from_lifecycle(report: dict[str, object]) -> dict[str, objec
     }
 
 
-def _patch_admission(
-    *,
-    root: Path,
-    requested_paths: tuple[str, ...],
-    baseline_head: str,
-    patch: str,
+def _commitment_scope(
+    root: Path, requested: tuple[str, ...], lease: dict[str, object]
 ) -> dict[str, object]:
-    if not patch:
-        return {
-            "ok": True,
-            "state": "not_requested",
-            "reason": "not_requested",
-            "baseline_head": baseline_head,
-            "paths": [],
-            "references": {},
-        }
-    changes, parse_gap = _unified_patch_changes(patch)
-    patch_paths = sorted({str(change["path"]) for change in changes})
-    requested = sorted(set(requested_paths))
-    reason = parse_gap
-    if not reason and patch_paths != requested:
-        reason = "prewrite_patch_paths_mismatch"
-    if not reason and not baseline_head:
-        reason = "prewrite_patch_baseline_missing"
-    if not reason:
-        completed = subprocess.run(
-            ["git", "apply", "--check", "--whitespace=error-all", "-"],
-            cwd=root,
-            input=patch,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if completed.returncode != 0:
-            reason = "prewrite_patch_preimage_mismatch"
-    exact_scope = _baseline_exact_scope_paths(root, baseline_head) if not reason else set()
-    if not reason:
-        reason = next(
-            (
-                f"product_path_not_admitted_at_baseline:{change['path']}"
-                for change in changes
-                if change["new"] is True and change["path"] not in exact_scope
-            ),
-            "",
-        )
-    references: dict[str, set[str]] = {}
-    if not reason:
-        baseline_references = _baseline_product_references(root, baseline_head)
-        try:
-            references = _patch_references(
+    """Evaluate generic writes against the selected Commitment scope."""
+    if lease.get("required") is True and lease.get("ok") is not True:
+        return {"ok": True, "state": "not_available", "required_gaps": []}
+    try:
+        commitment = (
+            load_profile_lease_bound_commitment(
                 root,
-                patch,
-                changes,
-                declared_commands=baseline_references["command"],
+                expected_head=str(lease.get("expected_head") or ""),
+                base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
             )
-        except (OSError, UnicodeError, ValueError):
-            reason = "prewrite_patch_postimage_failed"
-    if not reason:
-        gaps = product_reference_gaps(baseline_references, references)
-        reason = gaps[0] if gaps else ""
+            if lease.get("required") is True
+            else load_commitment(root)
+        )
+    except ValueError as exc:
+        return {"ok": False, "state": "invalid", "required_gaps": [str(exc)]}
+    uncovered = [
+        path
+        for path in requested
+        if not any(_scope_matches(path, pattern) for pattern in commitment.scope)
+    ]
     return {
-        "ok": not reason,
-        "state": "admitted" if not reason else "blocked",
-        "reason": reason or "baseline_product_closure_matched",
-        "baseline_head": baseline_head,
-        "paths": patch_paths,
-        "references": {key: sorted(value) for key, value in references.items() if value},
+        "ok": not uncovered,
+        "state": "uncovered" if uncovered else "covered" if requested else "no_paths",
+        "changed_paths": list(requested),
+        "material_patterns": list(commitment.scope),
+        "material_paths": list(requested),
+        "uncovered_paths": uncovered,
+        "required_gaps": [f"commitment_scope_uncovered:{path}" for path in uncovered],
     }
 
 
-def _baseline_product_references(root: Path, head: str) -> dict[str, frozenset[str]]:
-    text = git_stdout(root, "show", f"{head}:system/coupling.toml")
-    try:
-        declaration = CouplingDeclaration.model_validate(tomllib.loads(text))
-    except (tomllib.TOMLDecodeError, ValueError):
-        return {kind: frozenset() for kind in _REFERENCE_KINDS}
-    return declared_product_references(declaration)
-
-
-def _unified_patch_changes(patch: str) -> tuple[list[dict[str, object]], str]:
-    changes: list[dict[str, object]] = []
-    current: dict[str, object] | None = None
-    for line in patch.splitlines():
-        if line.startswith(("GIT binary patch", "Binary files ")):
-            return changes, "prewrite_patch_binary_unsupported"
-        if line.startswith("diff --git "):
-            current = _new_patch_change(line)
-            if current is None:
-                return changes, "prewrite_patch_invalid"
-            changes.append(current)
-        elif current is not None:
-            _update_patch_change(current, line)
-    if not changes or any(not change["path"] for change in changes):
-        return changes, "prewrite_patch_invalid"
-    return changes, ""
-
-
-def _new_patch_change(line: str) -> dict[str, object] | None:
-    try:
-        parts = shlex.split(line)
-    except ValueError:
-        return None
-    if len(parts) != _UNIFIED_DIFF_HEADER_PART_COUNT:
-        return None
-    return {
-        "old_path": _patch_path(parts[2]),
-        "path": _patch_path(parts[3]),
-        "new": False,
-    }
-
-
-def _update_patch_change(change: dict[str, object], line: str) -> None:
-    if line.startswith("--- "):
-        change["old_path"] = _patch_path(line[4:].split("\t", 1)[0])
-        change["new"] = change["old_path"] == "/dev/null"
-    elif line.startswith("+++ "):
-        path = _patch_path(line[4:].split("\t", 1)[0])
-        if path != "/dev/null":
-            change["path"] = path
-
-
-def _patch_path(raw: str) -> str:
-    if raw == "/dev/null":
-        return raw
-    return raw.removeprefix("a/").removeprefix("b/")
-
-
-def _baseline_exact_scope_paths(root: Path, head: str) -> set[str]:
-    paths = git_stdout(
-        root,
-        "ls-tree",
-        "-r",
-        "--name-only",
-        head,
-        "--",
-        "openspec/changes",
-    ).splitlines()
-    exact: set[str] = set()
-    for path in paths:
-        if not path.endswith("/contract.toml") or "/archive/" in path:
-            continue
-        text = git_stdout(root, "show", f"{head}:{path}")
-        try:
-            scope = tomllib.loads(text).get("scope", [])
-        except tomllib.TOMLDecodeError:
-            continue
-        if not isinstance(scope, list):
-            continue
-        exact.update(
-            item for item in scope if isinstance(item, str) and item and not set("*?[") & set(item)
-        )
-    return exact
-
-
-def _patch_references(
-    root: Path,
-    patch: str,
-    changes: list[dict[str, object]],
-    *,
-    declared_commands: tuple[str, ...] | frozenset[str] = (),
-) -> dict[str, set[str]]:
-    with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
-        workspace = Path(temporary)
-        for change in changes:
-            old_path = str(change["old_path"])
-            if old_path == "/dev/null":
-                continue
-            relative = Path(old_path)
-            if relative.is_absolute() or ".." in relative.parts:
-                msg = "prewrite patch path escapes root"
-                raise ValueError(msg)
-            source = root / relative
-            if not source.is_file():
-                msg = "prewrite patch preimage missing"
-                raise ValueError(msg)
-            target = workspace / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
-        completed = subprocess.run(
-            ["git", "apply", "--whitespace=error-all", "-"],
-            cwd=workspace,
-            input=patch,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if completed.returncode != 0:
-            msg = "prewrite patch postimage application failed"
-            raise ValueError(msg)
-        files: dict[str, str] = {}
-        for change in changes:
-            path = str(change["path"])
-            relative = Path(path)
-            if relative.is_absolute() or ".." in relative.parts:
-                msg = "prewrite patch path escapes root"
-                raise ValueError(msg)
-            target = workspace / relative
-            if target.is_file():
-                files[path] = target.read_text(encoding="utf-8")
-        return product_references_from_files(
-            files,
-            root=root,
-            declared_commands=declared_commands,
-        )
+def _scope_matches(path: str, pattern: str) -> bool:
+    if pattern == "**":
+        return True
+    if pattern.endswith("/**"):
+        prefix = pattern[:-3]
+        return path == prefix or path.startswith(f"{prefix}/")
+    return fnmatchcase(path, pattern)

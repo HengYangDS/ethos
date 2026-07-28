@@ -28,6 +28,7 @@ required_owner_scripts = [
   "tools/ci/scripts/run-repository-hygiene.sh",
   "tools/ci/scripts/run-product-boundary.sh",
   "tools/ci/scripts/run-secrets-scan.sh",
+  "tools/ci/scripts/install-lychee.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
   "tools/ci/scripts/run-ci-template-check.sh",
   "tools/ci/scripts/run-actionlint.sh",
@@ -67,6 +68,7 @@ required_owner_scripts = [
   "tools/ci/scripts/run-repository-hygiene.sh",
   "tools/ci/scripts/run-product-boundary.sh",
   "tools/ci/scripts/run-secrets-scan.sh",
+  "tools/ci/scripts/install-lychee.sh",
   "tools/ci/scripts/run-python-tests.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
   "tools/ci/scripts/run-ci-template-check.sh",
@@ -81,3 +83,27 @@ required_owner_scripts = [
 local_github_emulator_dir = "build/evidence/local-ci/github"
 local_gitlab_emulator_dir = "build/evidence/local-ci/gitlab"
 hosted_status_claim_boundary = "local emulators MUST NOT claim hosted provider status"
+
+[[forge_surface]]
+provider = "github"
+kind = "issue"
+source = ".config/forge/issue.md"
+projection = ".github/ISSUE_TEMPLATE/task.md"
+
+[[forge_surface]]
+provider = "github"
+kind = "change"
+source = ".config/forge/change.md"
+projection = ".github/PULL_REQUEST_TEMPLATE.md"
+
+[[forge_surface]]
+provider = "gitlab"
+kind = "issue"
+source = ".config/forge/issue.md"
+projection = ".gitlab/issue_templates/task.md"
+
+[[forge_surface]]
+provider = "gitlab"
+kind = "change"
+source = ".config/forge/change.md"
+projection = ".gitlab/merge_request_templates/default.md"

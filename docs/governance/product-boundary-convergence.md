@@ -18,7 +18,7 @@ See also: [Product Design Contract](product-design-contract.md) and
 
 The ETHOS product repository is the product truth target. An adopter is bound
 through its own profile and retains its own source, tests, docs, OpenSpec,
-ChangeContracts, Attestations, and evidence. No adapter, projection, or
+Commitments, Attestations, and evidence. No adapter, projection, or
 cross-repository observation
 creates a shared task store or expands product ontology.
 

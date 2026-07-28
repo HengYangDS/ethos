@@ -82,7 +82,7 @@ class LaneLease(BaseModel):
     renewed_at: AwareDatetime
     expires_at: AwareDatetime
     expected_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    base_change_contract_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    base_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     path_scope: tuple[str, ...] = ()
     handoff: LeaseHandoffOffer | None = None
 
@@ -114,7 +114,7 @@ class LaneLease(BaseModel):
             "renewed_at": self.renewed_at.isoformat(),
             "expires_at": self.expires_at.isoformat(),
             "expected_head": self.expected_head,
-            "base_change_contract_digest": self.base_change_contract_digest,
+            "base_commitment_digest": self.base_commitment_digest,
             "path_scope": list(self.path_scope),
             "handoff": self.handoff.model_dump(mode="json") if self.handoff else None,
         }
@@ -132,7 +132,7 @@ class LaneLease(BaseModel):
             "renewed_at",
             "expires_at",
             "expected_head",
-            "base_change_contract_digest",
+            "base_commitment_digest",
             "path_scope",
             "handoff",
         }
@@ -167,7 +167,7 @@ class LaneLease(BaseModel):
             renewed_at=payload["renewed_at"],
             expires_at=payload["expires_at"],
             expected_head=payload["expected_head"],
-            base_change_contract_digest=payload["base_change_contract_digest"],
+            base_commitment_digest=payload["base_commitment_digest"],
             path_scope=tuple(path_scope),
             handoff=handoff,
         )
@@ -208,7 +208,7 @@ class CrossHostHandoff(BaseModel):
     source_lease_epoch: int = Field(ge=1)
     source_lease_expires_at: str = Field(min_length=1)
     source_lease_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    base_change_contract_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    base_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_holder_ref: HolderRef
     artifacts: tuple[HandoffArtifact, ...] = ()
 
@@ -221,7 +221,7 @@ class CrossHostHandoff(BaseModel):
             "target_holder_ref": self.target_holder_ref.serialize(),
             "context_digest": self.context_digest,
             "dirty_content_sha256": self.dirty_content_sha256,
-            "base_change_contract_digest": self.base_change_contract_digest,
+            "base_commitment_digest": self.base_commitment_digest,
             "source_lease_binding": {
                 "lease_id": self.source_lease_id,
                 "epoch": self.source_lease_epoch,

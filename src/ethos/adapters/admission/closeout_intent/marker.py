@@ -34,10 +34,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.repo.git import GitEffectExecutionRequest
-from ethos.adapters.repo.git import execute_git_effect
-from ethos.adapters.repo.git import git_effect_attestations
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git_effects import GitEffectExecutionRequest
+from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_effects import git_effect_attestations
 
 if TYPE_CHECKING:
     from ethos.contracts.plan import GitEffect
@@ -76,8 +76,8 @@ class MarkerExpectation:
 
     evidence_digest: str = ""
     gate_policy_digest: str = ""
-    change_contract_digest: str = ""
-    repository_facts_digest: str = ""
+    commitment_digest: str = ""
+    facts_digest: str = ""
 
 
 def _git_path(root: Path, relative: str) -> Path:
@@ -222,8 +222,8 @@ def execute_closeout_effect(
                 issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
                 attestations=git_effect_attestations(root, effect),
                 permissions=permissions,
-                change_contract_digest=expectation.change_contract_digest,
-                repository_facts_digest=expectation.repository_facts_digest,
+                commitment_digest=expectation.commitment_digest,
+                facts_digest=expectation.facts_digest,
                 policy_digest=expectation.gate_policy_digest,
             ),
         )

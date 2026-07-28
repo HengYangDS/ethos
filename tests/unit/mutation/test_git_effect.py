@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 import pytest
 from pydantic import ValidationError
 
-from ethos.adapters.repo.git import GitEffectExecutionRequest
-from ethos.adapters.repo.git import execute_git_effect
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git_effects import GitEffectExecutionRequest
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
@@ -19,7 +19,7 @@ from tests.support.contract_helpers import init_git_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
-_CHANGE_CONTRACT_DIGEST = "c" * 64
+_COMMITMENT_DIGEST = "c" * 64
 _REPOSITORY_FACTS_DIGEST = "f" * 64
 _POLICY_DIGEST = "d" * 64
 
@@ -38,8 +38,8 @@ def _execute(
     *,
     attestations: tuple[Attestation, ...] = (),
     permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
-    change_contract_digest: str = _CHANGE_CONTRACT_DIGEST,
-    repository_facts_digest: str = _REPOSITORY_FACTS_DIGEST,
+    commitment_digest: str = _COMMITMENT_DIGEST,
+    facts_digest: str = _REPOSITORY_FACTS_DIGEST,
     policy_digest: str = _POLICY_DIGEST,
 ) -> Attestation:
     return execute_git_effect(
@@ -49,8 +49,8 @@ def _execute(
             issuer="agent:test:case:one",
             attestations=attestations,
             permissions=permissions,
-            change_contract_digest=change_contract_digest,
-            repository_facts_digest=repository_facts_digest,
+            commitment_digest=commitment_digest,
+            facts_digest=facts_digest,
             policy_digest=policy_digest,
         ),
     )
@@ -68,16 +68,16 @@ def test_git_effect_applies_exact_cas_and_replays_matching_attestation(tmp_path:
     replayed = _execute(repo, effect, attestations=(applied,))
 
     assert git(repo, "rev-parse", "dev") == new
-    assert applied.kind == "effect"
+    assert applied.predicate == "effect:git-ref-update"
     assert applied.subject == effect.id
     assert applied.verdict == "pass"
     assert applied.plan_digest == effect.plan_digest
     assert applied.effect_digest == effect.digest()
-    assert applied.change_contract_digest == _CHANGE_CONTRACT_DIGEST
-    assert applied.repository_facts_digest == _REPOSITORY_FACTS_DIGEST
+    assert applied.commitment_digest == _COMMITMENT_DIGEST
+    assert applied.facts_digest == _REPOSITORY_FACTS_DIGEST
     assert applied.policy_digest == _POLICY_DIGEST
     assert len(applied.id) == 64
-    assert applied.content["state"] == "applied"
+    assert applied.statement["state"] == "applied"
     assert replayed is applied
 
 
@@ -89,7 +89,7 @@ def test_git_effect_recovers_attestation_when_desired_state_already_holds(tmp_pa
 
     recovered = _execute(repo, _effect(old=old, new=new))
 
-    assert recovered.content["state"] == "recovered"
+    assert recovered.statement["state"] == "recovered"
 
 
 def test_git_effect_blocks_identity_collision_and_stale_cas(tmp_path: Path) -> None:
@@ -99,14 +99,14 @@ def test_git_effect_blocks_identity_collision_and_stale_cas(tmp_path: Path) -> N
     effect = _effect(old=old, new=new)
     collision = Attestation.issue(
         {
-            "kind": "effect",
-            "issuer": "agent:test:case:one",
+            "predicate": "effect:git-ref-update",
+            "verifier": "agent:test:case:one",
             "subject": effect.id,
             "issued_at": datetime(2026, 7, 25, tzinfo=UTC),
             "verdict": "pass",
-            "content": {"state": "applied", "updates": effect.model_dump(mode="json")["updates"]},
-            "change_contract_digest": _CHANGE_CONTRACT_DIGEST,
-            "repository_facts_digest": _REPOSITORY_FACTS_DIGEST,
+            "statement": {"state": "applied", "updates": effect.model_dump(mode="json")["updates"]},
+            "commitment_digest": _COMMITMENT_DIGEST,
+            "facts_digest": _REPOSITORY_FACTS_DIGEST,
             "plan_digest": effect.plan_digest,
             "policy_digest": _POLICY_DIGEST,
             "effect_digest": "b" * 64,
@@ -159,8 +159,8 @@ def test_git_effect_revalidates_state_before_replaying_attestation(tmp_path: Pat
 @pytest.mark.parametrize(
     ("field", "error"),
     [
-        ("change_contract_digest", "git_effect_binding_missing:change_contract_digest"),
-        ("repository_facts_digest", "git_effect_binding_missing:repository_facts_digest"),
+        ("commitment_digest", "git_effect_binding_missing:commitment_digest"),
+        ("facts_digest", "git_effect_binding_missing:facts_digest"),
         ("policy_digest", "git_effect_binding_missing:policy_digest"),
     ],
 )
@@ -175,12 +175,8 @@ def test_git_effect_blocks_before_mutation_when_required_binding_is_missing(
         _execute(
             repo,
             effect,
-            change_contract_digest=(
-                "" if field == "change_contract_digest" else _CHANGE_CONTRACT_DIGEST
-            ),
-            repository_facts_digest=(
-                "" if field == "repository_facts_digest" else _REPOSITORY_FACTS_DIGEST
-            ),
+            commitment_digest=("" if field == "commitment_digest" else _COMMITMENT_DIGEST),
+            facts_digest=("" if field == "facts_digest" else _REPOSITORY_FACTS_DIGEST),
             policy_digest="" if field == "policy_digest" else _POLICY_DIGEST,
         )
     assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") == old
@@ -197,25 +193,25 @@ def test_git_effect_replay_blocks_stale_binding_unknown_verdict_and_duplicate(
 
     with pytest.raises(
         ValueError,
-        match="git_effect_attestation_binding_mismatch:repository_facts_digest",
+        match="git_effect_attestation_binding_mismatch:facts_digest",
     ):
         _execute(
             repo,
             effect,
             attestations=(applied,),
-            repository_facts_digest="e" * 64,
+            facts_digest="e" * 64,
         )
 
     unknown = Attestation.issue(
         {
-            "kind": "effect",
-            "issuer": applied.issuer,
+            "predicate": "effect:git-ref-update",
+            "verifier": applied.verifier,
             "subject": effect.id,
             "issued_at": applied.issued_at,
             "verdict": "unknown",
-            "content": applied.content,
-            "change_contract_digest": applied.change_contract_digest,
-            "repository_facts_digest": applied.repository_facts_digest,
+            "statement": applied.statement,
+            "commitment_digest": applied.commitment_digest,
+            "facts_digest": applied.facts_digest,
             "plan_digest": applied.plan_digest,
             "policy_digest": applied.policy_digest,
             "effect_digest": applied.effect_digest,

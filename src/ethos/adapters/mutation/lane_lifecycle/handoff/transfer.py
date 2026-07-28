@@ -13,7 +13,7 @@ from typing import cast
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_import import apply_handoff_import
-from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
@@ -47,12 +47,12 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
     head = _git_value(repo, "rev-parse", "HEAD")
     tree = _git_value(repo, "rev-parse", "HEAD^{tree}")
     lease = leases_by_branch(repo).get(request.branch, {})
-    base_change_contract_digest = str(lease.get("base_change_contract_digest") or "")
+    base_commitment_digest = str(lease.get("base_commitment_digest") or "")
     try:
-        selected_base_digest = load_lease_bound_change_contract(
+        selected_base_digest = load_profile_lease_bound_commitment(
             repo,
             expected_head=head,
-            base_change_contract_digest=base_change_contract_digest,
+            base_commitment_digest=base_commitment_digest,
         ).digest()
     except ValueError:
         selected_base_digest = ""
@@ -74,7 +74,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
         "epoch": request.epoch,
         "expires_at": request.expected_expires_at,
         "payload_sha256": request.expected_payload_sha256,
-        "base_change_contract_digest": base_change_contract_digest,
+        "base_commitment_digest": base_commitment_digest,
     }
     checks = (
         (status.get("role") == ROLE_WORK_LANE, "work_lane_required"),
@@ -90,10 +90,10 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
             and str(lease.get("payload_sha256") or "") == request.expected_payload_sha256,
             "lease_generation_stale",
         ),
-        (bool(base_change_contract_digest), "lease_base_change_contract_digest_missing"),
+        (bool(base_commitment_digest), "lease_base_commitment_digest_missing"),
         (
-            base_change_contract_digest == selected_base_digest,
-            "lease_base_change_contract_digest_mismatch",
+            base_commitment_digest == selected_base_digest,
+            "lease_base_commitment_digest_mismatch",
         ),
         (
             os.environ.get("ETHOS_ACTOR", "").strip() == request.holder_ref,
@@ -131,7 +131,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
                     source_lease_epoch=request.epoch,
                     source_lease_expires_at=request.expected_expires_at,
                     source_lease_payload_sha256=request.expected_payload_sha256,
-                    base_change_contract_digest=base_change_contract_digest,
+                    base_commitment_digest=base_commitment_digest,
                     dirty_content_sha256=dirty_content_sha256,
                     context_digest=hashlib.sha256(context.encode("utf-8")).hexdigest(),
                 ),
@@ -160,7 +160,7 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
         "source_lane_ref": str(manifest.get("source_lane_ref") or ""),
         "source_head": str(manifest.get("source_head") or ""),
         "target_holder_ref": request.target_holder_ref,
-        "base_change_contract_digest": str(manifest.get("base_change_contract_digest") or ""),
+        "base_commitment_digest": str(manifest.get("base_commitment_digest") or ""),
     }
     try:
         normalized_target = HolderRef.parse(request.target_holder_ref).serialize()
@@ -231,7 +231,7 @@ def revoke_cross_host_source(
         "expires_at": request.expected_expires_at,
         "payload_sha256": request.expected_payload_sha256,
         "acknowledgement_id": str(ack.get("acknowledgement_id") or ""),
-        "base_change_contract_digest": str(manifest.get("base_change_contract_digest") or ""),
+        "base_commitment_digest": str(manifest.get("base_commitment_digest") or ""),
     }
     comparisons = (
         (
@@ -277,14 +277,14 @@ def revoke_cross_host_source(
             "handoff_acknowledgement_destination_head_mismatch",
         ),
         (
-            str(ack.get("base_change_contract_digest") or ""),
-            str(manifest.get("base_change_contract_digest") or ""),
-            "handoff_acknowledgement_base_change_contract_digest_mismatch",
+            str(ack.get("base_commitment_digest") or ""),
+            str(manifest.get("base_commitment_digest") or ""),
+            "handoff_acknowledgement_base_commitment_digest_mismatch",
         ),
         (
-            str(lease.get("base_change_contract_digest") or ""),
-            str(manifest.get("base_change_contract_digest") or ""),
-            "handoff_source_base_change_contract_digest_mismatch",
+            str(lease.get("base_commitment_digest") or ""),
+            str(manifest.get("base_commitment_digest") or ""),
+            "handoff_source_base_commitment_digest_mismatch",
         ),
         (
             request.expected_expires_at,

@@ -1,79 +1,83 @@
 ## Why
 
-ETHOS currently carries multiple parallel semantic owners, private runtimes,
-self-scoring views, oversized outputs, provider-specific coupling, and tests that
-preserve implementation branches rather than product behavior. This makes a
-simple intent-to-repository transition slow, expensive, difficult to recover,
-and capable of reporting green while a hard source-budget gap remains.
+ETHOS has accumulated parallel lifecycle, authority, documentation, evidence,
+and coordination systems. Mechanical renaming cannot cure this: a carrier that
+is simultaneously a plan, currentness index, workflow state, and evidence store
+still creates contradictory truth even when its label changes. The result is
+slow change, lost intent across lanes, stale projections, false confidence, and
+an implementation burden disproportionate to the product.
 
-One destructive campaign is required now because incremental compatibility work
-has repeatedly increased surface area without reaching the declared terminal
-budgets or the vendor-neutral product boundary.
+This single terminal-convergence campaign reconstructs the product from the
+smallest common generator: two durable semantic roots, fresh observations, a
+transient transition compiler, exact effects, and proof-carrying projections.
 
 ## What Changes
 
-- **BREAKING** Replace the current product ontology with `ChangeContract` and
-  `Attestation`, plus derived `RepositoryFacts` and transient `PlanIR`.
-- **BREAKING** Fold `orient` into `status`, remove `report`, and use only
-  `pass | block | unknown` with hard gaps never coexisting with a green state.
-- **BREAKING** Delete the private source-budget worker/protocol/replay/shadow
-  stack and retain one direct deterministic measurement path.
-- **BREAKING** Remove all workstation-specific control-plane code, schema, test,
-  documentation, and evidence coupling; ETHOS remains independently installable
-  and operable.
-- **BREAKING** Replace `proposal/*` with provider-neutral `proposal/*`; keep
-  `candidate/dev` and `work/*` local-only and publish only `main`, `dev`, and
-  `proposal/*`.
-- Replace custom graph layers with direct `graphlib.TopologicalSorter` and cut
-  the single guard DSL to official CEL after parity.
-- Introduce Worktree Family semantics, cooperative and competitive strategies,
-  intent amendments, vendor-neutral handoff/takeover, adaptive backpressure,
-  and a serialized candidate CAS update point.
-- Make Cyclopts declarations the CLI source of truth and bound default command
-  payloads to compact summaries plus artifact references.
-- Establish one owner per format, lint, type, test, structural, supply-chain,
-  provenance, version, and source-measurement property; warnings and production
-  suppressions become hard failures.
-- Prove kernel/adopter homomorphism with Python, Node/polyglot, and docs/infra
-  repositories before exposing the minimal protocol and pack ecosystem.
-- Run local closeout for campaign iterations and exactly one dual-provider
-  remote closeout at the terminal commit.
+- **BREAKING** Keep only immutable `Commitment` and open-predicate
+  `Attestation` as persistent semantic roots. Make `Facts` and
+  `TransitionPlan` transient.
+- **BREAKING** Replace global authority order, current directories, hand-built
+  indexes, and historical evaluator admission with local authority and
+  currentness predicates over subject, predicate, scope, plane, validity, and
+  exact bindings.
+- **BREAKING** Treat native, projection, adapter, fact, and history as the five
+  carrier-processing roles; reject unmappable valid semantics as `model_gap`.
+- **BREAKING** Delete amendments, closed Attestation kinds, Campaign/Evolution
+  ledgers, Decision Change Ledgers, Claim/Chronicle/proof-record planes, fixed
+  workflow phases, mandatory OpenSpec, fixed competition counts, and the
+  one-Commitment/one-Family rule.
+- Make `observe → extract → resolve → compile → evaluate → CAS apply →
+  post-observe → attest → project` the sole generic mechanism.
+- Keep OpenSpec as an optional ETHOS self-profile carrier; prove generic adopters
+  can use their own carriers without `openspec/`.
+- Rebuild documentation, rules, skills, schemas, CI, records, Worktree Families,
+  inboxes, and taxonomies as native carriers or derived projections with one
+  narrowly declared owner; absorb, preserve, or delete all residue after proof.
+- Collapse quality and supply-chain checks to one admitted owner per property,
+  treat warnings and stale projections as failures, and apply that discipline to
+  all owned repository surfaces.
+- Finish local closeout at one terminal HEAD, then make exactly one independent
+  GitLab and GitHub publication/release attempt.
 
 ## Capabilities
 
 ### New Capabilities
 
-None. The campaign replaces and compacts existing product capabilities rather
-than creating a parallel capability registry.
+None. This campaign removes parallel capability systems and reconstructs the
+existing product around one kernel.
 
 ### Modified Capabilities
 
-- `kernel`: subject=terminal-semantic-kernel; reuse=extend; change=modify
-- `command-plane`: subject=terminal-command-plane; reuse=extend; change=modify
-- `contracts`: subject=terminal-contracts; reuse=extend; change=modify
-- `repository-governance`: subject=terminal-repository-governance; reuse=extend; change=modify
-- `quality`: subject=terminal-quality-floor; reuse=extend; change=modify
-- `adapters`: subject=terminal-adapter-boundary; reuse=extend; change=modify
-- `distribution`: subject=terminal-distribution-topology; reuse=extend; change=modify
-- `proof-hosts`: subject=terminal-conformance-proof; reuse=extend; change=modify
-- `assistant-projections`: subject=terminal-agent-projections; reuse=extend; change=modify
+- `kernel`: terminal semantic kernel and carrier algebra
+- `contracts`: portable root and transition contracts
+- `repository-governance`: contextual authority, currentness, coordination, and retirement
+- `command-plane`: derived command projections and truthful verdicts
+- `adapters`: observation/effect boundary and optional profiles
+- `assistant-projections`: vendor-neutral collaboration and handoff projections
+- `quality`: one-owner quality and supply-chain proof
+- `proof-hosts`: independent local and hosted assurance planes
+- `distribution`: symmetric provider projection and portable boundary
 
 ## Impact
 
-The campaign may replace any active package, schema, CLI, test, tool, CI,
-document, OpenSpec, evidence, or local lifecycle implementation that conflicts
-with the canonical terminal design. It intentionally provides no compatibility
-shim. Intermediate code growth is allowed, but terminal Python ELOC is at most
-54,000 and global owned-source ELOC is at most 68,000. Local operation remains
-remote-independent; GitLab and GitHub are separately verified publication
-planes. Foreign Work Lanes remain read-only unless their holders hand them off
-or an explicitly authorized Lease takeover succeeds against fresh exact facts.
+The campaign may replace any active source, test, schema, rule, document,
+OpenSpec carrier, tool, CI file, or local state protocol that retains a parallel
+truth owner. Intermediate size growth is acceptable only when it enables a
+larger same-campaign deletion. The terminal product has no compatibility alias,
+shim, wrapper, re-export, fallback, or duplicate evaluator.
 
+No foreign lane is mutated without its holder's handoff or an exact authorized
+lease takeover. Local proof, GitLab proof, GitHub proof, and publication are
+separate attestable facts.
 
 ## Out of Scope
 
-- Historical compatibility aliases, import shims, re-exports, redirects, dual runtimes, or old command and schema preservation.
-- Mutation, landing, retirement, cleanup, or ownership takeover of foreign Work
-  Lanes without holder handoff or exact authorized Lease takeover.
-- A claim that the terminal implementation, terminal ELOC, provider CI/CD, protected branch advancement, release, or campaign closeout is already complete.
-- A mandatory central marketplace, hosted workflow runtime, DI container, event bus, policy server, graph database, or workstation-specific control plane.
+- Retaining historical wire/API compatibility or reconstructing lost private
+  transcripts.
+- Making OpenSpec, a particular agent host, framework, provider, language, or
+  repository layout a generic prerequisite.
+- Adding a DI container, event bus, workflow service, graph database, task
+  tracker, code generator, or template framework without a proved consumer and
+  net deletion.
+- Claiming terminal implementation, ELOC, local closeout, hosted execution, or
+  release completion before the corresponding fresh evidence exists.

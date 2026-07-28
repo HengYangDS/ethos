@@ -19,9 +19,11 @@ from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.workspace.signature import openspec_workspace_signature
+from ethos.repository.context import is_product_root
 from ethos.repository.openspec.audit import archive_identity_violations
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import protected_branch_active_change_report
+from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from typing import Any
@@ -36,6 +38,30 @@ def openspec_governance_report(
     require_workspace: bool = True,
 ) -> dict[str, Any]:
     """Return the ETHOS OpenSpec governance report for one repository root."""
+    profile = load_repository_profile(root)
+    if not is_product_root(root) and (
+        profile.declaration is None or profile.declaration.openspec is None
+    ):
+        request = OpenSpecRequest(change, lifecycle, changed_paths, require_workspace)
+        report = lifecycle_report(root, request=request, list_payload={})
+        return {
+            "ok": True,
+            "state": "not_applicable",
+            "official_config": {},
+            "official_cli": {"available": False, "base_command": []},
+            "change": None,
+            "schema_name": "",
+            "summary": {"change_count": 0, "validation": {}},
+            "required_gaps": [],
+            "advisory_gaps": [],
+            "lifecycle": {
+                "enabled": lifecycle,
+                "changes": report["changes"],
+                "scope_binding": report["scope_binding"],
+                "protected_branch_residue": report["protected_branch_residue"],
+            },
+            "commands": {},
+        }
     active_identifier_gaps = active_change_identifier_gaps(root, change)
     if active_identifier_gaps:
         return _active_identifier_rejected_report(

@@ -45,7 +45,7 @@ Completed baseline:
 - The local CI fallback bundle is HEAD-stable local owner-gate evidence, not
   hosted CI proof.
 - OpenSpec remains a mandatory official governance dependency, with
-  official-compatible accepted-spec identity, proposal intent, ChangeContract,
+  official-compatible accepted-spec identity, proposal intent, Commitment,
   evidence-ref, and archive lifecycle checks layered after official validation.
 - Format selection, dependency hygiene, prose spelling, JSON Schema hygiene,
   native `uv audit --frozen` lock analysis, C4-like

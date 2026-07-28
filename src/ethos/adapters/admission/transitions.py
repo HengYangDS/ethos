@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.change_contract import load_change_contract
-from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
+from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_head
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -132,24 +133,30 @@ def _work_lane_lease_transition_gaps(
             }.get(lease_state, f"work_lane_missing_lease:{branch}")
         ]
     expected = str(lease.get("expected_head") or "")
-    base_digest = str(lease.get("base_change_contract_digest") or "")
+    base_digest = str(lease.get("base_commitment_digest") or "")
     contract_gap = ""
     try:
-        load_lease_bound_change_contract(
+        load_profile_lease_bound_commitment(
             root,
             expected_head=expected,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         )
-        load_change_contract(
-            root,
-            tree_ref=target_head,
-            expected_digest=base_digest,
-            require_active=False,
-        )
+        if openspec_profile_enabled(root):
+            load_profile_lease_bound_commitment(
+                root,
+                expected_head=target_head,
+                base_commitment_digest=base_digest,
+            )
+        else:
+            load_commitment(
+                root,
+                tree_ref=target_head,
+                expected_digest=base_digest,
+            )
     except ValueError as exc:
         contract_gap = (
-            "lease_base_change_contract_digest_mismatch"
-            if str(exc) == "change_contract_digest_mismatch"
+            "lease_base_commitment_digest_mismatch"
+            if str(exc) == "commitment_digest_mismatch"
             else str(exc)
         )
     checks = (

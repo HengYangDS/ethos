@@ -122,12 +122,12 @@ def _foreign_lane_payload(
     lease = cast("dict[str, object]", context["lease"])
     dirty_paths = cast("tuple[str, ...]", context["dirty_paths"])
     lease_state = str(lease.get("lease_state") or "missing")
-    base_digest = str(lease.get("base_change_contract_digest") or "")
+    base_digest = str(lease.get("base_commitment_digest") or "")
     return {
         **{name: worktree[name] for name in ("path", "head", "branch", "role", "worktree_binding")},
         "lease": lease_summary(lease),
         "lease_state": lease_state,
-        "base_change_contract_digest": base_digest if lease_state in {"valid", "expired"} else "",
+        "base_commitment_digest": base_digest if lease_state in {"valid", "expired"} else "",
         "contract_binding": str(lease.get("contract_binding") or lease_state),
         "relation_to_accepted": str(context["relation_to_accepted"]),
         "next_action": FOREIGN_WORK_LANE_NEXT_ACTION,
@@ -157,7 +157,7 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
             "expected_head",
             "expires_at",
             "payload_sha256",
-            "base_change_contract_digest",
+            "base_commitment_digest",
         )
     }
     result.update(epoch=integer_value(lease.get("epoch")), mints_authority=False)
@@ -260,7 +260,7 @@ def coordination_package(
 
 
 def _unknown_unbound_ref() -> dict[str, object]:
-    return dict.fromkeys(("branch", "head", "base_change_contract_digest"), "") | {
+    return dict.fromkeys(("branch", "head", "base_commitment_digest"), "") | {
         "contract_binding": "missing",
         "lease_state": "missing",
         "relation_to_accepted": "unknown",

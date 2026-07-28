@@ -16,10 +16,10 @@ ETHOS SHALL keep the normal user workflow under six public commands:
 - **AND** `ethos status` is the single bounded reader
 - **AND** maintainer mechanics remain hidden or semantically namespaced
 
-#### Scenario: PlanIR is the single transition projection
-- **WHEN** `ethos plan --json` compiles the current ChangeContract, repository
+#### Scenario: TransitionPlan is the single transition projection
+- **WHEN** `ethos plan --json` compiles the current Commitment, repository
   facts, and declared nodes
-- **THEN** it returns one deterministic `plan_ir`
+- **THEN** it returns one deterministic `transition_plan`
 - **AND** no parallel workflow-runtime or domain-contract read model is emitted
 
 #### Scenario: Default payloads stay bounded
@@ -110,7 +110,7 @@ centered on `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 - **THEN** the payload includes official OpenSpec doctor, status, and strict
   validation results
 - **AND** it includes ETHOS lifecycle carrier review for proposal, design,
-  tasks, delta specs, capability profiles, ChangeContract validity, evidence refs, and
+  tasks, delta specs, capability profiles, Commitment validity, evidence refs, and
   live-spec diff guards
 
 #### Scenario: OpenSpec adapter does not become a second public command plane

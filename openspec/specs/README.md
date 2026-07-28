@@ -7,4 +7,4 @@ selection, or acceptance.
 
 A change that affects multiple capabilities names each one in `proposal.md` and
 places changed behavior in the matching delta spec. Gate selection remains in
-`system/gates.toml`; change acceptance remains in the active ChangeContract.
+`system/gates.toml`; change acceptance remains in the active Commitment.

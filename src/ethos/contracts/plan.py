@@ -1,4 +1,4 @@
-"""Transient, deterministic PlanIR compiled from repository declarations."""
+"""Transient, deterministic TransitionPlan compiled from repository declarations."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ from pydantic import Field
 from pydantic import model_validator
 
 if TYPE_CHECKING:
-    from ethos.contracts.semantic import ChangeContract
-    from ethos.contracts.semantic import RepositoryFacts
+    from ethos.contracts.semantic import Commitment
+    from ethos.contracts.semantic import Facts
 
 PlanVerdict = Literal["pass", "block", "unknown"]
 
@@ -126,10 +126,10 @@ def _ordered_ids(nodes: tuple[PlanNode, ...]) -> tuple[tuple[str, ...], tuple[st
     return ordered, ()
 
 
-class PlanIR(_PlanModel):
+class TransitionPlan(_PlanModel):
     """Hashable transient plan; it owns no repository truth or mutation."""
 
-    contract_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     facts_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     policy_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     permissions: tuple[str, ...] = ()
@@ -160,7 +160,7 @@ class PlanIR(_PlanModel):
         return {
             "schema_version": 1,
             "inputs": {
-                "contract": self.contract_digest,
+                "commitment": self.commitment_digest,
                 "facts": self.facts_digest,
                 "policy": self.policy_digest,
             },
@@ -175,7 +175,7 @@ class PlanIR(_PlanModel):
     def digest(self) -> str:
         payload: dict[str, Any] = {
             "inputs": {
-                "contract": self.contract_digest,
+                "commitment": self.commitment_digest,
                 "facts": self.facts_digest,
                 "policy": self.policy_digest,
             },
@@ -191,34 +191,34 @@ class PlanIR(_PlanModel):
 
 
 def compile_plan(
-    contract: ChangeContract,
-    facts: RepositoryFacts,
+    commitment: Commitment,
+    facts: Facts,
     nodes: tuple[PlanNode, ...],
     *,
     policy_digest: str,
     validation_issues: tuple[str, ...] = (),
-) -> PlanIR:
-    """Compile one effective contract and current fact snapshot into PlanIR."""
+) -> TransitionPlan:
+    """Compile one effective commitment and current fact snapshot into TransitionPlan."""
     issues = list(validation_issues)
-    if contract.subjects and facts.repository not in contract.subjects:
+    if commitment.subjects and facts.repository not in commitment.subjects:
         issues.append("repository_subject_mismatch")
-    if contract.scope:
+    if commitment.scope:
         changed_paths = facts.values.get("changed_paths", ())
         if not isinstance(changed_paths, tuple | list) or any(
             not _valid_relative_path(path) for path in changed_paths
         ):
             issues.append("changed_paths_invalid")
         elif any(
-            not any(_path_matches(path, pattern) for pattern in contract.scope)
+            not any(_path_matches(path, pattern) for pattern in commitment.scope)
             for path in changed_paths
             if isinstance(path, str)
         ):
             issues.append("change_scope_exceeded")
-    return PlanIR(
-        contract_digest=contract.digest(),
+    return TransitionPlan(
+        commitment_digest=commitment.digest(),
         facts_digest=facts.digest(),
         policy_digest=policy_digest,
-        permissions=contract.permissions,
+        permissions=commitment.permissions,
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=nodes,
         validation_issues=tuple(dict.fromkeys(issues)),

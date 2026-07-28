@@ -5,21 +5,47 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 
-from ethos.contracts.docs.topology import ROLE_VALUES
-from ethos.contracts.docs.topology import STATE_VALUES
+from ethos.repository.profile import profile_root
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+DEFAULT_STATE_VALUES = (
+    "canonical",
+    "active",
+    "planned",
+    "experimental",
+    "superseded",
+    "archived",
+)
+DEFAULT_ROLE_VALUES = (
+    "index",
+    "explanation",
+    "reference",
+    "decision",
+    "policy",
+    "evidence",
+    "history",
+    "template",
+    "plan",
+    "research",
+    "findings",
+    "progress",
+    "ledger",
+    "how-to",
+)
+
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
 VISIBLE_SECTION_LABELS = ("Status:", "Purpose:", "See also:")
-# SSOT: derive the allowed-state vocabulary from the topology contract rather
-# than re-listing it here, so a state added to STATE_VALUES cannot silently
-# diverge from what the docs-registry gate accepts.
-DEFAULT_ALLOWED_STATES = frozenset(STATE_VALUES)
-# SSOT: the kernel role vocabulary comes from the contract; the taxonomy may add
-# repo-specific roles on top (union), but never remove a kernel role.
-DEFAULT_ALLOWED_ROLES = frozenset(ROLE_VALUES)
+DEFAULT_ALLOWED_STATES = frozenset(DEFAULT_STATE_VALUES)
+DEFAULT_ALLOWED_ROLES = frozenset(DEFAULT_ROLE_VALUES)
+RESERVED_STATE_VALUES = frozenset({"current", "future"})
+TAXONOMY_INVALID = "docs_taxonomy_invalid"
+
+
+def docs_root(root: Path) -> Path:
+    """Resolve the one adopter-declared documentation root."""
+    return profile_root(root, "docs")
 
 
 def front_matter(path: Path) -> dict[str, str]:
@@ -50,10 +76,8 @@ def front_matter(path: Path) -> dict[str, str]:
 
 def build_docs_registry(root: Path) -> list[dict[str, str]]:
     """Build the repository documentation registry from front matter."""
-    entries: list[dict[str, str]] = []
-    doc_paths = list((root / "docs").rglob("*.md"))
-    doc_paths.extend((root / "distributions").glob("*/README.md"))
-    for path in sorted(doc_paths):
+    entries = []
+    for path in sorted(docs_root(root).rglob("*.md")):
         metadata = front_matter(path)
         relative = path.relative_to(root).as_posix()
         entries.append(
@@ -69,14 +93,16 @@ def build_docs_registry(root: Path) -> list[dict[str, str]]:
 
 
 def taxonomy(root: Path) -> dict[str, object]:
-    """Read docs taxonomy config, returning an empty mapping on absence or parse failure."""
-    path = root / "docs" / "_meta" / "taxonomy.toml"
+    """Read the optional taxonomy, failing closed when the declaration is invalid."""
+    path = docs_root(root) / "_meta" / "taxonomy.toml"
     if not path.exists():
         return {}
     try:
         return tomllib.loads(path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError:
-        return {}
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        relative = path.relative_to(root).as_posix()
+        gap = f"{TAXONOMY_INVALID}:{relative}"
+        raise ValueError(gap) from exc
 
 
 def taxonomy_allowed(root: Path, section: str) -> set[str]:
@@ -94,7 +120,7 @@ def taxonomy_allowed(root: Path, section: str) -> set[str]:
 def allowed_states(root: Path) -> set[str]:
     """Return allowed docs states from taxonomy or the kernel contract default."""
     configured = taxonomy_allowed(root, "states")
-    return configured or set(DEFAULT_ALLOWED_STATES)
+    return (configured or set(DEFAULT_ALLOWED_STATES)) - RESERVED_STATE_VALUES
 
 
 def allowed_roles(root: Path) -> set[str]:

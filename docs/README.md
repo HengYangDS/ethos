@@ -15,11 +15,11 @@ kernel: durable decisions, dated evidence, stable references, and history, with
 product extensions for architecture, governance, concepts, plans, research, and
 start guides.
 
-See also: [Product Index](index.md), [Decision Records](decisions/README.md),
-[Evidence Docs](evidence/README.md), [Reference Docs](reference/README.md), and
-[Docs Topology](architecture/docs-topology.md).
+See also: [Product Index](index.md), [Docs Registry](governance/docs-registry.md),
+[Decision Records](decisions/README.md), [Evidence Docs](evidence/README.md), and
+[Reference Docs](reference/README.md).
 
-## Common Kernel
+## ETHOS Documentation Shape
 
 | Lane | Owns |
 | --- | --- |
@@ -42,7 +42,6 @@ front matter vocabulary (`state: canonical`, `state: active`, `state: planned`,
 lifecycle. Do not use `current` or `future` as state values, and do not create
 `current/` or `future/` documentation roots.
 
-The required kernel is the same for single repositories, monorepos, and
-multi-repository governed subjects. Product-specific roots are extensions. They
-do not replace the minimal semantic common kernel required across governed
-repositories.
+This shape describes ETHOS itself. It is not a mandatory physical layout for
+adopters. Adopters use their profile-declared documentation root and the
+portable Docs Registry contract.

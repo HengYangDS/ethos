@@ -298,7 +298,7 @@ def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
         "lease_expires_at": "",
         "lease_payload_sha256": "",
         "lease_state": "none",
-        "base_change_contract_digest": "",
+        "base_commitment_digest": "",
         "contract_binding": "not_applicable",
         "required_gaps": ["protected_root_mutation", "git_repository_missing"],
     }

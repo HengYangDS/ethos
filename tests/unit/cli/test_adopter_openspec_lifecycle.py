@@ -4,17 +4,18 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.surface.cli.root.planning as planning_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
+from ethos.contracts.openspec.models import AdopterOpenSpecPolicy
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import openspec_shape_report
+from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import render_repository_profile
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
-from tests.support.contract_helpers import write_active_change_contract
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 
@@ -40,6 +41,18 @@ def _write_valid_accepted_specs(repo: Path) -> None:
     (specs / "contracts" / "spec.md").write_text("# Contracts\n", encoding="utf-8")
 
 
+def _enable_openspec(repo: Path, *material_paths: str) -> None:
+    profile = RepositoryProfileDeclaration.bootstrap(repo.name).model_copy(
+        update={
+            "openspec": AdopterOpenSpecPolicy(material_paths=material_paths or ("openspec/**",))
+        }
+    )
+    (repo / ".ethos" / "profile.toml").write_text(
+        render_repository_profile(RepositoryProfileDeclaration.model_validate(profile)),
+        encoding="utf-8",
+    )
+
+
 def test_fresh_adopter_without_material_change_does_not_require_openspec_workspace(
     tmp_path: Path,
 ) -> None:
@@ -51,10 +64,10 @@ def test_fresh_adopter_without_material_change_does_not_require_openspec_workspa
     assert report["ok"] is True
     assert report["state"] == "not_applicable"
     assert report["required_gaps"] == []
-    assert report["lifecycle"]["scope_binding"]["state"] == "no_material_paths"
+    assert report["lifecycle"]["scope_binding"]["state"] == "not_applicable"
 
 
-def test_fresh_adopter_material_change_requires_openspec_workspace(tmp_path: Path) -> None:
+def test_fresh_adopter_material_change_does_not_require_openspec_workspace(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
 
@@ -65,14 +78,9 @@ def test_fresh_adopter_material_change_requires_openspec_workspace(tmp_path: Pat
         require_workspace=False,
     )
 
-    assert report["ok"] is False
-    assert {
-        "openspec_config_missing",
-        "openspec_directory_missing",
-        "openspec_specs_missing",
-        "openspec_material_path_uncovered:docs/governance/policy.md",
-    } <= set(report["required_gaps"])
-    assert report["lifecycle"]["scope_binding"]["state"] == "uncovered"
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert report["lifecycle"]["scope_binding"]["state"] == "not_applicable"
 
 
 @pytest.mark.parametrize(
@@ -97,6 +105,7 @@ def test_openspec_shape_rejects_non_spec_capability_carriers(
 ) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
+    _enable_openspec(repo, "docs/governance/**")
     _write_valid_accepted_specs(repo)
     assert openspec_shape_report(repo)["required_gaps"] == []
     unexpected = repo / "openspec" / "specs" / relative
@@ -109,9 +118,10 @@ def test_openspec_shape_rejects_non_spec_capability_carriers(
     assert report["required_gaps"] == [expected_gap]
 
 
-def test_change_contract_scope_is_the_only_active_material_coverage(tmp_path: Path) -> None:
+def test_commitment_scope_is_the_only_active_material_coverage(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
+    _enable_openspec(repo, "docs/governance/**")
     carrier = repo / "openspec" / "changes" / "material-change"
     (carrier / "specs" / "repository-governance").mkdir(parents=True)
     (carrier / "proposal.md").write_text("# Material change\n", encoding="utf-8")
@@ -121,7 +131,7 @@ def test_change_contract_scope_is_the_only_active_material_coverage(tmp_path: Pa
         "# Repository governance\n",
         encoding="utf-8",
     )
-    (carrier / "contract.toml").write_text(
+    (carrier / "commitment.toml").write_text(
         'schema_version = 1\nid = "change:material-change"\n'
         'intent = "Change governance policy."\nsubjects = ["repository:self"]\n'
         'scope = ["docs/governance/**"]\n',
@@ -139,7 +149,7 @@ def test_change_contract_scope_is_the_only_active_material_coverage(tmp_path: Pa
         "design": True,
         "tasks": True,
         "delta_specs": True,
-        "change_contract": True,
+        "commitment": True,
     }
     assert report["lifecycle"]["scope_binding"]["state"] == "covered"
     assert report["lifecycle"]["scope_binding"]["covered_paths"] == [
@@ -150,12 +160,13 @@ def test_change_contract_scope_is_the_only_active_material_coverage(tmp_path: Pa
     )
 
 
-def test_invalid_change_contract_is_a_gap_without_material_paths(tmp_path: Path) -> None:
+def test_invalid_commitment_is_a_gap_without_material_paths(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
+    _enable_openspec(repo, "docs/governance/**")
     carrier = repo / "openspec" / "changes" / "invalid-contract"
     carrier.mkdir(parents=True)
-    (carrier / "contract.toml").write_text("not = [valid\n", encoding="utf-8")
+    (carrier / "commitment.toml").write_text("not = [valid\n", encoding="utf-8")
 
     lifecycle = lifecycle_report(
         repo,
@@ -163,7 +174,7 @@ def test_invalid_change_contract_is_a_gap_without_material_paths(tmp_path: Path)
         list_payload={"changes": [{"name": "invalid-contract", "status": "in-progress"}]},
     )
 
-    assert "change_contract_invalid:invalid-contract" in lifecycle["required_gaps"]
+    assert "commitment_invalid:invalid-contract" in lifecycle["required_gaps"]
 
 
 def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
@@ -171,9 +182,10 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
 ) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
+    _enable_openspec(repo, "docs/governance/**")
     carrier = repo / "openspec" / "changes" / "completed-change"
     carrier.mkdir(parents=True)
-    (carrier / "contract.toml").write_text(
+    (carrier / "commitment.toml").write_text(
         'schema_version = 1\nid = "change:completed-change"\n'
         'intent = "Historical work."\nsubjects = ["repository:self"]\n'
         'scope = ["docs/governance/**"]\n',
@@ -213,64 +225,39 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
     assert explicitly_selected["scope_binding"]["state"] == "uncovered"
 
 
-def test_valid_adopter_plan_and_prove_surface_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
+def test_generic_adopter_plan_does_not_call_openspec(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
-    write_active_change_contract(repo)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt generic profile")
-    gap = "change_contract_missing:material-change"
-    calls: list[tuple[Path, bool, str | None]] = []
-
-    def report(
-        root: Path,
-        *,
-        change: str | None = None,
-        lifecycle: bool = False,
-        **_kwargs: object,
-    ) -> dict[str, object]:
-        calls.append((root, lifecycle, change))
-        return {"ok": False, "required_gaps": [gap]}
-
-    monkeypatch.setattr(planning_cli, "openspec_governance_report", report)
-    monkeypatch.setattr(proof_cli, "openspec_governance_report", report)
+    monkeypatch.setattr(
+        "ethos.adapters.openspec.governance.openspec_governance_report",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("OpenSpec called")),
+    )
     plan = run_ethos("plan", "--root", repo.as_posix(), "--json")
-    prove = run_ethos_blocked("prove", "--root", repo.as_posix(), "--json")
 
-    assert plan["ok"] is False
-    assert plan["required_gaps"] == [gap]
-    assert plan["data"]["plan_ir"]["required_gaps"] == [
-        "lifecycle_external_fact_missing:plan:openspec_carrier"
-    ]
-    assert prove["required_gaps"] == [
-        gap,
-        "adopter_profile_missing_code_correctness_gates",
-    ]
-    assert calls == [(repo, True, None), (repo, True, None)]
+    assert plan["ok"] is True
+    assert plan["required_gaps"] == []
+    assert plan["data"]["commitment"]["id"].startswith("repository:")
+    assert "profile_adapter" not in plan["data"]
 
 
-def test_plan_uses_one_change_selector_for_contract_and_lifecycle(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_plan_uses_profile_selected_commitment_without_openspec(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
-    selected = repo / "openspec" / "changes" / "selected"
+    selected = repo / "governance"
     selected.mkdir(parents=True)
-    (selected / "contract.toml").write_text(
+    (selected / "commitment.toml").write_text(
         'schema_version = 1\nid = "change:selected"\nintent = "Selected."\n'
         'subjects = ["repository:self"]\nscope = ["**"]\n',
         encoding="utf-8",
     )
+    (repo / ".ethos" / "profile.toml").write_text(
+        'profile_id = "adopter"\ncommitment = "governance/commitment.toml"\n',
+        encoding="utf-8",
+    )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "add selected change")
-    calls: list[str | None] = []
-
-    def report(_root: Path, *, change: str | None = None, **_kwargs: object) -> dict[str, object]:
-        calls.append(change)
-        return {"ok": True, "required_gaps": []}
-
-    monkeypatch.setattr(planning_cli, "openspec_governance_report", report)
-
     payload = run_ethos(
         "plan",
         "--change",
@@ -281,28 +268,29 @@ def test_plan_uses_one_change_selector_for_contract_and_lifecycle(
     )
 
     assert payload["ok"] is True
-    assert calls == ["selected"]
+    assert payload["data"]["commitment"]["id"] == "change:selected"
 
 
-def test_plan_surfaces_plan_ir_block_as_top_level_block(
+def test_plan_surfaces_transition_plan_block_as_top_level_block(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
-    carrier = repo / "openspec" / "changes" / "foreign"
+    carrier = repo / "governance"
     carrier.mkdir(parents=True)
-    (carrier / "contract.toml").write_text(
+    (carrier / "commitment.toml").write_text(
         'schema_version = 1\nid = "change:foreign"\nintent = "foreign"\n'
         'subjects = ["repository:foreign"]\nscope = ["**"]\n',
         encoding="utf-8",
     )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "foreign contract")
-    monkeypatch.setattr(
-        planning_cli,
-        "openspec_governance_report",
-        lambda *_args, **_kwargs: {"ok": True, "required_gaps": []},
+    (repo / ".ethos" / "profile.toml").write_text(
+        'profile_id = "adopter"\ncommitment = "governance/commitment.toml"\n',
+        encoding="utf-8",
     )
+    git(repo, "add", ".ethos/profile.toml")
+    git(repo, "commit", "-m", "select foreign contract")
 
     payload = run_ethos(
         "plan",
@@ -318,16 +306,15 @@ def test_plan_surfaces_plan_ir_block_as_top_level_block(
     assert "repository_subject_mismatch" in payload["required_gaps"]
 
 
-def test_plan_emits_one_plan_ir_without_parallel_read_models(tmp_path: Path) -> None:
+def test_plan_emits_one_transition_plan_without_parallel_read_models(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
-    write_active_change_contract(repo)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
 
     payload = run_ethos("plan", "--root", repo.as_posix(), "--json")
 
-    assert "plan_ir" in payload["data"]
+    assert "transition_plan" in payload["data"]
     assert "workflow_runtime" not in payload["data"]
     assert "domain_contracts" not in payload["data"]
 
@@ -335,12 +322,12 @@ def test_plan_emits_one_plan_ir_without_parallel_read_models(tmp_path: Path) -> 
 def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
-    write_active_change_contract(repo)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
     blocked = proof_plan(repo, head=git(repo, "rev-parse", "HEAD")).model_copy(
         update={"validation_issues": ("blocked-plan",)}
     )
+    monkeypatch.setattr("ethos.repository.context._contextual_authority", lambda *_args: {})
 
     monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: blocked)
     monkeypatch.setattr(

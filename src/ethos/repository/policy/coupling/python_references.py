@@ -1,0 +1,250 @@
+"""Python syntax references for product-binding closure extraction."""
+
+from __future__ import annotations
+
+import ast
+import re
+import shlex
+
+from ethos.contracts.registry.declarations import normalize_binding_command
+from ethos.repository.policy.coupling.command_references import command_executables
+
+_SUBPROCESS_CALLS = {"run", "Popen", "check_call", "check_output"}
+
+
+def python_trees(text: str) -> tuple[ast.AST, ...]:
+    """Parse complete Python or independent added lines with valid Python syntax."""
+    try:
+        return (ast.parse(text),)
+    except SyntaxError:
+        trees = []
+        for line in text.splitlines():
+            candidate = line
+            if line.lstrip().startswith("@"):
+                candidate += "\ndef _binding_probe() -> None:\n    pass"
+            try:
+                trees.append(ast.parse(candidate))
+            except SyntaxError:
+                continue
+        return tuple(trees)
+
+
+def import_roots(tree: ast.AST) -> set[str]:
+    """Return top-level package names imported by an AST."""
+    roots = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            roots.add(node.module.split(".")[0])
+    return roots
+
+
+def python_executables(tree: ast.AST, npm_scripts: dict[str, set[str]]) -> set[str]:
+    """Extract executable identities from Python syntax."""
+    executables = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            executables.update(_call_executables(node, npm_scripts))
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            if (
+                isinstance(target, ast.Name)
+                and re.search(r"(?:COMMAND|CMD|EXECUTABLE|BINARY|CLI|TOOL)$", target.id)
+                and isinstance(node.value, ast.List | ast.Tuple)
+            ):
+                executables.update(
+                    command_executables(_literal_command_tokens(node.value), npm_scripts)
+                )
+    return executables
+
+
+def _call_executables(node: ast.Call, npm_scripts: dict[str, set[str]]) -> set[str]:
+    name = node.func.id if isinstance(node.func, ast.Name) else ""
+    attribute = node.func.attr if isinstance(node.func, ast.Attribute) else ""
+    owner = (
+        node.func.value.id
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+        else ""
+    )
+    if node.args and (owner == "subprocess" and attribute in _SUBPROCESS_CALLS):
+        return command_executables(_literal_command_tokens(node.args[0]), npm_scripts)
+    if node.args and owner == "shutil" and attribute == "which":
+        return {_string(node.args[0])} - {""}
+    if (
+        name == "Path"
+        and node.args
+        and (value := _string(node.args[0]))
+        and value.startswith(("/bin/", "/usr/bin/", "/usr/local/bin/"))
+    ):
+        return {value.rsplit("/", maxsplit=1)[-1]}
+    return set()
+
+
+def _literal_command_tokens(node: ast.AST) -> tuple[str, ...]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        try:
+            return tuple(shlex.split(node.value))
+        except ValueError:
+            return ()
+    if isinstance(node, ast.List | ast.Tuple):
+        values = []
+        for item in node.elts:
+            if not (value := _string(item)):
+                break
+            values.append(value)
+        return tuple(values)
+    return ()
+
+
+def _string(node: ast.AST) -> str:
+    return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else ""
+
+
+def cyclopts_prefixes(files: dict[str, str]) -> dict[tuple[str, str], str]:
+    """Discover command prefixes declared by Cyclopts application trees."""
+    prefixes: dict[tuple[str, str], str] = {}
+    for path, text in files.items():
+        if "App(" not in text:
+            continue
+        trees = python_trees(text)
+        if not trees:
+            continue
+        tree = trees[0]
+        names = {
+            target.id: _app_name(node.value, target.id)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance((target := node.targets[0]), ast.Name)
+            and _is_app(node.value)
+        }
+        parents = {
+            node.args[0].id: node.func.value.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "command"
+            and isinstance(node.func.value, ast.Name)
+            and node.args
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id in names
+        }
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.For) or not isinstance(node.iter, ast.Tuple | ast.List):
+                continue
+            parent = next(
+                (
+                    call.func.value.id
+                    for call in ast.walk(node)
+                    if isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Attribute)
+                    and call.func.attr == "command"
+                    and isinstance(call.func.value, ast.Name)
+                ),
+                "",
+            )
+            parents.update(
+                {
+                    item.id: parent
+                    for item in node.iter.elts
+                    if parent and isinstance(item, ast.Name)
+                }
+            )
+
+        module = module_name(path)
+        prefixes.update(
+            {
+                (module, name): _resolve_app_prefix(name, names=names, parents=parents)
+                for name in names
+            }
+        )
+    return prefixes
+
+
+def _resolve_app_prefix(
+    name: str,
+    *,
+    names: dict[str, str],
+    parents: dict[str, str],
+    trail: frozenset[str] = frozenset(),
+) -> str:
+    if name in trail or name not in names:
+        return ""
+    parent = (
+        _resolve_app_prefix(parents[name], names=names, parents=parents, trail=trail | {name})
+        if name in parents
+        else ""
+    )
+    return " ".join(part for part in (parent, names[name]) if part)
+
+
+def _is_app(node: ast.AST) -> bool:
+    return isinstance(node, ast.Call) and (
+        (isinstance(node.func, ast.Name) and node.func.id == "App")
+        or (isinstance(node.func, ast.Attribute) and node.func.attr == "App")
+    )
+
+
+def _app_name(node: ast.AST, variable: str) -> str:
+    if isinstance(node, ast.Call):
+        for keyword in node.keywords:
+            if keyword.arg == "name" and (name := _string(keyword.value)):
+                return name
+    return variable.removesuffix("_app").replace("_", "-")
+
+
+def module_name(path: str) -> str:
+    parts = path.removeprefix("src/").removesuffix(".py").split("/")
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
+
+
+def import_module(path: str, node: ast.ImportFrom) -> str:
+    if node.level == 0:
+        return node.module or ""
+    package = module_name(path).split(".")[: -node.level]
+    return ".".join((*package, *((node.module or "").split("."))))
+
+
+def cyclopts_commands(path: str, tree: ast.AST, prefixes: dict[tuple[str, str], str]) -> set[str]:
+    """Extract normalized Cyclopts command identities from a Python AST."""
+    imported = {
+        alias.asname or alias.name: (import_module(path, node), alias.name)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    commands = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            owner, names = _command_names(decorator, node.name)
+            key = imported.get(owner, (module_name(path), owner))
+            prefix = prefixes.get(key, "")
+            if not prefix:
+                candidates = {value for (_, name), value in prefixes.items() if name == owner}
+                prefix = candidates.pop() if len(candidates) == 1 else ""
+            commands.update(
+                normalize_binding_command(" ".join(part for part in (prefix, name) if part))
+                for name in names
+            )
+    return commands
+
+
+def _command_names(decorator: ast.AST, function_name: str) -> tuple[str, tuple[str, ...]]:
+    call = decorator if isinstance(decorator, ast.Call) else None
+    reference = call.func if call is not None else decorator
+    if not (
+        isinstance(reference, ast.Attribute)
+        and reference.attr == "command"
+        and isinstance(reference.value, ast.Name)
+    ):
+        return "", ()
+    names = ()
+    for keyword in call.keywords if call is not None else ():
+        if keyword.arg == "name" and (name := _string(keyword.value)):
+            names = (name,)
+    return reference.value.id, names or (function_name.replace("_", "-"),)

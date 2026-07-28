@@ -1,36 +1,87 @@
-"""Generated artifact entrypoint routing tests."""
+"""Generated artifact topology and entrypoint routing tests."""
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from ethos.repository.policy.artifacts import package_build_route_findings
+from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
+from ethos.repository.policy.artifacts import generated_artifact_topology_report
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.mark.parametrize(
-    ("producer_text", "expected_gap_count"),
+    ("script", "expected_gap_count"),
     [
         (
             'artifact_dir="${repo_root}/build/artifacts/python"\n'
-            'uv build --offline --wheel --out-dir "${artifact_dir}" --clear',
+            "tools/ci/scripts/with-python-runtime.sh -- uv build "
+            '--offline --wheel --out-dir "${artifact_dir}" --clear',
             0,
         ),
-        ('uv build --offline --wheel --out-dir "${artifact_dir}" --clear', 1),
+        (
+            "tools/ci/scripts/with-python-runtime.sh -- uv build "
+            '--offline --wheel --out-dir "${artifact_dir}" --clear',
+            1,
+        ),
         (
             'artifact_dir="${repo_root}/build/runtime/python"\n'
-            'uv build --offline --wheel --out-dir "${artifact_dir}" --clear',
+            "tools/ci/scripts/with-python-runtime.sh -- uv build "
+            '--offline --wheel --out-dir "${artifact_dir}" --clear',
             1,
         ),
         (
             'other_dir="${repo_root}/build/artifacts/python"\n'
-            'uv build --offline --wheel --out-dir "${artifact_dir}" --clear',
+            "tools/ci/scripts/with-python-runtime.sh -- uv build "
+            '--offline --wheel --out-dir "${artifact_dir}" --clear',
             1,
         ),
     ],
 )
-def test_package_build_route_requires_semantic_out_dir_assignment(
-    producer_text: str, expected_gap_count: int
+def test_entrypoint_audit_requires_semantic_package_build_output(
+    tmp_path: Path, script: str, expected_gap_count: int
 ) -> None:
-    findings = package_build_route_findings("tools/ci/scripts/example.sh", producer_text)
+    path = tmp_path / "tools/ci/scripts/example.sh"
+    path.parent.mkdir(parents=True)
+    path.write_text(script, encoding="utf-8")
 
-    assert len(findings) == expected_gap_count
+    report = generated_artifact_entrypoint_audit(tmp_path)
+
+    assert report["summary"]["checked_file_count"] == 1
+    assert report["summary"]["blocker_count"] == expected_gap_count
+
+
+def test_entrypoint_audit_reads_structured_pixi_tasks(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[tool.pixi.tasks]
+package = { cmd = ["uv", "build", "--out-dir", "./dist/"] }
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    report = generated_artifact_entrypoint_audit(tmp_path)
+
+    assert report["required_gaps"] == [
+        "generated_artifact_entrypoint_denied_generated_home:pyproject.toml:dist/"
+    ]
+
+
+def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
+    path = tmp_path / "tools/ci/scripts/example.sh"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir ./dist/\n",
+        encoding="utf-8",
+    )
+
+    report = generated_artifact_topology_report(tmp_path)
+
+    assert report["summary"]["entrypoint_blocker_count"] == 2
+    assert report["required_gaps"] == [
+        "generated_artifact_entrypoint_denied_generated_home:tools/ci/scripts/example.sh:dist/",
+        "generated_artifact_entrypoint_package_artifacts_unrouted:tools/ci/scripts/example.sh",
+    ]

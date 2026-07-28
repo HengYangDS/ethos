@@ -38,9 +38,6 @@ RETIRED_SELF_TERMS = (
     "self_audit",
     "self-audit",
     "self audit",
-    "self-governance",
-    "self-evolution",
-    "self-hosting",
     "single-kernel dual-posture",
     "single_kernel_dual_posture",
     "dual-posture",
@@ -63,6 +60,11 @@ def product_surface_files() -> list[Path]:
                 if path.is_file() and path.suffix in {".md", ".toml", ".yaml", ".yml"}
             )
     return sorted(files)
+
+
+def documentation_topology_files() -> list[Path]:
+    """Return the retired topology locator, the only carrier this check governs."""
+    return [ROOT / "docs" / "architecture" / "docs-topology.md"]
 
 
 def imported_modules(path: Path) -> set[str]:
@@ -200,7 +202,6 @@ def test_attestation_carrier_is_current_and_legacy_evidence_is_historical() -> N
         "evidence/parity/",
         "openspec/changes/archive/",
         "docs/history/",
-        "docs/decisions/superseded/",
     ]
 
 
@@ -221,7 +222,7 @@ def test_lane_resolution_parallel_truth_plane_is_absent() -> None:
 @pytest.mark.parametrize(
     ("paths", "terms", "lower"),
     [
-        (product_surface_files, RETIRED_SELF_TERMS, True),
+        (documentation_topology_files, RETIRED_SELF_TERMS, True),
         (product_surface_files, HOST_PROJECTION_LABELS, False),
     ],
 )

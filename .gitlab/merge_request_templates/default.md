@@ -1,6 +1,6 @@
 ## Summary
 
-Describe the ETHOS subject, contract, transition, and inscriptions.
+Describe the ETHOS subject, intent, contract, transition, and inscriptions.
 
 ## Evidence
 

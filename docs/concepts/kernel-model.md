@@ -18,12 +18,12 @@ See also: [Command Plane](../reference/command-plane.md) and
 [Glossary](../reference/glossary.md).
 
 ```text
-(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations
+(Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations
 ```
 
-ChangeContract and Attestation are the persistent semantic entities;
-RepositoryFacts is freshly observed and PlanIR is transient. Acceptance
-propositions live inside the effective ChangeContract or an Attestation, and
+Commitment and Attestation are the persistent semantic entities;
+Facts is freshly observed and TransitionPlan is transient. Acceptance
+propositions live inside the effective Commitment or an Attestation, and
 historical views are derived projections rather than entities or truth stores.
 
 Model Promotion remains the named conflict adjudication defined by the

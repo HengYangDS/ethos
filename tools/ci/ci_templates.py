@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 from datetime import UTC
 from datetime import datetime
@@ -152,6 +153,14 @@ def _projection_entries() -> list[dict[str, Any]]:
     return entries
 
 
+def _surface_entries() -> list[dict[str, Any]]:
+    entries = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8")).get("forge_surface", [])
+    if not isinstance(entries, list):
+        message = ".config/checks/ci/templates.toml forge_surface must be a list"
+        raise SystemExit(message)
+    return entries
+
+
 def _provider_entry(provider: str) -> dict[str, Any]:
     entries = [entry for entry in _projection_entries() if entry.get("provider") == provider]
     if len(entries) != 1:
@@ -170,6 +179,32 @@ def _emulator_declaration(entry: dict[str, Any]) -> dict[str, Any]:
         "emulator_state_dir": entry.get("emulator_state_dir", ""),
         "forbidden_log_patterns": list(entry.get("forbidden_log_patterns", [])),
     }
+
+
+def _forge_surface_reports() -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    surfaces = []
+    failures = []
+    for entry in _surface_entries():
+        source = ROOT / str(entry["source"])
+        projection = ROOT / str(entry["projection"])
+        missing = [path.as_posix() for path in (source, projection) if not path.is_file()]
+        match = not missing and source.read_bytes() == projection.read_bytes()
+        if missing:
+            failures.append(
+                {
+                    "provider": str(entry["provider"]),
+                    "reason": f"missing files: {', '.join(missing)}",
+                }
+            )
+        elif not match:
+            failures.append(
+                {
+                    "provider": str(entry["provider"]),
+                    "reason": f"projection drift: {entry['projection']} != {entry['source']}",
+                }
+            )
+        surfaces.append(dict(entry) | {"projection_matches_source": match})
+    return surfaces, failures
 
 
 def check_templates(*, json_output: bool) -> int:
@@ -222,6 +257,8 @@ def check_templates(*, json_output: bool) -> int:
                 "required_owner_scripts": list(entry.get("required_owner_scripts", [])),
             }
         )
+    surfaces, surface_failures = _forge_surface_reports()
+    failures.extend(surface_failures)
     evidence = {
         "schema_version": 1,
         "kind": "ethos_ci_template_consistency",
@@ -231,6 +268,7 @@ def check_templates(*, json_output: bool) -> int:
         "config": str(CONFIG_PATH.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),
         "projections": projections,
+        "forge_surfaces": surfaces,
         "failures": failures,
     }
     if json_output:
@@ -305,7 +343,12 @@ def _emulator_state_dir(provider: str, emulation: dict[str, Any]) -> str:
 
 
 def _emulator_command(
-    provider: str, paths: dict[str, str], emulation: dict[str, Any], mode: str
+    provider: str,
+    paths: dict[str, str],
+    emulation: dict[str, Any],
+    mode: str,
+    *,
+    state_dir: Path | None = None,
 ) -> list[str]:
     tool = str(emulation["emulator_tool"])
     if provider == "github":
@@ -319,14 +362,18 @@ def _emulator_command(
             return [*command, "-j", str(emulation["emulator_job"])]
         return [*command, "--list"]
     command = [tool]
-    state_dir = _emulator_state_dir(provider, emulation)
+    runtime_state = state_dir or Path(_emulator_state_dir(provider, emulation))
     if mode == "run":
-        source_dir = str(Path(state_dir) / "source")
+        source_dir = str(runtime_state / "source")
         command.extend(["--cwd", source_dir, "--file", paths["projected_file"]])
-        return [*command, "--state-dir", "../state", str(emulation["emulator_job"])]
+        return [
+            *command,
+            "--state-dir",
+            str(runtime_state / "state"),
+            str(emulation["emulator_job"]),
+        ]
     command.extend(["--file", paths["projected_file"]])
-    if state_dir:
-        command.extend(["--state-dir", state_dir])
+    command.extend(["--state-dir", str(runtime_state)])
     return [*command, "--list"]
 
 
@@ -366,7 +413,6 @@ def emulator_evidence(
     }
     emulation = _emulator_declaration(entry)
     tool = str(emulation["emulator_tool"])
-    command = _emulator_command(provider, paths, emulation, mode)
     output_dir = ROOT / "build/evidence/local-ci" / provider
     evidence_class = f"local_{provider}_emulator"
 
@@ -383,17 +429,20 @@ def emulator_evidence(
         "untracked_policy": "refuse_before_emulator_run",
         "issue": issue,
     }
-    if (
+    materializes = (
         not issue
         and executable is not None
         and provider in {"github", "gitlab"}
         and mode == "run"
         and not dry_run
-    ):
+    )
+    workspace = tempfile.TemporaryDirectory(prefix=f"ethos-{provider}-") if materializes else None
+    state_dir = Path(workspace.name) if workspace is not None else None
+    if materializes:
         try:
             materialization |= materialize_emulator_source(
                 source_root=ROOT,
-                state_dir=ROOT / _emulator_state_dir(provider, emulation),
+                state_dir=state_dir,
                 expected_head=str(git_start["head"]),
             )
             if provider == "github":
@@ -401,17 +450,25 @@ def emulator_evidence(
         except RuntimeError as exc:
             issue = str(exc)
             materialization["issue"] = issue
-    run = (
-        _run_result(1, ok=False, stderr=issue)
-        if issue
-        else _run_command(
-            command,
-            dry_run=dry_run,
-            tool_required=not _mode_is_observation(mode, dry_run=dry_run),
-            env=_emulator_environment(tool),
-            cwd=execution_root,
+    command = _emulator_command(provider, paths, emulation, mode, state_dir=state_dir)
+    try:
+        run = (
+            _run_result(1, ok=False, stderr=issue)
+            if issue
+            else _run_command(
+                command,
+                dry_run=dry_run,
+                tool_required=not _mode_is_observation(mode, dry_run=dry_run),
+                env=_emulator_environment(tool),
+                cwd=execution_root,
+            )
         )
-    )
+    finally:
+        if workspace is not None:
+            workspace.cleanup()
+            materialization["source_retained"] = Path(
+                str(materialization.get("source_dir", ""))
+            ).exists()
     combined_log = f"{run['stdout']}\n{run['stderr']}"
     log_warnings = [
         pattern

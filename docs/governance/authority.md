@@ -33,7 +33,7 @@ Attestation
 
 `Commitment` collects the Subject's contracts, policies, specs, rules, promises,
 and decisions. `Evidence` is material carried by an Attestation. The effective
-ChangeContract owns intent, scope, acceptance propositions, and amendment
+Commitment owns intent, scope, acceptance propositions, and amendment
 lineage; Attestations own verifier-bounded observations, judgments, proof,
 effects, and historical preservation. Neither a proposition nor a historical
 view is a persistent authority surface.

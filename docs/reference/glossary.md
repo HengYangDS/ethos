@@ -38,23 +38,23 @@ The authority used for product decisions: user instruction, repository truth,
 accepted decisions, authority order, and truth boundaries. North Star language
 is derived from this source; it is not the source.
 
-## ChangeContract
+## Commitment
 
 The persistent semantic entity that owns immutable intent, authority references,
 subject, scope, acceptance propositions, and amendment lineage. Its effective
 digest is derived deterministically from the base contract and amendment
 Attestations.
 
-## RepositoryFacts
+## Facts
 
 Fresh observations of the repository and its governed environment. They are
 re-observed for compilation and are not a persistent semantic entity or truth
 store.
 
-## PlanIR
+## TransitionPlan
 
-The deterministic, transient plan compiled from a ChangeContract, current
-RepositoryFacts, and prior Attestations. It is executed or discarded, never
+The deterministic, transient plan compiled from a Commitment, current
+Facts, and prior Attestations. It is executed or discarded, never
 promoted into a persistent lifecycle owner.
 
 ## Attestation

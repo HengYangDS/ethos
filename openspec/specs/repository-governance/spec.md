@@ -44,7 +44,7 @@ repository-truth ledger at `evolution/ledger.toml`.
 
 #### Scenario: Evolution declarations compile without a runtime owner
 - **WHEN** ETHOS plans a research, hypothesis, experiment, or campaign-driven change
-- **THEN** PlanIR may reference the evolution ledger or campaign manifest as current facts
+- **THEN** TransitionPlan may reference the evolution ledger or campaign manifest as current facts
 - **AND** hypotheses, experiments, evaluations, canonization, and retirement remain
   governed by evolution records, OpenSpec carriers, attestations, and evidence
 - **AND** no workflow runtime or hidden state store becomes an evolution authority
@@ -510,23 +510,23 @@ branch as ready for another closeout mutation.
 
 ### Requirement: OpenSpec Lifecycle Contract Review
 
-ETHOS SHALL compose official OpenSpec validation with one ChangeContract per
-active Change. The ChangeContract SHALL own repository subject, intent, scope,
+ETHOS SHALL compose official OpenSpec validation with one Commitment per
+active Change. The Commitment SHALL own repository subject, intent, scope,
 invariants, acceptance, permissions, and publication policy; no claim or
 `scope.toml` carrier SHALL be required for current lifecycle readiness.
 
 #### Scenario: Active OpenSpec Change is lifecycle complete
 - **GIVEN** an active OpenSpec Change has proposal, design, tasks, delta specs,
-  and a valid `contract.toml`
+  and a valid `commitment.toml`
 - **WHEN** ETHOS audits OpenSpec repository governance in lifecycle mode
 - **THEN** ETHOS reports the Change as lifecycle-ready
-- **AND** material paths are covered only by `ChangeContract.scope`.
+- **AND** material paths are covered only by `Commitment.scope`.
 
 #### Scenario: Active OpenSpec Change lacks its contract
 - **GIVEN** an active OpenSpec Change has valid official syntax
-- **AND** `contract.toml` is absent or invalid
+- **AND** `commitment.toml` is absent or invalid
 - **WHEN** ETHOS audits lifecycle or evaluates a material path
-- **THEN** ETHOS reports a ChangeContract gap
+- **THEN** ETHOS reports a Commitment gap
 - **AND** no bootstrap, claim binding, or parallel scope carrier grants authority.
 
 ### Requirement: Promotion Target Readiness
@@ -2194,14 +2194,14 @@ and hosted CI as separate evidence classes.
 ETHOS SHALL require every valid adopter declaration to carry a non-empty
 `[openspec].material_paths` list. For changed paths matching that declaration,
 prewrite, changed planning, and proof SHALL use the same selected active
-`ChangeContract.scope` set.
+`Commitment.scope` set.
 Adoption SHALL emit the complete declaration; no historical profile-write exception remains.
 Complete active Changes and archived carriers are historical input only and
 SHALL NOT authorize new material writes.
 
 #### Scenario: covered material path is admitted across all surfaces
 
-- **GIVEN** a material path is covered by a valid selected active ChangeContract
+- **GIVEN** a material path is covered by a valid selected active Commitment
 - **WHEN** prewrite, changed planning, or proof evaluates that path
 - **THEN** the scope binding reports the same coverage fact
 - **AND THEN** no material-scope required gap is produced.
@@ -2209,17 +2209,17 @@ SHALL NOT authorize new material writes.
 #### Scenario: uncovered material path is rejected consistently
 
 - **GIVEN** a declared material path lacks coverage by every valid selected
-  active ChangeContract
+  active Commitment
 - **WHEN** any of prewrite, changed planning, or proof evaluates it
 - **THEN** it SHALL report `openspec_material_path_uncovered:<path>`
 - **AND THEN** it SHALL not substitute a proof gate, private schema, or method
   package for Change authority.
 
-#### Scenario: ChangeContract coverage is singular
+#### Scenario: Commitment coverage is singular
 
-- **GIVEN** one or more active Changes declare strict ChangeContracts
+- **GIVEN** one or more active Changes declare strict Commitments
 - **WHEN** prewrite, changed planning, or proof evaluates a material path
-- **THEN** the same selected active Change set and `ChangeContract.scope` decide coverage
+- **THEN** the same selected active Change set and `Commitment.scope` decide coverage
 - **AND** historical archives, claims, malformed parallel files, and unrelated Changes do not authorize the write
 - **AND** an uncovered path emits `openspec_material_path_uncovered:<path>`.
 

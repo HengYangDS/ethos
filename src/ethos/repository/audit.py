@@ -20,9 +20,18 @@ from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRO
 OpenSpecReporter = Callable[[Path], dict[str, object]]
 
 REQUIRED_DOCS = (
+    "docs/README.md",
+    "docs/reference/README.md",
+    "docs/evidence/README.md",
+    "docs/history/README.md",
+    "docs/decisions/README.md",
+    "docs/decisions/decision-index.md",
+    "docs/decisions/decision-dependency-map.md",
+    "docs/decisions/decision-code-links.md",
+    "docs/decisions/decision-record-template.md",
     "docs/architecture/distribution.md",
     "docs/concepts/kernel-model.md",
-    "docs/architecture/plan-ir.md",
+    "docs/architecture/transition-plan.md",
     "docs/architecture/adoption-profiles.md",
     "docs/architecture/agent-projections.md",
     "docs/architecture/gate-runner.md",
@@ -49,11 +58,11 @@ REQUIRED_DOCS = (
 
 REQUIRED_SCHEMAS = (
     "result.schema.json",
-    "change-contract.schema.json",
+    "commitment.schema.json",
     "attestation.schema.json",
-    "repository-facts.schema.json",
+    "facts.schema.json",
     "commit-policy.schema.json",
-    "plan-ir.schema.json",
+    "transition-plan.schema.json",
     "provenance.schema.json",
     "docs-registry.schema.json",
     "gate.schema.json",

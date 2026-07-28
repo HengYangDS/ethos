@@ -59,7 +59,7 @@ concern = "links"
 tool = "lychee"
 config = ".config/checks/lychee/"
 profile = "product"
-gate = "ethos prove --gate markdown-links"
+gate = "ethos prove --gate markdown-links; hosted: ethos prove --gate external-links"
 
 [[tool]]
 concern = "coverage"

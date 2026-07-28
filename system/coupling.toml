@@ -216,12 +216,14 @@ executables = [
   "rmdir",
   "setpriv",
   "sha256sum",
+  "sed",
   "shellcheck",
   "sleep",
   "ssh-keygen",
   "tail",
   "taplo",
   "tar",
+  "tr",
   "xz",
 ]
 
@@ -418,20 +420,6 @@ proof_gate = "unit-architecture"
 distribution = "cyclopts"
 import_roots = ["cyclopts"]
 admission = { authority_ref = "docs/governance/product-design-contract.md#capability-before-surface", truth_boundary = "profile_or_adapter", decision_state = "admitted" }
-
-[[binding]]
-id = "defusedxml_parser_adapter"
-layer = "profile_or_adapter_binding"
-required = true
-owns_product_semantics = false
-adapter_replaceable = true
-required_for = ["bounded XML coverage parsing"]
-replaceability = "replaceable-adapter"
-degradation_state = "blocked:xml_parser_unavailable"
-proof_gate = "unit-architecture"
-distribution = "defusedxml"
-import_roots = ["defusedxml"]
-admission = { authority_ref = "docs/governance/product-design-contract.md#contracts-before-providers", truth_boundary = "profile_or_adapter", decision_state = "admitted" }
 
 [[binding]]
 id = "jsonschema_validation_adapter"

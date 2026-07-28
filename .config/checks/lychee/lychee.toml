@@ -6,8 +6,8 @@
 # link is an unprovable claim. This gate keeps doc jump-links honest (First
 # Principle #4: a generated/linked surface is a liability unless drift is checkable).
 
-# Offline by default — validate local relative links and anchors deterministically
-# without network flakiness. Hosted CI may drop --offline to also check external URLs.
+# Offline by default: the local gate is deterministic. Hosted external-link
+# proof overrides this value explicitly while reusing the same exclusions.
 offline = true
 no_progress = true
 

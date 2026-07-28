@@ -20,7 +20,7 @@ from pydantic import PlainSerializer
 from pydantic import ValidationError
 
 from ethos.contracts.gates import GateDescriptor
-from ethos.contracts.openspec.models import AdopterOpenSpecPolicy
+from ethos.contracts.openspec.models import AdopterOpenSpecPolicy  # noqa: TC001
 
 DEFAULT_ROOTS = {
     "rules": "rules",
@@ -31,12 +31,6 @@ DEFAULT_ROOTS = {
     "local_state": ".ethos/state",
 }
 
-DEFAULT_MATERIAL_PATHS = (
-    ".ethos/profile.toml",
-    "openspec/**",
-    "docs/governance/**",
-    "rules/**",
-)
 PATH_TYPE_ERROR = "repository path must be a string"
 PATH_VALUE_ERROR = "repository path must be relative POSIX without dot segments"
 INVALID_PROFILE_ERROR = "adopter_profile_invalid:.ethos/profile.toml"
@@ -139,11 +133,6 @@ class IndependentVerificationPolicy(_ProfileModel):
     actions: VerificationActions = Field(default_factory=VerificationActions)
 
 
-class ContainerContractPolicy(_ProfileModel):
-    schema_version: Literal[1]
-    manifest: Literal[".ethos/container-contract.toml"]
-
-
 class AdoptionBoundaryPolicy(_ProfileModel):
     binding_manifest: RepositoryPath = ".ethos/profile.toml"
     execution_config_root: RepositoryPath = ".config"
@@ -154,7 +143,8 @@ class RepositoryProfileDeclaration(_ProfileModel):
     """The one typed adopter binding contract shared by every profile reader."""
 
     profile_id: NonEmpty
-    openspec: AdopterOpenSpecPolicy
+    commitment: RepositoryPath = ".ethos/commitment.toml"
+    openspec: AdopterOpenSpecPolicy | None = None
     normative_sources: RepositoryPathTuple = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
     evidence: EvidenceRoots = Field(default_factory=EvidenceRoots)
@@ -162,15 +152,11 @@ class RepositoryProfileDeclaration(_ProfileModel):
     independent_verification: IndependentVerificationPolicy = Field(
         default_factory=IndependentVerificationPolicy
     )
-    container_contract: ContainerContractPolicy | None = None
     adoption_boundary: AdoptionBoundaryPolicy = Field(default_factory=AdoptionBoundaryPolicy)
 
     @classmethod
     def bootstrap(cls, profile_id: str) -> RepositoryProfileDeclaration:
-        return cls(
-            profile_id=profile_id,
-            openspec=AdopterOpenSpecPolicy(material_paths=DEFAULT_MATERIAL_PATHS),
-        )
+        return cls(profile_id=profile_id)
 
 
 class RepositoryProfile(_ProfileModel):
@@ -248,9 +234,10 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
     roots = declaration.roots
     candidates = [
         ".ethos/profile.toml",
+        declaration.commitment,
         roots.rules,
         *declaration.normative_sources,
-        roots.openspec,
+        *((roots.openspec,) if declaration.openspec is not None else ()),
         roots.durable_evidence,
         roots.docs,
     ]

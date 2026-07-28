@@ -250,6 +250,14 @@ uvx --from ruff ruff check .
     )
 
 
+def test_shell_scan_observes_commands_in_single_line_functions() -> None:
+    observed = product_references_from_files(
+        {"tools/check.sh": 'probe() { ps -o lstart= -p "$1"; }\n'}
+    )
+
+    assert "ps" in observed["executable"]
+
+
 def test_env_option_values_are_not_executables() -> None:
     observed = product_references_from_files(
         {

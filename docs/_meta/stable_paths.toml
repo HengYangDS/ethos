@@ -76,8 +76,3 @@ freeze_level = "hard"
 path = "docs/reference/README.md"
 reason = "common reference-docs lane"
 freeze_level = "hard"
-
-[[stable_path]]
-path = "docs/architecture/docs-topology.md"
-reason = "documentation topology contract"
-freeze_level = "hard"

@@ -74,21 +74,32 @@ def quality_tool_report(
 
 
 def markdown_links_report(root: Path) -> dict[str, object]:
-    """Check tracked Markdown links without a command-shaped ETHOS loopback."""
+    """Check repository-local links and anchors without network access."""
+    return _lychee_report(root, gate_id="markdown-links", online=False)
+
+
+def external_links_report(root: Path) -> dict[str, object]:
+    """Check HTTP and HTTPS links from a network-capable proof host."""
+    return _lychee_report(root, gate_id="external-links", online=True)
+
+
+def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, object]:
     files = [
         path
         for path in git_files(root, "*.md")
         if not path.startswith(("evidence/", "docs/archive/"))
     ]
+    mode = ["--offline=false", "--scheme", "http", "--scheme", "https"] if online else []
     return quality_tool_report(
         root=root,
-        gate_id="markdown-links",
+        gate_id=gate_id,
         tool="lychee",
         command=[
             "lychee",
             "--config",
             ".config/checks/lychee/lychee.toml",
             "--no-progress",
+            *mode,
             *files,
         ],
         files=files,
@@ -96,6 +107,10 @@ def markdown_links_report(root: Path) -> dict[str, object]:
 
 
 def module_layout_gate_report(root: Path) -> dict[str, object]:
-    """Audit only Git-owned Python carriers through the pure layout policy."""
-    files = tuple(root / path for path in git_files(root, "*.py") if (root / path).is_file())
+    """Audit tracked and non-ignored untracked Python through the layout policy."""
+    files = tuple(
+        root / path
+        for path in git_files(root, "--cached", "--others", "--exclude-standard", "--", "*.py")
+        if (root / path).is_file()
+    )
     return module_layout_report(root, files=files)

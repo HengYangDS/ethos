@@ -1,135 +1,72 @@
-## ADDED Requirements
-
-### Requirement: Attestation Assurance Boundary
-
-Semantic assurance SHALL be represented by an Attestation bound to the selected
-ChangeContract digest, evidence digest, semantic scope, exact HEAD, verifier,
-validity interval, and non-authorizing verdict. This boundary does not promote
-ignored local postcondition receipts into Attestations, schemas, roots, or a
-parallel lifecycle.
-
-#### Scenario: Attestation is absent or mismatched
-
-- **WHEN** the required assurance Attestation is missing, stale, repository-local,
-  malformed, or bound to different facts
-- **THEN** ETHOS fails the proposition closed with a machine-readable gap
-
-#### Scenario: Digest-only proposition remains portable
-
-- **WHEN** a ChangeContract contains a digest-only proposition
-- **THEN** ETHOS requires no assurance service, account, daemon, credential,
-  network operation, or dedicated local root
-
-#### Scenario: Semantic attestation has a current semantic scope
-
-- **WHEN** a ChangeContract requires semantic assurance
-- **THEN** the Attestation binds the declared semantic scope and exact HEAD
-- **AND** scope or HEAD drift makes the Attestation stale
-
-### Requirement: Executable Local-State Dataflow
-
-Local events and indexes SHALL exist only when current product code produces and
-consumes them. Repository history is derived from Git, OpenSpec archives, and
-Attestations rather than a current Chronicle store.
-
-#### Scenario: lifecycle declaration is loaded
-
-- **WHEN** lifecycle declarations compile
-- **THEN** they contain transition policy, lease operations, and PlanIR actions
-- **AND** unused event models and event-locality rules are absent
-
-#### Scenario: local state is initialized
-
-- **WHEN** ETHOS initializes ignored local SQLite state
-- **THEN** it creates only tables consumed by current behavior
-- **AND** routine coordination postcondition receipts remain ignored local state
-  and do not become Attestations
-- **AND** unused event and historical-projection CRUD tables are absent
-
-#### Scenario: ignored local state uses the current contract
-
-- **WHEN** ETHOS initializes its coordination database
-- **THEN** it validates only the current owned schema
-- **AND** retired generic migration ledgers are not recreated
-
-#### Scenario: Chronicle remains derived historical evidence
-
-- **WHEN** a governance judgment becomes durable
-- **THEN** the judgment is an Attestation and Chronicle remains a derived
-  historical projection
-- **AND** Chronicle supplies history but never authorizes a current effect
-- **AND** deleting unused local event logs creates no parallel truth store
-
 ## MODIFIED Requirements
 
 ### Requirement: Minimal Semantic Kernel
-
-ETHOS SHALL compile exactly
-(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new
-Attestations. ChangeContract and Attestation are the only persistent semantic
-entities; RepositoryFacts is freshly observed and PlanIR is transient.
+Commitment and Attestation are the only persistent semantic entities. Facts is freshly observed context, and TransitionPlan is transient compiled closure. The kernel SHALL keep this boundary.
 
 #### Scenario: Repository operation is represented
-
-- **WHEN** ETHOS evaluates a repository operation
-- **THEN** the selected base ChangeContract, fresh RepositoryFacts, and prior
-  Attestations compile one deterministic PlanIR
-- **AND** repository-semantic outcomes are recorded only as new Attestations
-- **AND** routine local coordination receipts remain ignored local state and do
-  not become Attestations
-- **AND** verifier-bounded propositions exist only inside a ChangeContract or
-  Attestation
+- **WHEN** ETHOS records a repository operation
+- **THEN** the operation is expressible through the minimal kernel without depending
+  on repository, assistant, adapter, adopter, or hosted-runner packages
+- **AND** attestations bind evidence without owning reusable authority
+- **AND** semantic claims require a current, candidate-external semantic attestation receipt
 
 #### Scenario: semantic attestation remains optional and bounded
 
-- **WHEN** a ChangeContract requires semantic assurance
-- **THEN** a candidate-external Attestation binds the selected contract digest,
-  evidence digest, semantic scope, and exact HEAD
-- **AND** the Attestation names the verifier, basis, verdict, and validity interval
-- **AND** it records mints_authority as false
-- **AND** stale or mismatched assurance blocks the proposition
-- **AND** digest-only propositions require no assurance provider
+- **WHEN** a claim declares `semantic_attested`
+- **THEN** it SHALL bind a candidate-external receipt to its claim id, dated-evidence digest, semantic scope digest, and exact HEAD
+- **AND** the receipt SHALL name an independent reviewer role, basis, allow verdict, validity interval, and `mints_authority = false`
+- **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the claim
+- **AND** `digest_only` claims SHALL require no receipt directory, account, daemon, credential, network, or dedicated local account
 
-#### Scenario: Model Promotion remains canonically owned
-
-- **WHEN** a compiler or projection emits model_promotion_required
-- **THEN** it links to
-  [canonical Model Promotion rule](../../../../../docs/governance/product-design-contract.md#model-promotion)
-- **AND** the projection does not restate the adjudication algorithm
-- **AND** this design delta does not assert runtime effect or retirement
-  enforcement
-
-### Requirement: Product Core Adopter Isolation
-
-ETHOS SHALL keep adopter-specific domain names out of product Python code except
-inside bounded comparative-assurance Attestations and explicit adopter fixtures.
-
-#### Scenario: Product code is scanned
-
-- **WHEN** architecture tests scan package source files
-- **THEN** adopter names are absent from semantic product implementation code
-
-## REMOVED Requirements
+#### Scenario: a transition is compiled
+- **WHEN** ETHOS receives a selected Commitment, fresh Facts, and prior Attestations
+- **THEN** it compiles a transient TransitionPlan without persisting a third semantic root
 
 ### Requirement: Semantic attestation is receipt-bound and non-authorizing
+An Attestation SHALL carry an open predicate, statement, verifier, bindings, validity, and evidence references. Unknown predicates are preserved but non-authorizing.
 
-**Reason**: A receipt contract would duplicate the persistent Attestation entity.
+#### Scenario: Attestation is absent or mismatched
 
-**Migration**: All three assurance scenarios move to Attestation Assurance
-Boundary.
+- **WHEN** the claim-side declaration or external receipt is missing,
+  malformed, stale, repository-local, or does not match a bound fact
+- **THEN** ETHOS SHALL fail the claim closed with a machine-readable gap
 
-**Replacement**: Attestation Assurance Boundary
+#### Scenario: Digest-only claim remains portable
 
-**Scenario replacement**: Digest-only claim remains portable -> Digest-only proposition remains portable
+- **WHEN** a claim declares `digest_only`
+- **THEN** ETHOS SHALL not require or inspect a semantic receipt directory,
+  account, daemon, credential, network operation, or dedicated local account
 
-### Requirement: Event entities require an executable dataflow
+#### Scenario: Semantic attestation has a current semantic scope
 
-**Reason**: Event and Chronicle stores would create parallel current-state
-owners.
+- **WHEN** a claim declares `semantic_attested`
+- **THEN** its evidence freshness mode SHALL be `semantic_scope`
+- **AND** its receipt scope and HEAD bindings SHALL match that current scope
 
-**Migration**: All four dataflow and history scenarios move to Executable
-Local-State Dataflow.
+#### Scenario: an unfamiliar predicate is received
+- **WHEN** an Attestation predicate is syntactically valid but no selected operation understands it
+- **THEN** ETHOS preserves and projects it without authorizing an effect
 
-**Scenario replacement**: Chronicle remains authoritative evidence -> Chronicle remains derived historical evidence
+### Requirement: Root Interpretation Boundary
+A valid requirement that cannot be represented losslessly by the roots and carrier roles SHALL produce `model_gap`; coercion and retirement block.
 
-**Replacement**: Executable Local-State Dataflow
+#### Scenario: Root text remains canonical and restrained
+- **WHEN** ETHOS adds or changes an active code, config, hook, system contract, or
+  provider projection surface
+- **THEN** that surface cites concrete engineering invariants rather than philosophical labels
+  or numbered philosophy references
+- **AND** the canonical root text remains in the Product Design Contract rather
+  than being duplicated into machine-adjacent derived files
+- **AND** derived axiom files remain subordinate to product docs and do not create
+  a new truth center
+
+#### Scenario: Lifecycle declarations compile directly into TransitionPlan
+- **WHEN** ETHOS evaluates lifecycle, handoff, or skill-evaluation metadata
+- **THEN** tracked declarations and current facts compile directly into TransitionPlan
+- **AND** no parallel workflow-runtime read model or state store is required
+- **AND** generated projections do not outrank source, tests, schemas, docs,
+  OpenSpec records, attestations, evidence, or command JSON
+
+#### Scenario: a new requirement does not fit the model
+- **WHEN** carrier extraction cannot map the requirement without an exception or parallel truth owner
+- **THEN** ETHOS preserves the distinction for model promotion and blocks the effect

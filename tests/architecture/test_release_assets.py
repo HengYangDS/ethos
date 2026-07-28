@@ -87,7 +87,7 @@ def _assert_required_ci_scripts() -> None:
     assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
 
 
-def test_gitlab_visible_project_files_exist() -> None:
+def test_dual_forge_collaboration_files_exist() -> None:
     required = {
         "CHANGELOG.md",
         "CONTRIBUTING.md",
@@ -95,6 +95,8 @@ def test_gitlab_visible_project_files_exist() -> None:
         ".gitlab-ci.yml",
         ".gitlab/merge_request_templates/default.md",
         ".gitlab/issue_templates/task.md",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        ".github/ISSUE_TEMPLATE/task.md",
     }
 
     files = {path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*") if path.is_file()}
@@ -102,17 +104,21 @@ def test_gitlab_visible_project_files_exist() -> None:
     assert required <= files
 
 
-def test_merge_request_template_uses_current_ethos_command_plane() -> None:
-    template = (ROOT / ".gitlab/merge_request_templates/default.md").read_text(encoding="utf-8")
+def test_change_templates_use_current_ethos_command_plane() -> None:
+    templates = [
+        (ROOT / ".gitlab/merge_request_templates/default.md").read_text(encoding="utf-8"),
+        (ROOT / ".github/PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8"),
+    ]
     contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
 
-    assert "ethos plan --changed --json" in template
-    assert "ethos prove --json" in template
+    for template in templates:
+        assert "ethos plan --changed --json" in template
+        assert "ethos prove --json" in template
+        assert "ethos audit" not in template
+        assert "ethos self audit" not in template
     assert "ethos plan --changed --json" in contributing
     assert "ethos prove --json" in contributing
-    assert "ethos audit" not in template
     assert "ethos audit" not in contributing
-    assert "ethos self audit" not in template
     assert "ethos self audit" not in contributing
 
 

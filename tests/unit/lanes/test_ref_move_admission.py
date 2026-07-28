@@ -37,16 +37,16 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import gate_policy_digest
-from tests.support.contract_helpers import commit_active_change_contract
+from tests.support.contract_helpers import commit_active_commitment
 from tests.support.contract_helpers import conformant_proof_check
-from tests.support.contract_helpers import write_active_change_contract
+from tests.support.contract_helpers import write_active_commitment
 from tests.support.contract_helpers import write_publication_topology
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -92,7 +92,7 @@ def test_work_lane_ref_transition_zero_oid_requires_exact_lease_and_base(
     reason: str,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_change_contract(repo)
+    base_digest = commit_active_commitment(repo)
     branch = "work/zero-bound"
     head = git(repo, "rev-parse", "HEAD")
     create = case == "create"
@@ -104,7 +104,7 @@ def test_work_lane_ref_transition_zero_oid_requires_exact_lease_and_base(
             branch=branch,
             holder_ref="agent:test:case:zero-bound",
             expected_head=head,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:zero-bound")
@@ -126,7 +126,7 @@ def test_work_lane_zero_oid_unknown_lease_is_observe_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_change_contract(repo)
+    base_digest = commit_active_commitment(repo)
     branch = "work/unknown-create"
     head = git(repo, "rev-parse", "HEAD")
     database = state_database(repo)
@@ -136,7 +136,7 @@ def test_work_lane_zero_oid_unknown_lease_is_observe_only(
             branch=branch,
             holder_ref="agent:test:case:unknown-create",
             expected_head=head,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         ),
     )
     payload = dict(lease["payload"])
@@ -221,7 +221,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_change_contract(repo)
+    base_digest = commit_active_commitment(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
@@ -234,7 +234,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
@@ -271,7 +271,7 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_change_contract(repo)
+    base_digest = commit_active_commitment(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
@@ -284,7 +284,7 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
@@ -305,7 +305,7 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_change_contract(repo)
+    base_digest = commit_active_commitment(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
@@ -317,10 +317,10 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_contract(
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         ),
     )
-    contract = candidate / "openspec" / "changes" / "fixture-change" / "contract.toml"
+    contract = candidate / "openspec" / "changes" / "fixture-change" / "commitment.toml"
     contract.write_text(
         contract.read_text(encoding="utf-8").replace(
             "Exercise the governed fixture lifecycle.",
@@ -351,7 +351,7 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_contract(
     )
 
     assert report["ok"] is False
-    assert report["required_gaps"] == ["lease_base_change_contract_digest_mismatch"]
+    assert report["required_gaps"] == ["lease_base_commitment_digest_mismatch"]
     assert leases_by_branch(lane)["work/current"]["expected_head"] == head
 
 
@@ -360,7 +360,7 @@ def test_work_lane_ref_transition_rejects_unknown_lease_without_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_change_contract(repo)
+    base_digest = commit_active_commitment(repo)
     lane = tmp_path / "repo-work-current"
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
@@ -371,7 +371,7 @@ def test_work_lane_ref_transition_rejects_unknown_lease_without_effect(
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
         ),
     )
     payload = dict(lease["payload"])
@@ -433,7 +433,7 @@ def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
     g("config", "user.email", "t@e.x")
     adoption_plan(tmp_path, apply=True)
     write_publication_topology(tmp_path)
-    write_active_change_contract(tmp_path)
+    write_active_commitment(tmp_path)
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8")
@@ -841,7 +841,7 @@ def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
             branch="work/x",
             holder_ref="agent:test:case:ref-move",
             expected_head=off_train,
-            base_change_contract_digest=load_change_contract(repo, tree_ref=off_train).digest(),
+            base_commitment_digest=load_commitment(repo, tree_ref=off_train).digest(),
         ),
     )
     _record_complete_proof(repo, off_train)
@@ -922,7 +922,7 @@ def test_push_admission_rejects_remote_work_lane(tmp_path: Path) -> None:
 
 
 def _lease(
-    *, branch: str, holder_ref: str, expected_head: str, base_change_contract_digest: str
+    *, branch: str, holder_ref: str, expected_head: str, base_commitment_digest: str
 ) -> LaneLease:
     now = datetime.now(UTC)
     return LaneLease(
@@ -935,6 +935,6 @@ def _lease(
         renewed_at=now,
         expires_at=now + timedelta(days=1),
         expected_head=expected_head,
-        base_change_contract_digest=base_change_contract_digest,
+        base_commitment_digest=base_commitment_digest,
         path_scope=(),
     )

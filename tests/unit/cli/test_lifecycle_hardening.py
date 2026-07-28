@@ -64,8 +64,8 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
     assert attestation["kind"] == "proof"
     assert attestation["subject"] == f"git:commit:{git(repo, 'rev-parse', 'HEAD')}"
     assert attestation["verdict"] == "block"
-    assert len(attestation["change_contract_digest"]) == 64
-    assert len(attestation["repository_facts_digest"]) == 64
+    assert len(attestation["commitment_digest"]) == 64
+    assert len(attestation["facts_digest"]) == 64
     assert len(attestation["plan_digest"]) == 64
     assert len(attestation["policy_digest"]) == 64
     assert len(attestation["effect_digest"]) == 64

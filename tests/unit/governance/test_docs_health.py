@@ -176,7 +176,7 @@ def test_docs_health_fails_closed_for_an_invalid_profile(tmp_path: Path) -> None
     """An invalid declaration never falls back to the default docs root."""
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir()
-    profile.write_text("profile_id = 'sample'\n", encoding="utf-8")
+    profile.write_text("profile_id = 'sample'\n[roots]\ndocs = '../outside'\n", encoding="utf-8")
     write_active_doc(tmp_path, "ethos status --json")
 
     report = docs_registry_report(tmp_path)

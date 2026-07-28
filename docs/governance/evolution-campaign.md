@@ -17,10 +17,10 @@ See also: [Product Design Contract](product-design-contract.md) and
 [Command Plane](../reference/command-plane.md).
 
 Hypotheses, experiment strategy, dependencies, and optional program relations
-belong to immutable `ChangeContract` values. Observations, judgments,
+belong to immutable `Commitment` values. Observations, judgments,
 amendments, proofs, and effects belong to content-addressed Attestations. Any
-program view is derived from dependency-connected ChangeContracts, current
-RepositoryFacts, and bound Attestations.
+program view is derived from dependency-connected Commitments, current
+Facts, and bound Attestations.
 
 There is no separate ledger, mutable program state, step/closeout database, CEL
 plane, or command family for this purpose. Historical ledgers and records remain
@@ -31,5 +31,5 @@ immutable bytes and cannot participate in a current verdict.
 `ethos publish --json` consume their own current readiness facts.
 
 A hypothesis or program relation is not proof by itself. An accepted result
-remains bound to the effective ChangeContract, exact HEAD, PlanIR, evidence, and
+remains bound to the effective Commitment, exact HEAD, TransitionPlan, evidence, and
 Attestation verdict.

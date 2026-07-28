@@ -16,9 +16,11 @@ import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.adapters.mutation.attestation_projection import attestation_payload
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -36,7 +38,7 @@ from ethos.surface.cli.root_binding import resolve_root
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.contracts.plan import PlanIR
+    from ethos.contracts.plan import TransitionPlan
 KNOWN_PROOF_SCOPES = frozenset(
     {"repository", "change", "proof-kernel", "code", "docs", "openspec", "quality"}
 )
@@ -137,9 +139,9 @@ def _terminal_check_verdict(adapter_state: str) -> str:
 
 
 def _run_plan_checks(
-    *, repo: Path, plan: PlanIR, execute: bool
+    *, repo: Path, plan: TransitionPlan, execute: bool
 ) -> tuple[list[dict[str, object]], bool]:
-    """Run or project the admitted PlanIR gate sequence."""
+    """Run or project the admitted TransitionPlan gate sequence."""
     gates_by_id = gate_registry(repo)
     runner = LocalGateRunner() if execute else DryRunRunner()
     checks: list[dict[str, object]] = []
@@ -229,12 +231,16 @@ def prove(
     changed_paths = change_scope_paths_from_status(
         repo, workspace_status(repo, include_foreign_path_scope=False)
     )
-    openspec_lifecycle = openspec_governance_report(
-        repo,
-        change=options.change,
-        lifecycle=True,
-        changed_paths=changed_paths,
-        require_workspace=False,
+    openspec_lifecycle = (
+        openspec_governance_report(
+            repo,
+            change=options.change,
+            lifecycle=True,
+            changed_paths=changed_paths,
+            require_workspace=False,
+        )
+        if openspec_profile_enabled(repo, tree_ref=current_head)
+        else {"ok": True, "state": "not_applicable", "required_gaps": []}
     )
     try:
         plan = proof_plan(
@@ -271,7 +277,7 @@ def prove(
                 ok=False,
                 state="gapped",
                 required_gaps=plan_gaps or ("plan_not_admitted",),
-                next_actions=("repair the ChangeContract or repository facts",),
+                next_actions=("repair the Commitment or repository facts",),
             ),
             json_output=json_output,
         )
@@ -380,8 +386,10 @@ def prove(
     lifecycle_summary = cast("dict[str, object]", openspec_lifecycle.get("summary") or {})
     lifecycle_change_count = lifecycle_summary.get("change_count")
     check_summaries = _check_summaries(checks)
-    attestation_payload = attestation.model_dump(mode="json") if attestation is not None else {}
-    artifact = attestation.content.get("artifact") if attestation is not None else {}
+    attestation_projection = (
+        attestation_payload(attestation, kind="proof") if attestation is not None else {}
+    )
+    artifact = attestation.statement.get("artifact") if attestation is not None else {}
     artifact_reference = dict(artifact) if isinstance(artifact, Mapping) else {}
     data = (
         {
@@ -394,8 +402,8 @@ def prove(
             "scope": scope_binding["scope"],
             "scope_binding": scope_binding,
             "host_probe": host_probe,
-            "plan_ir": plan.to_dict(),
-            "attestation": attestation_payload,
+            "transition_plan": plan.to_dict(),
+            "attestation": attestation_projection,
             "artifact_reference": artifact_reference,
             "checks": check_summaries,
             "expected_head": {
@@ -428,7 +436,7 @@ def prove(
                 ),
                 "required_gaps": list(string_sequence(openspec_lifecycle.get("required_gaps"))),
             },
-            "attestation": attestation_payload,
+            "attestation": attestation_projection,
             "artifact_reference": artifact_reference,
             "checks": check_summaries,
             "expected_head": {

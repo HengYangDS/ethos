@@ -167,18 +167,20 @@ records SHALL remain physically distinct and deterministically classifiable.
 
 Production source SHALL not retain shims, wrappers, aliases, re-exports,
 fallback implementations, or deprecated parallel paths unless the current user
-explicitly requires a bounded compatibility window.
+explicitly requires a bounded compatibility window. The module-layout and
+product-boundary gates are the only owners of this property; no standalone
+compatibility gate or command exists.
 
 #### Scenario: Compatibility residue is found
 
-- **WHEN** `ethos prove --gate no-compat --json` scans production source
+- **WHEN** the module-layout or product-boundary gate scans production source
 - **THEN** every residue is a hard gap
 - **AND** the terminal fix moves callers to the one selected owner and deletes the
   old path in the same cutover
 
 ### Requirement: Evidence Is Head And Policy Bound
 
-Executed proof SHALL bind the exact HEAD, tree, ChangeContract, PlanIR digest,
+Executed proof SHALL bind the exact HEAD, tree, Commitment, TransitionPlan digest,
 gate policy identity, provider or command identity, output, and closed verdict.
 Focused proof MAY merge same-HEAD gate evidence but SHALL NOT satisfy promotion
 until the complete required floor is present.

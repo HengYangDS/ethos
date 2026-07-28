@@ -3,8 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-product_default = ["repository-audit", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "python-size", "config-quality", "shell-lint"]
-product_full = ["repository-audit", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
+product_default = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "python-size", "config-quality", "shell-lint"]
+product_full = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
 adopter_default = []
 
 [[gates]]
@@ -52,29 +52,11 @@ policy = "required"
 profile = "product"
 toolchain = "ethos"
 asset_classes = ["markdown-docs"]
-dimensions = ["front-matter", "command-examples", "links"]
+dimensions = ["front-matter", "taxonomy", "visible-sections", "command-examples", "plan-discoverability"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
 tool_adapter = "ethos-docs-registry"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "docs-topology"
-registries = ["runtime"]
-kind = "docs"
-providers = ["ethos.repository.policy.docs.topology:docs_topology_report"]
-policy = "required"
-profile = "product"
-toolchain = "ethos"
-asset_classes = ["markdown-docs", "decision-records", "evidence"]
-dimensions = ["information-architecture", "decisions", "adopter-isomorphism"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-docs-topology"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
@@ -295,6 +277,24 @@ trust_bearing = true
 tool_adapter = "lychee"
 writes_files = false
 network_policy = "offline"
+version_source = "adopter-toolchain"
+
+[[gates]]
+id = "external-links"
+registries = ["quality", "runtime"]
+kind = "docs"
+providers = ["ethos.adapters.gates.tool:external_links_report"]
+policy = "required"
+profile = "hosted"
+toolchain = "quality-adapter"
+asset_classes = ["markdown-docs"]
+dimensions = ["external-reachability"]
+execution_mode = "provider"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "lychee"
+writes_files = false
+network_policy = "required"
 version_source = "adopter-toolchain"
 
 [[gates]]

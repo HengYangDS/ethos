@@ -28,7 +28,7 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
         source_lease_epoch=3,
         source_lease_expires_at="2026-07-20T00:00:00+00:00",
         source_lease_payload_sha256="e" * 64,
-        base_change_contract_digest="f" * 64,
+        base_commitment_digest="f" * 64,
         source_holder_ref=HolderRef.parse("agent:source:run:one"),
         artifacts=({"path": "repository.bundle", "sha256": "d" * 64, "kind": "git_bundle"},),
     )
@@ -38,7 +38,7 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
     assert payload["source_tree"] == "b" * width
     assert payload["target_holder_ref"] == "agent:other:run:two"
     assert payload["dirty_content_sha256"] == "f" * 64
-    assert payload["base_change_contract_digest"] == "f" * 64
+    assert payload["base_commitment_digest"] == "f" * 64
     assert payload["transfers_source_lease"] is False
     assert payload["destination_creates_local_incarnation"] is True
     assert payload["source_lease_binding"]["epoch"] == 3
@@ -47,10 +47,10 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
     assert payload["truth_boundary"] == "content_addressed_context_until_promoted"
     assert CrossHostHandoff.model_fields["source_lease_expires_at"].is_required()
     assert CrossHostHandoff.model_fields["source_lease_payload_sha256"].is_required()
-    assert CrossHostHandoff.model_fields["base_change_contract_digest"].is_required()
+    assert CrossHostHandoff.model_fields["base_commitment_digest"].is_required()
 
 
-def test_cross_host_handoff_rejects_missing_base_change_contract_digest() -> None:
+def test_cross_host_handoff_rejects_missing_base_commitment_digest() -> None:
     with pytest.raises(ValidationError):
         CrossHostHandoff(
             source_lane_ref="work/example",
@@ -81,7 +81,7 @@ def test_cross_host_handoff_rejects_intermediate_oid_widths(width: int) -> None:
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
-            base_change_contract_digest="f" * 64,
+            base_commitment_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
         )
 
@@ -100,7 +100,7 @@ def test_cross_host_handoff_rejects_legacy_dirty_disposition() -> None:
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
-            base_change_contract_digest="f" * 64,
+            base_commitment_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
         )
 
@@ -119,7 +119,7 @@ def test_cross_host_handoff_rejects_coercive_lease_epochs(epoch: object) -> None
             source_lease_epoch=epoch,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
-            base_change_contract_digest="f" * 64,
+            base_commitment_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
         )
 
@@ -152,7 +152,7 @@ def test_cross_host_handoff_rejects_noncanonical_artifacts(
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
-            base_change_contract_digest="f" * 64,
+            base_commitment_digest="f" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
             artifacts=(artifact,),
         )
@@ -172,7 +172,7 @@ def test_handoff_export_rejects_a_bundle_from_another_generation(
         source_lease_epoch=1,
         source_lease_expires_at="2026-07-21T00:00:00+00:00",
         source_lease_payload_sha256="e" * 64,
-        base_change_contract_digest="f" * 64,
+        base_commitment_digest="f" * 64,
         source_holder_ref=HolderRef.parse("agent:source:run:one"),
     )
 
@@ -253,7 +253,7 @@ def test_handoff_import_rejects_destination_lease_before_git_effects(
                 "package_id": f"handoff:{'c' * 64}",
                 "source_lane_ref": branch,
                 "source_head": "a" * 40,
-                "base_change_contract_digest": "b" * 64,
+                "base_commitment_digest": "b" * 64,
             },
             target_holder_ref="agent:test:case:target",
         )

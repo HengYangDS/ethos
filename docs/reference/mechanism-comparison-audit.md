@@ -44,7 +44,7 @@ multi-contributor enterprise adopters.
 | Docs, prose, and config lint | Markdown/prose/config hygiene, documentation metadata, and generated report checks. | Markdownlint, Taplo, Yamllint, JSON syntax, docs registry/topology, shell lint. | Prose and metadata breadth remain maturity debt until owner config, runner, CI projection, and proof exist. |
 | Security and dependency hygiene | Secret scanning, dependency audits, vulnerability scans, tool-supply governance. | Gitleaks, Ruff security rules, dependency hygiene, native `uv audit` over `uv.lock`, schema hygiene, prose spelling, SBOM, and release attestation active; image scanning remains planned. | Keep one native lock audit owner and activate image scanners only through pinned tool supply and owner surfaces. |
 | Architecture and diagrams | Import boundaries, package topology, dependency graphs, C4-like model projections. | Import-linter, module-layout, source-owned C4-like model, Mermaid projection, architecture drift gate. | Keep lightweight source-to-projection gate; richer diagram stacks remain optional. |
-| OpenSpec carriers | Official OpenSpec plus accepted specs, active deltas, ChangeContract, and evidence refs. | Official validation first, then ETHOS carrier, proposal-intent, contract, scope, evidence, and archive checks. | Use compatible extension; do not fork OpenSpec syntax or `WHEN`/`THEN` semantics. |
+| OpenSpec carriers | Official OpenSpec plus accepted specs, active deltas, Commitment, and evidence refs. | Official validation first, then ETHOS carrier, proposal-intent, contract, scope, evidence, and archive checks. | Use compatible extension; do not fork OpenSpec syntax or `WHEN`/`THEN` semantics. |
 | Evidence and history | Delivery evidence, closeout logs, retained manifests, and cleanup observations. | Attestations are durable evidence; Chronicle, parity, reports, and indexes are derived historical projections. | Keep evidence kinds explicit without restoring parallel truth stores. |
 | Local and generated state | Generated-state grammar, cache routing, local-state audit/clean, reproducible runtime hygiene. | Build/evidence/runtime boundaries and local-state audit gate. | ETHOS has the invariant; add cleanup apply modes separately. |
 | Runbook and operator UX | Recipe files and generated runbook views expose local CI, worktree, proof, OpenSpec, and closeout commands. | `docs/reference/runbook-registry.md` plus drift checks. | Derive future views from Cyclopts/API operations and gate declarations, not manual command tables. |
@@ -122,7 +122,7 @@ Completed current baseline:
    observation are separate evidence classes with hosted success unclaimed by
    local evidence.
 1. OpenSpec remains an official mandatory governance dependency, extended by
-   accepted-spec identity, proposal intent, ChangeContract, evidence, and archive
+   accepted-spec identity, proposal intent, Commitment, evidence, and archive
    checks after official validation.
 1. Format selection, lint, dependency hygiene, JSON Schema hygiene, prose
    spelling, Python vulnerability audit over uv-exported resolved requirements,

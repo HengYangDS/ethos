@@ -1,57 +1,57 @@
 # Rules System
 
-Purpose: define the ETHOS rule kernel, authority order, entrypoints, and
-mutation discipline for humans, agents, and tool hosts.
+Rules are short executable guidance. They are neither a second architecture,
+a task ledger, a plan store, nor an authority order. The semantic kernel and
+carrier model are owned by the [Product Design Contract](../docs/governance/product-design-contract.md).
 
-Rules are execution guidance over higher-authority facts. They are not a second
-architecture store and must not restate long design material from `docs/`.
+## Rule Record
 
-## Rule Kernel
-
-Every durable rule must answer:
+Each durable rule states exactly:
 
 | Field | Requirement |
 | --- | --- |
-| Authority | Link to the code, test, doc, manifest, or command that owns the fact. |
-| Trigger | State the event that activates the rule. |
-| Action | State required behavior in imperative form. |
-| Evidence | Name the command, file, or artifact proving compliance. |
-| Stop | Name the condition that blocks mutation, validation, or closeout. |
+| Trigger | The observable event that activates it. |
+| Owner | The narrow native carrier, command, schema, or test that owns its fact. |
+| Required action | The imperative action or prohibition. |
+| Evidence | The command, artifact, or verifier that proves compliance. |
+| Stop | The condition that blocks an effect, retirement, or closeout. |
 
-Delete, demote, or move rules that cannot fill this record.
+Delete or demote prose that cannot supply this record. A rule may describe a
+profile-selected carrier but cannot make that carrier globally mandatory.
 
 ## Entry Points
 
-| Audience | Entrypoint |
+| Concern | Rule surface |
 | --- | --- |
-| Agents | [Agent Rules](agents.md) |
-| Mutating tools | [Mutation Rules](mutation.md) and [Hook Rules](hooks.md) |
-| Module layout, visibility, imports | [Module Layout Rules](module_layout.md) |
-| Proof and claims | [Evidence Rules](evidence.md) |
-| Release work | [Release Rules](release.md) |
-| Skills | [Skill Rules](skills.md) and [Skills](../.agents/skills/README.md) |
-| Declarative lifecycle governance | [Declarative Lifecycle Rules](declarative_lifecycle.md) |
-| Hosts and tooling | [Agent Entry Points](../AGENTS.md) |
+| Agent behaviour | [Agent Rules](agents.md) |
+| Mutation and lanes | [Mutation Rules](mutation.md), [Hook Rules](hooks.md) |
+| Module ownership | [Module Layout Rules](module_layout.md) |
+| Evidence and attestations | [Evidence Rules](evidence.md) |
+| Release and provider projections | [Release Rules](release.md) |
+| Declarative compilation | [Declarative Lifecycle Rules](declarative_lifecycle.md) |
+| Optional skill adapters | [Skill Rules](skills.md) and [Skills](../.agents/skills/README.md) |
 
 ## Placement
 
-- Put product architecture and terminal design in `docs/`.
-- Put machine contracts and routing under `system/` when the terminal layout is
-  implemented.
-- Put concise operational rules in `rules/`.
-- Put reusable repo-local agent procedures in `.agents/skills/`.
-- Put host-specific projections in host-native directories only as generated or
-  declared projections.
-- Put OpenSpec change carriers under `openspec/`.
-- Put proof under `evidence/` after the terminal evidence root exists.
+- Semantic meaning and authority/currentness: canonical product contract.
+- Machine-readable resolver and quality declarations: `system/`.
+- Concise operational constraints: `rules/`.
+- Active ETHOS self-profile delta: `openspec/`.
+- Reusable agent procedures: `.agents/skills/`, as optional adapters.
+- Native host/forge files: their host directories, as projections or narrow
+  declarations.
+- Immutable recovery and forensic bytes: repository-family records; their
+  manifests prove package integrity, not current authority.
 
-## Failure Blocking Principle
+## Upstream Enforcement
 
-Repeated late failures must move upstream:
+Repeated late failures must move to the earliest enforceable boundary:
 
 ```text
-incident -> diagnosis -> rule -> hook -> scaffold/template -> schema/default
+observation → native declaration → schema/default → hook → gate → projection
 ```
 
-A rule is incomplete when the same violation can still bypass it through a
-normal write path.
+A rule is incomplete when normal mutation can bypass it. Conversely, an
+unproven policy sentence is not made “stronger” by duplicating it across a
+rule, skill, document, template, and CI file. One owner is strengthened; the
+other surfaces project or link to it.

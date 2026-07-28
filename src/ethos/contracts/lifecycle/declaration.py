@@ -1,4 +1,4 @@
-"""Typed declarations for lifecycle policy, PlanIR actions, and leases."""
+"""Typed declarations for lifecycle policy, TransitionPlan actions, and leases."""
 
 from __future__ import annotations
 
@@ -16,14 +16,14 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
-from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.system.contracts import load_system_contract
 
 if TYPE_CHECKING:
-    from ethos.contracts.semantic import ChangeContract
-    from ethos.contracts.semantic import RepositoryFacts
+    from ethos.contracts.semantic import Commitment
+    from ethos.contracts.semantic import Facts
 
 _LEASE_TRANSITION_MATRIX_INVALID = "lease_transition_matrix_invalid"
 _TRANSITION_POLICY_MATRIX_INVALID = "transition_policy_matrix_invalid"
@@ -157,7 +157,7 @@ class LeaseTransitionDeclaration(TransitionPolicy):
 
 
 class PlanAction(_Declaration):
-    """One declared root action compiled into PlanIR."""
+    """One declared root action compiled into TransitionPlan."""
 
     id: str = Field(min_length=1)
     kind: Literal["check", "decision", "effect"]
@@ -172,7 +172,7 @@ class PlanAction(_Declaration):
         return self
 
     def to_plan_node(self, producers: dict[str, str]) -> PlanNode:
-        """Compile this action into one PlanIR node."""
+        """Compile this action into one TransitionPlan node."""
         return PlanNode(
             id=self.id,
             kind=self.kind,
@@ -187,7 +187,7 @@ class PlanAction(_Declaration):
         )
 
     def external_requirements(self, producers: dict[str, str]) -> tuple[str, ...]:
-        """Return facts supplied outside this PlanIR action set."""
+        """Return facts supplied outside this TransitionPlan action set."""
         return tuple(
             dict.fromkeys(
                 requirement for requirement in self.requires if requirement not in producers
@@ -196,7 +196,7 @@ class PlanAction(_Declaration):
 
 
 class LifecycleContract(_Declaration):
-    """The singular declaration for lifecycle policy and PlanIR compilation."""
+    """The singular declaration for lifecycle policy and TransitionPlan compilation."""
 
     schema_path: str = Field(alias="schema")
     transition_policy: tuple[TransitionPolicy, ...]
@@ -242,11 +242,11 @@ class LifecycleContract(_Declaration):
     def plan(
         self,
         *,
-        contract: ChangeContract,
-        facts: RepositoryFacts,
+        commitment: Commitment,
+        facts: Facts,
         node_ids: tuple[str, ...] | None = None,
-    ) -> PlanIR:
-        """Compile the selected lifecycle actions into deterministic PlanIR."""
+    ) -> TransitionPlan:
+        """Compile the selected lifecycle actions into deterministic TransitionPlan."""
         requested = set(node_ids or ())
         selected = (
             self.node
@@ -281,7 +281,7 @@ class LifecycleContract(_Declaration):
             ).encode()
         ).hexdigest()
         return compile_plan(
-            contract,
+            commitment,
             facts,
             tuple(item.to_plan_node(producers) for item in selected),
             policy_digest=policy_digest,

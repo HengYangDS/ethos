@@ -25,7 +25,7 @@ cohort is now a fresh observation set, never reusable mutation authority.
 
 ## Execution Sequence
 
-1. Bind the selected ChangeContract, Lease, and exact baseline; use the repository-local
+1. Bind the selected Commitment, Lease, and exact baseline; use the repository-local
    runtime wrapper and an explicit holder actor for every mutating command.
 2. Add and observe the three missing refresh regressions before implementation.
 3. Implement the bounded signing/snapshot/detached-replay/CAS path; keep all

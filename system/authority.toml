@@ -1,62 +1,47 @@
-# system/authority.toml
-# Authority order and conflict resolution — the machine governance kernel's
-# top contract. Derived from AGENTS.md "Authority Order" and the terminal
-# design "Authority And Truth" section.
-#
-# Higher rank wins on conflict. Lower surfaces are stale until repaired.
+# Contextual authority resolver contract.
+# This file intentionally declares no global source rank or precedence list.
 
 schema = "system/schemas/contracts/authority.schema.json"
+resolver = "contextual"
 
-[[order]]
-rank = 1
-source = "user_instruction"
-description = "Current user instruction in the active session."
+[query]
+required = ["subject", "predicate", "scope", "plane", "context"]
+unknown_verdict = "block"
 
-[[order]]
-rank = 2
-source = "source_code_tests_metadata_git"
-description = "Source code, tests, package metadata, and Git facts."
-
-[[order]]
-rank = 3
-source = "system_contracts_schemas"
-description = "system/ contracts and schemas."
-
-[[order]]
-rank = 4
-source = "canonical_docs"
-description = "State-marked canonical docs under docs/."
-
-[[order]]
-rank = 5
-source = "openspec_specs_changes"
-description = "OpenSpec specs and active changes."
-
-[[order]]
-rank = 6
-source = "evidence"
-description = "Evidence under evidence/."
-
-[[order]]
-rank = 7
-source = "rules_skills_projections"
-description = "Rules, skills, protocol descriptors, CI files, and host projections."
-
-[conflict_resolution]
-principle = "obey_higher_authority"
-stale_rule = "treat_lower_surface_as_stale_until_repaired"
-generated_never_outranks_source = true
-
-# Generated projections, host-local memory, agent session state, generated
-# JSONL, SQLite indexes, caches, and CI-only artifacts are NOT repository truth
-# until reviewed and promoted into tracked artifacts.
-[non_truth_until_promoted]
-paths = [
-  ".ethos/",
-  "host_local_memory",
-  "agent_session_state",
-  "generated_jsonl",
-  "sqlite_indexes",
-  "caches",
-  "ci_only_artifacts",
+[currentness]
+requires = [
+  "integrity",
+  "declared_authority",
+  "binding_match",
+  "validity",
+  "no_more_specific_active_owner",
 ]
+history_is_current = false
+projection_is_authority = false
+adapter_is_authority = false
+
+[[carrier_roles]]
+name = "native"
+may_be_authoritative = true
+
+[[carrier_roles]]
+name = "projection"
+may_be_authoritative = false
+
+[[carrier_roles]]
+name = "adapter"
+may_be_authoritative = false
+
+[[carrier_roles]]
+name = "fact"
+may_be_authoritative = true
+requires_validity = true
+
+[[carrier_roles]]
+name = "history"
+may_be_authoritative = false
+
+[resolution]
+conflict = "block"
+novel_semantics = "model_gap"
+more_specific_owner = "wins_only_within_same_query"

@@ -301,7 +301,7 @@ change is explicitly selected.
 - **WHEN** `ethos openspec --lifecycle --json` runs without `--change`
 - **THEN** lifecycle output includes every active change reported by official
   OpenSpec list output
-- **AND** each change is checked for carriers, ChangeContract validity, proposal metadata,
+- **AND** each change is checked for carriers, Commitment validity, proposal metadata,
   capability profile health, and out-of-scope boundaries.
 - **AND** only non-complete active Changes participate in material-write coverage
 

@@ -1,34 +1,24 @@
 from __future__ import annotations
 
-import os
-import sqlite3
-from contextlib import closing
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
-from ethos.adapters.repo.coordination import lease_summary
-from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
-from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.status.bindings import accepted_worktree_root
-from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
-from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
-from ethos.adapters.store.state.lease.projection import integer_value
-from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import MutationAdmissionRequest
 from ethos.contracts.lifecycle.reducer import LifecycleModel
 from ethos.contracts.lifecycle.reducer import TransitionRequest
 from ethos.normalization.coercion import string_sequence
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class LinkedRetirementRequest(LifecycleModel):
@@ -56,8 +46,8 @@ def retire_linked_work_lane(
     branch = (request.branch or "").strip()
     reason = request.reason.strip()
     absorbed_by = request.absorbed_by.strip()
-    accepted_head = _output(repo, "rev-parse", policy.accepted_branch) or ""
-    control_root = _control_root(worktrees, repo)
+    accepted_head = effects.output(repo, "rev-parse", policy.accepted_branch) or ""
+    control_root = effects.control_root(worktrees, repo)
     leases = leases_by_branch(repo)
     candidates = [
         lane
@@ -66,7 +56,7 @@ def retire_linked_work_lane(
         and ((mode == "landed" and request.branch is None) or lane["branch"] == branch)
     ]
     lanes = [
-        _lane(
+        effects.lane(
             repo,
             lane,
             leases,
@@ -96,7 +86,7 @@ def retire_linked_work_lane(
     required_gaps = sorted(set(gaps))
 
     def mutation(current_gaps: list[str]) -> dict[str, object]:
-        required_holder = _holder_ref(lane)
+        required_holder = effects.holder_ref(lane)
         transition = TransitionRequest(
             command=f"lane-retire-{mode}",
             apply=request.apply,
@@ -112,7 +102,7 @@ def retire_linked_work_lane(
                 expected_state={
                     "ref": f"refs/heads/{branch}" if branch else "",
                     "head": (request.expect_head or "").strip(),
-                    "invocation_holder_ref": _actor_ref(),
+                    "invocation_holder_ref": effects.actor_ref(),
                     "required_holder_ref": required_holder,
                     "accepted_head": accepted_head,
                     "lease": lane.get("lease", {}),
@@ -160,7 +150,7 @@ def retire_linked_work_lane(
     if not request.apply:
         return report
 
-    effect = _apply_retirement(
+    effect = effects.apply_retirement(
         repo,
         cast("Path", control_root),
         policy=policy,
@@ -180,171 +170,6 @@ def retire_linked_work_lane(
     return report
 
 
-def _apply_retirement(
-    repo: Path,
-    control_root: Path,
-    *,
-    policy: BranchRolePolicy,
-    lane: dict[str, object],
-    accepted_head: str,
-) -> dict[str, object]:
-    removed = False
-    lease = cast("dict[str, object]", lane.get("lease") or {})
-    try:
-        with closing(sqlite3.connect(state_database(repo))) as connection:
-            connection.execute("pragma foreign_keys = on")
-            connection.execute("begin immediate")
-            revoke_lease_from_connection(
-                connection,
-                request=LeaseOperationRequest(
-                    operation="revoke",
-                    branch=str(lane["branch"]),
-                    holder_ref=_holder_ref(lane),
-                    lease_id=str(lease.get("lease_id") or ""),
-                    expected_epoch=integer_value(lease.get("epoch")),
-                    expect_head=str(lane["head"]),
-                    expected_expires_at=str(lease.get("expires_at") or ""),
-                    expected_payload_sha256=str(lease.get("payload_sha256") or ""),
-                    apply=True,
-                ),
-            )
-            if gaps := _effect_gaps(
-                control_root,
-                policy=policy,
-                lane=lane,
-                accepted_head=accepted_head,
-            ):
-                return _blocked(gaps)
-            if effect := _remove_linked_lane(
-                control_root,
-                lane,
-                accepted_branch=policy.accepted_branch,
-                accepted_head=accepted_head,
-            ):
-                return {
-                    **effect,
-                    **({"lease_state": "retained"} if effect.get("worktree_removed") else {}),
-                }
-            removed = True
-            connection.commit()
-    except ValueError as exc:
-        return _blocked([str(exc).partition(":")[0]], str(exc))
-    except (OSError, sqlite3.Error) as exc:
-        if not removed:
-            return _blocked(["lease_cleanup_failed"], str(exc))
-        try:
-            restored = run_git(
-                control_root,
-                "update-ref",
-                "--stdin",
-                check=False,
-                stdin=f"create refs/heads/{lane['branch']} {lane['head']}\n",
-            )
-        except OSError:
-            restored = None
-        gaps = ["lease_cleanup_failed_after_lane_removed"]
-        if restored is None or restored.returncode != 0:
-            gaps.append("branch_restore_failed_after_lease_cleanup")
-        return {
-            **_blocked(gaps, str(exc)),
-            "worktree_removed": True,
-            "ref_restored": restored is not None and restored.returncode == 0,
-            "lease_state": "retained",
-        }
-    return {}
-
-
-def _remove_linked_lane(
-    control_root: Path,
-    lane: dict[str, object],
-    *,
-    accepted_branch: str,
-    accepted_head: str,
-) -> dict[str, object]:
-    branch, path, expected = (str(lane.get(key) or "") for key in ("branch", "path", "head"))
-    if gaps := _reobservation_gaps(branch, path, expected):
-        return _blocked(gaps)
-    removed = run_git(control_root, "worktree", "remove", path, check=False)
-    if removed.returncode != 0:
-        return _blocked(["worktree_remove_failed"], removed.stderr)
-    try:
-        deleted = run_git(
-            control_root,
-            "update-ref",
-            "--stdin",
-            check=False,
-            stdin=(
-                f"start\nupdate refs/heads/{accepted_branch} {accepted_head} {accepted_head}\n"
-                f"delete refs/heads/{branch} {expected}\nprepare\ncommit\n"
-            ),
-        )
-        if deleted.returncode == 0:
-            return {}
-    except OSError as exc:
-        return _failed_ref_transition(
-            control_root,
-            target=(branch, expected),
-            accepted=(accepted_branch, accepted_head),
-            stderr=str(exc),
-        )
-    return _failed_ref_transition(
-        control_root,
-        target=(branch, expected),
-        accepted=(accepted_branch, accepted_head),
-        stderr=deleted.stderr,
-    )
-
-
-def _failed_ref_transition(
-    control_root: Path,
-    *,
-    target: tuple[str, str],
-    accepted: tuple[str, str],
-    stderr: str,
-) -> dict[str, object]:
-    branch, expected = target
-    accepted_branch, accepted_head = accepted
-    accepted_state = _ref_outcome(control_root, accepted_branch, accepted_head)
-    ref_state = _ref_outcome(control_root, branch, expected)
-    gaps = [
-        "accepted_ref_changed_after_worktree_removed"
-        if accepted_state in {"absent", "moved"}
-        else "branch_delete_failed_after_worktree_removed"
-    ]
-    if accepted_state == "unavailable":
-        gaps.append("accepted_ref_state_unavailable_after_worktree_removed")
-    ref_gap = {
-        "absent": "retirement_ref_absent_after_failed_delete",
-        "moved": "retirement_ref_moved_after_worktree_removed",
-        "unavailable": "retirement_ref_state_unavailable_after_worktree_removed",
-    }.get(ref_state)
-    if ref_gap:
-        gaps.append(ref_gap)
-    return {
-        **_blocked(gaps, stderr),
-        "worktree_removed": True,
-        "ref_state": ref_state,
-        "ref_preserved": ref_state == "expected",
-    }
-
-
-def _ref_outcome(root: Path, branch: str, expected: str) -> str:
-    try:
-        observed = run_git(
-            root,
-            "show-ref",
-            "--verify",
-            "--hash",
-            f"refs/heads/{branch}",
-            check=False,
-        )
-    except OSError:
-        return "unavailable"
-    if observed.returncode == 0:
-        return "expected" if observed.stdout.strip() == expected else "moved"
-    return "absent" if observed.returncode == 1 else "unavailable"
-
-
 def _landed_gaps(
     *,
     branch: str,
@@ -361,7 +186,7 @@ def _landed_gaps(
     ]
     if branch and lanes:
         gaps.extend(map(str, cast("list[object]", lanes[0]["required_gaps"])))
-        gaps.extend(_holder_gaps(lanes[0]))
+        gaps.extend(effects.holder_gaps(lanes[0]))
         expected = (request.expect_head or "").strip()
         if request.apply and not expected:
             gaps.append("expect_head_required")
@@ -383,7 +208,7 @@ def _superseded_gaps(
     absorbed_by = request.absorbed_by.strip()
     if not branch:
         gaps = ["superseded_retire_branch_required"]
-    elif _output(repo, "rev-parse", "--verify", branch) is None:
+    elif effects.output(repo, "rev-parse", "--verify", branch) is None:
         gaps = ["superseded_retire_branch_not_found"]
     elif policy.role_for_branch(branch) != ROLE_WORK_LANE:
         gaps = ["superseded_retire_not_work_lane"]
@@ -391,7 +216,7 @@ def _superseded_gaps(
         gaps = [] if lane else ["superseded_retire_worktree_not_linked"]
     if lane:
         gaps.extend(map(str, cast("list[object]", lane["required_gaps"])))
-        gaps.extend(_holder_gaps(lane))
+        gaps.extend(effects.holder_gaps(lane))
     gaps.extend(
         gap
         for failed, gap in (
@@ -411,7 +236,7 @@ def _superseded_gaps(
         lane
         and all((branch, head, accepted_head))
         and absorbed_by == accepted_head
-        and not _absorbed(repo, head, accepted_head)
+        and not effects.absorbed(repo, head, accepted_head)
     ):
         gaps.append("superseded_lane_not_absorbed_by_accepted")
     expected = (request.expect_head or "").strip()
@@ -420,148 +245,3 @@ def _superseded_gaps(
     elif head and expected != head:
         gaps.append("expect_head_mismatch")
     return gaps
-
-
-def _absorbed(repo: Path, head: str, accepted_head: str) -> bool:
-    if not (base := _output(repo, "merge-base", accepted_head, head)):
-        return False
-    changed = _output(repo, "diff", "--name-only", "--no-renames", "-z", base, head)
-    if changed is None:
-        return False
-    paths = [path for path in changed.split("\0") if path]
-    return (
-        not paths
-        or run_git(
-            repo, "diff", "--quiet", head, accepted_head, "--", *paths, check=False
-        ).returncode
-        == 0
-    )
-
-
-def _output(root: Path, *args: str) -> str | None:
-    completed = run_git(root, *args, check=False)
-    return completed.stdout.rstrip("\n") if completed.returncode == 0 else None
-
-
-def _control_root(worktrees: list[dict[str, object]], default: Path) -> Path | None:
-    root = accepted_worktree_root(worktrees, default).resolve()
-    observed = any(
-        lane["role"] == ROLE_ACCEPTED_ROOT and Path(str(lane["path"])).resolve() == root
-        for lane in worktrees
-    )
-    return root if observed and root.is_dir() else None
-
-
-def _lane(
-    repo: Path,
-    lane: dict[str, object],
-    leases: dict[str, dict[str, object]],
-    *,
-    accepted_head: str,
-    mode: Literal["landed", "superseded"],
-) -> dict[str, object]:
-    branch, path = str(lane["branch"]), Path(str(lane["path"]))
-    head = str(lane["head"])
-    lease = leases.get(branch, {})
-    lease_state = str(lease.get("lease_state") or "missing")
-    merged = is_ancestor(repo, head, accepted_head)
-    gaps = [
-        gap
-        for failed, gap in (
-            (mode == "landed" and not merged, "work_lane_not_merged"),
-            (mode == "superseded" and merged, "work_lane_already_merged_use_retire_landed"),
-            (has_changed_paths(path), "work_lane_dirty"),
-        )
-        if failed
-    ]
-    if lease_state != "valid":
-        gaps.append(
-            {
-                "unknown": f"work_lane_lease_unknown:{branch}",
-                "expired": f"work_lane_lease_expired:{branch}",
-            }.get(lease_state, f"work_lane_missing_lease:{branch}")
-        )
-    else:
-        try:
-            load_lease_bound_change_contract(
-                path,
-                expected_head=head,
-                base_change_contract_digest=str(lease.get("base_change_contract_digest") or ""),
-            )
-        except ValueError as exc:
-            gaps.append(str(exc))
-    return {
-        "branch": branch,
-        "path": path.as_posix(),
-        "head": head,
-        "lease": lease_summary(lease),
-        "lease_state": lease_state,
-        "retire_ready": not gaps,
-        "required_gaps": gaps,
-    }
-
-
-def _holder_ref(lane: dict[str, object]) -> str:
-    return str(cast("dict[str, object]", lane.get("lease") or {}).get("holder_ref") or "")
-
-
-def _holder_gaps(lane: dict[str, object]) -> list[str]:
-    required = _holder_ref(lane)
-    return (
-        []
-        if required and _actor_ref() == required
-        else ["foreign_work_lane_retire_authority_required"]
-    )
-
-
-def _effect_gaps(
-    control_root: Path,
-    *,
-    policy: BranchRolePolicy,
-    lane: dict[str, object],
-    accepted_head: str,
-) -> list[str]:
-    if _output(control_root, "symbolic-ref", "--short", "HEAD") != policy.accepted_branch:
-        return ["retirement_control_root_stale"]
-    current_accepted = _output(control_root, "rev-parse", policy.accepted_branch) or ""
-    if current_accepted != accepted_head:
-        return ["accepted_ref_stale"]
-    if _actor_ref() != _holder_ref(lane):
-        return ["foreign_work_lane_retire_authority_required"]
-    return []
-
-
-def _reobservation_gaps(
-    branch: str,
-    path: str,
-    expect_head: str,
-) -> list[str]:
-    gaps: list[str] = []
-    lane_path = Path(path) if path else Path()
-    if not path or not lane_path.is_dir():
-        return [*gaps, "retirement_worktree_path_unavailable"]
-    for args, gap, expected in (
-        (("rev-parse", f"refs/heads/{branch}"), "retirement_ref", expect_head),
-        (("rev-parse", "HEAD"), "retirement_worktree_head", expect_head),
-        (("status", "--porcelain", "--untracked-files=all"), "retirement_worktree_status", ""),
-    ):
-        result = run_git(lane_path, *args, check=False)
-        value = result.stdout.strip()
-        if result.returncode != 0:
-            gaps.append(f"{gap}_unavailable")
-        elif expected and value != expected:
-            gaps.append(f"{gap}_stale")
-        elif gap == "retirement_worktree_status" and value:
-            gaps.append("work_lane_dirty")
-    return sorted(set(gaps))
-
-
-def _actor_ref() -> str:
-    return os.environ.get("ETHOS_ACTOR", "").strip()
-
-
-def _blocked(gaps: list[str], stderr: str = "") -> dict[str, object]:
-    report: dict[str, object] = {"ok": False, "state": "blocked", "required_gaps": gaps}
-    if stderr.strip():
-        report["stderr"] = stderr.strip()
-    return report

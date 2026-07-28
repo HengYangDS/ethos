@@ -1,0 +1,208 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import NamedTuple
+
+from ethos.adapters.repo.status.bindings import ref_head
+from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
+from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import LeaseOperationRequest
+
+if TYPE_CHECKING:
+    import subprocess
+    from collections.abc import Callable
+
+
+class LaneStartRollback(NamedTuple):
+    """Exact carrier ownership and effects available to lane-start compensation."""
+
+    repo: Path
+    target: Path
+    branch: str
+    ownership: tuple[str, str, str]
+    completed: subprocess.CompletedProcess[str]
+    run: Callable[..., subprocess.CompletedProcess[str]]
+    lease: dict[str, object] | None
+    failure_gap: str
+
+
+def worktree_head(
+    repo: Path,
+    *,
+    target: Path,
+    branch: str,
+    run: Callable[..., subprocess.CompletedProcess[str]],
+) -> str | None:
+    """Return the observed HEAD only for the exact target and branch binding."""
+    listed = run(repo, "worktree", "list", "--porcelain", check=False)
+    if listed.returncode != 0:
+        return None
+    for block in listed.stdout.split("\n\n"):
+        record = {
+            parts[0]: parts[1] if len(parts) > 1 else ""
+            for line in block.splitlines()
+            if line
+            for parts in (line.split(" ", 1),)
+        }
+        path = record.get("worktree", "")
+        observed_branch = (
+            record.get("branch", "").removeprefix("refs/heads/")
+            if "branch" in record
+            else "detached"
+            if "detached" in record
+            else ""
+        )
+        if path and Path(path).resolve() == target and observed_branch == branch:
+            return record.get("HEAD", "")
+    return None
+
+
+def exact_worktree(
+    repo: Path,
+    *,
+    target: Path,
+    branch: str,
+    head: str,
+    run: Callable[..., subprocess.CompletedProcess[str]],
+) -> bool:
+    """Report whether the exact lane-start worktree binding still exists."""
+    return worktree_head(repo, target=target, branch=branch, run=run) == head
+
+
+def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
+    """Compensate only the exact carrier and lease created by lane start."""
+    repo, target, branch = context.repo, context.target, context.branch
+    worktree_branch, worktree_head_value, owned_ref_head = context.ownership
+    observed_worktree = worktree_head(
+        repo,
+        target=target,
+        branch=worktree_branch,
+        run=context.run,
+    )
+    worktree = observed_worktree is not None and observed_worktree == worktree_head_value
+    target_exists = os.path.lexists(target)
+    worktree_removed = not worktree and not target_exists
+    ref_removed = False
+    current_head = ref_head(repo, branch)
+    gap = (
+        "lane_start_target_path_ownership_unknown"
+        if target_exists and observed_worktree is None
+        else "lane_start_target_ref_ownership_unknown"
+        if observed_worktree is None and current_head
+        else ""
+    )
+    if worktree and not gap:
+        worktree_removed = remove_lane_start_worktree(
+            repo,
+            target=target,
+            branch=worktree_branch,
+            head=worktree_head_value,
+            run=context.run,
+        )
+        if not worktree_removed:
+            gap = "lane_start_worktree_cleanup_failed"
+    current_head = ref_head(repo, branch) if not gap else current_head
+    if not gap and current_head and current_head != owned_ref_head:
+        gap = "lane_start_ref_changed"
+    ref_removed = not current_head if not gap else False
+    if not gap and current_head:
+        deleted = context.run(
+            repo,
+            "update-ref",
+            "-d",
+            f"refs/heads/{branch}",
+            owned_ref_head,
+            check=False,
+        )
+        ref_removed = deleted.returncode == 0 and not ref_head(repo, branch)
+    if not ref_removed:
+        gap = gap or "lane_start_ref_cleanup_failed"
+    try:
+        if not gap and context.lease:
+            revoke_lease(
+                state_database(repo),
+                request=LeaseOperationRequest(
+                    operation="lane_start_compensation",
+                    branch=branch,
+                    holder_ref=str(context.lease["holder_ref"]),
+                    lease_id=str(context.lease["lease_id"]),
+                    expected_epoch=integer_value(context.lease["epoch"]),
+                    expect_head=str(context.lease["expected_head"]),
+                    expected_expires_at=str(context.lease["expires_at"]),
+                    expected_payload_sha256=str(context.lease["payload_sha256"]),
+                    apply=True,
+                ),
+            )
+    except (RuntimeError, ValueError) as exc:
+        gap = str(exc)
+    if gap:
+        return retained_lane_start_report(
+            branch=branch,
+            target=target,
+            completed=context.completed,
+            worktree_removed=worktree_removed,
+            ref_removed=ref_removed,
+            lease=context.lease,
+            gap=gap,
+        )
+    return {
+        "ok": False,
+        "state": "blocked",
+        "branch": branch,
+        "path": target.as_posix(),
+        "stderr": context.completed.stderr.strip() or "lane_start_postcondition_failed",
+        "carrier_cleanup": {"worktree_removed": True, "ref_removed": True},
+        "lease_state": "revoked" if context.lease else "not_acquired",
+        "required_gaps": [context.failure_gap],
+    }
+
+
+def remove_lane_start_worktree(
+    repo: Path,
+    *,
+    target: Path,
+    branch: str,
+    head: str,
+    run: Callable[..., subprocess.CompletedProcess[str]],
+) -> bool:
+    """Remove only the exact detached or bound carrier created by lane start."""
+    if os.path.lexists(target):
+        restored = run(target, "reset", "--hard", head, check=False)
+        cleaned = run(target, "clean", "-fd", check=False)
+        if restored.returncode != 0 or cleaned.returncode != 0:
+            return False
+    removed = run(repo, "worktree", "remove", "--force", target.as_posix(), check=False)
+    return (
+        removed.returncode == 0
+        and not os.path.lexists(target)
+        and not exact_worktree(repo, target=target, branch=branch, head=head, run=run)
+    )
+
+
+def retained_lane_start_report(
+    *,
+    branch: str,
+    target: Path,
+    completed: subprocess.CompletedProcess[str],
+    worktree_removed: bool,
+    ref_removed: bool,
+    lease: dict[str, object] | None,
+    gap: str,
+) -> dict[str, object]:
+    """Report the evidence and retained authority after incomplete compensation."""
+    return {
+        "ok": False,
+        "state": "blocked",
+        "branch": branch,
+        "path": target.as_posix(),
+        "stderr": completed.stderr.strip() or "lane_start_postcondition_failed",
+        "carrier_cleanup": {
+            "worktree_removed": worktree_removed,
+            "ref_removed": ref_removed,
+        },
+        "lease_state": "retained" if lease else "not_acquired",
+        "required_gaps": ["lane_creation_compensation_failed", gap],
+    }

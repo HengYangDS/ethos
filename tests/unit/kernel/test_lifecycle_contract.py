@@ -10,12 +10,12 @@ from pydantic import ValidationError
 
 from ethos.contracts.lifecycle.declaration import LifecycleContract
 from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
-from ethos.contracts.semantic import ChangeContract
-from ethos.contracts.semantic import RepositoryFacts
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 from ethos.contracts.system.contracts import load_system_contract
 
-_CONTRACT = ChangeContract(id="change:test", intent="test", subjects=("repository:test",))
-_FACTS = RepositoryFacts(
+_COMMITMENT = Commitment(id="change:test", intent="test", subjects=("repository:test",))
+_FACTS = Facts(
     repository="repository:test",
     head="a" * 40,
     tree="b" * 40,
@@ -142,13 +142,12 @@ def test_lifecycle_contract_rejects_invalid_or_duplicate_plan_actions() -> None:
         LifecycleContract.model_validate(payload)
 
 
-def test_lifecycle_contract_compiles_declared_actions_to_plan_ir() -> None:
+def test_lifecycle_contract_compiles_declared_actions_to_transition_plan() -> None:
     declaration = load_lifecycle_declaration()
-    facts = _FACTS.model_copy(update={"values": {"openspec_carrier": True}})
 
     plan = declaration.plan(
-        contract=_CONTRACT,
-        facts=facts,
+        commitment=_COMMITMENT,
+        facts=_FACTS,
         node_ids=("status", "plan", "prove"),
     )
 
@@ -162,12 +161,9 @@ def test_lifecycle_contract_reports_missing_action_and_external_fact() -> None:
     declaration = load_lifecycle_declaration()
 
     plan = declaration.plan(
-        contract=_CONTRACT,
+        commitment=_COMMITMENT,
         facts=_FACTS,
         node_ids=("status", "plan", "missing"),
     )
 
-    assert plan.gaps() == (
-        "lifecycle_plan_action_missing:missing",
-        "lifecycle_external_fact_missing:plan:openspec_carrier",
-    )
+    assert plan.gaps() == ("lifecycle_plan_action_missing:missing",)

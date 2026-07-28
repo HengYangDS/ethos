@@ -1,4 +1,4 @@
-# Lifecycle policy, PlanIR actions, and lease operations.
+# Lifecycle policy, TransitionPlan actions, and lease operations.
 # Repository facts and attestations derive state; this file stores no run state.
 
 schema = "system/schemas/contracts/lifecycle.schema.json"
@@ -16,8 +16,8 @@ lease_transition = [
 ]
 node = [
   { id = "status", kind = "check", enforcement = "guarded", produces = ["workspace_status"] },
-  { id = "plan", kind = "decision", enforcement = "guarded", requires = ["workspace_status", "openspec_carrier"], produces = ["plan_ir"] },
-  { id = "prove", kind = "decision", enforcement = "guarded", requires = ["plan_ir"], produces = ["proof_evidence"] },
-  { id = "land", kind = "effect", enforcement = "guarded", requires = ["proof_evidence", "change_contract"], produces = ["candidate_update"] },
+  { id = "plan", kind = "decision", enforcement = "guarded", requires = ["workspace_status"], produces = ["transition_plan"] },
+  { id = "prove", kind = "decision", enforcement = "guarded", requires = ["transition_plan"], produces = ["proof_evidence"] },
+  { id = "land", kind = "effect", enforcement = "guarded", requires = ["proof_evidence", "commitment"], produces = ["candidate_update"] },
   { id = "publish", kind = "effect", enforcement = "evidence-only", requires = ["candidate_update", "release_readiness"], produces = ["publication_readiness"] },
 ]

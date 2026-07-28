@@ -19,10 +19,18 @@ REQUIRED_PROJECTIONS = (
     "docs/reference/command-plane.md",
 )
 METADATA_PROJECTIONS = frozenset(REQUIRED_PROJECTIONS) - {"README.md"}
-SEMANTIC_ANCHORS = frozenset({"semantic-kernel", "model-promotion"})
-KERNEL_FORMULA = (
-    "(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations"
+REQUIRED_OWNER_ANCHORS = frozenset(
+    {
+        "semantic-kernel",
+        "model-promotion",
+        "invalid-state-taxonomy",
+        "git-native-repository-substrate",
+        "isomorphic-adopter-governance",
+        "feedback-intent-preservation",
+        "projection-homomorphism",
+    }
 )
+REQUIRED_PROJECTION_ANCHOR = "semantic-kernel"
 FORBIDDEN_ROOT_PATHS = (
     "CLAUDE.md",
     ".claude",
@@ -34,8 +42,26 @@ EXCLUDED_PARTS = frozenset(
     {"_generated", "generated", "build", "dist", "runtime", ".cache", "__pycache__"}
 )
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-MODEL_PROMOTION_RE = re.compile(r"model promotion", re.IGNORECASE)
-ROOT_TITLE_RE = re.compile(r"^# 问道$", re.MULTILINE)
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+
+
+def _slug(heading: str) -> str:
+    """Return the CommonMark-compatible anchor grammar used by this contract."""
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", heading.lower())).strip("-")
+
+
+def _anchors(text: str) -> frozenset[str]:
+    return frozenset(_slug(match.group(2)) for match in HEADING_RE.finditer(text))
+
+
+def _owner_links(path: Path, text: str, owner: Path) -> frozenset[str]:
+    """Return structural fragment links from one document to the canonical owner."""
+    return frozenset(
+        fragment
+        for target in LINK_RE.findall(text)
+        for link, marker, fragment in (target.partition("#"),)
+        if marker and link and "://" not in link and (path.parent / link).resolve() == owner
+    )
 
 
 def _current_carrier(relative: str, registry: dict[str, dict[str, str]]) -> bool:
@@ -58,7 +84,7 @@ def _current_carrier(relative: str, registry: dict[str, dict[str, str]]) -> bool
 def _documents(
     root: Path,
     registry: dict[str, dict[str, str]],
-) -> dict[str, tuple[str, frozenset[str]]]:
+) -> dict[str, tuple[Path, str, frozenset[str]]]:
     try:
         tracked = subprocess.run(
             ("git", "ls-files", "*.md"),
@@ -74,156 +100,130 @@ def _documents(
         if tracked is not None and tracked.returncode == 0
         else [path.relative_to(root).as_posix() for path in root.rglob("*.md")]
     )
-    owner = (root / DESIGN_OWNER).resolve()
-    documents: dict[str, tuple[str, frozenset[str]]] = {}
+    documents: dict[str, tuple[Path, str, frozenset[str]]] = {}
     for relative in sorted(set(relatives)):
         path = root / relative
-        if not path.is_file() or not _current_carrier(relative, registry):
-            continue
-        text = path.read_text(encoding="utf-8")
-        anchors = frozenset(
-            fragment
-            for target in LINK_RE.findall(text)
-            for link, _, fragment in (target.partition("#"),)
-            if link and "://" not in link and (path.parent / link).resolve() == owner
-        )
-        documents[relative] = (text, anchors)
+        if path.is_file() and _current_carrier(relative, registry):
+            text = path.read_text(encoding="utf-8")
+            documents[relative] = (path, text, _anchors(text))
     return documents
 
 
-def _owner_verse(
-    documents: dict[str, tuple[str, frozenset[str]]],
+def _owner_gaps(
+    documents: dict[str, tuple[Path, str, frozenset[str]]],
     registry: dict[str, dict[str, str]],
-) -> tuple[list[str], list[str]]:
-    owner = documents.get(DESIGN_OWNER)
-    if owner is None:
-        return [], [f"design_canonical_owner_missing:{DESIGN_OWNER}"]
+) -> list[str]:
+    document = documents.get(DESIGN_OWNER)
+    if document is None:
+        return [f"design_canonical_owner_missing:{DESIGN_OWNER}"]
+    _, _, anchors = document
+    entry = registry.get(DESIGN_OWNER, {})
     gaps = []
-    owner_entry = registry.get(DESIGN_OWNER, {})
-    if owner_entry.get("state") != "canonical" or "canonical_for:" not in owner_entry.get(
-        "relations", ""
-    ):
+    if entry.get("state") != "canonical" or "canonical_for:" not in entry.get("relations", ""):
         gaps.append("design_canonical_owner_front_matter_invalid")
-    lines = owner[0].splitlines()
-    verse_lines: list[str] = []
-    if "# 问道" in lines:
-        for line in lines[lines.index("# 问道") + 1 :]:
-            if line.startswith("> "):
-                verse_lines.append(line.removeprefix("> ").strip())
-            elif verse_lines and line.strip():
-                break
-    if not verse_lines:
-        gaps.append("design_canonical_root_text_missing")
-    return verse_lines, gaps
+    gaps.extend(
+        f"design_canonical_owner_anchor_missing:{anchor}"
+        for anchor in sorted(REQUIRED_OWNER_ANCHORS - anchors)
+    )
+    return gaps
 
 
 def _projection_gaps(
-    documents: dict[str, tuple[str, frozenset[str]]],
+    root: Path,
+    documents: dict[str, tuple[Path, str, frozenset[str]]],
     registry: dict[str, dict[str, str]],
 ) -> list[str]:
+    owner = (root / DESIGN_OWNER).resolve()
     gaps: list[str] = []
     for relative in REQUIRED_PROJECTIONS:
         document = documents.get(relative)
         if document is None:
             gaps.append(f"design_projection_missing:{relative}")
             continue
-        text, anchors = document
-        if not anchors.intersection(SEMANTIC_ANCHORS):
+        path, text, _ = document
+        if REQUIRED_PROJECTION_ANCHOR not in _owner_links(path, text, owner):
             gaps.append(f"design_projection_owner_link_missing:{relative}")
-        status = (
-            "Design status: projection."
-            if relative == "README.md"
-            else "Status: active projection."
-        )
-        if status not in text:
-            gaps.append(f"design_projection_status_missing:{relative}")
         if relative in METADATA_PROJECTIONS:
             entry = registry.get(relative, {})
-            relations = entry.get("relations", "")
-            projects_owner = "projects:" in relations and any(
-                f"product-design-contract.md#{anchor}" in relations for anchor in SEMANTIC_ANCHORS
-            )
-            if entry.get("state") != "active" or not projects_owner:
+            relation = entry.get("relations", "")
+            if (
+                entry.get("state") != "active"
+                or f"product-design-contract.md#{REQUIRED_PROJECTION_ANCHOR}" not in relation
+                or "canonical_for:" in relation
+            ):
                 gaps.append(f"design_projection_front_matter_invalid:{relative}")
-            if "canonical_for:" in relations:
-                gaps.append(f"design_projection_claims_canonical_authority:{relative}")
     return gaps
 
 
 def _reference_gaps(
-    documents: dict[str, tuple[str, frozenset[str]]], verse_lines: list[str]
+    root: Path,
+    documents: dict[str, tuple[Path, str, frozenset[str]]],
 ) -> tuple[list[str], list[str]]:
+    owner = (root / DESIGN_OWNER).resolve()
     references: list[str] = []
     gaps: list[str] = []
-    for relative, (text, anchors) in documents.items():
+    for relative, (path, text, _) in documents.items():
         if relative == DESIGN_OWNER:
             continue
-        triggered = KERNEL_FORMULA in text or MODEL_PROMOTION_RE.search(text)
-        owner_linked = bool(anchors.intersection(SEMANTIC_ANCHORS))
-        if triggered or owner_linked:
+        links = _owner_links(path, text, owner)
+        if not links:
+            raw_links = frozenset(
+                fragment
+                for target in LINK_RE.findall(text)
+                for _, marker, fragment in (target.partition("#"),)
+                if marker and fragment in REQUIRED_OWNER_ANCHORS
+            )
+            links = raw_links
+        if links:
             references.append(relative)
-        if triggered and not owner_linked:
-            gaps.append(f"design_reference_owner_link_missing:{relative}")
-        if relative != ROOT_AXIOMS:
-            if any(line in text for line in verse_lines):
-                gaps.append(f"design_root_verse_duplicated:{relative}")
-            if ROOT_TITLE_RE.search(text):
-                gaps.append(f"design_root_title_duplicated:{relative}")
     return references, gaps
 
 
-def _axioms_gaps(
-    documents: dict[str, tuple[str, frozenset[str]]], verse_lines: list[str]
-) -> list[str]:
-    axioms = documents.get(ROOT_AXIOMS)
-    if axioms is None:
+def _axiom_gaps(root: Path, documents: dict[str, tuple[Path, str, frozenset[str]]]) -> list[str]:
+    document = documents.get(ROOT_AXIOMS)
+    if document is None:
         return [f"design_axioms_missing:{ROOT_AXIOMS}"]
-    text, anchors = axioms
+    path, text, _ = document
+    metadata = front_matter(path)
+    owner = (root / DESIGN_OWNER).resolve()
+    root_link = "root-constraint" in _owner_links(path, text, owner)
     gaps = []
-    if "root-constraint" not in anchors:
+    if "derives: ../docs/governance/product-design-contract.md#root-constraint" not in metadata.get(
+        "relations", ""
+    ):
+        gaps.append("design_axioms_derivation_metadata_invalid")
+    if not root_link:
         gaps.append("design_axioms_root_constraint_link_missing")
-    gaps.extend(
-        gap
-        for phrase, gap in (
-            ("machine-adjacent engineering reading", "design_axioms_derived_reading_missing"),
-            (
-                "does not create a second truth center",
-                "design_axioms_second_truth_boundary_missing",
-            ),
-        )
-        if phrase not in text
-    )
-    gaps.extend(
-        f"design_axioms_term_missing:{term}"
-        for term in ("ChangeContract", "Attestation", "proposition")
-        if term not in text
-    )
-    if ROOT_TITLE_RE.search(text):
-        gaps.append("design_axioms_duplicates_root_title")
+    if "second semantic owner" not in text:
+        gaps.append("design_axioms_derivation_boundary_missing")
+    for term in ("Commitment", "Attestation", "proposition"):
+        if term not in text:
+            gaps.append(f"design_axioms_term_missing:{term}")
+    owner_text = (root / DESIGN_OWNER).read_text(encoding="utf-8")
+    verse_lines = [
+        line.removeprefix("> ").strip() for line in owner_text.splitlines() if line.startswith("> ")
+    ]
     if any(line in text for line in verse_lines):
         gaps.append("design_axioms_duplicates_root_verse")
     return gaps
 
 
 def design_integrity_report(root: Path) -> dict[str, object]:
-    """Audit current structural design ownership and root-text boundaries."""
+    """Audit design ownership, relation grammar, and derivation boundaries."""
     forbidden_paths = [path for path in FORBIDDEN_ROOT_PATHS if (root / path).exists()]
     gaps = [f"design_integrity_forbidden_projection_path:{path}" for path in forbidden_paths]
     registry = {entry["path"]: entry for entry in build_docs_registry(root)}
     documents = _documents(root, registry)
-    verse_lines, owner_gaps = _owner_verse(documents, registry)
-    references, reference_gaps = _reference_gaps(documents, verse_lines)
-    gaps.extend(owner_gaps)
-    gaps.extend(_projection_gaps(documents, registry))
+    references, reference_gaps = _reference_gaps(root, documents)
+    gaps.extend(_owner_gaps(documents, registry))
+    gaps.extend(_projection_gaps(root, documents, registry))
     gaps.extend(reference_gaps)
-    gaps.extend(_axioms_gaps(documents, verse_lines))
-
-    gaps = list(dict.fromkeys(gaps))
+    gaps.extend(_axiom_gaps(root, documents))
     return {
         "ok": not gaps,
         "semantic_equivalence": "not_evaluated",
         "references": sorted(references),
-        "required_gaps": gaps,
+        "required_gaps": list(dict.fromkeys(gaps)),
     }
 
 

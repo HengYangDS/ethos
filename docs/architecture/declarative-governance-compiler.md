@@ -4,7 +4,7 @@ role: explanation
 state: canonical
 relations:
   canonical_for: declarative governance compiler architecture
-  decided_by: docs/decisions/accepted/DR-0005-declarative-lifecycle-spine.md
+  decided_by: docs/decisions/DR-0005-declarative-lifecycle-spine.md
 ---
 
 # Declarative Governance Compiler
@@ -14,8 +14,8 @@ Status: canonical.
 Purpose: explain the declaration-first, functional center that compiles an
 intended repository change into a deterministic, evidence-bearing transition.
 
-See also: [DR-0005](../decisions/accepted/DR-0005-declarative-lifecycle-spine.md),
-[PlanIR](plan-ir.md), and
+See also: [DR-0005](../decisions/DR-0005-declarative-lifecycle-spine.md),
+[TransitionPlan](transition-plan.md), and
 [Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
 
 ## Boundary
@@ -24,8 +24,8 @@ ETHOS is a compiler over repository truth, not a workflow engine or private
 state authority:
 
 ```text
-ChangeContract + RepositoryFacts
-              -> PlanIR
+Commitment + Facts
+              -> TransitionPlan
               -> verdict
               -> admitted effects
               -> Attestation
@@ -42,7 +42,7 @@ and reducers are deterministic transformations over supplied values.
 | Persisted contracts | strict frozen Pydantic v2 models | validated values and checked JSON Schema |
 | Transient values | tuples, mappings, enums, and small frozen stdlib values | immutable facts and decisions |
 | Predicates | typed facts plus CEL where plain declarations are insufficient | explained `pass`, `block`, or `unknown` verdicts |
-| Dependency order | `PlanIR` and direct `graphlib.TopologicalSorter` | deterministic `Check`, `Decision`, and `Effect` order |
+| Dependency order | `TransitionPlan` and direct `graphlib.TopologicalSorter` | deterministic `Check`, `Decision`, and `Effect` order |
 | CLI | Cyclopts declarations at the composition root | one human and machine command surface |
 | Projections | pure reducers and native serializers | bounded status, protocol, and external carrier views |
 
@@ -53,9 +53,9 @@ becomes a parallel hand-edited truth source.
 ## Functional Contract
 
 ```text
-observe(root) -> RepositoryFacts
-compile(ChangeContract, RepositoryFacts) -> PlanIR
-judge(PlanIR, attestations) -> verdict
+observe(root) -> Facts
+compile(Commitment, Facts) -> TransitionPlan
+judge(TransitionPlan, attestations) -> verdict
 execute(admitted Effect) -> Attestation
 ```
 

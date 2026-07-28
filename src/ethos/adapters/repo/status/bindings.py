@@ -4,7 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from ethos.adapters.repo.change_contract import load_lease_bound_change_contract
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import lease_observations
@@ -22,7 +22,7 @@ class _BindingFields:
     head: str
     path: str
     worktree: str
-    base_change_contract_digest: str
+    base_commitment_digest: str
     contract_binding: str
     lease_state: str
 
@@ -124,7 +124,7 @@ def unbound_work_lane_refs(
                 for name in (
                     "branch",
                     "head",
-                    "base_change_contract_digest",
+                    "base_commitment_digest",
                     "contract_binding",
                     "lease_state",
                 )
@@ -175,7 +175,7 @@ def _binding(fields: _BindingFields) -> dict[str, str]:
         "head": fields.head,
         "worktree_path": fields.path,
         "worktree_binding": fields.worktree,
-        "base_change_contract_digest": fields.base_change_contract_digest,
+        "base_commitment_digest": fields.base_commitment_digest,
         "contract_binding": fields.contract_binding,
         "lease_state": fields.lease_state,
     }
@@ -210,7 +210,7 @@ def _branch_binding(
         binding = "unbound" if head else "absent"
     lease_state = str(lease.get("lease_state") or "missing") if role == ROLE_WORK_LANE else "none"
     base_digest = (
-        str(lease.get("base_change_contract_digest") or "")
+        str(lease.get("base_commitment_digest") or "")
         if lease_state in {"valid", "expired"}
         else ""
     )
@@ -233,7 +233,7 @@ def _branch_binding(
             head=head,
             path=path,
             worktree=binding,
-            base_change_contract_digest=base_digest,
+            base_commitment_digest=base_digest,
             contract_binding=contract_binding,
             lease_state=lease_state,
         )
@@ -264,13 +264,13 @@ def _lease_contract_binding(root: Path, lease: dict[str, object]) -> str:
     state = str(lease.get("lease_state") or "missing")
     if state != "valid":
         return state
-    digest = str(lease.get("base_change_contract_digest") or "")
+    digest = str(lease.get("base_commitment_digest") or "")
     expected_head = str(lease.get("expected_head") or "")
     try:
-        selected = load_lease_bound_change_contract(
+        selected = load_profile_lease_bound_commitment(
             root,
             expected_head=expected_head,
-            base_change_contract_digest=digest,
+            base_commitment_digest=digest,
         ).digest()
     except ValueError:
         return "mismatch"
@@ -320,7 +320,7 @@ def closeout_support(
         gaps.append("candidate_worktree_dirty")
     if is_work_lane:
         gaps.extend(coordination_required_gaps)
-    base_digest = str(lease.get("base_change_contract_digest") or "")
+    base_digest = str(lease.get("base_commitment_digest") or "")
     return {
         "supported": not gaps,
         "branch": branch if is_work_lane else "",
@@ -334,7 +334,7 @@ def closeout_support(
         "lease_expires_at": str(lease.get("expires_at") or ""),
         "lease_payload_sha256": str(lease.get("payload_sha256") or ""),
         "lease_state": (str(lease.get("lease_state") or "missing") if is_work_lane else "none"),
-        "base_change_contract_digest": base_digest,
+        "base_commitment_digest": base_digest,
         "contract_binding": (
             contract_binding
             if is_work_lane and lease.get("lease_state") == "valid"
@@ -355,10 +355,10 @@ def _current_contract_binding(root: Path, lease: dict[str, object]) -> str:
     if lease.get("lease_state") != "valid" or binding != "bound":
         return binding
     try:
-        load_lease_bound_change_contract(
+        load_profile_lease_bound_commitment(
             root,
             expected_head=str(lease.get("expected_head") or ""),
-            base_change_contract_digest=str(lease.get("base_change_contract_digest") or ""),
+            base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
         )
     except ValueError:
         return "mismatch"
@@ -385,7 +385,7 @@ def _closeout_lease_gaps(
     elif state != "valid" or not lease.get("holder_ref"):
         gap = f"work_lane_missing_lease:{branch}"
     elif contract_binding != "bound":
-        gap = f"lease_base_change_contract_digest_mismatch:{branch}"
+        gap = f"lease_base_commitment_digest_mismatch:{branch}"
     else:
         return []
     return [gap]

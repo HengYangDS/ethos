@@ -10,7 +10,7 @@ mcp = "agent-projection"
 
 [determinism]
 kernel_io = "forbidden"
-plan_ir = "required"
+transition_plan = "required"
 stable_json = "required"
 sqlite_state = "local-only"
 

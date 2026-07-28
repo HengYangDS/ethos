@@ -3,10 +3,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
+from ethos.repository.audit import REQUIRED_SCHEMAS
 from ethos.repository.policy.coupling.audit import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.result import EthosResult
 
 ROLE_POLICY_SAMPLE = {
@@ -56,7 +61,7 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
 
     assert report["ok"] is True
     assert report["mode"] == "product"
-    assert report["schema_count"] >= 30
+    assert set(REQUIRED_SCHEMAS) <= set(report["schemas"])
     assert report["required_gaps"] == []
     assert report["schemas"]["quality-asset.schema.json"]["ok"] is True
     assert report["schemas"]["quality-gate-plan.schema.json"]["ok"] is True
@@ -74,6 +79,17 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["instances"]["live-skill-registry-contract"]["ok"] is True
     assert report["instances"]["live-skill-package-manifests"]["ok"] is True
     assert report["instances"]["coupling-audit-contract"]["ok"] is True
+
+
+def test_container_contract_is_not_a_product_schema_or_profile_field() -> None:
+    report = schema_validation_report()
+
+    assert "container-contract" not in report["schemas"]
+    assert "container-contract" not in report["instances"]
+    profile = RepositoryProfileDeclaration.bootstrap("example").model_dump(mode="python")
+    profile["container_contract"] = {"schema_version": 1, "manifest": ".ethos/container.toml"}
+    with pytest.raises(ValidationError):
+        RepositoryProfileDeclaration.model_validate(profile)
 
 
 def test_schema_validation_report_uses_product_schemas_for_adopter_root(
@@ -143,21 +159,21 @@ def test_result_payload_accepts_governed_repository_context() -> None:
             "contract": "governed_repository",
             "profile": "generic",
             "repository": "/workspace/repo",
-            "authority_refs": ["user_instruction"],
-            "shared_commands": [
-                "ethos status",
-                "ethos plan",
-                "ethos prove",
-                "ethos land",
-                "ethos publish",
-            ],
-            "transition_commands": [
-                "ethos status",
-                "ethos plan",
-                "ethos prove",
-                "ethos land",
-                "ethos publish",
-            ],
+            "authority": {
+                "contract_ref": "system/authority.toml",
+                "resolver": "contextual",
+                "query_axes": ["subject", "predicate", "scope", "plane", "context"],
+                "unknown_verdict": "block",
+                "currentness_requirements": [
+                    "integrity",
+                    "declared_authority",
+                    "binding_match",
+                    "validity",
+                    "no_more_specific_active_owner",
+                ],
+                "conflict_verdict": "block",
+                "novel_semantics": "model_gap",
+            },
             "reader_projection_commands": ["ethos status"],
             "truth_boundary": "repository",
             "profile_boundary": "profile_or_adapter",
@@ -168,6 +184,59 @@ def test_result_payload_accepts_governed_repository_context() -> None:
 
     assert validation["ok"] is True
     json.dumps(validation)
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        {"rank": 1},
+        {"order": []},
+        {
+            "query": {
+                "required": ["subject", "predicate", "scope", "plane"],
+                "unknown_verdict": "block",
+            }
+        },
+    ],
+)
+def test_contextual_authority_schema_rejects_global_rank_or_noncanonical_query_axes(
+    invalid: dict[str, object],
+) -> None:
+    authority = {
+        "schema": "system/schemas/contracts/authority.schema.json",
+        "resolver": "contextual",
+        "query": {
+            "required": ["subject", "predicate", "scope", "plane", "context"],
+            "unknown_verdict": "block",
+        },
+        "currentness": {
+            "requires": [
+                "integrity",
+                "declared_authority",
+                "binding_match",
+                "validity",
+                "no_more_specific_active_owner",
+            ],
+            "history_is_current": False,
+            "projection_is_authority": False,
+            "adapter_is_authority": False,
+        },
+        "carrier_roles": [
+            {"name": "native", "may_be_authoritative": True},
+            {"name": "projection", "may_be_authoritative": False},
+            {"name": "adapter", "may_be_authoritative": False},
+            {"name": "fact", "may_be_authoritative": True, "requires_validity": True},
+            {"name": "history", "may_be_authoritative": False},
+        ],
+        "resolution": {
+            "conflict": "block",
+            "novel_semantics": "model_gap",
+            "more_specific_owner": "wins_only_within_same_query",
+        },
+    }
+    validation = validate_schema_instance("../contracts/authority.schema.json", authority | invalid)
+
+    assert validation["ok"] is False
 
 
 def test_gate_schema_accepts_quality_descriptor_fields() -> None:

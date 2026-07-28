@@ -1,33 +1,36 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Three Independent Delivery Planes
-Local installation and validation MUST require no remote; GitLab and GitHub MUST each be independently capable of repository CI/CD, release, update, and distribution over the same immutable source and artifacts.
+### Requirement: Published Distribution Boundary
+Distribution SHALL preserve a portable offline boundary without imposing provider, repository layout, or self-profile carrier choice.
 
-#### Scenario: GitLab is unavailable
-- **WHEN** the terminal commit and artifacts have valid independent GitHub attestations
-- **THEN** GitHub may serve updates and distribution without being described as GitLab proof
+#### Scenario: npm package scope is allowlisted
+- **WHEN** `ethos prove --gate product-boundary --json` audits distribution manifests
+- **THEN** the root workspace package is non-publishable
+- **AND** the npm distribution manifest declares an explicit `files` allowlist
+- **AND** that allowlist is limited to launcher assets and neutral package docs
+- **AND** author, authors, maintainers, and contributors metadata are absent
 
-#### Scenario: A provider workflow is replayed locally
-- **WHEN** a local runner executes the GitLab or GitHub workflow projection
-- **THEN** it MAY issue `Attestation(kind = "proof")` bound to the local runner,
-  provider-template digest, exact source head, and produced artifact digests
-- **AND** the attestation identifies its plane as local provider replay
-- **AND** it MUST NOT use `kind = "external-assurance"`, satisfy the provider's
-  observation or publication state, or be described as hosted CI evidence
+#### Scenario: package installation occurs offline
+- **WHEN** a supported adopter installs from an admitted local artifact
+- **THEN** installation requires no provider-specific runtime service
 
-### Requirement: Cross-provider Artifact Identity
-A release MUST bind the same immutable commit, signed tag, package versions, SBOM, provenance statement, and artifact digests on both providers.
+### Requirement: Release configuration advertises only active policy
+Provider projections SHALL be symmetric derived views of one portable release contract; a provider file does not become a release truth root.
 
-#### Scenario: Provider artifact digests differ
-- **WHEN** GitLab and GitHub publish non-identical bytes for the nominal release
-- **THEN** publication remains blocked and neither provider result is promoted to complete release evidence
+#### Scenario: Release configuration is loaded
 
-### Requirement: Single Terminal Remote Closeout
-Intermediate ChangeContracts in one declared convergence program MUST use local
-closeout only. Remote proposal, CI/CD, protected branch advancement, and release
-MUST occur once at the commit admitted by the derived terminal program
-predicate.
+- **WHEN** product or adopter release policy reads `.ethos/release.toml`
+- **THEN** protected refs, host surfaces, publication remotes, and attestation
+  policy remain available
+- **AND** dead `version_source`, `tag_pattern`, and `artifact_glob = "dist/*"`
+  fields are not generated or treated as configurable behavior.
 
-#### Scenario: A non-terminal program member passes locally
-- **WHEN** another required member contract remains `block` or `unknown`
-- **THEN** ETHOS records local proof and does not require or initiate remote publication
+#### Scenario: Distribution output is located
+
+- **WHEN** a build or release operation resolves Python artifacts
+- **THEN** it uses the canonical `build/artifacts/python` topology
+- **AND** root `dist/*` is not advertised as a supported artifact home.
+
+#### Scenario: provider configuration drifts
+- **WHEN** a provider projection no longer matches its declared source
+- **THEN** drift blocks the projection rather than selecting provider-local policy

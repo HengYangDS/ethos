@@ -1,7 +1,0 @@
-{
-  "asset": "declared",
-  "native": true,
-  "platform": "linux/amd64",
-  "profile": "trusted",
-  "network": "none"
-}

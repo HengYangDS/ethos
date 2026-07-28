@@ -67,6 +67,10 @@ jobs:
         run: tools/ci/scripts/run-python-vulnerability-audit.sh
       - name: Secrets scan
         run: tools/ci/scripts/run-secrets-scan.sh
+      - name: External links
+        run: >-
+          tools/ci/scripts/install-lychee.sh && tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
+          --gate external-links --expect-head "$(git rev-parse HEAD)" --json
       - name: Markdown lint
         run: tools/ci/scripts/run-markdown-lint.sh
       - name: Prose spelling

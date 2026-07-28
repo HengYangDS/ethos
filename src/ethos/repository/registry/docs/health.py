@@ -6,20 +6,21 @@ import re
 import shlex
 from typing import TYPE_CHECKING
 
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.registry.docs.links import markdown_links
-from ethos.repository.registry.docs.links import markdown_paths
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
 from ethos.repository.registry.docs.registry import VISIBLE_SECTION_LABELS
 from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import allowed_states
 from ethos.repository.registry.docs.registry import build_docs_registry
+from ethos.repository.registry.docs.registry import docs_root
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-OBSERVATIONAL_DOC_PREFIXES = ("evidence/", "docs/archive/")
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
 
 
 def docs_health_report(
@@ -28,17 +29,23 @@ def docs_health_report(
     command_validator: Callable[[list[str]], str] | None = None,
 ) -> dict[str, object]:
     """Report docs metadata, structure, and live-command-example health."""
-    registry = build_docs_registry(root)
+    try:
+        registry = build_docs_registry(root)
+        states = allowed_states(root)
+        roles = allowed_roles(root)
+    except ValueError as exc:
+        gap = str(exc)
+        if gap != INVALID_PROFILE_ERROR and not gap.startswith("docs_taxonomy_invalid:"):
+            raise
+        return empty_docs_health_report(gap)
     missing = [
         entry["path"] for entry in registry if any(not entry[field] for field in REQUIRED_FIELDS)
     ]
-    states = allowed_states(root)
     invalid_state = [
         f"invalid_state:{entry['path']}:{entry['state']}"
         for entry in registry
         if states and entry["state"] and entry["state"] not in states
     ]
-    roles = allowed_roles(root)
     invalid_role = [
         f"invalid_role:{entry['path']}:{entry['role']}"
         for entry in registry
@@ -57,7 +64,7 @@ def docs_health_report(
     invalid_command_examples = (
         command_example_gaps(root, registry, command_validator) if command_validator else []
     )
-    unindexed_current_plans = current_plan_index_gaps(root, registry)
+    unindexed_plans = plan_index_gaps(root, registry)
     required_gaps = (
         missing
         + invalid_state
@@ -65,7 +72,7 @@ def docs_health_report(
         + duplicate_subjects
         + visible_section_gaps
         + invalid_command_examples
-        + unindexed_current_plans
+        + unindexed_plans
     )
     return {
         "ok": not required_gaps,
@@ -76,15 +83,35 @@ def docs_health_report(
         "duplicate_subjects": duplicate_subjects,
         "missing_visible_sections": visible_section_gaps,
         "invalid_command_examples": invalid_command_examples,
-        "unindexed_current_plans": unindexed_current_plans,
+        "unindexed_plans": unindexed_plans,
         "required_gaps": required_gaps,
         "registry": registry,
     }
 
 
-def current_plan_index_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
-    """Return current plan documents absent from the canonical plan index."""
-    index = root / "docs" / "plans" / "README.md"
+def empty_docs_health_report(gap: str) -> dict[str, object]:
+    """Return the stable fail-closed shape for an unreadable registry declaration."""
+    return {
+        "ok": False,
+        "document_count": 0,
+        "missing_metadata": [],
+        "invalid_state": [],
+        "invalid_role": [],
+        "duplicate_subjects": [],
+        "missing_visible_sections": [],
+        "invalid_command_examples": [],
+        "unindexed_plans": [],
+        "required_gaps": [gap],
+        "registry": [],
+    }
+
+
+def plan_index_gaps(root: Path, registry: list[dict[str, str]]) -> list[str]:
+    """Return active or planned documents absent from the plan index."""
+    docs = docs_root(root)
+    docs_prefix = docs.relative_to(root).as_posix().rstrip("/")
+    plans_prefix = f"{docs_prefix}/plans/"
+    index = docs / "plans" / "README.md"
     if not index.exists():
         return []
     indexed = {
@@ -93,10 +120,10 @@ def current_plan_index_gaps(root: Path, registry: list[dict[str, str]]) -> list[
         if target.partition("#")[0].endswith(".md")
     }
     return [
-        f"unindexed_current_plan:{entry['path']}"
+        f"unindexed_plan:{entry['path']}"
         for entry in registry
-        if entry["path"].startswith("docs/plans/")
-        and entry["path"] != "docs/plans/README.md"
+        if entry["path"].startswith(plans_prefix)
+        and entry["path"] != f"{plans_prefix}README.md"
         and entry["role"] == "plan"
         and entry["state"] in {"active", "planned"}
         and (root / entry["path"]).resolve() not in indexed
@@ -123,9 +150,7 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, str]]
 
 def requires_visible_sections(entry: dict[str, str]) -> bool:
     """Return whether a registry entry must expose visible docs sections."""
-    if entry["path"].startswith(OBSERVATIONAL_DOC_PREFIXES):
-        return False
-    return entry["state"] in {"canonical", "active"}
+    return entry["state"] in {"canonical", "active"} and entry["role"] not in OBSERVATIONAL_ROLES
 
 
 def command_example_gaps(
@@ -136,10 +161,8 @@ def command_example_gaps(
     """Return active-doc examples absent from the live Cyclopts operation tree."""
     active_paths = {entry["path"] for entry in registry if requires_visible_sections(entry)}
     gaps: list[str] = []
-    for path in markdown_paths(root):
-        relative_path = path.relative_to(root).as_posix()
-        if relative_path not in active_paths:
-            continue
+    for relative_path in sorted(active_paths):
+        path = root / relative_path
         for lineno, command in shell_commands(path):
             if (tokens := ethos_command_tokens(command)) and (invalid := command_validator(tokens)):
                 gaps.append(f"unknown_ethos_command_example:{relative_path}:{lineno}:{invalid}")

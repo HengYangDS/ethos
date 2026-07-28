@@ -1,34 +1,61 @@
 from __future__ import annotations
 
 import tomllib
-from typing import TYPE_CHECKING
+from pathlib import Path
 
-from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
-from ethos.contracts.system.contracts import load_system_contract
+from ethos._resources import declaration_text
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
-if TYPE_CHECKING:
-    from pathlib import Path
+_AUTHORITY_QUERY_AXES = ("subject", "predicate", "scope", "plane", "context")
+_CURRENTNESS_REQUIREMENTS = (
+    "integrity",
+    "declared_authority",
+    "binding_match",
+    "validity",
+    "no_more_specific_active_owner",
+)
 
 
-LIFECYCLE_COMMANDS = tuple(f"ethos {node.id}" for node in load_lifecycle_declaration().node)
-
-
-def _authority_order(root: Path) -> tuple[str, ...]:
-    """Load the authority order (rank-sorted sources) from system/authority.toml."""
-    try:
-        contract = load_system_contract(root, "authority")
-    except (FileNotFoundError, ValueError):
-        return ()
-    order = contract.get("order")
-    if not isinstance(order, list):
-        return ()
-    ranked = sorted(
-        (item for item in order if isinstance(item, dict) and "rank" in item),
-        key=lambda item: int(item["rank"]),
+def _contextual_authority(root: Path) -> dict[str, object]:
+    """Project the executable authority query contract without inventing truth."""
+    text = declaration_text(
+        root / "system" / "authority.toml",
+        resource="data/authority.toml",
+        canonical=Path("system/authority.toml"),
     )
-    return tuple(str(item.get("source", "")) for item in ranked if item.get("source"))
+    contract = tomllib.loads(text)
+    query = contract.get("query")
+    currentness = contract.get("currentness")
+    resolution = contract.get("resolution")
+    if not all(isinstance(value, dict) for value in (query, currentness, resolution)):
+        raise ValueError("authority_contract_invalid")
+    axes = query.get("required")
+    requirements = currentness.get("requires")
+    if tuple(axes) != _AUTHORITY_QUERY_AXES or tuple(requirements) != _CURRENTNESS_REQUIREMENTS:
+        raise ValueError("authority_contract_query_axes_invalid")
+    if contract.get("resolver") != "contextual" or query.get("unknown_verdict") != "block":
+        raise ValueError("authority_contract_resolution_invalid")
+    if any(
+        currentness.get(key) is not False
+        for key in ("history_is_current", "projection_is_authority", "adapter_is_authority")
+    ):
+        raise ValueError("authority_contract_currentness_invalid")
+    if (
+        resolution.get("conflict") != "block"
+        or resolution.get("novel_semantics") != "model_gap"
+        or resolution.get("more_specific_owner") != "wins_only_within_same_query"
+    ):
+        raise ValueError("authority_contract_resolution_invalid")
+    return {
+        "contract_ref": "system/authority.toml",
+        "resolver": "contextual",
+        "query_axes": list(_AUTHORITY_QUERY_AXES),
+        "unknown_verdict": "block",
+        "currentness_requirements": list(_CURRENTNESS_REQUIREMENTS),
+        "conflict_verdict": "block",
+        "novel_semantics": "model_gap",
+    }
 
 
 def is_product_root(root: Path) -> bool:
@@ -65,14 +92,12 @@ def context_for_root(root: Path) -> dict[str, object]:
 
 
 def governance_context(root: Path, *, profile: str) -> dict[str, object]:
-    """Project repository authority and subject facts without semantic shadow models."""
+    """Project repository context and its executable contextual-authority query."""
     return {
         "contract": "governed_repository",
         "profile": profile,
         "repository": str(root.resolve()),
-        "authority_refs": list(_authority_order(root)),
-        "shared_commands": list(LIFECYCLE_COMMANDS),
-        "transition_commands": list(LIFECYCLE_COMMANDS),
+        "authority": _contextual_authority(root),
         "reader_projection_commands": ["ethos status"],
         "truth_boundary": "repository",
         "profile_boundary": "profile_or_adapter",

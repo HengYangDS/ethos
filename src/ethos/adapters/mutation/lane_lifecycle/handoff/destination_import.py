@@ -16,12 +16,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.mutation.lane_lifecycle.handoff.destination_cleanup import (
+    compensate_failed_import,
+)
+from ethos.adapters.mutation.lane_lifecycle.handoff.destination_cleanup import (
+    import_worktree_record,
+)
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import validated_handoff_acknowledgement
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
-from ethos.adapters.repo.change_contract import load_change_contract
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
@@ -96,12 +101,14 @@ def apply_handoff_import(
                     lease_identity,
                 )
                 if lease:
-                    _compensate_failed_import(
+                    compensate_failed_import(
                         destination=destination,
                         manifest=manifest,
                         worktree_path=worktree_path,
                         lease=lease,
                         object_environment=object_environment,
+                        run_git=run_git,
+                        verify_destination_identity=_verify_destination_identity,
                     )
                 raise
     return {
@@ -295,7 +302,7 @@ def _recover_import_lease(
         **identity,
         "holder_ref": target_holder_ref,
         "expected_head": str(manifest["source_head"]),
-        "base_change_contract_digest": str(manifest["base_change_contract_digest"]),
+        "base_commitment_digest": str(manifest["base_commitment_digest"]),
         "epoch": 1,
     }
     _require(
@@ -331,7 +338,7 @@ def _acquire_or_recover_lease(
             renewed_at=now,
             expires_at=now + timedelta(days=1),
             expected_head=str(manifest["source_head"]),
-            base_change_contract_digest=str(manifest["base_change_contract_digest"]),
+            base_commitment_digest=str(manifest["base_commitment_digest"]),
             path_scope=(),
         ),
     )
@@ -396,7 +403,7 @@ def _ensure_import_worktree(
     head: str,
     object_environment: dict[str, str],
 ) -> None:
-    record = _import_worktree_record(destination, path)
+    record = import_worktree_record(destination, path, run_git=run_git)
     if record:
         _require(
             "handoff_destination_worktree_conflict",
@@ -436,19 +443,18 @@ def _verify_destination_identity(
 
 def _verify_import_contract(destination: Path, manifest: dict[str, Any]) -> None:
     head = str(manifest["source_head"])
-    expected_digest = str(manifest["base_change_contract_digest"])
+    expected_digest = str(manifest["base_commitment_digest"])
     try:
-        load_change_contract(
+        load_commitment(
             destination,
             tree_ref=head,
             expected_digest=expected_digest,
-            require_active=False,
         )
     except ValueError as error:
-        if str(error) == "change_contract_digest_mismatch":
-            gap = "handoff_base_change_contract_digest_mismatch"
+        if str(error) == "commitment_digest_mismatch":
+            gap = "handoff_base_commitment_digest_mismatch"
             raise ValueError(gap) from None
-        gap = "handoff_base_change_contract_invalid"
+        gap = "handoff_base_commitment_invalid"
         raise ValueError(gap) from None
 
 
@@ -479,147 +485,3 @@ def _validate_import(
             manifest=manifest,
             lease=lease,
         )
-
-
-def _compensate_failed_import(
-    *,
-    destination: Path,
-    manifest: dict[str, Any],
-    worktree_path: Path,
-    lease: dict[str, Any],
-    object_environment: dict[str, str],
-) -> None:
-    try:
-        binding = lease_binding(str(manifest["source_lane_ref"]), lease)
-        with closing(sqlite3.connect(state_database(destination))) as connection:
-            connection.execute("pragma foreign_keys = on")
-            connection.execute("begin immediate")
-            expected_current_lease(connection, request=binding, require_expired=False)
-            _remove_import_carriers(
-                destination,
-                manifest,
-                worktree_path,
-                lease,
-                object_environment=object_environment,
-            )
-            revoke_lease_from_connection(connection, request=binding)
-            connection.commit()
-    except (OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError, ValueError):
-        gap = "handoff_import_compensation_failed"
-        raise ValueError(gap) from None
-
-
-def _remove_import_carriers(
-    destination: Path,
-    manifest: dict[str, Any],
-    worktree_path: Path,
-    lease: dict[str, Any],
-    *,
-    object_environment: dict[str, str],
-) -> None:
-    branch, head = str(manifest["source_lane_ref"]), str(manifest["source_head"])
-    present = os.path.lexists(worktree_path)
-    record = _import_worktree_record(destination, worktree_path)
-    _require(
-        "handoff_import_compensation_failed",
-        holds=present == bool(record),
-    )
-    if record:
-        unsafe = (
-            worktree_path.is_symlink()
-            or not worktree_path.is_dir()
-            or record.get("branch") != branch
-            or record.get("HEAD") != head
-            or any(flag in record for flag in ("locked", "prunable"))
-        )
-        _require("handoff_import_compensation_failed", holds=not unsafe)
-        _verify_destination_identity(
-            destination,
-            worktree_path,
-            manifest,
-            lease,
-            object_environment=object_environment,
-        )
-        status = run_git(
-            worktree_path,
-            "status",
-            "--porcelain",
-            "-uall",
-            "--ignored=matching",
-            check=False,
-            env=object_environment,
-        )
-        _require(
-            "handoff_import_compensation_failed",
-            holds=not status.returncode and not status.stdout.strip(),
-        )
-        removed = run_git(
-            destination,
-            "worktree",
-            "remove",
-            worktree_path.as_posix(),
-            check=False,
-            env=object_environment,
-        )
-        _require("handoff_import_compensation_failed", holds=not removed.returncode)
-    _require(
-        "handoff_import_compensation_failed",
-        holds=not os.path.lexists(worktree_path)
-        and not _import_worktree_record(destination, worktree_path),
-    )
-    ref = f"refs/heads/{branch}"
-    observed = run_git(
-        destination,
-        "show-ref",
-        "--verify",
-        "--quiet",
-        ref,
-        check=False,
-        env=object_environment,
-    )
-    _require("handoff_import_compensation_failed", holds=observed.returncode in {0, 1})
-    if observed.returncode == 0:
-        actual = run_git(destination, "rev-parse", ref, env=object_environment).stdout.strip()
-        _require("handoff_import_compensation_failed", holds=actual == head)
-        deleted = run_git(
-            destination,
-            "update-ref",
-            "-d",
-            ref,
-            head,
-            check=False,
-            env=object_environment,
-        )
-        _require("handoff_import_compensation_failed", holds=not deleted.returncode)
-    absent = run_git(
-        destination,
-        "show-ref",
-        "--verify",
-        "--quiet",
-        ref,
-        check=False,
-        env=object_environment,
-    )
-    _require("handoff_import_compensation_failed", holds=absent.returncode == 1)
-
-
-def _import_worktree_record(destination: Path, target: Path) -> dict[str, str]:
-    listed = run_git(destination, "worktree", "list", "--porcelain", check=False)
-    _require("handoff_import_compensation_failed", holds=not listed.returncode)
-    records = [
-        dict(line.partition(" ")[::2] for line in block.splitlines() if line)
-        for block in listed.stdout.split("\n\n")
-        if block.strip()
-    ]
-    _require(
-        "handoff_import_compensation_failed",
-        holds=all({"worktree", "HEAD"} <= record.keys() for record in records),
-    )
-    matches = [
-        record for record in records if Path(record["worktree"]).resolve() == target.resolve()
-    ]
-    _require("handoff_import_compensation_failed", holds=len(matches) <= 1)
-    record = matches[0] if matches else {}
-    if record:
-        record["branch"] = record.get("branch", "").removeprefix("refs/heads/")
-    return record

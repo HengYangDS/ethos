@@ -3,566 +3,83 @@ subject: ethos:terminal-governance-product-design
 role: plan
 state: canonical
 relations:
-  canonical_for: terminal product architecture and terminal-convergence campaign
+  canonical_for: terminal architecture and convergence route
+  projects: ../governance/product-design-contract.md#model-promotion
 ---
-
-Status: canonical product design; implementation is tracked by the active
-`terminal-convergence` OpenSpec change.
-
-Purpose: define ETHOS's smallest vendor-neutral semantic kernel, product boundary, and
-terminal transition model.
-
-See also: [Product Design Contract](../governance/product-design-contract.md) and
-[Terminal Convergence](../../openspec/changes/terminal-convergence/proposal.md).
 
 # Terminal Governance Product Design
 
-## Terminal Claim
+## Role
 
-ETHOS is a Git-native, local-first, vendor-neutral trustworthy change compiler.
-It turns intent into the shortest provable repository state transition:
+This plan owns terminal architecture and convergence order. The [Product Design
+Contract](../governance/product-design-contract.md#semantic-kernel) remains the
+sole owner of product meaning; this document specifies how implementations,
+projections, and deletions converge on it.
 
-```text
-intent -> contract -> facts -> plan -> proof -> effect -> attestation
-```
+## Architecture
 
-Its unique value is not another workflow engine. ETHOS makes repository change
-deterministic, authority-bounded, recoverable, evidence-bearing, and portable
-across humans, agents, tools, repositories, and forge providers.
+### Semantic Authority And Projection Homomorphism
 
-The public command plane is:
+The implementation compiles the semantic kernel into transport and presentation
+surfaces without changing assertion identity. Every projection preserves source
+identity, provenance, bindings, validity, and an external observation's absence
+reason; it cannot mint authority or hide a required gap. Isomorphism is checked
+across the product repository and adopters by comparing the same kernel inputs,
+verdict boundary, and attestation shape rather than their physical layouts.
+
+### Model Promotion
+
+[Model Promotion](../governance/product-design-contract.md#model-promotion) is
+the only response to a lossless-model failure. Its implementation boundary must
+preserve the conflicting evidence, block effect and retirement, recompile
+affected projections, and prove the replacement has one semantic owner.
+
+### Git-Native Transaction Boundary
+
+Effects bind an exact Git head and declared scope into `TransitionPlan`,
+recheck the binding, execute one compare-and-swap, then post-observe and attest.
+Worktrees, lanes, leases, and integration refs are resource coordination, not
+semantic roots. Their transition may not substitute stale facts, a dashboard,
+or a hosted result for the local Git binding.
+
+### Adopter Isomorphism And First-Hour UX
+
+The product repository and adopters run the same kernel through profiles and
+adapters, not product cloning. The first hour is deliberately small:
 
 ```text
 status -> plan -> prove -> land -> publish
 ```
 
-`adopt` binds a repository to that lifecycle. `lane` and `hook` remain hidden
-operational roots. Facts, gaps, evidence, and next actions replace scores and
-self-awarded readiness.
-
-## Root Constraints
-
-1. Truth precedes convenience. Missing or stale evidence never becomes pass.
-2. Less is more only when meaning, safety, and product capability survive.
-3. Open-world facts feed closed-world transitions.
-4. Git and declared contracts are truth; caches, sessions, indexes, and views
-   are replaceable projections.
-5. One semantic obligation has one owner. No shim, re-export, alias, wrapper,
-   thin forwarder, or parallel implementation survives without unique meaning.
-6. Prefer mature native capability when it reduces total maintenance cost.
-7. Destructive migration is the default. Compatibility exists only when a
-   current user instruction explicitly requires it.
-8. Local use, validation, installation, and recovery do not depend on a forge.
-9. Provider, language, repository layout, and agent vendor are adapter facts,
-   never kernel vocabulary.
-10. A hard gap cannot be averaged away by a score, warning, or advisory.
-
-## Product Boundary
-
-ETHOS owns:
-
-- intent preservation and executable change contracts;
-- repository fact observation and authority classification;
-- deterministic planning, proof selection, effect admission, and attestation;
-- Worktree Family coordination, recovery, integration, and publication;
-- adopter profiles, conformance, and bounded extension protocols.
-
-ETHOS does not become:
-
-- a generic issue tracker, agent runtime, DI container, event bus, scheduler,
-  workflow SaaS, graph database, policy server, or long-running job engine;
-- a replacement for Git, OpenSpec, CI, package managers, or forge-native
-  releases;
-- a universal physical repository layout;
-- a compatibility museum for previous ETHOS designs;
-- a product coupled to any workstation-specific control plane.
-
-## Minimal Semantic Kernel
-
-Only two persistent semantic entity types exist.
-
-### `ChangeContract`
-
-An immutable contract for one intended repository transition. It contains:
-
-- intent, subject, scope, invariants, acceptance, risks, authority, permissions;
-- hypotheses, experiment strategy, dependencies, and optional program relation;
-- collaboration strategy, compatibility stance, and publication boundary.
-
-Intent amendments are `Attestation` records folded over the immutable base
-contract. Chat history and a live agent session are never required to recover
-the effective intent.
-
-### `Attestation`
-
-An immutable statement bound to issuer, subject, time, content digest, and
-evidence references. It subsumes evidence receipts, claims, decisions,
-transitions, reviews, handoffs, recovery, experiments, evaluations, and release
-provenance. An attestation records an observation or judgment; it never creates
-authority by itself.
-
-Its `kind` discriminator forms one small typed algebra, not six entity families:
-
-| Kind | Irreducible meaning |
-| --- | --- |
-| `observation` | A bound fact reported without deciding policy. |
-| `judgment` | A conclusion plus its explicit basis. |
-| `proof` | Exact-head gate execution and artifact evidence. |
-| `effect` | The durable result of an admitted state transition. |
-| `external-assurance` | Time-bounded assurance backed by provider-native evidence. |
-| `amendment` | An authorized, ordered patch over an immutable ChangeContract. |
-
-Each variant has distinct content and binding invariants, but all share one
-content-addressed envelope, schema owner, storage protocol, and reader algebra.
-Adding a parallel receipt, claim, decision, or event entity is therefore an
-architecture defect unless the single envelope is first proven unable to carry
-the meaning without semantic loss.
-
-Everything else is derived or transient:
-
-- `RepositoryFacts`: freshly observed Git, filesystem, config, tool, provider,
-  and attestation facts;
-- `PlanIR`: deterministic, hashable, replayable DAG nodes of `Check`, `Decision`,
-  and `Effect`;
-- Chronicle, knowledge graph, shared inbox, dashboards, reports, search indexes,
-  state-machine views, and metrics: projections over the two entities and
-  current facts.
-
-A campaign is a derived program view over dependency-connected
-`ChangeContract` instances, not a third persistent entity. Its progress and
-terminal acceptance are compiled from each effective contract, current
-`RepositoryFacts`, and bound Attestations. There is no separately mutable
-Campaign state, step ledger, closeout ledger, manifest authority, or campaign
-CEL plane.
-
-This model absorbs ontology, knowledge graph, finite-state-machine, DAG,
-persistent execution, hypothesis, feedback, and collaboration needs without
-creating separate truth stores.
-
-### Model Promotion
-
-Model Promotion is the conflict adjudication defined by the
-[Product Design Contract](../governance/product-design-contract.md#model-promotion).
-This terminal architecture consumes that canonical rule; it does not define a
-second procedure or assert runtime effect and retirement enforcement.
-
-## Transition Semantics
-
-The verdict algebra is closed:
-
-```text
-pass | block | unknown
-```
-
-Advisories are separate. `unknown` means the verifier cannot currently prove a
-required proposition; it is not a weak pass.
-
-Each PlanIR node is pure data:
-
-| Node | Duty |
-| --- | --- |
-| `Check` | Observe or verify a proposition without mutation. |
-| `Decision` | Apply a declared rule to facts and prior node results. |
-| `Effect` | Describe one idempotent, permission-bounded mutation with CAS preconditions. |
-
-`graphlib.TopologicalSorter` is the sole in-process DAG ordering mechanism.
-No `GraphKernel`, `ActionGraph`, `WorkflowGraph`, or graph framework wrapper
-remains. Rich graph analytics, if ever required, are an optional projection.
-
-Effects execute only when the compiled plan hash, repository facts, authority,
-lease generation, expected HEAD, and permissions still match. Execution emits
-an attestation. Replay skips an already-attested identical effect and blocks a
-same-identity/different-content collision.
-
-## Declarative, Functional Implementation
-
-The implementation center is pure transformation:
-
-```text
-observe(root) -> RepositoryFacts
-compile(ChangeContract, RepositoryFacts) -> PlanIR
-judge(PlanIR, attestations) -> verdict
-execute(admitted Effect) -> Attestation
-```
-
-I/O is confined to composition roots and explicit adapters. Domain reducers are
-total where practical, immutable by default, and return values rather than
-mutating hidden state.
-
-Terminal choices are singular:
-
-| Concern | Terminal choice | Rejected residue |
-| --- | --- | --- |
-| Persisted/external contracts | Pydantic v2, strict and frozen | attrs/dataclass/Pydantic dual models |
-| Temporary internal values | tuples, mappings, enums, small frozen stdlib values | a second model framework |
-| CLI | Cyclopts declarations as command SSOT | argparse and parallel registries |
-| DAG | direct `graphlib.TopologicalSorter` | custom graph layers, NetworkX core dependency |
-| Guard DSL | CEL through official `cel-expr-python` | celpy dual-run, CUE/Rego/Cedar core |
-| Dependency composition | explicit constructor/function arguments and Protocols | DI container or service locator |
-| Events | returned attestations and external streams | in-process event bus |
-| State transitions | declarative PlanIR plus pure reducers | state-machine framework |
-| Long execution | resumable plans plus attestations | Temporal, DBOS, Restate core dependency |
-| Extension discovery | manifests, subprocess JSON, then stdlib entry points | pluggy before real consumers |
-| Text scaffolds | optional Copier/Jinja scaffold packs | Jinja in core or empty template machinery |
-
-Code generation is admitted only when a schema is the SSOT, generated output is
-never hand-edited, drift is checked, and generated ELOC remains measured. It is
-used for protocol bindings, schemas, and optional adopter scaffolds, not to hide
-product complexity.
-
-## Command And Data Surfaces
-
-Default JSON is bounded and stable. It carries only verdict, summary, required
-gaps, next actions, and references to larger artifacts.
-
-`status` keeps assurance planes explicit: required gaps, non-blocking
-advisories, exact-head local proof, and every profile-declared provider's
-observation and publication state remain separate `pass | block | unknown`
-projections. They are recomputed from current facts and Attestations; status does
-not persist a ledger or infer one plane from another.
-
-| Surface | Maximum default payload |
-| --- | ---: |
-| `status` | 16 KiB |
-| `plan` | 32 KiB |
-| one attestation | 64 KiB excluding referenced artifacts |
-
-Verbose diagnostic data is written to an artifact and referenced by digest.
-No default command emits a multi-megabyte repository dump.
-
-Cyclopts declarations own command names, parameters, help, and dispatch. SDK,
-MCP, docs, shell completion, and schemas are generated or validated against
-that declaration rather than maintained as command-shaped copies.
-
-## Self/Adopter Homomorphism
-
-The universal kernel knows no OpenSpec, Python, GitHub, GitLab, Codex, Claude,
-JetBrains or fixed directory grammar. An adoption profile maps native
-repository facts into kernel roles:
-
-- change carrier and intent source;
-- branch roles and publication destinations;
-- gate providers and effect executors;
-- documentation, formatting, package, release, and evidence conventions;
-- optional organization policy and extension packs.
-
-The ETHOS self profile chooses OpenSpec, Repository-Family governance, strict
-branch roles, and the repository's current quality floor. Adopters may choose
-different native carriers and layouts while preserving command semantics and
-attestation protocol.
-
-OpenSpec is mandatory for ETHOS itself and optional for adopters. Physical
-Repository-Family paths are a self-profile best practice, not universal kernel
-law.
-
-## Worktree Family And Intent Continuity
-
-One `ChangeContract` derives one Worktree Family. The family is a Git/resource
-projection, not another semantic entity.
-
-The family lease persists exactly one intent binding: the immutable base
-`ChangeContract` digest that identifies its lineage. Ordered amendment
-Attestations fold that base into an effective contract and digest without
-rewriting the lease. PlanIR and proof/effect Attestations bind the effective
-digest they actually evaluated. Status may derive the current binding from the
-base plus amendments, but no claim identifier, alias, fallback, or second
-persistent binding survives the cutover.
-
-A family may contain:
-
-- cooperative slots with disjoint declared scopes;
-- at most two competitive variants evaluated against identical acceptance;
-- read-only research workers;
-- one canonical family head eligible for integration.
-
-Only the canonical head reaches the candidate train. A selection attestation
-records why a competitive variant won and which useful intent was absorbed.
-Losing variants are retired after preservation evidence exists.
-
-The shared inbox is a projection of unconsumed intent amendments, decisions,
-handoff offers, conflicts, and evidence gaps. Agents coordinate before work when
-scope overlap is known; competition is admitted only when alternative designs
-have information value greater than duplicate cost.
-
-Every handoff/takeover package is reproducible from:
-
-```text
-ChangeContract + amendments + exact HEAD/tree + diff + RepositoryFacts
-+ open PlanIR nodes + attestations + lease generation + next admissible action
-```
-
-It excludes transcript dumps and vendor session formats. Takeover uses CAS,
-quiescence evidence when available, and an explicit unknown boundary when the
-source session is lost. Orphaned lanes are detected, preserved, absorbed,
-superseded, or retired through native lifecycle commands; direct ref/worktree/
-SQLite deletion is forbidden.
-
-## Concurrency And Integration Train
-
-There is no global WIP limit of three. Backpressure is adaptive and based on:
-
-- overlap/conflict graph density;
-- host CPU, memory, disk, and agent capacity;
-- proof latency and candidate queue age;
-- candidate train throughput and retry rate;
-- handoff completeness and recovery cost.
-
-Authoring is wide, proof is parallel, and the final candidate update is a short
-serialized compare-and-swap operation. A stale candidate observation causes
-rebase/reproof, never an overwrite. Queue scheduling favors high-impact,
-low-conflict, old, fully-proven changes without starving urgent fixes.
-
-Campaign iterations run local closeout only. Remote CI and publication run once
-after the derived terminal predicate for the campaign's ChangeContracts passes.
-At terminal closeout the immutable head first reaches local candidate and
-protected `dev`; its Worktree Families and records then close locally before any
-proposal ref or provider mutation is created.
-
-## Branch And Publication Topology
-
-ETHOS self profile:
-
-| Branch | Meaning | Remote policy |
-| --- | --- | --- |
-| `main` | protected default release branch | GitLab and GitHub |
-| `dev` | protected stable integration branch | GitLab and GitHub |
-| `candidate/dev` | local integration train | never pushed |
-| `work/*` | local authoring lanes | never pushed |
-| `proposal/*` | remote review and delivery | GitLab and/or GitHub |
-
-`proposal/*` replaces `submit/*` and provider-specific `pr/*`: it describes the
-repository semantic role, not a forge UI mechanism.
-
-Three independent planes exist:
-
-1. Local validation and installation, with no remote dependency.
-2. GitLab as the organization publication source.
-3. GitHub as an independent full repository, CI/CD, release, update, and
-   distribution plane.
-
-The final immutable commit is proposed to both providers. Each provider emits
-its own CI and release attestations. The same signed tag and artifact digests
-must be observed on both; one provider's success never proves the other.
-Local replay of either provider workflow is useful only as exact-head local
-proof bound to the provider-template and artifact digests. It cannot mint
-provider assurance or satisfy hosted observation or publication state.
-
-## Records, Evidence, And Recovery
-
-For the ETHOS self profile, immutable record directories follow Repository-
-Family governance. Record payloads are attestations plus referenced artifacts,
-with `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS` as integrity
-carriers. Historical records are indexed and superseded, never rewritten to fit
-a newer schema.
-
-Tracked truth contains durable contracts and attestations. Ignored SQLite,
-indexes, caches, proof workspaces, and generated views are rebuildable. Their
-retention and GC are governed operations; ignored does not mean disposable.
-
-## Documentation And Physical Form
-
-The repository uses one form per semantic class:
-
-| Class | Canonical form |
-| --- | --- |
-| human judgment and rationale | Markdown with fixed front matter and section grammar |
-| owned configuration and routing | TOML |
-| public machine payload and standards | JSON/JSON Schema |
-| ecosystem-native configuration | YAML only when the ecosystem owns it |
-| generated streams | ignored JSONL |
-| local index/cache | ignored SQLite |
-
-Entrypoints link; they do not restate. Rules are concise executable obligations.
-Design lives in canonical docs. OpenSpec carries active change intent and deltas.
-Attestations carry proof and decisions. Archives use the sole name grammar
-`YYYY-MM-DD-<kebab-id>`.
-
-Whitespace is tool-owned: LF, UTF-8, final newline, no trailing whitespace, and
-no repeated blank lines in Markdown/config. Ruff owns Python vertical spacing;
-dprint owns JSON/TOML/YAML; rumdl owns Markdown; shfmt owns shell. Manual
-format-disable regions are terminally forbidden in production source.
-
-## Quality And Supply Chain
-
-One owner exists for every quality property:
-
-| Property | Owner |
-| --- | --- |
-| Python lint and format | Ruff |
-| Python types | Pyright strict |
-| Markdown | rumdl |
-| JSON/TOML/YAML format | dprint |
-| shell format/lint | shfmt and ShellCheck |
-| structural policy | ast-grep |
-| import boundaries | import-linter |
-| lifecycle/concurrency properties | Hypothesis state machines plus Quint models |
-| mutation testing | mutmut for pure critical reducers only |
-| source measurement | scc plus canonical formatting and Python AST/tokenize |
-| duplicate investigation | AST-aware duplicate tools as advisory, never competing truth |
-| SBOM | Syft to SPDX |
-| provenance | in-toto Statement plus DSSE, aligned with SLSA |
-| CI binary supply | Aqua |
-| version coordination | bump-my-version |
-| local GitHub workflow replay | act, where runner semantics permit |
-
-The active registry contains only admitted implementations with a current
-consumer. A durable `admit`, `defer`, or `reject` rationale is a `judgment`
-Attestation with its basis and review condition, never another tool roadmap or
-disposition ledger.
-
-Warnings are errors in local, build, test, provider CI, packaging, docs, and
-deprecation output. Production `fmt off`, `fmt skip`, `noqa`, and type-ignore
-suppressions reach zero. Global branch coverage is at least 95%; authority,
-CAS, and transition reducers are 100%. Tests that exist only to touch branches
-are deleted. Mutants in critical pure reducers must be killed or explicitly
-classified with evidence.
-
-## Budget And Anti-Gaming Mechanism
-
-Campaign budget is a vector, not a vanity ELOC score:
-
-- Python ELOC at terminal state: at most 54,000;
-- global owned-source ELOC at terminal state: at most 68,000;
-- default output payload bounds above;
-- zero warnings and inline suppressions;
-- coverage and mutation floors;
-- no duplicated command, schema, policy, graph, or lifecycle owner;
-- bounded proof latency and dependency surface.
-
-ELOC excludes comments, blank lines, and docstrings, but includes product,
-tests, tools, scripts, templates, generated owned source, and executable config.
-Moving logic from Python into config, templates, generated code, tests, or tools
-does not earn deletion credit.
-
-Intermediate growth is allowed when it shortens the terminal path. Per-change
-net-negative gates are advisory inside this campaign; terminal budgets are hard.
-A budget gap forces `block` and can never coexist with `ok=true`, publish-ready,
-closed-loop, or a perfect score.
-
-Capability preservation, contract scenarios, mutation testing, and adopter
-conformance prevent agents from gaming ELOC by deleting behavior or assertions.
-Current-HEAD attestations prevent stale proof and hallucinated completion.
-Independent provider attestations and CAS prevent self-awarded publication.
-
-## Security And Authority
-
-Actor references are vendor-neutral opaque identifiers with the structural form
-`kind:namespace:instance-kind:id`. The kernel validates shape and equality only;
-it never enumerates vendors or infers privilege from a namespace.
-
-Capabilities are explicit, least-privilege, path- and effect-scoped, time-bound,
-and rechecked immediately before mutation. Secrets, credentials, private
-sessions, and full request bodies never enter contracts, attestations, records,
-or handoff packages.
-
-## Ecosystem
-
-The ecosystem begins only after kernel and conformance stability. Language-
-neutral schemas define ChangeContract, PlanIR, Attestation, adapter manifests,
-permissions, and pack protocols.
-
-Admitted pack types are:
-
-- fact provider;
-- change carrier;
-- gate provider;
-- effect executor;
-- attestation sink;
-- projection;
-- scaffold.
-
-The Conformance Kit proves determinism, authority isolation, permission bounds,
-offline behavior, uninstall cleanliness, and protocol compatibility. Packs use
-data or subprocess JSON first; trusted in-process entry points come later only
-with real consumers.
-
-MCP exposes resources, prompts, and guarded tools. A2A handles discovery,
-delegation, handoff, and takeover. Catalogs are federated rather than requiring
-a central marketplace. Optional fleet dashboards, hosted proof runners,
-attestation indexes, organization policy distribution, and cross-repository
-campaigns remain outside the local kernel.
-
-## Concern And Capability Preservation Matrix
-
-| Concern | Terminal carrier/mechanism | Acceptance proof |
-| --- | --- | --- |
-| Product identity and unique value | this design and product contract | command and adopter conformance |
-| Less-is-more without semantic loss | two entities plus preservation matrix | terminal ELOC and all scenarios green |
-| SSOT/DRY/MECE/SOLID | one owner per obligation and import rules | ast-grep/import-linter/duplicate audit |
-| Declarative/functional/low-code | PlanIR, CEL, pure reducers, generated projections | determinism and replay tests |
-| Graph/DAG/FSM/ontology/KG | graphlib plus derived projections | cycle/order/property tests |
-| Persistent execution and recovery | effect identity plus attestations | crash/retry/idempotency tests |
-| Feedback, hypothesis, research, experiment | contract fields plus attestations | hypothesis lifecycle scenarios |
-| Formal reasoning and invariants | Quint plus Hypothesis | model and state-machine gates |
-| Intent recognition/confirmation | immutable contract plus amendments | effective-intent fold tests |
-| Shared inbox/A2A/agent collaboration | derived inbox and protocol adapters | handoff/takeover conformance |
-| Cooperative and competitive work | Worktree Family with <=2 variants | selection/absorption/retirement receipts |
-| Lane loss and session damage | vendor-neutral recovery package | cold takeover without transcript |
-| Lane explosion | adaptive admission and family canonical head | orphan/queue/backpressure metrics |
-| Candidate throughput/races | parallel proof plus serialized CAS | contention and stale-head tests |
-| Worktree Family and records | self-profile projections and attestations | repo-family audit and record verify |
-| Vendor neutrality | opaque actor refs and adapter profiles | three unlike reference adopters |
-| External-product independence | only baseline-admitted bindings | repository-wide positive-boundary proof |
-| Local/GitLab/GitHub separation | three authority planes | independent immutable receipts |
-| Branch semantics | main/dev/candidate/work/proposal roles | policy and remote-ref tests |
-| OpenSpec shape/archive naming | self-profile carrier and one grammar | official strict validation and archive audit |
-| Documentation form and whitespace | carrier grammar and native formatters | docs/config quality gates |
-| CLI and output economy | Cyclopts SSOT and artifact references | surface snapshot and payload caps |
-| Quality tools and warnings | single-owner tool stack | zero-warning complete proof |
-| Code generation/scaffolding | schema generation and optional Copier/Jinja pack | drift and uninstall tests |
-| Supply chain | Aqua, Syft, SPDX, DSSE, SLSA | signed SBOM/provenance attestations |
-| Token and change latency | compact views, direct next action, selective context | byte, step, latency, and token budgets |
-| Anti-gaming and hallucination | hard verdicts, current-HEAD attestations, independent proof | adversarial false-green suite |
-| Product ecology | protocols, TCK, packs, MCP/A2A | external pack and adopter conformance |
-
-## Terminal Acceptance
-
-The campaign is complete only when all are true:
-
-1. `status`, `plan`, `prove`, `land`, `publish`, and `adopt` share one command
-   contract and cannot emit a green state with a hard gap.
-2. Parallel command registries, custom graph layers, source-budget
-   worker/protocol/replay/shadow stacks, empty template machinery, unadmitted
-   external-product coupling, and compatibility residue are absent.
-3. ChangeContract, Attestation, RepositoryFacts, and PlanIR own the semantic
-   center; old package/model/schema owners are deleted in the same cutover.
-4. Python ELOC is <=54,000 and global owned-source ELOC is <=68,000.
-5. Warnings and production suppressions are zero; quality, coverage, mutation,
-   concurrency, source, docs, shell, config, and supply-chain gates pass.
-6. Python package, Node/polyglot, and docs/infra adopters complete adoption,
-   status, plan, prove, land, publish, handoff, recovery, and offline install
-   without Python layout or OpenSpec assumptions.
-7. Local, GitLab, and GitHub receipts remain distinct and bind the same final
-   commit, signed tag, and artifact digests.
-8. All campaign Worktree Families are absorbed or retired through native
-   lifecycle commands and immutable records verify.
-
-## Shortest Landing Route
-
-One campaign, deletion first, no repeated remote closeout:
-
-1. **Restore truth**: fix false-green verdicts, bound outputs, bind concern
-   coverage, and classify existing Work Lanes.
-2. **Delete self-defeating surfaces**: source-budget private runtime, empty
-   templates, copied CI/C4/config parsers, command/schema dual truth, external
-   workstation coupling,
-   compatibility paths, and coverage-only tests.
-3. **Cut over the semantic kernel**: introduce the four minimal runtime values,
-   direct graphlib, official CEL, and one distribution; delete old owners at the
-   cutover commit.
-4. **Cut over lifecycle and train**: one reducer, explicit Git adapter, Worktree
-   Family, amendments, handoff/takeover, adaptive backpressure, CAS candidate,
-   and `proposal/*`.
-5. **Cut over quality and supply chain**: singular format/lint/type/test,
-   warnings-as-errors, suppression zero, SBOM, provenance, binary supply, and
-   versioning.
-6. **Prove homomorphism**: three reference adopters and offline lifecycle.
-7. **Expose the minimum ecosystem**: schemas, TCK, manifests, permissions,
-   subprocess/data packs, MCP/A2A, optional scaffold pack.
-8. **Close once**: complete local proof, close local candidate and protected
-   `dev`, retire all campaign families and verify records, create one final
-   proposal, run both provider planes, publish `dev`, release `main`, and verify
-   immutable artifacts.
-
-No later stage may preserve an earlier implementation merely to reduce cutover
-risk. The shortest safe path is replacement followed immediately by deletion.
+`status` is the read-only entrypoint. `adopt` proposes an explicit binding to
+that loop; an absent optional carrier remains an observed profile fact.
+
+### Feedback Intent Preservation
+
+Convergence maps each accepted feedback item to an invariant, semantic owner,
+acceptance, and proof—or records its explicit absence reason. Deletion is
+preferred when that mapping shows a carrier duplicates another owner. No
+historical wording is preserved merely to satisfy a text-shaped test.
+
+## Convergence Rules
+
+1. **Promote before compatibility.** Replace a missing model boundary before
+   introducing an alias, fallback, or shim; delete the residue in the same
+   bounded change when proof permits.
+2. **Compile, do not narrate.** Keep authority, bindings, invalid states, and
+   effects in the owning contract and executable verifier; documentation links
+   to them as a projection.
+3. **Separate planes.** Local proof, GitLab observation, and GitHub observation
+   produce distinct attestations and cannot imply one another.
+4. **Retire only after relation proof.** A carrier is removed only after its
+   inbound consumers, preserved history, replacement owner, and projection
+   references are checked.
+5. **Prove across shapes.** Product, code, and documentation adopters demonstrate
+   the same input-to-verdict relation while retaining their native carriers.
+
+## Completion Boundary
+
+Terminal convergence is verified only when the kernel, Git-native effect
+boundary, open invalid-state handling, profile isomorphism, and projection
+relations pass their owners' checks. A passing local architecture test is not a
+claim of hosted publication, adoption completion, or historical archive repair.

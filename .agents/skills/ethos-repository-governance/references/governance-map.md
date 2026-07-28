@@ -6,7 +6,7 @@ command plane.
 | Concern | Current owner | Evidence |
 | --- | --- | --- |
 | Repository facts and authority | `ethos status --json` | Current command JSON |
-| Changed-scope gates | `ethos plan --changed --json` | PlanIR and required gaps |
+| Changed-scope gates | `ethos plan --changed --json` | TransitionPlan and required gaps |
 | Local proof readiness | `ethos prove --json` | Current proof result |
 | Focused capability proof | `ethos prove --gate <gate-id> --json` | Gate result |
 | Full local proof plan | `ethos prove --full --json` | Full configured proof result |

@@ -224,14 +224,14 @@ def _change_report(
         "tasks": (change_root / "tasks.md").exists(),
         "delta_specs": (change_root / "specs").exists()
         and any((change_root / "specs").glob("**/*.md")),
-        "change_contract": (change_root / "contract.toml").is_file(),
+        "commitment": (change_root / "commitment.toml").is_file(),
     }
     gaps = [
         f"openspec_{artifact}_missing:{name}"
         for artifact, present in carriers.items()
         if not present
     ]
-    contract = scope.change_contract_report(root, name)
+    contract = scope.commitment_report(root, name)
     gaps.extend(string_sequence(contract.get("required_gaps")))
     if logical_change_identifier_issue(name):
         gaps.append(f"openspec_active_change_identifier_invalid:{name}")

@@ -1,14 +1,14 @@
 ---
-subject: ethos:plan-ir
+subject: ethos:transition-plan
 role: explanation
 state: canonical
 relations:
   canonical_for: deterministic change planning
 ---
 
-# PlanIR
+# TransitionPlan
 
-PlanIR is the transient, deterministic plan compiled from repository declarations
+TransitionPlan is the transient, deterministic plan compiled from repository declarations
 and current facts. It owns no repository truth and performs no mutation.
 
 Each node is one of three kinds:
@@ -20,7 +20,7 @@ Each node is one of three kinds:
 Nodes declare only identity, kind, operation, and dependencies. The plan exposes
 one closed aggregate verdict, `pass | block | unknown`; node observations and
 judgments still belong to attestations. Permissions belong to admission, while
-evidence and artifacts belong to attestations. PlanIR does not duplicate those
+evidence and artifacts belong to attestations. TransitionPlan does not duplicate those
 owners. Any structural or compilation gap forces `block`; `unknown` is reserved
 for a structurally valid plan whose required proposition cannot yet be proved.
 

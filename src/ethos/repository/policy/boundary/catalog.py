@@ -25,7 +25,7 @@ PRODUCT_SURFACES = (
     "docs/evidence",
     "docs/governance",
     "docs/reference",
-    "docs/decisions/accepted",
+    "docs/decisions",
     "docs/plans",
     "docs/start",
     "evidence/attestations",
@@ -41,7 +41,6 @@ HISTORICAL_SURFACE_PREFIXES = (
     "evidence/parity/",
     "openspec/changes/archive/",
     "docs/history/",
-    "docs/decisions/superseded/",
 )
 RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES = HISTORICAL_SURFACE_PREFIXES
 SKIPPED_PRODUCT_DIR_PARTS = {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import tomllib
 from pathlib import Path
@@ -43,7 +44,24 @@ def _tracked_or_nonignored(relative: str) -> list[str]:
     return [path for path in paths if (ROOT / path).exists()]
 
 
-def test_plan_ir_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:
+def test_canonical_decision_code_links_reference_existing_paths() -> None:
+    text = _read("docs/decisions/decision-code-links.md")
+    prefixes = (".config/", "docs/", "src/", "system/", "tests/", "tools/")
+    missing = []
+    for line in text.splitlines():
+        if not line.startswith("|") or "Historical only" in line:
+            continue
+        for reference in re.findall(r"`([^`]+)`", line):
+            path = reference.partition("::")[0]
+            if (path.startswith(prefixes) or path == "pyproject.toml") and not (
+                ROOT / path
+            ).exists():
+                missing.append(path)
+
+    assert missing == []
+
+
+def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:
     source = _read("src/ethos/contracts/plan.py")
     assert "from graphlib import" in source
     assert "TopologicalSorter" in source
@@ -177,7 +195,18 @@ def test_terminal_gate_owners_are_singular_and_hosted_logic_stays_in_tools() -> 
     ]
     assert "evidence-freshness" in gates
     assert "claims" not in gates
-    assert "docs-topology" in gates
+    assert "docs-registry" in gates
+    assert "docs-topology" not in gates
+    assert gates["docs-registry"]["dimensions"] == [
+        "front-matter",
+        "taxonomy",
+        "visible-sections",
+        "command-examples",
+        "plan-discoverability",
+    ]
+    assert gates["markdown-links"]["network_policy"] == "offline"
+    assert gates["external-links"]["network_policy"] == "required"
+    assert gates["external-links"]["dimensions"] == ["external-reachability"]
 
     tools = tomllib.loads(_read("system/tools.toml"))["tool"]
     concerns = {tool["concern"] for tool in tools}
@@ -202,6 +231,24 @@ def test_terminal_gate_owners_are_singular_and_hosted_logic_stays_in_tools() -> 
     ):
         assert _tracked_or_nonignored(relative) == []
         assert Path(relative).name not in local_ci
+
+
+def test_portable_docs_registry_has_no_parallel_topology_owner() -> None:
+    """Portable semantics and product self-audit replace physical docs topology."""
+    for relative in (
+        "contracts/docs/topology.py",
+        "repository/policy/docs/topology.py",
+    ):
+        assert not (CORE_SOURCE / relative).exists()
+
+    links = _read("src/ethos/repository/registry/docs/links.py")
+    for retired in (
+        "link_integrity_report",
+        "glossary_report",
+        "stable_paths_report",
+        "markdown_paths",
+    ):
+        assert retired not in links
 
     hosted_tool = _read("tools/ci/hosted_observation.py")
     for token in (

@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lanes as lanes
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.repo.change_contract import load_change_contract
-from ethos.adapters.repo.change_contract import load_repository_contract
+from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_repository_contract
 from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import coordination_package
@@ -106,8 +106,8 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(tmp_p
     assert report["holder_ref"] == _HOLDER
     assert "claim_id" not in report
     assert (
-        report["base_change_contract_digest"]
-        == load_change_contract(source, tree_ref=git(source, "rev-parse", "HEAD")).digest()
+        report["base_commitment_digest"]
+        == load_commitment(source, tree_ref=git(source, "rev-parse", "HEAD")).digest()
     )
     assert report["worktree"] == {
         "branch": "work/feature",
@@ -121,7 +121,7 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(tmp_p
         for key, value in leases_by_branch(repo)["work/feature"].items()
         if key != "contract_binding"
     }
-    assert report["lease"]["base_change_contract_digest"] == report["base_change_contract_digest"]
+    assert report["lease"]["base_commitment_digest"] == report["base_commitment_digest"]
     assert report["lease"]["expected_head"] == report["head"]
     assert (
         workspace_status(target, include_foreign_path_scope=False)["closeout_support"][
@@ -293,7 +293,7 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
             {
                 "branch": "work/unbound",
                 "head": "a" * 40,
-                "base_change_contract_digest": "",
+                "base_commitment_digest": "",
                 "contract_binding": "missing",
                 "lease_state": "missing",
                 "relation_to_accepted": "unknown",
@@ -443,7 +443,7 @@ def test_start_work_lane_blocks_candidate_active_change_carrier(tmp_path: Path) 
     repo, candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
-    carrier = candidate / "openspec/changes/stale/contract.toml"
+    carrier = candidate / "openspec/changes/stale/commitment.toml"
     carrier.parent.mkdir(parents=True)
     repository = load_repository_contract(candidate)
     carrier.write_text(
@@ -451,7 +451,7 @@ def test_start_work_lane_blocks_candidate_active_change_carrier(tmp_path: Path) 
         f'subjects = ["{repository.id}"]\nscope = ["**"]\n',
         encoding="utf-8",
     )
-    git(candidate, "add", "openspec/changes/stale/contract.toml")
+    git(candidate, "add", "openspec/changes/stale/commitment.toml")
     git(
         candidate,
         "-c",
@@ -573,7 +573,7 @@ def test_work_lane_status_reports_base_contract_rewrite_as_mismatch(tmp_path: Pa
         apply=True,
     )
     assert report["ok"] is True
-    contract = target / "openspec" / "changes" / "fixture-change" / "contract.toml"
+    contract = target / "openspec" / "changes" / "fixture-change" / "commitment.toml"
     contract.write_text(
         contract.read_text(encoding="utf-8").replace(
             "Exercise the governed fixture lifecycle.",
@@ -647,7 +647,7 @@ def test_start_work_lane_blocks_ambiguous_candidate_contract_without_effects(
     target = tmp_path / "repo-work-feature"
     second = source / "openspec/changes/second"
     second.mkdir(parents=True)
-    (second / "contract.toml").write_text(
+    (second / "commitment.toml").write_text(
         'schema_version = 1\nid = "change:second"\nintent = "Second."\n'
         'subjects = ["repository:self"]\n',
         encoding="utf-8",

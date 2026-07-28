@@ -17,17 +17,9 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
 
     rendered = render_repository_profile(declaration)
 
-    assert rendered == (
-        'profile_id = "sample<repo&\\""\n'
-        "\n"
-        "[openspec]\n"
-        "material_paths = [\n"
-        '    ".ethos/profile.toml",\n'
-        '    "openspec/**",\n'
-        '    "docs/governance/**",\n'
-        '    "rules/**",\n'
-        "]\n"
-    )
+    assert rendered == 'profile_id = "sample<repo&\\""\n'
+    assert declaration.commitment == ".ethos/commitment.toml"
+    assert declaration.openspec is None
     with pytest.raises(ValidationError):
         declaration.profile_id = "mutable"
     with pytest.raises(TypeError):
@@ -36,7 +28,6 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
         RepositoryProfileDeclaration.model_validate(
             {
                 "profile_id": "sample",
-                "openspec": {"material_paths": ["openspec/**"]},
                 "extra": True,
             }
         )
@@ -49,18 +40,32 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     assert loaded.state == "valid"
     assert loaded.declaration is not None
     assert loaded.declaration.profile_id == 'sample<repo&"'
-    assert loaded.declaration.openspec.material_paths == (
-        ".ethos/profile.toml",
-        "openspec/**",
-        "docs/governance/**",
-        "rules/**",
+    assert loaded.declaration.commitment == ".ethos/commitment.toml"
+    assert loaded.declaration.openspec is None
+
+
+def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "self"\n'
+        'commitment = "governance/commitment.toml"\n\n'
+        "[openspec]\n"
+        'material_paths = ["docs/**"]\n',
+        encoding="utf-8",
     )
+
+    declaration = load_repository_profile(tmp_path).declaration
+
+    assert declaration is not None
+    assert declaration.commitment == "governance/commitment.toml"
+    assert declaration.openspec is not None
+    assert declaration.openspec.material_paths == ("docs/**",)
 
 
 @pytest.mark.parametrize(
     "text",
     [
-        "profile_id = 'sample'\n",
         "profile_id = ''\n[openspec]\nmaterial_paths = ['openspec/**']\n",
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = []\n",
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['/absolute']\n",
@@ -163,18 +168,15 @@ def test_profile_includes_declared_normative_sources_without_root_escape(tmp_pat
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir()
     profile.write_text(
-        'profile_id = "sample"\n\n'
-        'normative_sources = ["guidelines.md"]\n\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n',
+        'profile_id = "sample"\n\nnormative_sources = ["guidelines.md"]\n',
         encoding="utf-8",
     )
 
     assert profile_evidence_roots(tmp_path) == (
         ".ethos/profile.toml",
+        ".ethos/commitment.toml",
         "rules",
         "guidelines.md",
-        "openspec",
         "evidence",
         "docs",
     )
@@ -200,8 +202,7 @@ def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> No
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir()
     profile.write_text(
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-        "[roots]\ndurable_evidence = '../evidence'\n",
+        "profile_id = 'sample'\n[roots]\ndurable_evidence = '../evidence'\n",
         encoding="utf-8",
     )
 

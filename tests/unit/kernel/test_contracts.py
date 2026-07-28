@@ -189,7 +189,7 @@ def test_attestation_identity_and_serialization_are_statement_addressed() -> Non
 def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
     attestation = _attestation(statement={"state": "observed"})
     payload = attestation.model_dump(mode="json")
-    payload["verdict"] = "allow"
+    payload["verdict"] = "pass"
     with pytest.raises(ValidationError):
         Attestation.model_validate(payload)
 
@@ -406,7 +406,7 @@ def test_system_contracts_load_validate_and_fail_closed() -> None:
         "schema_ref_missing" in gap or "schema_violation" in gap for gap in report["required_gaps"]
     )
     contract = load_system_contract(Path(), "evidence_boundaries")
-    assert contract["decision"]["verdicts"] == ["allow", "block", "defer"]
+    assert contract["decision"]["verdicts"] == ["pass", "block", "unknown"]
     assert "verdict" in contract["decision"]["required_fields"]
     assert {"dry_run_not_executed_proof", "digest_not_semantic", "promotion_not_absolute"} <= {
         entry["id"] for entry in contract["boundary"]

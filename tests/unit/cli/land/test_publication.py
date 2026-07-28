@@ -129,7 +129,7 @@ def test_publish_reports_synchronized_tracking_without_claiming_a_push(
         == "synchronized"
     )
     assert payload["data"]["publication"]["remote_push"] == "not_performed"
-    assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "unknown"
 
 
 def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_status() -> None:

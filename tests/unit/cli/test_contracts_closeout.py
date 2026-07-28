@@ -89,9 +89,9 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_pat
     )
     control = payload["data"]["control_replacement"]
     assert control["required"] is True
-    assert control["verdict"] == "defer"
+    assert control["verdict"] == "unknown"
     assert payload["state"] == "deferred"
-    assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "unknown"
     assert "independent_verification_receipt_required" in payload["required_gaps"]
     bootstrap = payload["data"]["closeout_bootstrap"]
     verification = bootstrap["independent_verification"]
@@ -221,7 +221,7 @@ def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
         "confirmation_present": False,
         "expect_head": None,
     }
-    assert mutation["decision"]["verdict"] == "allow"
+    assert mutation["decision"]["verdict"] == "pass"
     assert mutation["decision"]["subject"]["action"] == "accepted.advance"
     expected_state = mutation["decision"]["subject"]["expected_state"]
     assert expected_state["accepted_ref"] == "refs/heads/dev"

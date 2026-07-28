@@ -306,7 +306,7 @@ def _prewrite_decision(
         "head": str(lease_check.get("expected_head") or ""),
     }
     return AdmissionDecision(
-        verdict="block" if error else "allow",
+        verdict="block" if error else "pass",
         subject=MutationSubject(
             action="lane.prewrite",
             resource=f"{branch}:{','.join(paths)}",

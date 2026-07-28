@@ -94,7 +94,7 @@ def test_non_control_change_needs_no_independent_verification(tmp_path: Path) ->
     )
 
     assert report["required"] is False
-    assert report["verdict"] == "allow"
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
     assert report["subject"] == {}
     assert report["independent_verification"] == {}
@@ -130,7 +130,7 @@ def test_control_change_projects_signed_verification_subject(tmp_path: Path) -> 
     assert request["proof_floor_digest"] == stable_digest(subject)
     assert request["commit"] == candidate_head
     assert request["tree"] == candidate_subject["tree"]
-    assert report["verdict"] == "defer"
+    assert report["verdict"] == "unknown"
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
 
@@ -154,7 +154,7 @@ def test_control_replacement_accepts_only_the_existing_signed_receipt_contract(
         independent_verification_receipt=receipt,
     )
 
-    assert report["verdict"] == "allow"
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
     verification = cast("dict[str, object]", report["independent_verification"])
     assert verification["ok"] is True
@@ -179,7 +179,7 @@ def test_unsigned_custom_and_mismatched_signed_receipts_fail_closed(
                 "kind": "control-replacement-verifier",
                 "accepted_head": accepted_head,
                 "candidate_head": candidate_head,
-                "verdict": "allow",
+                "verdict": "pass",
             }
         ),
         encoding="utf-8",
@@ -257,7 +257,7 @@ def test_control_paths_require_independent_verification(
 
     assert report["required"] is True
     assert report["control_paths"] == [relative_path]
-    assert report["verdict"] == "defer"
+    assert report["verdict"] == "unknown"
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
 
@@ -294,5 +294,5 @@ def test_unresolvable_git_subject_defers_instead_of_allowing(tmp_path: Path) -> 
         candidate_head="b" * 40,
     )
 
-    assert report["verdict"] == "defer"
+    assert report["verdict"] == "unknown"
     assert report["required_gaps"] == ["control_replacement_diff_unavailable"]

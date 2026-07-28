@@ -29,7 +29,7 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
         time_basis="local_observation_time",
     )
     decision = AdmissionDecision(
-        verdict="allow",
+        verdict="pass",
         subject=subject,
         policy_refs=("commitment:work-lane-owner",),
         evidence_refs=("evidence:lease-observation",),
@@ -40,7 +40,7 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
     )
 
     payload = decision.to_payload()
-    assert payload["verdict"] == "allow"
+    assert payload["verdict"] == "pass"
     assert payload["subject"]["expected_state"]["epoch"] == 2
     assert payload["decision_basis"]["enforcement_boundary"] == "local_process_guard"
     assert payload["mints_authority"] is False

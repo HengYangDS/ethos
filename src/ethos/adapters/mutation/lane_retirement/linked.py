@@ -112,7 +112,7 @@ def retire_linked_work_lane(
                         else {}
                     ),
                 },
-                verdict="allow" if not gaps else "block",
+                verdict="pass" if not gaps else "block",
                 required_gaps=gaps,
                 state="ready" if not gaps else "blocked",
                 identity_basis=("exact_lease_generation" if required_holder else "not_evaluated"),

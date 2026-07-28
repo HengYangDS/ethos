@@ -293,7 +293,7 @@ class MutationAdmissionRequest(BaseModel):
     action: str = Field(min_length=1)
     resource: str = Field(min_length=1)
     expected_state: dict[str, object]
-    verdict: Literal["allow", "block", "defer"]
+    verdict: Literal["pass", "block", "unknown"]
     required_gaps: tuple[str, ...] = ()
     why: tuple[str, ...] = ()
     next_actions: tuple[str, ...] = ()

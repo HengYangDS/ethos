@@ -15,7 +15,7 @@ schema = "system/schemas/contracts/evidence-boundaries.schema.json"
 # extension states are reasons/actions, never new top-level verdicts — they must
 # not pollute the three-way verdict (per red-team convergence review).
 [decision]
-verdicts = ["allow", "block", "defer"]
+verdicts = ["pass", "block", "unknown"]
 required_fields = ["verdict", "why", "next", "required_gaps"]
 # Carried in reason/action, NOT as a verdict:
 extension_states = [

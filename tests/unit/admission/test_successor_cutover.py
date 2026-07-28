@@ -28,6 +28,8 @@ def test_evaluator_keeps_virtual_environment_interpreter_path(
     virtual_python.parent.mkdir(parents=True)
     virtual_python.symlink_to(cutover.sys.executable)
     monkeypatch.setattr(cutover.sys, "executable", virtual_python.as_posix())
+    monkeypatch.setenv("ETHOS_SUCCESSOR_ENVELOPE", "/tmp/envelope.json")
+    monkeypatch.setenv("ETHOS_SUCCESSOR_ROOT", "/tmp/repository")
     monkeypatch.setattr(cutover, "validate_transition", lambda *_args: None)
     monkeypatch.setattr(
         cutover.subprocess,
@@ -36,10 +38,10 @@ def test_evaluator_keeps_virtual_environment_interpreter_path(
     )
     stream = SimpleNamespace(extractall=lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cutover.tarfile, "open", lambda **_kwargs: nullcontext(stream))
-    commands: list[list[str]] = []
+    commands: list[tuple[list[str], dict[str, str]]] = []
 
     def run(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        commands.append(args)
+        commands.append((args, _kwargs["env"]))
         return subprocess.CompletedProcess(args, 0, "", "")
 
     monkeypatch.setattr(cutover.subprocess, "run", run)
@@ -56,10 +58,14 @@ def test_evaluator_keeps_virtual_environment_interpreter_path(
         },
     )
 
-    assert [command[0] for command in commands] == [
+    assert [command[0][0] for command in commands] == [
         virtual_python.as_posix(),
         virtual_python.as_posix(),
     ]
+    assert all(
+        not any(key.startswith("ETHOS_SUCCESSOR_") for key in environment)
+        for _, environment in commands
+    )
 
 
 def _write_envelope(path: Path, payload: dict[str, object]) -> str:

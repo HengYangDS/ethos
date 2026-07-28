@@ -474,33 +474,36 @@ def _require_replaced_row(rowcount: int) -> None:
         raise ValueError("successor_lease_full_row_cas_failed")
 
 
+def _require_successor_ref(root: Path, envelope: dict[str, Any]) -> None:
+    if _git(root, "rev-parse", str(envelope["ref_name"])) != str(envelope["successor_head"]):
+        raise ValueError("successor_ref_state_invalid")
+
+
 def _materialize_successor(root: Path, envelope: dict[str, Any]) -> None:
+    prepare_head = str(envelope["prepare_head"])
     prepare_tree = str(envelope["prepare_tree"])
     successor_head = str(envelope["successor_head"])
     successor_tree = str(envelope["successor_tree"])
     ref_name = str(envelope["ref_name"])
     if _git(root, "rev-parse", ref_name) != successor_head:
         raise ValueError("successor_ref_state_invalid")
-    if (
-        _git(root, "write-tree") != prepare_tree
-        or _run(root, "git", "diff-files", "--quiet", "--").returncode
-        or _git(root, "ls-files", "--others", "--exclude-standard")
-    ):
+    current_tree = _git(root, "write-tree")
+    clean = _run(root, "git", "diff-files", "--quiet", "--").returncode == _ZERO_EXIT
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard")
+    if clean and not untracked and current_tree == successor_tree:
+        return
+    if not clean or untracked or current_tree != prepare_tree:
         raise ValueError("successor_worktree_not_exact_prepare")
-    materialized = subprocess.run(
-        [
-            "git",
-            "-c",
-            "core.hooksPath=/dev/null",
-            "read-tree",
-            "--reset",
-            "-u",
-            successor_head,
-        ],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
+    materialized = _run(
+        root,
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "read-tree",
+        "-u",
+        "-m",
+        prepare_head,
+        successor_head,
     )
     if materialized.returncode:
         raise ValueError("successor_worktree_materialization_failed")
@@ -511,6 +514,31 @@ def _materialize_successor(root: Path, envelope: dict[str, Any]) -> None:
         or _git(root, "ls-files", "--others", "--exclude-standard")
     ):
         raise ValueError("successor_worktree_materialization_mismatch")
+
+
+def _materialize_successor_with_lease_lock(root: Path, envelope: dict[str, Any]) -> None:
+    after = cast("dict[str, Any]", envelope["lease_after"])
+    connection, _ = _lease_rows(root, str(after["subject"]))
+    try:
+        connection.execute("begin immediate")
+        row = connection.execute(
+            "select id, subject, owner, expires_at, payload_json from leases where subject = ?",
+            (str(after["subject"]),),
+        ).fetchone()
+        _assert_raw_lease(_raw_lease(row), after, "successor")
+        _materialize_successor(root, envelope)
+        reread = connection.execute(
+            "select id, subject, owner, expires_at, payload_json from leases where subject = ?",
+            (str(after["subject"]),),
+        ).fetchone()
+        _assert_raw_lease(_raw_lease(reread), after, "successor")
+        _require_successor_ref(root, envelope)
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def _transition_state(root: Path, envelope: dict[str, Any]) -> str:
@@ -573,7 +601,7 @@ def apply_from_environment() -> None:
         envelope,
         require_incumbent_lease=initial == "prepare_before",
     )
-    state = initial
+    state = _transition_state(root, envelope)
     if state == "prepare_before":
         moved = subprocess.run(
             ["git", "update-ref", str(envelope["ref_name"]), successor_head, prepare_head],
@@ -592,7 +620,7 @@ def apply_from_environment() -> None:
         state = _transition_state(root, envelope)
     if state != "successor_after":
         raise ValueError("successor_state_invalid")
-    _materialize_successor(root, envelope)
+    _materialize_successor_with_lease_lock(root, envelope)
     sys.stdout.write(
         json.dumps(
             {

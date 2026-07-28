@@ -291,7 +291,7 @@ def evaluate_successor(
             stream.extractall(target, filter="data")
         if archive.wait() != _ZERO_EXIT:
             raise ValueError("successor_archive_failed")
-        python = Path(sys.executable).resolve()
+        python = Path(sys.executable)
         carrier = str(successor["carrier"])
         digest = str(successor["digest"])
         script = (

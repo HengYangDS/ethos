@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 import ethos.domain.source_budget.measurement as source_budget
 from tests.support.contract_helpers import git
 from tests.support.subprocesses import completed as cp
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _selection(
@@ -169,6 +166,14 @@ def _fake_scc(
         lambda command: "/fake-scc" if command == "fake-scc" else which(command),
     )
     monkeypatch.setattr(source_budget.subprocess, "run", dispatch)
+
+
+def test_product_policy_counts_markdown_in_global_budget() -> None:
+    root = Path(__file__).resolve().parents[3]
+    report = source_budget.source_budget_report(root)
+
+    assert report["inventory"]["category_counts"]["markdown"] > 0
+    assert report["metrics"]["global_total"] >= report["metrics"]["markdown"]
 
 
 def test_direct_measurement_is_clean_when_bounded_counters_agree(
@@ -340,7 +345,28 @@ def test_extensionless_hook_is_counted_and_unknown_executable_blocks(
     assert "source_budget_executable_unclassified:bin/tool" in report["required_gaps"]
 
 
-def test_scc_file_set_and_bidirectional_total_disagreement_block(
+def test_scc_cross_check_accepts_a_stricter_physical_markdown_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo(tmp_path, tolerance=(0, 0))
+    _fake_scc(
+        monkeypatch,
+        tmp_path,
+        {
+            ".config/checks/format/selection.toml": 20,
+            ".ethos/rules.toml": 1,
+            "src/ethos/demo.py": 2,
+        },
+    )
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["cross_check"]["global_total"] > report["metrics"]["global_total"]
+    assert not any("global_total_disagrees" in gap for gap in report["required_gaps"])
+
+
+def test_scc_file_set_and_canonical_overcount_disagreement_block(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

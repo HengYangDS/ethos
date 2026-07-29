@@ -86,15 +86,10 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
 
 ## MODIFIED Requirements
 
-### Requirement: Authority Graph Read Model
-Authority and currentness SHALL resolve contextually by subject, predicate, scope, plane, validity, and exact bindings. No global rank, current pointer, directory status, or manual index decides it.
-
-#### Scenario: Authority graph is audited
-- **WHEN** `ethos audit --mode shape --json` runs
-- **THEN** the result includes an authority graph report
-- **AND** every graph entry has an owner, relation type, stable path, and
-  typed derivation or supersession relations
-- **AND** the graph reports drift gaps without becoming a lifecycle owner
+### Requirement: Contextual Authority Resolution
+Authority and currentness SHALL resolve contextually by subject, predicate,
+scope, plane, validity, and exact bindings. No global rank, current pointer,
+directory status, graph, or manual index decides it.
 
 #### Scenario: independent planes report different states
 - **WHEN** local proof passes while a configured forge has no hosted Attestation

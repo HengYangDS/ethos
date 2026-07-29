@@ -53,7 +53,7 @@ def test_role_contract_cannot_exempt_ambiguous_module_name(tmp_path) -> None:
                 "path": relative,
                 "role": "kernel",
                 "concept": "pure transition decision",
-                "authority_refs": ["system/lifecycle.toml"],
+                "authority_refs": ["docs/architecture/transition-plan.md"],
                 "public_symbols": ["decide"],
                 "max_eloc": 4,
                 "allowed_import_roots": ["ethos.contracts"],

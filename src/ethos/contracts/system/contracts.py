@@ -14,37 +14,20 @@ from pathlib import Path
 
 import jsonschema
 
-from ethos._resources import declaration_text
-
-# The machine governance kernel's declarative contracts under system/.
-RESOURCE_BACKED_SYSTEM_CONTRACTS = {"lifecycle": "data/lifecycle.toml"}
-
 SYSTEM_CONTRACTS = (
     "authority",
     "formats",
     "routing",
     "surfaces",
     "tools",
-    "lifecycle",
     "evidence_boundaries",
     "invalid_states",
 )
 
 
 def load_system_contract(root: Path, name: str) -> dict[str, object]:
-    """Load system/<name>.toml, falling back to product resources when declared.
-
-    Most system contracts are root-owned and must fail closed when missing. The
-    lifecycle declaration is product-owned so adopters compile the same TransitionPlan
-    and transition policies without copying product repository files.
-    """
+    """Load one root-owned ``system/<name>.toml`` contract or fail closed."""
     path = root / "system" / f"{name}.toml"
-    if path.exists():
-        return tomllib.loads(path.read_text(encoding="utf-8"))
-    resource = RESOURCE_BACKED_SYSTEM_CONTRACTS.get(name)
-    if resource:
-        text = declaration_text(path, resource=resource, canonical=Path("system") / f"{name}.toml")
-        return tomllib.loads(text)
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 

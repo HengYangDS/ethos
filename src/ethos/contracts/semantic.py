@@ -258,20 +258,3 @@ class Facts(_SemanticModel):
 
     def digest(self) -> str:
         return _digest(self.model_dump(mode="json", exclude={"observed_at"}))
-
-
-def semantic_schema_documents() -> dict[str, dict[str, Any]]:
-    """Generate language-neutral schemas owned by terminal contracts."""
-    contracts = {
-        "commitment.schema.json": Commitment,
-        "attestation.schema.json": Attestation,
-        "facts.schema.json": Facts,
-    }
-    schemas: dict[str, dict[str, Any]] = {}
-    for name, model in contracts.items():
-        schema = model.model_json_schema()
-        schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-        schema["$id"] = f"https://ethos.local/schemas/{name}"
-        schema["title"] = f"ETHOS {model.__name__}"
-        schemas[name] = schema
-    return schemas

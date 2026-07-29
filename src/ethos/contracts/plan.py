@@ -9,6 +9,7 @@ from graphlib import CycleError
 from graphlib import TopologicalSorter
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
+from typing import Annotated
 from typing import Any
 from typing import Literal
 from typing import Self
@@ -16,6 +17,8 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import computed_field
+from pydantic import field_serializer
 from pydantic import model_validator
 
 if TYPE_CHECKING:
@@ -23,6 +26,7 @@ if TYPE_CHECKING:
     from ethos.contracts.semantic import Facts
 
 PlanVerdict = Literal["pass", "block", "unknown"]
+Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
 
 def _stable_json(value: object) -> str:
@@ -36,10 +40,17 @@ class _PlanModel(BaseModel):
 class PlanNode(_PlanModel):
     """One pure Check, Decision, or Effect description."""
 
-    id: str
+    model_config = ConfigDict(
+        frozen=True,
+        strict=True,
+        extra="forbid",
+        json_schema_serialization_defaults_required=True,
+    )
+
+    id: str = Field(min_length=1)
     kind: Literal["check", "decision", "effect"]
     command: tuple[str, ...] = ()
-    depends_on: tuple[str, ...] = ()
+    depends_on: tuple[str, ...] = Field(default=(), json_schema_extra={"uniqueItems": True})
 
     def normalized(self) -> dict[str, Any]:
         return {
@@ -51,6 +62,14 @@ class PlanNode(_PlanModel):
 
     def to_dict(self) -> dict[str, Any]:
         return self.normalized()
+
+
+class PlanInputs(_PlanModel):
+    """Exact inputs bound by one public TransitionPlan projection."""
+
+    commitment: Digest
+    facts: Digest
+    policy: Digest
 
 
 class GitRefUpdate(_PlanModel):
@@ -129,14 +148,36 @@ def _ordered_ids(nodes: tuple[PlanNode, ...]) -> tuple[tuple[str, ...], tuple[st
 class TransitionPlan(_PlanModel):
     """Hashable transient plan; it owns no repository truth or mutation."""
 
-    commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    facts_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    policy_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    permissions: tuple[str, ...] = ()
+    model_config = ConfigDict(
+        frozen=True,
+        strict=True,
+        extra="forbid",
+        title="ETHOS TransitionPlan",
+        json_schema_serialization_defaults_required=True,
+    )
+
+    commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
+    facts_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
+    policy_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
+    permissions: tuple[str, ...] = Field(default=(), json_schema_extra={"uniqueItems": True})
     facts: dict[str, Any] = Field(default_factory=dict)
     nodes: tuple[PlanNode, ...] = ()
-    initial_verdict: PlanVerdict = "pass"
-    validation_issues: tuple[str, ...] = ()
+    initial_verdict: PlanVerdict = Field(default="pass", exclude=True)
+    validation_issues: tuple[str, ...] = Field(default=(), exclude=True)
+
+    @computed_field
+    @property
+    def schema_version(self) -> Literal[1]:
+        return 1
+
+    @computed_field
+    @property
+    def inputs(self) -> PlanInputs:
+        return PlanInputs(
+            commitment=self.commitment_digest,
+            facts=self.facts_digest,
+            policy=self.policy_digest,
+        )
 
     def gaps(self) -> tuple[str, ...]:
         _, gaps = _ordered_ids(self.nodes)
@@ -146,31 +187,33 @@ class TransitionPlan(_PlanModel):
     def ok(self) -> bool:
         return self.verdict == "pass"
 
+    @computed_field
     @property
     def verdict(self) -> PlanVerdict:
         """Return the closed transition verdict; hard gaps always block."""
         return "block" if self.gaps() else self.initial_verdict
+
+    @computed_field(alias="required_gaps")
+    @property
+    def public_gaps(self) -> tuple[str, ...]:
+        return self.gaps()
+
+    @computed_field(alias="digest")
+    @property
+    def public_digest(self) -> Digest:
+        return self.digest()
 
     def ordered_nodes(self) -> tuple[PlanNode, ...]:
         ordered, _ = _ordered_ids(self.nodes)
         by_id = {node.id: node for node in self.nodes}
         return tuple(by_id[node_id] for node_id in ordered if node_id in by_id)
 
+    @field_serializer("nodes", when_used="json")
+    def serialize_nodes(self, _: tuple[PlanNode, ...]) -> tuple[PlanNode, ...]:
+        return self.ordered_nodes()
+
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": 1,
-            "inputs": {
-                "commitment": self.commitment_digest,
-                "facts": self.facts_digest,
-                "policy": self.policy_digest,
-            },
-            "permissions": list(self.permissions),
-            "facts": self.facts,
-            "nodes": [node.to_dict() for node in self.ordered_nodes()],
-            "verdict": self.verdict,
-            "required_gaps": list(self.gaps()),
-            "digest": self.digest(),
-        }
+        return self.model_dump(mode="json", by_alias=True)
 
     def digest(self) -> str:
         payload: dict[str, Any] = {
@@ -223,6 +266,28 @@ def compile_plan(
         nodes=nodes,
         validation_issues=tuple(dict.fromkeys(issues)),
     )
+
+
+def terminal_schema_documents() -> dict[str, dict[str, Any]]:
+    """Generate the language-neutral terminal contracts from their model owners."""
+    from ethos.contracts.semantic import Attestation
+    from ethos.contracts.semantic import Commitment
+    from ethos.contracts.semantic import Facts
+
+    contracts = {
+        "commitment.schema.json": Commitment,
+        "attestation.schema.json": Attestation,
+        "facts.schema.json": Facts,
+        "transition-plan.schema.json": TransitionPlan,
+    }
+    schemas: dict[str, dict[str, Any]] = {}
+    for name, model in contracts.items():
+        schema = model.model_json_schema(mode="serialization", by_alias=True)
+        schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+        schema["$id"] = f"https://ethos.local/schemas/{name}"
+        schema["title"] = f"ETHOS {model.__name__.removesuffix('Document')}"
+        schemas[name] = schema
+    return schemas
 
 
 def _path_matches(path: str, pattern: str) -> bool:

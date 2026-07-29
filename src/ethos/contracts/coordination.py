@@ -6,6 +6,7 @@ They do not model users, teams, permissions, or durable repository truth.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 from typing import Literal
 from typing import Self
@@ -18,6 +19,82 @@ from pydantic import field_validator
 from pydantic import model_validator
 
 _HOLDER_REF_PART_COUNT = 4
+
+
+@dataclass(frozen=True, slots=True)
+class LeaseOperation:
+    """Exact coordination semantics for one public Lease operation."""
+
+    effect_fields: tuple[str, ...]
+    kind: Literal["refresh", "offer", "accept"]
+    actor_field: Literal["holder_ref", "target_holder_ref"]
+    applied_state: str
+    require_expired: bool = False
+
+
+LEASE_OPERATIONS = {
+    "renew": LeaseOperation(
+        effect_fields=(
+            "holder_ref",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "ttl_seconds",
+        ),
+        kind="refresh",
+        actor_field="holder_ref",
+        applied_state="renewed",
+    ),
+    "resume": LeaseOperation(
+        effect_fields=(
+            "holder_ref",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "ttl_seconds",
+        ),
+        kind="refresh",
+        actor_field="holder_ref",
+        applied_state="resumed",
+        require_expired=True,
+    ),
+    "handoff_offer": LeaseOperation(
+        effect_fields=(
+            "holder_ref",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "target_holder_ref",
+        ),
+        kind="offer",
+        actor_field="holder_ref",
+        applied_state="handoff_offered",
+    ),
+    "handoff_accept": LeaseOperation(
+        effect_fields=(
+            "holder_ref",
+            "target_holder_ref",
+            "offer_id",
+            "expected_epoch",
+            "expected_expires_at",
+            "expected_payload_sha256",
+            "holder_quiesced",
+            "ttl_seconds",
+        ),
+        kind="accept",
+        actor_field="target_holder_ref",
+        applied_state="handoff_accepted",
+    ),
+}
+
+
+def lease_operation(identifier: str) -> LeaseOperation:
+    """Return one exact supported Lease operation or fail closed."""
+    try:
+        return LEASE_OPERATIONS[identifier]
+    except KeyError:
+        message = f"lease_operation_unknown:{identifier}"
+        raise ValueError(message) from None
 
 
 class HolderRef(BaseModel):
@@ -305,7 +382,7 @@ class MutationAdmissionRequest(BaseModel):
 
 
 class LeaseOperationRequest(BaseModel):
-    """One exact request for a declaration-owned local lease transition."""
+    """One exact request for a local Lease operation."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 

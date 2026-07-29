@@ -30,7 +30,7 @@ def load_profile_lease_bound_commitment(
     change_id: str | None = None,
 ) -> Commitment:
     """Load a Lease carrier through the explicitly selected profile adapter."""
-    if openspec_profile_enabled(root):
+    if openspec_profile_enabled(root, tree_ref=expected_head):
         return load_lease_bound_openspec_commitment(
             root,
             change_id=change_id,

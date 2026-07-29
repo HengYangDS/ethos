@@ -10,7 +10,11 @@ if TYPE_CHECKING:
 
 def attestation_payload(attestation: Attestation, *, kind: str) -> dict[str, object]:
     """Add a bounded presentation category without changing semantic identity."""
-    payload: dict[str, object] = {"kind": kind, **attestation.model_dump(mode="json")}
+    payload: dict[str, object] = {
+        "kind": kind,
+        **attestation.model_dump(mode="json"),
+        "mints_authority": False,
+    }
     if kind == "effect":
         payload["content"] = payload["statement"]
     return payload

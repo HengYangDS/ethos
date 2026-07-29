@@ -20,11 +20,10 @@ from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseHandoffOffer
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.coordination import lease_operation
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.contracts.lifecycle.declaration import LeaseTransitionDeclaration
 
 
 def acquire_lease(db_path: Path, *, lease: LaneLease) -> dict[str, object]:
@@ -54,35 +53,19 @@ def acquire_lease(db_path: Path, *, lease: LaneLease) -> dict[str, object]:
 def apply_lease_operation(
     db_path: Path,
     *,
-    transition: LeaseTransitionDeclaration,
     request: LeaseOperationRequest,
 ) -> dict[str, object]:
-    """Compile and apply one declaration-owned full Lease reissue."""
-    kind, require_expired = _lease_effect_kind(transition, request)
-    return _apply_lease_effect(
-        db_path,
-        kind=kind,
-        require_expired=require_expired,
-        request=request,
-    )
-
-
-def _lease_effect_kind(
-    transition: LeaseTransitionDeclaration,
-    request: LeaseOperationRequest,
-) -> tuple[str, bool]:
-    if request.operation != transition.id:
-        message = f"lease_operation_unknown:{request.operation}"
-        raise ValueError(message)
+    """Apply one exact full-payload Lease reissue."""
+    operation = lease_operation(request.operation)
     if not request.apply:
         message = f"lease_apply_required:{request.operation}"
         raise ValueError(message)
-    try:
-        specification = transition.spec
-    except ValueError:
-        message = f"lease_effect_unsupported:{transition.id}"
-        raise ValueError(message) from None
-    return specification.kind, specification.blocks_contrary_decision
+    return _apply_lease_effect(
+        db_path,
+        kind=operation.kind,
+        require_expired=operation.require_expired,
+        request=request,
+    )
 
 
 def _apply_lease_effect(

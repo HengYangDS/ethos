@@ -558,16 +558,14 @@ evidence mechanisms rather than product-core adopter terms.
 - **THEN** no covered capability gap is emitted for that adopter
 - **AND** product-core packages remain free of adopter-private terminology
 
-### Requirement: Authority Graph Read Model
-ETHOS SHALL expose a DocOS authority graph read model for current product
-truth relations.
+### Requirement: Contextual Authority Resolution
+ETHOS SHALL resolve authority and currentness for the exact subject, predicate,
+scope, plane, validity, and bindings without a persisted graph, rank, current
+pointer, directory status, or manual index.
 
-#### Scenario: Authority graph is audited
-- **WHEN** `ethos audit --mode shape --json` runs
-- **THEN** the result includes an authority graph report
-- **AND** every graph entry has an owner, relation type, stable path, and
-  typed derivation or supersession relations
-- **AND** the graph reports drift gaps without becoming a lifecycle owner
+#### Scenario: independent planes report different states
+- **WHEN** local proof passes while a configured forge has no hosted Attestation
+- **THEN** local proof is current only for its local plane and hosted state remains unknown
 
 ### Requirement: Adopter First-Hour Contract
 

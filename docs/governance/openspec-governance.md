@@ -28,7 +28,7 @@ openspec archive <id> --yes --json
 
 ETHOS does not reproduce those operations as public roots. `ethos plan --changed
 --json`, `ethos prove --full --json`, and `ethos land --json` consume the current
-OpenSpec facts when the repository contract requires them.
+OpenSpec facts when the selected Commitment requires them.
 
 An OpenSpec archive is valid only when the official command completes its
 required validation and updates the accepted specification surface. ETHOS

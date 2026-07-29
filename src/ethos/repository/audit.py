@@ -74,7 +74,6 @@ REQUIRED_SCHEMAS = (
     "handoff-acknowledgement.schema.json",
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
-    "authority.schema.json",
     "quality-asset.schema.json",
     "quality-gate-plan.schema.json",
     "quality-profile.schema.json",

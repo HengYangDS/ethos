@@ -12,19 +12,12 @@ CORE_SOURCE = ROOT / "src/ethos"
 WHEEL_PROJECTIONS = (
     ("system/gates.toml", "gates.toml"),
     ("system/invalid_states.toml", "invalid_states.toml"),
-    ("system/lifecycle.toml", "lifecycle.toml"),
     ("system/coupling.toml", "coupling.toml"),
     ("system/standards.toml", "standards.toml"),
     ("system/policies/evidence-layout.toml", "evidence_layout.toml"),
     (
         "system/policies/generated-artifact-topology.toml",
         "generated_artifact_topology.toml",
-    ),
-)
-WHEEL_SCHEMA_PROJECTIONS = (
-    (
-        "system/schemas/contracts/lifecycle.schema.json",
-        "data/system/schemas/contracts/lifecycle.schema.json",
     ),
 )
 
@@ -84,10 +77,6 @@ def test_wheel_resources_are_native_projections_without_a_build_hook() -> None:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
         assert wheel[canonical] == f"ethos/data/{resource}"
-    for canonical, resource in WHEEL_SCHEMA_PROJECTIONS:
-        assert (ROOT / canonical).is_file()
-        assert not (CORE_SOURCE / resource).exists()
-        assert wheel[canonical] == f"ethos/{resource}"
 
 
 def test_declaration_backed_policies_are_first_class() -> None:

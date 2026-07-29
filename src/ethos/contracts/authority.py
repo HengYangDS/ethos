@@ -110,7 +110,7 @@ def descriptor_from_attestation(
         descriptor=CarrierDescriptor(
             role="fact",
             query=query,
-            assertion=attestation.statement,
+            assertion=attestation.statement_digest,
             bindings=tuple(
                 (name, value)
                 for name in (

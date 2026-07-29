@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ethos._resources import declaration_text
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
-_AUTHORITY_QUERY_AXES = ("subject", "predicate", "scope", "plane", "context")
+if TYPE_CHECKING:
+    from pathlib import Path
+
+_AUTHORITY_QUERY_AXES = ("subject", "predicate", "scope", "plane", "validity", "context")
 _CURRENTNESS_REQUIREMENTS = (
     "integrity",
     "declared_authority",
@@ -19,12 +21,7 @@ _CURRENTNESS_REQUIREMENTS = (
 
 def _contextual_authority(root: Path) -> dict[str, object]:
     """Project the executable authority query contract without inventing truth."""
-    text = declaration_text(
-        root / "system" / "authority.toml",
-        resource="data/authority.toml",
-        canonical=Path("system/authority.toml"),
-    )
-    contract = tomllib.loads(text)
+    contract = tomllib.loads((root / "system" / "authority.toml").read_text(encoding="utf-8"))
     query = contract.get("query")
     currentness = contract.get("currentness")
     resolution = contract.get("resolution")

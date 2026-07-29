@@ -9,6 +9,7 @@ from typing import cast
 import ethos.adapters.mutation.accepted as accepted
 import ethos.adapters.mutation.remediation.guidance as remediation
 from ethos.adapters.mutation.attestation_projection import attestation_payload
+from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -23,8 +24,6 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.lifecycle.reducer import TransitionDecision
-from ethos.contracts.lifecycle.reducer import TransitionRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.repository.policy.gates import gate_policy_digest
@@ -35,7 +34,7 @@ def apply_land_to_candidate(
     root: Path,
     authorized: bool,
     expect_head: str | None,
-    admitted_decision: TransitionDecision | None = None,
+    admitted_decision: MutationDecision | None = None,
 ) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
@@ -44,12 +43,10 @@ def apply_land_to_candidate(
         return _blocked(policy, current_head, gaps, **extra)
 
     decision = admitted_decision or evaluate_mutation(
-        TransitionRequest(
-            command="land",
-            apply=True,
-            authorized=authorized,
-            expect_head=expect_head,
-        ),
+        command="land",
+        apply=True,
+        authorized=authorized,
+        expect_head=expect_head,
         root=root,
         current_head=current_head,
     )
@@ -145,12 +142,9 @@ def apply_candidate_to_accepted(
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     decision = evaluate_closeout_mutation(
-        TransitionRequest(
-            command="closeout",
-            apply=True,
-            authorized=authorized,
-            expect_head=expect_head,
-        ),
+        apply=True,
+        authorized=authorized,
+        expect_head=expect_head,
         root=root,
         current_head=current_head,
     )

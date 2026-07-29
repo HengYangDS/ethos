@@ -25,7 +25,7 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.destination_cleanup import (
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import validated_handoff_acknowledgement
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
-from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
@@ -35,7 +35,6 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -350,14 +349,8 @@ def _resume_import_lease(
     holder_ref: str,
     lease: dict[str, Any],
 ) -> dict[str, Any]:
-    transition = next(
-        item
-        for item in load_lifecycle_declaration(destination).lease_transition
-        if item.id == "resume"
-    )
     return apply_lease_operation(
         state_database(destination),
-        transition=transition,
         request=LeaseOperationRequest(
             operation="resume",
             branch=str(manifest["source_lane_ref"]),
@@ -445,13 +438,13 @@ def _verify_import_contract(destination: Path, manifest: dict[str, Any]) -> None
     head = str(manifest["source_head"])
     expected_digest = str(manifest["base_commitment_digest"])
     try:
-        load_commitment(
+        load_profile_lease_bound_commitment(
             destination,
-            tree_ref=head,
-            expected_digest=expected_digest,
+            expected_head=head,
+            base_commitment_digest=expected_digest,
         )
     except ValueError as error:
-        if str(error) == "commitment_digest_mismatch":
+        if str(error) == "lease_base_commitment_digest_mismatch":
             gap = "handoff_base_commitment_digest_mismatch"
             raise ValueError(gap) from None
         gap = "handoff_base_commitment_invalid"

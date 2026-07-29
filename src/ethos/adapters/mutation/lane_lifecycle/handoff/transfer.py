@@ -11,6 +11,7 @@ from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
+from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_import import apply_handoff_import
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
@@ -31,10 +32,6 @@ from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import MutationAdmissionRequest
-from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
-from ethos.contracts.lifecycle.reducer import TransitionFacts
-from ethos.contracts.lifecycle.reducer import TransitionRequest
-from ethos.contracts.lifecycle.reducer import reduce_transition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -108,11 +105,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
             + [gap for ok, gap in checks if not ok]
         )
     )
-    evaluation = reduce_transition(
-        load_lifecycle_declaration(repo).policy("guarded"),
-        TransitionRequest(apply=request.apply),
-        TransitionFacts(initial_gaps=tuple(gaps)),
-    )
+    evaluation = _guarded(tuple(gaps), apply=request.apply)
     report = _handoff_report(branch=request.branch, evaluation=evaluation)
     if request.apply and evaluation.ok:
         output_root = Path(request.output_root) if request.output_root else None
@@ -176,11 +169,7 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
         (status.get("role") == ROLE_ACCEPTED_ROOT, "handoff_import_requires_accepted_root"),
         (not bool(status.get("dirty")), "handoff_import_requires_clean_destination"),
     )
-    evaluation = reduce_transition(
-        load_lifecycle_declaration(destination).policy("guarded"),
-        TransitionRequest(apply=request.apply),
-        TransitionFacts(initial_gaps=tuple(gaps), checks=checks),
-    )
+    evaluation = _guarded(tuple(gaps), checks=checks, apply=request.apply)
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if request.apply and evaluation.ok:
         _apply_report(
@@ -321,11 +310,7 @@ def revoke_cross_host_source(
             "handoff_acknowledgement_lease_boundary_invalid",
         ),
     )
-    evaluation = reduce_transition(
-        load_lifecycle_declaration(repo).policy("guarded"),
-        TransitionRequest(apply=request.apply),
-        TransitionFacts(initial_gaps=tuple(gaps), checks=checks),
-    )
+    evaluation = _guarded(tuple(gaps), checks=checks, apply=request.apply)
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if request.apply and evaluation.ok:
         try:
@@ -374,6 +359,21 @@ def _holder_ref_gaps(holder_ref: str, target_holder_ref: str) -> list[str]:
         except ValueError:
             gaps.append(gap)
     return gaps
+
+
+def _guarded(
+    gaps: tuple[str, ...],
+    *,
+    checks: tuple[tuple[bool, str], ...] = (),
+    apply: bool,
+) -> MutationDecision:
+    """Reduce one handoff observation without a generic lifecycle owner."""
+    required = tuple(dict.fromkeys((*gaps, *(gap for ok, gap in checks if not ok))))
+    return MutationDecision(
+        ok=not required,
+        state="blocked" if required else "applying" if apply else "planned",
+        gaps=required,
+    )
 
 
 def _lease_state_gap(branch: str, lease: dict[str, object]) -> str:
@@ -426,8 +426,11 @@ def _finish_report(
     command, action, resource = envelope
     gaps = tuple(str(gap) for gap in cast("list[object]", report["required_gaps"]))
     report["mutation"] = mutation_envelope(
-        TransitionRequest(command=command, apply=apply, authorized=False, expect_head=None),
-        MutationAdmissionRequest(
+        command=command,
+        apply=apply,
+        authorized=False,
+        expect_head=None,
+        admission=MutationAdmissionRequest(
             action=action,
             resource=resource,
             expected_state=expected_state,

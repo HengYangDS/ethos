@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from pydantic import BaseModel
+from pydantic import ConfigDict
+
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.repo.git import repository_root
@@ -13,16 +16,16 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import MutationAdmissionRequest
-from ethos.contracts.lifecycle.reducer import LifecycleModel
-from ethos.contracts.lifecycle.reducer import TransitionRequest
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-class LinkedRetirementRequest(LifecycleModel):
+class LinkedRetirementRequest(BaseModel):
     """Exact request for one linked Work Lane retirement transition."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     branch: str | None = None
     expect_head: str | None = None
@@ -87,16 +90,13 @@ def retire_linked_work_lane(
 
     def mutation(current_gaps: list[str]) -> dict[str, object]:
         required_holder = effects.holder_ref(lane)
-        transition = TransitionRequest(
+        gaps = tuple(sorted(set(current_gaps)))
+        return mutation_envelope(
             command=f"lane-retire-{mode}",
             apply=request.apply,
             authorized=request.authorize,
             expect_head=request.expect_head,
-        )
-        gaps = tuple(sorted(set(current_gaps)))
-        return mutation_envelope(
-            transition,
-            MutationAdmissionRequest(
+            admission=MutationAdmissionRequest(
                 action=f"lane.retire.{mode}",
                 resource=f"refs/heads/{branch}" if branch else "work-lane",
                 expected_state={

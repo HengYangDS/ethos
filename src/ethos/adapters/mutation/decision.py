@@ -1,7 +1,8 @@
-"""Mutation request and decision-envelope contracts."""
+"""Current-fact mutation admission and public decision envelopes."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -16,17 +17,18 @@ from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
-from ethos.contracts.lifecycle.reducer import TransitionFacts
-from ethos.contracts.lifecycle.reducer import reduce_transition
 
 if TYPE_CHECKING:
     from ethos.contracts.coordination import MutationAdmissionRequest
-    from ethos.contracts.lifecycle.reducer import TransitionRequest
 
 
-def _transition_policy(root: Path, identifier: str):
-    return load_lifecycle_declaration(root).policy(identifier)
+@dataclass(frozen=True, slots=True)
+class MutationDecision:
+    """Transient verdict over one current mutation observation."""
+
+    ok: bool
+    state: str
+    gaps: tuple[str, ...] = ()
 
 
 def _closeout_candidate_gaps(
@@ -34,9 +36,9 @@ def _closeout_candidate_gaps(
     candidate: dict[str, object],
     current_head: str,
     *,
-    require_proof: bool = True,
+    require_proof: bool,
 ) -> list[str]:
-    """Candidate-side closeout blockers, ordered by lifecycle before evidence."""
+    """Return candidate facts that block accepted-root promotion."""
     if not candidate["exists"]:
         return ["candidate_branch_missing"]
     if not candidate["worktree_exists"]:
@@ -51,75 +53,125 @@ def _closeout_candidate_gaps(
     return gaps + proof_gaps(candidate_path, candidate_head) if require_proof else gaps
 
 
+def _request_gaps(
+    *, apply: bool, authorized: bool, expect_head: str | None, current_head: str
+) -> list[str]:
+    gaps = []
+    if apply and not authorized:
+        gaps.append("authorization_required")
+    if apply and expect_head is None:
+        gaps.append("expect_head_required")
+    if expect_head is not None and expect_head != current_head:
+        gaps.append("expect_head_mismatch")
+    return gaps
+
+
 def evaluate_mutation(
-    request: TransitionRequest,
     *,
+    command: str,
+    apply: bool,
+    authorized: bool,
+    expect_head: str | None,
     root: Path,
     current_head: str,
     status: dict[str, object] | None = None,
-):
-    if not request.apply and request.command != "land":
-        return reduce_transition(
-            _transition_policy(root, "work_lane"),
-            request,
-            TransitionFacts(current_head=current_head),
-        )
+) -> MutationDecision:
+    """Admit land or publish from current facts without a lifecycle reducer."""
+    if not apply and command != "land":
+        return MutationDecision(ok=True, state="dry_run")
     status = status if status is not None else workspace_status(root)
     closeout = cast("dict[str, object]", status.get("closeout_support", {}))
-    return reduce_transition(
-        _transition_policy(root, "work_lane"),
-        request,
-        TransitionFacts(
-            current_head=current_head,
-            role=str(status["role"]),
-            dirty=bool(status["dirty"]),
-            initial_gaps=tuple(
-                str(gap)
-                for gap in (
-                    *openspec_carrier_gaps(root, ROLE_WORK_LANE),
-                    *cast("list[object]", closeout.get("required_gaps", [])),
-                )
-            ),
-            evidence_gaps=tuple(proof_gaps(root, current_head)),
-        ),
+    gaps = _request_gaps(
+        apply=apply,
+        authorized=authorized,
+        expect_head=expect_head,
+        current_head=current_head,
+    )
+    role = str(status["role"])
+    gaps.extend(
+        ["protected_root_mutation"]
+        if role != ROLE_WORK_LANE
+        else ["work_lane_dirty"]
+        if status["dirty"]
+        else []
+    )
+    gaps.extend(
+        str(gap)
+        for gap in (
+            *openspec_carrier_gaps(root, ROLE_WORK_LANE),
+            *cast("list[object]", closeout.get("required_gaps", [])),
+        )
+    )
+    if apply:
+        gaps.extend(proof_gaps(root, current_head))
+    required_gaps = tuple(dict.fromkeys(gaps))
+    return MutationDecision(
+        not required_gaps,
+        "blocked" if required_gaps else "work_lane_ready" if apply else "dry_run",
+        required_gaps,
     )
 
 
 def evaluate_closeout_mutation(
-    request: TransitionRequest,
     *,
+    apply: bool,
+    authorized: bool,
+    expect_head: str | None,
     root: Path,
     current_head: str,
-):
+) -> MutationDecision:
+    """Admit accepted-root closeout from current candidate facts."""
     status = workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
-    return reduce_transition(
-        _transition_policy(root, "closeout"),
-        request,
-        TransitionFacts(
-            current_head=current_head,
-            role=str(status["role"]),
-            dirty=bool(status["dirty"]),
-            initial_gaps=(
-                *openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT),
-                *_closeout_candidate_gaps(
-                    root,
-                    candidate,
-                    current_head,
-                    require_proof=request.apply
-                    and str(candidate.get("head") or "") != current_head,
-                ),
+    gaps = _request_gaps(
+        apply=apply,
+        authorized=authorized,
+        expect_head=expect_head,
+        current_head=current_head,
+    )
+    role = str(status["role"])
+    gaps.extend(
+        ["accepted_root_required"]
+        if role != ROLE_ACCEPTED_ROOT
+        else ["accepted_root_dirty"]
+        if status["dirty"]
+        else []
+    )
+    gaps.extend(
+        (
+            *openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT),
+            *_closeout_candidate_gaps(
+                root,
+                candidate,
+                current_head,
+                require_proof=apply and str(candidate.get("head") or "") != current_head,
             ),
-            current=str(candidate.get("head") or "") == current_head,
-        ),
+        )
+    )
+    required_gaps = tuple(dict.fromkeys(gaps))
+    current = str(candidate.get("head") or "") == current_head
+    return MutationDecision(
+        not required_gaps,
+        "blocked"
+        if required_gaps
+        else "current"
+        if current
+        else "closeout_ready"
+        if apply
+        else "dry_run",
+        required_gaps,
     )
 
 
 def mutation_envelope(
-    transition: TransitionRequest,
+    *,
+    command: str,
+    apply: bool,
+    authorized: bool,
+    expect_head: str | None,
     admission: MutationAdmissionRequest,
 ) -> dict[str, object]:
-    """Build the canonical exact-request mutation envelope."""
+    """Build one exact current-fact mutation envelope."""
     decision = AdmissionDecision(
         verdict=admission.verdict,
         subject=MutationSubject(
@@ -127,7 +179,7 @@ def mutation_envelope(
             resource=admission.resource,
             expected_state=admission.expected_state,
         ),
-        policy_refs=(f"commitment:{transition.command}-admission",),
+        policy_refs=(f"commitment:{command}-admission",),
         evidence_refs=(f"evidence:{admission.evidence_boundary}",),
         basis=DecisionBasis(
             enforcement_boundary=admission.enforcement_boundary,
@@ -146,4 +198,12 @@ def mutation_envelope(
         next=admission.next_actions,
         required_gaps=admission.required_gaps,
     )
-    return {"request": transition.to_payload(), "decision": decision.to_payload()}
+    return {
+        "request": {
+            "command": command,
+            "apply": apply,
+            "expect_head": expect_head,
+            "confirmation_present": authorized,
+        },
+        "decision": decision.to_payload(),
+    }

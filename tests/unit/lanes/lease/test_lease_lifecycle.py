@@ -29,8 +29,6 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.lifecycle.declaration import LeaseTransitionDeclaration
-from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
 from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.lane_helpers import superseded_work_lane
 
@@ -77,18 +75,8 @@ def _assert_reissue_changes(
     } == set(declared_fields)
 
 
-def _lease_transition(root: Path, operation: str) -> LeaseTransitionDeclaration:
-    return next(
-        item for item in load_lifecycle_declaration(root).lease_transition if item.id == operation
-    )
-
-
 def _apply_lease(root: Path, database: Path, request: LeaseOperationRequest) -> dict[str, object]:
-    return apply_lease_operation(
-        database,
-        transition=_lease_transition(root, request.operation),
-        request=request,
-    )
+    return apply_lease_operation(database, request=request)
 
 
 def _insert_lease_row(
@@ -417,22 +405,8 @@ def test_full_lease_reissue_rejects_legacy_payload(tmp_path: Path) -> None:
             path_scope=(),
         ),
     )
-    transition = LeaseTransitionDeclaration(
-        id="renew",
-        applied_state="renewed",
-        effect_fields=(
-            "holder_ref",
-            "expected_epoch",
-            "expected_expires_at",
-            "expected_payload_sha256",
-            "ttl_seconds",
-        ),
-        actor_field="holder_ref",
-    )
-
     renewed = apply_lease_operation(
         database,
-        transition=transition,
         request=_lease_request(
             operation="renew",
             branch="work/example",
@@ -459,7 +433,6 @@ def test_full_lease_reissue_rejects_legacy_payload(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="lease_unknown:work/example"):
         apply_lease_operation(
             database,
-            transition=transition,
             request=_lease_request(
                 operation="renew",
                 branch="work/example",
@@ -601,28 +574,7 @@ def test_lease_effect_rejects_unknown_and_non_applying_requests_without_mutation
     with pytest.raises(ValueError, match=r"^lease_operation_unknown:typo_accept$"):
         apply_lease_operation(
             database,
-            transition=_lease_transition(fixture.worktree, "renew"),
             request=unknown,
-        )
-    assert _lease_snapshot(fixture.worktree, branch) == initial
-
-    forged_payload = _lease_transition(fixture.worktree, "renew").model_dump(mode="python")
-    forged_payload["effect_fields"] = _lease_transition(
-        fixture.worktree, "handoff_offer"
-    ).effect_fields
-    forged = LeaseTransitionDeclaration.model_construct(**forged_payload)
-    with pytest.raises(ValueError, match=r"^lease_effect_unsupported:renew$"):
-        apply_lease_operation(
-            database,
-            transition=forged,
-            request=_lease_request(
-                operation="renew",
-                branch=branch,
-                holder_ref=holder_ref,
-                lease=initial,
-                apply=True,
-                target_holder_ref=target_holder_ref,
-            ),
         )
     assert _lease_snapshot(fixture.worktree, branch) == initial
 

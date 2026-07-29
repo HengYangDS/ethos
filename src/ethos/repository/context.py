@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import tomllib
-from typing import TYPE_CHECKING
+from pathlib import Path
 
+from ethos._resources import declaration_text
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _AUTHORITY_QUERY_AXES = ("subject", "predicate", "scope", "plane", "validity", "context")
 _CURRENTNESS_REQUIREMENTS = (
@@ -17,16 +15,28 @@ _CURRENTNESS_REQUIREMENTS = (
     "validity",
     "no_more_specific_active_owner",
 )
+_AUTHORITY_PATH = Path("system/authority.toml")
+_AUTHORITY_RESOURCE = "data/authority.toml"
 
 
 def _contextual_authority(root: Path) -> dict[str, object]:
     """Project the executable authority query contract without inventing truth."""
-    contract = tomllib.loads((root / "system" / "authority.toml").read_text(encoding="utf-8"))
+    contract = tomllib.loads(
+        declaration_text(
+            root / _AUTHORITY_PATH,
+            resource=_AUTHORITY_RESOURCE,
+            canonical=_AUTHORITY_PATH,
+        )
+    )
     query = contract.get("query")
     currentness = contract.get("currentness")
     resolution = contract.get("resolution")
-    if not all(isinstance(value, dict) for value in (query, currentness, resolution)):
-        raise ValueError("authority_contract_invalid")
+    if (
+        not isinstance(query, dict)
+        or not isinstance(currentness, dict)
+        or not isinstance(resolution, dict)
+    ):
+        raise TypeError("authority_contract_invalid")
     axes = query.get("required")
     requirements = currentness.get("requires")
     if tuple(axes) != _AUTHORITY_QUERY_AXES or tuple(requirements) != _CURRENTNESS_REQUIREMENTS:

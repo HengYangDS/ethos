@@ -12,10 +12,12 @@ from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.lifecycle.declaration import load_lifecycle_declaration
+from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.context import is_product_root
+from ethos.repository.policy.gates import gate_nodes
+from ethos.repository.policy.gates import gate_policy_digest
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -107,10 +109,14 @@ def plan(
             require_workspace=False,
         )
     adapter_gaps = tuple(str(gap) for gap in profile_adapter.get("required_gaps", []))
-    plan = load_lifecycle_declaration(repo).plan(
-        commitment=commitment,
-        facts=facts,
-        node_ids=("status", "plan", "prove"),
+    gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
+    nodes, gate_gaps = gate_nodes(gate_ids, root=repo)
+    plan = compile_plan(
+        commitment,
+        facts,
+        nodes,
+        policy_digest=gate_policy_digest(repo),
+        validation_issues=tuple(dict.fromkeys((*rule_validation_gaps, *gate_gaps))),
     )
     required_gaps = tuple(dict.fromkeys((*plan.gaps(), *adapter_gaps, *rule_validation_gaps)))
     ok = plan.ok and not adapter_gaps and not rule_validation_gaps

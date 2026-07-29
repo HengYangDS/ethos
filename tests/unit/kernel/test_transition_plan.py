@@ -62,6 +62,24 @@ def test_transition_plan_orders_dependencies_before_dependents() -> None:
     assert plan.to_dict()["nodes"][0]["id"] == "status"
 
 
+def test_transition_plan_public_projection_round_trips_through_its_model_owner() -> None:
+    plan = _plan(nodes=(PlanNode(id="status", kind="check", command=("ethos", "status")),))
+
+    payload = plan.to_dict()
+
+    assert set(payload) == {
+        "schema_version",
+        "inputs",
+        "permissions",
+        "facts",
+        "nodes",
+        "verdict",
+        "required_gaps",
+        "digest",
+    }
+    assert "commitment_digest" not in payload
+
+
 def test_transition_plan_rejects_missing_dependency() -> None:
     plan = _plan(
         nodes=(

@@ -15,10 +15,10 @@ from pydantic import ValidationError
 
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import terminal_schema_documents
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
-from ethos.contracts.semantic import semantic_schema_documents
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
@@ -275,11 +275,12 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
 
 
 def test_schema_surfaces_are_generated_declared_and_valid() -> None:
-    generated = semantic_schema_documents()
+    generated = terminal_schema_documents()
     assert set(generated) == {
         "commitment.schema.json",
         "attestation.schema.json",
         "facts.schema.json",
+        "transition-plan.schema.json",
     }
     commitment_schema = generated["commitment.schema.json"]
     assert commitment_schema["properties"]["schema_version"]["const"] == 1
@@ -315,7 +316,6 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "result.schema.json",
         *generated,
         "commit-policy.schema.json",
-        "transition-plan.schema.json",
         "provenance.schema.json",
         "docs-registry.schema.json",
         "gate.schema.json",
@@ -371,6 +371,16 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         **_PLAN_INPUTS, nodes=(PlanNode(id="land", kind="effect", command=("ethos", "land")),)
     )
     assert plan.to_dict()["inputs"]["commitment"] == "a" * 64
+    assert set(generated["transition-plan.schema.json"]["required"]) == {
+        "schema_version",
+        "inputs",
+        "permissions",
+        "facts",
+        "nodes",
+        "verdict",
+        "required_gaps",
+        "digest",
+    }
 
 
 def test_result_contract_has_stable_top_level_fields() -> None:

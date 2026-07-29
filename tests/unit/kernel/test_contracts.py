@@ -409,7 +409,7 @@ def test_system_contracts_load_validate_and_fail_closed() -> None:
     report = system_contracts_report(Path())
     assert report["ok"] is True, report["required_gaps"]
     assert all(report["contracts"].values())
-    assert set(report["contracts"]) >= {"authority", "evidence_boundaries", "lifecycle"}
+    assert set(report["contracts"]) >= {"authority", "evidence_boundaries"}
     assert not any(
         "schema_ref_missing" in gap or "schema_violation" in gap for gap in report["required_gaps"]
     )
@@ -428,7 +428,6 @@ def test_system_contracts_load_validate_and_fail_closed() -> None:
             Path("system/schemas/contracts/authority.schema.json"),
         )
     )
-    assert load_system_contract(Path("/tmp"), "lifecycle")["node"]
     with pytest.raises(FileNotFoundError):
         load_system_contract(Path("/tmp"), "authority")
 

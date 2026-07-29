@@ -349,6 +349,9 @@ def test_plan_emits_one_transition_plan_without_parallel_read_models(tmp_path: P
     assert "transition_plan" in payload["data"]
     assert "workflow_runtime" not in payload["data"]
     assert "domain_contracts" not in payload["data"]
+    assert not {"status", "plan", "prove"} & {
+        node["id"] for node in payload["data"]["transition_plan"]["nodes"]
+    }
 
 
 def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Path) -> None:

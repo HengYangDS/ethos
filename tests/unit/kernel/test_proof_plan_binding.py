@@ -305,6 +305,10 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert attestation.policy_digest == plan.policy_digest
     assert attestation.effect_digest
     assert attestation.evidence_refs == (f"sha256:{attestation.effect_digest}",)
+    assert attestation.valid_from == attestation.issued_at
+    assert attestation.statement["scope"] == ("repository",)
+    assert attestation.statement["plane"] == "local"
+    assert attestation.statement["context"] == {"boundary": "repository"}
     assert proof_attestation(repo, head) == attestation
     assert proof_gaps(repo, head) == []
 
@@ -392,3 +396,30 @@ def test_proof_admission_uses_self_contained_closure_not_historical_commitment(
 
     assert proof_attestation(repo, head) == attestation
     assert proof_gaps(repo, head) == []
+
+
+def test_proof_authority_conflict_blocks_instead_of_selecting_latest(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    first = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, first)
+    conflicting = Attestation.issue(
+        {
+            "predicate": first.predicate,
+            "verifier": "agent:test:case:conflict",
+            "subject": first.subject,
+            "issued_at": first.issued_at,
+            "valid_from": first.valid_from,
+            "verdict": first.verdict,
+            "statement": first.statement | {"objective": "conflicting proof meaning"},
+            "evidence_refs": first.evidence_refs,
+            "commitment_digest": first.commitment_digest,
+            "facts_digest": first.facts_digest,
+            "plan_digest": first.plan_digest,
+            "policy_digest": first.policy_digest,
+            "effect_digest": first.effect_digest,
+        }
+    )
+    persist_proof_attestation(repo, conflicting)
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["contradiction"]

@@ -26,15 +26,21 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import current_branch
+from ethos.contracts.authority import AuthorityQuery
+from ethos.contracts.authority import descriptor_from_attestation
+from ethos.contracts.authority import resolve_authority
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from ethos.repository.policy.gates import adopter_code_correctness_gaps
+from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
 from ethos.repository.policy.gates import committed_product_default_gate_ids
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_nodes
+from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
 
 _DEFAULT_ATTESTATION_DIR = Path(".ethos") / "state" / "attestations"
@@ -166,12 +172,14 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     digest = str(artifact["sha256"]).removeprefix("sha256:")
     values = plan.facts.get("values")
     fact_values = values if isinstance(values, Mapping) else {}
+    issued = issued_at or datetime.now(UTC)
     attestation = Attestation.issue(
         {
             "predicate": "proof:execution",
             "verifier": issuer,
             "subject": f"git:commit:{head}",
-            "issued_at": issued_at or datetime.now(UTC),
+            "issued_at": issued,
+            "valid_from": issued,
             "verdict": verdict,
             "statement": {
                 "objective": objective,
@@ -180,7 +188,9 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                 "change_id": str(fact_values.get("change_id") or ""),
                 "changed_paths": [str(item) for item in fact_values.get("changed_paths", ())],
                 "gate_ids": list(execution_order),
-                "scope": scope,
+                "scope": [scope],
+                "plane": "local",
+                "context": {"boundary": boundary},
                 "boundary": boundary,
                 "required_gaps": list(required_gaps),
                 "plan": _plan_closure(plan),
@@ -314,7 +324,38 @@ def _proof_candidate_gaps(root: Path, head: str, attestation: Attestation) -> li
     checks, artifact_gaps = artifact_checks(attestation_store_dir(root), attestation)
     if artifact_gaps or checks is None:
         return artifact_gaps
-    return proof_statement_gaps(attestation, checks)
+    return [
+        *proof_statement_gaps(attestation, checks),
+        *_proof_policy_gaps(root, head, checks),
+    ]
+
+
+def _proof_policy_gaps(
+    root: Path,
+    head: str,
+    checks: tuple[dict[str, object], ...],
+) -> list[str]:
+    gaps = [
+        *adopter_code_correctness_gaps(root, tree_ref=head),
+        *adopter_gate_descriptor_gaps(root, tree_ref=head),
+    ]
+    required = promotion_required_gate_ids(root, tree_ref=head)
+    present = {str(check["action_id"]) for check in checks}
+    if missing := sorted(gate_id for gate_id in required if gate_id not in present):
+        gaps.append(f"proof_incomplete:{','.join(missing)}")
+    gaps.extend(gate_policy_conformance_gaps(list(checks), root, tree_ref=head))
+    return gaps
+
+
+def _proof_query(head: str, validity: datetime) -> AuthorityQuery:
+    return AuthorityQuery(
+        subject=f"git:commit:{head}",
+        predicate="proof:execution",
+        scope=("repository",),
+        plane="local",
+        validity=validity,
+        context=(("boundary", "repository"),),
+    )
 
 
 def _proof_validation(root: Path, head: str) -> tuple[Attestation | None, list[str]]:
@@ -350,9 +391,23 @@ def _proof_validation(root: Path, head: str) -> tuple[Attestation | None, list[s
     ]
     if integrity_gaps:
         return None, list(dict.fromkeys(integrity_gaps))
-    valid = [attestation for attestation, gaps in evaluated if not gaps]
+    valid = tuple(attestation for attestation, gaps in evaluated if not gaps)
     if valid:
-        return max(valid, key=lambda item: (item.issued_at, item.id)), []
+        validity = datetime.now(UTC)
+        extracted = tuple(
+            descriptor_from_attestation(attestation, validity=validity) for attestation in valid
+        )
+        if any(result.required_gaps for result in extracted):
+            return None, ["model_gap"]
+        descriptors = tuple(
+            result.descriptor for result in extracted if result.descriptor is not None
+        )
+        resolution = resolve_authority(_proof_query(head, validity), descriptors)
+        if resolution.verdict != "pass":
+            return None, list(resolution.required_gaps)
+        selected_source = min(descriptor.source for descriptor in resolution.descriptors)
+        selected_id = selected_source.removeprefix("attestation:")
+        return next(attestation for attestation in valid if attestation.id == selected_id), []
     latest = max(evaluated, key=lambda item: (item[0].issued_at, item[0].id))
     return None, latest[1]
 

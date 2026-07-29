@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
@@ -202,13 +202,13 @@ def _verify_export_snapshot(
             message = "handoff_export_lease_drift"
             raise ValueError(message) from error
     try:
-        load_commitment(
+        load_profile_lease_bound_commitment(
             repo,
-            tree_ref=handoff.source_head,
-            expected_digest=handoff.base_commitment_digest,
+            expected_head=handoff.source_head,
+            base_commitment_digest=handoff.base_commitment_digest,
         )
     except ValueError as error:
-        if str(error) == "commitment_digest_mismatch":
+        if str(error) == "lease_base_commitment_digest_mismatch":
             message = "handoff_export_base_commitment_digest_mismatch"
             raise ValueError(message) from error
         message = "handoff_export_base_commitment_invalid"

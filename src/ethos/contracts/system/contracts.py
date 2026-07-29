@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import json
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import jsonschema
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 SYSTEM_CONTRACTS = (
     "authority",

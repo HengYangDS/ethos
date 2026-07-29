@@ -29,8 +29,6 @@ from ethos.adapters.openspec.profile import protected_branch_active_change_requi
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import MutationAdmissionRequest
-from ethos.contracts.lifecycle.reducer import TransitionDecision
-from ethos.contracts.lifecycle.reducer import TransitionRequest
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import context_for_root
@@ -52,8 +50,11 @@ from ethos.surface.cli.root_binding import resolve_root
 @dataclass(frozen=True, slots=True)
 class _CloseoutPayload:
     repo: Path
-    mutation: TransitionRequest
-    decision: TransitionDecision
+    command: str
+    apply: bool
+    authorize: bool
+    expect_head: str | None
+    decision_state: str
     current_head: str
     audit_root: Path
     audit: dict[str, Any]
@@ -117,21 +118,21 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
         ok=payload.ok,
         gaps=payload.gaps,
         current_head=git.current_head(payload.repo),
-        state=payload.decision.state,
+        state=payload.decision_state,
     )
     return EthosResult(
         command="land",
         ok=payload.ok,
         state=(
             "accepted_current"
-            if payload.ok and payload.decision.state == "current"
+            if payload.ok and payload.decision_state == "current"
             else "ready_to_closeout"
-            if payload.ok and not payload.mutation.apply
+            if payload.ok and not payload.apply
             else "deferred"
             if payload.control_replacement.get("verdict") == "unknown"
             else "blocked"
             if payload.gaps
-            else str(payload.update.get("state") or payload.mutation.command)
+            else str(payload.update.get("state") or payload.command)
         ),
         required_gaps=payload.gaps,
         next_actions=mutation_next_actions,
@@ -145,8 +146,11 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                 repo=payload.repo, audit_root=payload.audit_root, required_gaps=payload.gaps
             ),
             "mutation": mutation_envelope(
-                payload.mutation,
-                MutationAdmissionRequest(
+                command=payload.command,
+                apply=payload.apply,
+                authorized=payload.authorize,
+                expect_head=payload.expect_head,
+                admission=MutationAdmissionRequest(
                     action="accepted.advance",
                     resource=(
                         f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}"
@@ -162,11 +166,11 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                     required_gaps=payload.gaps,
                     why=(
                         ("candidate_already_current",)
-                        if payload.ok and payload.decision.state == "current"
+                        if payload.ok and payload.decision_state == "current"
                         else ()
                     ),
                     next_actions=mutation_next_actions,
-                    state=payload.decision.state,
+                    state=payload.decision_state,
                 ),
             ),
         },
@@ -309,12 +313,22 @@ def _stable_control_replacement(
 def _closeout_land_result(
     *,
     repo: Path,
-    request: TransitionRequest,
+    command: str,
+    apply: bool,
+    authorize: bool,
+    expect_head: str | None,
     current_head: str,
     independent_verification_receipt: Path | None,
 ) -> EthosResult:
     """Evaluate candidate-to-accepted closeout as one semantic transition."""
-    decision = evaluate_closeout_mutation(request, root=repo, current_head=current_head)
+    decision = evaluate_closeout_mutation(
+        apply=apply,
+        authorized=authorize,
+        expect_head=expect_head,
+        root=repo,
+        current_head=current_head,
+    )
+    decision_state = decision.state
     audit_root = land_core.closeout_audit_root(repo, decision)
     audited_candidate_head = _observed_candidate_head(repo, current_head)
     audit = land_core.repository_audit_after_admission(audit_root, decision)
@@ -334,7 +348,7 @@ def _closeout_land_result(
     )
     ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
     update: dict[str, object] = {}
-    if ok and request.apply:
+    if ok and apply:
         control_replacement, fresh_control_gaps = _stable_control_replacement(
             repo=repo,
             audit_root=audit_root,
@@ -344,11 +358,11 @@ def _closeout_land_result(
         )
         gaps = (*gaps, *fresh_control_gaps)
         ok = not fresh_control_gaps
-    if ok and request.apply:
+    if ok and apply:
         update = apply_candidate_to_accepted(
             root=repo,
-            authorized=request.authorized,
-            expect_head=request.expect_head,
+            authorized=authorize,
+            expect_head=expect_head,
             candidate_head=audited_candidate_head,
         )
         gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
@@ -356,8 +370,11 @@ def _closeout_land_result(
     return _closeout_result(
         _CloseoutPayload(
             repo=repo,
-            mutation=request,
-            decision=decision,
+            command=command,
+            apply=apply,
+            authorize=authorize,
+            expect_head=expect_head,
+            decision_state=decision_state,
             audit_root=audit_root,
             audit=audit,
             lifecycle=lifecycle,
@@ -371,7 +388,13 @@ def _closeout_land_result(
 
 
 def _candidate_land_result(
-    *, repo: Path, request: TransitionRequest, current_head: str
+    *,
+    repo: Path,
+    command: str,
+    apply: bool,
+    authorize: bool,
+    expect_head: str | None,
+    current_head: str,
 ) -> EthosResult:
     """Evaluate work-lane integration into the configured candidate role."""
     governance = context_for_root(repo)
@@ -381,10 +404,13 @@ def _candidate_land_result(
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
         closeout_gaps = tuple(string_sequence(closeout_support.get("required_gaps")))
     decision = evaluate_mutation(
-        request,
+        command=command,
+        apply=apply,
+        authorized=authorize,
+        expect_head=expect_head,
         root=repo,
         current_head=current_head,
-        status=None if request.apply else status_payload,
+        status=None if apply else status_payload,
     )
     audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
@@ -401,11 +427,11 @@ def _candidate_land_result(
     )
     ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
     update: dict[str, object] = {}
-    if ok and not archive_gaps and request.apply:
+    if ok and not archive_gaps and apply:
         update = apply_land_to_candidate(
             root=repo,
-            authorized=request.authorized,
-            expect_head=request.expect_head,
+            authorized=authorize,
+            expect_head=expect_head,
             admitted_decision=decision,
         )
         gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
@@ -416,14 +442,14 @@ def _candidate_land_result(
             gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = False
     proof_readiness: dict[str, object] = {}
-    if ok and not archive_gaps and not request.apply:
+    if ok and not archive_gaps and not apply:
         proof_readiness = proof_readiness_report(repo, current_head)
         gaps = gaps + tuple(string_sequence(proof_readiness.get("required_gaps")))
         ok = not bool(proof_readiness["blocking"])
     ok = ok and not gaps
     state = (
         "ready_to_land"
-        if ok and not request.apply
+        if ok and not apply
         else "blocked"
         if gaps
         else str(update.get("state") or decision.state)
@@ -443,8 +469,11 @@ def _candidate_land_result(
             "closeout_support": closeout_support,
             "proof_readiness": proof_readiness,
             "mutation": mutation_envelope(
-                request,
-                MutationAdmissionRequest(
+                command=command,
+                apply=apply,
+                authorized=authorize,
+                expect_head=expect_head,
+                admission=MutationAdmissionRequest(
                     action="candidate.integrate",
                     resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}",
                     expected_state=_land_expected_state(
@@ -481,21 +510,26 @@ def land(
         )
         return
     current_head = git.current_head(repo)
-    request = TransitionRequest(
-        command="closeout" if options.closeout else "land",
-        apply=options.apply,
-        authorized=options.authorize,
-        expect_head=options.expect_head,
-    )
+    command = "closeout" if options.closeout else "land"
     result = (
         _closeout_land_result(
             repo=repo,
-            request=request,
+            command=command,
+            apply=options.apply,
+            authorize=options.authorize,
+            expect_head=options.expect_head,
             current_head=current_head,
             independent_verification_receipt=options.independent_verification_receipt,
         )
         if options.closeout
-        else _candidate_land_result(repo=repo, request=request, current_head=current_head)
+        else _candidate_land_result(
+            repo=repo,
+            command=command,
+            apply=options.apply,
+            authorize=options.authorize,
+            expect_head=options.expect_head,
+            current_head=current_head,
+        )
     )
     emit(result, json_output=json_output, enforce=options.apply)
 
@@ -512,12 +546,10 @@ def publish(
     governance = context_for_root(repo)
     current_head = git.current_head(repo)
     decision = evaluate_mutation(
-        TransitionRequest(
-            command="publish",
-            apply=options.apply,
-            authorized=options.authorize,
-            expect_head=options.expect_head,
-        ),
+        command="publish",
+        apply=options.apply,
+        authorized=options.authorize,
+        expect_head=options.expect_head,
         root=repo,
         current_head=current_head,
     )
@@ -666,13 +698,11 @@ def publish(
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
             "mutation": mutation_envelope(
-                TransitionRequest(
-                    command="publish",
-                    apply=options.apply,
-                    authorized=options.authorize,
-                    expect_head=options.expect_head,
-                ),
-                MutationAdmissionRequest(
+                command="publish",
+                apply=options.apply,
+                authorized=options.authorize,
+                expect_head=options.expect_head,
+                admission=MutationAdmissionRequest(
                     action="remote.publish",
                     resource=str(publish_expected_state["target_ref"]),
                     expected_state=publish_expected_state,

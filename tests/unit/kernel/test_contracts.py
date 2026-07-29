@@ -482,3 +482,10 @@ def test_governance_context_projects_executable_contextual_authority_without_sha
     assert "shared_commands" not in context
     assert "transition_commands" not in context
     assert context["reader_projection_commands"] == ["ethos status"]
+
+
+def test_adopter_governance_context_uses_packaged_authority_contract(tmp_path: Path) -> None:
+    context = governance_context(tmp_path, profile="adopter")
+
+    assert context["repository"] == str(tmp_path.resolve())
+    assert context["authority"]["resolver"] == "contextual"

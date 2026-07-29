@@ -5,7 +5,7 @@ schema = "system/schemas/contracts/authority.schema.json"
 resolver = "contextual"
 
 [query]
-required = ["subject", "predicate", "scope", "plane", "context"]
+required = ["subject", "predicate", "scope", "plane", "validity", "context"]
 unknown_verdict = "block"
 
 [currentness]

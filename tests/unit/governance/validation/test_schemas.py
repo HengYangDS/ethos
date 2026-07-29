@@ -162,7 +162,14 @@ def test_result_payload_accepts_governed_repository_context() -> None:
             "authority": {
                 "contract_ref": "system/authority.toml",
                 "resolver": "contextual",
-                "query_axes": ["subject", "predicate", "scope", "plane", "context"],
+                "query_axes": [
+                    "subject",
+                    "predicate",
+                    "scope",
+                    "plane",
+                    "validity",
+                    "context",
+                ],
                 "unknown_verdict": "block",
                 "currentness_requirements": [
                     "integrity",
@@ -193,7 +200,7 @@ def test_result_payload_accepts_governed_repository_context() -> None:
         {"order": []},
         {
             "query": {
-                "required": ["subject", "predicate", "scope", "plane"],
+                "required": ["subject", "predicate", "scope", "plane", "context"],
                 "unknown_verdict": "block",
             }
         },
@@ -206,7 +213,14 @@ def test_contextual_authority_schema_rejects_global_rank_or_noncanonical_query_a
         "schema": "system/schemas/contracts/authority.schema.json",
         "resolver": "contextual",
         "query": {
-            "required": ["subject", "predicate", "scope", "plane", "context"],
+            "required": [
+                "subject",
+                "predicate",
+                "scope",
+                "plane",
+                "validity",
+                "context",
+            ],
             "unknown_verdict": "block",
         },
         "currentness": {

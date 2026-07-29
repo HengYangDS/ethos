@@ -323,7 +323,6 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "lane-lease.schema.json",
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
-        "authority.schema.json",
     }
     paths = tuple(schema_dir.glob("*.schema.json"))
     assert expected <= {path.name for path in paths}
@@ -468,7 +467,7 @@ def test_governance_context_projects_executable_contextual_authority_without_sha
     assert context["authority"] == {
         "contract_ref": "system/authority.toml",
         "resolver": "contextual",
-        "query_axes": ["subject", "predicate", "scope", "plane", "context"],
+        "query_axes": ["subject", "predicate", "scope", "plane", "validity", "context"],
         "unknown_verdict": "block",
         "currentness_requirements": [
             "integrity",

@@ -23,9 +23,9 @@ A successful effect SHALL be followed by fresh observation and an Attestation bi
 - **WHEN** a candidate changes admission, proof floors, schemas, hooks,
   identity trust, enforcement adapters, or declarative controls
 - **THEN** closeout requires the receipt, verifier executable, candidate proof,
-  and bootstrap Chronicle decision to reside outside the candidate tree and bind
+  and bootstrap Attestation to reside outside the candidate tree and bind
   both heads, both control digests, verifier digest, proof digest, and bootstrap
-  decision digest
+  Attestation digest
 - **AND** the candidate proof is a native executed `ethos prove --execute --json`
   result with `command = "prove"`, `ok = true`, `state = "proven"`,
   `data.executed = true`, and matching candidate HEAD bindings in

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 import ethos.repository.release.configuration as release_core
+from ethos.repository.policy.coupling.release import release_report
 from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.configuration import release_policy_report
@@ -24,6 +25,78 @@ _LOCAL = {
 
 def _assert_fields(actual: dict[str, object], **expected: object) -> None:
     assert {key: actual[key] for key in expected} == expected
+
+
+def test_release_coupling_requires_an_explicit_release_owner(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n',
+        encoding="utf-8",
+    )
+
+    report = release_report(tmp_path)
+
+    assert report["required_gaps"] == []
+    assert "version" not in report
+
+
+def test_release_inspection_reads_one_runtime_files_identity(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+
+    manifest = version_manifest(tmp_path)
+
+    _assert_fields(
+        manifest,
+        name="sample",
+        version="1.2.3",
+        tag="v1.2.3",
+        packages={},
+        required_gaps=[],
+    )
+
+
+@pytest.mark.parametrize(
+    ("workspace", "version"),
+    [
+        ("not-tool = true\n", None),
+        ('[tool.sample]\ndistribution = "runtime-files"\nversion-source = 1\n', None),
+        ('[tool.sample]\ndistribution = "runtime-files"\nversion-source = "../VERSION"\n', "1"),
+        ('[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n', None),
+        ('[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n', "\n"),
+        ('[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n', b"\xff"),
+        (
+            '[tool.first]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n\n'
+            '[tool.second]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n',
+            "1",
+        ),
+    ],
+)
+def test_release_inspection_rejects_unproved_identity(
+    tmp_path: Path, workspace: str, version: str | bytes | None
+) -> None:
+    (tmp_path / "pyproject.toml").write_text(workspace, encoding="utf-8")
+    if isinstance(version, bytes):
+        (tmp_path / "VERSION").write_bytes(version)
+    elif version is not None:
+        (tmp_path / "VERSION").write_text(version, encoding="utf-8")
+
+    assert version_manifest(tmp_path)["required_gaps"] == ["release_version_manifest_invalid"]
+
+
+def test_release_policy_reports_invalid_toml_without_traceback(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "release.toml").write_text("invalid\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+
+    assert (
+        "release_config_invalid:.ethos/release.toml"
+        in release_policy_report(tmp_path)["required_gaps"]
+    )
 
 
 def _minimal_release_root(tmp_path: Path) -> Path:

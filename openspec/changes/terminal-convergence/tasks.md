@@ -257,4 +257,6 @@ same kernel relation is proved across three adopter forms and portable interface
 
 **Exit 7:** terminal source, local installation, protected refs, hosted CI/CD,
 release artifacts, records, lanes, and OpenSpec history all bind one terminal
-commit; no required work or compatibility residue remains.
+commit; because `7.5` changes HEAD, the local, hosted, and publication predicates
+are re-executed on that post-archive commit before this exit is checked; no
+required work or compatibility residue remains.

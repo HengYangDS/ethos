@@ -328,6 +328,8 @@ def test_terminal_intent_closure_and_post_cutover_task_history_are_complete() ->
     assert "history_is_current = false" in read("system/authority.toml")
     assert 'name = "history"\nmay_be_authoritative = false' in read("system/authority.toml")
     assert "the earlier ruling remains history and cannot silently return as current" in design
+    assert "Official OpenSpec 1.7 Cutover" in design
+    assert "post-archive commit" in tasks
 
     assert_feedback_and_carrier_closure(design)
     assert_task_history_closure(tasks, design)
@@ -372,9 +374,23 @@ def assert_feedback_and_carrier_closure(design: str) -> None:
             if any(fnmatchcase(path, selector) for selector in selectors)
         ]
         assert matching_rows, f"carrier_selector_missing:{path}"
-        assert len(matching_rows) == 1 or matching_rows[1:] == [len(selector_rows) - 1], (
-            f"carrier_selector_overlap:{path}:{matching_rows}"
-        )
+        priorities = [
+            min(
+                _selector_priority(pattern)
+                for pattern in selector_rows[index]
+                if fnmatchcase(path, pattern)
+            )
+            for index in matching_rows
+        ]
+        assert priorities == sorted(priorities), f"carrier_selector_priority:{path}:{matching_rows}"
+
+
+def _selector_priority(pattern: str) -> tuple[int, int, int]:
+    parts = pattern.split("/")
+    literal_parts = sum(not any(token in part for token in "*?[") for part in parts)
+    literal_characters = sum(len(part.translate(str.maketrans("", "", "*?[]"))) for part in parts)
+    wildcards = sum(pattern.count(token) for token in "*?[")
+    return -literal_parts, -literal_characters, wildcards
 
 
 def assert_task_history_closure(tasks: str, design: str) -> None:
@@ -484,23 +500,22 @@ def assert_changed_coordinates_closed(
             assert any(
                 successor.startswith("F.") and successor in current and current[successor][0] == "x"
                 for successor in successors
-            ) or successors == (identifier,), (
-                f"task_coordinate_completed_obligation_unclosed:{identifier}"
-            )
+            ), f"task_coordinate_completed_obligation_unclosed:{identifier}"
 
 
 def _task_body_extension(first: str, second: str) -> bool:
-    if first.startswith(second) or second.startswith(first):
-        return True
-    marker = " through the real official-list reporter path"
-    first_prefix, first_marker, first_suffix = first.partition(marker)
-    second_prefix, second_marker, second_suffix = second.partition(marker)
-    return bool(
-        first_marker
-        and second_marker
-        and first_prefix == second_prefix
-        and (first_suffix == "." or second_suffix == "." or not first_suffix or not second_suffix)
-    )
+    return first.startswith(second) or second.startswith(first)
+
+
+def test_entrypoints_do_not_resurrect_global_authority_or_retired_kernel_names() -> None:
+    agents = read("AGENTS.md")
+    readme = read("README.md")
+
+    assert "## Authority Order" not in agents
+    assert all(token in agents for token in ("subject", "predicate", "scope", "plane", "validity"))
+    assert all(token not in readme for token in ("ChangeContract", "RepositoryFacts", "PlanIR"))
+    assert "(Commitment, Facts, prior Attestations) -> TransitionPlan" in readme
+    assert "Only Commitment and Attestation persist" in readme
 
 
 def test_terminal_proposal_preserves_exact_public_roles_and_thresholds() -> None:

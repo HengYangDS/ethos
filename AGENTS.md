@@ -25,19 +25,19 @@ vendor-specific assistant root canonical.
 - OpenSpec workspace: [OpenSpec](openspec/)
 - Documentation index: [Documentation Index](docs/index.md)
 
-## Authority Order
+## Authority Resolution
 
-1. User instruction in the current session.
-1. Repository source code, tests, schemas, and package metadata.
-1. Machine contracts under `system/` when present.
-1. Canonical docs under `docs/`.
-1. OpenSpec records under `openspec/`.
-1. Evidence under `evidence/` or current legacy evidence paths.
-1. Rules and skills in this repository.
-1. Host projections and generated assistant surfaces.
+The current user instruction sets the objective and authorization boundary; it
+does not turn an assertion, projection, or stale observation into repository
+fact. Resolve every repository claim and effect contextually through
+[`system/authority.toml`](system/authority.toml), using subject, predicate,
+scope, plane, validity, and context.
 
-If these conflict, obey the higher authority and treat the lower surface as
-stale until it is repaired.
+Native carriers and fresh facts may be authoritative only for their declared
+query. Projections, adapters, history, evidence, rules, skills, and host state
+do not gain authority from a global rank. Unknown required facts, stale
+bindings, ambiguity, contradictions, and unmodelled valid semantics block the
+effect until the owning carrier is repaired or the model is promoted.
 
 ## Load Order
 

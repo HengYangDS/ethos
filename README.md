@@ -20,23 +20,25 @@ where you are, plan the required proof, run that proof, land through a controlle
 review path, and publish only when local and hosted evidence are separated.
 
 ETHOS does not take over your domain model, CI provider, assistant host, or issue
-tracker. Those systems stay adapters or projections. Repository source, tests,
-schemas, docs, effective ChangeContracts, and Attestations remain the truth.
+tracker. Those systems stay native carriers, adapters, or projections. Current
+truth resolves from the declared owner and fresh facts for the exact context;
+views and history never become authority by position.
 
 ## Isomorphic Governance
 
 ETHOS governs the ETHOS product repository and adopted repositories through the
-same kernel: `(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR ->
-new Attestations`. Product and adopter work differ by profiles and adapters, not
+same kernel: `(Commitment, Facts, prior Attestations) -> TransitionPlan -> new
+Attestations`. Product and adopter work differ by profiles and adapters, not
 by separate command planes or private truth stores. This is not product cloning:
 each governed repository keeps its domain model, provider surfaces, and local
 shape while ETHOS applies one evidence-bound transition loop.
 
 The same commands answer the same transition questions in every governed
 repository: where am I, what may mutate, which proof is required, can this land,
-and what publication boundary remains. Repository truth stays in source, tests,
-schemas, docs, ChangeContracts, and Attestations; profiles tune checks and proof
-depth, while adapters project local providers without becoming truth stores.
+and what publication boundary remains. Commitment and Attestation are the only
+durable semantic roots; Facts and TransitionPlan are fresh, context-bound, and
+transient. Profiles tune checks and proof depth, while adapters project local
+providers without becoming truth stores.
 
 ## First Hour
 
@@ -90,10 +92,10 @@ This section is a reader projection of the
 [canonical semantic model](docs/governance/product-design-contract.md#semantic-kernel):
 
 ```text
-(ChangeContract, RepositoryFacts, prior Attestations) -> PlanIR -> new Attestations
+(Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations
 ```
 
-Only ChangeContract and Attestation persist. Model Promotion is the canonical
+Only Commitment and Attestation persist. Model Promotion is the canonical
 conflict adjudication; its full definition remains in the Product Design
 Contract rather than this projection.
 

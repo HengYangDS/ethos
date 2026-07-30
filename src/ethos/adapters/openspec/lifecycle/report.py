@@ -34,29 +34,21 @@ class OpenSpecReportContext(NamedTuple):
 
 
 def selected_change(list_payload: dict[str, Any], requested: str | None) -> str | None:
-    """Select the highest-priority, latest OpenSpec change."""
+    """Select one explicit or unambiguous active OpenSpec change."""
     changes = list_payload.get("changes", [])
-    if requested is not None or not isinstance(changes, list):
-        return requested
-    for statuses in ({"in-progress"}, {"no-tasks"}, {"archiving"}, {""}):
-        candidates = [
-            item
-            for item in changes
-            if isinstance(item, dict)
-            and item.get("name")
-            and str(item.get("status") or "") in statuses
-        ]
-        if candidates:
-            return str(
-                max(
-                    candidates,
-                    key=lambda item: (
-                        str(item.get("lastModified") or ""),
-                        str(item.get("name") or ""),
-                    ),
-                )["name"]
-            )
-    return None
+    if not isinstance(changes, list):
+        return None
+    names = {str(item["name"]) for item in changes if isinstance(item, dict) and item.get("name")}
+    if requested is not None:
+        return requested if requested in names else None
+    active = [
+        str(item["name"])
+        for item in changes
+        if isinstance(item, dict)
+        and item.get("name")
+        and str(item.get("status") or "") in {"in-progress", "no-tasks", "archiving", ""}
+    ]
+    return active[0] if len(active) == 1 else None
 
 
 def validation_failures(validate_payload: dict[str, Any]) -> list[str]:

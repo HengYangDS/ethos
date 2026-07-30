@@ -116,21 +116,33 @@ _PRIVATE_REFERENCE_PATTERN_TEXTS = (
     # authority. These patterns intentionally describe the *shape* of the leak
     # instead of hardcoding any private adopter name into the product.
     rf"\b{_EXTERNAL_REFERENCE_SLUG}\s+reference repository\b",
-    rf"\b{_EXTERNAL_REFERENCE_SLUG}\s+"
-    rf"(?:quality|module-layout|governance|repository|mechanism|policy)\s+"
-    rf"(?:study|corpus|patterns?|comparison|matrix)\b",
-    rf"\b(?:compared with|comparison with|borrowed from|adopted from|relative to)"
-    rf"\s+`?{_EXTERNAL_REFERENCE_SLUG}`?(?:'s)?\b",
+    (
+        rf"\b{_EXTERNAL_REFERENCE_SLUG}\s+"
+        rf"(?:quality|module-layout|governance|repository|mechanism|policy)\s+"
+        rf"(?:study|corpus|patterns?|comparison|matrix)\b"
+    ),
+    (
+        rf"\b(?:compared with|comparison with|borrowed from|adopted from|relative to)"
+        rf"\s+`?{_EXTERNAL_REFERENCE_SLUG}`?(?:'s)?\b"
+    ),
     rf"\b(?:from|toward)\s+`{_EXTERNAL_REFERENCE_SLUG}`(?:'s)?\b",
-    rf"\bcurrent\s+{_EXTERNAL_REFERENCE_NAME}\s*(?:[,/]\s*"
-    rf"{_EXTERNAL_REFERENCE_NAME}\s*)*(?:,?\s*and\s+ETHOS|\s*/\s*ETHOS)"
-    rf"\s+mechanism comparison\b",
-    rf"\bwhich\s+{_EXTERNAL_REFERENCE_NAME}(?:\s+and\s+"
-    rf"{_EXTERNAL_REFERENCE_NAME})?\s+mechanisms?\s+were\b",
-    rf"\|\s*`?{_EXTERNAL_REFERENCE_NAME}`?\s*\|\s*`?"
-    rf"{_EXTERNAL_REFERENCE_NAME}\s+reference checkout`?\s*\|",
-    rf"\b{_EXTERNAL_REFERENCE_NAME}\s+reference checkout\b.{{0,80}}"
-    rf"\b(?:mechanism source|tooling source|reference adopter|reference product)\b",
+    (
+        rf"\bcurrent\s+{_EXTERNAL_REFERENCE_NAME}\s*(?:[,/]\s*"
+        rf"{_EXTERNAL_REFERENCE_NAME}\s*)*(?:,?\s*and\s+ETHOS|\s*/\s*ETHOS)"
+        rf"\s+mechanism comparison\b"
+    ),
+    (
+        rf"\bwhich\s+{_EXTERNAL_REFERENCE_NAME}(?:\s+and\s+"
+        rf"{_EXTERNAL_REFERENCE_NAME})?\s+mechanisms?\s+were\b"
+    ),
+    (
+        rf"\|\s*`?{_EXTERNAL_REFERENCE_NAME}`?\s*\|\s*`?"
+        rf"{_EXTERNAL_REFERENCE_NAME}\s+reference checkout`?\s*\|"
+    ),
+    (
+        rf"\b{_EXTERNAL_REFERENCE_NAME}\s+reference checkout\b.{{0,80}}"
+        rf"\b(?:mechanism source|tooling source|reference adopter|reference product)\b"
+    ),
     rf"\|\s*Mechanism family\s*\|\s*{_EXTERNAL_REFERENCE_NAME}\s+has\s*\|",
 )
 PRIVATE_REFERENCE_PATTERNS = tuple(
@@ -142,8 +154,10 @@ _PRIVATE_DOMAIN_MARKER_TEXTS = (
     # compact domain/tool abbreviations followed by slash-qualified mechanism
     # names are not enterprise-neutral closeout language. Use generic role terms
     # instead.
-    r"\b[a-z][a-z0-9]*mgr/[a-z][a-z0-9-]+(?:\s+[a-z][a-z0-9-]+){0,3}"
-    r"\s+(?:mechanism|mechanisms|comparison|inputs?)\b",
+    (
+        r"\b[a-z][a-z0-9]*mgr/[a-z][a-z0-9-]+(?:\s+[a-z][a-z0-9-]+){0,3}"
+        r"\s+(?:mechanism|mechanisms|comparison|inputs?)\b"
+    ),
 )
 PRIVATE_DOMAIN_MARKER_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE) for pattern in _PRIVATE_DOMAIN_MARKER_TEXTS

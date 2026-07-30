@@ -19,26 +19,34 @@ if TYPE_CHECKING:
     ("script", "expected_gap_count"),
     [
         (
-            'artifact_dir="${repo_root}/build/artifacts/python"\n'
-            "tools/ci/scripts/with-python-runtime.sh -- uv build "
-            '--offline --wheel --out-dir "${artifact_dir}" --clear',
+            (
+                'artifact_dir="${repo_root}/build/artifacts/python"\n'
+                "tools/ci/scripts/with-python-runtime.sh -- uv build "
+                '--offline --wheel --out-dir "${artifact_dir}" --clear'
+            ),
             0,
         ),
         (
-            "tools/ci/scripts/with-python-runtime.sh -- uv build "
-            '--offline --wheel --out-dir "${artifact_dir}" --clear',
+            (
+                "tools/ci/scripts/with-python-runtime.sh -- uv build "
+                '--offline --wheel --out-dir "${artifact_dir}" --clear'
+            ),
             1,
         ),
         (
-            'artifact_dir="${repo_root}/build/runtime/python"\n'
-            "tools/ci/scripts/with-python-runtime.sh -- uv build "
-            '--offline --wheel --out-dir "${artifact_dir}" --clear',
+            (
+                'artifact_dir="${repo_root}/build/runtime/python"\n'
+                "tools/ci/scripts/with-python-runtime.sh -- uv build "
+                '--offline --wheel --out-dir "${artifact_dir}" --clear'
+            ),
             1,
         ),
         (
-            'other_dir="${repo_root}/build/artifacts/python"\n'
-            "tools/ci/scripts/with-python-runtime.sh -- uv build "
-            '--offline --wheel --out-dir "${artifact_dir}" --clear',
+            (
+                'other_dir="${repo_root}/build/artifacts/python"\n'
+                "tools/ci/scripts/with-python-runtime.sh -- uv build "
+                '--offline --wheel --out-dir "${artifact_dir}" --clear'
+            ),
             1,
         ),
     ],

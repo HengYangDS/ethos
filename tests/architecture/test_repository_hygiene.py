@@ -76,15 +76,19 @@ def test_repository_hygiene_rejects_global_ignored_ds_store(tmp_path: Path) -> N
         ),
         (
             "guidance.md",
-            "No foreign lane, dirty lane, remote, runner, branch cleanup, or worktree removal was\n"
-            "performed; Git stash was not modified.\n",
+            (
+                "No foreign lane, dirty lane, remote, runner, branch cleanup, or worktree removal was\n"
+                "performed; Git stash was not modified.\n"
+            ),
             (0, ""),
         ),
         (
             "guidance.md",
-            "No foreign lane, dirty lane, remote, runner, branch cleanup, or worktree removal,\n"
-            "Git stash, or credential was\n"
-            "modified.\n",
+            (
+                "No foreign lane, dirty lane, remote, runner, branch cleanup, or worktree removal,\n"
+                "Git stash, or credential was\n"
+                "modified.\n"
+            ),
             (0, ""),
         ),
         (

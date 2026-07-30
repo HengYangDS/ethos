@@ -172,14 +172,18 @@ def closeout_next_actions(
         return ("ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head>",)
     if "candidate_diverged_from_accepted" in gaps:
         return (
-            "ethos lane candidate --refresh-from-accepted "
-            f"--apply --authorize --expect-head {current_head} --json",
+            (
+                "ethos lane candidate --refresh-from-accepted "
+                f"--apply --authorize --expect-head {current_head} --json"
+            ),
         )
     if "independent_verification_receipt_required" in gaps:
         return (
-            "obtain the signed receipt described by "
-            "data.control_replacement.verification_request, then rerun ethos land --closeout "
-            "--independent-verification-receipt <absolute-path> --json",
+            (
+                "obtain the signed receipt described by "
+                "data.control_replacement.verification_request, then rerun ethos land --closeout "
+                "--independent-verification-receipt <absolute-path> --json"
+            ),
         )
     return ("ethos prove --json",)
 

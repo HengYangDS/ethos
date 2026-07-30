@@ -54,10 +54,11 @@ its stated exit.
   unmapped intent, old-decision resurrection, branch-role drift, six-command
   drift, runner/schema/editor/audit-root divergence, and loss of exact terminal
   thresholds.
-- [ ] 0.6 Complete the current OpenSpec adapter deletion: remove predictive
+- [x] 0.6 Complete the current OpenSpec adapter deletion: remove predictive
   archive/preflight/metadata replicas, inline the sole completion observer,
   repair canonical spec and docs contradictions, and prove a completed active
-  Change blocks land/closeout through the real official-list reporter path.
+  Change blocks land/closeout through the real official-list reporter path
+  (`2e821ff2c5`, `70d94217fd`).
 - [ ] 0.7 Commit the deletion slice, prove patch equivalence with
   `work/20260730-openspec-active-change-selection`, and retire that already
   absorbed lane through native closeout.

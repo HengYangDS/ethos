@@ -12,11 +12,13 @@ Commitment and Attestation are the only persistent semantic entities. Facts is f
 
 #### Scenario: semantic attestation remains optional and bounded
 
-- **WHEN** a claim declares `semantic_attested`
-- **THEN** it SHALL bind a candidate-external receipt to its claim id, dated-evidence digest, semantic scope digest, and exact HEAD
+- **WHEN** an Attestation declares an independently verified semantic predicate
+- **THEN** it SHALL bind a candidate-external receipt to its statement identity,
+  evidence digest, semantic scope digest, and exact HEAD
 - **AND** the receipt SHALL name an independent reviewer role, basis, allow verdict, validity interval, and `mints_authority = false`
-- **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the claim
-- **AND** `digest_only` claims SHALL require no receipt directory, account, daemon, credential, network, or dedicated local account
+- **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the dependent effect
+- **AND** `digest_only` Attestations SHALL require no receipt directory, account,
+  daemon, credential, network, or dedicated local account
 
 #### Scenario: a transition is compiled
 - **WHEN** ETHOS receives a selected Commitment, fresh Facts, and prior Attestations
@@ -27,19 +29,19 @@ An Attestation SHALL carry an open predicate, statement, verifier, bindings, val
 
 #### Scenario: Attestation is absent or mismatched
 
-- **WHEN** the claim-side declaration or external receipt is missing,
+- **WHEN** the Attestation statement or external receipt is missing,
   malformed, stale, repository-local, or does not match a bound fact
-- **THEN** ETHOS SHALL fail the claim closed with a machine-readable gap
+- **THEN** ETHOS SHALL block the dependent effect with a machine-readable gap
 
-#### Scenario: Digest-only claim remains portable
+#### Scenario: Digest-only attestation remains portable
 
-- **WHEN** a claim declares `digest_only`
+- **WHEN** an Attestation declares `digest_only`
 - **THEN** ETHOS SHALL not require or inspect a semantic receipt directory,
   account, daemon, credential, network operation, or dedicated local account
 
 #### Scenario: Semantic attestation has a current semantic scope
 
-- **WHEN** a claim declares `semantic_attested`
+- **WHEN** an Attestation declares an independently verified semantic predicate
 - **THEN** its evidence freshness mode SHALL be `semantic_scope`
 - **AND** its receipt scope and HEAD bindings SHALL match that current scope
 

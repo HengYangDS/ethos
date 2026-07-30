@@ -12,6 +12,16 @@ Commitment and Attestation SHALL be the sole portable persistent semantic contra
 - **WHEN** a contract schema is regenerated
 - **THEN** it derives from the single semantic model owner rather than a parallel carrier schema
 
+#### Scenario: semantic values cross a contract boundary
+- **WHEN** Commitment, Attestation, Facts, or TransitionPlan values are created,
+  validated, serialized, or passed to a reducer
+- **THEN** nested semantic values are deeply immutable or copied into canonical
+  immutable forms
+- **AND** equivalent inputs produce byte-stable canonical JSON and the same
+  digest without ambient time, process, filesystem, network, or object-identity
+  dependence
+- **AND** mutation requires a new value rather than changing an existing root
+
 ### Requirement: Governed Repository Context Contract
 A Commitment SHALL be immutable identity and intent. Changed scope or intent SHALL create a new Commitment; no amendment chain is a persistent root.
 
@@ -41,3 +51,46 @@ TransitionPlan SHALL be transient closure over exact Commitment, Facts, prior At
 #### Scenario: an input changes after planning
 - **WHEN** any exact input binding changes
 - **THEN** the prior TransitionPlan is not reused for an effect
+
+#### Scenario: transition dependencies are compiled
+- **WHEN** TransitionPlan orders checks, decisions, and effects
+- **THEN** it uses the direct standard-library DAG owner and rejects cycles
+- **AND** no graph wrapper, graph registry, or graph database owns transition semantics.
+
+#### Scenario: a transition is evaluated
+- **WHEN** the compiler evaluates an exact immutable input set
+- **THEN** a pure reducer returns checks, decisions, effects, permissions, and a
+  closed verdict without performing I/O or mutating an input
+- **AND** only the effect boundary may observe external state or execute an
+  admitted exact-CAS effect
+- **AND** post-observation and Attestation report the result without feeding
+  mutable adapter state back into the reducer
+
+### Requirement: Portable Conformance Surface
+The portable contract SHALL be consumable through the public CLI, Python SDK,
+subprocess JSON, and optional protocol adapters without duplicating repository
+truth or requiring one language, provider, agent host, or carrier layout.
+
+#### Scenario: a non-Python consumer executes a transition
+- **WHEN** the consumer uses published language-neutral schemas and subprocess JSON
+- **THEN** it observes the same Commitment, Facts, TransitionPlan, verdict, and
+  Attestation semantics as the Python SDK
+- **AND** protocol-specific fields do not enter the semantic kernel.
+
+#### Scenario: portable interfaces are compared
+- **WHEN** the CLI, Python SDK, subprocess JSON, or an optional MCP/A2A-style
+  adapter receives the same canonical request
+- **THEN** conformance verifies the same schema and protocol version, validation
+  and error taxonomy, permissions, deterministic serialization and digest,
+  offline behavior, verdict, and semantic result
+- **AND** unknown versions, fields, permissions, or required facts fail closed
+  without compatibility inference
+- **AND** transport metadata, streaming, discovery, authentication, and session
+  state remain adapter concerns outside the kernel
+
+#### Scenario: an optional protocol adapter is absent or removed
+- **WHEN** no admitted consumer requires MCP, A2A, or another protocol adapter,
+  or the adapter is uninstalled
+- **THEN** CLI, Python SDK, and subprocess JSON remain complete and conformant
+- **AND** removal leaves no catalog, daemon, credential, repository shadow state,
+  fallback, or protocol-specific semantic owner

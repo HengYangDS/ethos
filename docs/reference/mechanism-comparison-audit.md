@@ -44,13 +44,13 @@ multi-contributor enterprise adopters.
 | Docs, prose, and config lint | Markdown/prose/config hygiene, documentation metadata, and generated report checks. | Markdownlint, Taplo, Yamllint, JSON syntax, docs registry/topology, shell lint. | Prose and metadata breadth remain maturity debt until owner config, runner, CI projection, and proof exist. |
 | Security and dependency hygiene | Secret scanning, dependency audits, vulnerability scans, tool-supply governance. | Gitleaks, Ruff security rules, dependency hygiene, native `uv audit` over `uv.lock`, schema hygiene, prose spelling, SBOM, and release attestation active; image scanning remains planned. | Keep one native lock audit owner and activate image scanners only through pinned tool supply and owner surfaces. |
 | Architecture and diagrams | Import boundaries, package topology, dependency graphs, C4-like model projections. | Import-linter, module-layout, source-owned C4-like model, Mermaid projection, architecture drift gate. | Keep lightweight source-to-projection gate; richer diagram stacks remain optional. |
-| OpenSpec carriers | Official OpenSpec plus accepted specs, active deltas, Commitment, and evidence refs. | Official validation first, then ETHOS carrier, proposal-intent, contract, scope, evidence, and archive checks. | Use compatible extension; do not fork OpenSpec syntax or `WHEN`/`THEN` semantics. |
+| OpenSpec carriers | Official OpenSpec plus accepted specs, active deltas, Commitment, and evidence refs. | Official `doctor`, `list`, `status`, strict validation, and owner-native archive; ETHOS observes the active self-profile carrier without predicting archive or re-evaluating history. | Use compatible extension; do not fork OpenSpec syntax, archive behavior, or `WHEN`/`THEN` semantics. |
 | Evidence and history | Delivery evidence, closeout logs, retained manifests, and cleanup observations. | Attestations are durable evidence; Chronicle, parity, reports, and indexes are derived historical projections. | Keep evidence kinds explicit without restoring parallel truth stores. |
 | Local and generated state | Generated-state grammar, cache routing, local-state audit/clean, reproducible runtime hygiene. | Build/evidence/runtime boundaries and local-state audit gate. | ETHOS has the invariant; add cleanup apply modes separately. |
 | Runbook and operator UX | Recipe files and generated runbook views expose local CI, worktree, proof, OpenSpec, and closeout commands. | `docs/reference/runbook-registry.md` plus drift checks. | Derive future views from Cyclopts/API operations and gate declarations, not manual command tables. |
 | MCP and agent projections | MCP readiness, assembly catalogs, materialized overlays, host probes, and assistant directives. | Agent projection docs, Skills V2, MCP smoke gate. | Keep MCP replaceable and read-mostly; do not make MCP semantic center. |
 | Agent method packs | External planning/review/verification disciplines guide agent work. | Adapter-only method-pack entries; no runtime/package dependency. | Optional and replaceable. ETHOS needs equivalent evidence discipline, not a specific pack. |
-| Task ledger and intake | Task ledgers can integrate boards, lanes, claims, and closeout. | Intake/campaign concepts and task-ledger-compatible planned adapters. | Keep task UI adapter-only; Change/Claim lifecycle stays ETHOS-owned. |
+| Task ledger and intake | Task ledgers can integrate boards, lanes, statements, and closeout. | Self-profile OpenSpec tasks plus optional task-ledger adapters. | Keep task UI adapter-only; Commitment and Attestation semantics stay ETHOS-owned. |
 | Release and supply chain | Package smoke, reproducibility, SBOM, signing, artifact policy, provider release observation. | Local SBOM, release attestation, supply-chain envelope. | External signing/upload/image scanning remain release adapters. |
 | Domain runtime | Domain-specific data, cache, SQL, orchestration, compatibility, and observability mechanics. | Repository governance product only. | Do not absorb domain runtime. Govern it as adopter subject through profiles. |
 
@@ -121,9 +121,9 @@ Completed current baseline:
 1. Local CI fallback, GitHub emulator, GitLab emulator, and hosted-provider
    observation are separate evidence classes with hosted success unclaimed by
    local evidence.
-1. OpenSpec remains an official mandatory governance dependency, extended by
-   accepted-spec identity, proposal intent, Commitment, evidence, and archive
-   checks after official validation.
+1. OpenSpec remains the official native carrier selected by the ETHOS self
+   profile; generic adopters need not install it. ETHOS adds Commitment and
+   active-scope observations without duplicating official archive behavior.
 1. Format selection, lint, dependency hygiene, JSON Schema hygiene, prose
    spelling, Python vulnerability audit over uv-exported resolved requirements,
    architecture/C4 projection drift, runbook, MCP smoke, local-state, closeout

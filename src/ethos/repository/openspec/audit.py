@@ -11,9 +11,7 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.repository.openspec.identifiers import archive_identity_gaps
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
-from ethos.repository.openspec.metadata import openspec_metadata_compatibility_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -105,17 +103,6 @@ def active_change_identifier_violations(openspec_root: Path) -> list[str]:
         for name in active_change_names(openspec_root)
         if logical_change_identifier_issue(name)
     ]
-
-
-def archive_identity_violations(openspec_root: Path) -> list[str]:
-    """Return invalid or ambiguous archive identities without invoking OpenSpec."""
-    archive_root = openspec_root / "changes" / "archive"
-    names = (
-        (path.name for path in archive_root.iterdir() if path.is_dir())
-        if archive_root.is_dir()
-        else ()
-    )
-    return archive_identity_gaps(names)
 
 
 def protected_branch_active_change_report(root: Path, *, current_branch: str) -> dict[str, object]:
@@ -349,15 +336,11 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
     )
     required_gaps.extend(completed_unarchived_changes(openspec_root))
     required_gaps.extend(active_change_identifier_violations(openspec_root))
-    required_gaps.extend(archive_identity_violations(openspec_root))
-    metadata_compatibility = openspec_metadata_compatibility_report(root)
-    required_gaps.extend(metadata_compatibility["required_gaps"])
     required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))
     return {
         "ok": not required_gaps,
         "mode": "shape",
         "official_config": official_config,
-        "metadata_compatibility": metadata_compatibility,
         "protected_branch_residue": protected_branch_residue,
         "advisory_gaps": protected_branch_residue["advisory_gaps"],
         "required_gaps": required_gaps,

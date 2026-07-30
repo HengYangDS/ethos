@@ -38,6 +38,17 @@ transient transition compiler, exact effects, and proof-carrying projections.
 - Collapse quality and supply-chain checks to one admitted owner per property,
   treat warnings and stale projections as failures, and apply that discipline to
   all owned repository surfaces.
+- Use Pydantic v2 for portable boundary contracts, small frozen standard-library
+  values internally, Cyclopts for every CLI surface, direct
+  `graphlib.TopologicalSorter` for DAG ordering, and the selected official CEL
+  engine for bounded predicates. Do not add attrs, a graph wrapper, Jinja, DI,
+  an event bus, or code generation as a parallel semantic owner.
+- Preserve accepted intent through latest-decision precedence, stable task
+  identity, explicit disposition, and verifier-bound acceptance; a planning
+  rewrite cannot reset progress or silently drop an obligation.
+- Publish language-neutral contracts and a conformance kit for CLI, Python SDK,
+  subprocess, and optional MCP/A2A-style adapters without making any protocol,
+  agent host, or runtime mandatory.
 - Finish local closeout at one terminal HEAD, then make exactly one independent
   GitLab and GitHub publication/release attempt.
 
@@ -67,6 +78,16 @@ OpenSpec carrier, tool, CI file, or local state protocol that retains a parallel
 truth owner. Intermediate size growth is acceptable only when it enables a
 larger same-campaign deletion. The terminal product has no compatibility alias,
 shim, wrapper, re-export, fallback, or duplicate evaluator.
+
+Terminal Python effective LOC is at most 54,000 and terminal global owned-source
+effective LOC is at most 68,000. Branch coverage is at least 95 percent, with
+complete behavior coverage for authority, CAS, and pure transition reducers.
+Warnings and production suppressions are zero.
+
+`candidate/dev` and `work/*` remain local-only. `dev` and default `main` are
+protected; `proposal/*` is the sole remote review branch role. GitLab and GitHub
+are independent full CI/CD and distribution planes over the same portable
+contract, never evidence substitutes for one another.
 
 No foreign lane is mutated without its holder's handoff or an exact authorized
 lease takeover. Local proof, GitLab proof, GitHub proof, and publication are

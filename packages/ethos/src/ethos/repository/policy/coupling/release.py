@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.context import is_product_root
 from ethos.repository.release.core import REQUIRED_RELEASE_FILES
 from ethos.repository.release.core import release_policy_report
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 def release_report(root: Path) -> dict[str, Any]:
     """Return release policy data or a neutral report outside a product repo."""
-    if not (root / "pyproject.toml").exists():
+    if not is_product_root(root):
         return {
             "required_files": list(REQUIRED_RELEASE_FILES),
             "host_profile": {

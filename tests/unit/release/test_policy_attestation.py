@@ -23,6 +23,107 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     }
 
 
+def test_release_policy_reports_runtime_files_adopter_without_traceback(tmp_path: Path) -> None:
+    root = tmp_path / "runtime-files-adopter"
+    (root / ".ethos").mkdir(parents=True)
+    (root / "pyproject.toml").write_text(
+        """
+[tool.runtime-files]
+distribution = "runtime-files"
+requires-python = ">=3.12"
+version-source = "VERSION"
+""".strip(),
+        encoding="utf-8",
+    )
+    (root / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+    (root / ".ethos" / "profile.toml").write_text(
+        'profile_id = "runtime-files-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n',
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(root)
+
+    assert report["version"] == {
+        "name": "runtime-files",
+        "version": "1.2.3",
+        "tag": "v1.2.3",
+        "packages": {},
+        "all_package_versions_match": True,
+        "mismatches": {},
+        "required_gaps": [],
+    }
+    assert "release_version_manifest_invalid" not in report["required_gaps"]
+
+
+def test_release_policy_rejects_ambiguous_runtime_files_identity(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[tool.first]
+distribution = "runtime-files"
+version-source = "VERSION"
+
+[tool.second]
+distribution = "runtime-files"
+version-source = "VERSION"
+""".strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+
+    report = release_policy_report(tmp_path)
+
+    assert "release_version_manifest_invalid" in report["required_gaps"]
+
+
+def test_release_policy_rejects_invalid_runtime_files_version_sources(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+
+    cases = (
+        "not-tool = true\n",
+        '[tool.sample]\ndistribution = "runtime-files"\nversion-source = 1\n',
+        '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "../VERSION"\n',
+        '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n',
+    )
+    for payload in cases:
+        pyproject.write_text(payload, encoding="utf-8")
+        assert (
+            "release_version_manifest_invalid" in release_policy_report(tmp_path)["required_gaps"]
+        )
+
+    (tmp_path / "VERSION").write_text("\n", encoding="utf-8")
+    assert "release_version_manifest_invalid" in release_policy_report(tmp_path)["required_gaps"]
+
+
+def test_release_policy_reports_invalid_release_config_without_traceback(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "release.toml").write_text("invalid\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(tmp_path)
+
+    assert "release_config_invalid:.ethos/release.toml" in report["required_gaps"]
+
+
+def test_release_policy_reports_missing_and_invalid_workspace_metadata(tmp_path: Path) -> None:
+    missing = release_policy_report(tmp_path)
+    (tmp_path / "pyproject.toml").write_text("invalid\n", encoding="utf-8")
+    invalid = release_policy_report(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    package = tmp_path / "packages" / "broken" / "pyproject.toml"
+    package.parent.mkdir(parents=True)
+    package.write_text("invalid\n", encoding="utf-8")
+    broken_package = release_policy_report(tmp_path)
+
+    for report in (missing, invalid, broken_package):
+        assert "release_version_manifest_invalid" in report["required_gaps"]
+
+
 def test_release_policy_reports_host_profile_separately_from_product_files() -> None:
     report = release_policy_report(Path.cwd())
     config = release_core.release_config(Path.cwd())

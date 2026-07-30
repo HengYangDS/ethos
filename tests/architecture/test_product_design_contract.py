@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 import shutil
 import subprocess
@@ -73,6 +74,27 @@ def committed_tasks(commit: str) -> dict[str, tuple[str, str]]:
         text=True,
     ).stdout
     return task_rows(text)
+
+
+def task_refinements(design: str) -> dict[tuple[str, str, str], tuple[str, str]]:
+    section = design.split("## Post-cutover Task Refinement", 1)[1].split(
+        "## Alternatives Considered", 1
+    )[0]
+    rows = re.findall(
+        r"^\| `((?:F|\d+)\.\d+(?:\.\d+)?)` \| `([a-f0-9]{64})` \| "
+        r"`([a-f0-9]{64})` \| (clarified|superseded) \| (.+?) \|$",
+        section,
+        re.MULTILINE,
+    )
+    assert rows
+    refinements: dict[tuple[str, str, str], tuple[str, str]] = {}
+    for identifier, before, after, disposition, ruling in rows:
+        key = identifier, before, after
+        assert key not in refinements
+        assert before != after
+        assert ruling.strip()
+        refinements[key] = disposition, ruling
+    return refinements
 
 
 @pytest.fixture
@@ -344,7 +366,7 @@ def assert_feedback_and_carrier_closure(design: str) -> None:
     for required in (
         "one `src/ethos` distribution",
         "Domain contracts remain profile data",
-        "OpenSpec remains a selectable self-profile carrier",
+        "Complete adopters require OpenSpec as the sole Change/SDD carrier",
         "does not migrate into `tools/`",
         "`.mailmap` and package-root re-exports remain absent",
         "Retired Subject/Contract/Transition/Inscription/Chronicle/Evolve vocabulary",
@@ -432,7 +454,7 @@ def assert_task_history_closure(tasks: str, design: str) -> None:
     }
     baseline = committed_tasks("b23dc97cd92675bd3a6f58c13a1ec73c7f4ba2c6")
     current = task_rows(tasks)
-    for identifier, (was_checked, body) in baseline.items():
+    for identifier, (was_checked, _body) in baseline.items():
         if identifier not in current:
             successors = transitions.get(identifier, ())
             assert successors, f"task_identity_unmapped:{identifier}"
@@ -440,8 +462,7 @@ def assert_task_history_closure(tasks: str, design: str) -> None:
             if was_checked == "x":
                 assert any(current[successor][0] == "x" for successor in successors)
             continue
-        checked, current_body = current[identifier]
-        assert current_body == body, f"task_identity_reused:{identifier}"
+        checked, _current_body = current[identifier]
         assert not (was_checked == "x" and checked != "x"), f"task_completion_reset:{identifier}"
 
     history = subprocess.run(
@@ -466,11 +487,13 @@ def assert_task_history_closure(tasks: str, design: str) -> None:
     }
     assert pre_cutover <= set(current) | mapped
     assert_task_coordinate_normalization(history, baseline, current, transitions)
-    assert_post_cutover_task_history(current, transitions)
+    assert_post_cutover_task_history(current, transitions, task_refinements(design))
 
 
 def assert_post_cutover_task_history(
-    current: dict[str, tuple[str, str]], transitions: dict[str, tuple[str, ...]]
+    current: dict[str, tuple[str, str]],
+    transitions: dict[str, tuple[str, ...]],
+    refinements: dict[tuple[str, str, str], tuple[str, str]],
 ) -> None:
     commits = subprocess.run(
         (
@@ -489,12 +512,21 @@ def assert_post_cutover_task_history(
     snapshots = [committed_tasks(commit) for commit in commits] + [current]
     previous: dict[str, tuple[str, str]] = {}
     retired: set[str] = set()
+    observed_refinements: set[tuple[str, str, str]] = set()
     for rows in snapshots:
         assert not (retired & set(rows)), f"task_identity_resurrected:{retired & set(rows)}"
         for identifier, (checked, body) in rows.items():
             if identifier in previous:
                 was_checked, previous_body = previous[identifier]
-                assert body == previous_body, f"task_identity_reused:{identifier}"
+                if body != previous_body:
+                    assert was_checked != "x", f"completed_task_body_changed:{identifier}"
+                    refinement = (
+                        identifier,
+                        hashlib.sha256(previous_body.encode()).hexdigest(),
+                        hashlib.sha256(body.encode()).hexdigest(),
+                    )
+                    assert refinement in refinements, f"task_refinement_unregistered:{identifier}"
+                    observed_refinements.add(refinement)
                 assert not (was_checked == "x" and checked != "x"), (
                     f"task_completion_reset:{identifier}"
                 )
@@ -504,6 +536,9 @@ def assert_post_cutover_task_history(
         )
         retired.update(removed)
         previous = rows
+    assert observed_refinements == set(refinements), (
+        f"task_refinement_stale:{set(refinements) - observed_refinements}"
+    )
 
 
 def assert_task_coordinate_normalization(

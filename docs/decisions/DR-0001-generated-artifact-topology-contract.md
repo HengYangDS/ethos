@@ -133,47 +133,11 @@ See also
 
 ## Alternatives Considered
 
-### Semantic lifecycle paths with producer-entrypoint admission
-
-**Pros**
-
-- Makes authority, cleanup, proof, rollback, and publication boundaries auditable.
-
-**Cons**
-
-- Requires each producer and projection to adopt the routing contract.
-
-**Why Rejected**
-
-Not rejected; selected below.
-
-### Tool defaults plus ignore rules or cleanup
-
-**Pros**
-
-- Minimizes short-term configuration changes.
-
-**Cons**
-
-- Lets proof recreate forbidden residue and makes cleanup race with producers.
-
-**Why Rejected**
-
-It treats the symptom after mutation and cannot prove producer conformance.
-
-### Product-owned adopter directories
-
-**Pros**
-
-- Centralizes examples for named adopters.
-
-**Cons**
-
-- Couples product truth to adopter-private facts and layouts.
-
-**Why Rejected**
-
-Adopter configuration belongs to the adopter's declared interface.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Semantic lifecycle paths with producer-entrypoint admission | selected | Makes authority, cleanup, proof, rollback, and publication boundaries auditable. | Requires each producer and projection to adopt the routing contract. | It is the only option that proves producer conformance before generated state is written. |
+| Tool defaults plus ignore rules or cleanup | rejected | Minimizes short-term configuration changes. | Lets proof recreate forbidden residue and makes cleanup race with producers. | It treats the symptom after mutation and cannot prove producer conformance. |
+| Product-owned adopter directories | rejected | Centralizes examples for named adopters. | Couples product truth to adopter-private facts and layouts. | Adopter configuration belongs to the adopter's declared interface. |
 
 ## Selected Approach And Rationale
 

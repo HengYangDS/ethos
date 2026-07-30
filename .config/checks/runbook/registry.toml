@@ -34,10 +34,10 @@ category = "architecture-projection"
 evidence = "JSON stdout"
 
 [[entry]]
-id = "RUN-LOCAL-STATE-AUDIT"
-command = "tools/ci/scripts/run-local-state-audit.sh"
-category = "local-state"
-evidence = "build/evidence/local-state/audit.json"
+id = "RUN-GENERATED-ARTIFACTS"
+command = "ethos prove --gate generated-artifacts --json"
+category = "generated-artifact-topology"
+evidence = "JSON stdout"
 
 [[entry]]
 id = "RUN-RELEASE-SUPPLY-CHAIN"

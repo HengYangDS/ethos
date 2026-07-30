@@ -109,9 +109,7 @@ known-first-party = ["ethos"]
 convention = "google"
 
 [lint.per-file-ignores]
-# Repo-local skill scripts are executable host adapters; `quality_audit.py` keeps
-# a defensive Python<3.11 uv re-exec path for direct host invocation even though
-# the product runtime floor is Python 3.12.
+# Repo-local skill scripts are executable host adapters, not product modules.
 ".agents/skills/**/scripts/*.py" = ["T201", "INP001"]
 # These reflect pytest's DESIGN, not fixable debt: S101 (pytest uses `assert`),
 # INP001 (test dirs are deliberately not import packages), PLR2004 (asserting against

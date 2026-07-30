@@ -19,8 +19,7 @@ from pydantic import ValidationError
 import ethos.adapters.repo.git as git
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.rules import stable_digest
-from ethos.repository.policy.gates import default_gate_ids
-from ethos.repository.policy.gates import gate_policy_digest
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import IndependentVerificationPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
@@ -204,7 +203,8 @@ def independent_verification_request(*, root: Path, action: str) -> dict[str, ob
     """
     commit = git.current_head(root)
     tree = git.git_stdout(root, "rev-parse", f"{commit}^{{tree}}") if commit else ""
-    floor = default_gate_ids(root=root)
+    policy = resolve_gate_policy(root, tree_ref=commit) if commit else None
+    floor = policy.gate_ids if policy else ()
     return {
         "remote": git.git_stdout(root, "remote", "get-url", "origin"),
         "commit": commit,
@@ -212,7 +212,7 @@ def independent_verification_request(*, root: Path, action: str) -> dict[str, ob
         "action": action,
         "proof_floor_id": "ethos:promotion-required-gates:v1",
         "proof_floor_digest": stable_digest({"gate_ids": sorted(floor)}),
-        "policy_digest": gate_policy_digest(root, tree_ref=commit) if commit else "",
+        "policy_digest": policy.digest if policy else "",
         "implementation_digest": "",
     }
 

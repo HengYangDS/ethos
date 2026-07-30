@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.cli import command_name
 from ethos.cli import main
+from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.contract_helpers import init_repo_with_candidate
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 def test_invalid_profilecommand_name_detection_skips_option_values(
     argv: list[str], expected: str
 ) -> None:
-    assert command_name(argv) == expected
+    assert root_command(argv) == expected
 
 
 def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> None:
@@ -79,7 +79,7 @@ def test_invalid_profile_readercommand_names_emit_json_result(
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is False
-    assert payload["required_gaps"] == ["adopter_profile_invalid:.ethos/profile.toml"]
+    assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
 
 
 @pytest.mark.parametrize(
@@ -122,4 +122,4 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
     payload = json.loads(capsys.readouterr().out)
     assert payload["command"] == command
     assert payload["ok"] is False
-    assert payload["required_gaps"] == ["adopter_profile_invalid:.ethos/profile.toml"]
+    assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]

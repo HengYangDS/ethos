@@ -1,25 +1,28 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from typing import cast
 
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
+
+from ethos._resources import resolve_declaration_path
 from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.capabilities import contained_package_path
 from ethos.normalization.coercion import string_list
 
-SKILL_PACKAGE_SCHEMA_VERSION = 2
 FRONTMATTER_PART_COUNT = 3
 SKILL_DESCRIPTION_WORD_LIMIT = 60
 PROGRESSIVE_DISCLOSURE_LINE_THRESHOLD = 90
 DEFAULT_REQUIRED_SECTIONS = ("When to Use", "Workflow", "Evidence", "Trust Boundary")
 _SKILL_SOFT_LINE_LIMIT = 160
 _SKILL_WORKFLOW_STEP_LIMIT = 8
-_SHA256_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
+_MANIFEST_SCHEMA_PATH = Path("system/schemas/kernel/skill-package-manifest.schema.json")
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,12 +64,19 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
     if early_result is not None:
         return _manifest_result(early_result)
     package_dir = absolute_manifest.parent
-    gaps: list[str] = []
+    gaps = _schema_validation_gaps(root, skill_id, manifest)
+    if gaps:
+        return _manifest_result(
+            SkillPackageResult(
+                skill_id=skill_id,
+                manifest_path=manifest_path,
+                required_gaps=tuple(gaps),
+            )
+        )
 
     skill_id = str(manifest.get("id") or relative_manifest.parent.name)
     entrypoint = str(manifest.get("entrypoint") or "SKILL.md")
     include = string_list(manifest.get("include"), drop_empty=True) or [entrypoint]
-    gaps.extend(_manifest_schema_gaps(skill_id, manifest))
     gaps.extend(
         f"skill_package_path_escape:{skill_id}:{relative}"
         for relative in [entrypoint, *include]
@@ -94,9 +104,8 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
         DEFAULT_REQUIRED_SECTIONS
     )
     if contained_package_path(package_dir, entrypoint):
-        quality_policy = cast(
-            "dict[str, Any]",
-            manifest.get("quality") if isinstance(manifest.get("quality"), dict) else {},
+        quality_policy = (
+            manifest.get("quality") if isinstance(manifest.get("quality"), dict) else {}
         )
         quality = validate_skill_markdown(
             root,
@@ -108,13 +117,17 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
         gaps.extend(quality["required_gaps"])
     capability_gaps, capabilities = capability_records(
         skill_id,
-        manifest.get("capability"),
+        manifest.get("capability") or [],
         package_dir=package_dir,
         included_files=frozenset(safe_include),
     )
     gaps.extend(capability_gaps)
-    eval_gaps, eval_metadata = _eval_metadata(skill_id, manifest.get("eval"))
-    gaps.extend(eval_gaps)
+    eval_value = manifest.get("eval")
+    eval_metadata = (
+        {**eval_value, "truth_boundary": "skill_metadata_only"}
+        if isinstance(eval_value, dict)
+        else None
+    )
     return _manifest_result(
         SkillPackageResult(
             skill_id=skill_id,
@@ -215,24 +228,62 @@ def _manifest_result(result: SkillPackageResult) -> dict[str, Any]:
     }
 
 
-def _manifest_schema_gaps(skill_id: str, manifest: dict[str, Any]) -> list[str]:
-    gaps: list[str] = []
-    if manifest.get("schema_version") != SKILL_PACKAGE_SCHEMA_VERSION:
-        gaps.append(f"skill_package_schema_version_invalid:{skill_id}")
-    if manifest.get("digest_algorithm") != "sha256":
-        gaps.append(f"skill_package_digest_algorithm_invalid:{skill_id}")
-    include = string_list(manifest.get("include"), drop_empty=True)
-    if not include:
-        gaps.append(f"skill_package_include_missing:{skill_id}")
-    expected = str(manifest.get("expected_digest") or "")
-    if not expected:
-        gaps.append(f"skill_package_expected_digest_missing:{skill_id}")
-    elif not _SHA256_PATTERN.fullmatch(expected):
-        gaps.append(f"skill_package_expected_digest_invalid:{skill_id}")
-    required_sections = string_list(manifest.get("required_sections"), drop_empty=True)
-    if not required_sections:
-        gaps.append(f"skill_package_required_sections_missing:{skill_id}")
-    return gaps
+def _schema_validation_gaps(root: Path, skill_id: str, manifest: dict[str, Any]) -> list[str]:
+    try:
+        schema_path = root / _MANIFEST_SCHEMA_PATH
+        if not schema_path.is_file():
+            schema_path = resolve_declaration_path(
+                None,
+                canonical=_MANIFEST_SCHEMA_PATH,
+                module_file=__file__,
+            )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        errors = Draft202012Validator(schema).iter_errors(manifest)
+    except (OSError, json.JSONDecodeError, SchemaError):
+        return [f"skill_package_manifest_schema_invalid:{skill_id}"]
+    gaps = [
+        _schema_gap(skill_id, schema, error)
+        for error in sorted(errors, key=lambda item: item.json_path)
+    ]
+    return list(dict.fromkeys(gaps))
+
+
+def _schema_gap(skill_id: str, schema: dict[str, Any], error: Any) -> str:
+    node: Any = schema
+    nodes = [node]
+    for part in error.absolute_schema_path:
+        node = node[part] if isinstance(node, list) else node.get(part, {})
+        nodes.append(node)
+    path = tuple(error.absolute_path)
+    if error.validator == "required":
+        missing = next(key for key in error.validator_value if key not in error.instance)
+        template = next(
+            (
+                candidate.get("x-ethos-required-gaps", {}).get(missing)
+                for candidate in reversed(nodes)
+                if isinstance(candidate, dict)
+                and candidate.get("x-ethos-required-gaps", {}).get(missing)
+            ),
+            "",
+        )
+    else:
+        template = next(
+            (
+                candidate.get("x-ethos-gap")
+                for candidate in reversed(nodes)
+                if isinstance(candidate, dict) and candidate.get("x-ethos-gap")
+            ),
+            "",
+        )
+    capability_id = str(error.instance.get("id") or "") if isinstance(error.instance, dict) else ""
+    values = {
+        "skill_id": skill_id,
+        "field": str(path[-1]) if path and isinstance(path[-1], str) else "",
+        "index": next((str(part) for part in path if isinstance(part, int)), "0"),
+        "value": str(error.instance),
+        "capability_id": capability_id,
+    }
+    return str(template or "skill_package_manifest_invalid:{skill_id}").format(**values)
 
 
 def _contained_root_path(root: Path, relative: Path) -> bool:
@@ -315,47 +366,3 @@ def _section_body(text: str, section: str) -> str:
 def _is_placeholder_body(body: str) -> bool:
     normalized = body.strip().lower().strip(".")
     return normalized in {"", "tbd", "todo", "placeholder", "coming soon"}
-
-
-_ALLOWED_EVAL_METRICS = {"pass_at_k", "pass_power_k", "weighted_score", "instability_gap"}
-
-
-def _eval_metadata(skill_id: str, value: Any) -> tuple[list[str], dict[str, Any]]:
-    if value is None:
-        return [], {}
-    if not isinstance(value, dict):
-        return [f"skill_package_eval_invalid:{skill_id}"], {}
-    gaps: list[str] = []
-    treatment_id = str(value.get("treatment_id") or "")
-    if not treatment_id:
-        gaps.append(f"skill_package_eval_treatment_missing:{skill_id}")
-    metrics = string_list(value.get("metrics"), drop_empty=True)
-    if not metrics:
-        gaps.append(f"skill_package_eval_metrics_missing:{skill_id}")
-    gaps.extend(
-        f"skill_package_eval_metric_unknown:{skill_id}:{metric}"
-        for metric in metrics
-        if metric not in _ALLOWED_EVAL_METRICS
-    )
-    gaps.extend(
-        f"skill_package_eval_metric_out_of_bounds:{skill_id}:{key}"
-        for key in _ALLOWED_EVAL_METRICS
-        if key in value and not _unit_interval(value.get(key))
-    )
-    evidence_refs = string_list(value.get("evidence_refs"), drop_empty=True)
-    if not evidence_refs:
-        gaps.append(f"skill_package_eval_evidence_refs_missing:{skill_id}")
-    return gaps, {
-        "treatment_id": treatment_id,
-        "metrics": metrics,
-        "pass_at_k": value.get("pass_at_k"),
-        "pass_power_k": value.get("pass_power_k"),
-        "weighted_score": value.get("weighted_score"),
-        "instability_gap": value.get("instability_gap"),
-        "evidence_refs": evidence_refs,
-        "truth_boundary": "skill_metadata_only",
-    }
-
-
-def _unit_interval(value: Any) -> bool:
-    return isinstance(value, int | float) and 0 <= float(value) <= 1

@@ -3140,17 +3140,17 @@ external receipt.
 - **THEN** accepted closeout requires an external control-replacement receipt outside the candidate tree
 - **AND** the receipt binds exact accepted and candidate heads, control paths, both control digests, verifier digest, and executed-proof digest
 
-### Requirement: Adopter profile is a strict current repository binding
-ETHOS SHALL validate adopter profiles directly through one typed current binding.
+### Requirement: Repository profile is a strict current binding
+ETHOS SHALL validate repository profiles directly through one typed current binding.
 Unknown, malformed, or incompatible data SHALL fail without normalization,
 reinterpretation, or synthesized declarations.
 
 #### Scenario: Former envelope and invalid root remain blocked
-- **WHEN** an adopter profile contains former envelope fields, including
+- **WHEN** a repository profile contains former envelope fields, including
   `schema_version`, `profile_version`, `ethos_contract_version`, or
   `[repository]`, or declares `roots.rules = "."`
 - **THEN** ETHOS SHALL report
-  `adopter_profile_invalid:.ethos/profile.toml`
+  `repository_profile_invalid:.ethos/profile.toml`
 - **AND** it SHALL not silently ignore, normalize, or reinterpret the data
 - **AND** it SHALL not synthesize `normative_sources`.
 
@@ -3166,26 +3166,25 @@ a directory.
   candidates
 - **AND** it SHALL keep `roots.rules` as an ordinary safe repository path.
 
-### Requirement: Invalid adopter profile commands return structured blocks
+### Requirement: Invalid repository profile commands return structured blocks
 Every public ETHOS reader, planning, proof, landing, publication, and OpenSpec
 lifecycle command SHALL return a structured `EthosResult` when the target
-adopter profile is invalid. The result SHALL contain the stable invalid-profile
+repository profile is invalid. The result SHALL contain the stable invalid-profile
 gap and SHALL not emit an uncaught traceback as its command result.
 
 #### Scenario: JSON reader observes an invalid profile
-- **WHEN** `ethos status --json` targets an invalid
-  adopter profile
+- **WHEN** `ethos status --json` targets an invalid repository profile
 - **THEN** it SHALL emit parseable JSON with `ok = false`
 - **AND** `required_gaps` SHALL contain
-  `adopter_profile_invalid:.ethos/profile.toml`.
+  `repository_profile_invalid:.ethos/profile.toml`.
 
 #### Scenario: Enforcing proof command observes an invalid profile
-- **WHEN** `ethos prove --json` targets an invalid adopter profile
+- **WHEN** `ethos prove --json` targets an invalid repository profile
 - **THEN** it SHALL emit parseable blocked JSON and exit non-zero
 - **AND** it SHALL not start a mutation or create proof evidence.
 
 #### Scenario: Landing does not mask an invalid adopter profile
-- **WHEN** `ethos land --json` targets an invalid adopter profile
+- **WHEN** `ethos land --json` targets an invalid repository profile
 - **THEN** it SHALL emit parseable JSON with the invalid-profile gap before
   reporting another mutation-admission gap
 - **AND** `ethos land --apply --json` SHALL exit non-zero after emitting that

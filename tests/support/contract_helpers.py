@@ -19,7 +19,6 @@ from typing import NamedTuple
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
-from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -28,7 +27,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
-from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
@@ -525,8 +524,8 @@ def _declare_minimal_code_correctness(repo: Path) -> None:
         profile_path.read_text(encoding="utf-8")
         + "\n"
         + "[proof]\n"
-        + 'code_correctness_gates = ["sample-tests", "sample-static"]\n\n'
-        + "[proof.code_correctness_map]\n"
+        + 'required_gates = ["sample-tests", "sample-static"]\n\n'
+        + "[proof.code_axes]\n"
         + 'behavior = "sample-tests"\n'
         + 'static-analysis = "sample-static"\n\n'
         + "[[proof.gates]]\n"
@@ -556,7 +555,7 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     plan = proof_plan(repo, head=head)
     checks = tuple(
         conformant_proof_check(gate_id, repo)
-        for gate_id in promotion_required_gate_ids(repo, tree_ref=head)
+        for gate_id in resolve_gate_policy(repo, tree_ref=head).gate_ids
     )
     attestation = issue_proof_attestation(
         repo,
@@ -575,7 +574,7 @@ def seed_executed_proof(repo: Path, head: str) -> None:
 
 def conformant_proof_check(gate_id: str, root: Path) -> dict[str, object]:
     """Build one terminal check result matching the live gate policy identity."""
-    gate = gate_registry(root).get(gate_id)
+    gate = resolve_gate_policy(root, gate_ids=(gate_id,)).registry.get(gate_id)
     if gate is None:
         command: tuple[str, ...] = ("pytest",)
         trust_bearing = True

@@ -91,47 +91,11 @@ Registry and the ETHOS repository self-audit instead.
 
 ## Alternatives Considered
 
-### Strict fixed-path documentation kernel
-
-**Pros**
-
-- Enables simple path-set validation.
-
-**Cons**
-
-- Conflates portable semantics with ETHOS product layout.
-
-**Why Rejected**
-
-Historically selected and now superseded at the portability boundary.
-
-### Lifecycle-shaped `current` and `future` directories
-
-**Pros**
-
-- Appears visually direct.
-
-**Cons**
-
-- Competes with Git, metadata, and evidence for state authority.
-
-**Why Rejected**
-
-It creates an ambiguous second state model.
-
-### Portable Docs Registry plus ETHOS repository self-audit
-
-**Pros**
-
-- Preserves semantic checks while allowing subject-native physical form.
-
-**Cons**
-
-- Requires metadata and registry validation rather than one fixed tree.
-
-**Why Rejected**
-
-Not rejected; it is the current selected replacement.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Strict fixed-path documentation kernel | superseded | Enables simple path-set validation. | Conflates portable semantics with ETHOS product layout. | It fails the portability boundary. |
+| Lifecycle-shaped `current` and `future` directories | rejected | Appears visually direct. | Competes with Git, metadata, and evidence for state authority. | It creates an ambiguous second state model. |
+| Portable Docs Registry plus ETHOS repository self-audit | selected replacement | Preserves semantic checks while allowing subject-native physical form. | Requires metadata and registry validation rather than one fixed tree. | It keeps portable semantics and product-specific topology in separate owners. |
 
 ## Selected Approach And Rationale
 

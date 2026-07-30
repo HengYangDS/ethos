@@ -8,7 +8,7 @@ from typing import cast
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
 from ethos.contracts.rules import stable_digest
-from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.policy.rules.config import configured_rules
 from ethos.repository.policy.rules.config import load_rules_config
 from ethos.repository.policy.rules.config import resolve_profile_stack
@@ -122,34 +122,16 @@ def _rule_schema_gaps(rule: dict[str, Any]) -> list[str]:
     return [str(gap) for gap in cast("list[object]", validation["required_gaps"])]
 
 
-def gate_definitions(
-    root: Path,
-    *,
-    config: dict[str, Any] | None = None,
-) -> dict[str, dict[str, object]]:
-    """Return gate definitions merging the built-in registry with configured overrides."""
-    definitions: dict[str, dict[str, object]] = {
+def gate_definitions() -> dict[str, dict[str, object]]:
+    """Return executable gates from the repository's single registry owner."""
+    return {
         gate_id: {
             "id": gate_id,
             "command": " ".join(gate.command),
             "blocking": gate.policy == "required",
         }
-        for gate_id, gate in gate_registry().items()
+        for gate_id, gate in resolve_gate_policy().registry.items()
     }
-    parsed = config if config is not None else load_rules_config(root)
-    configured = cast(
-        "dict[str, object]",
-        parsed.get("gates") if isinstance(parsed.get("gates"), dict) else {},
-    )
-    for gate_id, gate in configured.items():
-        if not isinstance(gate, dict):
-            continue
-        definitions[str(gate_id)] = {
-            "id": str(gate_id),
-            "command": str(gate.get("command", "")),
-            "blocking": gate.get("blocking", True) is not False,
-        }
-    return definitions
 
 
 def _rule_active_for_profiles(rule: Rule, profile_stack: list[str]) -> bool:
@@ -203,7 +185,7 @@ def compile_rules(root: Path) -> dict[str, object]:
     config = load_rules_config(root)
     profile_stack, profile_gaps = resolve_profile_stack(config)
     rules, rule_gaps = _rules_as_contracts(root, config, profile_stack)
-    gate_definitions_by_id = gate_definitions(root, config=config)
+    gate_definitions_by_id = gate_definitions()
     gate_gaps = [
         f"unknown_rule_gate:{rule.id}:{gate_id}"
         for rule in rules

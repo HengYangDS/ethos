@@ -196,9 +196,11 @@ def _axiom_gaps(root: Path, documents: dict[str, tuple[Path, str, frozenset[str]
         gaps.append("design_axioms_root_constraint_link_missing")
     if "second semantic owner" not in text:
         gaps.append("design_axioms_derivation_boundary_missing")
-    for term in ("Commitment", "Attestation", "proposition"):
-        if term not in text:
-            gaps.append(f"design_axioms_term_missing:{term}")
+    gaps.extend(
+        f"design_axioms_term_missing:{term}"
+        for term in ("Commitment", "Attestation", "proposition")
+        if term not in text
+    )
     owner_text = (root / DESIGN_OWNER).read_text(encoding="utf-8")
     verse_lines = [
         line.removeprefix("> ").strip() for line in owner_text.splitlines() if line.startswith("> ")

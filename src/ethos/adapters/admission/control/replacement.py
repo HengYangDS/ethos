@@ -16,7 +16,6 @@ from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.rules import stable_digest
-from ethos.repository.policy.gates import gate_policy_digest
 from ethos.repository.profile import IndependentVerificationPolicy
 
 if TYPE_CHECKING:
@@ -156,7 +155,7 @@ def _verification_subject(
         "action": "control-replacement",
         "proof_floor_id": "ethos:control-replacement:v1",
         "proof_floor_digest": stable_digest(subject),
-        "policy_digest": gate_policy_digest(root, tree_ref=candidate_head),
+        "policy_digest": proof.policy_digest if proof is not None else "",
         "implementation_digest": "",
     }
     return subject, request, []

@@ -5,6 +5,7 @@ import subprocess
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -13,7 +14,6 @@ import ethos.adapters.mutation.proof as proof_module
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
-from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
@@ -21,7 +21,7 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.semantic import Attestation
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
-from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 
@@ -42,6 +42,30 @@ def _commit(root: Path, message: str) -> str:
         message,
     )
     return git(root, "rev-parse", "HEAD")
+
+
+def _write_script_gate_policy(root: Path) -> None:
+    profile = root / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(
+        'profile_id = "policy-test"\n\n[proof]\ngate_registry = "system/gates.toml"\n',
+        encoding="utf-8",
+    )
+    registry = root / "system" / "gates.toml"
+    registry.parent.mkdir(parents=True, exist_ok=True)
+    registry.write_text(
+        'schema_version = 1\nid = "policy-test"\n\n'
+        '[proof_sets]\ndefault = ["publish"]\nfull = ["publish"]\n\n'
+        '[[gates]]\nid = "publish"\nregistries = ["runtime"]\n'
+        'kind = "release"\ncommand = ["publish"]\ndepends_on = ["check"]\n\n'
+        '[[gates]]\nid = "check"\nregistries = ["runtime"]\n'
+        'kind = "test"\ncommand = ["tools/check.sh"]\n'
+        'dimensions = ["behavior"]\nevidence_class = "proof"\ntrust_bearing = true\n',
+        encoding="utf-8",
+    )
+    script = root / "tools" / "check.sh"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
 
 
 def _write_commitment(root: Path) -> None:
@@ -70,9 +94,9 @@ def _adopted_repo(path: Path) -> tuple[Path, str]:
 material_paths = ["openspec/**"]
 
 [proof]
-code_correctness_gates = ["sample-tests", "sample-static"]
+required_gates = ["sample-tests", "sample-static"]
 
-[proof.code_correctness_map]
+[proof.code_axes]
 behavior = "sample-tests"
 static-analysis = "sample-static"
 
@@ -114,9 +138,10 @@ permissions = ["repository.read", "git.ref.compare-and-swap"]
 
 
 def _proof_checks(root: Path) -> tuple[dict[str, object], ...]:
-    registry = gate_registry(root)
+    policy = resolve_gate_policy(root)
+    registry = policy.registry
     checks: list[dict[str, object]] = []
-    for gate_id in promotion_required_gate_ids(root):
+    for gate_id in policy.gate_ids:
         gate = registry.get(gate_id)
         checks.append(
             {
@@ -209,6 +234,90 @@ def test_proof_plan_identity_is_stable_across_linked_worktrees(tmp_path: Path) -
     assert proof_plan(repo, head=head).digest() == proof_plan(linked, head=head).digest()
 
 
+def test_gate_policy_uses_one_dependency_closure_for_nodes_and_digest(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _write_script_gate_policy(repo)
+    first_head = _commit(repo, "first policy")
+
+    policy = resolve_gate_policy(repo, tree_ref=first_head)
+    nodes, gaps = policy.nodes, policy.gaps
+    first_digest = policy.digest
+
+    assert gaps == ()
+    assert tuple(node.id for node in nodes) == ("check", "publish")
+
+    registry = repo / "system" / "gates.toml"
+    registry.write_text(
+        registry.read_text(encoding="utf-8").replace(
+            'command = ["tools/check.sh"]',
+            'command = ["tools/check-v2.sh"]',
+        ),
+        encoding="utf-8",
+    )
+    (repo / "tools" / "check-v2.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    second_head = _commit(repo, "change dependency command")
+
+    assert resolve_gate_policy(repo, tree_ref=second_head).digest != first_digest
+
+
+def test_committed_gate_policy_never_reads_missing_source_from_worktree(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _write_script_gate_policy(repo)
+    _commit(repo, "policy with source")
+    (repo / "tools" / "check.sh").unlink()
+    head_without_source = _commit(repo, "remove source")
+    (repo / "tools" / "check.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+
+    gaps = resolve_gate_policy(repo, tree_ref=head_without_source).gaps
+
+    assert gaps == ("gate_policy_source_missing:check:tools/check.sh",)
+
+
+def test_gate_policy_digest_binds_profile_correctness_semantics(tmp_path: Path) -> None:
+    repo, first_head = _adopted_repo(tmp_path / "repo")
+    first = resolve_gate_policy(repo, tree_ref=first_head).digest
+    profile = repo / ".ethos" / "profile.toml"
+
+    profile.write_text(
+        profile.read_text(encoding="utf-8").replace(
+            'dimensions = ["test", "coverage"]',
+            'dimensions = ["test", "coverage", "property"]',
+        ),
+        encoding="utf-8",
+    )
+    dimensions_head = _commit(repo, "change dimensions")
+    dimensions = resolve_gate_policy(repo, tree_ref=dimensions_head).digest
+
+    profile.write_text(
+        profile.read_text(encoding="utf-8").replace(
+            'static-analysis = "sample-static"',
+            'static-analysis = "sample-tests"',
+        ),
+        encoding="utf-8",
+    )
+    invalid_head = _commit(repo, "reuse one gate for two axes")
+
+    assert first != dimensions
+    with pytest.raises(ValueError, match="repository_profile_invalid"):
+        resolve_gate_policy(repo, tree_ref=invalid_head)
+
+
+def test_gate_command_normalization_preserves_explicit_python_version() -> None:
+    assert canonical_gate_command(("/one/bin/python3.14", "-m", "tool")) == (
+        "python",
+        "-m",
+        "tool",
+    )
+    assert canonical_gate_command(("/two/bin/python3.13", "-m", "tool")) == (
+        "python",
+        "-m",
+        "tool",
+    )
+    assert canonical_gate_command(("python3.12", "-m", "tool")) != canonical_gate_command(
+        ("python3.13", "-m", "tool")
+    )
+
+
 def test_proof_plan_identity_changes_with_commitment_head_or_policy(tmp_path: Path) -> None:
     repo, first_head = _adopted_repo(tmp_path / "repo")
     first = proof_plan(repo, head=first_head)
@@ -226,7 +335,7 @@ def test_proof_plan_identity_changes_with_commitment_head_or_policy(tmp_path: Pa
 
     gates = repo / "system" / "gates.toml"
     gates.parent.mkdir()
-    gates.write_text("[proof_sets]\nproduct_default = []\n", encoding="utf-8")
+    gates.write_text("[proof_sets]\ndefault = []\nfull = []\n", encoding="utf-8")
     policy_head = _commit(repo, "revise policy")
     policy_changed = proof_plan(repo, head=policy_head)
 
@@ -389,9 +498,10 @@ def test_proof_admission_uses_self_contained_closure_not_historical_commitment(
     persist_proof_attestation(repo, attestation)
 
     def historical_read_forbidden(*_args: object, **_kwargs: object) -> object:
-        raise AssertionError("historical_commitment_read")
+        message = "historical_commitment_read"
+        raise AssertionError(message)
 
-    monkeypatch.setattr(proof_module, "load_commitment", historical_read_forbidden)
+    monkeypatch.setattr(proof_module, "load_profile_commitment", historical_read_forbidden)
     monkeypatch.setattr(proof_module, "load_repository_commitment", historical_read_forbidden)
 
     assert proof_attestation(repo, head) == attestation
@@ -423,3 +533,23 @@ def test_proof_authority_conflict_blocks_instead_of_selecting_latest(tmp_path: P
 
     assert proof_attestation(repo, head) is None
     assert proof_gaps(repo, head) == ["contradiction"]
+
+
+def test_proof_authority_selects_the_latest_equivalent_attestation(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    first = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, first)
+    later = next(
+        candidate
+        for seconds in range(1, 100)
+        if (
+            candidate := Attestation.issue(
+                first.model_dump(exclude={"id", "schema_version", "statement_digest"})
+                | {"issued_at": first.issued_at + timedelta(seconds=seconds)}
+            )
+        ).id
+        > first.id
+    )
+    persist_proof_attestation(repo, later)
+
+    assert proof_attestation(repo, head) == later

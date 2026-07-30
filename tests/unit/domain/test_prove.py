@@ -72,7 +72,7 @@ def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
 
 
 def test_workspace_status_validation_prefixes_schema_gaps(monkeypatch, tmp_path):
-    def fake_validate(schema_name, payload, root):
+    def fake_validate(schema_name, _payload, **_kwargs):
         return {
             "ok": False,
             "required_gaps": [f"{schema_name}:missing:branch"],

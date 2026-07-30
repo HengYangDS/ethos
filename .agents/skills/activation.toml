@@ -139,7 +139,6 @@ during_rules = [
   "keep SKILL.md narrow and put executable checks in scripts",
 ]
 post_checks = [
-  ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .",
   "ethos prove --gate playbooks-v2 --json",
   "ethos plan --changed --json",
 ]
@@ -204,7 +203,7 @@ post_checks = [
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-shell-lint.sh",
-  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
+  "ethos prove --gate repository-audit --json",
   "ethos prove --json",
 ]
 may_coactivate = ["ethos-change-lifecycle"]

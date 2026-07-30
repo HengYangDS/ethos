@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 from typing import Literal
@@ -10,6 +11,8 @@ from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+
+from ethos.contracts.semantic import Attestation
 
 CarrierRole = Literal["native", "projection", "adapter", "fact", "history"]
 Verdict = Literal["pass", "block", "unknown"]
@@ -64,8 +67,6 @@ def query_from_attestation(
     validity: AwareDatetime,
 ) -> AuthorityQuery | None:
     """Extract the exact query carried by one Attestation, or preserve a model gap."""
-    from ethos.contracts.semantic import Attestation
-
     if not isinstance(attestation, Attestation):
         return None
     scope = attestation.statement.get("scope")
@@ -75,21 +76,22 @@ def query_from_attestation(
         not isinstance(scope, list | tuple)
         or not scope
         or not all(isinstance(item, str) and item for item in scope)
-        or not isinstance(plane, str)
-        or not plane
-        or not isinstance(context, Mapping)
-        or not all(
-            isinstance(key, str) and isinstance(value, str) for key, value in context.items()
-        )
     ):
         return None
+    if not isinstance(plane, str) or not plane or not isinstance(context, Mapping):
+        return None
+    normalized_context: list[tuple[str, str]] = []
+    for key, value in context.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            return None
+        normalized_context.append((key, value))
     return AuthorityQuery(
         subject=attestation.subject,
         predicate=attestation.predicate,
         scope=tuple(scope),
         plane=plane,
         validity=validity,
-        context=tuple(sorted(context.items())),
+        context=tuple(sorted(normalized_context)),
     )
 
 
@@ -99,18 +101,38 @@ def descriptor_from_attestation(
     validity: AwareDatetime,
 ) -> ExtractionResult:
     """Extract a fact descriptor from an Attestation without implicit defaults."""
-    from ethos.contracts.semantic import Attestation
-
     if (
         not isinstance(attestation, Attestation)
         or (query := query_from_attestation(attestation, validity=validity)) is None
     ):
         return ExtractionResult(required_gaps=("model_gap",))
+    statement = attestation.model_dump(mode="json")["statement"]
     return ExtractionResult(
         descriptor=CarrierDescriptor(
             role="fact",
             query=query,
-            assertion=attestation.statement_digest,
+            assertion=json.dumps(
+                {
+                    "verdict": attestation.verdict,
+                    "statement": {
+                        key: statement[key]
+                        for key in (
+                            "objective",
+                            "head",
+                            "tree",
+                            "gate_ids",
+                            "scope",
+                            "plane",
+                            "context",
+                            "boundary",
+                            "required_gaps",
+                        )
+                        if key in statement
+                    },
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
             bindings=tuple(
                 (name, value)
                 for name in (
@@ -156,7 +178,7 @@ def resolve_authority(
             descriptors=relevant,
             required_gaps=("unknown_required_fact",),
         )
-    meanings = {(repr(descriptor.assertion), descriptor.bindings) for descriptor in candidates}
+    meanings = {repr(descriptor.assertion) for descriptor in candidates}
     if len(meanings) > 1:
         return AuthorityResolution(
             verdict="block",

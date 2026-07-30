@@ -8,60 +8,60 @@ from typing import Any
 
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
+from ethos.normalization.coercion import string_mapping
+from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
-
-
-def _mutable(value: object) -> object:
-    if isinstance(value, Mapping):
-        return {str(key): _mutable(item) for key, item in value.items()}
-    if isinstance(value, tuple | list):
-        return [_mutable(item) for item in value]
-    return value
 
 
 def _closure_plan(closure: Mapping[str, object]) -> TransitionPlan:
     raw_nodes = closure.get("nodes")
     facts = closure.get("facts")
     if not isinstance(raw_nodes, tuple | list) or not isinstance(facts, Mapping):
-        raise TypeError("proof_attestation_plan_invalid")
+        message = "proof_attestation_plan_invalid"
+        raise TypeError(message)
     nodes = tuple(
-        PlanNode(
-            id=str(node["id"]),
-            kind=str(node["kind"]),
-            command=tuple(str(item) for item in node.get("command", ())),
-            depends_on=tuple(str(item) for item in node.get("depends_on", ())),
+        PlanNode.model_validate(
+            {
+                "id": str(node.get("id") or ""),
+                "kind": node.get("kind"),
+                "command": tuple(string_sequence(node.get("command"))),
+                "depends_on": tuple(string_sequence(node.get("depends_on"))),
+            }
         )
-        for node in raw_nodes
-        if isinstance(node, Mapping)
+        for node in map(string_mapping, raw_nodes)
     )
-    if len(nodes) != len(raw_nodes):
-        raise TypeError("proof_attestation_plan_invalid")
-    return TransitionPlan(
-        commitment_digest=str(closure["commitment_digest"]),
-        facts_digest=str(closure["facts_digest"]),
-        policy_digest=str(closure["policy_digest"]),
-        permissions=tuple(str(item) for item in closure.get("permissions", ())),
-        facts=_mutable(facts),
-        nodes=nodes,
-        initial_verdict=str(closure.get("initial_verdict", "pass")),
-        validation_issues=tuple(str(item) for item in closure.get("validation_issues", ())),
+    return TransitionPlan.model_validate(
+        {
+            "commitment_digest": str(closure["commitment_digest"]),
+            "facts_digest": str(closure["facts_digest"]),
+            "policy_digest": str(closure["policy_digest"]),
+            "permissions": tuple(string_sequence(closure.get("permissions"))),
+            "facts": string_mapping(facts),
+            "nodes": nodes,
+            "initial_verdict": closure.get("initial_verdict", "pass"),
+            "validation_issues": tuple(string_sequence(closure.get("validation_issues"))),
+        }
     )
 
 
 def plan_from_statement(attestation: Attestation) -> TransitionPlan:
     """Rehydrate the exact transient plan carried by an admitted proof statement."""
-    closure = attestation.statement.get("plan")
+    statement = string_mapping(attestation.model_dump(mode="json").get("statement"))
+    closure = statement.get("plan")
     if not isinstance(closure, Mapping):
-        raise TypeError("proof_attestation_plan_missing")
+        message = "proof_attestation_plan_missing"
+        raise TypeError(message)
     try:
         plan = _closure_plan(closure)
     except (KeyError, TypeError, ValueError) as error:
-        raise ValueError("proof_attestation_plan_invalid") from error
+        message = "proof_attestation_plan_invalid"
+        raise ValueError(message) from error
     digest = closure.get("digest")
     if not isinstance(digest, str) or digest != plan.digest():
-        raise ValueError("proof_attestation_plan_digest_mismatch")
+        message = "proof_attestation_plan_digest_mismatch"
+        raise ValueError(message)
     return plan
 
 

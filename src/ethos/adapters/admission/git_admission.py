@@ -24,7 +24,6 @@ from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.gates import gate_policy_digest
 from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
@@ -83,16 +82,7 @@ def hook_admission_report(request: HookAdmissionRequest) -> dict[str, object]:
         if status["role"] in PROTECTED_WRITE_ROLES and not targets:
             report = _verdict(base, "blocked", "block", "protected_root_pretool_paths_required")
     elif normalized == "pre-run":
-        command = request.command
-        stash_policy = git_stash_policy(command)
-        risk = command_risk(command, role=str(base["role"]))
-        base.update(command=command, command_risk=risk, git_stash_policy=stash_policy)
-        if stash_policy["forbidden"] is True:
-            report = _verdict(base, "blocked", "block", "git_stash_forbidden")
-        elif risk["tracked_mutation_risk"] is not True:
-            report = _verdict(base, "admitted", "allow", "command_observe_only", ())
-        elif not targets:
-            report = _verdict(base, "blocked", "block", "hook_prerun_paths_required")
+        report = _pre_run_report(base, request.command, targets)
     elif normalized == "post-write":
         report = _post_write_report(base, repo, targets)
     else:
@@ -107,6 +97,21 @@ def hook_admission_report(request: HookAdmissionRequest) -> dict[str, object]:
             require_editor_root=request.require_editor_root,
         )
     return report
+
+
+def _pre_run_report(
+    base: dict[str, object], command: str, targets: list[Path]
+) -> dict[str, object] | None:
+    stash = git_stash_policy(command)
+    risk = command_risk(command)
+    base.update(command=command, command_risk=risk, git_stash_policy=stash)
+    if risk.get("unclassifiable") is True:
+        return _verdict(base, "blocked", "block", "shell_command_unclassifiable")
+    if stash["forbidden"] is True:
+        return _verdict(base, "blocked", "block", "git_stash_forbidden")
+    if risk["tracked_mutation_risk"] is not True:
+        return _verdict(base, "admitted", "allow", "command_observe_only", ())
+    return None if targets else _verdict(base, "blocked", "block", "hook_prerun_paths_required")
 
 
 def push_admission_report(
@@ -212,11 +217,6 @@ def push_admission_report(
     return _verdict(base, "blocked", "block", reason, gaps)
 
 
-def _proof_attestation_id(root: Path, head: str) -> str:
-    attestation = proof_attestation(root, head)
-    return attestation.id if attestation is not None else ""
-
-
 def accepted_advance_gaps(
     repo: Path,
     policy: BranchRolePolicy,
@@ -266,6 +266,7 @@ def ref_move_admission_report(
     )
     if mirror or branch == policy.accepted_branch:
         move_policy = candidate_policy if mirror else policy
+        proof = proof_attestation(repo, new_value)
         gaps = [
             *accepted_advance_gaps(repo, move_policy, old_value=old_value, new_value=new_value),
             *proof_gaps(repo, new_value),
@@ -276,8 +277,8 @@ def ref_move_admission_report(
             old_value=old_value,
             new_value=new_value,
             expect=MarkerExpectation(
-                evidence_digest=_proof_attestation_id(repo, new_value),
-                gate_policy_digest=gate_policy_digest(repo, tree_ref=new_value),
+                evidence_digest=proof.id if proof is not None else "",
+                gate_policy_digest=proof.policy_digest if proof is not None else "",
             ),
         )
         if intent["gap"]:

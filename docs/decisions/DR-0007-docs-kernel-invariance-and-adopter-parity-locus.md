@@ -135,47 +135,11 @@ adopter-neutral.
 
 ## Alternatives Considered
 
-### Fixed docs kernel plus adopter-side external evidence
-
-**Pros**
-
-- Historically gave predictable navigation and kept adopter evidence out of product source.
-
-**Cons**
-
-- The fixed physical kernel overconstrained adopter form.
-
-**Why Rejected**
-
-The combined decision was superseded: registry semantics replace fixed topology.
-
-### Lifecycle-conditional required documentation paths
-
-**Pros**
-
-- Creates fewer files for an initially empty repository.
-
-**Cons**
-
-- Makes discoverability depend on mutable lifecycle state.
-
-**Why Rejected**
-
-It weakens semantic recovery and creates conditional topology.
-
-### Track every adopter's evidence in the ETHOS product repository
-
-**Pros**
-
-- Centralizes comparison results.
-
-**Cons**
-
-- Couples product proof to named adopters and unrelated freshness burdens.
-
-**Why Rejected**
-
-External-adopter evidence belongs to the adopter or an admitted external projection.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Fixed docs kernel plus adopter-side external evidence | superseded | Historically gave predictable navigation and kept adopter evidence out of product source. | The fixed physical kernel overconstrained adopter form. | Registry semantics replace fixed topology while profile-scoped assurance retains the evidence boundary. |
+| Lifecycle-conditional required documentation paths | rejected | Creates fewer files for an initially empty repository. | Makes discoverability depend on mutable lifecycle state. | It weakens semantic recovery and creates conditional topology. |
+| Track every adopter's evidence in the ETHOS product repository | rejected | Centralizes comparison results. | Couples product proof to named adopters and unrelated freshness burdens. | External-adopter evidence belongs to the adopter or an admitted external projection. |
 
 ## Selected Approach And Rationale
 

@@ -286,14 +286,6 @@ gate = "ethos prove --gate generated-artifacts --json"
 profile = "product"
 
 [[tool]]
-concern = "local_state_audit"
-tool = "ethos-local-state-audit"
-config = ".config/checks/local-state/audit.toml"
-artifacts = "build/evidence/local-state/"
-gate = "tools/ci/scripts/run-local-state-audit.sh"
-profile = "product"
-
-[[tool]]
 concern = "runbook_registry"
 tool = "ethos-runbook-registry"
 config = ".config/checks/runbook/registry.toml + docs/reference/runbook-registry.md"

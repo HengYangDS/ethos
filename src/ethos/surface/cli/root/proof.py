@@ -25,9 +25,7 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.gates import adopter_code_correctness_gaps
-from ethos.repository.policy.gates import default_gate_ids
-from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -60,51 +58,8 @@ class _ProofOptions:
 _DEFAULT_PROOF_OPTIONS = _ProofOptions()
 
 
-def missing_gate_dependency_next_actions(
-    *,
-    selected_gate_ids: tuple[str, ...],
-    validation_gaps: tuple[str, ...],
-    current_head: str,
-    root: Path | None = None,
-) -> tuple[str, ...]:
-    """Return a concrete proof rerun command when selected gates omit dependencies."""
-    if not selected_gate_ids:
-        return ()
-    missing_dependencies = tuple(
-        gap.removeprefix("missing_dependency:").split("->", maxsplit=1)[1]
-        for gap in validation_gaps
-        if gap.startswith("missing_dependency:") and "->" in gap
-    )
-    if not missing_dependencies:
-        return ()
-    registry = gate_registry(root)
-    ordered_gate_ids: list[str] = []
-    seen: set[str] = set()
-
-    def add_gate_with_dependencies(gate_id: str) -> None:
-        if gate_id in seen:
-            return
-        gate = registry.get(gate_id)
-        if gate is None:
-            return
-        for dependency_id in gate.depends_on:
-            add_gate_with_dependencies(dependency_id)
-        seen.add(gate_id)
-        ordered_gate_ids.append(gate_id)
-
-    for gate_id in selected_gate_ids:
-        add_gate_with_dependencies(gate_id)
-    if not any(gate_id in ordered_gate_ids for gate_id in missing_dependencies):
-        return ()
-    command_parts = ["ethos", "prove", "--execute"]
-    for gate_id in ordered_gate_ids:
-        command_parts.extend(("--gate", gate_id))
-    command_parts.extend(("--expect-head", current_head, "--json"))
-    return (" ".join(command_parts),)
-
-
 def proof_scope_binding(scope: str) -> dict[str, object]:
-    """Return the proof-scope compatibility binding for command payloads."""
+    """Return the proof-scope binding for command payloads."""
     normalized = " ".join(scope.split()) or "repository"
     known = normalized in KNOWN_PROOF_SCOPES
     return {
@@ -142,7 +97,7 @@ def _run_plan_checks(
     *, repo: Path, plan: TransitionPlan, execute: bool
 ) -> tuple[list[dict[str, object]], bool]:
     """Run or project the admitted TransitionPlan gate sequence."""
-    gates_by_id = gate_registry(repo)
+    gates_by_id = resolve_gate_policy(repo, gate_ids=tuple(node.id for node in plan.nodes)).registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     checks: list[dict[str, object]] = []
     adapter_states: list[str] = []
@@ -195,20 +150,9 @@ def _check_summaries(checks: list[dict[str, object]]) -> list[dict[str, object]]
 def _proof_next_actions(
     *,
     options: _ProofOptions,
-    plan_gaps: tuple[str, ...],
-    current_head: str,
-    repo: Path,
     result_state: str,
 ) -> tuple[str, ...]:
     """Return the next public lifecycle command for one proof outcome."""
-    dependency_actions = missing_gate_dependency_next_actions(
-        selected_gate_ids=options.gate,
-        validation_gaps=plan_gaps,
-        current_head=current_head,
-        root=repo,
-    )
-    if dependency_actions:
-        return dependency_actions
     if result_state == "proven":
         focused = bool(options.gate) or proof_scope_binding(options.scope)["scope"] != "repository"
         return ("ethos prove --json",) if focused else ("ethos land",)
@@ -247,14 +191,8 @@ def prove(
             repo,
             head=current_head,
             change_id=options.change,
-            gate_ids=(
-                options.gate
-                or (
-                    default_gate_ids(full=True, root=repo, tree_ref=current_head)
-                    if options.full
-                    else ()
-                )
-            ),
+            gate_ids=options.gate,
+            full=options.full,
             changed_paths=changed_paths,
         )
     except ValueError as exc:
@@ -313,7 +251,6 @@ def prove(
             tuple(string_sequence(audit.get("required_gaps")))
             + tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
             + plan_gaps
-            + tuple(adopter_code_correctness_gaps(repo))
             + failed_gate_gaps
             + (("full_proof_requires_execute",) if options.full and not options.execute else ())
             + trust_gaps
@@ -376,9 +313,6 @@ def prove(
     result_state = "proven" if ok and options.execute else "ready" if ok else "gapped"
     next_actions = _proof_next_actions(
         options=options,
-        plan_gaps=plan_gaps,
-        current_head=current_head,
-        repo=repo,
         result_state=result_state,
     )
     detailed = options.execute or bool(options.gate) or options.full

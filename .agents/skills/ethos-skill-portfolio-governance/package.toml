@@ -6,21 +6,15 @@ truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
 include = [
   "SKILL.md",
-  "scripts/portfolio_audit.py",
   "references/portfolio-design.md",
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:5a71c25b2b8336c009edb7d3e9de96d8470bec72ae9fa701084c03e65540cd85"
+expected_digest = "sha256:290379b1e9901bfe9ca210e8447e49ae3fb5061f8c1df4bf731916dea7ab14de"
 
 [quality]
 placeholder_allowed = false
 host_projection = false
-
-[[capability]]
-id = "skills.portfolio-audit"
-kind = "script_readonly"
-command = ["scripts/portfolio_audit.py", "."]
 
 [[capability]]
 id = "ethos.prove.playbooks-v2"

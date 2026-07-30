@@ -112,13 +112,51 @@ def test_fact_requires_current_validity() -> None:
 
 def test_equal_meaning_passes_and_contradiction_blocks() -> None:
     first = descriptor("native")
-    equal = descriptor("fact")
+    equal = descriptor("fact").model_copy(update={"bindings": (("head", "different"),)})
     conflict = descriptor("native", assertion=False)
 
     assert resolve_authority(query(), (first, equal)).verdict == "pass"
     blocked = resolve_authority(query(), (first, conflict))
     assert blocked.verdict == "block"
     assert blocked.required_gaps == ("contradiction",)
+
+
+def test_attestation_meaning_excludes_execution_instance_fields() -> None:
+    payload = {
+        "predicate": "proof:execution",
+        "verifier": "agent:test",
+        "subject": "git:commit:abc",
+        "issued_at": NOW,
+        "verdict": "pass",
+        "statement": {
+            "objective": "prove the commit",
+            "head": "abc",
+            "tree": "tree",
+            "gate_ids": ["tests"],
+            "scope": ["repository"],
+            "plane": "local",
+            "context": {"profile": "product"},
+            "plan": {"digest": "first"},
+            "artifact": {"sha256": "first"},
+        },
+        "plan_digest": "a" * 64,
+    }
+    first = Attestation.issue(payload)
+    second = Attestation.issue(
+        payload
+        | {
+            "statement": payload["statement"]
+            | {"plan": {"digest": "second"}, "artifact": {"sha256": "second"}},
+            "plan_digest": "b" * 64,
+        }
+    )
+
+    first_descriptor = descriptor_from_attestation(first, validity=NOW).descriptor
+    second_descriptor = descriptor_from_attestation(second, validity=NOW).descriptor
+    assert first_descriptor is not None
+    assert second_descriptor is not None
+    assert first_descriptor.assertion == second_descriptor.assertion
+    assert first_descriptor.bindings != second_descriptor.bindings
 
 
 def test_different_planes_are_not_globally_ranked() -> None:

@@ -8,7 +8,6 @@ import json
 from graphlib import CycleError
 from graphlib import TopologicalSorter
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
 from typing import Literal
@@ -21,9 +20,9 @@ from pydantic import computed_field
 from pydantic import field_serializer
 from pydantic import model_validator
 
-if TYPE_CHECKING:
-    from ethos.contracts.semantic import Commitment
-    from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 
 PlanVerdict = Literal["pass", "block", "unknown"]
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
@@ -270,10 +269,6 @@ def compile_plan(
 
 def terminal_schema_documents() -> dict[str, dict[str, Any]]:
     """Generate the language-neutral terminal contracts from their model owners."""
-    from ethos.contracts.semantic import Attestation
-    from ethos.contracts.semantic import Commitment
-    from ethos.contracts.semantic import Facts
-
     contracts = {
         "commitment.schema.json": Commitment,
         "attestation.schema.json": Attestation,

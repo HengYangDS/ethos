@@ -12,7 +12,7 @@ command plane.
 | Full local proof plan | `ethos prove --full --json` | Full configured proof result |
 | Work Lane write admission | `ethos lane prewrite ... --json` | Current lane decision |
 | OpenSpec lifecycle | official `openspec` CLI | Official command JSON |
-| Repo-local skills | portfolio audit plus `playbooks-v2` proof gate | Script and proof result |
+| Repo-local skills | `playbooks-v2` proof gate | Proof result |
 
 Repository source, tests, schemas, docs, OpenSpec, claims, and evidence remain
 above this map. The map routes work; it does not create durable truth.

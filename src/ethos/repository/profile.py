@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tomllib
 from collections.abc import Mapping
@@ -18,9 +19,10 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import PlainSerializer
 from pydantic import ValidationError
+from pydantic import model_validator
 
 from ethos.contracts.gates import GateDescriptor
-from ethos.contracts.openspec.models import AdopterOpenSpecPolicy  # noqa: TC001
+from ethos.contracts.openspec.models import OpenSpecPolicy  # noqa: TC001
 
 DEFAULT_ROOTS = {
     "rules": "rules",
@@ -33,7 +35,8 @@ DEFAULT_ROOTS = {
 
 PATH_TYPE_ERROR = "repository path must be a string"
 PATH_VALUE_ERROR = "repository path must be relative POSIX without dot segments"
-INVALID_PROFILE_ERROR = "adopter_profile_invalid:.ethos/profile.toml"
+INVALID_PROFILE_ERROR = "repository_profile_invalid:.ethos/profile.toml"
+_GIT = shutil.which("git") or "/usr/bin/git"
 
 
 def _repository_path(value: object) -> str:
@@ -57,32 +60,13 @@ RepositoryPathTuple = Annotated[
     tuple[RepositoryPath, ...],
     BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
 ]
-StringTupleMap = Annotated[
-    Mapping[str, NonEmptyTuple],
+CodeCorrectnessMap = Annotated[
+    Mapping[str, NonEmpty],
     AfterValidator(lambda value: MappingProxyType(dict(value))),
     PlainSerializer(dict, return_type=dict),
 ]
-CodeCorrectnessEntry = NonEmpty | Mapping[str, NonEmpty]
-CodeCorrectnessMap = Annotated[
-    Mapping[str, CodeCorrectnessEntry],
-    AfterValidator(
-        lambda value: MappingProxyType(
-            {
-                key: MappingProxyType(dict(entry)) if isinstance(entry, Mapping) else entry
-                for key, entry in value.items()
-            }
-        )
-    ),
-    PlainSerializer(
-        lambda value: {
-            key: dict(entry) if isinstance(entry, Mapping) else entry
-            for key, entry in value.items()
-        },
-        return_type=dict,
-    ),
-]
 GateTuple = Annotated[
-    tuple["AdopterGateDescriptor", ...],
+    tuple["ProfileGateDescriptor", ...],
     BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
 ]
 
@@ -106,18 +90,39 @@ class EvidenceRoots(_ProfileModel):
     host_local_roots: RepositoryPathTuple = ()
 
 
-class AdopterGateDescriptor(GateDescriptor):
-    profile: Literal["adopter"] = "adopter"
+class ProfileGateDescriptor(GateDescriptor):
+    profile: Literal["repository"] = "repository"
     toolchain: str = "repository-native"
     execution_mode: str = "subprocess"
     tool_adapter: str = "repository-native"
 
 
 class ProofPolicy(_ProfileModel):
-    code_correctness_gates: NonEmptyTuple = ()
+    gate_registry: RepositoryPath | None = None
+    required_gates: NonEmptyTuple = ()
     gates: GateTuple = ()
-    code_correctness_axes: StringTupleMap = Field(default_factory=dict)
-    code_correctness_map: CodeCorrectnessMap = Field(default_factory=dict)
+    code_axes: CodeCorrectnessMap = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def require_one_gate_owner(self) -> ProofPolicy:
+        """Reject a local registry and profile-native gates as parallel owners."""
+        native = bool(self.required_gates or self.gates or self.code_axes)
+        if self.gate_registry and native:
+            msg = "proof policy has parallel gate owners"
+            raise ValueError(msg)
+        gate_ids = tuple(gate.id for gate in self.gates)
+        if len(gate_ids) != len(set(gate_ids)) or set(gate_ids) != set(self.required_gates):
+            msg = "proof gate descriptors must match the proof floor exactly"
+            raise ValueError(msg)
+        mapped = tuple(self.code_axes.values())
+        if self.required_gates and (
+            set(self.code_axes) != {"behavior", "static-analysis"}
+            or len(mapped) != len(set(mapped))
+            or not set(mapped) <= set(self.required_gates)
+        ):
+            msg = "proof code axes must map distinct required gates"
+            raise ValueError(msg)
+        return self
 
 
 class VerificationAction(_ProfileModel):
@@ -140,11 +145,11 @@ class AdoptionBoundaryPolicy(_ProfileModel):
 
 
 class RepositoryProfileDeclaration(_ProfileModel):
-    """The one typed adopter binding contract shared by every profile reader."""
+    """The one typed repository binding shared by every profile reader."""
 
     profile_id: NonEmpty
     commitment: RepositoryPath = ".ethos/commitment.toml"
-    openspec: AdopterOpenSpecPolicy | None = None
+    openspec: OpenSpecPolicy | None = None
     normative_sources: RepositoryPathTuple = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
     evidence: EvidenceRoots = Field(default_factory=EvidenceRoots)
@@ -190,19 +195,16 @@ def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> Repos
     )
 
 
-def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args], capture_output=True, check=False, text=True
-    )
-
-
 def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
     if tree_ref:
         result = _git(repo, "show", f"{tree_ref}:.ethos/profile.toml")
         if result.returncode == 0:
             return True, result.stdout
-        if _git(repo, "rev-parse", "--verify", f"{tree_ref}^{{commit}}").returncode == 0:
+        commit = _git(repo, "rev-parse", "--verify", f"{tree_ref}^{{commit}}")
+        if commit.returncode == 0:
             return False, ""
+        msg = "repository_tree_ref_invalid"
+        raise ValueError(msg)
     path = repo / ".ethos" / "profile.toml"
     try:
         resolved = path.resolve(strict=True)
@@ -214,6 +216,10 @@ def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
         return path.exists() or path.is_symlink(), ""
 
 
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([_GIT, *args], cwd=repo, capture_output=True, check=False, text=True)
+
+
 def profile_root(root: Path, key: str) -> Path:
     profile = load_repository_profile(root)
     if profile.state == "invalid":
@@ -223,7 +229,7 @@ def profile_root(root: Path, key: str) -> Path:
 
 
 def profile_required_gaps(profile: RepositoryProfile) -> tuple[str, ...]:
-    return ("adopter_profile_invalid:.ethos/profile.toml",) if profile.state == "invalid" else ()
+    return (INVALID_PROFILE_ERROR,) if profile.state == "invalid" else ()
 
 
 def profile_evidence_roots(root: Path) -> tuple[str, ...]:
@@ -235,6 +241,7 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
     candidates = [
         ".ethos/profile.toml",
         declaration.commitment,
+        *((declaration.proof.gate_registry,) if declaration.proof.gate_registry else ()),
         roots.rules,
         *declaration.normative_sources,
         *((roots.openspec,) if declaration.openspec is not None else ()),
@@ -244,3 +251,11 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
     for values in declaration.evidence.model_dump().values():
         candidates.extend(values)
     return tuple(dict.fromkeys(item for item in candidates if item))
+
+
+def profile_gate_registry(root: Path, *, tree_ref: str | None = None) -> str:
+    """Return the repository-declared gate registry, if any."""
+    profile = load_repository_profile(root, tree_ref=tree_ref)
+    if profile.state == "invalid":
+        raise ValueError(INVALID_PROFILE_ERROR)
+    return profile.declaration.proof.gate_registry or "" if profile.declaration else ""

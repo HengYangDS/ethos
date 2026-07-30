@@ -19,7 +19,6 @@ from ethos.adapters.repo.git_effects import reference_transaction_hook_changed
 from ethos.adapters.repo.git_effects import sync_current_worktree
 from ethos.adapters.repo.git_effects import sync_linked_ref_worktree
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
-from ethos.repository.policy.gates import gate_policy_digest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -81,14 +80,10 @@ def _apply_candidate_promotion(*, root, policy, status, heads, context):
         ),
     )
     evidence_digest = proof.id
-    policy_digest = gate_policy_digest(root, tree_ref=candidate_head)
     result = None
     try:
-        plan, commitment_digest, facts_digest = proof_attestation_bindings(
-            root,
-            proof,
-            policy_digest=policy_digest,
-        )
+        plan, commitment_digest, facts_digest = proof_attestation_bindings(root, proof)
+        policy_digest = proof.policy_digest
     except (TypeError, ValueError) as error:
         result = _accepted_block(
             policy,
@@ -302,14 +297,14 @@ def _attempt_closeout_effect(
 def proof_attestation_bindings(
     root: Path,
     proof: Attestation,
-    *,
-    policy_digest: str,
 ) -> tuple[TransitionPlan, str, str]:
     plan = proof_plan_for_attestation(root, proof)
     if not proof.plan_digest:
-        raise ValueError("git_effect_binding_missing:plan_digest")
-    if proof.policy_digest != policy_digest or plan.policy_digest != policy_digest:
-        raise ValueError("git_effect_binding_stale:policy_digest")
+        msg = "git_effect_binding_missing:plan_digest"
+        raise ValueError(msg)
+    if proof.policy_digest != plan.policy_digest:
+        msg = "git_effect_binding_stale:policy_digest"
+        raise ValueError(msg)
     return plan, proof.commitment_digest, proof.facts_digest
 
 

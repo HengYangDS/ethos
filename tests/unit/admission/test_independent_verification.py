@@ -62,7 +62,7 @@ def test_independent_verification_policy_rejects_invalid_profile(tmp_path) -> No
     profile.parent.mkdir()
     profile.write_text("[", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="adopter_profile_invalid"):
+    with pytest.raises(ValueError, match="repository_profile_invalid"):
         external.independent_verification_policy(tmp_path, "publish")
 
 
@@ -164,14 +164,17 @@ def test_request_builder_binds_publish_to_exact_git_revision_and_gate_policy(
             "b" * 40 if args[:2] == ("rev-parse", "a" * 40 + "^{tree}") else "origin-url"
         ),
     )
-    monkeypatch.setattr(external, "default_gate_ids", lambda **_kwargs: ("tests", "lint"))
 
-    def policy_digest(_root, *, tree_ref: str) -> str:
+    def policy(_root, *, tree_ref: str):
         assert _root == tmp_path
         assert tree_ref == "a" * 40
-        return "c" * 64
+        return type(
+            "Policy",
+            (),
+            {"gate_ids": ("tests", "lint"), "digest": "c" * 64},
+        )()
 
-    monkeypatch.setattr(external, "gate_policy_digest", policy_digest)
+    monkeypatch.setattr(external, "resolve_gate_policy", policy)
 
     request = independent_verification_request(root=tmp_path, action="publish")
 

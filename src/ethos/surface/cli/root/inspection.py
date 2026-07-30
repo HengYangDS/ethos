@@ -9,7 +9,7 @@ from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.context import context_for_root
+from ethos.repository.context import repository_context
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -84,7 +84,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
                 cast("dict[str, object]", observed.get("stage_gates") or {}).get("next_commands")
             )
         ),
-        governance_context=context_for_root(repo),
+        governance_context=repository_context(repo),
         data=data,
     )
     emit(result, json_output=json_output, enforce=False, artifact_root=repo)

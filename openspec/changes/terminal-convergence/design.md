@@ -95,6 +95,7 @@ the final explicit remainder; every tracked path resolves to exactly one row.
 | `evidence/**` | Claims, Chronicle, and legacy evidence bytes | historical | immutable evidence plus future Attestation disposition | `5.6` | no current reader or policy authorizes legacy evidence |
 | `docs/history/**` | Superseded documentation history | historical | Git history and current documentation routing | `5.6` | links resolve and current docs exclude historical authority |
 | `docs/governance/conversation-ledger.md` | Conversation-derived requirement ledger | deleted-after-proof | this design, delta specs, stable tasks, and the fact-boundary closure below | `0.4` | all feedback and independent fact boundaries map to one owner and verifier |
+| `docs/plans/terminal-governance-product-design.md` | Canonical terminal target design | absorbed | terminal target design under the Product Design Contract | `5.1`, `5.6` | design integrity preserves the target until its current semantics are absorbed |
 | `docs/decisions/**`, `docs/plans/**` | Decision records and plans | deleted-after-proof | flat DR metadata, Git history, and current OpenSpec tasks | `5.4`, `5.6` | DR grammar and absorptive retirement prove no parallel ledger |
 | `.agents/**`, `.config/**`, `.github/**`, `.gitlab/**`, `.gitlab-ci.yml`, `.githooks/**`, `.pre-commit-config.yaml`, `rules/**` | Rules, skills, checks, forge, hook, and provider projections | absorbed | their declared native owners | `5.5`, `5.7` | route-owner, drift, and provider-homomorphism checks |
 | `.ethos/**`, `.gitignore`, `.gitleaks.toml`, `AGENTS.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`, `README.md`, `assets/**`, `distributions/**`, `docs/**`, `openspec/README.md`, `openspec/config.yaml`, `openspec/changes/*`, `package-lock.json`, `package.json`, `pyproject.toml`, `ruff.toml`, `src/**`, `tests/**`, `tools/**`, `uv.lock` excluding every earlier selector | Remaining tracked product, documentation, source, tests, tools, distributions, and root declarations | absorbed | the narrow owner selected by routing and module boundaries | `5.1`, `5.3`, `6.1`, `6.6` | tracked-path partition, import boundaries, repository audit, and full proof |
@@ -109,6 +110,21 @@ committed and equivalence-proved first; authority-bound retirement follows only
 after the auxiliary dirty bytes, holder, Lease, and exact target state are
 admitted. The second admission cannot erase or postpone the first, while the
 task remains incomplete until the native retirement receipt exists.
+
+### Official OpenSpec 1.7 Cutover
+
+Tasks `4.1` and `7.5` own one no-compatibility cutover to OpenSpec `1.7.0`.
+The repository pin and effective executable must agree; a cache-selected or
+machine-global version cannot override the declaration. The adapter consumes
+official `list`, `status`, `validate`, and `archive` JSON, including nested spec
+identities, artifact `requires`, valid `skip_specs`, archive warnings, no-op
+updates, and the returned archive path. ETHOS does not enable a global default
+store or retain a parallel 1.6 reader.
+
+The owner-native archive is the final tracked source mutation, not the final
+proof claim. It changes HEAD, so local proof, proposal/hosted verification, and
+dual-provider publication must be rebound to the post-archive commit before
+Exit 7 can hold.
 
 ### Independent Fact-Boundary Closure
 
@@ -172,9 +188,10 @@ here.
 
 | Historical tasks | Disposition | Current tasks | Evidence or ruling |
 | --- | --- | --- | --- |
-| `0.1` | absorbed | `0.1` | terminal Change, Work Lane, Commitment, Lease, and roles are bound |
+| `0.1` | absorbed | `0.1`, `F.8`, `F.17`, `F.18`, `F.19` | current binding retains the Change and lane; completed foundations retain branch roles, exact Lease and Commitment bindings, and observe-only foreign-lane state; the old accepted/candidate snapshot and concern matrix remain historical evidence rather than mutable authority |
 | `0.2` | absorbed | `F.10` | `351e026fab`; hard source-budget gaps block |
 | `0.3` | absorbed | `F.11` | `1d98cce8dc`; score readiness and report authority are deleted |
+| `0.6` | absorbed | `0.6`, `F.9` | the completed deletion obligation and fail-closed official active-change selection jointly retain the later reporter-path clarification |
 | `1.1` | absorbed | `F.1` | `351e026fab`; direct source measurement owns the property |
 | `1.2` | superseded | `5.3`, `6.5`, `6.6`, `6.9` | deletion is governed by semantic boundary and proved consumer need, not a fixed file list |
 | `1.3` | absorbed | `F.2`, `3.5` | `9e794bcc22`; positive product ownership replaces private-product coupling |
@@ -215,7 +232,7 @@ here.
 | `7.2` | absorbed | `7.3` | one proposal and two independent hosted planes remain required |
 | `7.3` | absorbed | `7.4` | protected refs, release, tag, and artifacts bind one commit |
 | `7.4` | absorbed | `7.2` | local candidate/dev closeout and lane retirement precede proposal publication |
-| `7.5` | absorbed | `7.5` | official OpenSpec archive remains the last effect |
+| `7.5` | absorbed | `7.5` | official OpenSpec archive is the last source mutation; proof and provider publication are re-executed on its resulting HEAD |
 | `0.2.1` | superseded | `0.2` | normalize the current Phase 0 coordinate after the legacy `0.2` source-budget obligation moved permanently to `F.10` |
 | `0.3.1` | superseded | `0.3` | normalize the current Phase 0 coordinate after the legacy `0.3` readiness obligation moved permanently to `F.11` |
 

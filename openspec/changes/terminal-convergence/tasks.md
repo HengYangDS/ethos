@@ -1,99 +1,236 @@
-## 0. Bind The Terminal Change
+## Execution Contract
 
-- [x] 0.1 Bind this active self-profile change to the terminal product design and owned Work Lane.
-- [ ] 0.2 Add failing tests for two-root persistence, open Attestation predicates,
-  transient Facts/TransitionPlan, contextual authority/currentness, model gaps,
-  byte-stable lease bindings, and history non-authority.
-- [ ] 0.3 Map every active carrier and legacy surface to one of: `absorbed`,
+For the ETHOS self-profile only, these tasks are the single campaign execution
+carrier. They do not define a generic product task database or runtime. Checked
+items require current source plus a commit or verifier. Refinement preserves task
+identity and evidence; it never renumbers work to reset progress. The first
+unchecked item in section 0 is the critical path. Every phase closes only through
+its stated exit.
+
+## Completed Foundations
+
+- [x] F.1 Replace the private source-budget worker, replay, and shadow stack
+  with direct deterministic measurement (`351e026fab`).
+- [x] F.2 Remove active workstation-specific product coupling while retaining native
+  fail-closed lane admission (`9e794bcc22`; active product scan is empty).
+- [x] F.3 Collapse to one top-level `src/ethos` distribution and remove the
+  superseded package topology (`5388fe581f`; one root `pyproject.toml`).
+- [x] F.4 Select `cel-expr-python` after the CEL cutover and remove the competing
+  engine (`a21de4a397`; lockfile and direct import agree).
+- [x] F.5 Reduce the public surface to Cyclopts `adopt`, `status`, `plan`,
+  `prove`, `land`, and `publish`; remove orient/report authority
+  (`1d98cce8dc`, `271cb4a9b9`).
+- [x] F.6 Enforce semantic module boundaries and reject compatibility facades
+  (`78faa3318f`).
+- [x] F.7 Block optional method packs from owning repository tasks, plans,
+  progress, or reports (`2a07f9e434`).
+- [x] F.8 Replace `submit/*` with the sole remote review role `proposal/*`;
+  keep `candidate/dev` and `work/*` local-only (`e3bc687e55`; routing and release
+  policy agree).
+- [x] F.9 Fail closed when an explicit OpenSpec Change is absent or implicit
+  selection is ambiguous (`7edae175d7`).
+
+## 0. Restore Campaign Control And Intent Closure
+
+- [x] 0.1 Bind this active self-profile Change to the canonical product design,
+  exact Work Lane, Commitment, Lease, and current branch roles.
+- [ ] 0.2 Add failing tests for two-root persistence, open Attestation
+  predicates, transient Facts/TransitionPlan, contextual authority/currentness,
+  model gaps, byte-stable Lease bindings, and history non-authority.
+- [ ] 0.3 Map every active carrier and legacy surface to `absorbed`,
   `historical`, or `deleted-after-proof`; block deletion while a semantic delta
   or consumer remains unmapped.
+- [ ] 0.4 Close every independent accepted feedback obligation and every
+  pre-cutover task into a current requirement and stable task, or an explicit
+  rejection, deferral, or supersession reason in the existing design/spec/task
+  carriers. Later explicit decisions win; raw dialogue and summaries do not
+  become a second ledger.
+- [ ] 0.5 Add architecture tests that block task-ID reuse, completion reset,
+  unmapped intent, old-decision resurrection, branch-role drift, six-command
+  drift, runner/schema/editor/audit-root divergence, and loss of exact terminal
+  thresholds.
+- [ ] 0.6 Complete the current OpenSpec adapter deletion: remove predictive
+  archive/preflight/metadata replicas, inline the sole completion observer,
+  repair canonical spec and docs contradictions, and prove a completed active
+  Change blocks land/closeout through the real official-list reporter path.
+- [ ] 0.7 Commit the deletion slice, prove patch equivalence with
+  `work/20260730-openspec-active-change-selection`, and retire that already
+  absorbed lane through native closeout.
+
+**Exit 0:** current intent is closed without a parallel ledger; OpenSpec strict,
+focused tests, Ruff, format, import boundaries, and compiled plan pass at the
+slice HEAD; only the campaign lane remains for this intent.
 
 ## 1. Cut The Common Generative Kernel
 
 - [ ] 1.1 Remove Commitment process fields, amendment APIs, effective-intent
-  folds, closed Attestation kind algebra, and all schemas/tests/readers that
-  preserve them. Preserve ordinary assertion vocabulary and immutable historical
-  bytes without allowing either to authorize current effects.
-- [ ] 1.2 Make Attestation predicate/statement/bindings/validity/verifier the
-  open immutable envelope; unknown predicates remain non-authorizing.
-- [ ] 1.3 Rename all transition inputs and digests to `commitment`; delete
-  `contract` aliases and dual carriers. Keep Facts and TransitionPlan
-  transient and regenerate their schemas from the single model owner.
+  folds, closed Attestation kinds, and all preserving readers and schemas.
+- [ ] 1.2 Make Attestation predicate, statement, bindings, validity, verifier,
+  and evidence references the open immutable envelope; unknown predicates stay
+  visible and non-authorizing.
+- [ ] 1.3 Rename every transition input and digest to `commitment`; delete
+  `contract` aliases and dual carriers. Facts and TransitionPlan remain transient.
 - [ ] 1.4 Unify verdicts as `pass | block | unknown`; unknown required inputs
-  block effects and no quality warning can coexist with pass.
+  and warnings block effects and cannot coexist with pass.
+- [ ] 1.5 Use Pydantic v2 for portable boundary contracts and small frozen
+  standard-library values internally; reject attrs/dataclass/Pydantic dual
+  models, conversion layers, and mutable semantic roots.
+- [ ] 1.6 Generate language-neutral schemas from the single model owner and use
+  direct `graphlib.TopologicalSorter` for TransitionPlan ordering and cycles.
+
+**Exit 1:** only Commitment and Attestation persist; fresh Facts plus a
+deterministic transient TransitionPlan reproduce every public lifecycle verdict.
 
 ## 2. Replace Parallel Truth With Contextual Resolution
 
-- [ ] 2.1 Implement five-role carrier extraction and transient descriptor
-  diagnostics; reject unknown role semantics as `model_gap`.
-- [ ] 2.2 Replace global rank/currentness indexes with the local
-  subject/predicate/scope/plane/validity resolver and contradiction blocking.
-- [ ] 2.3 Remove historical workflow re-evaluation from admission. Validate
-  attestation closure over exact commitment, facts, policy, plan, effect, and
-  artifact bindings instead.
-- [ ] 2.4 Complete exact carrier-byte/tree lease bootstrap and CAS cutover;
-  delete all legacy evaluator, repair, dual-read, and fallback paths.
+- [ ] 2.1 Implement native, projection, adapter, fact, and history extraction;
+  reject unmappable valid semantics as `model_gap`.
+- [ ] 2.2 Replace global rank/currentness indexes with resolution over subject,
+  predicate, scope, plane, validity, exact bindings, and contradiction blocking.
+- [ ] 2.3 Remove historical workflow re-evaluation from admission; validate
+  closure over exact Commitment, Facts, policy, plan, effect, and artifact.
+- [ ] 2.4 Complete exact carrier-byte/tree Lease bootstrap and CAS cutover;
+  delete legacy evaluators, repair paths, dual reads, and fallbacks.
+- [ ] 2.5 Add one exact one-shot Commitment-rebind transition for an owned dirty
+  lane: bind old generation, index tree, new immutable Commitment, target commit,
+  epoch CAS, crash repair, and Attestation without amendment or aliases.
+
+**Exit 2:** authority and currentness are computed locally from fresh facts;
+changing intent cannot deadlock or mutate an existing Commitment.
 
 ## 3. Make One Transaction Mechanism
 
 - [ ] 3.1 Reduce generic runtime to observe → extract → resolve → compile →
-  evaluate → CAS apply → post-observe → attest → project.
-- [ ] 3.2 Move fixed command phases, campaign state, task/progress state,
-  decision ledgers, lifecycle read models, and the current producers, readers,
-  schemas, and authorization semantics of claim/chronicle/proof-record planes
-  out of generic runtime; retain required historical bytes as non-authorizing
-  history.
-- [ ] 3.3 Keep Git effects idempotent and exact-CAS; produce Attestations for
-  judgments/effects and use only explicit replay analysis outside admission.
+  evaluate → exact-CAS apply → post-observe → attest → project.
+- [ ] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
+  decision ledgers, lifecycle read models, and current Claim/Chronicle/proof
+  authorization; retain required bytes only as non-authorizing history.
+- [ ] 3.3 Keep every Git effect idempotent and exact-CAS; replay exists only as
+  explicit analysis outside admission.
+- [ ] 3.4 Replace the coupling registry/runtime with positive native-owner
+  declarations while preserving prewrite rejection of undeclared imports,
+  commands, executables, distributions, and references.
+- [ ] 3.5 Remove active private-product coupling, product-specific ontology,
+  schemas, policy exceptions, and undeclared references from the ETHOS surface;
+  admitted generic tools and removable adapters remain positive declared owners,
+  not forbidden names.
+- [ ] 3.6 Prove reducer, Lease, handoff, takeover, candidate CAS, retirement, and
+  crash invariants with stateful property tests, selected mutation operators,
+  and the smallest bounded formal model; each proof names its bounded state,
+  mutation budget, kill criterion, and unsupported claims.
+
+**Exit 3:** one pure compiler plus one effect boundary owns mutation; no parallel
+runtime, blacklist, replay, ledger, or product coupling can authorize work.
 
 ## 4. Separate Product Profiles From Coordination
 
-- [ ] 4.1 Move OpenSpec discovery, validation, archive, and material paths into
-  the ETHOS self-profile adapter; prove generic adopt/plan/prove/land works with
-  no `openspec/` directory.
-- [ ] 4.2 Reduce Worktree Family, lane, lease, handoff, inbox, records, and
-  candidate train to scoped resource facts/projections plus attested effects.
-  Remove one-Commitment/one-Family, fixed worker/competition limits, and
-  transcript dependence.
-- [ ] 4.3 Implement capacity/risk/conflict-based collaboration and competition,
-  short candidate CAS, vendor-neutral handoff/takeover, orphan unknown state,
-  and lossless reconstruction from Commitment, Facts, Attestations, and Git.
+- [ ] 4.1 Keep OpenSpec as the ETHOS self-profile carrier whose official CLI
+  owns validation and archive; prove generic lifecycle with no `openspec/`.
+- [ ] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
+  candidate train to scoped resource Facts, projections, and attested effects.
+- [ ] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and
+  competition without fixed WIP or competitor cardinality.
+- [ ] 4.4 Complete vendor-neutral actor identity, shared-inbox reconstruction,
+  optional Git-lock handoff, transcript-free takeover, lost-session unknown
+  state, dirty-content preservation, and orphan resolution. Exact takeover binds
+  branch, HEAD, lease generation, dirty digest, target actor, source quiescence
+  or loss, and epoch CAS; drift has zero effect.
+- [ ] 4.5 Implement adaptive backpressure, parallel proof scheduling, queue age
+  policy, and a short serialized candidate CAS that preserves stable `dev` throughput.
+- [ ] 4.6 Absorb or retire every authorized campaign and budget-v2 family; block
+  lane explosion by requiring one owner, bounded scope, current Lease, and an
+  explicit absorption or retirement destination.
 
-## 5. Absorb The Repository Knowledge System
+**Exit 4:** coordination can be rebuilt from Commitment, Git, fresh Facts, and
+Attestations across Codex, JetBrains, Claude, or another host without intent loss.
+
+## 5. Rebuild The Repository Knowledge System
 
 - [ ] 5.1 Rebuild canonical docs, flat DRs, rules, skills, OpenSpec, schemas,
-  CI/forge files, evidence, records, and indexes around their selected native
-  owners and derived projections; delete duplicate governance prose and manual
-  registries.
-- [ ] 5.2 Add contradiction/model-gap promotion and retirable-carrier checks to
-  the earliest applicable admission path; prove they cover code, tests, docs,
-  rules, skills, schemas, CI, and records.
-- [ ] 5.3 Normalize physical names and module boundaries by actual semantics;
-  split, rename, absorb, or delete ambiguous catch-alls across source, tests,
-  tools, configuration, and documentation without compatibility facades.
+  CI/forge files, evidence, records, and indexes around one native owner each.
+  Repository-family records use only `evidence/` or `recovery/`, contain
+  `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS`, and pass
+  admit → verify → index without rewriting history.
+- [ ] 5.2 Promote contradictions and taxonomy/model gaps at the earliest
+  admission point; recompile dependents before retiring stale carriers.
+- [ ] 5.3 Split, rename, absorb, or delete ambiguous `core/common/shared/utils`
+  and other catch-alls by actual semantic axes across source, tests, tools,
+  configuration, and documentation; no size-only split or facade.
+- [ ] 5.4 Make DRs flat, newest-current first, strongly structured, and concise;
+  alternatives use comparable decision tables with pros, cons, rationale,
+  consequences, revisit triggers, and evidence.
+- [ ] 5.5 Make specs, rules, and skills evolve through coverage, overlap,
+  novelty, route-owner, quality, and retirement checks; Superpowers remains an
+  optional method pack and OpenSpec tasks remain the sole task SSOT.
+- [ ] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
+  necessary history, then delete misleading or redundant residue without a
+  generic archive truth root.
+- [ ] 5.7 Derive GitLab/GitHub issue, review, CI/CD, release, and provider
+  projections from one portable semantic contract while preserving each
+  provider's native syntax and capabilities; block semantic drift, not
+  byte-for-byte or template-shape differences.
 
-## 6. Complete Quality And Product Proof
+**Exit 5:** every current statement has one owner, every projection has a source
+binding, and every stale or contradictory carrier is absorbed, historical, or deleted.
 
-- [ ] 6.1 Declare one admitted owner for each formatting, lint, type, test,
-  structural, documentation, schema, dependency, SBOM, provenance, version,
-  and release property; route local and hosted checks through it.
-- [ ] 6.2 Eliminate warnings and production formatter/lint/type suppressions;
-  enforce drift checks, exact source budgets, and quality across every owned
-  repository surface.
-- [ ] 6.3 Prove Python, Node/polyglot, and docs/infra adopters with no forced
-  layout, language, OpenSpec, or provider; prove offline install, profile
-  isolation, uninstall cleanliness, and portable CLI/SDK/subprocess contracts.
-- [ ] 6.4 Admit MCP or other ecosystem adapters only after conformance proof
-  shows one concrete consumer and zero repository truth ownership.
+## 6. Complete Quality, Product, And Ecosystem Proof
+
+- [ ] 6.1 Declare exactly one owner for formatting, lint, type, test,
+  architecture, docs, schema, dependency, security, SBOM, provenance, version,
+  release, and source measurement; local and hosted gates call those owners.
+  SPDX, DSSE, and SLSA labels state only the exact generated format or assurance
+  level actually proved and never imply broader conformance.
+- [ ] 6.2 Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
+  coverage-ignore, and equivalent suppressions.
+- [ ] 6.3 Enforce Python ELOC ≤54,000, global owned-source ELOC ≤68,000, branch
+  coverage ≥95%, and complete behavior coverage for authority, CAS, and pure
+  reducers. Changed-scope admission binds the exact merge base and evaluates
+  every coordinate independently; improvement in one coordinate never compensates
+  for regression in another.
+- [ ] 6.4 Enforce native formatting and syntax for Python, TOML, YAML, JSON,
+  Markdown, shell, schemas, CI, and forge files; canonical JSON serialization,
+  consistent blank-line rules, internal and external links, and projection drift.
+- [ ] 6.5 Admit duplicate/dead-definition, complexity, dependency, security, and
+  structural tools only for distinct owned properties; delete overlapping
+  wrappers, baselines, advisory-only tools, and unconsumed dependencies.
+- [ ] 6.6 Enforce Cyclopts-only CLI, no argparse, unnecessary `__all__`, import
+  aliases, shims, wrappers, thin forwarding, re-exports, compatibility facades,
+  coverage-only tests, or hard-coded policy/configuration.
+- [ ] 6.7 Prove Python, Node/polyglot, and docs/infra adopters through offline
+  install, adopt/status/plan/prove/land/publish, handoff/recovery, profile
+  isolation, native layout, and clean uninstall without mandatory OpenSpec or provider.
+- [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
+  Python SDK, subprocess JSON, permissions, determinism, authority isolation,
+  versioning, errors, offline behavior, and optional MCP/A2A-style adapters.
+- [ ] 6.9 Admit an execution runtime, generator, scaffold, Jinja, DI, event bus,
+  plugin framework, or protocol adapter only when a real adopter proves unique
+  need, measurable token/time gain, zero truth ownership, clean uninstall, and
+  net deletion. Execution budgets count only verified terminal-state delta;
+  repeated failures, weak evidence, carrier shifts, excess concurrency, or an
+  unsuitable model tier trigger an explicit stop, downgrade, or replanning verdict.
+
+**Exit 6:** all repository surfaces satisfy the terminal quality floor and the
+same kernel relation is proved across three adopter forms and portable interfaces.
 
 ## 7. Close The Campaign Once
 
-- [ ] 7.1 Run format, lint, type, unit, property, model, mutation, integration,
-  adopter, package, source-budget, security, SBOM, provenance, and release proof
-  at one immutable local HEAD.
-- [ ] 7.2 Advance local candidate/dev and protected dev through native audited
-  closeout; absorb or retire all owned lanes and verify required immutable
-  record packages.
-- [ ] 7.3 Publish exactly one `proposal/terminal-convergence`, then independently
-  verify GitLab and GitHub CI/CD, protected dev/main, tag, and artifact
-  attestations before archiving this OpenSpec change.
+- [ ] 7.1 At one immutable local HEAD run format, lint, type, unit, property,
+  formal model, mutation, integration, adopter, package, source-budget,
+  security, SBOM, provenance, offline install, release, and full ETHOS proof.
+  This complete local predicate is the sole admission to any campaign remote
+  mutation.
+- [ ] 7.2 Advance only local `candidate/dev`, then protected `dev`, through
+  audited exact-CAS closeout; absorb or retire every owned lane and verify
+  immutable record packages, manifests, hashes, and indexes.
+- [ ] 7.3 Create exactly one `proposal/terminal-convergence` from that closed
+  HEAD and independently verify GitLab and GitHub CI/CD and review evidence;
+  neither provider substitutes for the other.
+- [ ] 7.4 Publish protected `dev`, release protected default `main`, and verify
+  the same commit, version, signed tag, SBOM, provenance, and artifact digests on
+  both providers.
+- [ ] 7.5 Archive this Change through the official owner-native OpenSpec action
+  only after all local, hosted, publication, lane, and record facts are proven.
+
+**Exit 7:** terminal source, local installation, protected refs, hosted CI/CD,
+release artifacts, records, lanes, and OpenSpec history all bind one terminal
+commit; no required work or compatibility residue remains.

@@ -1,1 +1,0 @@
-"""OpenSpec metadata semantic subpackage."""

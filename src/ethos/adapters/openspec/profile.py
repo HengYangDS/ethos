@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import Any
 
-import ethos.adapters.openspec.metadata.completion
+import ethos.adapters.openspec.cli as openspec_cli
 import ethos.repository.openspec.audit
 from ethos.adapters.openspec.commitment import load_lease_bound_openspec_commitment
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 
@@ -59,14 +61,50 @@ def load_profile_lease_bound_commitment(
 
 def completed_active_changes_report(root: Path) -> dict[str, object]:
     """Return completion facts only when the OpenSpec profile adapter is enabled."""
-    if openspec_profile_enabled(root):
-        return ethos.adapters.openspec.metadata.completion.completed_active_changes_report(root)
+    if not openspec_profile_enabled(root):
+        return {
+            "ok": True,
+            "state": "not_applicable",
+            "root": root.resolve().as_posix(),
+            "completed_changes": [],
+            "required_gaps": [],
+            "commands": {},
+        }
+    base_command = openspec_cli.openspec_base_command()
+    if base_command is None:
+        required_gaps = ["openspec_official_cli_missing"]
+        list_result: dict[str, Any] = {}
+        completed_changes: list[str] = []
+    else:
+        list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
+        required_gaps = [
+            gap
+            for blocked, gap in (
+                (list_result["exit_code"] != 0, "openspec_list_failed"),
+                (bool(list_result["parse_error"]), "openspec_list_json_parse_failed"),
+            )
+            if blocked
+        ]
+        rows = None if required_gaps else official_change_rows(list_result["json"])
+        if rows is None and not required_gaps:
+            required_gaps.append("openspec_list_unreadable")
+        completed_changes = (
+            []
+            if rows is None
+            else [
+                item["name"] for item in rows if item["status"] in {"complete", "completed", "done"}
+            ]
+        )
+        required_gaps.extend(
+            f"openspec_completed_change_unarchived:{name}" for name in completed_changes
+        )
     return {
-        "ok": True,
-        "state": "not_applicable",
+        "ok": not required_gaps,
+        "state": "blocked" if required_gaps else "clean",
         "root": root.resolve().as_posix(),
-        "completed_changes": [],
-        "required_gaps": [],
+        "completed_changes": completed_changes,
+        "required_gaps": required_gaps,
+        "commands": {"list": list_result} if list_result else {},
     }
 
 

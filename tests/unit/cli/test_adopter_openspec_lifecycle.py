@@ -5,12 +5,15 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.openspec.cli as openspec_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
+from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.lifecycle.report import selected_change
+from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import openspec_shape_report
@@ -28,31 +31,146 @@ if TYPE_CHECKING:
 
 
 def test_selected_change_requires_an_explicit_request_to_exist() -> None:
-    payload = {"changes": [{"name": "active", "status": "in-progress"}]}
+    rows = official_change_rows({"changes": [{"name": "active", "status": "in-progress"}]})
 
-    assert selected_change(payload, "missing") is None
+    assert rows is not None
+    assert selected_change(rows, "missing") is None
 
 
 def test_selected_change_returns_the_only_active_commitment() -> None:
-    payload = {
-        "changes": [
-            {"name": "complete", "status": "complete"},
-            {"name": "active", "status": "in-progress", "lastModified": "2026-07-30"},
-        ]
-    }
+    rows = official_change_rows(
+        {
+            "changes": [
+                {"name": "complete", "status": "complete"},
+                {"name": "active", "status": "in-progress", "lastModified": "2026-07-30"},
+            ]
+        }
+    )
 
-    assert selected_change(payload, None) == "active"
+    assert rows is not None
+    assert selected_change(rows, None) == "active"
 
 
 def test_selected_change_fails_closed_for_multiple_active_commitments() -> None:
-    payload = {
-        "changes": [
-            {"name": "older", "status": "in-progress", "lastModified": "2026-01-01"},
-            {"name": "newer", "status": "archiving", "lastModified": "2026-07-30"},
-        ]
-    }
+    rows = official_change_rows(
+        {
+            "changes": [
+                {"name": "older", "status": "in-progress", "lastModified": "2026-01-01"},
+                {"name": "newer", "status": "archiving", "lastModified": "2026-07-30"},
+            ]
+        }
+    )
 
-    assert selected_change(payload, None) is None
+    assert rows is not None
+    assert selected_change(rows, None) is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"changes": {}},
+        {"changes": ["active"]},
+        {"changes": [{"name": "active"}]},
+        {"changes": [{"name": "active", "status": "future"}]},
+    ],
+)
+def test_completed_active_report_blocks_unreadable_official_list(
+    monkeypatch, tmp_path: Path, payload: dict[str, object]
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(
+        openspec_cli,
+        "run_json",
+        lambda *_args: {
+            "command": ["openspec", "list", "--json"],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        },
+    )
+
+    report = completed_active_changes_report(repo)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["openspec_list_unreadable"]
+
+
+def test_governance_report_blocks_missing_explicit_change(monkeypatch, tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    write_active_commitment(repo, change_id="active")
+
+    def run_json(_root: Path, _base: tuple[str, ...], args: tuple[str, ...]):
+        payload = (
+            {"root": {"healthy": True}}
+            if args[0] == "doctor"
+            else {"changes": [{"name": "active", "status": "in-progress"}]}
+            if args[0] == "list"
+            else {"items": [], "summary": {}}
+        )
+        return {
+            "command": [*_base, *args],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(openspec_cli, "run_json", run_json)
+
+    report = openspec_governance_report(repo, change="missing", lifecycle=True)
+
+    assert report["ok"] is False
+    assert report["change"] is None
+    assert report["required_gaps"] == ["openspec_requested_change_missing:missing"]
+
+
+def test_governance_report_blocks_ambiguous_implicit_change(monkeypatch, tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    write_active_commitment(repo, change_id="first")
+    write_active_commitment(repo, change_id="second")
+
+    def run_json(_root: Path, _base: tuple[str, ...], args: tuple[str, ...]):
+        payload = (
+            {"root": {"healthy": True}}
+            if args[0] == "doctor"
+            else {
+                "changes": [
+                    {"name": "first", "status": "in-progress"},
+                    {"name": "second", "status": "no-tasks"},
+                ]
+            }
+            if args[0] == "list"
+            else {"items": [], "summary": {}}
+        )
+        return {
+            "command": [*_base, *args],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(openspec_cli, "run_json", run_json)
+
+    report = openspec_governance_report(repo, lifecycle=True)
+
+    assert report["ok"] is False
+    assert report["change"] is None
+    assert report["required_gaps"] == ["openspec_active_change_ambiguous:first,second"]
 
 
 def _write_valid_accepted_specs(repo: Path) -> None:
@@ -295,6 +413,117 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
     )
 
     assert explicitly_selected["scope_binding"]["state"] == "uncovered"
+
+
+def test_lifecycle_observes_official_state_without_predictive_archive(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    write_active_commitment(repo, change_id="active")
+    commands: list[tuple[str, ...]] = []
+
+    def run_json(_root: Path, _base: tuple[str, ...], args: tuple[str, ...]):
+        commands.append(args)
+        if args[0] == "doctor":
+            payload = {"root": {"healthy": True}}
+        elif args[0] == "list":
+            payload = {"changes": [{"name": "active", "status": "in-progress"}]}
+        elif args[0] == "status":
+            payload = {"schemaName": "spec-driven", "isComplete": True}
+        else:
+            payload = {"items": [], "summary": {}}
+        return {
+            "command": [*map(str, _base), *args],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(openspec_cli, "run_json", run_json)
+
+    report = openspec_governance_report(repo, lifecycle=True)
+
+    assert report["required_gaps"] == []
+    assert "archive_preflight" not in report["lifecycle"]["changes"][0]
+    assert [command[0] for command in commands] == ["doctor", "list", "status", "validate"]
+
+
+def test_completed_active_report_does_not_revalidate_historical_archives(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    archive = repo / "openspec" / "changes" / "archive" / "not-a-canonical-archive"
+    archive.mkdir(parents=True)
+
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(
+        openspec_cli,
+        "run_json",
+        lambda *_args: {
+            "command": ["openspec", "list", "--json"],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": {"changes": []},
+            "parse_error": "",
+        },
+    )
+
+    report = completed_active_changes_report(repo)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert "archive_closeout" not in report
+
+
+def test_completed_active_report_blocks_official_completed_change(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(
+        openspec_cli,
+        "run_json",
+        lambda *_args: {
+            "command": ["openspec", "list", "--json"],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": {"changes": [{"name": "ready", "status": "complete"}]},
+            "parse_error": "",
+        },
+    )
+
+    report = completed_active_changes_report(repo)
+
+    assert report["ok"] is False
+    assert report["completed_changes"] == ["ready"]
+    assert report["required_gaps"] == ["openspec_completed_change_unarchived:ready"]
+
+
+def test_shape_report_does_not_use_historical_archive_identity_as_current_verdict(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    _write_valid_accepted_specs(repo)
+    archive = repo / "openspec" / "changes" / "archive" / "not-a-canonical-archive"
+    archive.mkdir(parents=True)
+
+    report = openspec_shape_report(repo)
+
+    assert report["ok"] is True
+    assert not any(gap.startswith("openspec_archive_") for gap in report["required_gaps"])
 
 
 def test_generic_adopter_plan_does_not_call_openspec(monkeypatch, tmp_path: Path) -> None:

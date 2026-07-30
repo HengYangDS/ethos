@@ -42,16 +42,16 @@ ethos plan --changed --json
 ```
 
 The official archive creates exactly one dated history path:
-`openspec/changes/archive/YYYY-MM-DD-<change-id>/`. Lifecycle validates archiveability through the configured official archive CLI
-in a disposable workspace copy. It never archives or rewrites this source
-change; an application-time conflict must be repaired before plan, proof, or
-land can proceed.
+`openspec/changes/archive/YYYY-MM-DD-<change-id>/`. The official OpenSpec CLI is
+the sole owner of that mutation. ETHOS observes official active state and never
+archives, copies, or predicts archive in a disposable workspace.
 
 ## Completion Grammar
 
-An archived carrier's checklist may assert only work that was completed before
-archive. The archive-closeout gate correctly blocks any unchecked archived task.
-Candidate landing, accepted-root closeout, Work Lane retirement, and remote
-publication therefore belong to explicit post-archive lifecycle transitions:
-record their boundary in the carrier, but do not leave them as unchecked archive
-tasks or mark them complete before the transition occurs.
+The active carrier's checklist may assert only work already completed. Official
+OpenSpec completion and archive semantics govern whether that carrier can move
+to history. After archive, ETHOS verifies existing Attestations through their
+exact bindings; it does not reinterpret historical tasks, metadata, names, or
+deltas to authorize or block a new transition. Candidate landing, accepted-root
+closeout, Work Lane retirement, and remote publication remain separate ETHOS
+effects with separate evidence.

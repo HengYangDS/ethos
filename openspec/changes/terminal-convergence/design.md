@@ -46,15 +46,34 @@ new product ontology.
    historical, or deleted-after-proof. A contradiction/model gap preserves its
    scenarios, promotes the smallest model boundary, recompiles dependents, and
    only then retires residue.
-9. **Direct mature capabilities.** Use Pydantic v2, Cyclopts,
-   `graphlib.TopologicalSorter`, bounded CEL, native Git CAS, and standard
-   supply-chain formats directly. Frameworks, generators, Jinja, DI, event
-   buses, plugin layers, and workflow runtimes require a concrete consumer,
+9. **Direct mature capabilities.** Use Pydantic v2 for portable boundary
+   contracts, small frozen standard-library values internally, Cyclopts,
+   `graphlib.TopologicalSorter`, the selected official CEL engine, native Git
+   CAS, and standard supply-chain formats directly. Do not add attrs as a
+   parallel model system. Frameworks, generators, Jinja, DI, event buses,
+   plugin layers, and workflow runtimes require a concrete consumer,
    conformance evidence, uninstall cleanliness, and net deletion.
 10. **One quality owner per property.** Local and hosted execution consume the
     same declarations. Warnings, suppressions, unknown required facts, and
     projection drift fail closed. JSON receives schema validation and canonical
     serialization from its declared owner, not an invented formatter.
+11. **Lossless intent closure.** Accepted feedback is reduced into independent
+    semantic obligations before planning artifacts are replaced. Within the
+    same authority and scope, a later explicit ruling supersedes an earlier one;
+    the earlier ruling remains history and cannot silently return as current
+    policy. Every obligation maps to an existing semantic owner, requirement,
+    stable task, acceptance condition, and verifier, or records an explicit
+    rejection or deferral reason. Unmapped meaning and unresolved contradiction
+    are `model_gap` and block retirement and campaign closeout. This closure is
+    compiled from tracked carriers and current instructions; it is not another
+    persistent ledger or task store.
+12. **Stable execution identity and evidence.** Task identifiers are never
+    reused or renumbered to make a redesign appear incomplete or complete.
+    Refinement preserves completed state and its commit or proof evidence,
+    explicitly supersedes obsolete tasks, and adds newly discovered work under
+    new identifiers. The first incomplete task is the campaign critical path;
+    every phase has an observable exit condition, and elapsed activity without
+    a terminal-state delta is not progress.
 
 ## Alternatives Considered
 
@@ -66,6 +85,8 @@ new product ontology.
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |
 | Delete all history | Rejected | Immutable bytes may be needed for recovery and audit, but not as current truth. |
+| Replace tasks wholesale after redesign | Rejected | It destroys progress identity, hides dropped obligations, and permits old decisions to reappear. |
+| Preserve every conversation sentence as a repository ledger | Rejected | Raw dialogue is context; accepted independent obligations belong in their semantic owners and verifiable tasks. |
 
 ## Migration Risks
 
@@ -80,17 +101,23 @@ new product ontology.
   and short CAS integration; never infer ownership from visibility.
 - **Projection drift can conceal inconsistency.** Require declared source
   bindings and generated/diff checks at the earliest feasible gate.
+- **Long-running activity can conceal non-convergence.** Keep one ordered
+  critical path, require a verified terminal-state delta at every phase exit,
+  and move independent review off the mutation path.
 
 ## Migration Sequence
 
-1. Cut Commitment, Attestation, Facts, TransitionPlan, verdict, and digest
+1. Restore the pre-cutover kernel-test and carrier-classification tasks under
+   their original identifiers, close accepted feedback without resetting stable
+   task identity, and finish the current OpenSpec replica-deletion slice.
+2. Cut Commitment, Attestation, Facts, TransitionPlan, verdict, and digest
    semantics; delete amendment and closed-kind paths.
-2. Replace authority rank/currentness/legacy replay with contextual resolver,
+3. Replace authority rank/currentness/legacy replay with contextual resolver,
    five-role extraction, model-gap handling, and byte/tree-bound lease cutover.
-3. Move fixed lifecycle and OpenSpec-only assumptions into the ETHOS self
+4. Move fixed lifecycle and OpenSpec-only assumptions into the ETHOS self
    profile; reduce coordination to resource facts plus attested effects.
-4. Reclassify and absorb docs, DRs, rules, skills, schemas, CI, records,
+5. Reclassify and absorb docs, DRs, rules, skills, schemas, CI, records,
    evidence, and OpenSpec material; delete only after semantic proof.
-5. Collapse quality/supply-chain tooling, remove warnings/suppressions, prove
+6. Collapse quality/supply-chain tooling, remove warnings/suppressions, prove
    three adopter shapes and portable interfaces, then run one local and one
    dual-provider campaign closeout.

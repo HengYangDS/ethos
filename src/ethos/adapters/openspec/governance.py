@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.openspec.cli as openspec_cli
-from ethos.adapters.openspec.archive.query import active_change_identifier_gaps
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.report import OpenSpecReportContext
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
+from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.lifecycle.report import openspec_command_gaps
 from ethos.adapters.openspec.lifecycle.report import openspec_official_cli
 from ethos.adapters.openspec.lifecycle.report import openspec_root_gaps
@@ -19,10 +19,11 @@ from ethos.adapters.openspec.lifecycle.report import openspec_status_result
 from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.report import selected_change
+from ethos.adapters.openspec.lifecycle.report import selection_gaps
 from ethos.adapters.openspec.workspace.signature import openspec_workspace_signature
-from ethos.repository.openspec.audit import archive_identity_violations
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import protected_branch_active_change_report
+from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
     from typing import Any
@@ -58,7 +59,14 @@ def openspec_governance_report(
             },
             "commands": {},
         }
-    active_identifier_gaps = active_change_identifier_gaps(root, change)
+    archive = root / "openspec" / "changes" / "archive" / (change or "")
+    active_identifier_gaps = (
+        [f"openspec_active_change_identifier_is_archive_directory:{change}"]
+        if change and archive.is_dir()
+        else [f"openspec_active_change_identifier_invalid:{change}"]
+        if change and logical_change_identifier_issue(change)
+        else []
+    )
     if active_identifier_gaps:
         return _active_identifier_rejected_report(
             root,
@@ -180,7 +188,6 @@ def _openspec_governance_report(
             "commands": {},
         }
     required_gaps = openspec_root_gaps(openspec_root, official_config)
-    required_gaps.extend(archive_identity_violations(openspec_root))
     context = OpenSpecReportContext(
         request=request,
         official_config=official_config,
@@ -204,7 +211,8 @@ def _openspec_governance_report(
             doctor=doctor,
         )
     list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
-    selected = selected_change(list_result["json"], request.change)
+    rows = official_change_rows(list_result["json"])
+    selected = selected_change(rows, request.change) if rows is not None else None
     status = openspec_status_result(root, base_command, selected, openspec_cli.run_json)
     validate = openspec_cli.run_json(
         root,
@@ -221,12 +229,23 @@ def _openspec_governance_report(
             selected=selected,
         )
     )
-    lifecycle_payload = lifecycle_report(
-        root,
-        request=request,
-        list_payload=list_result["json"],
-        protected_branch_residue=protected_branch_residue,
-        base_command=base_command,
+    required_gaps.extend(
+        ["openspec_list_unreadable"] if rows is None else selection_gaps(rows, request.change)
+    )
+    lifecycle_payload = (
+        lifecycle_report(
+            root,
+            request=request,
+            list_payload=list_result["json"],
+            protected_branch_residue=protected_branch_residue,
+        )
+        if selected is not None or not request.lifecycle
+        else lifecycle_report(
+            root,
+            request=request._replace(lifecycle=False),
+            list_payload={},
+            protected_branch_residue=protected_branch_residue,
+        )
     )
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
 

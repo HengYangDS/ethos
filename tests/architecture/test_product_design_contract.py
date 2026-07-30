@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,10 @@ ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_OWNER = "docs/governance/product-design-contract.md"
 PLAN = "docs/plans/terminal-governance-product-design.md"
 AXIOMS = "system/axioms.md"
+TERMINAL_TASKS = "openspec/changes/terminal-convergence/tasks.md"
+TERMINAL_PROPOSAL = "openspec/changes/terminal-convergence/proposal.md"
+TERMINAL_DESIGN = "openspec/changes/terminal-convergence/design.md"
+TERMINAL_SPECS = "openspec/changes/terminal-convergence/specs"
 PROJECTIONS = {
     "README.md",
     "docs/concepts/kernel-model.md",
@@ -211,3 +216,123 @@ def test_live_cyclopts_tree_has_exact_public_and_hidden_roots() -> None:
 
     assert {name for name, command in commands.items() if command.show} == PUBLIC_ROOTS
     assert {name for name, command in commands.items() if not command.show} == HIDDEN_ROOTS
+
+
+def test_terminal_tasks_preserve_stable_identity_and_completed_foundations() -> None:
+    tasks = read(TERMINAL_TASKS)
+    rows = re.findall(r"^- \[([ x])\] ((?:F|\d+)\.\d+)\b", tasks, re.MULTILINE)
+    identifiers = [identifier for _state, identifier in rows]
+    completed = {identifier for state, identifier in rows if state == "x"}
+
+    assert len(identifiers) == len(set(identifiers))
+    assert {f"F.{index}" for index in range(1, 10)} | {"0.1"} <= completed
+    assert "first unchecked item in section 0 is the critical path" in tasks.replace("\n", " ")
+    assert len(re.findall(r"^\*\*Exit \d:\*\*", tasks, re.MULTILINE)) == 8
+    compact = " ".join(tasks.split())
+    assert "0.2 Add failing tests for two-root persistence" in compact
+    assert "0.3 Map every active carrier and legacy surface" in compact
+    assert "0.4 Close every independent accepted feedback obligation" in compact
+
+
+def test_terminal_thresholds_and_branch_roles_have_one_exact_projection() -> None:
+    proposal = read(TERMINAL_PROPOSAL)
+    tasks = read(TERMINAL_TASKS)
+    routing = tomllib.loads(read("system/routing.toml"))["branch_roles"]
+    coverage = tomllib.loads(read(".config/checks/coverage/policy.toml"))
+    source_budget = tomllib.loads(read(".config/checks/format/selection.toml"))["source_budget"][
+        "terminal"
+    ]
+    release = read("docs/governance/release-governance.md")
+
+    assert routing == {
+        "release_branch": "main",
+        "accepted_branch": "dev",
+        "candidate_branch": "candidate/dev",
+        "work_branch_prefix": "work/",
+        "proposal_branch_prefix": "proposal/",
+    }
+    assert coverage["current_hard_floor"] == 95
+    assert coverage["branch_coverage_required"] is True
+    assert source_budget == {"python_total": 54_000, "global_total": 68_000}
+    for text in (proposal, tasks):
+        assert all(token in text for token in ("54,000", "68,000", "95"))
+    assert "`candidate/dev` and every `work/*` branch are local-only" in release
+    assert "`dev`, `main`, and `proposal/*`" in release
+    assert "submit/*" not in release
+
+
+def test_terminal_execution_contract_is_self_profile_only_and_progress_is_irreversible() -> None:
+    tasks = read(TERMINAL_TASKS)
+    design = read(TERMINAL_DESIGN)
+    compact_tasks = " ".join(tasks.split())
+    compact_design = " ".join(design.split())
+
+    assert "For the ETHOS self-profile only" in tasks
+    assert "single campaign execution" in compact_tasks
+    assert "task identity" in compact_tasks
+    assert "never renumber" in compact_tasks
+    assert "first incomplete task is the campaign critical path" in compact_design
+    assert "elapsed activity without a terminal-state delta is not progress" in compact_design
+    assert "old decisions" not in tasks.lower()
+
+    rows = re.findall(r"^- \[([ x])\] ((?:F|\d+)\.\d+)\b", tasks, re.MULTILINE)
+    assert {identifier for state, identifier in rows if state == "x"} >= {
+        *(f"F.{index}" for index in range(1, 10)),
+        "0.1",
+    }
+    assert "never renumbers work to reset progress" in compact_tasks
+    assert "block task-ID reuse, completion reset" in compact_tasks
+
+
+def test_terminal_runtime_owner_is_checkout_bound_through_with_python_runtime() -> None:
+    runner = read("tools/ci/scripts/run-ethos-lane.sh")
+    runtime = read("tools/ci/scripts/with-python-runtime.sh")
+
+    assert 'exec "${script_dir}/with-python-runtime.sh" --' in runner
+    assert 'uv run --group dev ethos "$@"' in runner
+    assert "git rev-parse --show-toplevel" in runtime
+    assert 'export ETHOS_RUNTIME_ROOT="${repo_root}"' in runtime
+    assert not re.search(r"(?:^|[;&|])\s*(?:command\s+)?ethos(?:\s|$)", runner, re.MULTILINE)
+    assert 'PATH="${repo_root}' not in runner
+
+
+def test_terminal_specs_bind_the_critical_cross_surface_semantics() -> None:
+    required = {
+        "repository-governance/spec.md": (
+            "takeover",
+            "records",
+            "candidate cas",
+            "local convergence completion",
+        ),
+        "proof-hosts/spec.md": (
+            "one terminal HEAD",
+            "GitLab",
+            "GitHub",
+            "artifact",
+            "bounded formal transition model",
+        ),
+        "contracts/spec.md": (
+            "Python SDK",
+            "subprocess JSON",
+            "portable contract",
+        ),
+        "distribution/spec.md": (
+            "one portable release contract",
+            "artifact",
+            "offline",
+        ),
+        "adapters/spec.md": (
+            "exact permissions",
+            "exact receipt",
+            "mutation",
+        ),
+        "quality/spec.md": (
+            "54,000",
+            "68,000",
+            "95",
+            "repository-wide",
+        ),
+    }
+    for relative, tokens in required.items():
+        body = read(f"{TERMINAL_SPECS}/{relative}")
+        assert all(token.lower() in body.lower() for token in tokens), (relative, tokens)

@@ -26,12 +26,17 @@ transient transition compiler, exact effects, and proof-carrying projections.
   Campaign/Evolution and Decision Change Ledgers, and the current producers,
   readers, and authorization semantics of Claim/Chronicle/proof-record planes.
   Preserve their immutable historical bytes as non-authorizing history. Delete
-  fixed workflow phases, mandatory OpenSpec, fixed competition counts, and the
-  one-Commitment/one-Family rule.
+  fixed workflow phases, OpenSpec-shaped kernel types, fixed competition counts,
+  and the one-Commitment/one-Family rule.
 - Make `observe → extract → resolve → compile → evaluate → CAS apply →
   post-observe → attest → project` the sole generic mechanism.
-- Keep OpenSpec as an optional ETHOS self-profile carrier; prove generic adopters
-  can use their own carriers without `openspec/`.
+- Keep the kernel vendor-neutral while requiring verified OpenSpec as the sole
+  Change/SDD carrier for every mutation-capable adopter; repositories without it
+  remain observation-only.
+- Derive a non-persistent Continuation, semantic progress budget, typed and
+  freshness-bound Attestations, and matched workflow evaluation from the same
+  facts. Absorb COMET's useful mechanisms without adding its runtime, hooks,
+  state, archive, dashboard, Bundle, marketplace, adapter, or second control plane.
 - Rebuild documentation, rules, skills, schemas, CI, records, Worktree Families,
   inboxes, and taxonomies as native carriers or derived projections with one
   narrowly declared owner; absorb, preserve, or delete all residue after proof.
@@ -97,8 +102,10 @@ separate attestable facts.
 
 - Retaining historical wire/API compatibility or reconstructing lost private
   transcripts.
-- Making OpenSpec, a particular agent host, framework, provider, language, or
-  repository layout a generic prerequisite.
+- Making OpenSpec types part of the semantic kernel, or making a particular
+  agent host, framework, provider, language, or repository layout a product
+  prerequisite. Complete mutation adoption deliberately requires verified
+  OpenSpec only at the Change/SDD carrier boundary.
 - Adding a DI container, event bus, workflow service, graph database, task
   tracker, code generator, or template framework without a proved consumer and
   net deletion.

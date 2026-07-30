@@ -64,6 +64,11 @@ observe -> extract -> resolve -> compile -> evaluate -> CAS apply -> post-observ
 `project` may render CLI, SDK, CI, forge, documentation, or agent views. A
 projection never grants itself authority.
 
+`Continuation` is a pure, non-persistent projection from current authoritative
+facts. It reports exactly one of `continue`, `await-user`, `blocked`, or `done`,
+one next action, missing facts or evidence, and whether a user decision is
+required. It never becomes a second lifecycle state.
+
 ### Model Promotion
 
 A `contradiction` or `model_gap` means that valid input cannot be reconciled or
@@ -139,9 +144,11 @@ Profiles and adapters select native carriers, checks, and proof depth; they do
 not create another command plane, ontology, or truth store. This is not product
 cloning: each repository retains its domain model, layout, and provider shape.
 
-OpenSpec is a selectable carrier for the ETHOS profile. Its official CLI owns
-OpenSpec validation and archival mutation. An adopter without `openspec/` is a
-valid profile outcome.
+The semantic kernel remains independent of OpenSpec types. Complete,
+mutation-capable adoption nevertheless pins verified OpenSpec as the sole
+Change, design, spec, task-progress, dependency, and archive carrier. The
+official CLI owns those semantics. A repository may omit OpenSpec only while it
+remains observation-only; material governed mutation then fails closed.
 
 ### First-Hour UX
 
@@ -153,8 +160,9 @@ status -> plan -> prove -> land -> publish
 
 `status` exposes facts, authority, gaps, coordination signals, and the next
 admissible action without minting truth. `adopt` binds an external repository to
-that lifecycle through an explicit, reviewable plan; it does not create a
-parallel lifecycle. Hidden lane and hook operations support admission only.
+that lifecycle through an explicit, reviewable plan, initializes and verifies
+OpenSpec for mutation-capable use, and does not create a parallel lifecycle.
+Hidden lane and hook operations support admission only.
 
 ## Feedback Intent Preservation
 
@@ -180,4 +188,6 @@ their rendered dashboards, indexes, and command output remain projections.
 3. Unknown required facts, ambiguous authority, stale bindings, and contradictions
    fail closed.
 4. Historical bytes remain readable but do not silently authorize current work.
-5. Profiles retain native-carrier freedom without changing kernel semantics.
+5. Profiles retain native domain, layout, provider, and observation freedom;
+   complete mutation adoption uses one verified OpenSpec carrier without
+   shaping kernel semantics.

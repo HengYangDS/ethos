@@ -14,9 +14,9 @@ Purpose: record the durable ruling that a conforming ETHOS product must accept
 scoped proof commands used by adopters during migration while keeping host-local
 probes outside repository proof truth.
 
-See also: [Command Plane](../../reference/command-plane.md),
+See also: [Command Plane](../reference/command-plane.md),
 [Generated Artifact Topology](DR-0001-generated-artifact-topology-contract.md),
-and [Docs Registry](../../governance/docs-registry.md).
+and [Docs Registry](../governance/docs-registry.md).
 
 ## Record
 

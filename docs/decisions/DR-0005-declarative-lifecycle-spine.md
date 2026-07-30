@@ -17,10 +17,10 @@ Status: accepted.
 Purpose: establish the singular declaration-first lifecycle spine for ETHOS
 without ceding repository truth or lifecycle authority to a framework.
 
-See also: [Decision Records](../README.md), [Decision Index](../decision-index.md),
-[Declarative Governance Compiler](../../architecture/declarative-governance-compiler.md),
-[TransitionPlan](../../architecture/transition-plan.md), and
-[Terminal Governance Product Design](../../plans/terminal-governance-product-design.md).
+See also: [Decision Records](README.md), [Decision Index](decision-index.md),
+[Declarative Governance Compiler](../architecture/declarative-governance-compiler.md),
+[TransitionPlan](../architecture/transition-plan.md), and
+[Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
 
 ## Record
 

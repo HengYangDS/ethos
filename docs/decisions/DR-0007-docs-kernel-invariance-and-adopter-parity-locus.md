@@ -15,10 +15,9 @@ Purpose: preserve the historical combined ruling. DR-0004 v2 now owns docs
 topology; the Product Design Contract and Capability Parity Ledger own the
 external-adopter parity evidence locus.
 
-See also: [Decision Records](../README.md), [Decision Index](../decision-index.md),
-[DR-0004 v2](../DR-0004-native-documentation-topology-contract.md),
-[Product Design Contract](../../governance/product-design-contract.md), and
-[Capability Parity Ledger](../../governance/capability-parity-ledger.md).
+See also: [Decision Records](README.md), [Decision Index](decision-index.md),
+[DR-0004](DR-0004-native-documentation-topology-contract.md), and
+[Product Design Contract](../governance/product-design-contract.md).
 
 ## Record
 

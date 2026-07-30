@@ -149,7 +149,11 @@ runtime, blacklist, replay, ledger, or product coupling can authorize work.
 ## 4. Separate Product Profiles From Coordination
 
 - [ ] 4.1 Keep OpenSpec as the ETHOS self-profile carrier whose official CLI
-  owns validation and archive; prove generic lifecycle with no `openspec/`.
+  owns validation and archive; pin and verify the effective CLI as
+  `@fission-ai/openspec@1.7.0`, reject cache/PATH/global version drift, consume
+  required nested-spec identity, `skip_specs`, and artifact `requires` fields,
+  retain no 1.6 compatibility reader, and prove generic lifecycle with no
+  `openspec/`.
 - [ ] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
   candidate train to scoped resource Facts, projections, and attested effects.
 - [ ] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and
@@ -234,9 +238,12 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
   unsuitable model tier trigger an explicit stop, downgrade, or replanning verdict.
 - [ ] 6.10 Archive this Change through the official owner-native OpenSpec action
   as the final tracked source mutation. Bind the returned archive path, warnings,
-  no-op state, and resulting HEAD. In JSON mode, first preserve the expected
+  no-op state, and resulting HEAD. Prove nested-spec archive, valid `skip_specs`,
+  metadata/spec-file conflict rejection, and already-synced delta no-op without
+  spec mutation. In JSON mode, first preserve the expected
   `archive_tasks_incomplete` preflight, then use the official `--yes`
-  acknowledgement with validation still enabled; after this freeze, Phase 7
+  acknowledgement with validation still enabled; malformed deltas remain
+  blocked. After this freeze, Phase 7
   effects are recompiled from the accepted capability specs and current Facts,
   then close through HEAD-bound Attestations and receipts. Archived task history
   preserves evidence only and never remains a current execution owner.

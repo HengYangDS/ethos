@@ -17,8 +17,7 @@ same-UID threat model, and specify the optional, default-off independent-identit
 verification plug (lightweight local daemon or hosted forge) as the genuine anti-forgery
 trust root.
 
-See also: [Decision Records](../README.md), [Decision Index](../decision-index.md),
-and [Decision Index](decision-index.md).
+See also: [Decision Records](README.md) and [Decision Index](decision-index.md).
 
 ## Record
 

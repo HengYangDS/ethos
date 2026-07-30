@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sqlite3
+import subprocess
+import sys
 from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Any
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 import pytest
 
+import ethos.adapters.mutation.lane_retirement.effects as retirement_effects
 import ethos.adapters.store.state.lease.lifecycle.transitions as lease_transitions
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
@@ -29,8 +29,62 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
+from tests.support.contract_helpers import commit_fixture_file
+from tests.support.contract_helpers import git
 from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.lane_helpers import superseded_work_lane
+
+
+def _successor_retirement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, str, Path, str, Path, LinkedRetirementRequest]:
+    holder_ref = "agent:test:case:campaign"
+    repo, source, source_head, _, database = superseded_work_lane(
+        tmp_path,
+        holder_ref=holder_ref,
+    )
+    source_lease = LaneLease.from_payload(
+        dict(leases_by_branch(source)["work/superseded"]["payload"])
+    )
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("delete from leases where subject = ?", ("work/superseded",))
+    successor_branch = "work/campaign"
+    successor = tmp_path.parent / f"{tmp_path.name}-campaign"
+    git(repo, "worktree", "add", "-b", successor_branch, successor.as_posix(), source_head)
+    acquire_lease(
+        database,
+        lease=source_lease.model_copy(
+            update={
+                "lane_incarnation_id": "lane-incarnation:campaign",
+                "lease_id": "lease:campaign",
+                "lane_ref": successor_branch,
+                "holder_ref": HolderRef.parse(holder_ref),
+            }
+        ),
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
+    successor_head = commit_fixture_file(
+        successor,
+        "campaign.txt",
+        "campaign\n",
+        "continue campaign",
+    )
+    return (
+        repo,
+        source,
+        source_head,
+        successor,
+        successor_branch,
+        database,
+        LinkedRetirementRequest(
+            branch="work/superseded",
+            expect_head=source_head,
+            absorbed_by=successor_head,
+            reason="campaign contains the exact source history",
+            authorize=True,
+        ),
+    )
 
 
 def _lease_request(
@@ -245,6 +299,213 @@ def test_unknown_lease_is_observe_only_for_public_mutation_and_retirement(
     assert retirement["ok"] is False
     assert "work_lane_lease_unknown:work/superseded" in retirement["required_gaps"]
     assert observe_lease(retirement_database, "work/superseded").state == "unknown"
+
+
+def test_missing_lease_source_retires_through_exact_leased_successor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    holder_ref = "agent:test:case:campaign"
+    repo, source, source_head, accepted, database = superseded_work_lane(
+        tmp_path / "successor-retirement",
+        holder_ref=holder_ref,
+    )
+    source_lease = LaneLease.from_payload(
+        dict(leases_by_branch(source)["work/superseded"]["payload"])
+    )
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("delete from leases where subject = ?", ("work/superseded",))
+    monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
+    blocked = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch="work/superseded",
+            expect_head=source_head,
+            absorbed_by=accepted,
+            reason="accepted tree contains the obsolete delta",
+            authorize=True,
+        ),
+    )
+    assert blocked["required_gaps"] == [
+        "foreign_work_lane_retire_authority_required",
+        "work_lane_missing_lease:work/superseded",
+    ]
+
+    successor_branch = "work/campaign"
+    successor = tmp_path / "successor-retirement-campaign"
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        successor_branch,
+        successor.as_posix(),
+        source_head,
+    )
+    acquire_lease(
+        database,
+        lease=source_lease.model_copy(
+            update={
+                "lane_incarnation_id": "lane-incarnation:campaign",
+                "lease_id": "lease:campaign",
+                "lane_ref": successor_branch,
+                "holder_ref": HolderRef.parse(holder_ref),
+            }
+        ),
+    )
+    successor_head = commit_fixture_file(
+        successor,
+        "campaign.txt",
+        "campaign\n",
+        "continue campaign",
+    )
+    request = LinkedRetirementRequest(
+        branch="work/superseded",
+        expect_head=source_head,
+        absorbed_by=successor_head,
+        reason="campaign contains the exact source history",
+        authorize=True,
+    )
+    ready = retire_linked_work_lane(
+        root=successor,
+        mode="superseded",
+        request=request,
+    )
+    assert (ready["ok"], ready["state"], ready["required_gaps"]) == (
+        True,
+        "ready_to_retire_superseded",
+        [],
+    )
+
+    retired = retire_linked_work_lane(
+        root=successor,
+        mode="superseded",
+        request=request.model_copy(update={"apply": True}),
+    )
+    assert (retired["ok"], retired["state"], retired["required_gaps"]) == (
+        True,
+        "retired_superseded",
+        [],
+    )
+    assert not source.exists()
+    assert git(repo, "branch", "--list", "work/superseded") == ""
+    assert (
+        git(repo, "show-ref", "--verify", "--hash", f"refs/heads/{successor_branch}")
+        == successor_head
+    )
+    assert observe_lease(database, successor_branch).state == "valid"
+    assert observe_lease(database, "work/superseded").state == "missing"
+
+
+def test_successor_retirement_rechecks_the_invoking_checkout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, source, _, successor, _, _, request = _successor_retirement(
+        tmp_path / "checkout-race",
+        monkeypatch,
+    )
+    original = retirement_effects.apply_retirement
+
+    def switch_branch(*args: Any, **kwargs: Any) -> dict[str, object]:
+        git(successor, "branch", "work/not-campaign", request.absorbed_by)
+        git(successor, "symbolic-ref", "HEAD", "refs/heads/work/not-campaign")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(retirement_effects, "apply_retirement", switch_branch)
+    report = retire_linked_work_lane(
+        root=successor,
+        mode="superseded",
+        request=request.model_copy(update={"apply": True}),
+    )
+
+    assert report["required_gaps"] == ["retirement_authority_checkout_stale"]
+    assert source.exists()
+    assert git(repo, "rev-parse", "work/superseded") == request.expect_head
+
+
+def test_successor_retirement_restores_binding_after_ref_cas_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, source, source_head, successor, _, _, request = _successor_retirement(
+        tmp_path / "ref-failure",
+        monkeypatch,
+    )
+    original = retirement_effects.run_git
+
+    def fail_ref_cas(
+        root: Path,
+        *args: str,
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ("update-ref", "--stdin"):
+            return subprocess.CompletedProcess(["git", *args], 1, "", "forced ref failure")
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(retirement_effects, "run_git", fail_ref_cas)
+    report = retire_linked_work_lane(
+        root=successor,
+        mode="superseded",
+        request=request.model_copy(update={"apply": True}),
+    )
+
+    assert report["ok"] is False
+    assert source.exists()
+    assert git(source, "branch", "--show-current") == "work/superseded"
+    assert git(repo, "rev-parse", "work/superseded") == source_head
+
+
+def test_successor_retirement_uses_the_installed_reference_transaction_hook(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, source, _, successor, successor_branch, database, request = _successor_retirement(
+        tmp_path / "installed-hook",
+        monkeypatch,
+    )
+    hooks = repo / ".githooks"
+    hooks.mkdir(parents=True)
+    hook = hooks / "reference-transaction"
+    shutil.copy(Path(__file__).resolve().parents[4] / ".githooks/reference-transaction", hook)
+    hook.chmod(0o755)
+    exclude = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    exclude.write_text("tools/\n", encoding="utf-8")
+    runtime = successor / "tools/ci/scripts/with-python-runtime.sh"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_text(
+        '#!/bin/sh\n[ "$1" = "--" ] && shift\nexec "$@"\n',
+        encoding="utf-8",
+    )
+    runtime.chmod(0o755)
+    git(repo, "config", "core.hooksPath", hooks.as_posix())
+    monkeypatch.setenv("ETHOS_PYTHON", sys.executable)
+    raw_delete = subprocess.run(
+        ["git", "update-ref", "-d", "refs/heads/work/superseded", request.expect_head],
+        cwd=successor,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert raw_delete.returncode != 0
+    assert git(repo, "rev-parse", "work/superseded") == request.expect_head
+
+    report = retire_linked_work_lane(
+        root=successor,
+        mode="superseded",
+        request=request.model_copy(update={"apply": True}),
+    )
+
+    assert (report["ok"], report["state"], report["required_gaps"]) == (
+        True,
+        "retired_superseded",
+        [],
+    )
+    assert not source.exists()
+    assert git(repo, "branch", "--list", "work/superseded") == ""
+    assert observe_lease(database, successor_branch).state == "valid"
 
 
 def test_full_lease_reissues_preserve_every_undeclared_field(

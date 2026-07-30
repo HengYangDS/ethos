@@ -83,9 +83,12 @@ contracts block before any ref, worktree, or SQLite effect. `ethos lane
 refresh-base` replays a stale lane onto the configured candidate branch, `ethos
 land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
-Lane HEAD. Prewrite, TransitionPlan, proof, head advance, handoff, closeout, retirement,
-and status all consume the same strict Lease observation and exact base-digest
-binding.
+Lane HEAD. `ethos lane retire superseded` also lets the current clean, leased
+successor retire one clean, ownerless source whose exact HEAD is its ancestor;
+the transaction preserves both accepted and successor refs and retains the
+successor Lease. Prewrite, TransitionPlan, proof, head advance, handoff,
+closeout, retirement, and status all consume the same strict Lease observation
+and exact base-digest binding.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
 HEAD, Lease, and accepted-relation facts, but no lifecycle command deletes them.
 Unknown, dirty, unbound, or owner-uncertain state remains blocked until a future

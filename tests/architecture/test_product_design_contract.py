@@ -329,7 +329,7 @@ def test_terminal_intent_closure_and_post_cutover_task_history_are_complete() ->
     assert 'name = "history"\nmay_be_authoritative = false' in read("system/authority.toml")
     assert "the earlier ruling remains history and cannot silently return as current" in design
     assert "Official OpenSpec 1.7 Cutover" in design
-    assert "post-archive commit" in tasks
+    assert "post-archive HEAD" in tasks
 
     assert_feedback_and_carrier_closure(design)
     assert_task_history_closure(tasks, design)
@@ -368,21 +368,34 @@ def assert_feedback_and_carrier_closure(design: str) -> None:
         ("git", "ls-files"), cwd=ROOT, check=True, capture_output=True, text=True
     ).stdout.splitlines()
     for path in tracked:
-        matching_rows = [
-            index
-            for index, selectors in enumerate(selector_rows)
-            if any(fnmatchcase(path, selector) for selector in selectors)
-        ]
-        assert matching_rows, f"carrier_selector_missing:{path}"
-        priorities = [
-            min(
-                _selector_priority(pattern)
-                for pattern in selector_rows[index]
-                if fnmatchcase(path, pattern)
-            )
-            for index in matching_rows
-        ]
-        assert priorities == sorted(priorities), f"carrier_selector_priority:{path}:{matching_rows}"
+        _assert_selector_winner(path, selector_rows)
+
+
+def _assert_selector_winner(path: str, selector_rows: list[list[str]]) -> None:
+    matching_rows = [
+        index
+        for index, selectors in enumerate(selector_rows)
+        if any(fnmatchcase(path, selector) for selector in selectors)
+    ]
+    assert matching_rows, f"carrier_selector_missing:{path}"
+    priorities = _matching_selector_priorities(path, selector_rows, matching_rows)
+    assert priorities == sorted(priorities), f"carrier_selector_priority:{path}:{matching_rows}"
+    assert priorities.count(min(priorities)) == 1, (
+        f"carrier_selector_ambiguous:{path}:{matching_rows}"
+    )
+
+
+def _matching_selector_priorities(
+    path: str, selector_rows: list[list[str]], matching_rows: list[int]
+) -> list[tuple[int, int, int]]:
+    return [
+        min(
+            _selector_priority(pattern)
+            for pattern in selector_rows[index]
+            if fnmatchcase(path, pattern)
+        )
+        for index in matching_rows
+    ]
 
 
 def _selector_priority(pattern: str) -> tuple[int, int, int]:
@@ -391,6 +404,11 @@ def _selector_priority(pattern: str) -> tuple[int, int, int]:
     literal_characters = sum(len(part.translate(str.maketrans("", "", "*?[]"))) for part in parts)
     wildcards = sum(pattern.count(token) for token in "*?[")
     return -literal_parts, -literal_characters, wildcards
+
+
+def test_carrier_selector_rejects_equal_priority_winners() -> None:
+    with pytest.raises(AssertionError, match="carrier_selector_ambiguous"):
+        _assert_selector_winner("a/b/c", [["a/*/c"], ["a/b/*"]])
 
 
 def assert_task_history_closure(tasks: str, design: str) -> None:
@@ -448,6 +466,44 @@ def assert_task_history_closure(tasks: str, design: str) -> None:
     }
     assert pre_cutover <= set(current) | mapped
     assert_task_coordinate_normalization(history, baseline, current, transitions)
+    assert_post_cutover_task_history(current, transitions)
+
+
+def assert_post_cutover_task_history(
+    current: dict[str, tuple[str, str]], transitions: dict[str, tuple[str, ...]]
+) -> None:
+    commits = subprocess.run(
+        (
+            "git",
+            "rev-list",
+            "--reverse",
+            "b23dc97cd92675bd3a6f58c13a1ec73c7f4ba2c6^..HEAD",
+            "--",
+            TERMINAL_TASKS,
+        ),
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    snapshots = [committed_tasks(commit) for commit in commits] + [current]
+    previous: dict[str, tuple[str, str]] = {}
+    retired: set[str] = set()
+    for rows in snapshots:
+        assert not (retired & set(rows)), f"task_identity_resurrected:{retired & set(rows)}"
+        for identifier, (checked, body) in rows.items():
+            if identifier in previous:
+                was_checked, previous_body = previous[identifier]
+                assert body == previous_body, f"task_identity_reused:{identifier}"
+                assert not (was_checked == "x" and checked != "x"), (
+                    f"task_completion_reset:{identifier}"
+                )
+        removed = set(previous) - set(rows)
+        assert all(identifier in transitions for identifier in removed), (
+            f"task_identity_unmapped:{removed}"
+        )
+        retired.update(removed)
+        previous = rows
 
 
 def assert_task_coordinate_normalization(
@@ -516,6 +572,19 @@ def test_entrypoints_do_not_resurrect_global_authority_or_retired_kernel_names()
     assert all(token not in readme for token in ("ChangeContract", "RepositoryFacts", "PlanIR"))
     assert "(Commitment, Facts, prior Attestations) -> TransitionPlan" in readme
     assert "Only Commitment and Attestation persist" in readme
+
+
+def test_terminal_archive_precedes_the_only_publication_sequence() -> None:
+    tasks = read(TERMINAL_TASKS)
+
+    assert tasks.index("6.10 Archive this Change") < tasks.index("## 7. Close The Campaign Once")
+    assert "7.5 Archive this Change" not in tasks
+    assert tasks.count("proposal/terminal-convergence") == 1
+    assert "archive_tasks_incomplete" in tasks
+    assert "with validation still enabled" in tasks
+    assert "accepted capability specs and current Facts" in tasks
+    assert "never remains a current execution owner" in tasks
+    assert "no second proposal, release sequence" in tasks
 
 
 def test_terminal_proposal_preserves_exact_public_roles_and_thresholds() -> None:

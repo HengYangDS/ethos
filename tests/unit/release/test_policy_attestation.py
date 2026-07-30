@@ -28,10 +28,34 @@ def _assert_fields(actual: dict[str, object], **expected: object) -> None:
 
 
 def test_release_coupling_requires_an_explicit_release_owner(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "profile.toml").write_text(
+        'profile_id = "runtime-files-adopter"\n', encoding="utf-8"
+    )
+    (tmp_path / ".ethos" / "release.toml").write_text(
+        '[protected_refs]\nbranches = ["main"]\ntags = ["v*"]\n', encoding="utf-8"
+    )
     (tmp_path / "pyproject.toml").write_text(
         '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n',
         encoding="utf-8",
     )
+
+    report = release_report(tmp_path)
+
+    assert report["required_gaps"] == []
+    assert "version" not in report
+
+
+def test_adopter_gate_registry_is_not_a_product_release_owner(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "profile.toml").write_text(
+        'profile_id = "runtime-files-adopter"\n\n[proof]\ngate_registry = "gates.toml"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / ".ethos" / "release.toml").write_text(
+        '[protected_refs]\nbranches = ["main"]\ntags = ["v*"]\n', encoding="utf-8"
+    )
+    (tmp_path / "gates.toml").write_text("adopter-owned\n", encoding="utf-8")
 
     report = release_report(tmp_path)
 
@@ -146,6 +170,7 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     )
     assert report["ok"] is True
     assert report["required_gaps"] == []
+    assert release_report(Path.cwd())["version"] == manifest
     assert "release" not in config
     assert "gitlab" not in report
     assert report["version"]["tag"] == manifest["tag"]

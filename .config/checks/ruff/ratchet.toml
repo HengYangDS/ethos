@@ -3,4 +3,4 @@
 # a focused refactor removes findings; if current findings fall below a baseline,
 # the ratchet gate fails until the stale baseline is shrunk.
 
-ignored_rule_baseline = { ARG001 = 0, BLE001 = 2, EM101 = 0, PERF401 = 0, PLC0415 = 0, PLR0911 = 0, PLR0912 = 0, PLR0915 = 0, PLR2004 = 0, S101 = 1, S105 = 0, S603 = 32, S607 = 23, SLF001 = 0, TRY003 = 0 }
+ignored_rule_baseline = { ARG001 = 0, BLE001 = 2, EM101 = 0, PERF401 = 0, PLC0415 = 0, PLR0911 = 0, PLR0912 = 0, PLR0915 = 0, PLR2004 = 0, S101 = 1, S105 = 0, S603 = 30, S607 = 21, SLF001 = 0, TRY003 = 0 }

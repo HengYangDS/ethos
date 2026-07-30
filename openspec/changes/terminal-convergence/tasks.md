@@ -77,7 +77,7 @@ exit.
   repair canonical spec and docs contradictions, and prove a completed active
   Change blocks land/closeout through the real official-list reporter path
   (`2e821ff2c5`, `70d94217fd`).
-- [ ] 0.7 Commit the deletion slice, prove patch equivalence with
+- [x] 0.7 Commit the deletion slice, prove patch equivalence with
   `work/20260730-openspec-active-change-selection`, and retire that already
   absorbed lane through native closeout.
 

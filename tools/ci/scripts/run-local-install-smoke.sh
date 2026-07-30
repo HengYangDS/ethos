@@ -88,19 +88,20 @@ import os
 import tomllib
 from datetime import UTC, datetime
 from importlib import resources
-from pathlib import Path
-
-import jsonschema
+from pathlib import Path, PurePosixPath
 
 root = Path(os.environ["ETHOS_LOCAL_INSTALL_ROOT"])
 wheel = Path(os.environ["ETHOS_LOCAL_INSTALL_WHEEL"])
-lifecycle = tomllib.loads(
-    resources.files("ethos").joinpath("data", "lifecycle.toml").read_text(encoding="utf-8")
-)
-schema_ref = lifecycle["schema"]
-schema = resources.files("ethos").joinpath("data", *schema_ref.split("/"))
-assert schema.is_file(), schema
-jsonschema.validate(lifecycle, json.loads(schema.read_text(encoding="utf-8")))
+package = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+force_include = package["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+wheel_resources = []
+for canonical, target in force_include.items():
+    relative = PurePosixPath(target).relative_to("ethos")
+    packaged = resources.files("ethos").joinpath(*relative.parts)
+    source = root / canonical
+    assert packaged.is_file(), target
+    assert packaged.read_bytes() == source.read_bytes(), target
+    wheel_resources.append(target)
 payload = {
     "schema_version": 1,
     "kind": "ethos_local_install_smoke_evidence",
@@ -117,8 +118,9 @@ payload = {
     "cli_checks": [
         "ethos --help",
         "ethos --version",
-        "installed lifecycle declaration resolves its schema",
+        "declared wheel resources match their canonical sources",
     ],
+    "wheel_resources": sorted(wheel_resources),
     "version": os.environ["ETHOS_LOCAL_INSTALL_VERSION"],
     "wheels": [{
         "path": wheel.relative_to(root).as_posix(),

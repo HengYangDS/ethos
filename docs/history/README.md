@@ -24,7 +24,7 @@ not a current-state ledger or another evidence store.
 | Need | Canonical record |
 | --- | --- |
 | Accepted and superseded architectural judgments | [Decision index](../decisions/decision-index.md) |
-| Superseded decision texts | [Superseded decisions](../decisions/superseded/README.md) |
+| Flat current and superseded decision texts | [Decision records](../decisions/README.md) |
 | Completed change carriers and their closeout material | [OpenSpec archive](../../openspec/changes/archive/) |
 | Dated historical observations with their claim boundary | [Evidence Chronicle](../../evidence/chronicle/) |
 | Latest candidate-HEAD external-adopter observation and its carrier | [Claim](../../evidence/claims/current-head-real-adopter-evidence-20260714.toml), [Chronicle](../../evidence/chronicle/current-head-real-adopter-evidence-20260714/2026-07-14.md), and [OpenSpec archive](../../openspec/changes/archive/2026-07-14-current-candidate-head-real-adopter-evidence/) |

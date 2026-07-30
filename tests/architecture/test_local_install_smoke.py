@@ -48,6 +48,15 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert '"remote_publication_claimed": False' in owner
 
 
+def test_local_install_smoke_validates_declared_wheel_resources() -> None:
+    owner = _owner_text()
+
+    assert '"force-include"' in owner
+    assert 'PurePosixPath(target).relative_to("ethos")' in owner
+    assert 'resources.files("ethos").joinpath(*relative.parts)' in owner
+    assert '"lifecycle.toml"' not in owner
+
+
 def test_local_ci_runs_install_smoke_before_fallback_manifest() -> None:
     local_ci = (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
 

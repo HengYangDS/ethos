@@ -10,7 +10,7 @@ relations:
 # DR-0008: Metric-Domain Budget Contract
 
 Status: superseded by the terminal owned-source contract in
-[Terminal Governance Product Design](../../plans/terminal-governance-product-design.md)
+[Terminal Governance Product Design](../plans/terminal-governance-product-design.md)
 and `openspec/changes/terminal-convergence/specs/quality/spec.md`.
 
 Purpose: rule that repository budgets use versioned measures inside their native
@@ -18,8 +18,8 @@ carrier and scope domains, retain ELOC for individual-file readability, and do
 not treat LOC, characters, lexical tokens, semantic nodes, payload bytes, or
 model tokens as interchangeable currencies.
 
-See also: [Decision Records](../README.md), [Decision Index](../decision-index.md),
-[Product Design Contract](../../governance/product-design-contract.md).
+See also: [Decision Records](README.md), [Decision Index](decision-index.md),
+[Product Design Contract](../governance/product-design-contract.md).
 
 ## Record
 

@@ -35,7 +35,7 @@ contract, not housekeeping, while governed repositories preserve evidence bounda
 | Proof or Evidence | `ethos prove --gate generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
 | Revisit Trigger | Reopen only if a governed adopter cannot express its path policy through `.config/ethos/` or equivalent declarative config without product-owned adopter-specific roots. |
 
-See also: [Generated Artifact Topology](../../architecture/generated-artifact-topology.md), [Decision Index](../decision-index.md), and [Command Plane](../../reference/command-plane.md).
+See also: [Generated Artifact Topology](../architecture/generated-artifact-topology.md), [Decision Index](decision-index.md), and [Command Plane](../reference/command-plane.md).
 
 ## Context
 
@@ -106,8 +106,8 @@ making ETHOS's physical layout a mandatory adopter lane.
 
 ## Proof Or Evidence
 
-- [Generated Artifact Topology](../../architecture/generated-artifact-topology.md)
-- [Decision Index](../decision-index.md)
+- [Generated Artifact Topology](../architecture/generated-artifact-topology.md)
+- [Decision Index](decision-index.md)
 - `ethos prove --gate generated-artifacts --json` (path topology plus producer-entrypoint routing)
 - `uv run --locked pytest -q tests/unit/policy/test_artifacts.py tests/architecture/test_declarative_governance_spine.py`
 - `ethos prove --execute --expect-head <head> --json`
@@ -120,9 +120,9 @@ separation.
 
 See also
 
-- [Decision Index](../decision-index.md)
-- [Decision Dependency Map](../decision-dependency-map.md)
-- [Decision Code Links](../decision-code-links.md)
+- [Decision Index](decision-index.md)
+- [Decision Dependency Map](decision-dependency-map.md)
+- [Decision Code Links](decision-code-links.md)
 
 ## Invariants
 

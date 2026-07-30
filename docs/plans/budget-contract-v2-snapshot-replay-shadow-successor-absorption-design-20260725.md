@@ -16,7 +16,8 @@ context only and grants no current authority.
 Purpose: preserve the source lane's unique budget intent after its valid meaning
 was absorbed by the terminal campaign.
 
-See also: [Implementation Plan](budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md),
+See also: [Terminal Governance Product Design](terminal-governance-product-design.md),
+[OpenSpec Terminal Tasks](../../openspec/changes/terminal-convergence/tasks.md),
 [Mutation Rules](../../rules/mutation.md), and
 [Evidence Rules](../../rules/evidence.md).
 

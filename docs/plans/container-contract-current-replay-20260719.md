@@ -17,8 +17,8 @@ Purpose: preserve the provider-neutral container-contract intent already routed
 to profiles and adopters, without keeping a lane-specific replay authority.
 
 See also: [Repository Profile Contract](../governance/repository-profile-contract.md),
-[All Work Lanes Convergence Program](all-work-lanes-convergence-program-20260716.md),
-and the active OpenSpec Change.
+[Terminal Governance Product Design](terminal-governance-product-design.md), and
+[OpenSpec Terminal Tasks](../../openspec/changes/terminal-convergence/tasks.md).
 
 ## Boundary
 

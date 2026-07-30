@@ -17,14 +17,13 @@ Purpose: preserve the historical ruling that introduced a strict physical
 documentation kernel. It is no longer a current ETHOS authority and must not
 be used to impose a fixed adopter directory layout.
 
-Current owner: [Docs Registry](../../governance/docs-registry.md) owns portable
+Current owner: [Docs Registry](../governance/docs-registry.md) owns portable
 documentation metadata, taxonomy, visible sections, command examples, and plan
 discoverability. ETHOS's own repository physical shape is owned by its product
 self-audit. No replacement Decision Record was created.
 
-Historical carrier: [Documentation Topology](../../history/docs-topology-contract-20260708.md).
-See also: [Decision Index](../decision-index.md),
-[Decision Index](decision-index.md), and
+Historical carrier: [Documentation Topology](../history/docs-topology-contract-20260708.md).
+See also: [Decision Index](decision-index.md) and
 [DR-0002](DR-0002-documentation-topology-isomorphism-contract.md).
 
 ## Record

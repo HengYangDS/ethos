@@ -16,7 +16,7 @@ Purpose: describe the active change plan for optional, action-bound independent
 proof re-execution.
 
 See also: [Independent Verification Adoption](../governance/independent-verification-adoption.md),
-[DR-0006](../decisions/accepted/DR-0006-proof-trust-boundary.md), and
+[DR-0006](../decisions/DR-0006-proof-trust-boundary.md), and
 [Archived OpenSpec Carrier](../../openspec/changes/archive/2026-07-12-assurance-program/proposal.md).
 
 ## Objective

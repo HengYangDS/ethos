@@ -17,10 +17,10 @@ See also: [Product Design Contract](product-design-contract.md) and
 [Command Plane](../reference/command-plane.md).
 
 Hypotheses, experiment strategy, dependencies, and optional program relations
-belong to immutable `Commitment` values. Observations, judgments,
-amendments, proofs, and effects belong to content-addressed Attestations. Any
-program view is derived from dependency-connected Commitments, current
-Facts, and bound Attestations.
+belong to immutable `Commitment` values. A changed hypothesis or strategy
+creates a new Commitment. Observations, judgments, proofs, and effects belong to
+content-addressed Attestations. Any program view is derived from
+dependency-connected Commitments, current Facts, and bound Attestations.
 
 There is no separate ledger, mutable program state, step/closeout database, CEL
 plane, or command family for this purpose. Historical ledgers and records remain

@@ -22,9 +22,11 @@ transient transition compiler, exact effects, and proof-carrying projections.
   exact bindings.
 - **BREAKING** Treat native, projection, adapter, fact, and history as the five
   carrier-processing roles; reject unmappable valid semantics as `model_gap`.
-- **BREAKING** Delete amendments, closed Attestation kinds, Campaign/Evolution
-  ledgers, Decision Change Ledgers, Claim/Chronicle/proof-record planes, fixed
-  workflow phases, mandatory OpenSpec, fixed competition counts, and the
+- **BREAKING** Delete amendment APIs, closed Attestation kinds,
+  Campaign/Evolution and Decision Change Ledgers, and the current producers,
+  readers, and authorization semantics of Claim/Chronicle/proof-record planes.
+  Preserve their immutable historical bytes as non-authorizing history. Delete
+  fixed workflow phases, mandatory OpenSpec, fixed competition counts, and the
   one-Commitment/one-Family rule.
 - Make `observe → extract → resolve → compile → evaluate → CAS apply →
   post-observe → attest → project` the sole generic mechanism.

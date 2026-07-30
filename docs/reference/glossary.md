@@ -42,7 +42,8 @@ is derived from this source; it is not the source.
 
 The persistent semantic entity that owns immutable intent, authority references,
 subjects, scope, permissions, hypotheses, and dependencies. Its identity is
-content-derived; it does not own workflow state or amendment folding.
+content-derived; it does not own workflow state, and changed intent creates a
+new Commitment.
 
 ## Facts
 
@@ -59,8 +60,8 @@ promoted into a persistent lifecycle owner.
 ## Attestation
 
 The persistent semantic entity that records a content-addressed observation,
-judgment, proof, effect, external assurance, or amendment with its verifier and
-validity boundary.
+judgment, proof, effect, or external assurance with its verifier and validity
+boundary.
 
 ## Subject
 

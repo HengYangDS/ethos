@@ -40,7 +40,6 @@ REQUIRED_DOCS = (
     "docs/architecture/runner-and-mutation.md",
     "docs/architecture/schema-validation.md",
     "docs/governance/commit-signature-policy.md",
-    "docs/governance/conversation-ledger.md",
     "docs/governance/authority.md",
     "docs/governance/product-design-contract.md",
     "docs/governance/product-boundary-convergence.md",

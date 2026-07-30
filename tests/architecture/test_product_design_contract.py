@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 import shutil
+import subprocess
 import tomllib
+from fnmatch import fnmatchcase
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -27,6 +30,11 @@ PROJECTIONS = {
 }
 PUBLIC_ROOTS = {"status", "plan", "prove", "land", "publish", "adopt"}
 HIDDEN_ROOTS = {"lane", "hook"}
+TASK_PATTERN = re.compile(
+    r"^- \[([ x])\] ((?:F|\d+)\.\d+(?:\.\d+)?)\s+(.+?)"
+    r"(?=\n- \[[ x]\] |\n## |\n\*\*Exit|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
 
 
 def read(relative: str) -> str:
@@ -46,6 +54,25 @@ def section(text: str, heading: str) -> str:
     following = re.search(r"^## [^#].+$", text[match.end() :], re.MULTILINE)
     end = match.end() + following.start() if following else len(text)
     return text[match.start() : end]
+
+
+def task_rows(text: str) -> dict[str, tuple[str, str]]:
+    rows: dict[str, tuple[str, str]] = {}
+    for checked, identifier, body in TASK_PATTERN.findall(text):
+        assert identifier not in rows
+        rows[identifier] = (checked, " ".join(body.split()))
+    return rows
+
+
+def committed_tasks(commit: str) -> dict[str, tuple[str, str]]:
+    text = subprocess.run(
+        ("git", "show", f"{commit}:{TERMINAL_TASKS}"),
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return task_rows(text)
 
 
 @pytest.fixture
@@ -228,9 +255,15 @@ def test_terminal_tasks_preserve_stable_identity_and_completed_foundations() -> 
     assert {f"F.{index}" for index in range(1, 12)} | {"0.1"} <= completed
     assert "first unchecked item in section 0 is the critical path" in tasks.replace("\n", " ")
     assert len(re.findall(r"^\*\*Exit \d:\*\*", tasks, re.MULTILINE)) == 8
+    phase_zero = tasks.split("## 0. Restore Campaign Control And Intent Closure", 1)[1].split(
+        "**Exit 0:**", 1
+    )[0]
+    assert re.findall(r"^- \[[ x]\] (0\.\d+(?:\.\d+)?)\b", phase_zero, re.MULTILINE) == [
+        f"0.{index}" for index in range(1, 8)
+    ]
     compact = " ".join(tasks.split())
-    assert "0.2.1 Add failing tests for two-root persistence" in compact
-    assert "0.3.1 Map every active carrier and legacy surface" in compact
+    assert "0.2 Add failing tests for two-root persistence" in compact
+    assert "0.3 Map every active carrier and legacy surface" in compact
     assert "0.4 Close every independent accepted feedback obligation" in compact
 
 
@@ -269,14 +302,219 @@ def test_terminal_execution_contract_is_self_profile_only_and_progress_is_irreve
 
     assert "For the ETHOS self-profile only" in tasks
     assert "single campaign execution" in compact_tasks
-    assert "task identity" in compact_tasks
-    assert "never renumber" in compact_tasks
+    assert "obligation identity" in compact_tasks
+    assert "never to reset progress" in compact_tasks
     assert "first incomplete task is the campaign critical path" in compact_design
     assert "elapsed activity without a terminal-state delta is not progress" in compact_design
     assert "old decisions" not in tasks.lower()
 
-    assert "never renumbers work to reset progress" in compact_tasks
+    assert "phase-local ordered coordinates" in compact_tasks
     assert "block task-ID reuse, completion reset" in compact_tasks
+
+
+def test_terminal_intent_closure_and_post_cutover_task_history_are_complete() -> None:
+    tasks = read(TERMINAL_TASKS)
+    design = read(TERMINAL_DESIGN)
+    governance = read(f"{TERMINAL_SPECS}/repository-governance/spec.md")
+    audit = read("src/ethos/repository/audit.py")
+
+    assert not (ROOT / "docs/governance/conversation-ledger.md").exists()
+    assert "conversation-ledger.md" not in audit
+    assert "## Carrier Disposition" in design
+    assert "### Independent Fact-Boundary Closure" in design
+    assert "## Accepted Feedback Closure" in design
+    assert "## Pre-cutover Task Closure" in design
+    assert "historical task identity is audited" in governance
+    assert "history_is_current = false" in read("system/authority.toml")
+    assert 'name = "history"\nmay_be_authoritative = false' in read("system/authority.toml")
+    assert "the earlier ruling remains history and cannot silently return as current" in design
+
+    assert_feedback_and_carrier_closure(design)
+    assert_task_history_closure(tasks, design)
+
+
+def assert_feedback_and_carrier_closure(design: str) -> None:
+    feedback = set(re.findall(r"^\| (CL-\d{3}) \|", design, re.MULTILINE))
+    assert feedback == {f"CL-{number:03d}" for number in range(1, 26)}
+    fact_boundaries = design.split("### Independent Fact-Boundary Closure", 1)[1].split(
+        "## Accepted Feedback Closure", 1
+    )[0]
+    for required in (
+        "one `src/ethos` distribution",
+        "Domain contracts remain profile data",
+        "OpenSpec remains a selectable self-profile carrier",
+        "does not migrate into `tools/`",
+        "`.mailmap` and package-root re-exports remain absent",
+        "Retired Subject/Contract/Transition/Inscription/Chronicle/Evolve vocabulary",
+    ):
+        assert required in fact_boundaries
+    disposition = design.split("## Carrier Disposition", 1)[1].split(
+        "### Independent Fact-Boundary Closure", 1
+    )[0]
+    selector_cells = re.findall(
+        r"^\| (.+?) \| .+? \| (?:absorbed|historical|deleted-after-proof) \|",
+        disposition,
+        re.MULTILINE,
+    )
+    assert selector_cells
+    selector_rows = [
+        re.findall(r"`([^`]+)`", cell)
+        for cell in selector_cells
+        if "linked `work/*` resources" not in cell
+    ]
+    tracked = subprocess.run(
+        ("git", "ls-files"), cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout.splitlines()
+    for path in tracked:
+        matching_rows = [
+            index
+            for index, selectors in enumerate(selector_rows)
+            if any(fnmatchcase(path, selector) for selector in selectors)
+        ]
+        assert matching_rows, f"carrier_selector_missing:{path}"
+        assert len(matching_rows) == 1 or matching_rows[1:] == [len(selector_rows) - 1], (
+            f"carrier_selector_overlap:{path}:{matching_rows}"
+        )
+
+
+def assert_task_history_closure(tasks: str, design: str) -> None:
+    pre_cutover_section = design.split("## Pre-cutover Task Closure", 1)[1].split(
+        "## Alternatives Considered", 1
+    )[0]
+    historical = set(re.findall(r"^\| (.+?) \|", pre_cutover_section, re.MULTILINE))
+    for identifier in ("0.2", "0.3", "1.6.1", "3.1.1", "3.3.4", "3.3.5", "4.7"):
+        assert any(identifier in group for group in historical)
+
+    closure_rows = re.findall(
+        r"^\| (.+?) \| (?:absorbed|superseded|historical|deleted-after-proof|rejected|deferred) "
+        r"\| (.+?) \| .+? \|$",
+        pre_cutover_section,
+        re.MULTILINE,
+    )
+    transitions = {
+        source: tuple(re.findall(r"(?<![\w.])(?:F|\d+)\.\d+(?:\.\d+)?(?![\w.])", targets))
+        for sources, targets in closure_rows
+        for source in re.findall(r"(?<![\w.])(?:F|\d+)\.\d+(?:\.\d+)?(?![\w.])", sources)
+    }
+    baseline = committed_tasks("b23dc97cd92675bd3a6f58c13a1ec73c7f4ba2c6")
+    current = task_rows(tasks)
+    for identifier, (was_checked, body) in baseline.items():
+        if identifier not in current:
+            successors = transitions.get(identifier, ())
+            assert successors, f"task_identity_unmapped:{identifier}"
+            assert all(successor in current for successor in successors)
+            if was_checked == "x":
+                assert any(current[successor][0] == "x" for successor in successors)
+            continue
+        checked, current_body = current[identifier]
+        assert current_body == body, f"task_identity_reused:{identifier}"
+        assert not (was_checked == "x" and checked != "x"), f"task_completion_reset:{identifier}"
+
+    history = subprocess.run(
+        (
+            "git",
+            "rev-list",
+            "--reverse",
+            "5777d2d705^..b23dc97cd92675bd3a6f58c13a1ec73c7f4ba2c6",
+            "--",
+            TERMINAL_TASKS,
+        ),
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    pre_cutover = {identifier for commit in history for identifier in committed_tasks(commit)}
+    mapped = {
+        identifier
+        for group in historical
+        for identifier in re.findall(r"(?<![\w.])(?:F|\d+)\.\d+(?:\.\d+)?(?![\w.])", group)
+    }
+    assert pre_cutover <= set(current) | mapped
+    assert_task_coordinate_normalization(history, baseline, current, transitions)
+
+
+def assert_task_coordinate_normalization(
+    history: list[str],
+    baseline: dict[str, tuple[str, str]],
+    current: dict[str, tuple[str, str]],
+    transitions: dict[str, tuple[str, ...]],
+) -> None:
+    historical_versions: dict[str, list[tuple[str, str]]] = {}
+    for commit in history:
+        for identifier, version in committed_tasks(commit).items():
+            versions = historical_versions.setdefault(identifier, [])
+            if not versions or versions[-1] != version:
+                versions.append(version)
+    reverse_transitions = {
+        target: {source for source, targets in transitions.items() if target in targets}
+        for target in current
+    }
+    for identifier in current:
+        if identifier in baseline:
+            continue
+        predecessors = reverse_transitions.get(identifier, set()) & set(baseline)
+        if identifier.startswith("F."):
+            assert identifier in {
+                successor for targets in transitions.values() for successor in targets
+            }, f"task_coordinate_predecessor_missing:{identifier}"
+            continue
+        assert predecessors, f"task_coordinate_predecessor_missing:{identifier}"
+        assert all(source in transitions for source in predecessors)
+    assert_changed_coordinates_closed(historical_versions, baseline, current, transitions)
+
+
+def assert_changed_coordinates_closed(
+    historical_versions: dict[str, list[tuple[str, str]]],
+    baseline: dict[str, tuple[str, str]],
+    current: dict[str, tuple[str, str]],
+    transitions: dict[str, tuple[str, ...]],
+) -> None:
+    known = set(baseline) | set(current)
+    for identifier, versions in historical_versions.items():
+        bodies = [body for _checked, body in versions]
+        if len(bodies) < 2 or all(
+            _task_body_extension(first, second) for first, second in pairwise(bodies)
+        ):
+            continue
+        successors = transitions.get(identifier, ())
+        assert successors, f"task_coordinate_prior_obligation_unclosed:{identifier}"
+        assert all(successor in known for successor in successors)
+        if any(checked == "x" for checked, _body in versions):
+            assert any(
+                successor.startswith("F.") and successor in current and current[successor][0] == "x"
+                for successor in successors
+            ) or successors == (identifier,), (
+                f"task_coordinate_completed_obligation_unclosed:{identifier}"
+            )
+
+
+def _task_body_extension(first: str, second: str) -> bool:
+    if first.startswith(second) or second.startswith(first):
+        return True
+    marker = " through the real official-list reporter path"
+    first_prefix, first_marker, first_suffix = first.partition(marker)
+    second_prefix, second_marker, second_suffix = second.partition(marker)
+    return bool(
+        first_marker
+        and second_marker
+        and first_prefix == second_prefix
+        and (first_suffix == "." or second_suffix == "." or not first_suffix or not second_suffix)
+    )
+
+
+def test_terminal_proposal_preserves_exact_public_roles_and_thresholds() -> None:
+    proposal = read("openspec/changes/terminal-convergence/proposal.md")
+    command_spec = read(f"{TERMINAL_SPECS}/command-plane/spec.md")
+    quality_spec = read(f"{TERMINAL_SPECS}/quality/spec.md")
+
+    assert all(token in proposal for token in ("54,000", "68,000", "95 percent"))
+    assert all(token in quality_spec for token in ("54,000", "68,000", "95"))
+    assert "`candidate/dev` and `work/*` remain local-only" in proposal
+    assert "`dev` and default `main` are\nprotected" in proposal
+    assert "`proposal/*` is the sole remote review branch role" in proposal
+    assert "exactly the six public commands" in command_spec
+    assert "without registering an `ethos openspec` public root" in command_spec
 
 
 def test_terminal_runtime_owner_is_checkout_bound_through_with_python_runtime() -> None:

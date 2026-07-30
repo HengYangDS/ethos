@@ -12,7 +12,9 @@ latest explicit ruling SHALL supersede earlier conflicting guidance.
   stable task, acceptance condition, and verifier, or receives an explicit
   rejection, deferral, or supersession reason
 - **AND** completed tasks retain their identity and commit or proof evidence
-- **AND** task identifiers are not reused or renumbered to reset progress
+- **AND** phase-local coordinates stay continuous while obligation identity is
+  preserved through explicit predecessor and disposition mappings
+- **AND** coordinates are not silently reused or renumbered to reset progress
 - **AND** unmapped meaning or unresolved contradiction produces `model_gap` and
   blocks carrier retirement and campaign closeout.
 
@@ -28,6 +30,32 @@ latest explicit ruling SHALL supersede earlier conflicting guidance.
   task, remaining phase exits, and evidence bindings separately
 - **AND** elapsed time, analysis, or repeated gate execution without a verified
   terminal-state delta is not reported as implementation progress.
+
+#### Scenario: historical task identity is audited
+- **WHEN** the campaign task carrier is compared with its declared history cutover
+- **THEN** an existing obligation body is immutable and completion may only advance
+- **AND** a removed, reset, or pre-cutover-reused identity has an explicit
+  disposition, current task, and evidence or ruling in the existing design
+- **AND** a normalized coordinate has an explicit predecessor while any older
+  obligation sharing that coordinate resolves to an explicit successor set
+- **AND** an older completed obligation resolves to at least one completed
+  Foundation identity
+- **AND** an unmapped identity produces `model_gap` and blocks closeout.
+
+#### Scenario: a superseded feedback carrier is retired
+- **WHEN** the terminal design structurally maps every accepted feedback ID and
+  every independent fact-boundary constraint to a current task and semantic
+  owner or explicit absence reason
+- **THEN** the superseded carrier is deleted from the current documentation and
+  repository-audit surfaces
+- **AND** Git history remains non-authorizing evidence of the retired text.
+
+#### Scenario: the tracked carrier inventory is total and non-overlapping
+- **WHEN** the cutover disposition is checked against the current tracked tree
+- **THEN** every tracked path resolves through the ordered selector table to one
+  carrier family
+- **AND** an uncovered path or overlap outside the declared final remainder is
+  `model_gap` and blocks carrier retirement.
 
 #### Scenario: self-profile tasks remain a bounded execution carrier
 - **WHEN** ETHOS reads this Change's task projection

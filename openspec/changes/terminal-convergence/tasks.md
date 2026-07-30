@@ -3,9 +3,11 @@
 For the ETHOS self-profile only, these tasks are the single campaign execution
 carrier. They do not define a generic product task database or runtime. Checked
 items require current source plus a commit or verifier. Refinement preserves task
-identity and evidence; it never renumbers work to reset progress. The first
-unchecked item in section 0 is the critical path. Every phase closes only through
-its stated exit.
+obligation identity and evidence. Numeric labels are phase-local ordered
+coordinates, not durable semantic identities; a coordinate changes only through
+the explicit closure mapping and never to reset progress. The first unchecked
+item in section 0 is the critical path. Every phase closes only through its stated
+exit.
 
 ## Completed Foundations
 
@@ -34,23 +36,39 @@ its stated exit.
 - [x] F.11 Remove score-derived readiness, fold the reader facts into `status`,
   delete `report`, and enforce default payload caps (`1d98cce8dc`; formerly
   task 0.3).
+- [x] F.12 Record product/test/tool/document/config deletion by canonical ELOC
+  class and bind the terminal limits (`271cb4a9b9`; formerly task 1.4).
+- [x] F.13 Land the first strict kernel contract, determinism, authority, and
+  hash tests (`271cb4a9b9`; formerly task 2.1).
+- [x] F.14 Establish strict frozen Pydantic contracts, pure reducers, and direct
+  graphlib ordering (`271cb4a9b9`; formerly task 2.2).
+- [x] F.15 Collapse lifecycle declarations to one transition-policy owner
+  (`271cb4a9b9`; formerly task 3.1.1).
+- [x] F.16 Isolate lifecycle observation in one non-locking Git profile
+  (`271cb4a9b9`; formerly task 3.3.1).
+- [x] F.17 Cut over to the strict full-row Lane Lease CAS wire
+  (`db210a46c8`; formerly task 3.3.4).
+- [x] F.18 Materialize exactly one source-root Commitment carrier and bind its
+  Lease at lane creation (`db210a46c8`; formerly task 3.3.5).
+- [x] F.19 Delete the closeout-residue currentness model and retain unknown
+  Work Lane state as observation only (`ceb40e38f1`; formerly task 1.6.1).
 
 ## 0. Restore Campaign Control And Intent Closure
 
 - [x] 0.1 Bind this active self-profile Change to the canonical product design,
   exact Work Lane, Commitment, Lease, and current branch roles.
-- [ ] 0.2.1 Add failing tests for two-root persistence, open Attestation
+- [x] 0.2 Add failing tests for two-root persistence, open Attestation
   predicates, transient Facts/TransitionPlan, contextual authority/currentness,
   model gaps, byte-stable Lease bindings, and history non-authority.
-- [ ] 0.3.1 Map every active carrier and legacy surface to `absorbed`,
+- [x] 0.3 Map every active carrier and legacy surface to `absorbed`,
   `historical`, or `deleted-after-proof`; block deletion while a semantic delta
   or consumer remains unmapped.
-- [ ] 0.4 Close every independent accepted feedback obligation and every
+- [x] 0.4 Close every independent accepted feedback obligation and every
   pre-cutover task into a current requirement and stable task, or an explicit
   rejection, deferral, or supersession reason in the existing design/spec/task
   carriers. Later explicit decisions win; raw dialogue and summaries do not
   become a second ledger.
-- [ ] 0.5 Add architecture tests that block task-ID reuse, completion reset,
+- [x] 0.5 Add architecture tests that block task-ID reuse, completion reset,
   unmapped intent, old-decision resurrection, branch-role drift, six-command
   drift, runner/schema/editor/audit-root divergence, and loss of exact terminal
   thresholds.

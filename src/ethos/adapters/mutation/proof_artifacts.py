@@ -68,6 +68,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
             for item in diagnostics
         ):
             raise TypeError(message)
+        normalized_diagnostics = [dict(item) for item in diagnostics if isinstance(item, Mapping)]
         normalized.append(
             {
                 "action_id": action_id,
@@ -78,7 +79,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
                 "verdict": verdict,
                 "evidence_class": str(raw.get("evidence_class") or ""),
                 "trust_bearing": raw.get("trust_bearing") is True,
-                "diagnostics": [dict(item.items()) for item in diagnostics],
+                "diagnostics": normalized_diagnostics,
             }
         )
     if len({check["action_id"] for check in normalized}) != len(normalized):

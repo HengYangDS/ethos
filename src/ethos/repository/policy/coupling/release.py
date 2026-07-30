@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
 
 def release_report(root: Path) -> dict[str, Any]:
-    """Return release policy data or a neutral report outside a product repo."""
-    if not (root / "pyproject.toml").exists():
+    """Return release policy only for a repository that declares its owner."""
+    if not (root / ".ethos" / "release.toml").is_file():
         return {
             "required_files": list(REQUIRED_RELEASE_FILES),
             "host_profile": {

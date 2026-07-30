@@ -24,23 +24,67 @@ def _toml(path: Path) -> dict[str, Any]:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
+def _optional_toml(path: Path) -> dict[str, Any] | None:
+    try:
+        return _toml(path)
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+
+
 def release_config(root: Path) -> dict[str, Any]:
     path = root / ".ethos" / "release.toml"
     if not path.exists():
         return {}
-    return _toml(path)
+    return _optional_toml(path) or {}
+
+
+def _runtime_files_identity(root: Path, workspace: dict[str, Any]) -> tuple[str, str] | None:
+    tools = workspace.get("tool")
+    candidates = (
+        [
+            (name, declaration)
+            for name, declaration in tools.items()
+            if isinstance(declaration, dict) and declaration.get("distribution") == "runtime-files"
+        ]
+        if isinstance(tools, dict)
+        else []
+    )
+    if len(candidates) != 1:
+        return None
+    name, declaration = candidates[0]
+    source = declaration.get("version-source")
+    if not isinstance(name, str) or not name or not isinstance(source, str) or not source:
+        return None
+    version_path = (root / source).resolve()
+    if not version_path.is_relative_to(root.resolve()) or not version_path.is_file():
+        return None
+    try:
+        version = version_path.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    return (name, version) if version else None
 
 
 def version_manifest(root: Path) -> dict[str, Any]:
-    project = _toml(root / "pyproject.toml")["project"]
-    name, version = str(project["name"]), str(project["version"])
+    workspace = _optional_toml(root / "pyproject.toml") or {}
+    project = workspace.get("project")
+    identity: tuple[str, str] | None = None
+    packages: dict[str, str] = {}
+    if isinstance(project, dict):
+        name, version = project.get("name"), project.get("version")
+        if isinstance(name, str) and name and isinstance(version, str) and version:
+            identity = (name, version)
+            packages[name] = version
+    identity = identity or _runtime_files_identity(root, workspace)
+    name, version = identity or (root.name, "")
     return {
         "name": name,
         "version": version,
-        "tag": f"v{version}",
-        "packages": {name: version},
+        "tag": f"v{version}" if version else "",
+        "packages": packages,
         "all_package_versions_match": True,
         "mismatches": {},
+        "required_gaps": [] if identity else ["release_version_manifest_invalid"],
     }
 
 
@@ -82,6 +126,7 @@ def _local_command_gaps(root: Path, publication: dict[str, Any]) -> list[str]:
 
 
 def release_policy_report(root: Path) -> dict[str, Any]:
+    config_path = root / ".ethos" / "release.toml"
     config = release_config(root)
     missing_files = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
     version = version_manifest(root)
@@ -93,6 +138,9 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     attestation = config.get("attestation", {})
     gaps: list[str] = []
     gaps.extend(f"release_file_missing:{path}" for path in missing_files)
+    if config_path.exists() and _optional_toml(config_path) is None:
+        gaps.append("release_config_invalid:.ethos/release.toml")
+    gaps.extend(version["required_gaps"])
     if not version["all_package_versions_match"]:
         gaps.append("package_version_mismatch")
     if protected_refs.get("branches") != expected_protected_branches:

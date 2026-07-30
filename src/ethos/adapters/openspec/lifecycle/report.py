@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
-from ethos.adapters.openspec.preflight.archive_preflight import openspec_archive_preflight_report
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
@@ -15,6 +14,10 @@ from . import scope
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_ACTIVE_STATUSES = frozenset({"in-progress", "no-tasks", "archiving"})
+_COMPLETED_STATUSES = frozenset({"complete", "completed", "done"})
+_KNOWN_STATUSES = _ACTIVE_STATUSES | _COMPLETED_STATUSES
 
 
 class OpenSpecRequest(NamedTuple):
@@ -33,22 +36,44 @@ class OpenSpecReportContext(NamedTuple):
     protected_branch_residue: dict[str, object]
 
 
-def selected_change(list_payload: dict[str, Any], requested: str | None) -> str | None:
-    """Select one explicit or unambiguous active OpenSpec change."""
-    changes = list_payload.get("changes", [])
+def official_change_rows(list_payload: dict[str, Any]) -> list[dict[str, str]] | None:
+    """Validate and normalize the official active-change list."""
+    changes = list_payload.get("changes")
     if not isinstance(changes, list):
         return None
-    names = {str(item["name"]) for item in changes if isinstance(item, dict) and item.get("name")}
+    rows: list[dict[str, str]] = []
+    for item in changes:
+        if not isinstance(item, dict):
+            return None
+        name = item.get("name") or item.get("id")
+        status = item.get("status") or item.get("state")
+        if not isinstance(name, str) or not name or not isinstance(status, str):
+            return None
+        if status not in _KNOWN_STATUSES:
+            return None
+        rows.append({"name": name, "status": status})
+    return rows
+
+
+def selected_change(rows: list[dict[str, str]], requested: str | None) -> str | None:
+    """Select one explicit or unambiguous active OpenSpec change."""
+    names = {item["name"] for item in rows}
     if requested is not None:
         return requested if requested in names else None
-    active = [
-        str(item["name"])
-        for item in changes
-        if isinstance(item, dict)
-        and item.get("name")
-        and str(item.get("status") or "") in {"in-progress", "no-tasks", "archiving", ""}
-    ]
+    active = [item["name"] for item in rows if item["status"] in _ACTIVE_STATUSES]
     return active[0] if len(active) == 1 else None
+
+
+def selection_gaps(rows: list[dict[str, str]], requested: str | None) -> list[str]:
+    selected = selected_change(rows, requested)
+    if selected is not None:
+        return []
+    names = [item["name"] for item in rows if item["status"] in _ACTIVE_STATUSES]
+    if requested is not None:
+        return [f"openspec_requested_change_missing:{requested}"]
+    if len(names) > 1:
+        return [f"openspec_active_change_ambiguous:{','.join(names)}"]
+    return ["openspec_active_change_missing"] if not names else []
 
 
 def validation_failures(validate_payload: dict[str, Any]) -> list[str]:
@@ -205,9 +230,7 @@ def _lifecycle_names(
     return names, active
 
 
-def _change_report(
-    root: Path, name: str, base_command: tuple[str, ...] | None
-) -> tuple[dict[str, object], list[str]]:
+def _change_report(root: Path, name: str) -> tuple[dict[str, object], list[str]]:
     change_root = root / "openspec" / "changes" / name
     carriers = {
         "proposal": (change_root / "proposal.md").exists(),
@@ -229,26 +252,11 @@ def _change_report(
     capabilities = sorted(
         path.parent.name for path in (change_root / "specs").glob("*/spec.md") if path.is_file()
     )
-    preflight = (
-        openspec_archive_preflight_report(root, name, base_command=base_command)
-        if base_command is not None
-        else {
-            "ok": True,
-            "state": "not_run",
-            "change": name,
-            "isolated": True,
-            "command": [],
-            "diagnostics": [],
-            "required_gaps": [],
-        }
-    )
-    gaps.extend(string_sequence(preflight.get("required_gaps")))
     return {
         "name": name,
         "path": change_root.relative_to(root).as_posix(),
         "carriers": carriers,
         "capabilities": capabilities,
-        "archive_preflight": preflight,
         "required_gaps": gaps,
     }, gaps
 
@@ -259,7 +267,6 @@ def lifecycle_report(
     request: OpenSpecRequest,
     list_payload: dict[str, Any],
     protected_branch_residue: dict[str, object] | None = None,
-    base_command: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     residue = protected_branch_residue or {
         "ok": True,
@@ -274,7 +281,7 @@ def lifecycle_report(
     names, active_names = _lifecycle_names(root, list_payload.get("changes", []), request.change)
     changes, required_gaps = [], []
     for name in names:
-        change, gaps = _change_report(root, name, base_command)
+        change, gaps = _change_report(root, name)
         changes.append(change)
         required_gaps.extend(gaps)
     binding = scope.material_change_scope_report(

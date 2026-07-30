@@ -1,5 +1,43 @@
 ## ADDED Requirements
 
+### Requirement: Lossless Campaign Intent Closure
+Campaign refinement SHALL preserve every accepted independent obligation under
+one current semantic owner without creating a conversation ledger, parallel
+task store, or compatibility surface. Within the same authority and scope, the
+latest explicit ruling SHALL supersede earlier conflicting guidance.
+
+#### Scenario: planning artifacts are replaced
+- **WHEN** proposal, design, specification, or task carriers are substantially rewritten
+- **THEN** every previously accepted obligation is mapped to a current requirement,
+  stable task, acceptance condition, and verifier, or receives an explicit
+  rejection, deferral, or supersession reason
+- **AND** completed tasks retain their identity and commit or proof evidence
+- **AND** task identifiers are not reused or renumbered to reset progress
+- **AND** unmapped meaning or unresolved contradiction produces `model_gap` and
+  blocks carrier retirement and campaign closeout.
+
+#### Scenario: a later explicit decision conflicts with an earlier decision
+- **WHEN** both decisions have the same authority, subject, and scope
+- **THEN** the later decision is current
+- **AND** the earlier decision remains non-authorizing history
+- **AND** projections and execution plans cannot silently restore the earlier decision.
+
+#### Scenario: a campaign reports progress
+- **WHEN** campaign progress is projected
+- **THEN** it reports completed foundations, the single current critical-path
+  task, remaining phase exits, and evidence bindings separately
+- **AND** elapsed time, analysis, or repeated gate execution without a verified
+  terminal-state delta is not reported as implementation progress.
+
+#### Scenario: self-profile tasks remain a bounded execution carrier
+- **WHEN** ETHOS reads this Change's task projection
+- **THEN** it treats those tasks as the ETHOS self-profile campaign execution
+  carrier only
+- **AND** stable task identity and completion evidence preserve execution
+  continuity
+- **AND** no task file, progress field, or campaign projection becomes a generic
+  product task database, lifecycle runtime, or authorization source.
+
 ### Requirement: Exact Work Lane Lifecycle Effects
 Routine coordination SHALL remain a local projection. Exceptional repository-semantic effects SHALL require exact selected Commitment, fresh Facts, explicit holder or authorized takeover, CAS preconditions, post-observation, and an Attestation; generic cleanup SHALL never infer authority.
 
@@ -9,6 +47,21 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
   the same holder retires a clean mechanically proven landed lane
 - **THEN** ETHOS uses ignored local coordination and postcondition receipts
 - **AND** no tracked historical Chronicle record is required.
+
+#### Scenario: an authorized Lease takeover changes one holder exactly
+
+- **GIVEN** an authorization binds one branch, exact HEAD, lane incarnation and
+  Lease generation, current dirty-content digest, target actor, and source state
+  of `quiesced` or `source_lost`
+- **WHEN** the target actor executes takeover against fresh Facts
+- **THEN** one full-row Lease compare-and-swap changes the holder, increments the
+  epoch, preserves the bound branch, HEAD, and content, and emits an exact effect
+  Attestation
+- **AND** `source_lost` remains an explicit unknown-quiescence boundary rather
+  than being reported as a normal handoff
+- **AND** drift in the branch, HEAD, generation, dirty-content digest, target
+  actor, source-state authorization, or CAS precondition produces zero Git,
+  filesystem, and Lease effect.
 
 #### Scenario: exceptional cleanup consumes prior accepted judgment
 
@@ -85,6 +138,26 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
 - **AND** the authority SHALL NOT extend to another lane, a valid lease, remote
   mutation, or a hosted-provider claim.
 
+## REMOVED Requirements
+
+### Requirement: Productized OpenSpec carrier governance
+**Reason**: lifecycle ownership moves to `adapters / Official OpenSpec Lifecycle
+Adapter`; repository governance owns only self-profile selection and exact
+transition effects.
+
+### Requirement: Productized OpenSpec Substrate
+**Reason**: OpenSpec is optional profile capability, not a universal repository
+governance substrate.
+
+### Requirement: OpenSpec customization stays official-compatible
+**Reason**: official syntax, validation, completion, and archive semantics are
+owned once by the lifecycle adapter; ETHOS-specific Commitment and scope checks
+remain downstream consumers.
+
+### Requirement: Official OpenSpec goal metadata is lifecycle-compatible
+**Reason**: accepted official metadata needs no parallel ETHOS compatibility
+requirement or historical parser.
+
 ## MODIFIED Requirements
 
 ### Requirement: Contextual Authority Resolution
@@ -98,6 +171,58 @@ directory status, graph, or manual index decides it.
 
 ### Requirement: Work Lane Coordination Read Model
 Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashboards SHALL be resource facts or derived projections; they SHALL not own intent, task, campaign, or currentness.
+
+#### Scenario: a Worktree Family is projected
+
+- **WHEN** coordination groups Work Lanes for one bounded objective
+- **THEN** the Family identity binds repository identity, a stable family key,
+  declared coordination scope, and current policy without equating the Family to
+  one Commitment
+- **AND** every member binds its lane-incarnation ID, branch, exact HEAD, Lease
+  generation, scope relation, and disposition
+- **AND** the canonical head remains absent until an exact selection Attestation
+  and candidate compare-and-swap establish it.
+
+#### Scenario: Family members cooperate, compete, absorb, and retire
+
+- **WHEN** current member scopes and acceptance conditions are resolved
+- **THEN** disjoint members may cooperate while overlapping alternatives compete
+  under the same acceptance conditions
+- **AND** selection absorbs every accepted unique semantic delta into the
+  canonical result with evidence
+- **AND** a member becomes retireable only after its delta is absorbed or proved
+  void, its required preservation exists, and no active Lease or consumer remains.
+
+#### Scenario: a shared inbox is rebuilt and consumed
+
+- **WHEN** a collaboration inbox is projected from selected Commitments, Git and
+  Lease Facts, handoff observations, Attestations, gaps, and next actions
+- **THEN** a stable semantic item digest deduplicates equivalent inputs and the
+  projection can be deleted and rebuilt without meaning loss
+- **AND** acknowledgement binds the actor and observed item digest without
+  consuming the item
+- **AND** consumption binds the exact accepted result, effect, or superseding
+  Attestation
+- **AND** conflicting current inputs remain one explicit conflict and block
+  consumption until resolution.
+
+#### Scenario: an A2A adapter delegates bounded work
+
+- **WHEN** an optional A2A-style adapter delegates repository work
+- **THEN** the request binds source and target actors, scope, permissions, exact
+  inputs, expiry, and acceptance conditions
+- **AND** the target returns `accept` or `reject` before returning an exact result
+  or a handoff or takeover reference
+- **AND** protocol state is disposable and reconstructable and owns no
+  Commitment, Lease, task, verdict, evidence, or repository authority.
+
+#### Scenario: branch roles bound local and remote transitions
+
+- **WHEN** ETHOS resolves the branch role for an integration or publication
+  transition
+- **THEN** `work/*` and `candidate/dev` are local-only, `dev` and the default
+  `main` are protected, and `proposal/*` is the sole remote review role
+- **AND** an unknown or mismatched role blocks before any remote effect.
 
 #### Scenario: foreign lane preview remains observe-only
 
@@ -197,6 +322,19 @@ Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashbo
 ### Requirement: Cohort-bound full Work Lane convergence
 Collaboration and competition SHALL derive from scope conflict, capacity, risk, and proof cost; no universal worker or competitor cardinality applies.
 
+#### Scenario: adaptive admission preserves fair candidate progress
+
+- **WHEN** multiple ready Work Lanes compete for authoring, proof, or candidate
+  capacity
+- **THEN** admission derives WIP from scope conflict, host capacity, risk, proof
+  cost, queue age, and observed candidate throughput
+- **AND** equivalent ready work ages monotonically and cannot starve without an
+  explicit current blocker
+- **AND** authoring and proof may run concurrently while only the candidate CAS
+  is serialized
+- **AND** a stale candidate attempt has zero effect, re-observes and re-proves
+  before bounded retry, and reports the blocker when retry cannot safely proceed.
+
 #### Scenario: a convergence cohort is frozen before mutation
 
 - **GIVEN** a maintainer requests convergence of multiple existing Work Lanes
@@ -252,6 +390,19 @@ Collaboration and competition SHALL derive from scope conflict, capacity, risk, 
 
 ### Requirement: External Retirement Readiness
 A carrier SHALL be retired only when it is non-current, has no active inbound or runtime consumer, has an absorbed or void semantic delta, and has required preservation.
+
+#### Scenario: a repository-family record enters immutable history
+
+- **WHEN** ETHOS materializes a preservation or closeout record
+- **THEN** `record-admit` accepts only an exact repository-family path under
+  `evidence/<timestamp>-<purpose>/` or `recovery/<timestamp>-<purpose>/`
+- **AND** the record contains `README.md`, `closeout.json`, `MANIFEST.json`, and
+  `SHA256SUMS` with a complete integrity inventory
+- **AND** `record-verify` passes before `records-index --write` changes the derived
+  index
+- **AND** indexed historical bytes are immutable; a later state adds a new record
+  and superseding index entry rather than rewriting or deleting history
+- **AND** the index remains a projection and mints no lifecycle authority.
 
 #### Scenario: Retirement readiness is inspected
 - **WHEN** a target carrier is evaluated for retirement

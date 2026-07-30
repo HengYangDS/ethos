@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.openspec.cli as openspec_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.openspec.cli import openspec_base_command
@@ -126,18 +127,19 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
         assert openspec_mode == "shape"
         return {"ok": True, "required_gaps": [], "root": root.as_posix()}
 
-    def fake_openspec_lifecycle(root: Path) -> dict[str, object]:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "root": root.as_posix(),
-            "completed_changes": ["sample-change"],
-            "required_gaps": ["openspec_completed_change_unarchived:sample-change"],
-        }
-
     monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
-        lifecycle_cli, "completed_active_changes_report", fake_openspec_lifecycle, raising=False
+        openspec_cli,
+        "run_json",
+        lambda *_args: {
+            "command": ["openspec", "list", "--json"],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": {"changes": [{"name": "sample-change", "status": "complete"}]},
+            "parse_error": "",
+        },
     )
     payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
     assert payload["ok"] is False

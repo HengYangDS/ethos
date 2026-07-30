@@ -116,41 +116,33 @@ A successful effect SHALL be followed by fresh observation and an Attestation bi
 ### Requirement: Official OpenSpec Lifecycle Adapter
 The official OpenSpec CLI SHALL own validation and archival for ETHOS's selected self-profile carrier. Generic adapter compilation SHALL not import or require OpenSpec.
 
-#### Scenario: Archive closeout gaps block land and closeout
+#### Scenario: ETHOS observes an active OpenSpec carrier
+- **WHEN** the self profile evaluates current OpenSpec state
+- **THEN** the adapter consumes official `doctor`, `list`, `status`, and strict
+  `validate` observations
+- **AND** malformed list structure, unknown status, an absent explicit Change,
+  or ambiguous implicit selection blocks instead of becoming an empty clean list
+- **AND** no reader, plan, or proof path invokes or predicts `archive`.
 
-- **GIVEN** official OpenSpec list status has no completed active changes
-- **AND** an archived change is missing archive metadata or has incomplete tasks
-- **WHEN** ETHOS evaluates OpenSpec lifecycle closeout for land or accepted-root
-  closeout
-- **THEN** ETHOS reports the archive issue as a required gap
-- **AND** land or closeout remains blocked until archive state is repaired.
+#### Scenario: A completed Change remains active
+- **WHEN** official `list` reports a completed Change under the active changes
+  surface
+- **THEN** land and accepted-root closeout report
+  `openspec_completed_change_unarchived:<change>`
+- **AND** the gap clears only after the owner-native archive operation removes
+  that Change from official active state.
 
-#### Scenario: Active change fails official archive simulation
-
-- **GIVEN** an active change is syntactically valid but the configured official
-  OpenSpec archive command would reject its delta against the current canonical
-  specs
-- **WHEN** ETHOS evaluates OpenSpec lifecycle for the change
-- **THEN** ETHOS runs the official archive only in a disposable workspace copy
-- **AND** returns the official diagnostic code, message, and fix under the
-  change's `archive_preflight` data
-- **AND** reports a change-scoped required gap
-- **AND** proof, land, and accepted-root closeout remain blocked
-- **AND** the source OpenSpec workspace remains unchanged.
-
-#### Scenario: Active change passes official archive simulation
-
-- **GIVEN** an active change's official archive simulation succeeds
-- **WHEN** ETHOS evaluates OpenSpec lifecycle for the change
-- **THEN** lifecycle records a successful isolated preflight
-- **AND** it does not archive the source change, complete tasks, or mint
-  authority
-- **AND** a later source change requires lifecycle to evaluate archiveability
-  again.
+#### Scenario: Historical archive bytes use an older shape
+- **WHEN** a historical archive has obsolete naming, metadata, tasks, or delta
+  layout
+- **THEN** ETHOS does not re-run or reinterpret that historical workflow to
+  authorize or block a current effect
+- **AND** already issued Attestations remain verifiable through their exact
+  bindings.
 
 #### Scenario: ETHOS archives its own active change
-- **WHEN** the self profile selects OpenSpec and archiveability is attested
-- **THEN** ETHOS invokes the owner-native OpenSpec operation
+- **WHEN** the self profile selects OpenSpec and the Change is ready for archival
+- **THEN** the operator invokes the owner-native official OpenSpec operation
 - **AND** the resulting archive is history, not a generic runtime authority
 
 ### Requirement: Optional tool adapters remain replaceable
@@ -158,11 +150,11 @@ ETHOS SHALL use admitted mature capabilities directly and reject a framework, ge
 
 #### Scenario: Adapter profile is reported
 
-- **WHEN** `ethos audit --mode deep --json` reports tool adapters
+- **WHEN** `ethos prove --gate product-boundary --json` reports tool adapters
 - **THEN** Nox, Pixi, Pants, task-ledger, and agent-method-pack entries SHALL be
   visible as adapter-only boundaries
 - **AND** their output SHALL NOT replace ETHOS proof, OpenSpec lifecycle checks,
-  claims, evidence, or Git-native Work Lane semantics.
+  Attestations, evidence, or Git-native Work Lane semantics.
 
 #### Scenario: External workflow frameworks are classified
 - **WHEN** ETHOS evaluates Comet, Spec Kit, BMAD, Superpowers, Task Master, Agent OS, OpenSPDD, Shotgun, or fspec

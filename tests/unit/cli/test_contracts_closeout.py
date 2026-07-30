@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import ethos.surface.cli.root.lifecycle as lifecycle_cli
+import ethos.adapters.openspec.cli as openspec_cli
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
@@ -340,26 +340,19 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
         assert openspec_mode == "shape"
         return {"ok": True, "required_gaps": [], "root": root.as_posix()}
 
-    def fake_openspec_lifecycle(root: Path) -> dict[str, object]:
-        if root.resolve() == candidate.resolve():
-            return {
-                "ok": False,
-                "state": "blocked",
-                "root": root.as_posix(),
-                "completed_changes": ["sample-change"],
-                "required_gaps": ["openspec_completed_change_unarchived:sample-change"],
-            }
-        return {
-            "ok": True,
-            "state": "clean",
-            "root": root.as_posix(),
-            "completed_changes": [],
-            "required_gaps": [],
-        }
-
     monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
-        lifecycle_cli, "completed_active_changes_report", fake_openspec_lifecycle, raising=False
+        openspec_cli,
+        "run_json",
+        lambda *_args: {
+            "command": ["openspec", "list", "--json"],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": {"changes": [{"name": "sample-change", "status": "complete"}]},
+            "parse_error": "",
+        },
     )
     payload = run_ethos("land", "--closeout", "--json", cwd=repo)
     assert payload["ok"] is False

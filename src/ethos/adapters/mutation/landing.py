@@ -8,7 +8,6 @@ from typing import cast
 
 import ethos.adapters.mutation.accepted as accepted
 import ethos.adapters.mutation.remediation.guidance as remediation
-from ethos.adapters.mutation.attestation_projection import attestation_payload
 from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
@@ -105,7 +104,7 @@ def apply_land_to_candidate(
             ["candidate_worktree_sync_failed"],
             path=candidate_path.as_posix(),
             stderr=synced.stderr.strip(),
-            attestation=attestation_payload(attestation, kind="effect"),
+            attestation=attestation.model_dump(mode="json"),
         )
     return {
         "ok": True,
@@ -113,7 +112,7 @@ def apply_land_to_candidate(
         "branch": policy.candidate_branch,
         "head": current_head,
         "path": candidate_path.as_posix(),
-        "attestation": attestation_payload(attestation, kind="effect"),
+        "attestation": attestation.model_dump(mode="json"),
         "required_gaps": [],
     }
 

@@ -49,3 +49,10 @@ An adopted repository uses the same `status -> plan -> prove -> land -> publish`
 semantics as the product. The profile selects repository-owned facts and gates;
 it does not create a second command plane or copy adopter semantics into ETHOS
 core.
+
+Product release policy is likewise profile-bounded. Merely having a
+`pyproject.toml` does not make an adopter an ETHOS Python workspace. A
+runtime-files adopter may keep its release name, distribution kind, Python
+floor, and `VERSION` path under one repository-owned `[tool.<name>]` table;
+ETHOS reads that declared identity without requiring a synthetic `[project]`
+table or applying product-only release surfaces during generic audits.

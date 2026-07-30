@@ -1,0 +1,12 @@
+schema_version = 1
+paths = [
+  "docs/architecture/adoption-profiles.md",
+  "evidence/claims/runtime-files-version-manifest-20260730.toml",
+  "evidence/chronicle/runtime-files-version-manifest-20260730/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/runtime-files-version-manifest/**",
+  "openspec/specs/adapters/spec.md",
+  "packages/ethos/src/ethos/repository/policy/coupling/release.py",
+  "packages/ethos/src/ethos/repository/release/core.py",
+  "tests/unit/release/test_policy_attestation.py",
+]

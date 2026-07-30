@@ -31,7 +31,13 @@ if TYPE_CHECKING:
 
 
 def test_selected_change_requires_an_explicit_request_to_exist() -> None:
-    rows = official_change_rows({"changes": [{"name": "active", "status": "in-progress"}]})
+    rows = official_change_rows(
+        {
+            "changes": [
+                {"name": "active", "completedTasks": 0, "totalTasks": 1, "status": "in-progress"}
+            ]
+        }
+    )
 
     assert rows is not None
     assert selected_change(rows, "missing") is None
@@ -41,8 +47,14 @@ def test_selected_change_returns_the_only_active_commitment() -> None:
     rows = official_change_rows(
         {
             "changes": [
-                {"name": "complete", "status": "complete"},
-                {"name": "active", "status": "in-progress", "lastModified": "2026-07-30"},
+                {"name": "complete", "completedTasks": 1, "totalTasks": 1, "status": "complete"},
+                {
+                    "name": "active",
+                    "completedTasks": 0,
+                    "totalTasks": 1,
+                    "status": "in-progress",
+                    "lastModified": "2026-07-30",
+                },
             ]
         }
     )
@@ -55,8 +67,20 @@ def test_selected_change_fails_closed_for_multiple_active_commitments() -> None:
     rows = official_change_rows(
         {
             "changes": [
-                {"name": "older", "status": "in-progress", "lastModified": "2026-01-01"},
-                {"name": "newer", "status": "archiving", "lastModified": "2026-07-30"},
+                {
+                    "name": "older",
+                    "completedTasks": 0,
+                    "totalTasks": 1,
+                    "status": "in-progress",
+                    "lastModified": "2026-01-01",
+                },
+                {
+                    "name": "newer",
+                    "completedTasks": 0,
+                    "totalTasks": 0,
+                    "status": "no-tasks",
+                    "lastModified": "2026-07-30",
+                },
             ]
         }
     )
@@ -71,8 +95,8 @@ def test_selected_change_fails_closed_for_multiple_active_commitments() -> None:
         {},
         {"changes": {}},
         {"changes": ["active"]},
-        {"changes": [{"name": "active"}]},
-        {"changes": [{"name": "active", "status": "future"}]},
+        {"changes": [{"name": "active", "completedTasks": 0, "totalTasks": 1}]},
+        {"changes": [{"name": "active", "completedTasks": 0, "totalTasks": 1, "status": "future"}]},
     ],
 )
 def test_completed_active_report_blocks_unreadable_official_list(
@@ -111,7 +135,16 @@ def test_governance_report_blocks_missing_explicit_change(monkeypatch, tmp_path:
         payload = (
             {"root": {"healthy": True}}
             if args[0] == "doctor"
-            else {"changes": [{"name": "active", "status": "in-progress"}]}
+            else {
+                "changes": [
+                    {
+                        "name": "active",
+                        "completedTasks": 0,
+                        "totalTasks": 1,
+                        "status": "in-progress",
+                    }
+                ]
+            }
             if args[0] == "list"
             else {"items": [], "summary": {}}
         )
@@ -147,8 +180,13 @@ def test_governance_report_blocks_ambiguous_implicit_change(monkeypatch, tmp_pat
             if args[0] == "doctor"
             else {
                 "changes": [
-                    {"name": "first", "status": "in-progress"},
-                    {"name": "second", "status": "no-tasks"},
+                    {
+                        "name": "first",
+                        "completedTasks": 0,
+                        "totalTasks": 1,
+                        "status": "in-progress",
+                    },
+                    {"name": "second", "completedTasks": 0, "totalTasks": 0, "status": "no-tasks"},
                 ]
             }
             if args[0] == "list"
@@ -342,7 +380,16 @@ def test_lifecycle_uses_delta_spec_directories_as_capability_truth(tmp_path: Pat
     lifecycle = lifecycle_report(
         repo,
         request=OpenSpecRequest(change="plain-proposal", lifecycle=True),
-        list_payload={"changes": [{"name": "plain-proposal", "status": "in-progress"}]},
+        list_payload={
+            "changes": [
+                {
+                    "name": "plain-proposal",
+                    "completedTasks": 0,
+                    "totalTasks": 1,
+                    "status": "in-progress",
+                }
+            ]
+        },
     )
 
     assert lifecycle["required_gaps"] == []
@@ -361,7 +408,16 @@ def test_invalid_commitment_is_a_gap_without_material_paths(tmp_path: Path) -> N
     lifecycle = lifecycle_report(
         repo,
         request=OpenSpecRequest(change=None, lifecycle=True),
-        list_payload={"changes": [{"name": "invalid-contract", "status": "in-progress"}]},
+        list_payload={
+            "changes": [
+                {
+                    "name": "invalid-contract",
+                    "completedTasks": 0,
+                    "totalTasks": 1,
+                    "status": "in-progress",
+                }
+            ]
+        },
     )
 
     assert "commitment_invalid:invalid-contract" in lifecycle["required_gaps"]
@@ -391,7 +447,16 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
             changed_paths=("docs/governance/new-policy.md",),
             require_workspace=False,
         ),
-        list_payload={"changes": [{"name": "completed-change", "status": "complete"}]},
+        list_payload={
+            "changes": [
+                {
+                    "name": "completed-change",
+                    "completedTasks": 1,
+                    "totalTasks": 1,
+                    "status": "complete",
+                }
+            ]
+        },
     )
 
     assert [change["name"] for change in lifecycle["changes"]] == ["completed-change"]
@@ -409,7 +474,16 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
             changed_paths=("docs/governance/new-policy.md",),
             require_workspace=False,
         ),
-        list_payload={"changes": [{"name": "completed-change", "status": "complete"}]},
+        list_payload={
+            "changes": [
+                {
+                    "name": "completed-change",
+                    "completedTasks": 1,
+                    "totalTasks": 1,
+                    "status": "complete",
+                }
+            ]
+        },
     )
 
     assert explicitly_selected["scope_binding"]["state"] == "uncovered"
@@ -429,7 +503,16 @@ def test_lifecycle_observes_official_state_without_predictive_archive(
         if args[0] == "doctor":
             payload = {"root": {"healthy": True}}
         elif args[0] == "list":
-            payload = {"changes": [{"name": "active", "status": "in-progress"}]}
+            payload = {
+                "changes": [
+                    {
+                        "name": "active",
+                        "completedTasks": 0,
+                        "totalTasks": 1,
+                        "status": "in-progress",
+                    }
+                ]
+            }
         elif args[0] == "status":
             payload = {"schemaName": "spec-driven", "isComplete": True}
         else:
@@ -498,7 +581,11 @@ def test_completed_active_report_blocks_official_completed_change(
             "exit_code": 0,
             "stdout": "",
             "stderr": "",
-            "json": {"changes": [{"name": "ready", "status": "complete"}]},
+            "json": {
+                "changes": [
+                    {"name": "ready", "completedTasks": 1, "totalTasks": 1, "status": "complete"}
+                ]
+            },
             "parse_error": "",
         },
     )

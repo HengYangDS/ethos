@@ -29,15 +29,20 @@ its stated exit.
   policy agree).
 - [x] F.9 Fail closed when an explicit OpenSpec Change is absent or implicit
   selection is ambiguous (`7edae175d7`).
+- [x] F.10 Make hard source-budget gaps force `block`, `ok=false`, and a
+  non-ready lifecycle state (`351e026fab`; formerly task 0.2).
+- [x] F.11 Remove score-derived readiness, fold the reader facts into `status`,
+  delete `report`, and enforce default payload caps (`1d98cce8dc`; formerly
+  task 0.3).
 
 ## 0. Restore Campaign Control And Intent Closure
 
 - [x] 0.1 Bind this active self-profile Change to the canonical product design,
   exact Work Lane, Commitment, Lease, and current branch roles.
-- [ ] 0.2 Add failing tests for two-root persistence, open Attestation
+- [ ] 0.2.1 Add failing tests for two-root persistence, open Attestation
   predicates, transient Facts/TransitionPlan, contextual authority/currentness,
   model gaps, byte-stable Lease bindings, and history non-authority.
-- [ ] 0.3 Map every active carrier and legacy surface to `absorbed`,
+- [ ] 0.3.1 Map every active carrier and legacy surface to `absorbed`,
   `historical`, or `deleted-after-proof`; block deletion while a semantic delta
   or consumer remains unmapped.
 - [ ] 0.4 Close every independent accepted feedback obligation and every

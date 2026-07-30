@@ -350,7 +350,16 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
             "exit_code": 0,
             "stdout": "",
             "stderr": "",
-            "json": {"changes": [{"name": "sample-change", "status": "complete"}]},
+            "json": {
+                "changes": [
+                    {
+                        "name": "sample-change",
+                        "completedTasks": 1,
+                        "totalTasks": 1,
+                        "status": "complete",
+                    }
+                ]
+            },
             "parse_error": "",
         },
     )

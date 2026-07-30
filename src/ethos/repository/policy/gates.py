@@ -234,6 +234,12 @@ def resolve_gate_policy(
     full: bool = False,
 ) -> ResolvedGatePolicy:
     declaration, profile = _gate_declaration(root, tree_ref=tree_ref)
+    if gate_ids:
+        requested = set(gate_ids)
+        owned = declaration.registry("runtime").keys()
+        packaged = _PACKAGED_GATE_DECLARATION.registry("runtime").keys()
+        if requested.isdisjoint(owned) and requested <= packaged:
+            declaration, profile = _PACKAGED_GATE_DECLARATION, None
     gates = declaration.proof_gates(
         gate_ids,
         full=full,

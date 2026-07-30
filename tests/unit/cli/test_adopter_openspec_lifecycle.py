@@ -10,6 +10,7 @@ from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
+from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import openspec_shape_report
@@ -24,6 +25,34 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_selected_change_requires_an_explicit_request_to_exist() -> None:
+    payload = {"changes": [{"name": "active", "status": "in-progress"}]}
+
+    assert selected_change(payload, "missing") is None
+
+
+def test_selected_change_returns_the_only_active_commitment() -> None:
+    payload = {
+        "changes": [
+            {"name": "complete", "status": "complete"},
+            {"name": "active", "status": "in-progress", "lastModified": "2026-07-30"},
+        ]
+    }
+
+    assert selected_change(payload, None) == "active"
+
+
+def test_selected_change_fails_closed_for_multiple_active_commitments() -> None:
+    payload = {
+        "changes": [
+            {"name": "older", "status": "in-progress", "lastModified": "2026-01-01"},
+            {"name": "newer", "status": "archiving", "lastModified": "2026-07-30"},
+        ]
+    }
+
+    assert selected_change(payload, None) is None
 
 
 def _write_valid_accepted_specs(repo: Path) -> None:

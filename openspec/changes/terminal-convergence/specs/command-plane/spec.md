@@ -26,13 +26,20 @@ Commands SHALL project one mechanism: observe, extract, resolve, compile, evalua
 - **WHEN** a profile renders status and plan
 - **THEN** both views derive from the same selected Commitment, fresh Facts, and TransitionPlan
 
-#### Scenario: the self profile selects OpenSpec
-- **WHEN** the ETHOS self profile selects OpenSpec as its native intent carrier
-- **THEN** the official OpenSpec CLI validates and archives that carrier
+#### Scenario: a reader derives continuation
+- **WHEN** current authoritative facts are sufficient to select the next boundary
+- **THEN** the command projects exactly one of `continue`, `await-user`,
+  `blocked`, or `done` and exactly one next action
+- **AND** it names missing facts or evidence and whether user judgment is required
+- **AND** Continuation is recomputed rather than stored as lifecycle truth
+
+#### Scenario: a complete adopter enters governed mutation
+- **WHEN** a repository adopts ETHOS for material mutation
+- **THEN** adoption initializes, pins, and verifies OpenSpec as its sole Change/SDD carrier
 - **AND** `ethos status`, `ethos plan`, and `ethos prove` consume adapter
   observations without registering an `ethos openspec` public root
-- **AND** an adopter selecting another native carrier requires no `openspec/`
-  directory or OpenSpec installation
+- **AND** a repository without verified OpenSpec remains observation-only and
+  fails closed before governed mutation
 
 ### Requirement: Proof Command State Semantics
 Verdicts SHALL be compact and truthful: `pass`, `block`, or `unknown`; unknown required facts block effects.

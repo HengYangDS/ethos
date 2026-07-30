@@ -128,3 +128,17 @@ campaign retains a proved net-deletion path.
   representative mutant within its pilot budget
 - **THEN** the scope is rejected or retired without adding another framework
   owner, baseline, wrapper, or advisory score
+
+### Requirement: Matched Workflow Evaluation
+Execution methods SHALL be compared as evidence over matched tasks rather than
+accepted through self-reported speed or quality claims.
+
+#### Scenario: an execution method is evaluated
+- **WHEN** ETHOS compares a host, model tier, method pack, runtime, or external operator
+- **THEN** the protocol uses task × treatment × repetition with explicit
+  control/candidate assignment, Pass@k, Pass^k, and polluted-sample exclusion
+- **AND** it records completion, token use, wall time, turns, recovery success,
+  intent omission, invalid mutation, duplicate implementation, terminal ELOC,
+  and evidence completeness
+- **AND** evaluation results remain evidence and cannot directly mark tasks done,
+  authorize land or publish, or become another progress store

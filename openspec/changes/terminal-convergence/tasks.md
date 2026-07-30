@@ -90,8 +90,10 @@ slice HEAD; only the campaign lane remains for this intent.
 - [x] 1.1 Remove Commitment process fields, amendment APIs, effective-intent
   folds, closed Attestation kinds, and all preserving readers and schemas.
 - [ ] 1.2 Make Attestation predicate, statement, bindings, validity, verifier,
-  and evidence references the open immutable envelope; unknown predicates stay
-  visible and non-authorizing.
+  and evidence references the open immutable envelope. Predicate-owned typed
+  evidence binds claim, normalized command and result, repository identity,
+  input/output digests, HEAD, time, and freshness; unknown predicates remain
+  visible and non-authorizing, and binding drift invalidates prior proof.
 - [ ] 1.3 Rename every transition input and digest to `commitment`; delete
   `contract` aliases and dual carriers. Facts and TransitionPlan remain transient.
 - [ ] 1.4 Unify verdicts as `pass | block | unknown`; unknown required inputs
@@ -125,7 +127,10 @@ changing intent cannot deadlock or mutate an existing Commitment.
 ## 3. Make One Transaction Mechanism
 
 - [ ] 3.1 Reduce generic runtime to observe → extract → resolve → compile →
-  evaluate → exact-CAS apply → post-observe → attest → project.
+  evaluate → exact-CAS apply → post-observe → attest → project. Derive one
+  non-persistent Continuation from current authoritative facts as `continue |
+  await-user | blocked | done`, with exactly one next action, missing
+  facts/evidence, and whether a user decision is required.
 - [ ] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
   decision ledgers, lifecycle read models, and current Claim/Chronicle/proof
   authorization; retain required bytes only as non-authorizing history.
@@ -191,9 +196,11 @@ Attestations across Codex, JetBrains, Claude, or another host without intent los
   alternatives use comparable decision tables with pros, cons, rationale,
   consequences, revisit triggers, and evidence.
 - [ ] 5.5 Make specs, rules, and skills evolve through coverage, overlap,
-  novelty, route-owner, quality, and retirement checks; Superpowers remains an
-  optional method pack, OpenSpec tasks remain the sole task SSOT, and official
-  OpenSpec Skills are generated projections without truth or lifecycle authority.
+  novelty, route-owner, quality, retirement, and matched evaluation checks;
+  Superpowers remains an optional method pack, OpenSpec tasks remain the sole
+  task SSOT, official OpenSpec Skills are generated projections without truth
+  or lifecycle authority, and workflow-eval results remain evidence rather
+  than progress state.
 - [ ] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
   necessary history, then delete misleading or redundant residue without a
   generic archive truth root.
@@ -246,11 +253,16 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
 - [ ] 6.9 Admit an execution runtime, generator, scaffold, Jinja, DI, event bus,
   plugin framework, or protocol adapter only when a real adopter proves unique
   need, measurable token/time gain, zero truth ownership, clean uninstall, and
-  net deletion. Execution budgets count only verified terminal-state delta;
-  repeated failures, weak evidence, carrier shifts, excess concurrency, or an
-  unsuitable model tier trigger an explicit stop, downgrade, or replanning verdict.
-  Spec Kit does not enter the core; COMET remains only an optional external
-  operator/recovery/evaluation candidate under this same proof and deletion bar.
+  net deletion. Execution budgets count only acceptance-gap reduction, failed
+  verdicts becoming pass, missing evidence supplied, or blockers removed;
+  unchanged failure signatures converge through warning, bounded retry, then
+  blocked or await-user. Matched workflow evaluation uses task × treatment ×
+  repetition with control/candidate and completion, token, time, turn, recovery,
+  intent-loss, invalid-mutation, duplication, ELOC, and evidence metrics. Spec
+  Kit does not enter the core; COMET is benchmark-only or an optional external
+  operator whose untrusted output requires ETHOS verification, never a
+  Native/Classic runtime, adapter, hook, state, archive, dashboard, Bundle, or
+  marketplace owner.
 - [ ] 6.10 Archive this Change through the official owner-native OpenSpec action
   at verified version `1.7.0` as the final tracked source mutation. Bind the
   effective tool version, returned archive path, warnings, no-op state, and

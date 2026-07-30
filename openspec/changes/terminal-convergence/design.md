@@ -29,11 +29,15 @@ new product ontology.
    evaluate, exact CAS apply, post-observe, attest, then project. Command
    sequences, archive actions, campaign displays, lane phases, and provider
    pipelines are profile projections; no fixed lifecycle is embedded in the
-   kernel.
+   kernel. A pure, non-persistent Continuation maps current facts to `continue`,
+   `await-user`, `blocked`, or `done`, one next action, missing facts or evidence,
+   and whether a user decision is required.
 5. **Effects close through exact bindings.** A TransitionPlan contains exact
    commitment, fact, prior-attestation, policy, and effect bindings. The adapter
    rechecks preconditions at CAS time. Post-observation and an Attestation—not
-   a replayed historical workflow—establish what occurred.
+   a replayed historical workflow—establish what occurred. Predicate-owned
+   evidence binds the claim, normalized command and result, repository identity,
+   input/output digests, HEAD, time, and freshness; drift invalidates it.
 6. **The kernel is neutral; complete adoption is opinionated.** Commitment,
    Facts, TransitionPlan, and Attestation remain independent of OpenSpec types,
    while every mutation-capable adopter pins verified OpenSpec as the sole
@@ -53,11 +57,17 @@ new product ontology.
    CAS, and standard supply-chain formats directly. Do not add attrs as a
    parallel model system. Frameworks, generators, Jinja, DI, event buses,
    plugin layers, and workflow runtimes require a concrete consumer,
-   conformance evidence, uninstall cleanliness, and net deletion.
+   conformance evidence, uninstall cleanliness, and net deletion. COMET remains
+   benchmark-only or an optional external operator; its Native/Classic runtimes,
+   state, hooks, archive, dashboard, Bundle, marketplace, and adapters do not
+   enter ETHOS.
 10. **One quality owner per property.** Local and hosted execution consume the
     same declarations. Warnings, suppressions, unknown required facts, and
     projection drift fail closed. JSON receives schema validation and canonical
-    serialization from its declared owner, not an invented formatter.
+    serialization from its declared owner, not an invented formatter. Matched
+    workflow evaluation uses task × treatment × repetition, control/candidate,
+    Pass@k, Pass^k, pollution exclusion, and terminal outcome, cost, recovery,
+    intent-loss, mutation, duplication, ELOC, and evidence metrics.
 11. **Lossless intent closure.** Accepted feedback is reduced into independent
     semantic obligations before planning artifacts are replaced. Within the
     same authority and scope, a later explicit ruling supersedes an earlier one;
@@ -268,6 +278,10 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 | `6.7` | `6176a543b092c496d3f098e539fc0e4afb287c77bd507abeaa4295f3fa7192f6` | `9c76a47117bceb83cf2e0490d1d940cb75d4b4d4765f1504a8dd64f3b3517b5e` | superseded | The later adoption ruling limits no-OpenSpec operation to observation-only repositories and requires the full OpenSpec lifecycle for governed mutation. |
 | `6.9` | `a17de7104426643874350289628855d3c8b771467669b7ec5b3f6ee155c0034a` | `7144cc607c7c0f178601edc7eb7744565b695b7aede85d4b21733426b7405456` | clarified | Spec Kit is excluded from the core and COMET remains only an external candidate under the existing consumer and net-deletion bar. |
 | `6.10` | `6dfc3d418c1b630624d1281111cf564cc6dc1f605b80ed511fe184c70a8c8905` | `4f126e51c7c545b72e4bb02c17847ef5faa25e5b590a7af2389045c392ae72bd` | clarified | The archive receipt must bind the exact effective OpenSpec 1.7 executable and tool version. |
+| `1.2` | `3da810636aace7bd592059ee706ac023fed52f9e5eaa8e5e0eaa00eea8106a4b` | `cd8f47c9dc73f89cb647a9bba976c02f61efa5000fb0ec3a16653d63b84e69e4` | clarified | Typed evidence and freshness extend the existing open Attestation envelope without adding a receipt entity. |
+| `3.1` | `db804e65e4475aa5863b1eb8602526bd3979ca9426e5cb90216cbf2758b4d9de` | `e4bbb661802e5ca57de3d93f350a424234497873693f01fa33548e39511a50f1` | clarified | Continuation is one pure projection from authoritative facts, not persisted lifecycle state. |
+| `5.5` | `ca758f3eca189fda18b6607775156f998eb4eb1ee67cf556d7a434ceae5d8b0d` | `3eb71b9c00f031cebdffcc52c08727cce3e38b7e0bfef7ff9707f8fc76d21356` | clarified | Workflow evaluation remains evidence for evolving skills and practices, never progress authority. |
+| `6.9` | `7144cc607c7c0f178601edc7eb7744565b695b7aede85d4b21733426b7405456` | `d2f2fccced730430a150670f75b1930e1d6d5ca6821e6244104044260c846db4` | clarified | COMET contributes benchmark and mechanism ideas only; semantic progress, retry convergence, and matched evaluation stay ETHOS-owned. |
 
 ## Alternatives Considered
 
@@ -278,6 +292,7 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 | Keep a global authority order | Rejected | Different subjects and planes require simultaneous local authorities. |
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |
+| Embed COMET Native or Classic | Rejected | It duplicates OpenSpec lifecycle, hook, state, archive, and task authority; only measured external treatment or verified operator output is admissible. |
 | Delete all history | Rejected | Immutable bytes may be needed for recovery and audit, but not as current truth. |
 | Replace tasks wholesale after redesign | Rejected | It destroys progress identity, hides dropped obligations, and permits old decisions to reappear. |
 | Preserve every conversation sentence as a repository ledger | Rejected | Raw dialogue is context; accepted independent obligations belong in their semantic owners and verifiable tasks. |

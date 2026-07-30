@@ -24,7 +24,6 @@ The canonical repo-local skill portfolio lives in `.agents/skills/`. Its
 integrity is checked by the portfolio owner and the current proof gate:
 
 ```bash
-.agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .
 ethos prove --gate playbooks-v2 --json
 ```
 

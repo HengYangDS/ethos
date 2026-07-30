@@ -19,6 +19,49 @@ from pydantic import Field
 
 Verdict = Literal["pass", "block", "unknown"]
 _PATH_REQUIRED = "path-bound admission request fields require a filesystem path"
+READONLY_ROOT_COMMANDS = frozenset({"plan", "status"})
+MUTATING_ROOT_COMMANDS = frozenset({"adopt", "land", "publish"})
+MUTATING_COMMAND_FLAGS = frozenset({"--apply", "--authorize", "--execute"})
+
+
+def _mutation_flag_present(arguments: list[str] | tuple[str, ...]) -> bool:
+    return any(
+        argument == flag or argument.startswith(f"{flag}=")
+        for argument in arguments
+        for flag in MUTATING_COMMAND_FLAGS
+    )
+
+
+def root_command(arguments: list[str] | tuple[str, ...]) -> str:
+    """Return the root command without mistaking an option value for it."""
+    skip_value = False
+    for argument in arguments:
+        if skip_value:
+            skip_value = False
+        elif argument == "--root":
+            skip_value = True
+        elif not argument.startswith("-"):
+            return argument
+    return ""
+
+
+def ethos_command_is_readonly(command: list[str] | tuple[str, ...]) -> bool:
+    """Return whether one argv vector invokes an admitted ETHOS reader."""
+    return (
+        bool(command)
+        and command[0].rsplit("/", maxsplit=1)[-1] == "ethos"
+        and root_command(command[1:]) in READONLY_ROOT_COMMANDS
+        and not _mutation_flag_present(command)
+    )
+
+
+def ethos_command_mutates(command: list[str] | tuple[str, ...]) -> bool:
+    """Return whether one argv vector explicitly requests an ETHOS effect."""
+    return _mutation_flag_present(command) or (
+        bool(command)
+        and command[0].rsplit("/", maxsplit=1)[-1] == "ethos"
+        and root_command(command[1:]) in MUTATING_ROOT_COMMANDS
+    )
 
 
 def _path_text(value: object) -> str:

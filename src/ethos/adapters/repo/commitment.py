@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import git_stdout
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
 from ethos.normalization.coercion import object_sequence
@@ -41,7 +42,8 @@ def _relative_carrier(value: str) -> str:
         or path.is_absolute()
         or any(part in {"", ".", ".."} for part in path.parts)
     ):
-        raise ValueError("commitment_carrier_invalid")
+        msg = "commitment_carrier_invalid"
+        raise ValueError(msg)
     return value
 
 
@@ -85,7 +87,8 @@ def load_repository_commitment(repo: Path, *, tree_ref: str | None = None) -> Co
         message = f"repository_commitment_missing:{_REPOSITORY_COMMITMENT}"
         raise ValueError(message) from exc
     if commitment.subjects != (commitment.id,) or not commitment.id.startswith("repository:"):
-        raise ValueError("repository_commitment_identity_mismatch")
+        msg = "repository_commitment_identity_mismatch"
+        raise ValueError(msg)
     return commitment
 
 
@@ -126,7 +129,8 @@ def load_commitment(
         message = f"commitment_missing:{change_id}"
         raise ValueError(message)
     if expected_digest is not None and commitment.digest() != expected_digest:
-        raise ValueError("commitment_digest_mismatch")
+        msg = "commitment_digest_mismatch"
+        raise ValueError(msg)
     return commitment
 
 
@@ -138,18 +142,27 @@ def load_lease_bound_commitment(
     carrier: str | None = None,
     change_id: str | None = None,
 ) -> Commitment:
-    """Load one carrier from the lease-bound tree and require its exact digest."""
+    """Load one immutable carrier and reject a rewrite at the same current path."""
     if not base_commitment_digest:
-        raise ValueError("lease_base_commitment_digest_missing")
+        msg = "lease_base_commitment_digest_missing"
+        raise ValueError(msg)
     try:
-        return load_commitment(
+        relative = _selected_carrier(repo, tree_ref=expected_head, carrier=carrier)
+        committed = load_commitment(
             repo,
-            carrier=carrier,
+            carrier=relative,
             change_id=change_id,
             tree_ref=expected_head,
             expected_digest=base_commitment_digest,
         )
+        if git_stdout(repo, "rev-parse", "HEAD") == expected_head:
+            load_commitment(
+                repo,
+                carrier=relative,
+                change_id=change_id,
+                expected_digest=base_commitment_digest,
+            )
     except ValueError as exc:
-        if str(exc) != "commitment_digest_mismatch":
-            raise
-        raise ValueError("lease_base_commitment_digest_mismatch") from exc
+        msg = "lease_base_commitment_digest_mismatch"
+        raise ValueError(msg) from exc
+    return committed

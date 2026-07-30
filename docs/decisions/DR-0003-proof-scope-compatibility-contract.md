@@ -87,47 +87,11 @@ curated evidence, HEAD binding, and publication boundary rules.
 
 ## Alternatives Considered
 
-### Bounded scope compatibility with explicit truth boundaries
-
-**Pros**
-
-- Preserves migration input while preventing assurance escalation.
-
-**Cons**
-
-- Does not yet provide a full scope-to-gate compiler.
-
-**Why Rejected**
-
-Not rejected; selected below.
-
-### Immediate scope-to-gate routing
-
-**Pros**
-
-- Gives callers a stronger shorthand.
-
-**Cons**
-
-- Creates hidden gate authority before a generic mapping is proven.
-
-**Why Rejected**
-
-Deferred until a stronger router has an explicit contract and evidence.
-
-### Reject or silently coerce unknown migration flags
-
-**Pros**
-
-- Shrinks the parser surface.
-
-**Cons**
-
-- Either breaks adopters or turns errors into false proof.
-
-**Why Rejected**
-
-It violates explicit-gap and no-capability-loss invariants.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Bounded scope compatibility with explicit truth boundaries | selected | Preserves migration input while preventing assurance escalation. | Does not yet provide a full scope-to-gate compiler. | It preserves capability without granting hidden authority. |
+| Immediate scope-to-gate routing | deferred | Gives callers a stronger shorthand. | Creates hidden gate authority before a generic mapping is proven. | A stronger router requires an explicit contract and evidence first. |
+| Reject or silently coerce unknown migration flags | rejected | Shrinks the parser surface. | Either breaks adopters or turns errors into false proof. | It violates explicit-gap and no-capability-loss invariants. |
 
 ## Selected Approach And Rationale
 

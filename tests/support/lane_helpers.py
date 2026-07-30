@@ -14,7 +14,7 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.contracts.coordination import LaneLease
 from tests.support.contract_helpers import commit_active_commitment
@@ -35,7 +35,7 @@ def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:cas
     base_digest = (
         commit_active_commitment(repo)
         if not (repo / ".ethos/commitment.toml").exists()
-        else load_openspec_commitment(repo).digest()
+        else load_profile_commitment(repo).digest()
     )
     git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
     acquire_lease(

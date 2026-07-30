@@ -34,16 +34,15 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
-from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.policy.gates import gate_policy_digest
+from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.contract_helpers import commit_active_commitment
 from tests.support.contract_helpers import conformant_proof_check
 from tests.support.contract_helpers import write_active_commitment
@@ -400,7 +399,7 @@ def _record_complete_proof(root: Path, head: str) -> None:
     plan = proof_plan(root, head=head)
     checks = tuple(
         conformant_proof_check(gate_id, root)
-        for gate_id in promotion_required_gate_ids(root, tree_ref=head)
+        for gate_id in resolve_gate_policy(root, tree_ref=head).gate_ids
     )
     attestation = issue_proof_attestation(
         root,
@@ -439,9 +438,9 @@ def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
         profile.read_text(encoding="utf-8")
         + """
 [proof]
-code_correctness_gates = ["sample-tests", "sample-static"]
+required_gates = ["sample-tests", "sample-static"]
 
-[proof.code_correctness_map]
+[proof.code_axes]
 behavior = "sample-tests"
 static-analysis = "sample-static"
 
@@ -616,7 +615,7 @@ def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> Non
             candidate_head=new_value,
         ),
         evidence_digest=evidence_digest,
-        gate_policy_digest=gate_policy_digest(repo),
+        gate_policy_digest=attestation.policy_digest if attestation is not None else "",
     )
 
 
@@ -841,7 +840,7 @@ def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
             branch="work/x",
             holder_ref="agent:test:case:ref-move",
             expected_head=off_train,
-            base_commitment_digest=load_commitment(repo, tree_ref=off_train).digest(),
+            base_commitment_digest=load_profile_commitment(repo, tree_ref=off_train).digest(),
         ),
     )
     _record_complete_proof(repo, off_train)

@@ -6,12 +6,11 @@ truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
 include = [
   "SKILL.md",
-  "scripts/quality_audit.py",
   "references/gate-design.md",
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:10078bf756bff9cf0a6301abe0d9349702e6a79b38363e1fcca4217aab412b1f"
+expected_digest = "sha256:1826742a8c168c0e60daac6f6186e542ef3e74c08b6a69febfbad30082abf73c"
 
 [quality]
 placeholder_allowed = false

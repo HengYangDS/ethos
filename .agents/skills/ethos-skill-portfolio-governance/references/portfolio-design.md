@@ -25,11 +25,9 @@ current owner-script or proof-gate evidence.
 
 ## Audit Loop
 
-Run the portfolio owner script, then the current proof gate and changed-scope
-plan:
+Run the current proof gate and changed-scope plan:
 
 ```bash
-.agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .
 ethos prove --gate playbooks-v2 --json
 ethos plan --changed --json
 ```

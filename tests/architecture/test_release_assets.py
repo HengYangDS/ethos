@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import os
 import re
 import stat
@@ -476,7 +475,6 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     policy = (ROOT / ".config/checks/coverage/policy.toml").read_text(encoding="utf-8")
 
     assert "--cov=ethos" in runner
-    assert "--cov=ethos" in runner
     assert "coverage_hard_floor=" in runner
     assert "--cov-fail-under=${coverage_hard_floor}" in runner
     assert "--cov-fail-under=100" not in runner
@@ -492,53 +490,11 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "build/evidence/quality/tests" in runner
     assert "ETHOS_TEST_BASETEMP" in runner
     assert "ethos-pytest" in runner
-    assert "fail_under = 95" in coverage
+    assert "fail_under" not in coverage
     assert "branch = True" in coverage
     assert "current_hard_floor = 95" in policy
     assert "aspirational_floor = 95" in policy
-
-
-def test_quality_audit_uses_policy_derived_coverage_floor() -> None:
-    audit = (
-        ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
-    ).read_text(encoding="utf-8")
-
-    assert "coverage_hard_floor=" in audit
-    assert "--cov-fail-under=${coverage_hard_floor}" in audit
-    assert "--cov-fail-under={hard_floor:g}" not in audit
-    assert "quality_python_tests_missing:--cov-fail-under=100" not in audit
-
-
-def test_quality_audit_requires_the_native_ruff_owner() -> None:
-    audit = (
-        ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
-    ).read_text(encoding="utf-8")
-    required_files = audit.split("REQUIRED_FILES = (", 1)[1].split(")", 1)[0]
-
-    assert '"ruff.toml"' in required_files
-    assert '".config/checks/ruff/ruff.toml"' not in required_files
-    assert '".config/checks/pytest/pytest.ini"' in required_files
-    assert '"pytest.ini"' not in required_files
-
-
-def test_quality_audit_detects_owner_script_gate_mismatch(monkeypatch) -> None:
-    audit_path = ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
-    spec = importlib.util.spec_from_file_location("quality_audit_under_test", audit_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    assert module.owner_gaps(ROOT) == []
-    records, gaps = module.tool_records(ROOT)
-    assert gaps == []
-    mismatched = [
-        {**record, "gate": "pytest"} if record.get("concern") == "tests" else record
-        for record in records
-    ]
-    monkeypatch.setattr(module, "tool_records", lambda _root: (mismatched, []))
-
-    assert module.owner_gaps(ROOT) == ["quality_gate_owner_mismatch:tests:pytest"]
+    assert 'source = "tools/ci/scripts/run-python-tests.sh"' in policy
 
 
 def test_quality_openspec_uses_current_coverage_floor_language() -> None:
@@ -547,16 +503,3 @@ def test_quality_openspec_uses_current_coverage_floor_language() -> None:
     assert "95 percent hard coverage floor" not in spec
     assert "configured hard coverage floor" in spec
     assert "current hard floor" in spec
-
-
-def test_quality_gate_reference_uses_coverage_policy_ssot() -> None:
-    reference = (
-        ROOT / ".agents/skills/ethos-quality-gate-governance/references/gate-design.md"
-    ).read_text(encoding="utf-8")
-    audit = (
-        ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
-    ).read_text(encoding="utf-8")
-
-    assert "hard floor is 95 percent" not in reference
-    assert ".config/checks/coverage/policy.toml" in reference
-    assert "quality_reference_stale_coverage_floor:95" in audit

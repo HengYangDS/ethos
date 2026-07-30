@@ -1,8 +1,0 @@
-[meta]
-name = "ethos"
-product = "ETHOS"
-version = 1
-description = "Reflexive agentic repository governance kernel"
-
-[command_plane]
-public = "ethos"

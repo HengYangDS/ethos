@@ -36,24 +36,29 @@ def _contextual_authority(root: Path) -> dict[str, object]:
         or not isinstance(currentness, dict)
         or not isinstance(resolution, dict)
     ):
-        raise TypeError("authority_contract_invalid")
+        msg = "authority_contract_invalid"
+        raise TypeError(msg)
     axes = query.get("required")
     requirements = currentness.get("requires")
     if tuple(axes) != _AUTHORITY_QUERY_AXES or tuple(requirements) != _CURRENTNESS_REQUIREMENTS:
-        raise ValueError("authority_contract_query_axes_invalid")
+        msg = "authority_contract_query_axes_invalid"
+        raise ValueError(msg)
     if contract.get("resolver") != "contextual" or query.get("unknown_verdict") != "block":
-        raise ValueError("authority_contract_resolution_invalid")
+        msg = "authority_contract_resolution_invalid"
+        raise ValueError(msg)
     if any(
         currentness.get(key) is not False
         for key in ("history_is_current", "projection_is_authority", "adapter_is_authority")
     ):
-        raise ValueError("authority_contract_currentness_invalid")
+        msg = "authority_contract_currentness_invalid"
+        raise ValueError(msg)
     if (
         resolution.get("conflict") != "block"
         or resolution.get("novel_semantics") != "model_gap"
         or resolution.get("more_specific_owner") != "wins_only_within_same_query"
     ):
-        raise ValueError("authority_contract_resolution_invalid")
+        msg = "authority_contract_resolution_invalid"
+        raise ValueError(msg)
     return {
         "contract_ref": "system/authority.toml",
         "resolver": "contextual",
@@ -65,44 +70,14 @@ def _contextual_authority(root: Path) -> dict[str, object]:
     }
 
 
-def is_product_root(root: Path) -> bool:
-    """Return True when ``root`` is the ETHOS product repository.
-
-    The governed subject is still a repository in both cases. This predicate only
-    selects the profile used by the shared governance context; it does not create a
-    second subject kind or command plane.
-    """
-    try:
-        project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    except (FileNotFoundError, KeyError, tomllib.TOMLDecodeError):
-        return False
-    return (
-        project.get("name") == "ethos"
-        and (root / "src" / "ethos").is_dir()
-        and (root / "system" / "schemas" / "kernel").is_dir()
-    )
-
-
-def governance_profile(root: Path) -> str:
-    """Return the profile for a governed repository without changing command semantics."""
-    if is_product_root(root):
-        return "product"
-    state = load_repository_profile(root).state
-    if state == "invalid":
+def repository_context(root: Path) -> dict[str, object]:
+    """Project repository context from its explicit profile and authority contract."""
+    profile = load_repository_profile(root)
+    if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
-    return "adopter" if state == "valid" else "unbound"
-
-
-def context_for_root(root: Path) -> dict[str, object]:
-    """Project the governed-repository context for a product or adopted repository."""
-    return governance_context(root, profile=governance_profile(root))
-
-
-def governance_context(root: Path, *, profile: str) -> dict[str, object]:
-    """Project repository context and its executable contextual-authority query."""
     return {
         "contract": "governed_repository",
-        "profile": profile,
+        "profile": profile.declaration.profile_id if profile.declaration else "unbound",
         "repository": str(root.resolve()),
         "authority": _contextual_authority(root),
         "reader_projection_commands": ["ethos status"],

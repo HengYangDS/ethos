@@ -6,6 +6,8 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.git import git_stdout
@@ -23,7 +25,8 @@ from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import ROLE_DETACHED
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.repository.context import is_product_root
+from ethos.normalization.coercion import string_mapping
+from ethos.repository.profile import profile_gate_registry
 
 _CONTROL_CHARACTER_UPPER_BOUND = 32
 _DELETE_CONTROL_CODE_POINT = 127
@@ -74,9 +77,7 @@ def prewrite_guard(
         root=root, status=status, effective=effective, tracked_write_requested=tracked
     )
     profile_adapter: dict[str, object] = {}
-    if is_product_root(root):
-        from ethos.adapters.openspec.governance import openspec_governance_report
-
+    if openspec_profile_enabled(root):
         profile_adapter = openspec_governance_report(
             root,
             lifecycle=True,
@@ -335,10 +336,10 @@ def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
     audit = str(binding.get("audit_root") or "")
     runner = str(binding.get("runner_source_root") or "")
     schema = str(binding.get("schema_source_root") or "")
-    product = bool(audit) and (Path(audit) / "src/ethos/__init__.py").exists()
+    checkout_binding_required = bool(audit and profile_gate_registry(Path(audit)))
     runner_matches = binding.get("runner_matches_audit_root") is True
     schema_matches = binding.get("schema_matches_audit_root") is True
-    ok = not product or (runner_matches and schema_matches)
+    ok = not checkout_binding_required or (runner_matches and schema_matches)
     return {
         "ok": ok,
         "reason": (
@@ -351,7 +352,7 @@ def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
         "audit_root": audit,
         "runner_source_root": runner,
         "schema_source_root": schema,
-        "product_audit_root": product,
+        "checkout_binding_required": checkout_binding_required,
         "runner_matches_audit_root": runner_matches,
         "schema_matches_audit_root": schema_matches,
     }
@@ -483,7 +484,7 @@ def _openspec_scope(report: dict[str, object]) -> dict[str, object]:
     lifecycle = report.get("lifecycle")
     scope = lifecycle.get("scope_binding") if isinstance(lifecycle, dict) else None
     if isinstance(scope, dict):
-        return scope
+        return string_mapping(scope)
     return {
         "ok": True,
         "state": "not_available",

@@ -258,7 +258,7 @@ For repo-local skills:
 - manifest -> deterministic IR.
 - path/symlink/escape validation.
 - eval metadata model: task, treatment, pass@k, instability gap.
-- integrate with the repo-local portfolio audit and the `playbooks-v2` proof gate.
+- integrate with the repo-local `playbooks-v2` proof gate.
 
 ### Milestone 5: Decision record
 

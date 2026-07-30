@@ -183,7 +183,7 @@ def test_docs_health_fails_closed_for_an_invalid_profile(tmp_path: Path) -> None
 
     assert report["ok"] is False
     assert report["document_count"] == 0
-    assert report["required_gaps"] == ["adopter_profile_invalid:.ethos/profile.toml"]
+    assert report["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
 
 
 def test_docs_health_fails_closed_for_invalid_taxonomy(tmp_path: Path) -> None:
@@ -249,3 +249,16 @@ def test_docs_registry_gate_declares_only_its_owned_dimensions() -> None:
         "command-examples",
         "plan-discoverability",
     ]
+
+
+def test_decision_records_use_one_comparison_table_shape() -> None:
+    """Every durable ruling compares options through the canonical table grammar."""
+    root = Path(__file__).resolve().parents[3] / "docs" / "decisions"
+    for path in [root / "decision-record-template.md", *sorted(root.glob("DR-*.md"))]:
+        alternatives = (
+            path.read_text(encoding="utf-8")
+            .split("## Alternatives Considered", 1)[1]
+            .split("## Selected Approach And Rationale", 1)[0]
+        )
+        assert "| Option | Verdict | Pros | Cons | Decision basis |" in alternatives
+        assert not {"**Pros**", "**Cons**", "**Why Rejected**"} & set(alternatives.splitlines())

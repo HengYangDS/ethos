@@ -6,6 +6,8 @@ import importlib
 
 from cyclopts import App
 
+from ethos.contracts.admission import root_command
+
 app = App(name="ethos", help="ETHOS command plane.")
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
 lane_lease_app = App(name="lease", help="Generation-bound local Lane Lease lifecycle.")
@@ -34,22 +36,9 @@ _COMMAND_MODULES = {
 }
 
 
-def command_name(argv: list[str]) -> str:
-    """Return the root command without mistaking an option value for it."""
-    skip_value = False
-    for argument in argv:
-        if skip_value:
-            skip_value = False
-        elif argument == "--root":
-            skip_value = True
-        elif not argument.startswith("-"):
-            return argument
-    return ""
-
-
 def load_command_groups(argv: list[str]) -> None:
     """Import only the command registration modules needed by this invocation."""
-    selected_name = command_name(argv)
+    selected_name = root_command(argv)
     if selected_name in _COMMAND_MODULES:
         selected = (_COMMAND_MODULES[selected_name],)
     elif selected_name:

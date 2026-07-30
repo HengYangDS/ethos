@@ -13,6 +13,9 @@ import jsonschema
 import pytest
 from pydantic import ValidationError
 
+from ethos.contracts.gates import GateEntry
+from ethos.contracts.gates import GateProofSets
+from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import terminal_schema_documents
@@ -22,7 +25,7 @@ from ethos.contracts.semantic import Facts
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
-from ethos.repository.context import governance_context
+from ethos.repository.context import repository_context
 from ethos.result import EthosResult
 
 _PLAN_INPUTS = {
@@ -76,6 +79,51 @@ def test_transition_plan_is_deterministic_and_digest_bound() -> None:
     plan = TransitionPlan(**_PLAN_INPUTS, nodes=(prove, status))
     assert [node["id"] for node in plan.to_dict()["nodes"]] == ["prove", "status"]
     assert plan.digest() == TransitionPlan(**_PLAN_INPUTS, nodes=(status, prove)).digest()
+
+
+def test_gate_declaration_compiles_one_stable_transitive_proof_closure() -> None:
+    declaration = GateRegistryDeclaration(
+        id="test-gates",
+        proof_sets=GateProofSets(default=("publish",), full=("publish",)),
+        gates=(
+            GateEntry(
+                id="publish",
+                kind="release",
+                command=("publish",),
+                depends_on=("test", "lint"),
+                registries=("runtime",),
+            ),
+            GateEntry(
+                id="lint",
+                kind="lint",
+                command=("lint",),
+                depends_on=("compile",),
+                registries=("runtime",),
+            ),
+            GateEntry(
+                id="compile",
+                kind="compile",
+                command=("compile",),
+                registries=("runtime",),
+            ),
+            GateEntry(
+                id="test",
+                kind="test",
+                command=("test",),
+                depends_on=("compile",),
+                registries=("runtime",),
+            ),
+        ),
+    )
+
+    assert tuple(gate.id for gate in declaration.proof_gates()) == (
+        "compile",
+        "lint",
+        "test",
+        "publish",
+    )
+    with pytest.raises(ValueError, match="unknown proof gate"):
+        declaration.proof_gates(("missing",))
 
 
 def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None:
@@ -461,7 +509,7 @@ def _matches_old_entity(path: Path, pattern: re.Pattern[str]) -> bool:
 def test_governance_context_projects_executable_contextual_authority_without_shadow_models() -> (
     None
 ):
-    context = governance_context(Path.cwd(), profile="product")
+    context = repository_context(Path.cwd())
     assert context["repository"] == str(Path.cwd().resolve())
     assert context["authority"] == {
         "contract_ref": "system/authority.toml",
@@ -485,7 +533,7 @@ def test_governance_context_projects_executable_contextual_authority_without_sha
 
 
 def test_adopter_governance_context_uses_packaged_authority_contract(tmp_path: Path) -> None:
-    context = governance_context(tmp_path, profile="adopter")
+    context = repository_context(tmp_path)
 
     assert context["repository"] == str(tmp_path.resolve())
     assert context["authority"]["resolver"] == "contextual"

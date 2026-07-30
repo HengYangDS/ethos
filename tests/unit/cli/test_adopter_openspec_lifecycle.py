@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,15 +10,17 @@ from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
-from ethos.contracts.openspec.models import AdopterOpenSpecPolicy
+from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
+from tests.support.contract_helpers import write_active_commitment
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,14 +41,22 @@ def _write_valid_accepted_specs(repo: Path) -> None:
         encoding="utf-8",
     )
     (specs / "README.md").write_text("# Specs\n", encoding="utf-8")
-    (specs / "contracts" / "spec.md").write_text("# Contracts\n", encoding="utf-8")
+    (specs / "contracts" / "spec.md").write_text(
+        "## Purpose\n\n"
+        "Define the accepted contracts capability used to validate repository changes.\n\n"
+        "## Requirements\n\n"
+        "### Requirement: Accepted contract\n\n"
+        "The repository SHALL expose one accepted contract.\n\n"
+        "#### Scenario: Contract is read\n\n"
+        "- **WHEN** governance reads the capability\n"
+        "- **THEN** the accepted contract is available\n",
+        encoding="utf-8",
+    )
 
 
 def _enable_openspec(repo: Path, *material_paths: str) -> None:
     profile = RepositoryProfileDeclaration.bootstrap(repo.name).model_copy(
-        update={
-            "openspec": AdopterOpenSpecPolicy(material_paths=material_paths or ("openspec/**",))
-        }
+        update={"openspec": OpenSpecPolicy(material_paths=material_paths or ("openspec/**",))}
     )
     (repo / ".ethos" / "profile.toml").write_text(
         render_repository_profile(RepositoryProfileDeclaration.model_validate(profile)),
@@ -263,14 +274,15 @@ def test_generic_adopter_plan_does_not_call_openspec(monkeypatch, tmp_path: Path
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt generic profile")
     monkeypatch.setattr(
-        "ethos.adapters.openspec.governance.openspec_governance_report",
+        "ethos.surface.cli.root.planning.openspec_governance_report",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("OpenSpec called")),
     )
     plan = run_ethos("plan", "--root", repo.as_posix(), "--json")
 
-    assert plan["ok"] is True
-    assert plan["required_gaps"] == []
+    assert plan["ok"] is False
+    assert plan["required_gaps"] == ["proof_floor_empty"]
     assert plan["data"]["commitment"]["id"].startswith("repository:")
+    assert plan["data"]["transition_plan"]["verdict"] == "block"
     assert "profile_adapter" not in plan["data"]
 
 
@@ -299,13 +311,62 @@ def test_plan_uses_profile_selected_commitment_without_openspec(tmp_path: Path) 
         "--json",
     )
 
-    assert payload["ok"] is True
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["proof_floor_empty"]
     assert payload["data"]["commitment"]["id"] == "change:selected"
 
 
-def test_plan_surfaces_transition_plan_block_as_top_level_block(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_plan_uses_explicit_openspec_profile_commitment(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    write_active_commitment(repo, change_id="selected")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "select OpenSpec change")
+
+    payload = run_ethos(
+        "plan",
+        "--change",
+        "selected",
+        "--root",
+        repo.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["proof_floor_empty"]
+    assert payload["data"]["commitment"]["id"] == "change:selected"
+    assert payload["data"]["profile_adapter"]["change"] == "selected"
+
+
+def test_generic_adopter_commands_do_not_require_product_layout(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "adopt generic profile")
+
+    commands = ("status", "plan", "prove", "land")
+    completed = [
+        run_ethos_raw(command, "--root", repo.as_posix(), "--json") for command in commands
+    ]
+    payloads = [json.loads(result.stdout) for result in completed]
+
+    assert not (repo / "openspec").exists()
+    assert not (repo / "system").exists()
+    assert not (repo / "pyproject.toml").exists()
+    assert not (repo / "src" / "ethos").exists()
+    assert [payload["command"] for payload in payloads] == list(commands)
+    assert all(result.stdout and not result.stderr for result in completed)
+    assert all(
+        not any(
+            gap.startswith(("openspec_", "repository_doc_missing:", "schema_missing:"))
+            for gap in payload["required_gaps"]
+        )
+        for payload in payloads
+    )
+
+
+def test_plan_surfaces_transition_plan_block_as_top_level_block(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
     carrier = repo / "governance"

@@ -53,10 +53,6 @@ surface_path_globs = [
 # surface (still bounded to prevent unbounded growth), not the product limit.
 test_effective_max_lines = 800
 
-[gates.local-state-audit]
-command = "tools/ci/scripts/run-local-state-audit.sh"
-blocking = true
-
 [[rule]]
 id = "local-state-boundary"
 owner = "repo-local"
@@ -66,13 +62,9 @@ subject = "local-state-truth-boundary"
 severity = "advisory"
 stop_condition = "local-state-truth-boundary"
 profile_layers = []
-path_globs = [".config/checks/local-state/**", "tools/ci/local_state_audit.py", "tools/ci/scripts/run-local-state-audit.sh"]
-required_gates = ["local-state-audit"]
-evidence_requirements = ["build/evidence/local-state/audit.json"]
-
-[gates.quality-audit]
-command = ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py ."
-blocking = true
+path_globs = ["system/policies/generated-artifact-topology.toml", "src/ethos/contracts/artifacts/topology.py", "src/ethos/repository/policy/artifacts.py"]
+required_gates = ["generated-artifacts"]
+evidence_requirements = ["generated_artifact_topology"]
 
 [[rule]]
 id = "quality-gate-governance"
@@ -84,12 +76,7 @@ severity = "advisory"
 stop_condition = "quality-gate-owner-drift"
 profile_layers = []
 path_globs = [".agents/skills/ethos-quality-gate-governance/**", ".config/checks/**", "tools/ci/scripts/**", "system/tools.toml"]
-required_gates = ["quality-audit"]
-evidence_requirements = ["quality_gate_audit"]
-
-[gates.skill-portfolio-audit]
-command = ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py ."
-blocking = true
+required_gates = ["repository-audit"]
 
 [[rule]]
 id = "skill-portfolio-governance"
@@ -101,5 +88,4 @@ severity = "advisory"
 stop_condition = "skill-package-projection-drift"
 profile_layers = []
 path_globs = [".agents/skills/**", "rules/skills.md", "docs/governance/playbooks-and-skills.md"]
-required_gates = ["skill-portfolio-audit"]
-evidence_requirements = ["skill_portfolio_audit"]
+required_gates = ["playbooks-v2"]

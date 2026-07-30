@@ -40,16 +40,16 @@ def emit(
         raise SystemExit(1)
 
 
-def emit_invalid_adopter_profile(*, command: str, json_output: bool, enforce: bool) -> None:
-    """Emit the stable fail-closed envelope for an invalid adopter binding."""
+def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce: bool) -> None:
+    """Emit the fail-closed envelope for an invalid repository profile."""
     emit(
         EthosResult(
             command=command,
             ok=False,
             state="gapped",
-            required_gaps=("adopter_profile_invalid:.ethos/profile.toml",),
+            required_gaps=("repository_profile_invalid:.ethos/profile.toml",),
             next_actions=("repair .ethos/profile.toml and rerun the command",),
-            data={"error_boundary": "adopter_profile_validation"},
+            data={"error_boundary": "repository_profile_validation"},
         ),
         json_output=json_output,
         enforce=enforce,

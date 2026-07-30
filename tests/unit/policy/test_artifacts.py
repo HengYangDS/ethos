@@ -8,6 +8,8 @@ import pytest
 
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
+from tests.support.lane_helpers import git
+from tests.support.lane_helpers import init_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -84,4 +86,18 @@ def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
     assert report["required_gaps"] == [
         "generated_artifact_entrypoint_denied_generated_home:tools/ci/scripts/example.sh:dist/",
         "generated_artifact_entrypoint_package_artifacts_unrouted:tools/ci/scripts/example.sh",
+    ]
+
+
+def test_topology_report_blocks_tracked_untracked_lifecycle_home(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    path = repo / "build/evidence/proof.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("{}\n", encoding="utf-8")
+    git(repo, "add", "-f", path.relative_to(repo).as_posix())
+
+    report = generated_artifact_topology_report(repo)
+
+    assert report["required_gaps"] == [
+        "generated_artifact_tracked_untracked_home:build/evidence/proof.json"
     ]

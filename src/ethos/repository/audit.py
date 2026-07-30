@@ -7,7 +7,7 @@ from typing import cast
 
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.system.contracts import system_contracts_report
-from ethos.repository.context import governance_context
+from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.openspec.audit import openspec_provider_missing_report
@@ -203,10 +203,7 @@ def repository_audit(
     return {
         "ok": not gaps,
         "mode": "repository",
-        "governance_context": governance_context(
-            root,
-            profile="product",
-        ),
+        "governance_context": repository_context(root),
         "docs": {
             "ok": not docs_missing and not docs_without_front_matter,
             "missing": docs_missing,

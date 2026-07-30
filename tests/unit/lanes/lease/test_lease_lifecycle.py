@@ -75,7 +75,7 @@ def _assert_reissue_changes(
     } == set(declared_fields)
 
 
-def _apply_lease(root: Path, database: Path, request: LeaseOperationRequest) -> dict[str, object]:
+def _apply_lease(database: Path, request: LeaseOperationRequest) -> dict[str, object]:
     return apply_lease_operation(database, request=request)
 
 
@@ -266,7 +266,6 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
     initial = observe_lease(database, branch).record()
 
     renewed = _apply_lease(
-        fixture.worktree,
         database,
         _lease_request(
             operation="renew",
@@ -279,7 +278,6 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
     _assert_reissue_changes(initial, renewed, "renewed_at", "expires_at")
 
     offered = _apply_lease(
-        fixture.worktree,
         database,
         _lease_request(
             operation="handoff_offer",
@@ -293,7 +291,6 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
     _assert_reissue_changes(renewed, offered, "handoff")
 
     accepted = _apply_lease(
-        fixture.worktree,
         database,
         _lease_request(
             operation="handoff_accept",
@@ -373,7 +370,6 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
         )
     expired = observe_lease(resume_database, resume_branch).record()
     resumed = _apply_lease(
-        resume_fixture.worktree,
         resume_database,
         _lease_request(
             operation="resume",
@@ -560,7 +556,7 @@ def test_lease_effect_rejects_unknown_and_non_applying_requests_without_mutation
         apply=False,
     )
     with pytest.raises(ValueError, match=r"^lease_apply_required:renew$"):
-        _apply_lease(fixture.worktree, database, non_applying)
+        _apply_lease(database, non_applying)
     assert _lease_snapshot(fixture.worktree, branch) == initial
 
     unknown = _lease_request(
@@ -600,7 +596,7 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
         apply=True,
     )
     with pytest.raises(ValueError, match=f"^lease_not_expired:{branch}$"):
-        _apply_lease(fixture.worktree, database, active_resume)
+        _apply_lease(database, active_resume)
 
     expired = datetime.now(UTC) - timedelta(seconds=1)
     expired_payload = dict(initial["payload"])
@@ -623,9 +619,8 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
         apply=True,
     )
     with pytest.raises(ValueError, match=f"^lease_expired:{branch}$"):
-        _apply_lease(fixture.worktree, database, expired_renew)
+        _apply_lease(database, expired_renew)
     resumed = _apply_lease(
-        fixture.worktree,
         database,
         _lease_request(
             operation="resume",
@@ -637,7 +632,7 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
     )
     assert resumed["expires_at"] > expired.isoformat()
 
-    _assert_stale_lease_dimensions(fixture.worktree, database, branch, holder_ref, resumed)
+    _assert_stale_lease_dimensions(database, branch, holder_ref, resumed)
 
     invalid_holder = _lease_request(
         operation="renew",
@@ -647,10 +642,9 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
         apply=True,
     )
     with pytest.raises(ValueError, match=r"^holder_ref must have four non-empty segments$"):
-        _apply_lease(fixture.worktree, database, invalid_holder)
+        _apply_lease(database, invalid_holder)
 
     offer = _apply_lease(
-        fixture.worktree,
         database,
         _lease_request(
             operation="handoff_offer",
@@ -671,10 +665,9 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
         offer_id=str(offer["offer_id"]),
     )
     with pytest.raises(ValueError, match=f"^lease_handoff_holder_not_quiesced:{branch}$"):
-        _apply_lease(fixture.worktree, database, unquiesced)
+        _apply_lease(database, unquiesced)
 
     _assert_stale_handoff_tokens(
-        fixture.worktree,
         database,
         branch,
         holder_ref,
@@ -708,7 +701,6 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
 
 
 def _assert_stale_lease_dimensions(
-    root: Path,
     database: Path,
     branch: str,
     holder_ref: str,
@@ -730,11 +722,10 @@ def _assert_stale_lease_dimensions(
             **{field: value},
         )
         with pytest.raises(ValueError, match=f"^{token}"):
-            _apply_lease(root, database, request)
+            _apply_lease(database, request)
 
 
 def _assert_stale_handoff_tokens(
-    root: Path,
     database: Path,
     branch: str,
     holder_ref: str,
@@ -760,4 +751,4 @@ def _assert_stale_handoff_tokens(
             **values,
         )
         with pytest.raises(ValueError, match=f"^{token}"):
-            _apply_lease(root, database, request)
+            _apply_lease(database, request)

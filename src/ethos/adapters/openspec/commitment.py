@@ -6,7 +6,6 @@ from pathlib import Path
 
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.git import git_stdout
-from ethos.repository.context import is_product_root
 from ethos.repository.openspec.audit import tasks_complete
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -17,8 +16,6 @@ _CHANGES = "openspec/changes"
 
 def openspec_profile_enabled(repo: Path, *, tree_ref: str | None = None) -> bool:
     """Return whether the explicit self-profile OpenSpec adapter is selected."""
-    if is_product_root(repo):
-        return True
     profile = load_repository_profile(repo, tree_ref=tree_ref)
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
@@ -81,7 +78,8 @@ def resolve_openspec_commitment_carrier(
 ) -> str:
     """Select one active self-profile carrier without leaking discovery to generic code."""
     if not openspec_profile_enabled(repo, tree_ref=tree_ref):
-        raise ValueError("openspec_profile_not_enabled")
+        msg = "openspec_profile_not_enabled"
+        raise ValueError(msg)
     if change_id is not None and logical_change_identifier_issue(change_id):
         message = f"openspec_active_change_identifier_invalid:{change_id}"
         raise ValueError(message)
@@ -101,7 +99,8 @@ def resolve_openspec_commitment_carrier(
         message = f"commitment_missing{suffix}"
         raise ValueError(message)
     if len(selected) != 1:
-        raise ValueError("commitment_ambiguous")
+        msg = "commitment_ambiguous"
+        raise ValueError(msg)
     return selected[0]
 
 
@@ -134,11 +133,12 @@ def load_lease_bound_openspec_commitment(
     base_commitment_digest: str,
     change_id: str | None = None,
 ):
-    """Load the self-profile carrier named by one lease-bound tree."""
+    """Load the unique immutable carrier and reject a current rewrite of its path."""
     if not base_commitment_digest:
-        raise ValueError("lease_base_commitment_digest_missing")
+        msg = "lease_base_commitment_digest_missing"
+        raise ValueError(msg)
     matches = tuple(
-        commitment
+        (carrier, commitment)
         for carrier in _all_paths(repo, expected_head)
         if (
             commitment := load_commitment(
@@ -150,8 +150,19 @@ def load_lease_bound_openspec_commitment(
         == base_commitment_digest
     )
     if len(matches) != 1:
-        raise ValueError("lease_base_commitment_digest_mismatch")
-    commitment = matches[0]
+        msg = "lease_base_commitment_digest_mismatch"
+        raise ValueError(msg)
+    carrier, commitment = matches[0]
+    if git_stdout(repo, "rev-parse", "HEAD") == expected_head:
+        try:
+            load_commitment(
+                repo,
+                carrier=carrier,
+                expected_digest=base_commitment_digest,
+            )
+        except ValueError as exc:
+            msg = "lease_base_commitment_digest_mismatch"
+            raise ValueError(msg) from exc
     if change_id is not None and commitment.id != f"change:{change_id}":
         message = f"commitment_missing:{change_id}"
         raise ValueError(message)

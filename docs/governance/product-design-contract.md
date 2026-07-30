@@ -8,6 +8,13 @@ relations:
 
 # Product Design Contract
 
+Status: canonical.
+
+Purpose: own ETHOS product meaning, semantic roots, authority boundaries, and
+the invariants every implementation and projection must preserve.
+
+See also: [Kernel Model](../concepts/kernel-model.md), [Terminal Governance Product Design](../plans/terminal-governance-product-design.md), and [Command Plane](../reference/command-plane.md).
+
 ## Product
 
 ETHOS is a proof-carrying compiler and transaction protocol for repository

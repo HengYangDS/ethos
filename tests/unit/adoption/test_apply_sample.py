@@ -7,13 +7,12 @@ import pytest
 
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
-from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
-from ethos.repository.policy.gates import adopter_profile_active
-from ethos.repository.policy.gates import default_gate_ids
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import load_repository_profile
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_adopt_apply_writes_profile_and_repository_commitment(tmp_path: Path) -> None:
@@ -28,14 +27,58 @@ def test_adopt_apply_writes_profile_and_repository_commitment(tmp_path: Path) ->
     assert profile.declaration.profile_id == tmp_path.name
     assert profile.declaration.commitment == ".ethos/commitment.toml"
     assert profile.declaration.openspec is None
-    assert adopter_profile_active(tmp_path) is True
-    assert default_gate_ids(root=tmp_path) == ADOPTER_DEFAULT_GATE_IDS
-    assert ADOPTER_DEFAULT_GATE_IDS != PRODUCT_DEFAULT_GATE_IDS
+    assert resolve_gate_policy(tmp_path).gate_ids == ()
+    assert resolve_gate_policy(tmp_path).registry == {}
     assert sorted(path.as_posix() for path in tmp_path.rglob("*") if path.is_file()) == [
         (tmp_path / ".ethos/commitment.toml").as_posix(),
         (tmp_path / ".ethos/profile.toml").as_posix(),
     ]
     assert 'id = "repository:' in (tmp_path / ".ethos/commitment.toml").read_text()
+
+
+def test_declared_local_gate_registry_preserves_self_governance_floor() -> None:
+    profile = load_repository_profile(ROOT)
+
+    assert profile.state == "valid"
+    assert profile.declaration is not None
+    assert profile.declaration.proof.gate_registry == "system/gates.toml"
+    assert "unit-architecture" in resolve_gate_policy(ROOT).gate_ids
+
+
+def test_profile_native_gate_owner_replaces_packaged_gates(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, apply=True)
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8")
+        + """
+
+[proof]
+required_gates = ["sample-tests", "sample-static"]
+
+[proof.code_axes]
+behavior = "sample-tests"
+static-analysis = "sample-static"
+
+[[proof.gates]]
+id = "sample-tests"
+kind = "test"
+command = ["custom", "tests"]
+dimensions = ["behavior"]
+evidence_class = "proof"
+trust_bearing = true
+
+[[proof.gates]]
+id = "sample-static"
+kind = "typing"
+command = ["custom", "types"]
+dimensions = ["static-analysis"]
+evidence_class = "contract"
+trust_bearing = true
+""",
+        encoding="utf-8",
+    )
+
+    assert set(resolve_gate_policy(tmp_path).registry) == {"sample-tests", "sample-static"}
 
 
 def test_dry_run_plan_can_be_applied_without_changing_identity(tmp_path: Path) -> None:

@@ -9,6 +9,13 @@ relations:
 
 # Transition Plan
 
+Status: canonical.
+
+Purpose: define the one transient planning algebra without creating a durable
+workflow or truth store.
+
+See also: [Kernel Model](../concepts/kernel-model.md), [Declarative Governance Compiler](declarative-governance-compiler.md), [Protocol Contracts](protocol-contracts.md), and [DR-0005](../decisions/DR-0005-declarative-lifecycle-spine.md).
+
 A `TransitionPlan` is the transient, deterministic projection of one
 `Commitment` against freshly observed `Facts` and applicable `Attestations`. It
 orders checks, decisions, and effects; it is neither persisted intent nor a
@@ -45,5 +52,3 @@ Commitment + Facts + Attestations
 owner of campaign progress, task state, Git history, repository facts, or
 provider state. Command JSON and evidence may project the plan and its digest,
 but no projection may become a parallel editable truth.
-
-See also: [Kernel Model](../concepts/kernel-model.md), [Declarative Governance Compiler](declarative-governance-compiler.md), [Protocol Contracts](protocol-contracts.md), and [DR-0005](../decisions/DR-0005-declarative-lifecycle-spine.md).

@@ -138,47 +138,11 @@ merely to make an existing budget gap disappear.
 
 ## Alternatives Considered
 
-### Versioned carrier-native non-compensating metric vector
-
-**Pros**
-
-- Exposes structural and payload growth hidden by raw line counts.
-
-**Cons**
-
-- Requires substantial parser, replay, baseline, and debt machinery.
-
-**Why Rejected**
-
-Historically selected, then superseded because its private runtime cost exceeded the terminal need.
-
-### One repository-wide LOC or ELOC currency
-
-**Pros**
-
-- Simple to calculate and communicate.
-
-**Cons**
-
-- Rewards minification, large literals, carrier movement, and deleted assertions.
-
-**Why Rejected**
-
-It is materially gameable and conflates unlike semantic domains.
-
-### Direct deterministic owned-source measurement with capability preservation
-
-**Pros**
-
-- Keeps the anti-gaming boundary while deleting worker, replay, shadow, and debt runtimes.
-
-**Cons**
-
-- Needs cross-checks and adversarial fixtures to retain confidence.
-
-**Why Rejected**
-
-Not rejected; it is the current selected replacement.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Versioned carrier-native non-compensating metric vector | superseded | Exposes structural and payload growth hidden by raw line counts. | Requires substantial parser, replay, baseline, and debt machinery. | Its private runtime cost exceeded the terminal need. |
+| One repository-wide LOC or ELOC currency | rejected | Simple to calculate and communicate. | Rewards minification, large literals, carrier movement, and deleted assertions. | It is materially gameable and conflates unlike semantic domains. |
+| Direct deterministic owned-source measurement with capability preservation | selected replacement | Keeps the anti-gaming boundary while deleting worker, replay, shadow, and debt runtimes. | Needs cross-checks and adversarial fixtures to retain confidence. | It preserves the anti-gaming invariant with substantially less machinery. |
 
 ## Selected Approach And Rationale
 

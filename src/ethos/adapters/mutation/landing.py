@@ -26,7 +26,6 @@ from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.repository.policy.gates import gate_policy_digest
 
 
 def apply_land_to_candidate(
@@ -65,12 +64,10 @@ def apply_land_to_candidate(
         return fail(["proof_not_proven"], path=candidate_path.as_posix())
     candidate_head = str(base_report["candidate_head"])
     try:
-        policy_digest = gate_policy_digest(root, tree_ref=current_head)
         plan, commitment_digest, facts_digest = accepted.proof_attestation_bindings(
-            candidate_path,
-            proof,
-            policy_digest=policy_digest,
+            candidate_path, proof
         )
+        policy_digest = proof.policy_digest
         effect = GitEffect(
             id=f"git-effect:candidate:{policy.candidate_branch}:{current_head}",
             plan_digest=proof.plan_digest,

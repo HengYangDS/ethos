@@ -212,21 +212,7 @@ admission.decision_state = "admitted"
         encoding="utf-8",
     )
     (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "commitment.toml").write_text(
-        "schema_version = 1\n"
-        'id = "repository:test-product"\n'
-        'intent = "Govern the test product."\n'
-        'subjects = ["repository:test-product"]\n' + f"scope = {list(scope)!r}\n".replace("'", '"'),
-        encoding="utf-8",
-    )
-    change = repo / "openspec" / "changes" / "fixture-change"
-    change.mkdir(parents=True)
-    change.joinpath("commitment.toml").write_text(
-        'schema_version = 1\nid = "change:fixture-change"\n'
-        'intent = "Exercise the governed fixture lifecycle."\n'
-        'subjects = ["repository:self"]\n' + f"scope = {list(scope)!r}\n".replace("'", '"'),
-        encoding="utf-8",
-    )
+    write_active_commitment(repo, scope=scope)
     (repo / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     git(repo, "add", ".")
     git(

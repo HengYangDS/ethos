@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     with pytest.raises(ValidationError):
         declaration.profile_id = "mutable"
     with pytest.raises(TypeError):
-        declaration.proof.code_correctness_map["behavior"] = "mutable"
+        declaration.proof.code_axes["behavior"] = "mutable"
     with pytest.raises(ValidationError):
         RepositoryProfileDeclaration.model_validate(
             {
@@ -51,7 +52,9 @@ def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path
         'profile_id = "self"\n'
         'commitment = "governance/commitment.toml"\n\n'
         "[openspec]\n"
-        'material_paths = ["docs/**"]\n',
+        'material_paths = ["docs/**"]\n\n'
+        "[proof]\n"
+        'gate_registry = "system/gates.toml"\n',
         encoding="utf-8",
     )
 
@@ -61,6 +64,26 @@ def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path
     assert declaration.commitment == "governance/commitment.toml"
     assert declaration.openspec is not None
     assert declaration.openspec.material_paths == ("docs/**",)
+    assert declaration.proof.gate_registry == "system/gates.toml"
+
+
+@pytest.mark.parametrize(
+    "proof",
+    [
+        'code_correctness_gates = ["tests", "types"]\n',
+        'required_gates = ["tests", "types"]\n\n[proof.code_axes]\nbehavior = "tests"\n',
+        (
+            'required_gates = ["tests", "types"]\n\n[proof.code_axes]\n'
+            'behavior = "tests"\nstatic-analysis = "tests"\n'
+        ),
+    ],
+)
+def test_profile_rejects_legacy_or_incomplete_proof_owners(tmp_path: Path, proof: str) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text('profile_id = "sample"\n\n[proof]\n' + proof, encoding="utf-8")
+
+    assert load_repository_profile(tmp_path).state == "invalid"
 
 
 @pytest.mark.parametrize(
@@ -209,5 +232,15 @@ def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> No
     loaded = load_repository_profile(tmp_path)
 
     assert loaded.state == "invalid"
-    with pytest.raises(ValueError, match="adopter_profile_invalid"):
+    with pytest.raises(ValueError, match="repository_profile_invalid"):
         profile_root(tmp_path, "durable_evidence")
+
+
+def test_profile_loader_never_falls_back_from_an_invalid_tree_ref(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", tmp_path], check=True)
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text("profile_id = 'working-tree'\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="repository_tree_ref_invalid"):
+        load_repository_profile(tmp_path, tree_ref="deadbeef" * 5)

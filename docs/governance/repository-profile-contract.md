@@ -127,9 +127,9 @@ fail closed; ETHOS neither parses nor migrates them into a second lifecycle path
 See [Adopter Boundary And Retirement](adopter-boundary-and-retirement.md) for the
 attested transition contract.
 
-Repository-native proof gates use the product gate descriptor vocabulary. A
-non-product gate id without a descriptor fails closed through
-`adopter_gate_descriptor_missing:<id>` rather than guessing a command.
+Repository-native proof gates use the shared gate descriptor vocabulary. A
+profile-native gate id without a descriptor fails closed through
+strict profile validation rather than guessing a command.
 
 ## Adapter Command Contract
 
@@ -141,21 +141,23 @@ native tool: Pixi, Make, npm, Cargo, Go, pytest, shell, or a project CLI.
 A command contract must not require a universal `packages/`, `tools/`, `scripts/`,
 or Python layout. Those are adopter implementation choices.
 
-Repository-native proof gates use the same typed descriptor vocabulary as the
-product gate registry. The `[proof] code_correctness_gates` list names the gates
-required for promotion; each non-product id must also have one `[[proof.gates]]`
+Repository-native proof gates use the same typed descriptor vocabulary as a
+declared gate registry. The `[proof] required_gates` list names the gates
+required for promotion; each profile-native id must also have one `[[proof.gates]]`
 descriptor with at least `id`, `kind`, and a list-form executable `command`.
+`[proof.code_axes]` explicitly maps the required `behavior` and
+`static-analysis` axes to distinct gate IDs. Missing axes, reused gates, undeclared
+IDs, and waivers are invalid declarations rather than runtime vocabulary guesses.
 Optional descriptor fields such as `depends_on`, `evidence_class`,
-`trust_bearing`, and `network_policy` retain the product gate semantics. ETHOS
-compiles these descriptors as an adopter overlay: they participate in action
-graph validation, policy digests, and proof-run conformance without becoming
-product-owned gates or a second command plane.
+`trust_bearing`, and `network_policy` retain the shared gate semantics. ETHOS
+compiles these descriptors as the profile's sole native gate owner: they
+participate in action graph validation, policy digests, and proof-run
+conformance without becoming packaged gates or a second command plane.
 
-An id without a descriptor is not executable truth. ETHOS reports an
-`adopter_gate_descriptor_missing:<id>` gap rather than guessing a command,
-accepting an unverified proof-run id, or raising an implementation exception.
-Invalid, duplicate, profile-mismatched, or product-conflicting descriptors fail
-closed through the corresponding `adopter_gate_descriptor_*` gap.
+An id without a descriptor is not executable truth. The strict profile and gate
+declaration contracts reject missing, duplicate, mismatched, cyclic, or incomplete
+descriptors before planning; ETHOS never guesses a command or accepts an unverified
+proof-run ID.
 
 ## Validation
 
@@ -193,5 +195,6 @@ See also: [Product Design Contract](product-design-contract.md),
 A valid adopter uses the official OpenSpec lifecycle when a workspace exists,
 OpenSpec is explicitly requested, or a changed path matches declared
 `material_paths`. Without those applicability facts, plan and proof report the
-capability as not applicable. Lifecycle is not a `[proof]
-code_correctness_gates` entry, and no method package is a governance substitute.
+capability as not applicable. Lifecycle is not a
+`[proof].required_gates` entry, and no method package is a governance
+substitute.

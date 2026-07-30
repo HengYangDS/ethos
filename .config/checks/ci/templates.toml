@@ -35,7 +35,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-format-selection.sh",
   "tools/ci/scripts/run-architecture-projection-drift.sh",
   "tools/ci/scripts/run-runbook-registry-check.sh",
-  "tools/ci/scripts/run-local-state-audit.sh",
   "tools/ci/scripts/run-release-supply-chain.sh",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
@@ -75,7 +74,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-format-selection.sh",
   "tools/ci/scripts/run-architecture-projection-drift.sh",
   "tools/ci/scripts/run-runbook-registry-check.sh",
-  "tools/ci/scripts/run-local-state-audit.sh",
   "tools/ci/scripts/run-release-supply-chain.sh",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]

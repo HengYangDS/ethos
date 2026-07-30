@@ -24,7 +24,6 @@ an activation route.
 The portfolio owner is responsible for structural validation:
 
 ```bash
-.agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .
 ethos prove --gate playbooks-v2 --json
 ethos plan --changed --json
 ```

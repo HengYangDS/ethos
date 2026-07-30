@@ -132,10 +132,11 @@ from source/package metadata rather than promoted as truth.
 ethos prove --gate generated-artifacts --json
 ```
 
-The audit reports the path router contract, lifecycle classes, entrypoint
-routing, blocked generated drift, tracked files in generated-output homes, and
-review-required paths. Its JSON contract includes `source_refs` so reviewers can
-see which declaration supplied the topology. It is also a proof gate:
+The audit is the sole owner of generated and local-state topology. It reports the
+path router contract, lifecycle classes, entrypoint routing, blocked generated
+drift, tracked files in generated-output homes, and review-required paths. Its
+JSON contract includes `source_refs` so reviewers can see which declaration
+supplied the topology. It is also a proof gate:
 
 ```bash
 ethos prove --execute --gate generated-artifacts --expect-head <git-head> --json

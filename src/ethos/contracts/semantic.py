@@ -41,7 +41,8 @@ def _mutable_json(value: object) -> object:
 def _immutable_json(value: object) -> object:
     if isinstance(value, Mapping):
         if not all(isinstance(key, str) for key in value):
-            raise TypeError("json_object_key_invalid")
+            msg = "json_object_key_invalid"
+            raise TypeError(msg)
         return MappingProxyType({key: _immutable_json(item) for key, item in value.items()})
     if isinstance(value, tuple | list):
         return tuple(_immutable_json(item) for item in value)
@@ -49,14 +50,17 @@ def _immutable_json(value: object) -> object:
         return value
     if isinstance(value, float) and math.isfinite(value):
         return value
-    raise TypeError("json_value_invalid")
+    msg = "json_value_invalid"
+    raise TypeError(msg)
 
 
 def _immutable_json_object(value: object) -> object:
     if not isinstance(value, Mapping):
-        raise TypeError("json_object_invalid")
+        msg = "json_object_invalid"
+        raise TypeError(msg)
     if not all(isinstance(key, str) for key in value):
-        raise TypeError("json_object_key_invalid")
+        msg = "json_object_key_invalid"
+        raise TypeError(msg)
     return _immutable_json(dict(value))
 
 
@@ -117,9 +121,11 @@ class Commitment(_SemanticModel):
                 or "\\" in pattern
                 or any(part in {"", ".", ".."} for part in PurePosixPath(pattern).parts)
             ):
-                raise ValueError("change_scope_invalid")
+                msg = "change_scope_invalid"
+                raise ValueError(msg)
         if len(scope) != len(set(scope)):
-            raise ValueError("change_scope_duplicate")
+            msg = "change_scope_duplicate"
+            raise ValueError(msg)
         return scope
 
     def identity_projection(self) -> dict[str, object]:
@@ -197,7 +203,8 @@ class Attestation(_SemanticModel):
     def issue(cls, payload: Mapping[str, object]) -> Self:
         """Issue one content-addressed Attestation from one semantic payload."""
         if not isinstance(payload, Mapping):
-            raise TypeError("attestation_issue_payload_invalid")
+            msg = "attestation_issue_payload_invalid"
+            raise TypeError(msg)
         derived = {"id", "statement_digest", "schema_version"}
         if invalid := sorted(str(key) for key in payload.keys() & derived):
             message = f"attestation_issue_derived_field:{invalid[0]}"
@@ -227,17 +234,21 @@ class Attestation(_SemanticModel):
                 self.evidence_refs,
             )
         ):
-            raise ValueError("attestation_binding_missing")
+            msg = "attestation_binding_missing"
+            raise ValueError(msg)
         if self.valid_from and self.valid_until and self.valid_until < self.valid_from:
-            raise ValueError("attestation_validity_invalid")
+            msg = "attestation_validity_invalid"
+            raise ValueError(msg)
         issuing = bool(info.context and info.context.get("issue_attestation"))
         statement_digest = _digest(self.statement)
         if not issuing and self.statement_digest != statement_digest:
-            raise ValueError("attestation_statement_digest_mismatch")
+            msg = "attestation_statement_digest_mismatch"
+            raise ValueError(msg)
         object.__setattr__(self, "statement_digest", statement_digest)
         identity = _digest(self.model_dump(mode="json", exclude={"id"}))
         if not issuing and self.id != identity:
-            raise ValueError("attestation_identity_mismatch")
+            msg = "attestation_identity_mismatch"
+            raise ValueError(msg)
         object.__setattr__(self, "id", identity)
         return self
 

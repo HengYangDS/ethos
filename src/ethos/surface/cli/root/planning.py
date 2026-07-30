@@ -5,8 +5,10 @@ from __future__ import annotations
 from datetime import UTC
 from datetime import datetime
 
-from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.profile import load_profile_commitment
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
@@ -15,9 +17,9 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.domain.plan import matching_rule_gates
-from ethos.repository.context import is_product_root
-from ethos.repository.policy.gates import gate_nodes
-from ethos.repository.policy.gates import gate_policy_digest
+from ethos.normalization.coercion import string_sequence
+from ethos.repository.policy.gates import resolve_gate_policy
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -41,34 +43,20 @@ def plan(
     try:
         support = status_payload.get("closeout_support")
         lease = support if isinstance(support, dict) else {}
-        product = is_product_root(repo)
-        if product:
-            from ethos.adapters.openspec.commitment import load_openspec_commitment
-            from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
-
-            commitment = (
-                load_profile_lease_bound_commitment(
-                    repo,
-                    change_id=change,
-                    expected_head=str(lease.get("lease_expected_head") or ""),
-                    base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
-                )
-                if status_payload.get("role") == ROLE_WORK_LANE
-                else load_openspec_commitment(repo, change_id=change)
+        commitment = (
+            load_profile_lease_bound_commitment(
+                repo,
+                change_id=change,
+                expected_head=str(lease.get("lease_expected_head") or ""),
+                base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
             )
-        else:
-            commitment = (
-                load_lease_bound_commitment(
-                    repo,
-                    change_id=change,
-                    expected_head=str(lease.get("lease_expected_head") or ""),
-                    base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
-                )
-                if status_payload.get("role") == ROLE_WORK_LANE
-                else load_commitment(repo, change_id=change)
-            )
+            if status_payload.get("role") == ROLE_WORK_LANE
+            else load_profile_commitment(repo, change_id=change)
+        )
     except ValueError as exc:
         gap = str(exc)
+        if gap == INVALID_PROFILE_ERROR:
+            raise
         emit(
             EthosResult(
                 command="plan",
@@ -98,9 +86,7 @@ def plan(
     )
     matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
     profile_adapter: dict[str, object] = {}
-    if product:
-        from ethos.adapters.openspec.governance import openspec_governance_report
-
+    if openspec_profile_enabled(repo):
         profile_adapter = openspec_governance_report(
             repo,
             change=change,
@@ -108,15 +94,16 @@ def plan(
             changed_paths=paths,
             require_workspace=False,
         )
-    adapter_gaps = tuple(str(gap) for gap in profile_adapter.get("required_gaps", []))
+    adapter_gaps = tuple(string_sequence(profile_adapter.get("required_gaps")))
     gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
-    nodes, gate_gaps = gate_nodes(gate_ids, root=repo)
+    policy = resolve_gate_policy(repo, gate_ids=gate_ids)
+    nodes = policy.nodes
     plan = compile_plan(
         commitment,
         facts,
         nodes,
-        policy_digest=gate_policy_digest(repo),
-        validation_issues=tuple(dict.fromkeys((*rule_validation_gaps, *gate_gaps))),
+        policy_digest=policy.digest,
+        validation_issues=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps))),
     )
     required_gaps = tuple(dict.fromkeys((*plan.gaps(), *adapter_gaps, *rule_validation_gaps)))
     ok = plan.ok and not adapter_gaps and not rule_validation_gaps

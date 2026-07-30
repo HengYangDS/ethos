@@ -28,6 +28,15 @@ Commitment and Attestation SHALL be the sole portable persistent semantic contra
 - **AND** caller-selected `kind`, duplicate `content`, `mints_authority`,
   amendment, sequence, or prior-digest compatibility fields are absent
 
+#### Scenario: predicate-owned evidence is issued
+- **WHEN** an Attestation records an observation, judgment, proof, or effect
+- **THEN** its predicate-owned statement and bindings carry the claim,
+  normalized command and result, repository identity, input/output digests,
+  exact HEAD, observation time, and freshness boundary required by that predicate
+- **AND** contract, scope, source, report, verifier, input, output, HEAD, or
+  freshness drift invalidates dependent proof
+- **AND** no parallel receipt or proof-record entity owns the same evidence
+
 ### Requirement: Governed Repository Context Contract
 A Commitment SHALL be immutable identity and intent. Changed scope or intent SHALL create a new Commitment; no amendment chain is a persistent root.
 

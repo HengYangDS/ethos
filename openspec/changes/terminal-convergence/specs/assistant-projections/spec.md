@@ -51,12 +51,19 @@ Optional protocol adapters SHALL consume the kernel and remain replaceable; they
 #### Scenario: execution consumes a bounded budget
 - **WHEN** an agent host, model tier, concurrent worker set, or optional execution
   substrate performs governed work
-- **THEN** progress is credited only for a verified terminal-state delta bound to
-  the selected Commitment, scope, and verifier
+- **THEN** progress is credited only when an unsatisfied acceptance condition is
+  removed, a failed verdict becomes pass, missing evidence is supplied, or a
+  blocker is removed under the selected Commitment, scope, and verifier
 - **AND** the budget accounts for repeated failures, evidence quality, model tier,
   concurrency and coordination cost, elapsed time, and remaining proof cost
 - **AND** moving behavior or output between carriers, multiplying agents, or
-  repeating unchanged analysis is not counted as gain
-- **AND** a repeated failure, degrading evidence, exhausted budget, or absent
-  terminal delta triggers stop, narrower scope, lower concurrency, or a declared
-  degraded mode rather than speculative continuation
+  repeating unchanged analysis, tests, commits, or mutation is not counted as gain
+- **AND** the same normalized failure signature converges through warning,
+  bounded retry, then `blocked` or `await-user` rather than speculative churn
+
+#### Scenario: recovery or a dashboard needs execution context
+- **WHEN** execution pauses, another host takes over, or a dashboard renders
+- **THEN** only information not reconstructible from Git, OpenSpec, and current
+  ETHOS facts may enter a minimal recovery checkpoint
+- **AND** dashboards remain read-only projections and neither surface owns
+  lifecycle state, tasks, archive, or completion

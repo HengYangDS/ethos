@@ -15,6 +15,11 @@ An adapter SHALL observe external state or execute a compiled effect under exact
 - **WHEN** its requested effect is absent from the TransitionPlan or its CAS precondition no longer matches
 - **THEN** ETHOS blocks before invoking the adapter
 
+#### Scenario: multiple hooks can observe one mutation
+- **WHEN** an optional tool proposes another mutation hook or guard
+- **THEN** one authoritative ETHOS guard remains the sole mutation admission path
+- **AND** the optional tool cannot install a second hook, bypass, or state owner
+
 ### Requirement: Bounded External Evidence Adapters
 A successful effect SHALL be followed by fresh observation and an Attestation binding the Commitment, Facts, policy, TransitionPlan, effect, and resulting artifact. Historical re-evaluation is non-authorizing analysis only.
 
@@ -114,7 +119,9 @@ A successful effect SHALL be followed by fresh observation and an Attestation bi
 - **AND** admission does not re-run the historical workflow to authorize a new effect
 
 ### Requirement: Official OpenSpec Lifecycle Adapter
-The official OpenSpec CLI SHALL own validation and archival for ETHOS's selected self-profile carrier. Generic adapter compilation SHALL not import or require OpenSpec.
+The official OpenSpec CLI SHALL own Change identity, design, specs,
+task-progress, artifact dependencies, and archive lifecycle for every complete
+mutation-capable adopter. Generic kernel compilation SHALL not import OpenSpec types.
 
 #### Scenario: ETHOS observes an active OpenSpec carrier
 - **WHEN** the self profile evaluates current OpenSpec state
@@ -157,9 +164,17 @@ ETHOS SHALL use admitted mature capabilities directly and reject a framework, ge
   Attestations, evidence, or Git-native Work Lane semantics.
 
 #### Scenario: External workflow frameworks are classified
-- **WHEN** ETHOS evaluates Comet, Spec Kit, BMAD, Superpowers, Task Master, Agent OS, OpenSPDD, Shotgun, or fspec
+- **WHEN** ETHOS evaluates COMET, Spec Kit, BMAD, Superpowers, Task Master, Agent OS, OpenSPDD, Shotgun, or fspec
 - **THEN** their useful practices may be mapped to ETHOS contracts, adapters, evidence classes, projections, or method packs
 - **AND** their command planes, hidden state directories, task stores, and phase names do not become ETHOS lifecycle truth by default
+
+#### Scenario: COMET participates in evaluation or external operation
+- **WHEN** COMET is used as a benchmark treatment or optional external operator
+- **THEN** Native, Classic, archive, state machine, hooks, dashboard, Bundle,
+  marketplace, adapter, provider, and state-reader implementations remain outside ETHOS
+- **AND** COMET output enters only as untrusted observation and requires an ETHOS
+  verifier before it can become an Attestation
+- **AND** COMET cannot decide `done`, land, publish, or OpenSpec archive
 
 #### Scenario: a single implementation requests a plugin framework
 - **WHEN** no independent consumer needs substitution

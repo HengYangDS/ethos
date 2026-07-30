@@ -174,8 +174,9 @@ Adapter`; repository governance owns only self-profile selection and exact
 transition effects.
 
 ### Requirement: Productized OpenSpec Substrate
-**Reason**: OpenSpec is optional profile capability, not a universal repository
-governance substrate.
+**Reason**: OpenSpec lifecycle ownership belongs to the official adapter and the
+complete-adoption contract, not to a second repository-governance substrate or
+to the vendor-neutral semantic kernel.
 
 ### Requirement: OpenSpec customization stays official-compatible
 **Reason**: official syntax, validation, completion, and archive semantics are

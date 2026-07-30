@@ -92,8 +92,10 @@ def test_release_inspection_reads_one_runtime_files_identity(tmp_path: Path) -> 
         ('[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n', "\n"),
         ('[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n', b"\xff"),
         (
-            '[tool.first]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n\n'
-            '[tool.second]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n',
+            (
+                '[tool.first]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n\n'
+                '[tool.second]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n'
+            ),
             "1",
         ),
     ],

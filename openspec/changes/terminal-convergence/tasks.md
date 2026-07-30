@@ -148,12 +148,15 @@ runtime, blacklist, replay, ledger, or product coupling can authorize work.
 
 ## 4. Separate Product Profiles From Coordination
 
-- [ ] 4.1 Keep OpenSpec as the ETHOS self-profile carrier whose official CLI
-  owns validation and archive; pin and verify the effective CLI as
+- [ ] 4.1 Keep the semantic kernel vendor-neutral while requiring verified
+  OpenSpec for every mutation-capable adopter as the sole Change/SDD carrier;
+  observation-only repositories may omit it but cannot govern mutation. Pin
+  and verify the effective CLI as
   `@fission-ai/openspec@1.7.0`, reject cache/PATH/global version drift, consume
-  required nested-spec identity, `skip_specs`, and artifact `requires` fields,
-  retain no 1.6 compatibility reader, and prove generic lifecycle with no
-  `openspec/`.
+  official status, artifact `requires`, `skip_specs`, nested specs,
+  apply/archive instructions, warnings, paths, and no-op JSON, resolve Change-ID
+  syntax differences, reject `defaultStore`, retain no 1.6 or carrier fallback,
+  and delete local predictive/parsing replicas after characterization and parity.
 - [ ] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
   candidate train to scoped resource Facts, projections, and attested effects.
 - [ ] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and
@@ -189,7 +192,8 @@ Attestations across Codex, JetBrains, Claude, or another host without intent los
   consequences, revisit triggers, and evidence.
 - [ ] 5.5 Make specs, rules, and skills evolve through coverage, overlap,
   novelty, route-owner, quality, and retirement checks; Superpowers remains an
-  optional method pack and OpenSpec tasks remain the sole task SSOT.
+  optional method pack, OpenSpec tasks remain the sole task SSOT, and official
+  OpenSpec Skills are generated projections without truth or lifecycle authority.
 - [ ] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
   necessary history, then delete misleading or redundant residue without a
   generic archive truth root.
@@ -206,6 +210,12 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
 - [ ] 6.1 Declare exactly one owner for formatting, lint, type, test,
   architecture, docs, schema, dependency, security, SBOM, provenance, version,
   release, and source measurement; local and hosted gates call those owners.
+  At each dependency refresh, every direct runtime, development, build, and
+  tool dependency floor equals the latest stable version selected from its
+  official registry on that date; transitive packages remain lock-owned rather
+  than becoming direct declarations, arbitrary upper bounds are forbidden, and
+  Actions, images, and downloaded tools use immutable commit, digest, or
+  checksum identities.
   SPDX, DSSE, and SLSA labels state only the exact generated format or assurance
   level actually proved and never imply broader conformance.
 - [ ] 6.2 Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
@@ -220,13 +230,16 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
   consistent blank-line rules, internal and external links, and projection drift.
 - [ ] 6.5 Admit duplicate/dead-definition, complexity, dependency, security, and
   structural tools only for distinct owned properties; delete overlapping
-  wrappers, baselines, advisory-only tools, and unconsumed dependencies.
+  wrappers, baselines, advisory-only tools, and unconsumed dependencies. One
+  online refresh proposes the latest stable direct floors and lock update;
+  normal local gates stay offline and verify declaration/lock/SBOM consistency.
 - [ ] 6.6 Enforce Cyclopts-only CLI, no argparse, unnecessary `__all__`, import
   aliases, shims, wrappers, thin forwarding, re-exports, compatibility facades,
   coverage-only tests, or hard-coded policy/configuration.
 - [ ] 6.7 Prove Python, Node/polyglot, and docs/infra adopters through offline
   install, adopt/status/plan/prove/land/publish, handoff/recovery, profile
-  isolation, native layout, and clean uninstall without mandatory OpenSpec or provider.
+  isolation, native layout, complete pinned-OpenSpec lifecycle, and clean
+  uninstall without a mandatory forge provider.
 - [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
   Python SDK, subprocess JSON, permissions, determinism, authority isolation,
   versioning, errors, offline behavior, and optional MCP/A2A-style adapters.
@@ -236,9 +249,12 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
   net deletion. Execution budgets count only verified terminal-state delta;
   repeated failures, weak evidence, carrier shifts, excess concurrency, or an
   unsuitable model tier trigger an explicit stop, downgrade, or replanning verdict.
+  Spec Kit does not enter the core; COMET remains only an optional external
+  operator/recovery/evaluation candidate under this same proof and deletion bar.
 - [ ] 6.10 Archive this Change through the official owner-native OpenSpec action
-  as the final tracked source mutation. Bind the returned archive path, warnings,
-  no-op state, and resulting HEAD. Prove nested-spec archive, valid `skip_specs`,
+  at verified version `1.7.0` as the final tracked source mutation. Bind the
+  effective tool version, returned archive path, warnings, no-op state, and
+  resulting HEAD. Prove nested-spec archive, valid `skip_specs`,
   metadata/spec-file conflict rejection, and already-synced delta no-op without
   spec mutation. In JSON mode, first preserve the expected
   `archive_tasks_incomplete` preflight, then use the official `--yes`

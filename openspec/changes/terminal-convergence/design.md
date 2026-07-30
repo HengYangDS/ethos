@@ -89,7 +89,7 @@ the final explicit remainder; every tracked path resolves to exactly one row.
 | Selector | Carrier family | Disposition | Current owner | Remaining task | Acceptance / verifier |
 | --- | --- | --- | --- | --- | --- |
 | `docs/governance/product-design-contract.md`, `system/**` | Canonical product contract and machine declarations | absorbed | product contract and narrow machine declarations | `5.2` | design integrity, schema, and projection-drift gates |
-| `openspec/changes/terminal-convergence/**` | Active terminal OpenSpec Change | absorbed | official OpenSpec workspace plus this self-profile Change | `7.5` | official strict validation and owner-native archive |
+| `openspec/changes/terminal-convergence/**` | Active terminal OpenSpec Change | absorbed | official OpenSpec workspace plus this self-profile Change | `6.10` | official strict validation and owner-native archive |
 | `openspec/specs/**` | Accepted OpenSpec capability specs | deleted-after-proof | active terminal delta specs, then canonical capability specs | `5.1` | canonical spec cutover with no resurrected lifecycle owner |
 | `openspec/changes/archive/**` | Official OpenSpec archives | historical | immutable Git history | `5.6` | active readers exclude archives from authority |
 | `evidence/**` | Claims, Chronicle, and legacy evidence bytes | historical | immutable evidence plus future Attestation disposition | `5.6` | no current reader or policy authorizes legacy evidence |
@@ -113,7 +113,7 @@ task remains incomplete until the native retirement receipt exists.
 
 ### Official OpenSpec 1.7 Cutover
 
-Tasks `4.1` and `7.5` own one no-compatibility cutover to OpenSpec `1.7.0`.
+Tasks `4.1` and `6.10` own one no-compatibility cutover to OpenSpec `1.7.0`.
 The repository pin and effective executable must agree; a cache-selected or
 machine-global version cannot override the declaration. The adapter consumes
 official `list`, `status`, `validate`, and `archive` JSON, including nested spec
@@ -123,8 +123,11 @@ store or retain a parallel 1.6 reader.
 
 The owner-native archive is the final tracked source mutation, not the final
 proof claim. It changes HEAD, so local proof, proposal/hosted verification, and
-dual-provider publication must be rebound to the post-archive commit before
-Exit 7 can hold.
+dual-provider publication execute once on the post-archive commit. The archived
+task bodies preserve execution history only; accepted capability specs and fresh
+Facts recompile the Phase 7 effects, whose completion is stated only by HEAD-bound
+Attestations and receipts. Archived history is neither authority nor a progress
+store.
 
 ### Independent Fact-Boundary Closure
 
@@ -136,7 +139,7 @@ They close here rather than surviving as a second current document.
 | Product behavior uses one `src/ethos` distribution with narrow modules; adopter semantics remain in profiles or adopter repositories | superseded | product boundary and isomorphic adopter governance; `F.3`, `3.5`, `5.3`, `6.7` | package, module-boundary, and three-adopter gates |
 | Domain contracts remain profile data rather than ETHOS assumptions | absorbed | product contract and profile schemas; `6.7`, `6.8` | profile isolation and schema conformance |
 | Superpowers and host capabilities remain optional observations, never durable repository truth | absorbed | product contract and method-pack boundary; `F.7`, `4.4`, `5.5` | authority and method-pack architecture tests |
-| OpenSpec remains a selectable self-profile carrier whose official CLI owns validation and archive | absorbed | OpenSpec adapter boundary; `F.9`, `4.1`, `7.5` | official strict validation and archive receipt |
+| OpenSpec remains a selectable self-profile carrier whose official CLI owns validation and archive | absorbed | OpenSpec adapter boundary; `F.9`, `4.1`, `6.10` | official strict validation and archive receipt |
 | Backlog, execution runtimes, generators, and scaffolds require a proved consumer and net deletion | deferred | adapter admission; `6.9` | consumer, uninstall, and dependency gates |
 | Product behavior does not migrate into `tools/`; adopter `tools/agent` content is classified during adoption | absorbed | semantic module ownership and adopter classification; `5.3`, `6.7` | module-boundary and adopter report gates |
 | `.mailmap` and package-root re-exports remain absent | absorbed | repository hygiene; `6.6` | architecture scans |
@@ -158,7 +161,7 @@ without dropping its underlying concern.
 | CL-005 | deferred | `4.4`, `6.9` | host capabilities are optional facts or adapters and never repository truth | profile/adopter conformance |
 | CL-006 | deferred | `6.9` | backlog intake requires a real adopter proving unique need and net deletion | adapter admission and uninstall proof |
 | CL-007 | absorbed | `6.7` | adoption classifies native tool surfaces without productizing adopter vocabulary | three-adopter adoption reports |
-| CL-008 | superseded | `F.9`, `4.1`, `7.5` | official OpenSpec owns validation and archive; ETHOS owns only self-profile observation | official strict validation and lifecycle tests |
+| CL-008 | superseded | `F.9`, `4.1`, `6.10` | official OpenSpec owns validation and archive; ETHOS owns only self-profile observation | official strict validation and lifecycle tests |
 | CL-009 | absorbed | `5.5` | capability coverage, overlap, novelty, and retirement checks evolve the taxonomy | spec coverage and overlap gates |
 | CL-010 | superseded | `2.1`, `3.2`, `5.2` | open predicates, model promotion, and Attestations replace an evolution ledger runtime | model-gap and Attestation tests |
 | CL-011 | absorbed | `3.1`, `6.1` | one TransitionPlan compiler and declared gate owners | plan determinism and gate execution tests |
@@ -232,7 +235,7 @@ here.
 | `7.2` | absorbed | `7.3` | one proposal and two independent hosted planes remain required |
 | `7.3` | absorbed | `7.4` | protected refs, release, tag, and artifacts bind one commit |
 | `7.4` | absorbed | `7.2` | local candidate/dev closeout and lane retirement precede proposal publication |
-| `7.5` | absorbed | `7.5` | official OpenSpec archive is the last source mutation; proof and provider publication are re-executed on its resulting HEAD |
+| `7.5` | superseded | `6.10` | official OpenSpec archive is the last source mutation before the sole proof and provider publication sequence |
 | `0.2.1` | superseded | `0.2` | normalize the current Phase 0 coordinate after the legacy `0.2` source-budget obligation moved permanently to `F.10` |
 | `0.3.1` | superseded | `0.3` | normalize the current Phase 0 coordinate after the legacy `0.3` readiness obligation moved permanently to `F.11` |
 
@@ -280,5 +283,6 @@ here.
 5. Reclassify and absorb docs, DRs, rules, skills, schemas, CI, records,
    evidence, and OpenSpec material; delete only after semantic proof.
 6. Collapse quality/supply-chain tooling, remove warnings/suppressions, prove
-   three adopter shapes and portable interfaces, then run one local and one
-   dual-provider campaign closeout.
+   three adopter shapes and portable interfaces, archive as the final source
+   mutation, then run one local and one dual-provider campaign closeout on that
+   immutable HEAD.

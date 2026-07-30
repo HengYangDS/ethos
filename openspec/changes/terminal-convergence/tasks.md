@@ -232,9 +232,18 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
   net deletion. Execution budgets count only verified terminal-state delta;
   repeated failures, weak evidence, carrier shifts, excess concurrency, or an
   unsuitable model tier trigger an explicit stop, downgrade, or replanning verdict.
+- [ ] 6.10 Archive this Change through the official owner-native OpenSpec action
+  as the final tracked source mutation. Bind the returned archive path, warnings,
+  no-op state, and resulting HEAD. In JSON mode, first preserve the expected
+  `archive_tasks_incomplete` preflight, then use the official `--yes`
+  acknowledgement with validation still enabled; after this freeze, Phase 7
+  effects are recompiled from the accepted capability specs and current Facts,
+  then close through HEAD-bound Attestations and receipts. Archived task history
+  preserves evidence only and never remains a current execution owner.
 
 **Exit 6:** all repository surfaces satisfy the terminal quality floor and the
-same kernel relation is proved across three adopter forms and portable interfaces.
+same kernel relation is proved across three adopter forms and portable interfaces;
+the owner-native archive commit is the sole terminal source HEAD.
 
 ## 7. Close The Campaign Once
 
@@ -252,11 +261,8 @@ same kernel relation is proved across three adopter forms and portable interface
 - [ ] 7.4 Publish protected `dev`, release protected default `main`, and verify
   the same commit, version, signed tag, SBOM, provenance, and artifact digests on
   both providers.
-- [ ] 7.5 Archive this Change through the official owner-native OpenSpec action
-  only after all local, hosted, publication, lane, and record facts are proven.
-
 **Exit 7:** terminal source, local installation, protected refs, hosted CI/CD,
 release artifacts, records, lanes, and OpenSpec history all bind one terminal
-commit; because `7.5` changes HEAD, the local, hosted, and publication predicates
-are re-executed on that post-archive commit before this exit is checked; no
-required work or compatibility residue remains.
+commit; every local, hosted, and publication predicate is executed only on the
+post-archive HEAD, and no second proposal, release sequence, required work, or
+compatibility residue remains.

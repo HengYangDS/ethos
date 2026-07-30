@@ -89,11 +89,7 @@ def completed_active_changes_report(root: Path) -> dict[str, object]:
         if rows is None and not required_gaps:
             required_gaps.append("openspec_list_unreadable")
         completed_changes = (
-            []
-            if rows is None
-            else [
-                item["name"] for item in rows if item["status"] in {"complete", "completed", "done"}
-            ]
+            [] if rows is None else [item["name"] for item in rows if item["status"] == "complete"]
         )
         required_gaps.extend(
             f"openspec_completed_change_unarchived:{name}" for name in completed_changes

@@ -7,9 +7,9 @@ summary = "The tracked change keeps generic adopter audits outside product-only 
 
 [evidence]
 dated = "evidence/chronicle/runtime-files-version-manifest-20260730/2026-07-30.md"
-sha256 = "20bb6526fe6397d9dbc7ade2a7db99b0b814103b65c7e1cdf2f7fd53438bebbb"
+sha256 = "12c86ade58e5c444174869a88a8c7518ac6e49ba29d4fb6647f07686c78c5ce6"
 evidence_ids = ["evidence:runtime-files-version-manifest-20260730"]
-binding = "This digest-only Claim binds the active OpenSpec Change, focused regression, source boundary, adoption documentation, and dated Chronicle. It makes no statement about promotion, forge delivery, hosted execution, or adopter deployment."
+binding = "This digest-only Claim binds the archived OpenSpec Change, focused regression, source boundary, adoption documentation, and dated Chronicle. It makes no statement about promotion, forge delivery, hosted execution, or adopter deployment."
 verifier = "digest_only"
 tests = [
   "PYTHONWARNINGS=error tools/ci/scripts/run-python-tests.sh tests/unit/release/test_policy_attestation.py tests/unit/audit/test_coupling.py tests/unit/governance/test_claims_release_authority_more.py tests/unit/governance/validation/test_schemas.py",
@@ -27,7 +27,7 @@ owner = "ethos-repository"
 scope = "Product/adopter release-policy selection and one runtime-files metadata reader; no universal release schema, packaging conversion, remote mutation, hosted claim, or foreign-lane action."
 
 [carriers]
-openspec = "openspec/changes/runtime-files-version-manifest"
+openspec = "openspec/changes/archive/2026-07-30-runtime-files-version-manifest"
 fallback = "Treat non-product roots as neutral coupling subjects and return a structured invalid-version gap when direct release identity cannot be proven."
 kill_signal = "A generic pyproject.toml reactivates product-only release policy, an unsupported metadata shape is guessed, or a local audit result is described as publication or deployment."
 
@@ -53,7 +53,7 @@ path = "openspec/specs/adapters/spec.md"
 
 [[promotion.targets]]
 kind = "openspec"
-path = "openspec/changes/runtime-files-version-manifest"
+path = "openspec/changes/archive/2026-07-30-runtime-files-version-manifest"
 
 [[promotion.targets]]
 kind = "evidence"

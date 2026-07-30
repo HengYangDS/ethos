@@ -12,7 +12,8 @@
 
 - [ ] 1.1 Remove Commitment process fields, amendment APIs, effective-intent
   folds, closed Attestation kind algebra, and all schemas/tests/readers that
-  preserve them.
+  preserve them. Preserve ordinary assertion vocabulary and immutable historical
+  bytes without allowing either to authorize current effects.
 - [ ] 1.2 Make Attestation predicate/statement/bindings/validity/verifier the
   open immutable envelope; unknown predicates remain non-authorizing.
 - [ ] 1.3 Rename all transition inputs and digests to `commitment`; delete
@@ -38,8 +39,10 @@
 - [ ] 3.1 Reduce generic runtime to observe → extract → resolve → compile →
   evaluate → CAS apply → post-observe → attest → project.
 - [ ] 3.2 Move fixed command phases, campaign state, task/progress state,
-  decision ledgers, claim/chronicle/proof-record planes, and lifecycle read
-  models out of generic runtime; delete their current readers and schemas.
+  decision ledgers, lifecycle read models, and the current producers, readers,
+  schemas, and authorization semantics of claim/chronicle/proof-record planes
+  out of generic runtime; retain required historical bytes as non-authorizing
+  history.
 - [ ] 3.3 Keep Git effects idempotent and exact-CAS; produce Attestations for
   judgments/effects and use only explicit replay analysis outside admission.
 

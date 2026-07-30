@@ -8,14 +8,14 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
 - **WHEN** a lease is acquired, renewed, resumed, locally handed off, expires, or
   the same holder retires a clean mechanically proven landed lane
 - **THEN** ETHOS uses ignored local coordination and postcondition receipts
-- **AND** no tracked Chronicle decision is required.
+- **AND** no tracked historical Chronicle record is required.
 
 #### Scenario: exceptional cleanup consumes prior accepted judgment
 
 - **WHEN** orphan recovery, foreign retirement, non-mechanical supersession,
   disputed handoff, preserve, block, or irreversible deletion is requested
 - **THEN** a separate owned governance Work Lane has already promoted a
-  Chronicle decision binding policy, evidence, exact head, lane-incarnation
+  valid Attestation binding policy, evidence, exact head, lane-incarnation
   digest, disposition, recovery plan, and target-observation digest
 - **AND** cleanup recomputes the mutable target facts before its first
   destructive step
@@ -38,23 +38,24 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
   identity, exact target/head, reason, blast radius, expiry, preservation
   default, and postcondition plan
 - **WHEN** an emergency command independently verifies those facts and acts
-  before a new Chronicle decision can be promoted
+  before a new judgment Attestation can be issued
 - **THEN** it emits a digest-bound receipt and blocks later integration and
   publication
 - **AND** a separate governance Work Lane promotes post-hoc judgment and
   reconciles residue before the block clears
 - **AND** a self-supplied flag or holder string is insufficient.
 
-#### Scenario: lane handoff is recorded as Chronicle resolution
+#### Scenario: exceptional lane handoff is attested
 
 - **GIVEN** a Work Lane handoff cannot be resolved by the normal local
   offer/accept protocol or becomes disputed
 - **WHEN** an accepted exceptional judgment resolves the handoff
-- **THEN** ETHOS records a Chronicle `decision` event binding the prior and next
-  holder observations, evidence, exact head, lane-incarnation digest, and result
+- **THEN** ETHOS records an Attestation with predicate
+  `lane_resolution/handoff` binding the prior and next holder observations,
+  evidence, exact head, lane-incarnation digest, and result
 - **AND** routine local handoff remains ignored coordination and does not require
-  tracked Chronicle telemetry
-- **AND** the decision does not replace the active destination-local Lane Lease.
+  tracked historical Chronicle telemetry
+- **AND** the Attestation does not replace the active destination-local Lane Lease.
 
 #### Scenario: orphan audit produces a decision, not a persistent orphan state
 
@@ -72,7 +73,7 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
 - **GIVEN** one clean ownerless source Work Lane has diverged because its
   historical evidence and carrier bytes differ from an independently accepted
   current-baseline implementation of its useful behavior
-- **AND** a target-specific accepted Claim and Chronicle bind its exact ref,
+- **AND** a target-specific valid Attestation binds its exact ref,
   exact source head, semantic basis, recovery plan, and `lane_resolution/retire`
   policy
 - **WHEN** the native resolver records and applies a fresh decision for that
@@ -138,7 +139,7 @@ Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashbo
 
 - **WHEN** a lane lease is created, renewed, resumed, or handed off
 - **THEN** it binds a random local lane-incarnation ID, lease ID, structured
-  holder reference, epoch, issuance, renewal, expiry, and optional claim/scope
+  holder reference, epoch, issuance, renewal, expiry, and optional path scope
 - **AND** one lane incarnation has at most one current writer holder
 - **AND** renewal preserves holder, lease ID, and epoch while handoff changes
   holder and increments epoch
@@ -201,7 +202,7 @@ Collaboration and competition SHALL derive from scope conflict, capacity, risk, 
 - **GIVEN** a maintainer requests convergence of multiple existing Work Lanes
 - **WHEN** the program begins
 - **THEN** a separate owned governance Work Lane records the exact branch, HEAD,
-  worktree binding, dirty state, lease/incarnation evidence, claim binding,
+  worktree binding, dirty state, lease/incarnation evidence, Attestation binding,
   intended disposition, and target-observation evidence for each lane
 - **AND** later-created refs are outside the cohort unless separately admitted
 - **AND** every effect recomputes mutable target facts before mutation.
@@ -228,8 +229,8 @@ Collaboration and competition SHALL derive from scope conflict, capacity, risk, 
 - **GIVEN** a cohort lane is dirty, missing trusted lease state, owner-uncertain,
   or requires irreversible retirement
 - **WHEN** the lane is resolved
-- **THEN** an accepted Chronicle has already bound the exact policy and target
-- **AND** a fresh two-phase decision binds one exact observation and recovery
+- **THEN** a valid Attestation has already bound the exact policy and target
+- **AND** a fresh two-phase judgment binds one exact observation and recovery
   plan
 - **AND** dirty content is preserved before retirement
 - **AND** a stale observation blocks the effect instead of falling back to raw
@@ -253,7 +254,7 @@ Collaboration and competition SHALL derive from scope conflict, capacity, risk, 
 A carrier SHALL be retired only when it is non-current, has no active inbound or runtime consumer, has an absorbed or void semantic delta, and has required preservation.
 
 #### Scenario: Retirement readiness is inspected
-- **WHEN** `ethos fleet retirement-readiness --target <repo> --json` runs
+- **WHEN** a target carrier is evaluated for retirement
 - **THEN** ETHOS reads the target repository's `.ethos/profile.toml`
 - **AND** validates declared binding roots such as `.config/`
 - **AND** rejects profile-declared forbidden product-core adopter roots in the
@@ -279,8 +280,9 @@ A carrier SHALL be retired only when it is non-current, has no active inbound or
 Contradictions, stale projections, and model gaps SHALL promote the affected boundary and recompile dependent projections before retirement.
 
 #### Scenario: Hypotheses are inspected
-- **WHEN** `ethos campaign hypotheses --json` runs
-- **THEN** hypotheses include campaign, state, claim, and challenge fields
+- **WHEN** a Commitment containing hypotheses is compiled
+- **THEN** hypotheses remain immutable planning inputs rather than authority
+- **AND** only a valid Attestation may establish an accepted experimental result
 
 #### Scenario: a taxonomy cannot classify a valid observation
 - **WHEN** classification would discard or distort a valid distinction

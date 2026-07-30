@@ -26,6 +26,14 @@ Commands SHALL project one mechanism: observe, extract, resolve, compile, evalua
 - **WHEN** a profile renders status and plan
 - **THEN** both views derive from the same selected Commitment, fresh Facts, and TransitionPlan
 
+#### Scenario: the self profile selects OpenSpec
+- **WHEN** the ETHOS self profile selects OpenSpec as its native intent carrier
+- **THEN** the official OpenSpec CLI validates and archives that carrier
+- **AND** `ethos status`, `ethos plan`, and `ethos prove` consume adapter
+  observations without registering an `ethos openspec` public root
+- **AND** an adopter selecting another native carrier requires no `openspec/`
+  directory or OpenSpec installation
+
 ### Requirement: Proof Command State Semantics
 Verdicts SHALL be compact and truthful: `pass`, `block`, or `unknown`; unknown required facts block effects.
 
@@ -43,28 +51,24 @@ Verdicts SHALL be compact and truthful: `pass`, `block`, or `unknown`; unknown r
 - **WHEN** a required observation cannot be verified
 - **THEN** the command returns `unknown` and blocks the requested effect
 
+## REMOVED Requirements
+
+### Requirement: Self OpenSpec Lifecycle Mode
+
+**Reason**: A carrier-specific public command creates a seventh workflow root
+and embeds the ETHOS self profile in the generic product command plane.
+
+**Migration**: The official OpenSpec CLI owns carrier validation and archival;
+the six public ETHOS commands consume profile-adapter observations.
+
+**Replacement**: Public Command Plane
+
 ### Requirement: ETHOS OpenSpec adapter remains under one command plane
-Native carriers SHALL be profile-selected. OpenSpec is optional for ETHOS self-governance and SHALL not be a generic adopter prerequisite.
 
-#### Scenario: OpenSpec adapter composes official and ETHOS checks
-- **WHEN** `ethos openspec --lifecycle --json` runs
-- **THEN** the payload includes official OpenSpec doctor, status, and strict
-  validation results
-- **AND** it includes ETHOS lifecycle carrier review for proposal, design,
-  tasks, delta specs, capability profiles, Commitment validity, evidence refs, and
-  live-spec diff guards
+**Reason**: Exposing `ethos openspec` makes an optional self-profile adapter a
+public lifecycle owner.
 
-#### Scenario: OpenSpec adapter does not become a second public command plane
-- **WHEN** ETHOS reports OpenSpec governance gaps
-- **THEN** the next action enters through an `ethos ...` command
-- **AND** raw OpenSpec CLI commands remain adapter implementation detail or
-  maintainer reference rather than the adopter first-hour workflow
+**Migration**: Keep OpenSpec behind the selected profile adapter and report its
+required facts through `status`, `plan`, and `prove`.
 
-#### Scenario: Lifecycle semantics use OpenSpec as carrier
-- **WHEN** lifecycle or transition semantics are changed
-- **THEN** an OpenSpec change carrier records the intent and deltas
-- **AND** official OpenSpec validation remains carrier validation rather than runtime authority
-
-#### Scenario: an adopter has no OpenSpec directory
-- **WHEN** an adopter selects another native carrier
-- **THEN** it can compile and prove a transition without an `openspec/` directory
+**Replacement**: Public Command Plane

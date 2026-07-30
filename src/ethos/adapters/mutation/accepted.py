@@ -9,7 +9,6 @@ from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.marker import MarkerExpectation
 from ethos.adapters.admission.closeout_intent.marker import execute_closeout_effect
 from ethos.adapters.admission.closeout_intent.marker import sweep_stale_closeout_intents
-from ethos.adapters.mutation.attestation_projection import attestation_payload
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_plan_for_attestation
 from ethos.adapters.repo.git import is_ancestor
@@ -152,8 +151,8 @@ def _apply_candidate_promotion(*, root, policy, status, heads, context):
             "source_branch": policy.candidate_branch,
             "head": candidate_head,
             "previous_head": current_head,
-            "attestation": attestation_payload(cast("Attestation", attestation), kind="effect"),
-            "attestations": [attestation_payload(item, kind="effect") for item in attestations],
+            "attestation": cast("Attestation", attestation).model_dump(mode="json"),
+            "attestations": [item.model_dump(mode="json") for item in attestations],
             "release_mirror": mirror_result,
             "required_gaps": [],
         }
@@ -206,7 +205,7 @@ def _mirror_bootstrap_result(*, root, policy, candidate_head, transitions, conte
                 candidate_head=candidate_head,
                 accepted_advanced=True,
                 stderr=mirror_attestation,
-                attestation=attestation_payload(attestation, kind="effect"),
+                attestation=attestation.model_dump(mode="json"),
             ),
             attestations,
         )
@@ -270,7 +269,7 @@ def _accepted_sync_blocker(root, policy, current_head, candidate_head, attestati
         accepted_advanced=True,
         status=synced.get("status", ""),
         stderr=synced.get("stderr", ""),
-        attestation=attestation_payload(attestation, kind="effect"),
+        attestation=attestation.model_dump(mode="json"),
     )
 
 

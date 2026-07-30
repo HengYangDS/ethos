@@ -146,7 +146,7 @@ subjects = ["repository:test"]
     assert load_commitment(tmp_path).id == "repository:test"
 
 
-def test_commitment_ignores_legacy_scope_companion(tmp_path: Path) -> None:
+def test_unselected_scope_file_does_not_override_commitment(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "commitment.toml").write_text(
         """schema_version = 1

@@ -110,7 +110,7 @@ A successful effect SHALL be followed by fresh observation and an Attestation bi
 
 #### Scenario: historical carriers can no longer be parsed
 - **WHEN** a historical OpenSpec or policy layout has changed
-- **THEN** an already closed Attestation remains verifiable through its bindings
+- **THEN** an already issued Attestation remains verifiable through its bindings
 - **AND** admission does not re-run the historical workflow to authorize a new effect
 
 ### Requirement: Official OpenSpec Lifecycle Adapter

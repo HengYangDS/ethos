@@ -16,7 +16,6 @@ import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.adapters.mutation.attestation_projection import attestation_payload
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
@@ -320,9 +319,7 @@ def prove(
     lifecycle_summary = cast("dict[str, object]", openspec_lifecycle.get("summary") or {})
     lifecycle_change_count = lifecycle_summary.get("change_count")
     check_summaries = _check_summaries(checks)
-    attestation_projection = (
-        attestation_payload(attestation, kind="proof") if attestation is not None else {}
-    )
+    attestation_data = attestation.model_dump(mode="json") if attestation is not None else {}
     artifact = attestation.statement.get("artifact") if attestation is not None else {}
     artifact_reference = dict(artifact) if isinstance(artifact, Mapping) else {}
     data = (
@@ -337,7 +334,7 @@ def prove(
             "scope_binding": scope_binding,
             "host_probe": host_probe,
             "transition_plan": plan.to_dict(),
-            "attestation": attestation_projection,
+            "attestation": attestation_data,
             "artifact_reference": artifact_reference,
             "checks": check_summaries,
             "expected_head": {
@@ -370,7 +367,7 @@ def prove(
                 ),
                 "required_gaps": list(string_sequence(openspec_lifecycle.get("required_gaps"))),
             },
-            "attestation": attestation_projection,
+            "attestation": attestation_data,
             "artifact_reference": artifact_reference,
             "checks": check_summaries,
             "expected_head": {

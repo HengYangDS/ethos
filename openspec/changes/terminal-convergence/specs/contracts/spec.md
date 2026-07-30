@@ -22,6 +22,12 @@ Commitment and Attestation SHALL be the sole portable persistent semantic contra
   dependence
 - **AND** mutation requires a new value rather than changing an existing root
 
+#### Scenario: an Attestation crosses a public boundary
+- **WHEN** CLI, SDK, subprocess JSON, or an adapter projects an Attestation
+- **THEN** it serializes the canonical open envelope directly
+- **AND** caller-selected `kind`, duplicate `content`, `mints_authority`,
+  amendment, sequence, or prior-digest compatibility fields are absent
+
 ### Requirement: Governed Repository Context Contract
 A Commitment SHALL be immutable identity and intent. Changed scope or intent SHALL create a new Commitment; no amendment chain is a persistent root.
 

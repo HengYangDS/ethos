@@ -61,7 +61,7 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
     assert payload["state"] == "gapped"
     assert "gate_failed:docs-registry" in payload["required_gaps"]
     attestation = payload["data"]["attestation"]
-    assert attestation["kind"] == "proof"
+    assert attestation["predicate"] == "proof:execution"
     assert attestation["subject"] == f"git:commit:{git(repo, 'rev-parse', 'HEAD')}"
     assert attestation["verdict"] == "block"
     assert len(attestation["commitment_digest"]) == 64
@@ -70,6 +70,7 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
     assert len(attestation["policy_digest"]) == 64
     assert len(attestation["effect_digest"]) == 64
     assert attestation["evidence_refs"] == [f"sha256:{attestation['effect_digest']}"]
+    assert not {"kind", "content", "mints_authority"} & set(attestation)
     assert "evidence" not in payload["data"]
     assert "provenance" not in payload["data"]
 

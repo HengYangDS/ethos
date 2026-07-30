@@ -12,6 +12,7 @@
 ## 3. Verification and closeout
 
 - [x] 3.1 Run focused release, coupling, schema, and adopter CLI regressions.
-- [ ] 3.2 Run strict OpenSpec validation, refresh parity, and execute exact-HEAD
+- [x] 3.2 Run strict OpenSpec validation, refresh parity, and execute exact-HEAD
   proof.
-- [ ] 3.3 Archive, land, close out accepted root, and retire the Work Lane.
+- [x] 3.3 Confirm archive readiness; archive, land, accepted-root closeout,
+  and Work Lane retirement remain the following governed transitions.

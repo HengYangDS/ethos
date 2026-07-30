@@ -89,12 +89,16 @@ def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
     ]
 
 
-def test_topology_report_blocks_tracked_untracked_lifecycle_home(tmp_path: Path) -> None:
+def test_topology_report_blocks_tracked_untracked_lifecycle_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo = init_repo(tmp_path / "repo")
+    foreign = init_repo(tmp_path / "foreign")
     path = repo / "build/evidence/proof.json"
     path.parent.mkdir(parents=True)
     path.write_text("{}\n", encoding="utf-8")
     git(repo, "add", "-f", path.relative_to(repo).as_posix())
+    monkeypatch.setenv("GIT_DIR", git(foreign, "rev-parse", "--absolute-git-dir"))
 
     report = generated_artifact_topology_report(repo)
 

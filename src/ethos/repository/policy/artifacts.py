@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import subprocess
+from os import devnull
+from os import environ
 from os import walk
 from pathlib import Path
+from shutil import which
 from typing import Any
 
-from ethos.adapters.repo.git import run_git
 from ethos.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos.contracts.artifacts.topology import generated_artifact_contract
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
@@ -16,9 +18,8 @@ from ethos.repository.policy.artifact_entrypoints import generated_artifact_entr
 
 _ROOT_TEST_RESIDUE_FILENAMES = frozenset({".coverage", "coverage.xml", "junit.xml"})
 _ROOT_TEST_RESIDUE_PREFIXES = (".coverage.",)
-
-
 _PRUNE_DIRS = frozenset({".git", ".pixi", ".venv", "__pycache__", "node_modules"})
+_GIT = which("git") or "git"
 
 
 def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
@@ -189,20 +190,31 @@ def _tracked_untracked_paths(
         if not lifecycle.tracked
         for home in lifecycle.homes
     )
-    completed = run_git(root, "ls-files", "--", *homes, check=False)
+    completed = _git_observation(root, "ls-files", "--", *homes)
     return sorted(
         path for path in completed.stdout.splitlines() if path and path != ".ethos/state/.gitignore"
     )
 
 
 def _git_status_check(root: Path, *args: str) -> bool:
-    return (
-        subprocess.run(
-            ("git", *args),
-            cwd=root,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        ).returncode
-        == 0
+    return _git_observation(root, *args).returncode == 0
+
+
+def _git_observation(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Read Git facts without inheriting a caller hook's repository binding."""
+    environment = {key: value for key, value in environ.items() if not key.startswith("GIT_")}
+    environment.update(
+        GIT_NO_REPLACE_OBJECTS="1",
+        GIT_OPTIONAL_LOCKS="0",
+        GIT_CONFIG_NOSYSTEM="1",
+        GIT_CONFIG_GLOBAL=devnull,
+        GIT_ATTR_NOSYSTEM="1",
+    )
+    return subprocess.run(
+        (_GIT, *args),
+        cwd=root,
+        capture_output=True,
+        check=False,
+        text=True,
+        env=environment,
     )

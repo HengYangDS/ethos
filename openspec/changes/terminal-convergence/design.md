@@ -170,7 +170,7 @@ without dropping its underlying concern.
 | CL-005 | deferred | `4.4`, `6.9` | host capabilities are optional facts or adapters and never repository truth | profile/adopter conformance |
 | CL-006 | deferred | `6.9` | backlog intake requires a real adopter proving unique need and net deletion | adapter admission and uninstall proof |
 | CL-007 | absorbed | `6.7` | adoption classifies native tool surfaces without productizing adopter vocabulary | three-adopter adoption reports |
-| CL-008 | superseded | `F.9`, `4.1`, `6.10` | official OpenSpec owns validation and archive; ETHOS owns only self-profile observation | official strict validation and lifecycle tests |
+| CL-008 | superseded | `F.9`, `4.1`, `6.10` | official OpenSpec owns the complete adopter Change lifecycle; ETHOS owns admission, proof, and effects | official strict validation and lifecycle tests |
 | CL-009 | absorbed | `5.5` | capability coverage, overlap, novelty, and retirement checks evolve the taxonomy | spec coverage and overlap gates |
 | CL-010 | superseded | `2.1`, `3.2`, `5.2` | open predicates, model promotion, and Attestations replace an evolution ledger runtime | model-gap and Attestation tests |
 | CL-011 | absorbed | `3.1`, `6.1` | one TransitionPlan compiler and declared gate owners | plan determinism and gate execution tests |
@@ -248,12 +248,33 @@ here.
 | `0.2.1` | superseded | `0.2` | normalize the current Phase 0 coordinate after the legacy `0.2` source-budget obligation moved permanently to `F.10` |
 | `0.3.1` | superseded | `0.3` | normalize the current Phase 0 coordinate after the legacy `0.3` readiness obligation moved permanently to `F.11` |
 
+## Post-cutover Task Refinement
+
+`tasks.md` remains the sole current execution truth. This table records only
+exact historical body transitions required to absorb later explicit rulings;
+it cannot set completion, priority, or progress. Every body change after the
+cutover must bind its task coordinate and normalized predecessor/successor
+SHA-256 here, completed task bodies remain immutable, completion never moves
+backward, and an unobserved or unregistered row fails the architecture gate.
+
+| Task | Prior body SHA-256 | Successor body SHA-256 | Disposition | Ruling |
+| --- | --- | --- | --- | --- |
+| `4.1` | `b7918d4d35027a9193c1b5424b1abfe58ddd11f44fa824b2c751782cfa942e7c` | `b301e40fa59dc5bd192d169f033515d9879e78ec8d1a50a17dceca1884c5a3da` | clarified | OpenSpec 1.7 characterization, nested specs, artifact dependencies, and removal of the 1.6 reader became explicit acceptance obligations. |
+| `6.10` | `9fe10d07717cf56b5696e8e4fc0ed91737e060de10e8e89121f78ba01a0d49c6` | `6dfc3d418c1b630624d1281111cf564cc6dc1f605b80ed511fe184c70a8c8905` | clarified | Official 1.7 archive edge cases and fail-closed validation became explicit acceptance obligations. |
+| `4.1` | `b301e40fa59dc5bd192d169f033515d9879e78ec8d1a50a17dceca1884c5a3da` | `3c12cf104f3867dbe7e926b9622390117c81b008cc496bc693ab73eae817e64f` | superseded | The later product ruling keeps the kernel vendor-neutral but requires verified OpenSpec for every mutation-capable complete adopter. |
+| `5.5` | `2dc34a5e4de059a8618df1f59425c54274d72774235e8aa7f11e27f210238c6b` | `ca758f3eca189fda18b6607775156f998eb4eb1ee67cf556d7a434ceae5d8b0d` | clarified | Official OpenSpec Skills are generated projections and cannot own task or lifecycle authority. |
+| `6.1` | `d1af42bbc127276837574e07e7119acf7abe0f5d01f3bfd3c6b36d0be1e2cc0d` | `e27506e17c7d959264d3a94f0e5d92f49fc791ba414d9b42aeb7326143229001` | clarified | Direct dependency floors, immutable non-Python identities, and lock ownership became explicit supply-chain obligations. |
+| `6.5` | `69b7dbe3409998637d2c193c19cc5830fdd774829d2ad35340963baeab2a39a0` | `a0877a0bd062cd77cdf546c3f8fe11b220399626382832aa2bdbbdf93ae5213a` | clarified | One online refresh owns latest-stable proposals while normal proof remains offline and lock-bound. |
+| `6.7` | `6176a543b092c496d3f098e539fc0e4afb287c77bd507abeaa4295f3fa7192f6` | `9c76a47117bceb83cf2e0490d1d940cb75d4b4d4765f1504a8dd64f3b3517b5e` | superseded | The later adoption ruling limits no-OpenSpec operation to observation-only repositories and requires the full OpenSpec lifecycle for governed mutation. |
+| `6.9` | `a17de7104426643874350289628855d3c8b771467669b7ec5b3f6ee155c0034a` | `7144cc607c7c0f178601edc7eb7744565b695b7aede85d4b21733426b7405456` | clarified | Spec Kit is excluded from the core and COMET remains only an external candidate under the existing consumer and net-deletion bar. |
+| `6.10` | `6dfc3d418c1b630624d1281111cf564cc6dc1f605b80ed511fe184c70a8c8905` | `4f126e51c7c545b72e4bb02c17847ef5faa25e5b590a7af2389045c392ae72bd` | clarified | The archive receipt must bind the exact effective OpenSpec 1.7 executable and tool version. |
+
 ## Alternatives Considered
 
 | Alternative | Decision | Reason |
 | --- | --- | --- |
 | Rename legacy concepts in place | Rejected | Labels do not remove parallel authority or historical re-evaluation. |
-| Make every repository use OpenSpec | Rejected | It confuses ETHOS self governance with the general product boundary. |
+| Shape the semantic kernel with OpenSpec types | Rejected | The kernel remains vendor-neutral while complete mutation-capable adoption deliberately standardizes on OpenSpec. |
 | Keep a global authority order | Rejected | Different subjects and planes require simultaneous local authorities. |
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |
@@ -268,8 +289,8 @@ here.
   retain dual evaluators or dual readers.
 - **Deletion can lose unique meaning.** Inventory independent semantic deltas
   before deletion; preserve history where required and prove no active consumer.
-- **Optional OpenSpec can regress the self profile.** Keep self-profile adapter
-  scenarios while proving a no-OpenSpec adopter path.
+- **OpenSpec drift can split the Change lifecycle.** Pin and characterize 1.7
+  for every complete adopter; observation-only repositories fail closed before mutation.
 - **Parallel work can race.** Use exact scopes, fresh facts, resource leases,
   and short CAS integration; never infer ownership from visibility.
 - **Projection drift can conceal inconsistency.** Require declared source

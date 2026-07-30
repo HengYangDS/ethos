@@ -54,7 +54,7 @@ def plan_from_statement(attestation: Attestation) -> TransitionPlan:
         message = "proof_attestation_plan_missing"
         raise TypeError(message)
     try:
-        plan = _closure_plan(closure)
+        plan = _closure_plan(string_mapping(closure))
     except (KeyError, TypeError, ValueError) as error:
         message = "proof_attestation_plan_invalid"
         raise ValueError(message) from error

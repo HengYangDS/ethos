@@ -67,13 +67,157 @@ new product ontology.
     are `model_gap` and block retirement and campaign closeout. This closure is
     compiled from tracked carriers and current instructions; it is not another
     persistent ledger or task store.
-12. **Stable execution identity and evidence.** Task identifiers are never
-    reused or renumbered to make a redesign appear incomplete or complete.
-    Refinement preserves completed state and its commit or proof evidence,
-    explicitly supersedes obsolete tasks, and adds newly discovered work under
-    new identifiers. The first incomplete task is the campaign critical path;
-    every phase has an observable exit condition, and elapsed activity without
-    a terminal-state delta is not progress.
+12. **Stable obligation identity and ordered coordinates.** Numeric task labels
+    are continuous phase-local coordinates, not durable semantic identities.
+    Refinement preserves each obligation, completed state, and commit or proof
+    evidence; coordinate normalization requires an explicit predecessor and
+    disposition mapping. A prior obligation sharing that coordinate moves to an
+    explicit successor set; if it was completed, at least one successor is a
+    completed Foundation identity. Silent reuse, renumbering to reset progress,
+    or unmapped deletion is forbidden. The first incomplete task is the campaign
+    critical path; every phase has an observable exit condition, and elapsed
+    activity without a terminal-state delta is not progress.
+
+## Carrier Disposition
+
+This is the cutover inventory, not a new registry. Each row classifies one
+MECE carrier family by an ordered tracked-path selector, names its current
+semantic owner, and binds unresolved work to the existing campaign task that
+must close before retirement. Earlier narrow selectors take precedence over
+the final explicit remainder; every tracked path resolves to exactly one row.
+
+| Selector | Carrier family | Disposition | Current owner | Remaining task | Acceptance / verifier |
+| --- | --- | --- | --- | --- | --- |
+| `docs/governance/product-design-contract.md`, `system/**` | Canonical product contract and machine declarations | absorbed | product contract and narrow machine declarations | `5.2` | design integrity, schema, and projection-drift gates |
+| `openspec/changes/terminal-convergence/**` | Active terminal OpenSpec Change | absorbed | official OpenSpec workspace plus this self-profile Change | `7.5` | official strict validation and owner-native archive |
+| `openspec/specs/**` | Accepted OpenSpec capability specs | deleted-after-proof | active terminal delta specs, then canonical capability specs | `5.1` | canonical spec cutover with no resurrected lifecycle owner |
+| `openspec/changes/archive/**` | Official OpenSpec archives | historical | immutable Git history | `5.6` | active readers exclude archives from authority |
+| `evidence/**` | Claims, Chronicle, and legacy evidence bytes | historical | immutable evidence plus future Attestation disposition | `5.6` | no current reader or policy authorizes legacy evidence |
+| `docs/history/**` | Superseded documentation history | historical | Git history and current documentation routing | `5.6` | links resolve and current docs exclude historical authority |
+| `docs/governance/conversation-ledger.md` | Conversation-derived requirement ledger | deleted-after-proof | this design, delta specs, stable tasks, and the fact-boundary closure below | `0.4` | all feedback and independent fact boundaries map to one owner and verifier |
+| `docs/decisions/**`, `docs/plans/**` | Decision records and plans | deleted-after-proof | flat DR metadata, Git history, and current OpenSpec tasks | `5.4`, `5.6` | DR grammar and absorptive retirement prove no parallel ledger |
+| `.agents/**`, `.config/**`, `.github/**`, `.gitlab/**`, `.gitlab-ci.yml`, `.githooks/**`, `.pre-commit-config.yaml`, `rules/**` | Rules, skills, checks, forge, hook, and provider projections | absorbed | their declared native owners | `5.5`, `5.7` | route-owner, drift, and provider-homomorphism checks |
+| `.ethos/**`, `.gitignore`, `.gitleaks.toml`, `AGENTS.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`, `README.md`, `assets/**`, `distributions/**`, `docs/**`, `openspec/README.md`, `openspec/config.yaml`, `openspec/changes/*`, `package-lock.json`, `package.json`, `pyproject.toml`, `ruff.toml`, `src/**`, `tests/**`, `tools/**`, `uv.lock` excluding every earlier selector | Remaining tracked product, documentation, source, tests, tools, distributions, and root declarations | absorbed | the narrow owner selected by routing and module boundaries | `5.1`, `5.3`, `6.1`, `6.6` | tracked-path partition, import boundaries, repository audit, and full proof |
+| linked `work/*` resources outside the tracked tree | Auxiliary and superseded Work Lanes | deleted-after-proof | exact native lane lifecycle | `0.7`, `4.6`, `7.2` | semantic absorption first; holder authority and exact retirement receipt independently |
+
+Deletion blocks while the named remaining task, a consumer, an independent
+semantic delta, or a `model_gap` remains. A historical disposition preserves
+bytes but grants no current authority.
+
+Task `0.7` is one outcome with two ordered admissions: campaign bytes are
+committed and equivalence-proved first; authority-bound retirement follows only
+after the auxiliary dirty bytes, holder, Lease, and exact target state are
+admitted. The second admission cannot erase or postpone the first, while the
+task remains incomplete until the native retirement receipt exists.
+
+### Independent Fact-Boundary Closure
+
+The superseded ledger also contained constraints outside CL-001 through CL-025.
+They close here rather than surviving as a second current document.
+
+| Constraint | Disposition | Current owner / task | Verifier |
+| --- | --- | --- | --- |
+| Product behavior uses one `src/ethos` distribution with narrow modules; adopter semantics remain in profiles or adopter repositories | superseded | product boundary and isomorphic adopter governance; `F.3`, `3.5`, `5.3`, `6.7` | package, module-boundary, and three-adopter gates |
+| Domain contracts remain profile data rather than ETHOS assumptions | absorbed | product contract and profile schemas; `6.7`, `6.8` | profile isolation and schema conformance |
+| Superpowers and host capabilities remain optional observations, never durable repository truth | absorbed | product contract and method-pack boundary; `F.7`, `4.4`, `5.5` | authority and method-pack architecture tests |
+| OpenSpec remains a selectable self-profile carrier whose official CLI owns validation and archive | absorbed | OpenSpec adapter boundary; `F.9`, `4.1`, `7.5` | official strict validation and archive receipt |
+| Backlog, execution runtimes, generators, and scaffolds require a proved consumer and net deletion | deferred | adapter admission; `6.9` | consumer, uninstall, and dependency gates |
+| Product behavior does not migrate into `tools/`; adopter `tools/agent` content is classified during adoption | absorbed | semantic module ownership and adopter classification; `5.3`, `6.7` | module-boundary and adopter report gates |
+| `.mailmap` and package-root re-exports remain absent | absorbed | repository hygiene; `6.6` | architecture scans |
+| Retired Subject/Contract/Transition/Inscription/Chronicle/Evolve vocabulary does not define the terminal kernel | superseded | Commitment, Facts, TransitionPlan, Attestation, and model promotion; `1.1` through `3.2` | kernel contract, authority, and lifecycle tests |
+
+## Accepted Feedback Closure
+
+The superseded conversation ledger is reduced here into current semantic
+owners. `deferred` means a concrete consumer must first satisfy task `6.9`;
+`superseded` means a later explicit terminal decision replaced the old shape
+without dropping its underlying concern.
+
+| Feedback | Disposition | Current tasks | Current semantic owner or reason | Verifier |
+| --- | --- | --- | --- | --- |
+| CL-001 | superseded | `5.3` | one `src/ethos` distribution with narrow semantic modules replaces package-count design | module-boundary and import-linter gates |
+| CL-002 | absorbed | `5.5`, `6.7` | skill quality and adopter proof | skill portfolio and adopter gates |
+| CL-003 | absorbed | `5.5` | skill activation remains a repository registry, never provider metadata | skill schema and projection-drift gates |
+| CL-004 | absorbed | `F.7`, `5.5` | Superpowers remains an optional observable method pack | method-pack authority architecture test |
+| CL-005 | deferred | `4.4`, `6.9` | host capabilities are optional facts or adapters and never repository truth | profile/adopter conformance |
+| CL-006 | deferred | `6.9` | backlog intake requires a real adopter proving unique need and net deletion | adapter admission and uninstall proof |
+| CL-007 | absorbed | `6.7` | adoption classifies native tool surfaces without productizing adopter vocabulary | three-adopter adoption reports |
+| CL-008 | superseded | `F.9`, `4.1`, `7.5` | official OpenSpec owns validation and archive; ETHOS owns only self-profile observation | official strict validation and lifecycle tests |
+| CL-009 | absorbed | `5.5` | capability coverage, overlap, novelty, and retirement checks evolve the taxonomy | spec coverage and overlap gates |
+| CL-010 | superseded | `2.1`, `3.2`, `5.2` | open predicates, model promotion, and Attestations replace an evolution ledger runtime | model-gap and Attestation tests |
+| CL-011 | absorbed | `3.1`, `6.1` | one TransitionPlan compiler and declared gate owners | plan determinism and gate execution tests |
+| CL-012 | absorbed | `6.1`, `6.4` | native format, artifact, evidence, and projection owners | full quality proof |
+| CL-013 | absorbed | `6.7` | three profile-bound reference adopter shapes | adopter conformance suite |
+| CL-014 | absorbed | `6.7`, `6.8` | portable contracts and profiles keep domain semantics outside the product | profile isolation and schema conformance |
+| CL-015 | absorbed | `7.1`, `7.2`, `7.3`, `7.4` | local, protected-ref, hosted, and publication proof remain separate planes | terminal closeout receipts |
+| CL-016 | absorbed | `7.4` | each provider verifies its own hosted signature and release facts | GitLab and GitHub release observations |
+| CL-017 | absorbed | `6.6` | repository hygiene forbids `.mailmap` unless a future explicit design changes the owner | repository hygiene architecture test |
+| CL-018 | rejected | `6.9` | history rewrite is not a standing product mechanism; any migration requires a separately admitted consumer | product-boundary gate |
+| CL-019 | absorbed | `5.1`, `5.4` | canonical information architecture and flat DR grammar | docs registry, links, and DR grammar |
+| CL-020 | superseded | `6.7` | strict profiles bind native repositories without full-skeleton generation | profile round-trip and conflict tests |
+| CL-021 | absorbed | `6.7`, `7.4` | Node/polyglot adopter and dual-provider artifact proof own npm distribution quality | npm pack, install, and publication receipts |
+| CL-022 | absorbed | `F.5` | the six Cyclopts roots are the sole public command plane | live Cyclopts architecture test |
+| CL-023 | absorbed | `7.3`, `7.4` | hosted results enter as plane-bound Attestations, never a second truth store | independent provider Attestations |
+| CL-024 | absorbed | `6.1`, `6.9` | standards have one admitted owner, bounded evidence, exit strategy, and consumer | tool admission and dependency gates |
+| CL-025 | superseded | `0.4`, `0.5` | structural history and intent checks replace a permanent conversation ledger | intent-closure architecture test |
+
+## Pre-cutover Task Closure
+
+Commit `b23dc97cd92675bd3a6f58c13a1ec73c7f4ba2c6` closes the period in
+which obligation identity was repeatedly rewritten. The grouped rows below
+preserve every changed, reset, or removed pre-cutover obligation. From that
+commit forward, an obligation body is immutable, completion only advances, and
+coordinate normalization requires an explicit predecessor and disposition row
+here.
+
+| Historical tasks | Disposition | Current tasks | Evidence or ruling |
+| --- | --- | --- | --- |
+| `0.1` | absorbed | `0.1` | terminal Change, Work Lane, Commitment, Lease, and roles are bound |
+| `0.2` | absorbed | `F.10` | `351e026fab`; hard source-budget gaps block |
+| `0.3` | absorbed | `F.11` | `1d98cce8dc`; score readiness and report authority are deleted |
+| `1.1` | absorbed | `F.1` | `351e026fab`; direct source measurement owns the property |
+| `1.2` | superseded | `5.3`, `6.5`, `6.6`, `6.9` | deletion is governed by semantic boundary and proved consumer need, not a fixed file list |
+| `1.3` | absorbed | `F.2`, `3.5` | `9e794bcc22`; positive product ownership replaces private-product coupling |
+| `1.4` | absorbed | `F.12`, `6.3` | `271cb4a9b9`; historical measurement is preserved and terminal limits remain active |
+| `1.5` | absorbed | `F.7` | `2a07f9e434`; optional runtimes cannot own tasks or progress |
+| `1.6` | superseded | `5.1`, `5.2`, `5.5`, `5.6` | absorptive knowledge retirement replaces bulk carrier deletion |
+| `1.6.1` | absorbed | `F.19` | `ceb40e38f1`; closeout-residue currentness was removed |
+| `2.1` | absorbed | `F.13` | `271cb4a9b9`; kernel contract and determinism tests landed |
+| `2.2` | absorbed | `F.14`, `1.5`, `1.6` | `271cb4a9b9`; Pydantic and graphlib foundation remains while terminal model cutover continues |
+| `2.3` | absorbed | `F.4` | `a21de4a397`; one official CEL engine remains |
+| `2.4` | absorbed | `F.3` | `5388fe581f`; one top-level distribution remains |
+| `2.5` | superseded | `1.1`, `1.2`, `1.3`, `2.3` | two persistent roots and transient Facts/TransitionPlan replace stored read models |
+| `3.1` | absorbed | `3.1`, `3.3` | pure compilation and exact Git effects remain separate owners |
+| `3.1.1` | absorbed | `F.15` | `271cb4a9b9`; lifecycle declarations collapsed to one owner |
+| `3.1.2` | absorbed | `3.3` | exact idempotent Git effect boundary remains open |
+| `3.2` | superseded | `4.2`, `4.3` | fixed WIP, competitor counts, and mutable intent amendments are rejected |
+| `3.3` | absorbed | `4.4` | vendor-neutral handoff, takeover, recovery, and inbox reconstruction remain open |
+| `3.3.1` | absorbed | `F.16` | `271cb4a9b9`; lifecycle observation uses one isolated Git profile |
+| `3.3.2`, `3.3.3` | absorbed | `4.4` | exact takeover and transcript-free continuity are one current obligation |
+| `3.3.4` | absorbed | `F.17` | `db210a46c8`; strict full-row Lease CAS landed |
+| `3.3.5` | absorbed | `F.18` | `db210a46c8`; source-root carrier materialization landed |
+| `3.4` | absorbed | `4.5` | adaptive proof and short candidate CAS remain open |
+| `3.5` | absorbed | `F.8` | `e3bc687e55`; `proposal/*` is the sole remote review role |
+| `3.6` | absorbed | `3.6` | bounded property, mutation, and formal proof remain open |
+| `3.7` | deferred | `6.9` | an execution backend requires a measured real consumer |
+| `4.1` | superseded | `6.1`, `6.5` | one owner per property replaces a fixed tool shopping list |
+| `4.2` | absorbed | `6.2` | all warnings and suppressions remain terminal blockers |
+| `4.3` | absorbed | `6.3` | exact ELOC and branch-coverage floors remain open |
+| `4.4` | superseded | `3.6`, `6.5` | mutation and duplicate tools are admitted only for distinct signal |
+| `4.5` | superseded | `6.1`, `7.1`, `7.4` | supply-chain formats and local replay require exact proved claims |
+| `4.6` | absorbed | `6.3` | terminal ELOC thresholds remain exact |
+| `4.7` | absorbed | `F.6`, `5.3`, `6.6` | `78faa3318f`; semantic and physical boundaries remain enforced |
+| `5.1`, `5.2`, `5.3`, `5.4` | absorbed | `6.7` | one task now proves all three adopter shapes and isolation properties |
+| `6.1`, `6.2` | absorbed | `1.6`, `6.8` | generated schemas and one conformance kit own portable contracts |
+| `6.3` | superseded | `4.4`, `6.8`, `6.9` | protocol adapters are optional; catalogs and packs need a real consumer |
+| `6.4` | deferred | `6.9` | Jinja or scaffolding is admitted only when it proves net deletion |
+| `7.1` | absorbed | `7.1` | immutable local full proof remains the remote-mutation admission |
+| `7.2` | absorbed | `7.3` | one proposal and two independent hosted planes remain required |
+| `7.3` | absorbed | `7.4` | protected refs, release, tag, and artifacts bind one commit |
+| `7.4` | absorbed | `7.2` | local candidate/dev closeout and lane retirement precede proposal publication |
+| `7.5` | absorbed | `7.5` | official OpenSpec archive remains the last effect |
+| `0.2.1` | superseded | `0.2` | normalize the current Phase 0 coordinate after the legacy `0.2` source-budget obligation moved permanently to `F.10` |
+| `0.3.1` | superseded | `0.3` | normalize the current Phase 0 coordinate after the legacy `0.3` readiness obligation moved permanently to `F.11` |
 
 ## Alternatives Considered
 

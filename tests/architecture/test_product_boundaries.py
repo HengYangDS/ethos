@@ -310,6 +310,22 @@ def test_tracked_python_follows_parser_model_and_export_policy() -> None:
             )
             for node in ast.walk(tree)
         ), path
+        if path.name == "__init__.py":
+            assert not any(isinstance(node, ast.Import | ast.ImportFrom) for node in tree.body), (
+                path
+            )
+
+
+def test_repository_does_not_reintroduce_mailmap_identity_rewriting() -> None:
+    tracked = subprocess.run(
+        ["git", "ls-files", ".mailmap"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    assert tracked == ""
 
 
 def test_openspec_is_official_governance_surface_not_command_root() -> None:

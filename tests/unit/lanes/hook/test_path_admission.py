@@ -138,6 +138,48 @@ def test_pre_tool_hook_admits_ignored_runtime_home(worktree: Path) -> None:
     assert report["admission"]["paths"][0]["reason"] == "allowed"
 
 
+@pytest.mark.parametrize(
+    "mismatch",
+    ["runner", "schema"],
+)
+def test_prewrite_blocks_checkout_binding_mismatch(
+    worktree: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mismatch: str,
+) -> None:
+    profile = worktree / ".ethos" / "profile.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
+        encoding="utf-8",
+    )
+    original = admission_prewrite.runtime_binding
+    runner_matches = mismatch != "runner"
+    schema_matches = mismatch != "schema"
+
+    def mismatched(root: Path) -> dict[str, object]:
+        binding = original(root)
+        binding.update(
+            runner_matches_audit_root=runner_matches,
+            schema_matches_audit_root=schema_matches,
+            runner_source_root=(binding["audit_root"] if runner_matches else "/foreign/runner"),
+            schema_source_root=(binding["audit_root"] if schema_matches else "/foreign/schema"),
+        )
+        return binding
+
+    monkeypatch.setattr(admission_prewrite, "runtime_binding", mismatched)
+    report = admission_prewrite.prewrite_guard(
+        root=worktree,
+        paths=[worktree / "README.md"],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is False
+    assert report["error"] == "root_binding_mismatch"
+    assert report["runtime_binding"]["audit_root"] == worktree.as_posix()
+    assert report["editor_root"]["reason"] == "matched"
+
+
 def test_hook_admit_cli_preserves_control_character_path_token(
     worktree: Path,
 ) -> None:

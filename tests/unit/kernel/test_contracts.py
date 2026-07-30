@@ -150,6 +150,25 @@ def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None
     assert commitment.model_config["frozen"] is facts.model_config["frozen"] is True
 
 
+def test_only_commitment_and_attestation_have_production_persistence_owners() -> None:
+    production = Path("src/ethos")
+    forbidden = re.compile(
+        r"(?:persist|save|store|write)_(?:facts|transition_plan)"
+        r"|(?:Facts|TransitionPlan)\.(?:model_dump_json|canonical_json)\("
+    )
+    offenders = [
+        path.as_posix()
+        for path in production.rglob("*.py")
+        if forbidden.search(path.read_text(encoding="utf-8"))
+    ]
+
+    assert offenders == []
+    assert Path("src/ethos/adapters/mutation/proof_artifacts.py").exists()
+    assert Path("src/ethos/adapters/repo/commitment.py").exists()
+    assert "never persisted as truth" in (Facts.__doc__ or "")
+    assert "transient" in (TransitionPlan.__doc__ or "")
+
+
 def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
     commitment = _contract(risks=("cutover",), hypotheses=("compiler",), dependencies=("git",))
 

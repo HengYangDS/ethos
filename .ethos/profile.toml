@@ -2,3 +2,6 @@ profile_id = "ethos"
 
 [openspec]
 material_paths = ["**"]
+
+[proof]
+gate_registry = "system/gates.toml"

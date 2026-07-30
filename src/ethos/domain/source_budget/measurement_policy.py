@@ -19,6 +19,8 @@ import ethos.adapters.repo.git as git_adapter
 from ethos.contracts.branch.roles import load_branch_role_policy
 
 POLICY_PATH = Path(".config/checks/format/selection.toml")
+LEGACY_CONTRACT_VERSION = 1
+CURRENT_CONTRACT_VERSION = 2
 TERMINAL_TOTALS = ("python_total", "global_total")
 IMMUTABLE_RECORD_ROOTS = ("evidence/", "openspec/changes/archive/")
 
@@ -99,10 +101,13 @@ class Policy(_Contract):
         ):
             msg = "aggregate members must be non-empty and unique"
             raise ValueError(msg)
-        if self.contract_version == 1 and self.immutable_record_roots:
+        if self.contract_version == LEGACY_CONTRACT_VERSION and self.immutable_record_roots:
             msg = "source-budget v1 cannot declare immutable record roots"
             raise ValueError(msg)
-        if self.contract_version == 2 and self.immutable_record_roots != IMMUTABLE_RECORD_ROOTS:
+        if (
+            self.contract_version == CURRENT_CONTRACT_VERSION
+            and self.immutable_record_roots != IMMUTABLE_RECORD_ROOTS
+        ):
             msg = "source-budget v2 must declare the exact immutable record roots"
             raise ValueError(msg)
         return self
@@ -158,10 +163,11 @@ def _integer(value: object) -> int:
 def _pairs(value: object) -> tuple[tuple[str, str], ...]:
     pairs: list[tuple[str, str]] = []
     for raw in _sequence(value):
-        values = _strings(raw)
-        if len(values) != 2:
-            raise TypeError
-        pairs.append((values[0], values[1]))
+        try:
+            first, second = _strings(raw)
+        except ValueError:
+            raise TypeError from None
+        pairs.append((first, second))
     return tuple(pairs)
 
 
@@ -258,7 +264,14 @@ def _accepted_head(root: Path) -> tuple[str, tuple[str, ...]]:
 
 
 def _relaxed(current: Policy, accepted: Policy) -> bool:
-    if (accepted.contract_version, current.contract_version) not in {(1, 1), (1, 2), (2, 2)}:
+    if (
+        accepted.contract_version,
+        current.contract_version,
+    ) not in {
+        (LEGACY_CONTRACT_VERSION, LEGACY_CONTRACT_VERSION),
+        (LEGACY_CONTRACT_VERSION, CURRENT_CONTRACT_VERSION),
+        (CURRENT_CONTRACT_VERSION, CURRENT_CONTRACT_VERSION),
+    }:
         return True
     fixed = current.model_copy(
         update={

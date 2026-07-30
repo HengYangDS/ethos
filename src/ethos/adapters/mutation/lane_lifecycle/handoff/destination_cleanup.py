@@ -49,7 +49,8 @@ def compensate_failed_import(
             revoke_lease_from_connection(connection, request=binding)
             connection.commit()
     except (OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError, ValueError):
-        raise ValueError("handoff_import_compensation_failed") from None
+        msg = "handoff_import_compensation_failed"
+        raise ValueError(msg) from None
 
 
 def remove_import_carriers(

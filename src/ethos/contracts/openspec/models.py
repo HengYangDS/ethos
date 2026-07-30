@@ -22,8 +22,8 @@ class _OpenSpecScopeModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class AdopterOpenSpecPolicy(BaseModel):
-    """The profile-owned material-path declaration for one adopted repository."""
+class OpenSpecPolicy(BaseModel):
+    """Profile-owned material-path declaration for one repository."""
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 

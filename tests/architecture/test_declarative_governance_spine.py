@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import tomllib
 from pathlib import Path
 
+from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.contracts.gates import load_gate_registry_declaration
+from ethos.contracts.plan import PlanNode
 from ethos.repository.evidence.topology import evidence_topology_report
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,6 +67,38 @@ def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() ->
     assert "ActionGraph" not in source
     assert not (CORE_SOURCE / "graph").exists()
     assert not (CORE_SOURCE / "action_graph").exists()
+
+
+def test_gate_dependencies_are_declared_without_runtime_product_injection() -> None:
+    registry = tomllib.loads(_read("system/gates.toml"))
+    gates = {gate["id"]: gate for gate in registry["gates"]}
+    source = _read("src/ethos/repository/policy/gates.py")
+
+    assert gates["generated-artifacts"]["depends_on"] == ["unit-architecture", "ruff"]
+    assert "effective_gate_dependencies" not in source
+
+
+def test_declared_offline_providers_execute_through_one_runner() -> None:
+    registry = load_gate_registry_declaration().registry("runtime")
+    runner = LocalGateRunner()
+
+    for gate_id in ("evidence-freshness", "docstrings", "module-layout", "python-types"):
+        gate = registry[gate_id]
+        assert gate.providers
+        assert gate.network_policy == "offline"
+        assert gate.writes_files is False
+
+        result = runner.run(
+            PlanNode(id=gate.id, kind="check", depends_on=gate.depends_on),
+            gate,
+            root=ROOT,
+        )
+        payload = json.loads(result.stdout)
+
+        assert payload["gate"] == gate_id
+        assert [entry["provider"] for entry in payload["providers"]] == list(gate.providers)
+        assert result.state == ("passed" if payload["ok"] else "failed")
+        assert result.exit_code == (0 if payload["ok"] else 1)
 
 
 def test_wheel_resources_are_native_projections_without_a_build_hook() -> None:
@@ -177,8 +213,8 @@ def test_terminal_gate_owners_are_singular_and_hosted_logic_stays_in_tools() -> 
     product_boundary = gates["product-boundary"]
 
     assert "no-compat" not in gates
-    assert "no-compat" not in registry["proof_sets"]["product_default"]
-    assert "no-compat" not in registry["proof_sets"]["product_full"]
+    assert "no-compat" not in registry["proof_sets"]["default"]
+    assert "no-compat" not in registry["proof_sets"]["full"]
     assert product_boundary["providers"] == [
         "ethos.repository.policy.boundary.product:product_boundary_report",
         "ethos.repository.policy.boundary.product:contributor_policy_report",

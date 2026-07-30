@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lanes as lanes
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
@@ -107,7 +107,7 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(tmp_p
     assert "claim_id" not in report
     assert (
         report["base_commitment_digest"]
-        == load_commitment(source, tree_ref=git(source, "rev-parse", "HEAD")).digest()
+        == load_profile_commitment(source, tree_ref=git(source, "rev-parse", "HEAD")).digest()
     )
     assert report["worktree"] == {
         "branch": "work/feature",

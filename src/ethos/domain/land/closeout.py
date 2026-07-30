@@ -13,6 +13,7 @@ from typing import cast
 import ethos
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.status
+from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 
@@ -26,14 +27,6 @@ def closeout_audit_root(repo: Path, decision: object) -> Path:
         return repo
     candidate_path = str(candidate.get("worktree_path") or "")
     return Path(candidate_path) if candidate_path else repo
-
-
-def runner_source_root(module_path: Path) -> Path:
-    """Find the repository source root for a runner module when available."""
-    for parent in (module_path.parent, *module_path.parents):
-        if (parent / "pyproject.toml").exists() and (parent / "system").is_dir():
-            return parent
-    return module_path.parent
 
 
 def runner_binding_report(*, accepted_root: Path, audit_root: Path) -> dict[str, object]:

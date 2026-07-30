@@ -41,34 +41,10 @@ State the observed problem and evidence without deciding it twice.
 
 ## Alternatives Considered
 
-### Option A: Selected candidate
-
-**Pros**
-
-- State concrete benefits against the invariants.
-
-**Cons**
-
-- State concrete costs and risks.
-
-**Why Rejected**
-
-Not rejected; selected below.
-
-### Option B: Real alternative
-
-**Pros**
-
-- State concrete benefits against the same invariants.
-
-**Cons**
-
-- State concrete costs and risks.
-
-**Why Rejected**
-
-State the violated invariant or inferior trade-off. If no second legal option
-exists, prove why the alternative class is invalid rather than inventing one.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Selected candidate | selected | State concrete benefits against the invariants. | State concrete costs and risks. | Explain why this option best preserves every invariant. |
+| Real alternative | rejected | State concrete benefits against the same invariants. | State concrete costs and risks. | State the violated invariant or inferior trade-off. If no second legal option exists, prove why the alternative class is invalid rather than inventing one. |
 
 ## Selected Approach And Rationale
 

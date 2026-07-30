@@ -25,8 +25,8 @@ provider projections.
    expectations before tightening or adding a gate.
 5. Update `system/tools.toml`, gate registry code, CI, hooks, tests, and
    OpenSpec together; do not duplicate command bodies across provider files.
-6. Run `scripts/quality_audit.py .` so owner shape, coverage, docstrings, and
-   type policy drift are visible before claiming CI strength.
+6. Run the repository audit so owner shape, coverage, docstrings, and type
+   policy drift are visible before claiming CI strength.
 7. Prove the exact gate path with focused scripts first, then run head-bound
    `ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json`.
 
@@ -38,7 +38,7 @@ Use owner scripts and proof output:
 tools/ci/scripts/run-python-lint.sh
 tools/ci/scripts/run-config-lint.sh
 tools/ci/scripts/run-shell-lint.sh
-.agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .
+ethos prove --gate repository-audit --json
 ethos prove --gate python-types --json
 ethos prove --gate docstrings --json
 # After `tools/ci/scripts/run-python-tests.sh` has produced coverage.xml:

@@ -103,6 +103,33 @@ stop_condition = "notes_gap"
     assert "unknown_rule_gate:custom.notes:missing-gate" in plan_gaps
 
 
+def test_rules_cannot_define_parallel_gate_commands(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "rules.toml").write_text(
+        """
+[gates.shadow]
+command = "python shadow.py"
+blocking = true
+
+[[rule]]
+id = "custom.notes"
+owner = "docs-team"
+authority_ref = "docs/governance/docs.md"
+contract_ref = "docs/governance/docs.md"
+path_globs = ["notes/**"]
+severity = "blocking"
+required_gates = ["shadow"]
+stop_condition = "notes_gap"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    compiled = compile_rules(tmp_path)
+
+    assert "shadow" not in compiled["gate_definitions"]
+    assert "unknown_rule_gate:custom.notes:shadow" in compiled["compile_gaps"]
+
+
 def test_compiled_rule_matching_treats_trailing_glob_as_its_directory(
     tmp_path: Path,
 ) -> None:

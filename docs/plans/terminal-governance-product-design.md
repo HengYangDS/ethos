@@ -9,6 +9,13 @@ relations:
 
 # Terminal Governance Product Design
 
+Status: canonical terminal plan.
+
+Purpose: project the product contract into the shortest convergence order for
+implementation, proof, deletion, adoption, and publication.
+
+See also: [Product Design Contract](../governance/product-design-contract.md), [OpenSpec Terminal Change](../../openspec/changes/terminal-convergence/), and [Decision Records](../decisions/README.md).
+
 ## Role
 
 This plan owns terminal architecture and convergence order. The [Product Design

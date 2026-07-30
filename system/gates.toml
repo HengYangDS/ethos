@@ -3,9 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-product_default = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "python-size", "config-quality", "shell-lint"]
-product_full = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
-adopter_default = []
+default = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "python-size", "config-quality", "shell-lint"]
+full = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
 
 [[gates]]
 id = "repository-audit"
@@ -66,6 +65,7 @@ id = "generated-artifacts"
 registries = ["runtime"]
 kind = "governance"
 providers = ["ethos.repository.policy.artifacts:generated_artifact_topology_report"]
+depends_on = ["unit-architecture", "ruff"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"

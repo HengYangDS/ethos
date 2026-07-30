@@ -1,85 +1,40 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import cast
+
+from ethos.contracts.admission import ethos_command_is_readonly
+from ethos.contracts.admission import ethos_command_mutates
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-MIN_ETHOS_COMMAND_PARTS = 2
-CAPABILITY_KINDS = frozenset(
-    {
-        "resource_read",
-        "schema_read",
-        "docs_read",
-        "prompt_template",
-        "command_readonly",
-        "command_proof",
-        "command_mutation_guarded",
-        "script_readonly",
-        "script_mutation_guarded",
-        "mcp_resource",
-        "mcp_prompt",
-        "mcp_tool_readonly",
-        "mcp_tool_proof",
-        "mcp_tool_mutation_guarded",
-        "host_metadata_read",
-        "projection_write",
-    }
-)
-_MUTATING_ETHOS_COMMANDS = {"adopt", "land", "publish"}
-_MUTATING_FLAGS = {"--apply", "--authorized", "--authorize", "--execute"}
-_READONLY_ETHOS_COMMANDS = {"plan", "status"}
-
-
-@dataclass(frozen=True, slots=True)
-class CapabilityValidationContext:
-    skill_id: str
-    capability_id: str
-    kind: str
-    command: list[str]
-    item: dict[str, Any]
-    package_dir: Path
-    included_files: frozenset[str]
-
 
 def capability_records(
     skill_id: str,
-    value: Any,
+    value: list[dict[str, Any]],
     *,
     package_dir: Path | None = None,
     included_files: frozenset[str] = frozenset(),
 ) -> tuple[list[str], list[dict[str, Any]]]:
+    """Project schema-valid declarations and enforce command semantics."""
     gaps: list[str] = []
     records: list[dict[str, Any]] = []
-    if not isinstance(value, list):
-        return gaps, records
-    for index, item in enumerate(value):
-        if not isinstance(item, dict):
-            gaps.append(f"skill_package_capability_invalid:{skill_id}:{index}")
-            continue
-        item = cast("dict[str, Any]", item)
-        kind = str(item.get("kind") or "")
-        if kind not in CAPABILITY_KINDS:
-            gaps.append(f"skill_package_capability_kind_unknown:{skill_id}:{kind}")
-        command = item.get("command") or []
-        if command and not all(isinstance(part, str) for part in command):
-            gaps.append(f"skill_package_capability_command_invalid:{skill_id}:{index}")
-            command = []
-        capability_id = str(item.get("id") or f"{skill_id}:{index}")
-        context = CapabilityValidationContext(
-            skill_id=skill_id,
-            capability_id=capability_id,
-            kind=kind,
-            command=command if isinstance(command, list) else [],
-            item=item,
-            package_dir=package_dir or Path(),
-            included_files=included_files,
+    for item in value:
+        kind = str(item["kind"])
+        command = list(item.get("command") or [])
+        capability_id = str(item["id"])
+        gaps.extend(
+            _semantic_gaps(
+                skill_id,
+                capability_id,
+                kind,
+                command,
+                package_dir or Path(),
+                included_files,
+            )
         )
-        gaps.extend(capability_semantic_gaps(context))
         record = {
             "id": capability_id,
             "kind": kind,
@@ -99,71 +54,50 @@ def capability_command_strings(capabilities: Iterable[dict[str, Any]]) -> list[s
     ]
 
 
-def capability_semantic_gaps(context: CapabilityValidationContext) -> list[str]:
+def _semantic_gaps(
+    skill_id: str,
+    capability_id: str,
+    kind: str,
+    command: list[str],
+    package_dir: Path,
+    included_files: frozenset[str],
+) -> list[str]:
+    """Validate the semantics schema declarations cannot establish."""
     gaps: list[str] = []
-    command_required = context.kind.startswith(("command_", "mcp_tool_", "script_"))
-    if command_required and not context.command:
-        gaps.append(capability_gap(context, "command_missing"))
-    if context.kind in {"command_readonly", "mcp_tool_readonly"}:
-        if is_mutating_command(context.command):
-            gaps.append(capability_gap(context, "readonly_mutating"))
-        elif not is_trusted_readonly_command(context.command):
-            gaps.append(capability_gap(context, "readonly_untrusted"))
-    if context.kind == "script_readonly":
-        if is_mutating_command(context.command):
-            gaps.append(capability_gap(context, "readonly_mutating"))
-        elif not is_trusted_readonly_script(context):
-            gaps.append(capability_gap(context, "readonly_untrusted"))
-    if context.kind in {"command_proof", "mcp_tool_proof"} and not is_proof_command(
-        context.command
-    ):
-        gaps.append(capability_gap(context, "proof_invalid"))
-    if context.kind in {
-        "command_mutation_guarded",
-        "script_mutation_guarded",
-        "mcp_tool_mutation_guarded",
-    } and not str(context.item.get("guard") or ""):
-        gaps.append(capability_gap(context, "guard_missing"))
+    if kind in {"command_readonly", "mcp_tool_readonly"}:
+        if ethos_command_mutates(command):
+            gaps.append(_capability_gap(skill_id, capability_id, "readonly_mutating"))
+        elif not ethos_command_is_readonly(command):
+            gaps.append(_capability_gap(skill_id, capability_id, "readonly_untrusted"))
+    if kind == "script_readonly":
+        if ethos_command_mutates(command):
+            gaps.append(_capability_gap(skill_id, capability_id, "readonly_mutating"))
+        elif not _trusted_readonly_script(command, package_dir, included_files):
+            gaps.append(_capability_gap(skill_id, capability_id, "readonly_untrusted"))
+    if kind in {"command_proof", "mcp_tool_proof"} and not _proof_command(command):
+        gaps.append(_capability_gap(skill_id, capability_id, "proof_invalid"))
     return gaps
 
 
-def capability_gap(context: CapabilityValidationContext, kind: str) -> str:
-    return f"skill_package_capability_{kind}:{context.skill_id}:{context.capability_id}"
+def _capability_gap(skill_id: str, capability_id: str, kind: str) -> str:
+    return f"skill_package_capability_{kind}:{skill_id}:{capability_id}"
 
 
-def is_trusted_readonly_script(context: CapabilityValidationContext) -> bool:
-    if not context.command:
+def _trusted_readonly_script(
+    command: list[str], package_dir: Path, included_files: frozenset[str]
+) -> bool:
+    if not command:
         return False
-    script = context.command[0]
+    script = command[0]
     if script.startswith("-") or script in {".", ".."}:
         return False
     if script.startswith(("python", "python3", "bash", "sh", "uv", "npx")):
         return False
-    return script in context.included_files and contained_package_path(context.package_dir, script)
+    return script in included_files and contained_package_path(package_dir, script)
 
 
-def is_mutating_command(command: list[str]) -> bool:
-    if not command:
-        return False
-    if any(part in _MUTATING_FLAGS for part in command):
-        return True
-    return (
-        len(command) >= MIN_ETHOS_COMMAND_PARTS
-        and command[0] == "ethos"
-        and command[1] in _MUTATING_ETHOS_COMMANDS
-    )
-
-
-def is_trusted_readonly_command(command: list[str]) -> bool:
-    if len(command) < MIN_ETHOS_COMMAND_PARTS or command[0] != "ethos":
-        return False
-    return command[1] in _READONLY_ETHOS_COMMANDS
-
-
-def is_proof_command(command: list[str]) -> bool:
-    return (
-        len(command) >= MIN_ETHOS_COMMAND_PARTS and command[0] == "ethos" and command[1] == "prove"
-    )
+def _proof_command(command: list[str]) -> bool:
+    return command[:2] == ["ethos", "prove"]
 
 
 def contained_package_path(package_dir: Path, relative: str) -> bool:

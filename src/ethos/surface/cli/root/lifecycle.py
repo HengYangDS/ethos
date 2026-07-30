@@ -31,8 +31,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import MutationAdmissionRequest
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.context import context_for_root
-from ethos.repository.context import is_product_root
+from ethos.repository.context import repository_context
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_branch_admission
@@ -42,7 +41,7 @@ from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
-from ethos.surface.cli.output import emit_invalid_adopter_profile
+from ethos.surface.cli.output import emit_invalid_repository_profile
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
@@ -93,14 +92,6 @@ _DEFAULT_LAND_OPTIONS = _LandOptions()
 _DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
 
 
-def _gap_tuple(payload: Mapping[str, object]) -> tuple[str, ...]:
-    return tuple(string_sequence(payload.get("required_gaps")))
-
-
-def _first_string(value: object) -> str:
-    return next(iter(string_sequence(value)), "")
-
-
 def _int_value(value: object, *, default: int = 0) -> int:
     """Return an integer from a JSON scalar without trusting arbitrary objects."""
     if isinstance(value, int):
@@ -136,7 +127,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
         ),
         required_gaps=payload.gaps,
         next_actions=mutation_next_actions,
-        governance_context=context_for_root(payload.audit_root),
+        governance_context=repository_context(payload.audit_root),
         data={
             "repository_audit": payload.audit,
             "openspec_lifecycle": payload.lifecycle,
@@ -397,7 +388,7 @@ def _candidate_land_result(
     current_head: str,
 ) -> EthosResult:
     """Evaluate work-lane integration into the configured candidate role."""
-    governance = context_for_root(repo)
+    governance = repository_context(repo)
     status_payload = workspace_status(repo, include_foreign_path_scope=False)
     closeout_support = string_mapping(status_payload.get("closeout_support"))
     closeout_gaps: tuple[str, ...] = ()
@@ -502,8 +493,8 @@ def land(
     """Report land readiness."""
     repo = resolve_root(root)
     profile = load_repository_profile(repo)
-    if not is_product_root(repo) and profile.state == "invalid":
-        emit_invalid_adopter_profile(
+    if profile.state == "invalid":
+        emit_invalid_repository_profile(
             command="land",
             json_output=json_output,
             enforce=options.apply,
@@ -543,7 +534,7 @@ def publish(
 ) -> None:
     """Report publish readiness without pushing."""
     repo = resolve_root(root)
-    governance = context_for_root(repo)
+    governance = repository_context(repo)
     current_head = git.current_head(repo)
     decision = evaluate_mutation(
         command="publish",

@@ -16,7 +16,7 @@ from ethos.normalization.coercion import string_list
 from ethos.quality.gates import product_gate_plan
 from ethos.quality.profiles import product_quality_profile
 from ethos.repository.policy.coupling.audit import coupling_audit_report
-from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.registry.docs.health import docs_health_report
 
 if TYPE_CHECKING:
@@ -166,7 +166,7 @@ def _instance_validation_report(root: Path) -> dict[str, Mapping[str, object]]:
             gate.to_dict(),
             root=root,
         )
-        for gate in gate_registry().values()
+        for gate in resolve_gate_policy().registry.values()
     ]
     gate_gaps = [
         gap

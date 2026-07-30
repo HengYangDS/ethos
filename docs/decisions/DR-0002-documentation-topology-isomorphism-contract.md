@@ -94,47 +94,11 @@ stronger shared semantic docs topology.
 
 ## Alternatives Considered
 
-### Fixed repository-form-invariant documentation kernel
-
-**Pros**
-
-- Gives humans and agents predictable physical entrypoints.
-
-**Cons**
-
-- Exports ETHOS's product layout into adopter contracts.
-
-**Why Rejected**
-
-Historically selected, then superseded because physical sameness was stronger than semantic portability required.
-
-### Repository-owned layout with no shared semantic contract
-
-**Pros**
-
-- Maximizes domain autonomy.
-
-**Cons**
-
-- Makes discoverability and parity depend on prose and local memory.
-
-**Why Rejected**
-
-It cannot provide machine-checkable governance discovery.
-
-### Portable metadata registry with repository-owned physical layout
-
-**Pros**
-
-- Preserves semantic discoverability without imposing product topology.
-
-**Cons**
-
-- Requires stronger metadata and taxonomy validation.
-
-**Why Rejected**
-
-Not rejected by the current model; it supersedes this historical decision.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Fixed repository-form-invariant documentation kernel | superseded | Gives humans and agents predictable physical entrypoints. | Exports ETHOS's product layout into adopter contracts. | Physical sameness was stronger than semantic portability required. |
+| Repository-owned layout with no shared semantic contract | rejected | Maximizes domain autonomy. | Makes discoverability and parity depend on prose and local memory. | It cannot provide machine-checkable governance discovery. |
+| Portable metadata registry with repository-owned physical layout | selected replacement | Preserves semantic discoverability without imposing product topology. | Requires stronger metadata and taxonomy validation. | It preserves portable semantics while leaving physical form to the governed repository. |
 
 ## Selected Approach And Rationale
 

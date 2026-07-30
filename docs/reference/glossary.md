@@ -41,9 +41,8 @@ is derived from this source; it is not the source.
 ## Commitment
 
 The persistent semantic entity that owns immutable intent, authority references,
-subject, scope, acceptance propositions, and amendment lineage. Its effective
-digest is derived deterministically from the base contract and amendment
-Attestations.
+subjects, scope, permissions, hypotheses, and dependencies. Its identity is
+content-derived; it does not own workflow state or amendment folding.
 
 ## Facts
 
@@ -67,11 +66,6 @@ validity boundary.
 
 The governed object, such as a repository, path, package, domain, surface,
 evidence set, or release target.
-
-## Commitment
-
-A rule or commitment that binds a subject. Contracts may come from schemas,
-OpenSpec families, release policy, quality policy, or adopter profiles.
 
 ## Change
 

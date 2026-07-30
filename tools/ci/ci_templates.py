@@ -406,22 +406,21 @@ def emulator_evidence(
     output: Path | None,
 ) -> int:
     entry = _provider_entry(provider)
+    emulation = _emulator_declaration(entry)
+    tool = str(emulation["emulator_tool"])
     paths = {
         "config": CONFIG_RELATIVE_PATH,
         "projected_file": str(entry["projection"]),
         "template_file": str(entry["template"]),
     }
-    emulation = _emulator_declaration(entry)
-    tool = str(emulation["emulator_tool"])
-    output_dir = ROOT / "build/evidence/local-ci" / provider
-    evidence_class = f"local_{provider}_emulator"
-
-    output_path = output or output_dir / f"{mode}.json"
-    started_at = datetime.now(UTC)
-    git_start = _git_summary()
+    kind = f"local_{provider}_emulator"
+    output_path = output or ROOT / "build/evidence/local-ci" / provider / f"{mode}.json"
+    started_at, git_start = datetime.now(UTC), _git_summary()
     execution_root = ROOT
-    issue = _materialization_issue(mode, dry_run=dry_run, allow_untracked=allow_untracked)
-    executable = shutil.which(tool)
+    issue, executable = (
+        _materialization_issue(mode, dry_run=dry_run, allow_untracked=allow_untracked),
+        shutil.which(tool),
+    )
     materialization: dict[str, Any] = {
         "mode_allows_untracked": _mode_is_observation(mode, dry_run=dry_run),
         "normal_run_refuses_untracked_by_default": True,
@@ -476,12 +475,11 @@ def emulator_evidence(
         if re.search(str(pattern), combined_log, flags=re.MULTILINE)
     ]
     if log_warnings:
-        run["ok"] = False
-        run["returncode"] = int(run["returncode"] or 1)
+        run["ok"], run["returncode"] = False, int(run["returncode"] or 1)
     finished_at = datetime.now(UTC)
     git_end = _git_summary()
     head_start, head_end = map(str, (git_start["head"], git_end["head"]))
-    schema_version, kind, head = 1, evidence_class, head_end
+    schema_version, head = 1, head_end
     head_stable, dirty = head_start == head_end, git_end["dirty"]
     ok = bool(run["ok"]) and head_stable
     generated_at = finished_at = finished_at.isoformat()

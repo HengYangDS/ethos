@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from ethos.assistants.skills.capabilities import is_trusted_readonly_command
+from ethos.contracts.admission import ethos_command_is_readonly
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import declared_product_surface_roots
 from ethos.repository.policy.boundary.product import product_boundary_report
@@ -75,6 +75,16 @@ def imported_modules(path: Path) -> set[str]:
         elif isinstance(node, ast.ImportFrom) and node.module:
             modules.add(node.module.split(".")[0])
     return modules
+
+
+def test_runtime_uses_declared_capabilities_not_repository_identity_fingerprints() -> None:
+    source = "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted((ROOT / "src/ethos").rglob("*.py"))
+    )
+
+    assert "is_product_root" not in source
+    assert 'project.get("name") == "ethos"' not in source
+    assert "src/ethos/__init__.py" not in source
 
 
 def test_kernel_has_no_side_effect_or_profile_imports() -> None:
@@ -614,7 +624,7 @@ def test_command_plane_docs_match_the_terminal_root_vocabulary() -> None:
 
 def test_skill_readonly_capabilities_match_the_terminal_command_plane() -> None:
     for root in ("status", "plan"):
-        assert is_trusted_readonly_command(["ethos", root, "--json"]) is True
+        assert ethos_command_is_readonly(["ethos", root, "--json"]) is True
     for root in (
         "orient",
         "report",
@@ -630,4 +640,4 @@ def test_skill_readonly_capabilities_match_the_terminal_command_plane() -> None:
         "playbooks",
         "prove",
     ):
-        assert is_trusted_readonly_command(["ethos", root, "--json"]) is False
+        assert ethos_command_is_readonly(["ethos", root, "--json"]) is False

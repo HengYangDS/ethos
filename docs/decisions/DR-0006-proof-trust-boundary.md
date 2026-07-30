@@ -142,61 +142,12 @@ latency budgets, and control-plane bootstrap remain local adoption decisions.
 
 ## Alternatives Considered
 
-### Content-addressed local proof plus optional independent re-execution
-
-**Pros**
-
-- Keeps local proof deterministic and offline while admitting stronger assurance when configured.
-
-**Cons**
-
-- Default local proof cannot prevent a same-UID principal from forging its own environment.
-
-**Why Rejected**
-
-Not rejected; selected below.
-
-### Add a local MAC or signature under the same UID
-
-**Pros**
-
-- Appears to add cryptographic protection.
-
-**Cons**
-
-- The same principal can read the key or modify the verifier; compromise gains a wider blast radius.
-
-**Why Rejected**
-
-It is security theatre under the declared threat model.
-
-### Require hosted verification for every proof
-
-**Pros**
-
-- Provides an independent execution identity.
-
-**Cons**
-
-- Breaks local-first, offline, and multi-worktree operation.
-
-**Why Rejected**
-
-Independent assurance is optional and plane-specific, not the local kernel baseline.
-
-### Bundle a verifier daemon, key, and deployment recipe
-
-**Pros**
-
-- Improves apparent out-of-box completeness.
-
-**Cons**
-
-- Hard-codes operator deployment and trust-anchor choices into product truth.
-
-**Why Rejected**
-
-ETHOS owns the receipt contract, not the verifier deployment.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Content-addressed local proof plus optional independent re-execution | selected | Keeps local proof deterministic and offline while admitting stronger assurance when configured. | Default local proof cannot prevent a same-UID principal from forging its own environment. | It states the local boundary honestly and permits stronger assurance without making it universal. |
+| Add a local MAC or signature under the same UID | rejected | Appears to add cryptographic protection. | The same principal can read the key or modify the verifier; compromise gains a wider blast radius. | It is security theatre under the declared threat model. |
+| Require hosted verification for every proof | rejected | Provides an independent execution identity. | Breaks local-first, offline, and multi-worktree operation. | Independent assurance is optional and plane-specific, not the local kernel baseline. |
+| Bundle a verifier daemon, key, and deployment recipe | rejected | Improves apparent out-of-box completeness. | Hard-codes operator deployment and trust-anchor choices into product truth. | ETHOS owns the receipt contract, not the verifier deployment. |
 
 ## Selected Approach And Rationale
 

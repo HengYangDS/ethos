@@ -385,7 +385,7 @@ def test_publish_blocks_exact_head_proof_gap_without_parallel_quality_verdict(
     head = git(repo, "rev-parse", "HEAD")
     seed_executed_proof(repo, head)
     gap = "proof_attestation_stale:quality-policy"
-    monkeypatch.setattr(lifecycle_cli, "context_for_root", lambda _repo: {"profile": "adopter"})
+    monkeypatch.setattr(lifecycle_cli, "repository_context", lambda _repo: {"profile": "test"})
     monkeypatch.setattr(lifecycle_cli, "proof_gaps", lambda _repo, _head: [gap])
     payload = run_ethos("publish", "--json", cwd=repo)
     assert payload["ok"] is False
@@ -759,30 +759,6 @@ def test_prove_scope_helpers_bind_known_and_unknown_scopes_without_host_claims()
     }
 
 
-def test_prove_dependency_remediation_orders_dependencies_before_selected_gates(
-    monkeypatch, tmp_path: Path
-) -> None:
-    class Gate:
-        def __init__(self, *depends_on: str) -> None:
-            self.depends_on = depends_on
-
-    monkeypatch.setattr(
-        proof_cli,
-        "gate_registry",
-        lambda _root: {"quality": Gate("lint", "tests"), "lint": Gate(), "tests": Gate("lint")},
-    )
-
-    assert proof_cli.missing_gate_dependency_next_actions(
-        selected_gate_ids=("quality",),
-        validation_gaps=("missing_dependency:quality->lint",),
-        current_head="a" * 40,
-        root=tmp_path,
-    ) == (
-        "ethos prove --execute --gate lint --gate tests --gate quality "
-        f"--expect-head {'a' * 40} --json",
-    )
-
-
 def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -853,9 +829,6 @@ def test_prove_public_command_keeps_focused_host_probe_evidence_separate(
         lambda *_args, **_kwargs: {"ok": True, "required_gaps": [], "summary": {}},
     )
     monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: ReadyPlan())
-    monkeypatch.setattr(proof_cli, "gate_registry", lambda *_args, **_kwargs: {})
-    monkeypatch.setattr(proof_cli, "adopter_code_correctness_gaps", lambda *_args, **_kwargs: [])
-
     payload = run_ethos("prove", "--scope", "docs", "--host", "--probe", "--json", cwd=repo)
 
     assert payload["ok"] is True

@@ -10,14 +10,17 @@ import ethos.adapters.admission.identity as admission_identity
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.identity import push_identity_policy_report
+from ethos.adapters.admission.shell import command_risk
+from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
-from ethos.adapters.mutation.proof import promotion_required_gate_ids
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.contracts.admission import HookAdmissionRequest
+from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import conformant_proof_check
 from tests.support.contract_helpers import write_publication_topology
@@ -72,7 +75,7 @@ def _proof_attestation_for_head(root: Path, head: str):
     plan = proof_plan(root, head=head)
     checks = tuple(
         conformant_proof_check(gate, root)
-        for gate in promotion_required_gate_ids(root, tree_ref=head)
+        for gate in resolve_gate_policy(root, tree_ref=head).gate_ids
     )
     return issue_proof_attestation(
         root,
@@ -360,6 +363,112 @@ def test_pre_run_hook_blocks_mutation_risk_without_target_paths(
 
 
 @pytest.mark.parametrize(
+    "command",
+    [
+        "git status --short",
+        "git branch --show-current",
+        "git branch --list 'work/*'",
+        "git tag --list 'v*'",
+        "git tag --points-at HEAD",
+        "git stash list",
+        "git stash show --stat",
+        "ethos status --json",
+        "ethos plan --root=. --json",
+    ],
+)
+def test_shell_admission_read_allowlist(command: str) -> None:
+    assert command_risk(command) == {
+        "tracked_mutation_risk": False,
+        "unclassifiable": False,
+        "reason": "observe_only_command",
+    }
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git branch feature",
+        "git branch -D feature",
+        "git tag v1",
+        "git tag -d v1",
+        "ethos status --execute=true",
+        "ethos plan --apply=true",
+        "find . -delete",
+    ],
+)
+def test_shell_admission_routes_effect_capable_commands_to_path_admission(command: str) -> None:
+    risk = command_risk(command)
+
+    assert risk["tracked_mutation_risk"] is True
+    assert risk["unclassifiable"] is False
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git status\nrm README.md",
+        "echo $(touch README.md)",
+        "echo `touch README.md`",
+        "cat <(touch README.md)",
+        "git status; rm README.md",
+        "git status 'unterminated",
+    ],
+)
+def test_pre_run_hook_blocks_unclassifiable_shell_even_with_target_paths(
+    tmp_path: Path, command: str
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    report = _hook(
+        repo,
+        "pre-run",
+        command=command,
+        paths=[repo / "README.md"],
+        editor_root=repo,
+        require_editor_root=True,
+    )
+
+    _assert_fields(
+        report,
+        ok=False,
+        state="blocked",
+        decision={"action": "block", "reason": "shell_command_unclassifiable"},
+    )
+    assert report["command_risk"]["unclassifiable"] is True
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("git stash list --format=%gd", {"forbidden": False, "operation": "list"}),
+        ("git -C . stash show --stat", {"forbidden": False, "operation": "show"}),
+        ("git stash", {"forbidden": True, "operation": "push"}),
+        ("git stash -u", {"forbidden": True, "operation": "push"}),
+        ("git stash push -- README.md", {"forbidden": True, "operation": "push"}),
+        ("command git stash", {"forbidden": True, "operation": "push"}),
+        ("env MODE=test git stash", {"forbidden": True, "operation": "push"}),
+        ("sudo git stash", {"forbidden": True, "operation": "push"}),
+    ],
+)
+def test_git_stash_policy_is_operation_exact(command: str, expected: dict[str, object]) -> None:
+    policy = git_stash_policy(command)
+
+    assert {key: policy[key] for key in expected} == expected
+
+
+def test_runner_source_root_ignores_inherited_git_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    module = repo / "src/ethos/__init__.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("", encoding="utf-8")
+    git(repo, "add", module.relative_to(repo).as_posix())
+    monkeypatch.setenv("GIT_DIR", git(repo, "rev-parse", "--absolute-git-dir"))
+
+    assert runner_source_root(module) == repo.resolve()
+
+
+@pytest.mark.parametrize(
     ("kind", "role", "reason"),
     [
         ("protected", "accepted_root", "post_write_protected_root_dirty"),
@@ -542,7 +651,7 @@ def test_proof_attestation_ignores_legacy_forgery_and_requires_complete_floor(
     assert proof_attestation(repo, head) is None
     assert proof_gaps(repo, head) == ["proof_not_proven"]
 
-    focused_gate = promotion_required_gate_ids(repo, tree_ref=head)[0]
+    focused_gate = resolve_gate_policy(repo, tree_ref=head).gate_ids[0]
     focused_plan = proof_plan(repo, head=head, gate_ids=(focused_gate,))
     focused_check = conformant_proof_check(focused_gate, repo)
     focused_check["trust_bearing"] = False

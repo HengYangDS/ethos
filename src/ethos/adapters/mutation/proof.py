@@ -17,10 +17,8 @@ from ethos.adapters.mutation.proof_artifacts import write_content_addressed
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
-from ethos.adapters.openspec.commitment import load_openspec_commitment
-from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
-from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
@@ -35,13 +33,7 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
-from ethos.repository.policy.gates import adopter_code_correctness_gaps
-from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
-from ethos.repository.policy.gates import committed_product_default_gate_ids
-from ethos.repository.policy.gates import default_gate_ids
-from ethos.repository.policy.gates import gate_nodes
-from ethos.repository.policy.gates import gate_policy_conformance_gaps
-from ethos.repository.policy.gates import gate_policy_digest
+from ethos.repository.policy.gates import resolve_gate_policy
 
 _DEFAULT_ATTESTATION_DIR = Path(".ethos") / "state" / "attestations"
 _TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
@@ -157,17 +149,21 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     )
     head = str(plan.facts.get("head") or "")
     if plan.verdict != "pass":
-        raise ValueError("proof_plan_not_admitted")
+        msg = "proof_plan_not_admitted"
+        raise ValueError(msg)
     if not head or not _proof_plan_matches(root, head, plan):
-        raise ValueError("proof_plan_binding_mismatch")
+        msg = "proof_plan_binding_mismatch"
+        raise ValueError(msg)
     execution_order = tuple(node.id for node in plan.ordered_nodes())
     checks_by_id = {str(check["action_id"]): check for check in checks}
     if set(checks_by_id) != set(execution_order):
-        raise ValueError("proof_attestation_check_plan_mismatch")
+        msg = "proof_attestation_check_plan_mismatch"
+        raise ValueError(msg)
     normalized = tuple(checks_by_id[gate_id] for gate_id in execution_order)
     checks_pass = all(check["verdict"] == "pass" for check in normalized)
     if verdict == "pass" and (required_gaps or not checks_pass):
-        raise ValueError("proof_attestation_verdict_mismatch")
+        msg = "proof_attestation_verdict_mismatch"
+        raise ValueError(msg)
     artifact = write_proof_artifact(attestation_store_dir(root), head, normalized)
     digest = str(artifact["sha256"]).removeprefix("sha256:")
     values = plan.facts.get("values")
@@ -253,6 +249,7 @@ def proof_plan(
     head: str,
     change_id: str | None = None,
     gate_ids: tuple[str, ...] = (),
+    full: bool = False,
     changed_paths: tuple[str, ...] = (),
 ) -> TransitionPlan:
     """Compile the exact commitment-, fact-, and policy-bound proof plan."""
@@ -266,14 +263,7 @@ def proof_plan(
         if str(lease.get("expected_head") or "") != head:
             message = f"lease_head_stale:{branch}"
             raise ValueError(message)
-    if openspec_profile_enabled(root, tree_ref=head):
-        try:
-            commitment = load_openspec_commitment(root, change_id=change_id, tree_ref=head)
-        except ValueError as error:
-            if change_id is not None or str(error) != "commitment_missing":
-                raise
-            commitment = load_repository_commitment(root, tree_ref=head)
-    elif work_lane:
+    if work_lane:
         commitment = load_profile_lease_bound_commitment(
             root,
             change_id=change_id,
@@ -281,12 +271,13 @@ def proof_plan(
             base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
         )
     else:
-        commitment = load_commitment(root, change_id=change_id, tree_ref=head)
+        commitment = load_profile_commitment(root, change_id=change_id, tree_ref=head)
     repository = load_repository_commitment(root, tree_ref=head)
     selected_change_id = (
         commitment.id.removeprefix("change:") if commitment.id != repository.id else ""
     )
-    nodes, validation_issues = gate_nodes(gate_ids, root=root, tree_ref=head)
+    policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
+    nodes = policy.nodes
     facts = Facts(
         repository=repository.id,
         head=head,
@@ -303,18 +294,9 @@ def proof_plan(
         commitment,
         facts,
         nodes,
-        policy_digest=gate_policy_digest(root, tree_ref=head),
-        validation_issues=validation_issues,
+        policy_digest=policy.digest,
+        validation_issues=policy.gaps,
     )
-
-
-def promotion_required_gate_ids(root: Path, *, tree_ref: str | None = None) -> tuple[str, ...]:
-    """Return the exact default proof floor required for promotion."""
-    if tree_ref is not None:
-        committed = committed_product_default_gate_ids(root, tree_ref)
-        if committed is not None:
-            return committed
-    return default_gate_ids(full=False, root=root, tree_ref=tree_ref)
 
 
 def _proof_candidate_gaps(root: Path, head: str, attestation: Attestation) -> list[str]:
@@ -335,15 +317,18 @@ def _proof_policy_gaps(
     head: str,
     checks: tuple[dict[str, object], ...],
 ) -> list[str]:
-    gaps = [
-        *adopter_code_correctness_gaps(root, tree_ref=head),
-        *adopter_gate_descriptor_gaps(root, tree_ref=head),
-    ]
-    required = promotion_required_gate_ids(root, tree_ref=head)
+    gaps: list[str] = []
+    policy = resolve_gate_policy(root, tree_ref=head)
+    required = policy.gate_ids
     present = {str(check["action_id"]) for check in checks}
     if missing := sorted(gate_id for gate_id in required if gate_id not in present):
         gaps.append(f"proof_incomplete:{','.join(missing)}")
-    gaps.extend(gate_policy_conformance_gaps(list(checks), root, tree_ref=head))
+    selected = resolve_gate_policy(
+        root,
+        tree_ref=head,
+        gate_ids=tuple(str(check["action_id"]) for check in checks),
+    )
+    gaps.extend(selected.conformance_gaps(list(checks)))
     return gaps
 
 
@@ -360,8 +345,6 @@ def _proof_query(head: str, validity: datetime) -> AuthorityQuery:
 
 def _proof_validation(root: Path, head: str) -> tuple[Attestation | None, list[str]]:
     attestations, store_gaps = scan_attestations(attestation_store_dir(root))
-    if store_gaps:
-        return None, store_gaps
     candidates = tuple(
         attestation
         for attestation in attestations
@@ -370,8 +353,8 @@ def _proof_validation(root: Path, head: str) -> tuple[Attestation | None, list[s
             and attestation.subject == f"git:commit:{head}"
         )
     )
-    if not candidates:
-        return None, ["proof_not_proven"]
+    if store_gaps or not candidates:
+        return None, store_gaps or ["proof_not_proven"]
     evaluated = [
         (attestation, _proof_candidate_gaps(root, head, attestation)) for attestation in candidates
     ]
@@ -405,9 +388,7 @@ def _proof_validation(root: Path, head: str) -> tuple[Attestation | None, list[s
         resolution = resolve_authority(_proof_query(head, validity), descriptors)
         if resolution.verdict != "pass":
             return None, list(resolution.required_gaps)
-        selected_source = min(descriptor.source for descriptor in resolution.descriptors)
-        selected_id = selected_source.removeprefix("attestation:")
-        return next(attestation for attestation in valid if attestation.id == selected_id), []
+        return max(valid, key=lambda attestation: (attestation.issued_at, attestation.id)), []
     latest = max(evaluated, key=lambda item: (item[0].issued_at, item[0].id))
     return None, latest[1]
 

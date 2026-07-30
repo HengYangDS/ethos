@@ -13,6 +13,8 @@ from ethos.contracts.semantic import Attestation
 _ARTIFACT_SUBDIR = Path("artifacts")
 _HEX = frozenset("0123456789abcdef")
 _SHA256_HEX_LENGTH = hashlib.sha256().digest_size * 2
+_CHECK_INVALID = "proof_attestation_check_invalid"
+_CHECKS_REQUIRED = "proof_attestation_checks_required"
 
 
 def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Path:
@@ -34,15 +36,15 @@ def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Pa
 def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict[str, object], ...]:
     """Validate and normalize one ordered collection of gate checks."""
     if not isinstance(checks, list | tuple):
-        raise TypeError("proof_attestation_checks_required")
+        raise TypeError(_CHECKS_REQUIRED)
     if not checks:
         if allow_empty:
             return ()
-        raise ValueError("proof_attestation_checks_required")
+        raise ValueError(_CHECKS_REQUIRED)
     normalized: list[dict[str, object]] = []
     for raw in checks:
         if not isinstance(raw, Mapping):
-            raise TypeError("proof_attestation_check_invalid")
+            raise TypeError(_CHECK_INVALID)
         action_id = raw.get("action_id")
         command = raw.get("command")
         verdict = raw.get("verdict")
@@ -76,24 +78,13 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
                 "verdict": verdict,
                 "evidence_class": str(raw.get("evidence_class") or ""),
                 "trust_bearing": raw.get("trust_bearing") is True,
-                "diagnostics": [_diagnostic(item, action_id) for item in diagnostics],
+                "diagnostics": [dict(item.items()) for item in diagnostics],
             }
         )
     if len({check["action_id"] for check in normalized}) != len(normalized):
-        raise ValueError("proof_attestation_check_duplicate")
+        message = "proof_attestation_check_duplicate"
+        raise ValueError(message)
     return tuple(normalized)
-
-
-def _diagnostic(item: object, action_id: object) -> dict[str, object]:
-    message = f"proof_attestation_check_invalid:{action_id}"
-    if not isinstance(item, Mapping):
-        raise TypeError(message)
-    diagnostic: dict[str, object] = {}
-    for name, value in item.items():
-        if not isinstance(name, str):
-            raise TypeError(message)
-        diagnostic[name] = value
-    return diagnostic
 
 
 def write_proof_artifact(
@@ -148,39 +139,43 @@ def artifact_checks(
     """Load checks only when the Attestation binds their immutable artifact."""
     artifact = attestation.statement.get("artifact")
     relative = (_ARTIFACT_SUBDIR / f"{attestation.effect_digest}.json").as_posix()
+    gap = ""
+    payload = b""
     if not isinstance(artifact, Mapping):
-        return None, ["proof_attestation_artifact_missing"]
-    if (
+        gap = "proof_attestation_artifact_missing"
+    elif (
         artifact.get("path") != relative
         or artifact.get("sha256") != f"sha256:{attestation.effect_digest}"
         or attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",)
     ):
-        return None, ["proof_attestation_artifact_binding_mismatch"]
-    path = store / relative
-    try:
-        payload = path.read_bytes()
-    except OSError:
-        return None, [
-            "proof_attestation_artifact_missing"
-            if not path.is_file()
-            else "proof_attestation_artifact_unavailable"
-        ]
-    if hashlib.sha256(payload).hexdigest() != attestation.effect_digest:
-        return None, ["proof_attestation_artifact_digest_mismatch"]
-    if artifact.get("size_bytes") != len(payload):
-        return None, ["proof_attestation_artifact_size_mismatch"]
+        gap = "proof_attestation_artifact_binding_mismatch"
+    else:
+        path = store / relative
+        try:
+            payload = path.read_bytes()
+        except OSError:
+            gap = (
+                "proof_attestation_artifact_missing"
+                if not path.is_file()
+                else "proof_attestation_artifact_unavailable"
+            )
+    if not gap and hashlib.sha256(payload).hexdigest() != attestation.effect_digest:
+        gap = "proof_attestation_artifact_digest_mismatch"
+    if not gap and artifact.get("size_bytes") != len(payload):
+        gap = "proof_attestation_artifact_size_mismatch"
+    if gap:
+        return None, [gap]
     try:
         document = json.loads(payload)
+        if (
+            not isinstance(document, dict)
+            or document.get("schema_version") != 1
+            or document.get("head") != attestation.statement.get("head")
+        ):
+            return None, ["proof_attestation_artifact_content_mismatch"]
+        return normalize_checks(document.get("checks"), allow_empty=True), []
     except json.JSONDecodeError:
         return None, ["proof_attestation_artifact_invalid"]
-    if (
-        not isinstance(document, dict)
-        or document.get("schema_version") != 1
-        or document.get("head") != attestation.statement.get("head")
-    ):
-        return None, ["proof_attestation_artifact_content_mismatch"]
-    try:
-        return normalize_checks(document.get("checks"), allow_empty=True), []
     except (TypeError, ValueError) as error:
         return None, [str(error)]
 

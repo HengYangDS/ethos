@@ -59,12 +59,12 @@ def test_local_ci_runs_install_smoke_before_fallback_manifest() -> None:
 
 def test_full_proof_registers_one_trust_bearing_install_smoke() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    full = declaration["proof_sets"]["product_full"]
+    full = declaration["proof_sets"]["full"]
     gates = {gate["id"]: gate for gate in declaration["gates"]}
 
     assert full.count("local-install-smoke") == 1
     assert full.index("build") < full.index("local-install-smoke")
-    assert "local-install-smoke" not in declaration["proof_sets"]["product_default"]
+    assert "local-install-smoke" not in declaration["proof_sets"]["default"]
     assert gates["local-install-smoke"] == {
         "id": "local-install-smoke",
         "registries": ["runtime"],

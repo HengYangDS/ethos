@@ -85,8 +85,6 @@ jobs:
         run: tools/ci/scripts/run-architecture-projection-drift.sh
       - name: Runbook registry
         run: tools/ci/scripts/run-runbook-registry-check.sh
-      - name: Local state audit
-        run: tools/ci/scripts/run-local-state-audit.sh
       - name: Release supply-chain envelope
         run: tools/ci/scripts/run-release-supply-chain.sh
       - name: Hosted provider observation envelope

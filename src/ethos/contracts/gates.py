@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import tomllib
+from graphlib import CycleError
+from graphlib import TopologicalSorter
 from pathlib import Path
 from typing import Literal
 from typing import Self
@@ -22,7 +24,7 @@ _DUPLICATE_GATE_ID = "duplicate gate id"
 _DUPLICATE_GATE_COMMAND = "duplicate gate command"
 _GATE_EXECUTOR_INVALID = "gate executor invalid"
 _UNAVAILABLE_GATE_DEPENDENCY = "unavailable gate dependency"
-_PRODUCT_FULL_MISSING_DEFAULT = "product full missing default"
+_FULL_MISSING_DEFAULT = "full proof set missing default"
 _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
 
@@ -95,9 +97,8 @@ class GateProofSets(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    product_default: tuple[str, ...]
-    product_full: tuple[str, ...]
-    adopter_default: tuple[str, ...]
+    default: tuple[str, ...]
+    full: tuple[str, ...]
 
 
 class GateRegistryDeclaration(BaseModel):
@@ -139,13 +140,50 @@ class GateRegistryDeclaration(BaseModel):
         )
         return {descriptor.id: descriptor for descriptor in descriptors}
 
+    def proof_gates(
+        self,
+        gate_ids: tuple[str, ...] = (),
+        *,
+        full: bool = False,
+        python_executable: str | None = None,
+    ) -> tuple[GateDescriptor, ...]:
+        """Return one stable runtime proof closure in dependency-first order."""
+        registry = self.registry("runtime", python_executable=python_executable)
+        selected = gate_ids or (self.proof_sets.full if full else self.proof_sets.default)
+        missing = set(selected) - registry.keys()
+        if missing:
+            raise ValueError(_UNKNOWN_PROOF_GATE)
+        required = set(selected)
+        pending = list(selected)
+        while pending:
+            gate = registry[pending.pop()]
+            for dependency in gate.depends_on:
+                if dependency not in required:
+                    required.add(dependency)
+                    pending.append(dependency)
+        order = TopologicalSorter(
+            {
+                gate_id: tuple(
+                    dependency
+                    for dependency in registry[gate_id].depends_on
+                    if dependency in required
+                )
+                for gate_id in sorted(required)
+            }
+        ).static_order()
+        return tuple(registry[gate_id] for gate_id in order)
+
 
 def _validate_registry(name: RegistryName, gates: tuple[GateEntry, ...]) -> set[str]:
     """Return emitted ids after validating one registry projection."""
-    emitted: set[str] = set()
-    for gate in _registry_entries(name, gates):
-        _validate_dependencies(gate, emitted)
-        emitted.add(gate.id)
+    entries = _registry_entries(name, gates)
+    emitted = {gate.id for gate in entries}
+    if any(set(gate.depends_on) - emitted for gate in entries):
+        raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY)
+    try:
+        tuple(TopologicalSorter({gate.id: gate.depends_on for gate in entries}).static_order())
+    except CycleError as exc:
+        raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY) from exc
     return emitted
 
 
@@ -154,20 +192,12 @@ def _registry_entries(name: RegistryName, gates: tuple[GateEntry, ...]) -> tuple
     return tuple(gate for gate in gates if name in gate.registries)
 
 
-def _validate_dependencies(gate: GateEntry, emitted: set[str]) -> None:
-    """Require dependencies to be available earlier in the same registry."""
-    dangling = set(gate.depends_on) - emitted
-    if dangling:
-        raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY)
-
-
 def _validate_proof_sets(proof_sets: GateProofSets, runtime_ids: set[str]) -> None:
     """Validate proof floors against the runtime gate registry."""
-    _validate_proof_floor(proof_sets.product_default, runtime_ids)
-    _validate_proof_floor(proof_sets.product_full, runtime_ids)
-    _validate_proof_floor(proof_sets.adopter_default, runtime_ids)
-    if not set(proof_sets.product_default) <= set(proof_sets.product_full):
-        raise ValueError(_PRODUCT_FULL_MISSING_DEFAULT)
+    _validate_proof_floor(proof_sets.default, runtime_ids)
+    _validate_proof_floor(proof_sets.full, runtime_ids)
+    if not set(proof_sets.default) <= set(proof_sets.full):
+        raise ValueError(_FULL_MISSING_DEFAULT)
 
 
 def _validate_proof_floor(gate_ids: tuple[str, ...], runtime_ids: set[str]) -> None:

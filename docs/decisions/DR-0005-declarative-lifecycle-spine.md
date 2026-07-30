@@ -92,61 +92,12 @@ Completion requires:
 
 ## Alternatives Considered
 
-### Strict boundary models plus direct mature mechanisms
-
-**Pros**
-
-- Uses Pydantic v2, CEL, `graphlib`, Cyclopts, and JSON Schema without wrapping them in parallel owners.
-
-**Cons**
-
-- Requires strict parity, drift, determinism, and deletion proof.
-
-**Why Rejected**
-
-Not rejected; selected below.
-
-### attrs, dataclass, and Pydantic dual models
-
-**Pros**
-
-- Reduces local migration friction.
-
-**Cons**
-
-- Creates conversion code, duplicate contracts, and duplicated tests.
-
-**Why Rejected**
-
-It violates singular persisted-contract ownership.
-
-### Custom graph layer or a rich graph framework in the kernel
-
-**Pros**
-
-- Offers broader graph analytics.
-
-**Cons**
-
-- TransitionPlan needs only ordering and cycle detection; a wrapper becomes a second owner.
-
-**Why Rejected**
-
-Direct `graphlib.TopologicalSorter` is sufficient for kernel semantics.
-
-### DI container, event bus, or workflow runtime as the product center
-
-**Pros**
-
-- Provides generic composition and orchestration abstractions.
-
-**Cons**
-
-- Obscures dependencies and risks creating another lifecycle truth plane.
-
-**Why Rejected**
-
-Explicit arguments, TransitionPlan, and Attestations already carry the required meaning.
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| Strict boundary models plus direct mature mechanisms | selected | Uses Pydantic v2, CEL, `graphlib`, Cyclopts, and JSON Schema without wrapping them in parallel owners. | Requires strict parity, drift, determinism, and deletion proof. | It maximizes mature capability reuse while preserving one semantic owner. |
+| attrs, dataclass, and Pydantic dual models | rejected | Reduces local migration friction. | Creates conversion code, duplicate contracts, and duplicated tests. | It violates singular persisted-contract ownership. |
+| Custom graph layer or a rich graph framework in the kernel | rejected | Offers broader graph analytics. | TransitionPlan needs only ordering and cycle detection; a wrapper becomes a second owner. | Direct `graphlib.TopologicalSorter` is sufficient for kernel semantics. |
+| DI container, event bus, or workflow runtime as the product center | rejected | Provides generic composition and orchestration abstractions. | Obscures dependencies and risks creating another lifecycle truth plane. | Explicit arguments, TransitionPlan, and Attestations already carry the required meaning. |
 
 ## Selected Approach And Rationale
 

@@ -104,9 +104,8 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
         DEFAULT_REQUIRED_SECTIONS
     )
     if contained_package_path(package_dir, entrypoint):
-        quality_policy = (
-            manifest.get("quality") if isinstance(manifest.get("quality"), dict) else {}
-        )
+        raw_quality_policy = manifest.get("quality")
+        quality_policy = raw_quality_policy if isinstance(raw_quality_policy, dict) else {}
         quality = validate_skill_markdown(
             root,
             (package_dir / entrypoint).relative_to(root),

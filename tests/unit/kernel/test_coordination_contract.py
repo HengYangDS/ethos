@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pytest
 from pydantic import ValidationError
 
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_holder_ref_is_provider_neutral_and_carries_no_privilege() -> None:
@@ -30,7 +37,7 @@ def test_holder_ref_rejects_provider_only_or_ambiguous_values(value: str) -> Non
         HolderRef.parse(value)
 
 
-def test_lane_lease_binds_local_incarnation_holder_generation_and_head() -> None:
+def test_lane_lease_binds_local_incarnation_holder_generation_and_head(tmp_path: Path) -> None:
     now = datetime(2026, 7, 10, tzinfo=UTC)
     lease = LaneLease(
         lane_incarnation_id="lane-incarnation:01",
@@ -67,6 +74,22 @@ def test_lane_lease_binds_local_incarnation_holder_generation_and_head() -> None
     assert payload["base_commitment_digest"] == "b" * 64
     assert payload["handoff"] is None
     assert LaneLease.model_validate(payload) == lease
+    database = tmp_path / "state.sqlite"
+    acquire_lease(database, lease=lease)
+    with closing(sqlite3.connect(database)) as connection:
+        persisted = connection.execute("select payload_json from leases").fetchone()[0]
+    assert persisted == (
+        '{"base_commitment_digest": "' + "b" * 64 + '", '
+        '"epoch": 3, "expected_head": "'
+        + "a"
+        * 40
+        + '", "expires_at": "2026-07-10T00:00:00+00:00", "handoff": null, '
+        '"holder_ref": "agent:claude:session:abc", '
+        '"issued_at": "2026-07-10T00:00:00+00:00", '
+        '"lane_incarnation_id": "lane-incarnation:01", "lane_ref": "work/example", '
+        '"lease_id": "lease:01", "path_scope": ["packages/example.py"], '
+        '"renewed_at": "2026-07-10T00:00:00+00:00"}'
+    )
 
 
 @pytest.mark.parametrize(

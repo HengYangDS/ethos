@@ -476,8 +476,7 @@ def emulator_evidence(
     ]
     if log_warnings:
         run["ok"], run["returncode"] = False, int(run["returncode"] or 1)
-    finished_at = datetime.now(UTC)
-    git_end = _git_summary()
+    finished_at, git_end = datetime.now(UTC), _git_summary()
     head_start, head_end = map(str, (git_start["head"], git_end["head"]))
     schema_version, head = 1, head_end
     head_stable, dirty = head_start == head_end, git_end["dirty"]

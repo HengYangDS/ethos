@@ -435,6 +435,20 @@ def test_legacy_head_keyed_proof_file_is_immediately_inert(tmp_path: Path) -> No
     assert proof_gaps(repo, head) == ["proof_not_proven"]
 
 
+def test_unknown_attestation_predicate_cannot_authorize_proof(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    proof = _proof_attestation(repo, head)
+    unknown = Attestation.issue(
+        {
+            **proof.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"}),
+            "predicate": "experiment:novel",
+        }
+    )
+    with pytest.raises(ValueError, match="proof_attestation_binding_missing"):
+        persist_proof_attestation(repo, unknown)
+    assert not (attestation_store_dir(repo) / f"{unknown.id}.json").exists()
+
+
 def test_proof_attestation_artifact_tamper_fails_closed(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     attestation = _proof_attestation(repo, head)

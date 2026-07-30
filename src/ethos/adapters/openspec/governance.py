@@ -259,7 +259,7 @@ def _openspec_governance_report(
         "change": selected,
         "schema_name": status.get("json", {}).get("schemaName") if status else "",
         "summary": {
-            "change_count": len(list_result["json"].get("changes", [])),
+            "change_count": len(rows or ()),
             "validation": validate["json"].get("summary", {}),
         },
         "required_gaps": required_gaps,

@@ -230,41 +230,34 @@ ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.
 
 ### Requirement: Official OpenSpec Lifecycle Adapter
 
-ETHOS SHALL compose official OpenSpec CLI output with ETHOS lifecycle carrier
-review and SHALL preflight an active change's archiveability through an isolated
-official archive projection before proof, land, or accepted-root closeout.
+The official OpenSpec CLI SHALL own validation and archival for ETHOS's selected
+self-profile carrier. ETHOS SHALL consume its current `doctor`, `list`, `status`,
+and strict `validate` observations, then apply only Commitment and scope checks.
+Generic adopters SHALL not require OpenSpec.
 
-#### Scenario: Archive closeout gaps block land and closeout
+#### Scenario: official active state is malformed or ambiguous
 
-- **GIVEN** official OpenSpec list status has no completed active changes
-- **AND** an archived change is missing archive metadata or has incomplete tasks
-- **WHEN** ETHOS evaluates OpenSpec lifecycle closeout for land or accepted-root
-  closeout
-- **THEN** ETHOS reports the archive issue as a required gap
-- **AND** land or closeout remains blocked until archive state is repaired.
+- **WHEN** official `list --json` has an invalid wire shape, an absent explicitly
+  requested Change, or multiple implicitly selectable Changes
+- **THEN** ETHOS blocks with a precise gap
+- **AND** it does not select by timestamp, directory order, task-file parsing,
+  fallback field names, or a private rank.
 
-#### Scenario: Active change fails official archive simulation
+#### Scenario: a completed Change remains active
 
-- **GIVEN** an active change is syntactically valid but the configured official
-  OpenSpec archive command would reject its delta against the current canonical
-  specs
-- **WHEN** ETHOS evaluates OpenSpec lifecycle for the change
-- **THEN** ETHOS runs the official archive only in a disposable workspace copy
-- **AND** returns the official diagnostic code, message, and fix under the
-  change's `archive_preflight` data
-- **AND** reports a change-scoped required gap
-- **AND** proof, land, and accepted-root closeout remain blocked
-- **AND** the source OpenSpec workspace remains unchanged.
+- **WHEN** official `list` reports status `complete` for a Change still under the
+  active changes surface
+- **THEN** land and accepted-root closeout report
+  `openspec_completed_change_unarchived:<change>`
+- **AND** only the owner-native archive action can clear the active fact.
 
-#### Scenario: Active change passes official archive simulation
+#### Scenario: historical archives use an older shape
 
-- **GIVEN** an active change's official archive simulation succeeds
-- **WHEN** ETHOS evaluates OpenSpec lifecycle for the change
-- **THEN** lifecycle records a successful isolated preflight
-- **AND** it does not archive the source change, complete tasks, or mint
-  authority
-- **AND** a later source change requires lifecycle to evaluate archiveability
-  again.
+- **WHEN** a historical archive contains obsolete names, metadata, tasks, or
+  delta layout
+- **THEN** ETHOS preserves it as non-authorizing history
+- **AND** current admission does not re-run or reinterpret that historical
+  workflow.
 
 ### Requirement: Work Lane Claim Binding Projection
 ETHOS SHALL expose Work Lane ownership as claim boundary evidence for
@@ -290,20 +283,6 @@ evidence rather than repository truth.
 - **THEN** ETHOS records the intake state as projection evidence
 - **AND** ETHOS still requires claim admission, OpenSpec lifecycle readiness,
   executed proof, and promotion targets before trust closeout
-
-### Requirement: Lifecycle Review Covers Active Changes
-
-ETHOS SHALL review all active OpenSpec changes in lifecycle mode when no single
-change is explicitly selected.
-
-#### Scenario: Multiple active changes are reviewed
-
-- **WHEN** `ethos openspec --lifecycle --json` runs without `--change`
-- **THEN** lifecycle output includes every active change reported by official
-  OpenSpec list output
-- **AND** each change is checked for carriers, Commitment validity, proposal metadata,
-  capability profile health, and out-of-scope boundaries.
-- **AND** only non-complete active Changes participate in material-write coverage
 
 ### Requirement: Optional tool adapters remain replaceable
 ETHOS SHALL expose optional adapter boundaries for environment runners, graph

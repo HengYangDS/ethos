@@ -15,8 +15,8 @@ from . import scope
 if TYPE_CHECKING:
     from pathlib import Path
 
-_ACTIVE_STATUSES = frozenset({"in-progress", "no-tasks", "archiving"})
-_COMPLETED_STATUSES = frozenset({"complete", "completed", "done"})
+_ACTIVE_STATUSES = frozenset({"in-progress", "no-tasks"})
+_COMPLETED_STATUSES = frozenset({"complete"})
 _KNOWN_STATUSES = _ACTIVE_STATUSES | _COMPLETED_STATUSES
 
 
@@ -45,13 +45,24 @@ def official_change_rows(list_payload: dict[str, Any]) -> list[dict[str, str]] |
     for item in changes:
         if not isinstance(item, dict):
             return None
-        name = item.get("name") or item.get("id")
-        status = item.get("status") or item.get("state")
-        if not isinstance(name, str) or not name or not isinstance(status, str):
+        name, status = item.get("name"), item.get("status")
+        completed, total = item.get("completedTasks"), item.get("totalTasks")
+        if (
+            not isinstance(name, str)
+            or not name
+            or status not in _KNOWN_STATUSES
+            or not isinstance(completed, int)
+            or isinstance(completed, bool)
+            or not isinstance(total, int)
+            or isinstance(total, bool)
+            or completed < 0
+            or total < completed
+        ):
             return None
-        if status not in _KNOWN_STATUSES:
+        expected = "no-tasks" if total == 0 else "complete" if completed == total else "in-progress"
+        if status != expected:
             return None
-        rows.append({"name": name, "status": status})
+        rows.append({"name": name, "status": str(status)})
     return rows
 
 

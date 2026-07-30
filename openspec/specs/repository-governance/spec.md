@@ -729,37 +729,6 @@ workflow prevents the invalid state before mutation when practical.
 - **THEN** ETHOS treats the guard design as incomplete until the guard is bound
   to the mutation capability or an explicit degraded mode is declared
 
-### Requirement: Productized OpenSpec carrier governance
-
-ETHOS SHALL treat OpenSpec as the repository case and specification carrier,
-with accepted specs, active changes, archived changes, capability profiles,
-claims, and evidence refs serving distinct product duties. Archive closeout
-SHALL preserve accepted scenario obligations unless an explicit removal decision
-carries the deletion. Archive closeout SHALL reject non-canonical or duplicate
-logical archive identities.
-
-#### Scenario: Archive closeout is a product gate
-
-- **WHEN** a Work Lane depends on a previously closed OpenSpec carrier
-- **THEN** that prior carrier is archived through the official OpenSpec archive
-  path before downstream campaign steps depend on it
-- **AND** claims that refer to the carrier point at the dated archive path after
-  archive closeout
-- **AND** accepted specification obligations are fused forward rather than
-  deleted by a tool-applied archive delta
-- **AND** removing an accepted `WHEN`, `THEN`, or `AND` obligation requires an
-  explicit removal decision instead of silent replacement.
-- **AND** the campaign manifest records the lane as closed and retired before
-  the next campaign step becomes active.
-
-#### Scenario: Archive identity is canonical and unique
-
-- **WHEN** archive closeout evaluates historical carriers
-- **THEN** each name SHALL be `YYYY-MM-DD-<date-free-logical-id>`
-- **AND** each logical ID SHALL resolve to exactly one archive carrier
-- **AND** numeric-leading, terminal-date, and duplicate logical identities
-  SHALL block closeout without compatibility aliases or date selection.
-
 ### Requirement: Campaign Orchestration
 
 ETHOS SHALL model long-running productization work as campaigns that coordinate
@@ -790,27 +759,6 @@ multiple OpenSpec-backed Work Lanes and their closeout state.
 - **THEN** the campaign package includes only the selected campaign
 - **AND** the report records the requested selector
 - **AND** unrelated campaign gaps do not become selected-campaign gaps.
-
-### Requirement: Productized OpenSpec Substrate
-
-ETHOS SHALL provide an inspectable OpenSpec workspace substrate for product and
-adopter repositories instead of treating an empty `openspec/` directory as
-complete governance.
-
-#### Scenario: OpenSpec substrate is inspectable
-
-- **WHEN** ETHOS scaffolds or audits an OpenSpec workspace
-- **THEN** the workspace includes guidance for the workspace, specs, and changes
-- **AND** it includes capability vocabulary and capability profile templates
-- **AND** active changes remain case carriers rather than promoted truth.
-
-#### Scenario: OpenSpec metadata compatibility is checked upstream
-
-- **WHEN** ETHOS performs the always-run OpenSpec shape audit
-- **THEN** it checks active and archived `.openspec.yaml` metadata for keys
-  accepted by the official OpenSpec editor model
-- **AND** unsupported metadata keys are reported as repository governance gaps
-  before an IDE or host projection attempts to parse the workspace.
 
 ### Requirement: Agent Invocation Admission Boundary
 
@@ -1357,19 +1305,6 @@ projections, and gates instead of making adopter tools product ontology.
   claim, evidence, or command proof
 - **AND** missing method-pack availability SHALL NOT block ETHOS repository
   governance when equivalent evidence discipline is satisfied.
-
-### Requirement: OpenSpec customization stays official-compatible
-
-ETHOS SHALL apply official OpenSpec validation before ETHOS-specific schema,
-capability profile, claim binding, evidence, and archive lifecycle checks.
-
-#### Scenario: ETHOS validates capability metadata after official OpenSpec
-
-- **WHEN** an OpenSpec change or accepted spec is validated for ETHOS governance
-- **THEN** official OpenSpec validation SHALL run first
-- **AND** ETHOS SHALL validate repo-local capability profiles, proposal facets,
-  claim carriers, evidence refs, and archive closeout without replacing official
-  OpenSpec syntax or semantics.
 
 #### Scenario: clean ownerless landed residual retires after exact accepted absorption
 
@@ -2079,21 +2014,6 @@ upgrade an undeclared shape at runtime.
   gap
 - **AND** ETHOS SHALL NOT interpret top-level lifecycle, evidence-reference, or
   promotion-target fields as a compatibility format.
-
-### Requirement: Official OpenSpec goal metadata is lifecycle-compatible
-
-ETHOS SHALL accept the official OpenSpec 1.6 `goal` field in active and archived
-`.openspec.yaml` metadata while continuing to reject unrecognized metadata
-keys.
-
-#### Scenario: Official change creation supplies a goal
-
-- **WHEN** an OpenSpec change metadata file contains `schema`, `created`, and
-  an official `goal`
-- **THEN** ETHOS metadata compatibility and archive closeout SHALL not report a
-  metadata-key gap for `goal`
-- **AND** an unknown key such as `owner` SHALL remain a required compatibility
-  gap.
 
 ### Requirement: Canonical declarations have a self-contained package projection
 

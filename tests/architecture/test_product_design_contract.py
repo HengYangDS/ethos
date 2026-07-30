@@ -220,17 +220,17 @@ def test_live_cyclopts_tree_has_exact_public_and_hidden_roots() -> None:
 
 def test_terminal_tasks_preserve_stable_identity_and_completed_foundations() -> None:
     tasks = read(TERMINAL_TASKS)
-    rows = re.findall(r"^- \[([ x])\] ((?:F|\d+)\.\d+)\b", tasks, re.MULTILINE)
+    rows = re.findall(r"^- \[([ x])\] ((?:F|\d+)\.\d+(?:\.\d+)?)\b", tasks, re.MULTILINE)
     identifiers = [identifier for _state, identifier in rows]
     completed = {identifier for state, identifier in rows if state == "x"}
 
     assert len(identifiers) == len(set(identifiers))
-    assert {f"F.{index}" for index in range(1, 10)} | {"0.1"} <= completed
+    assert {f"F.{index}" for index in range(1, 12)} | {"0.1"} <= completed
     assert "first unchecked item in section 0 is the critical path" in tasks.replace("\n", " ")
     assert len(re.findall(r"^\*\*Exit \d:\*\*", tasks, re.MULTILINE)) == 8
     compact = " ".join(tasks.split())
-    assert "0.2 Add failing tests for two-root persistence" in compact
-    assert "0.3 Map every active carrier and legacy surface" in compact
+    assert "0.2.1 Add failing tests for two-root persistence" in compact
+    assert "0.3.1 Map every active carrier and legacy surface" in compact
     assert "0.4 Close every independent accepted feedback obligation" in compact
 
 
@@ -275,11 +275,6 @@ def test_terminal_execution_contract_is_self_profile_only_and_progress_is_irreve
     assert "elapsed activity without a terminal-state delta is not progress" in compact_design
     assert "old decisions" not in tasks.lower()
 
-    rows = re.findall(r"^- \[([ x])\] ((?:F|\d+)\.\d+)\b", tasks, re.MULTILINE)
-    assert {identifier for state, identifier in rows if state == "x"} >= {
-        *(f"F.{index}" for index in range(1, 10)),
-        "0.1",
-    }
     assert "never renumbers work to reset progress" in compact_tasks
     assert "block task-ID reuse, completion reset" in compact_tasks
 

@@ -232,29 +232,6 @@ def _current_branch_role(root: Path) -> str:
     return load_branch_role_policy(root).role_for_branch(_current_branch(root))
 
 
-def completed_unarchived_changes(openspec_root: Path) -> list[str]:
-    """Active OpenSpec changes whose tasks are all complete but which are not archived.
-
-    Uses ETHOS's OWN signal (every task box in tasks.md checked) rather than the
-    external openspec CLI, so the leak is caught on the always-run audit path — not
-    only at `land --closeout` (which raw `git merge` bypasses). A completed change
-    left in changes/ is a carrier masquerading as active.
-    """
-    changes_root = openspec_root / "changes"
-    if not changes_root.exists():
-        return []
-    unarchived: list[str] = []
-    for change_dir in sorted(changes_root.iterdir()):
-        if not change_dir.is_dir() or change_dir.name == "archive":
-            continue
-        tasks = change_dir / "tasks.md"
-        if not tasks.exists():
-            continue
-        if tasks_complete(tasks.read_text(encoding="utf-8")):
-            unarchived.append(f"openspec_completed_change_unarchived:{change_dir.name}")
-    return unarchived
-
-
 def _changed_openspec_spec_obligation_removal_gaps(root: Path) -> list[str]:
     """Detect accepted OpenSpec spec obligations removed in the current change.
 
@@ -334,7 +311,6 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
     protected_branch_residue = protected_branch_active_change_report(
         root, current_branch=current_branch
     )
-    required_gaps.extend(completed_unarchived_changes(openspec_root))
     required_gaps.extend(active_change_identifier_violations(openspec_root))
     required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))
     return {

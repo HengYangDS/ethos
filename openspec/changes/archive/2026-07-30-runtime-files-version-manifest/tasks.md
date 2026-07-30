@@ -14,5 +14,6 @@
 - [x] 3.1 Run focused release, coupling, schema, and adopter CLI regressions.
 - [x] 3.2 Run strict OpenSpec validation, refresh parity, and execute exact-HEAD
   proof.
-- [x] 3.3 Confirm archive readiness; archive, land, accepted-root closeout,
-  and Work Lane retirement remain the following governed transitions.
+- [x] 3.3 Confirm archive readiness and archive through the official OpenSpec
+  transition; land, accepted-root closeout, and Work Lane retirement remain
+  subsequent governed transitions.

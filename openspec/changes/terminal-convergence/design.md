@@ -34,10 +34,11 @@ new product ontology.
    commitment, fact, prior-attestation, policy, and effect bindings. The adapter
    rechecks preconditions at CAS time. Post-observation and an Attestation—not
    a replayed historical workflow—establish what occurred.
-6. **Self profile is optional to adopters.** OpenSpec is a native carrier plus
-   adapter for ETHOS's self profile. Its official CLI owns validation and
-   archival. A generic adopter with no OpenSpec must compile and prove a
-   transition from its selected native carrier.
+6. **The kernel is neutral; complete adoption is opinionated.** Commitment,
+   Facts, TransitionPlan, and Attestation remain independent of OpenSpec types,
+   while every mutation-capable adopter pins verified OpenSpec as the sole
+   Change, design, spec, task-progress, dependency, and archive carrier.
+   Observation-only repositories may omit it but cannot enter governed mutation.
 7. **Coordination is derived.** Worktrees, refs, leases, families, inboxes,
    handoffs, candidate queues, records, dashboards, and taxonomies are resource
    facts or projections. They never preserve intent alone. Capacity and
@@ -121,6 +122,14 @@ identities, artifact `requires`, valid `skip_specs`, archive warnings, no-op
 updates, and the returned archive path. ETHOS does not enable a global default
 store or retain a parallel 1.6 reader.
 
+OpenSpec owns proposal, specs, design, tasks-progress, Change identity, artifact
+dependencies, generated Skills, and archive lifecycle for every complete
+adopter. ETHOS owns admission, Work Lanes and Leases, proof and Attestation,
+Git CAS, land, and publish. Official Skills are projections only. Another SDD
+runtime may be an external method/operator only when a real consumer proves net
+deletion, no second SSOT, clean recovery, and measurable time/token benefit;
+Spec Kit is not a core dependency and COMET remains only such a candidate.
+
 The owner-native archive is the final tracked source mutation, not the final
 proof claim. It changes HEAD, so local proof, proposal/hosted verification, and
 dual-provider publication execute once on the post-archive commit. The archived
@@ -139,7 +148,7 @@ They close here rather than surviving as a second current document.
 | Product behavior uses one `src/ethos` distribution with narrow modules; adopter semantics remain in profiles or adopter repositories | superseded | product boundary and isomorphic adopter governance; `F.3`, `3.5`, `5.3`, `6.7` | package, module-boundary, and three-adopter gates |
 | Domain contracts remain profile data rather than ETHOS assumptions | absorbed | product contract and profile schemas; `6.7`, `6.8` | profile isolation and schema conformance |
 | Superpowers and host capabilities remain optional observations, never durable repository truth | absorbed | product contract and method-pack boundary; `F.7`, `4.4`, `5.5` | authority and method-pack architecture tests |
-| OpenSpec remains a selectable self-profile carrier whose official CLI owns validation and archive | absorbed | OpenSpec adapter boundary; `F.9`, `4.1`, `6.10` | official strict validation and archive receipt |
+| Complete adopters require OpenSpec as the sole Change/SDD carrier while the kernel remains vendor-neutral | absorbed | adoption and OpenSpec boundary; `F.9`, `4.1`, `5.5`, `6.7`, `6.10` | pinned 1.7 characterization, three-adopter lifecycle, and archive receipt |
 | Backlog, execution runtimes, generators, and scaffolds require a proved consumer and net deletion | deferred | adapter admission; `6.9` | consumer, uninstall, and dependency gates |
 | Product behavior does not migrate into `tools/`; adopter `tools/agent` content is classified during adoption | absorbed | semantic module ownership and adopter classification; `5.3`, `6.7` | module-boundary and adopter report gates |
 | `.mailmap` and package-root re-exports remain absent | absorbed | repository hygiene; `6.6` | architecture scans |

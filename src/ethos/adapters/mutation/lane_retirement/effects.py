@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
+from ethos.adapters.admission.closeout_intent.marker import clear_closeout_intent
+from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.git import is_ancestor
@@ -17,7 +20,9 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
+from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.lease.projection import observe_lease_from_connection
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.coordination import LeaseOperationRequest
@@ -32,72 +37,69 @@ def apply_retirement(
     *,
     policy: BranchRolePolicy,
     lane: dict[str, object],
+    authority_lane: dict[str, object],
     accepted_head: str,
 ) -> dict[str, object]:
     removed = False
-    lease = cast("dict[str, object]", lane.get("lease") or {})
+    result: dict[str, object] = {}
+    successor_authority = authority_lane.get("branch") != lane.get("branch")
     try:
         with closing(sqlite3.connect(state_database(repo))) as connection:
             connection.execute("pragma foreign_keys = on")
             connection.execute("begin immediate")
-            revoke_lease_from_connection(
-                connection,
-                request=LeaseOperationRequest(
-                    operation="revoke",
-                    branch=str(lane["branch"]),
-                    holder_ref=holder_ref(lane),
-                    lease_id=str(lease.get("lease_id") or ""),
-                    expected_epoch=integer_value(lease.get("epoch")),
-                    expect_head=str(lane["head"]),
-                    expected_expires_at=str(lease.get("expires_at") or ""),
-                    expected_payload_sha256=str(lease.get("payload_sha256") or ""),
-                    apply=True,
-                ),
-            )
+            if successor_authority:
+                require_missing_lease(connection, str(lane["branch"]))
+                expected_current_lease(
+                    connection,
+                    request=lease_request(authority_lane),
+                    require_expired=False,
+                )
+            else:
+                revoke_lease_from_connection(
+                    connection,
+                    request=lease_request(lane),
+                )
             if gaps := effect_gaps(
+                repo,
                 control_root,
                 policy=policy,
                 lane=lane,
+                authority_lane=authority_lane,
                 accepted_head=accepted_head,
             ):
-                return blocked(gaps)
-            if effect := remove_linked_lane(
-                control_root,
-                lane,
-                accepted_branch=policy.accepted_branch,
-                accepted_head=accepted_head,
-            ):
-                return {
+                result = blocked(gaps)
+            else:
+                effect = remove_linked_lane(
+                    control_root,
+                    lane,
+                    accepted_branch=policy.accepted_branch,
+                    accepted_head=accepted_head,
+                    authority_branch=str(authority_lane.get("branch") or ""),
+                    authority_head=str(authority_lane.get("head") or ""),
+                    authority_path=str(authority_lane.get("path") or ""),
+                )
+                result = {
                     **effect,
                     **({"lease_state": "retained"} if effect.get("worktree_removed") else {}),
                 }
-            removed = True
-            connection.commit()
+            if result or successor_authority:
+                if result:
+                    connection.rollback()
+                else:
+                    removed = True
+                    connection.commit()
+            else:
+                removed = True
+                connection.commit()
     except ValueError as exc:
-        return blocked([str(exc).partition(":")[0]], str(exc))
+        result = blocked([str(exc).partition(":")[0]], str(exc))
     except (OSError, sqlite3.Error) as exc:
-        if not removed:
-            return blocked(["lease_cleanup_failed"], str(exc))
-        try:
-            restored = run_git(
-                control_root,
-                "update-ref",
-                "--stdin",
-                check=False,
-                stdin=f"create refs/heads/{lane['branch']} {lane['head']}\n",
-            )
-        except OSError:
-            restored = None
-        gaps = ["lease_cleanup_failed_after_lane_removed"]
-        if restored is None or restored.returncode != 0:
-            gaps.append("branch_restore_failed_after_lease_cleanup")
-        return {
-            **blocked(gaps, str(exc)),
-            "worktree_removed": True,
-            "ref_restored": restored is not None and restored.returncode == 0,
-            "lease_state": "retained",
-        }
-    return {}
+        result = (
+            recover_removed_lane(control_root, lane, exc)
+            if removed
+            else blocked(["lease_cleanup_failed"], str(exc))
+        )
+    return result
 
 
 def remove_linked_lane(
@@ -106,6 +108,9 @@ def remove_linked_lane(
     *,
     accepted_branch: str,
     accepted_head: str,
+    authority_branch: str,
+    authority_head: str,
+    authority_path: str,
 ) -> dict[str, object]:
     branch, path, expected = (str(lane.get(key) or "") for key in ("branch", "path", "head"))
     if gaps := reobservation_gaps(branch, path, expected):
@@ -113,14 +118,36 @@ def remove_linked_lane(
     removed = run_git(control_root, "worktree", "remove", path, check=False)
     if removed.returncode != 0:
         return blocked(["worktree_remove_failed"], removed.stderr)
+    authority_update = (
+        f"update refs/heads/{authority_branch} {authority_head} {authority_head}\n"
+        if authority_branch not in {accepted_branch, branch}
+        else ""
+    )
+    transaction_root = (
+        Path(authority_path)
+        if authority_branch not in {accepted_branch, branch} and Path(authority_path).is_dir()
+        else control_root
+    )
+    intent: dict[str, object] = {}
     try:
+        intent = write_closeout_intent(
+            root=transaction_root,
+            transition=CloseoutTransition(
+                ref_name=f"refs/heads/{branch}",
+                old_value=expected,
+                new_value="0" * len(expected),
+                candidate_head=authority_head or accepted_head,
+            ),
+            evidence_digest="",
+        )
         deleted = run_git(
-            control_root,
+            transaction_root,
             "update-ref",
             "--stdin",
             check=False,
             stdin=(
                 f"start\nupdate refs/heads/{accepted_branch} {accepted_head} {accepted_head}\n"
+                f"{authority_update}"
                 f"delete refs/heads/{branch} {expected}\nprepare\ncommit\n"
             ),
         )
@@ -129,14 +156,21 @@ def remove_linked_lane(
     except OSError as exc:
         return failed_ref_transition(
             control_root,
+            lane=lane,
             target=(branch, expected),
             accepted=(accepted_branch, accepted_head),
+            authority=(authority_branch, authority_head),
             stderr=str(exc),
         )
+    finally:
+        if intent:
+            clear_closeout_intent(transaction_root, str(intent["nonce"]))
     return failed_ref_transition(
         control_root,
+        lane=lane,
         target=(branch, expected),
         accepted=(accepted_branch, accepted_head),
+        authority=(authority_branch, authority_head),
         stderr=deleted.stderr,
     )
 
@@ -144,13 +178,21 @@ def remove_linked_lane(
 def failed_ref_transition(
     control_root: Path,
     *,
+    lane: dict[str, object],
     target: tuple[str, str],
     accepted: tuple[str, str],
+    authority: tuple[str, str],
     stderr: str,
 ) -> dict[str, object]:
     branch, expected = target
     accepted_branch, accepted_head = accepted
     accepted_state = ref_outcome(control_root, accepted_branch, accepted_head)
+    authority_branch, authority_head = authority
+    authority_state = (
+        ref_outcome(control_root, authority_branch, authority_head)
+        if authority_branch not in {accepted_branch, branch}
+        else "expected"
+    )
     ref_state = ref_outcome(control_root, branch, expected)
     gaps = [
         "accepted_ref_changed_after_worktree_removed"
@@ -159,6 +201,10 @@ def failed_ref_transition(
     ]
     if accepted_state == "unavailable":
         gaps.append("accepted_ref_state_unavailable_after_worktree_removed")
+    if authority_state in {"absent", "moved"}:
+        gaps.append("authority_ref_changed_after_worktree_removed")
+    elif authority_state == "unavailable":
+        gaps.append("authority_ref_state_unavailable_after_worktree_removed")
     ref_gap = {
         "absent": "retirement_ref_absent_after_failed_delete",
         "moved": "retirement_ref_moved_after_worktree_removed",
@@ -166,9 +212,13 @@ def failed_ref_transition(
     }.get(ref_state)
     if ref_gap:
         gaps.append(ref_gap)
+    worktree_restored = ref_state == "expected" and restore_worktree(control_root, lane)
+    if ref_state == "expected" and not worktree_restored:
+        gaps.append("worktree_restore_failed_after_ref_transition")
     return {
         **blocked(gaps, stderr),
-        "worktree_removed": True,
+        "worktree_removed": not worktree_restored,
+        "worktree_restored": worktree_restored,
         "ref_state": ref_state,
         "ref_preserved": ref_state == "expected",
     }
@@ -284,10 +334,12 @@ def holder_gaps(lane: dict[str, object]) -> list[str]:
 
 
 def effect_gaps(
+    invocation_root: Path,
     control_root: Path,
     *,
     policy: BranchRolePolicy,
     lane: dict[str, object],
+    authority_lane: dict[str, object],
     accepted_head: str,
 ) -> list[str]:
     if output(control_root, "symbolic-ref", "--short", "HEAD") != policy.accepted_branch:
@@ -295,9 +347,90 @@ def effect_gaps(
     current_accepted = output(control_root, "rev-parse", policy.accepted_branch) or ""
     if current_accepted != accepted_head:
         return ["accepted_ref_stale"]
-    if actor_ref() != holder_ref(lane):
+    if authority_lane.get("branch") != lane.get("branch"):
+        authority_path = Path(str(authority_lane.get("path") or ""))
+        authority_branch = str(authority_lane.get("branch") or "")
+        if (
+            invocation_root.resolve() != authority_path.resolve()
+            or output(invocation_root, "symbolic-ref", "--short", "HEAD") != authority_branch
+        ):
+            return ["retirement_authority_checkout_stale"]
+        if gaps := reobservation_gaps(
+            str(authority_lane.get("branch") or ""),
+            str(authority_lane.get("path") or ""),
+            str(authority_lane.get("head") or ""),
+        ):
+            return gaps
+    if actor_ref() != holder_ref(authority_lane):
         return ["foreign_work_lane_retire_authority_required"]
     return []
+
+
+def lease_request(lane: dict[str, object]) -> LeaseOperationRequest:
+    """Bind one exact Lease row for retirement or successor authority validation."""
+    lease = cast("dict[str, object]", lane.get("lease") or {})
+    return LeaseOperationRequest(
+        operation="revoke",
+        branch=str(lane["branch"]),
+        holder_ref=holder_ref(lane),
+        lease_id=str(lease.get("lease_id") or ""),
+        expected_epoch=integer_value(lease.get("epoch")),
+        expect_head=str(lane["head"]),
+        expected_expires_at=str(lease.get("expires_at") or ""),
+        expected_payload_sha256=str(lease.get("payload_sha256") or ""),
+        apply=True,
+    )
+
+
+def require_missing_lease(connection: sqlite3.Connection, branch: str) -> None:
+    """Require the retired source to remain ownerless inside the effect transaction."""
+    if observe_lease_from_connection(connection, branch).state == "missing":
+        return
+    message = "successor_retire_target_lease_present"
+    raise ValueError(message)
+
+
+def restore_worktree(control_root: Path, lane: dict[str, object]) -> bool:
+    """Restore one removed linked worktree when a later retirement effect fails."""
+    path = str(lane.get("path") or "")
+    branch = str(lane.get("branch") or "")
+    return bool(
+        path
+        and branch
+        and run_git(control_root, "worktree", "add", path, branch, check=False).returncode == 0
+    )
+
+
+def recover_removed_lane(
+    control_root: Path,
+    lane: dict[str, object],
+    error: OSError | sqlite3.Error,
+) -> dict[str, object]:
+    """Restore a ref and linked worktree after the final Lease commit fails."""
+    try:
+        restored = run_git(
+            control_root,
+            "update-ref",
+            "--stdin",
+            check=False,
+            stdin=f"create refs/heads/{lane['branch']} {lane['head']}\n",
+        )
+    except OSError:
+        restored = None
+    ref_restored = restored is not None and restored.returncode == 0
+    worktree_restored = ref_restored and restore_worktree(control_root, lane)
+    gaps = ["lease_cleanup_failed_after_lane_removed"]
+    if not ref_restored:
+        gaps.append("branch_restore_failed_after_lease_cleanup")
+    elif not worktree_restored:
+        gaps.append("worktree_restore_failed_after_lease_cleanup")
+    return {
+        **blocked(gaps, str(error)),
+        "worktree_removed": not worktree_restored,
+        "worktree_restored": worktree_restored,
+        "ref_restored": ref_restored,
+        "lease_state": "retained",
+    }
 
 
 def reobservation_gaps(

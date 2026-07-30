@@ -39,7 +39,7 @@ _DEFAULT_LANDED = _LandedOptions()
 def lane_retire_superseded(
     options: Annotated[_SupersededOptions, Parameter(name="*")] = _DEFAULT_SUPERSEDED,
 ) -> None:
-    """Retire a clean linked Work Lane already absorbed by accepted truth."""
+    """Retire a clean lane absorbed by accepted truth or its current leased successor."""
     request = LinkedRetirementRequest(**options.model_dump(exclude={"root", "json_output"}))
     report = retire_linked_work_lane(
         root=resolve_root(options.root),

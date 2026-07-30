@@ -5,10 +5,12 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+from ethos.adapters.admission.closeout_intent.marker import consume_closeout_intent
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_head
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
@@ -27,7 +29,21 @@ def work_lane_ref_transition_report(
     if old_value == new_value and not (old_zero or new_zero):
         return _admit(phase, ref_name, old_value, new_value, "lane_ref_noop")
     repo = root.resolve()
+    if phase == "committed" and (
+        (old_zero and ref_head(repo, branch) == new_value)
+        or (new_zero and not ref_head(repo, branch))
+    ):
+        return _admit(phase, ref_name, old_value, new_value, "lane_ref_terminal_state_observed")
     lease = leases_by_branch(repo).get(branch, {})
+    if not lease and new_zero:
+        intent = consume_closeout_intent(
+            root=repo,
+            ref_name=ref_name,
+            old_value=old_value,
+            new_value=new_value,
+        )
+        if intent["present"] and not intent["gap"]:
+            return _admit(phase, ref_name, old_value, new_value, "lane_ref_intent_admitted")
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     lease_head = new_value if old_zero else old_value
     target_head = old_value if new_zero else new_value

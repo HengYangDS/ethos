@@ -221,6 +221,17 @@ Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashbo
 - **AND** a member becomes retireable only after its delta is absorbed or proved
   void, its required preservation exists, and no active Lease or consumer remains.
 
+#### Scenario: an exact leased successor retires its absorbed source
+
+- **GIVEN** one clean linked source member has no Lease
+- **AND** the current checkout is another Work Lane whose exact HEAD contains the
+  source HEAD as an ancestor and whose Lease is valid and bound to the invoking actor
+- **WHEN** `retire superseded` binds both exact HEADs and applies one transaction
+- **THEN** ETHOS preserves the accepted and successor refs through compare-and-swap,
+  removes only the source worktree and ref, and retains the successor Lease
+- **AND** a dirty source, a valid, expired, or unknown source Lease, a stale or
+  dirty successor, a holder mismatch, or non-ancestral history blocks before effect.
+
 #### Scenario: a shared inbox is rebuilt and consumed
 
 - **WHEN** a collaboration inbox is projected from selected Commitments, Git and

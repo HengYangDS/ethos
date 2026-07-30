@@ -13,6 +13,7 @@ import jsonschema
 import pytest
 from pydantic import ValidationError
 
+from ethos.contracts import semantic
 from ethos.contracts.gates import GateEntry
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -165,6 +166,7 @@ def test_only_commitment_and_attestation_have_production_persistence_owners() ->
     assert offenders == []
     assert Path("src/ethos/adapters/mutation/proof_artifacts.py").exists()
     assert Path("src/ethos/adapters/repo/commitment.py").exists()
+    assert not Path("src/ethos/adapters/mutation/attestation_projection.py").exists()
     assert "never persisted as truth" in (Facts.__doc__ or "")
     assert "transient" in (TransitionPlan.__doc__ or "")
 
@@ -292,10 +294,14 @@ def test_attestation_predicate_is_open_and_never_amends_a_commitment() -> None:
     )
 
     assert attestation.predicate == "review:human"
+    assert not hasattr(semantic, "apply_amendments")
+    assert not hasattr(semantic, "effective_intent")
+    assert not hasattr(semantic, "AttestationKind")
     assert not hasattr(Attestation, "apply_amendments")
     assert not hasattr(attestation, "kind")
     assert not hasattr(attestation, "content")
     assert not hasattr(attestation, "sequence")
+    assert not hasattr(attestation, "prior_digest")
     assert not hasattr(attestation, "mints_authority")
 
 
@@ -342,7 +348,11 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
 
 
 def test_schema_surfaces_are_generated_declared_and_valid() -> None:
+    schema_docs = Path("docs/architecture/schema-validation.md").read_text(encoding="utf-8")
     generated = terminal_schema_documents()
+    assert "typed variants" not in schema_docs
+    assert "open-predicate statement" in schema_docs
+    assert "evidence bindings" in schema_docs
     assert set(generated) == {
         "commitment.schema.json",
         "attestation.schema.json",

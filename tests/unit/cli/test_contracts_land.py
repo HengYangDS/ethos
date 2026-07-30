@@ -600,7 +600,9 @@ def _land_configured_lane(
     )
     assert land_payload["ok"] is True
     assert land_payload["data"]["candidate_update"]["branch"] == "stage/integration"
-    assert land_payload["data"]["candidate_update"]["attestation"]["kind"] == "effect"
+    candidate_attestation = land_payload["data"]["candidate_update"]["attestation"]
+    assert candidate_attestation["predicate"] == "effect:git-ref-update"
+    assert not {"kind", "content", "mints_authority"} & set(candidate_attestation)
     assert git(candidate_path, "rev-parse", "HEAD") == work_head
     assert git(repo, "rev-parse", "integration") == accepted_head
     seed_executed_proof(candidate_path, work_head)
@@ -623,8 +625,10 @@ def _land_configured_lane(
     assert accepted_update["head"] == work_head
     assert accepted_update["previous_head"] == accepted_head
     assert accepted_update["required_gaps"] == []
-    assert accepted_update["attestation"]["kind"] == "effect"
-    assert accepted_update["attestation"]["content"]["state"] == "applied"
+    accepted_attestation = accepted_update["attestation"]
+    assert accepted_attestation["predicate"] == "effect:git-ref-update"
+    assert accepted_attestation["statement"]["state"] == "applied"
+    assert not {"kind", "content", "mints_authority"} & set(accepted_attestation)
 
 
 def _retire_configured_lane(repo: Path, work_head: str) -> None:

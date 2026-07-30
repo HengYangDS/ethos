@@ -87,7 +87,7 @@ slice HEAD; only the campaign lane remains for this intent.
 
 ## 1. Cut The Common Generative Kernel
 
-- [ ] 1.1 Remove Commitment process fields, amendment APIs, effective-intent
+- [x] 1.1 Remove Commitment process fields, amendment APIs, effective-intent
   folds, closed Attestation kinds, and all preserving readers and schemas.
 - [ ] 1.2 Make Attestation predicate, statement, bindings, validity, verifier,
   and evidence references the open immutable envelope; unknown predicates stay

@@ -71,9 +71,9 @@ expired, and the same required-gap vocabulary used by mutation admission.
 Terminal semantic contracts are explicit:
 
 - `commitment.schema.json` governs immutable intent, repository subject,
-  material scope, and ordered lifecycle commitment.
-- `attestation.schema.json` governs the single content-addressed evidence
-  envelope and its six typed variants.
+  material scope, invariants, acceptance, and authority references.
+- `attestation.schema.json` governs one open-predicate statement with explicit
+  evidence bindings; predicates carry meaning without a closed variant taxonomy.
 - `facts.schema.json` governs freshly observed repository facts.
 - `transition-plan.schema.json` governs deterministic transient transition plans.
 

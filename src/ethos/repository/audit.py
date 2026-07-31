@@ -7,6 +7,9 @@ from typing import cast
 
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.system.contracts import system_contracts_report
+from ethos.contracts.verdict import observation_verdict
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
@@ -104,8 +107,9 @@ REQUIRED_OPENSPEC_CAPABILITIES = (
 def release_files_report(root: Path) -> dict[str, object]:
     release_files_missing = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
     return {
-        "ok": not release_files_missing,
+        "verdict": observation_verdict(ok=not release_files_missing),
         "missing": release_files_missing,
+        "required_gaps": release_files_missing,
     }
 
 
@@ -184,6 +188,35 @@ def repository_audit(
     system_contract_gaps = [
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
     ]
+    write_admission_gaps = _write_admission_armed_gaps(root)
+    docs = {
+        "verdict": observation_verdict(ok=not docs_missing and not docs_without_front_matter),
+        "missing": docs_missing,
+        "without_front_matter": docs_without_front_matter,
+    }
+    schemas = {
+        "verdict": reduce_verdicts(
+            observation_verdict(ok=not schemas_missing), report_verdict(schema_report)
+        ),
+        "missing": schemas_missing,
+        "validation": schema_report,
+    }
+    playbooks = {
+        "verdict": reduce_verdicts(
+            observation_verdict(ok=not playbooks_missing), report_verdict(playbook_report)
+        ),
+        "missing": playbooks_missing,
+        "validation": playbook_report,
+    }
+    openspec_capabilities = {
+        "verdict": observation_verdict(ok=not openspec_capability_missing),
+        "expected": list(REQUIRED_OPENSPEC_CAPABILITIES),
+        "missing": openspec_capability_missing,
+    }
+    write_admission = {
+        "verdict": observation_verdict(ok=not write_admission_gaps),
+        "required_gaps": write_admission_gaps,
+    }
     gaps = (
         docs_missing
         + docs_without_front_matter
@@ -197,39 +230,32 @@ def repository_audit(
         + openspec_gaps
         + playbook_gaps
         + system_contract_gaps
-        + _write_admission_armed_gaps(root)
+        + write_admission_gaps
     )
     return {
-        "ok": not gaps,
+        "verdict": reduce_verdicts(
+            report_verdict(docs),
+            report_verdict(schemas),
+            report_verdict(release_files),
+            report_verdict(playbooks),
+            report_verdict(openspec_capabilities),
+            report_verdict(coupling),
+            report_verdict(design_integrity),
+            report_verdict(openspec),
+            report_verdict(system_contracts),
+            report_verdict(write_admission),
+        ),
         "mode": "repository",
         "governance_context": repository_context(root),
-        "docs": {
-            "ok": not docs_missing and not docs_without_front_matter,
-            "missing": docs_missing,
-            "without_front_matter": docs_without_front_matter,
-        },
-        "schemas": {
-            "ok": not schemas_missing and bool(schema_report["ok"]),
-            "missing": schemas_missing,
-            "validation": schema_report,
-        },
-        "release_files": {
-            "ok": release_files["ok"],
-            "missing": release_files_missing,
-        },
-        "playbooks": {
-            "ok": not playbooks_missing and bool(playbook_report["ok"]),
-            "missing": playbooks_missing,
-            "validation": playbook_report,
-        },
-        "openspec_capabilities": {
-            "ok": not openspec_capability_missing,
-            "expected": list(REQUIRED_OPENSPEC_CAPABILITIES),
-            "missing": openspec_capability_missing,
-        },
+        "docs": docs,
+        "schemas": schemas,
+        "release_files": release_files,
+        "playbooks": playbooks,
+        "openspec_capabilities": openspec_capabilities,
         "coupling": coupling,
         "design_integrity": design_integrity,
         "openspec": openspec,
         "system_contracts": system_contracts,
+        "write_admission": write_admission,
         "required_gaps": gaps,
     }

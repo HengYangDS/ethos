@@ -25,6 +25,6 @@ for check in "${checks[@]}"; do "${check}"; done
 mkdir -p build/evidence/local-ci
 ETHOS_LOCAL_CI_HEAD="${ethos_local_ci_head}" python - <<'PY'
 import json, os; from datetime import UTC, datetime; from pathlib import Path
-path = Path("build/evidence/local-ci/fallback.json"); payload = {"schema_version": 1, "kind": "ethos_local_ci_fallback_evidence", "ok": True, "state": "passed", "head": os.environ["ETHOS_LOCAL_CI_HEAD"], "command": "tools/ci/scripts/run-local-ci.sh", "generated_at": datetime.now(UTC).isoformat(), "head_stability": "verified_by_exit_trap", "hosted_ci_status_claimed": False, "remote_publication_claimed": False}
+path = Path("build/evidence/local-ci/fallback.json"); payload = {"schema_version": 1, "kind": "ethos_local_ci_fallback_evidence", "verdict": "pass", "state": "passed", "head": os.environ["ETHOS_LOCAL_CI_HEAD"], "command": "tools/ci/scripts/run-local-ci.sh", "generated_at": datetime.now(UTC).isoformat(), "head_stability": "verified_by_exit_trap", "hosted_ci_status_claimed": False, "remote_publication_claimed": False}
 path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"); print(json.dumps(payload, indent=2, sort_keys=True))
 PY

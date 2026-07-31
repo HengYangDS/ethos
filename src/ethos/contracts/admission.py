@@ -9,15 +9,17 @@ from __future__ import annotations
 import os
 from typing import Annotated
 from typing import Any
-from typing import Literal
 from typing import cast
 
 from pydantic import BaseModel
 from pydantic import BeforeValidator
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import model_validator
 
-Verdict = Literal["pass", "block", "unknown"]
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import require_closed_verdict
+
 _PATH_REQUIRED = "path-bound admission request fields require a filesystem path"
 READONLY_ROOT_COMMANDS = frozenset({"plan", "status"})
 MUTATING_ROOT_COMMANDS = frozenset({"adopt", "land", "publish"})
@@ -126,6 +128,11 @@ class AdmissionDecision(BaseModel):
     why: tuple[str, ...] = ()
     next: tuple[str, ...] = ()
     required_gaps: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def reject_false_pass(self) -> AdmissionDecision:
+        require_closed_verdict(self.verdict, self.required_gaps)
+        return self
 
     def to_payload(self) -> dict[str, Any]:
         """Return the public decision envelope."""

@@ -9,8 +9,10 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import computed_field
 from pydantic import model_validator
+
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import require_closed_verdict
 
 PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024}
 _ARTIFACT_HOME = Path("build/ethos/payloads")
@@ -21,7 +23,7 @@ class EthosResult(BaseModel):
 
     schema_version: Literal[1] = 1
     command: str
-    ok: bool
+    verdict: Verdict
     state: str
     summary: dict[str, Any] = Field(default_factory=dict)
     diagnostics: tuple[dict[str, Any], ...] = ()
@@ -31,25 +33,20 @@ class EthosResult(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def close_verdict(self) -> EthosResult:
-        """Prevent hard gaps from coexisting with a green command result."""
-        if self.required_gaps:
-            object.__setattr__(self, "ok", False)
+    def reject_false_pass(self) -> EthosResult:
+        """Prevent blockers from coexisting with a green command result."""
+        adverse = tuple(
+            str(item.get("message") or item.get("code") or item.get("severity"))
+            for item in self.diagnostics
+            if str(item.get("severity") or "").lower() in {"warning", "error"}
+        )
+        require_closed_verdict(self.verdict, self.required_gaps, adverse)
         return self
-
-    @computed_field
-    @property
-    def verdict(self) -> Literal["pass", "block", "unknown"]:
-        """Derive the closed verdict; a hard gap can never remain green."""
-        if self.required_gaps:
-            return "block"
-        return "pass" if self.ok else "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         payload = {
             "schema_version": self.schema_version,
             "command": self.command,
-            "ok": self.ok,
             "verdict": self.verdict,
             "state": self.state,
             "summary": dict(self.summary),

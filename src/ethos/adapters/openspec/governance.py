@@ -42,7 +42,7 @@ def openspec_governance_report(
         request = OpenSpecRequest(change, lifecycle, changed_paths, require_workspace)
         report = lifecycle_report(root, request=request, list_payload={})
         return {
-            "ok": True,
+            "verdict": "pass",
             "state": "not_applicable",
             "official_config": {},
             "official_cli": {"available": False, "base_command": []},
@@ -102,7 +102,7 @@ def _active_identifier_rejected_report(
 ) -> dict[str, Any]:
     """Return an active-selector category error without invoking official status."""
     return {
-        "ok": False,
+        "verdict": "block",
         "official_config": official_config_report(root),
         "official_cli": {
             "package": openspec_cli.OFFICIAL_NPX_PACKAGE,
@@ -167,7 +167,7 @@ def _openspec_governance_report(
         and scope_binding["state"] == "no_material_paths"
     ):
         return {
-            "ok": True,
+            "verdict": "pass",
             "state": "not_applicable",
             "official_config": official_config,
             "official_cli": openspec_official_cli(
@@ -250,7 +250,7 @@ def _openspec_governance_report(
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
 
     return {
-        "ok": not required_gaps,
+        "verdict": "block" if required_gaps else "pass",
         "official_config": official_config,
         "official_cli": openspec_official_cli(
             package=openspec_cli.OFFICIAL_NPX_PACKAGE,

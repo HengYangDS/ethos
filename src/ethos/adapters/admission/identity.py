@@ -190,7 +190,7 @@ def push_identity_policy_report(
     mode = _git(root, "config", "--get", "ethos.pushIdentityPolicy", text=True).stdout.strip()
     if mode != "configured-user":
         return {
-            "ok": True,
+            "verdict": "pass",
             "mode": mode or "disabled",
             "expected_identity": "",
             "checked_commit_count": 0,
@@ -246,7 +246,7 @@ def push_identity_policy_report(
         if not committer_ok:
             gaps.append(f"pushed_commit_committer_not_configured_identity:{commit}")
     return {
-        "ok": not gaps,
+        "verdict": "block" if gaps else "pass",
         "mode": mode,
         "expected_identity": f"{name} <{email}>" if name or email else "",
         "checked_commit_count": len(commits),

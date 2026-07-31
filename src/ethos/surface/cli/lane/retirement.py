@@ -9,6 +9,7 @@ from cyclopts import Parameter
 
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.surface.cli.application import lane_retire_app
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
@@ -47,6 +48,7 @@ def lane_retire_superseded(
         request=request,
     )
     lane = cast("dict[str, object]", report["lane"])
+    verdict = report_verdict(report)
     project_lane_result(
         options.command,
         report,
@@ -54,9 +56,8 @@ def lane_retire_superseded(
             "branch": report["branch"],
             "head": lane.get("head") or request.expect_head or "",
             "absorbed_by": request.absorbed_by.strip(),
-            "retire_ready": bool(lane.get("retire_ready")) and not report["required_gaps"],
+            "retire_ready": bool(lane.get("retire_ready")) and verdict == "pass",
         },
-        actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         enforce=options.apply,
         json_output=options.json_output,
     )
@@ -77,15 +78,18 @@ def lane_retire_landed(
     )
     lanes = cast("list[dict[str, object]]", report["lanes"])
     selected = next((lane for lane in lanes if lane["branch"] == options.branch), {})
+    verdict = report_verdict(report)
     project_lane_result(
         options.command,
         report,
         summary={
-            "landed_lane_count": sum(bool(lane.get("retire_ready")) for lane in lanes),
+            "landed_lane_count": (
+                sum(bool(lane.get("retire_ready")) for lane in lanes) if verdict == "pass" else 0
+            ),
             "selected_branch": options.branch or "",
-            "selected_retire_ready": bool(selected.get("retire_ready")),
+            "selected_retire_ready": bool(selected.get("retire_ready")) and verdict == "pass",
             "selected_blockers": tuple(string_sequence(selected.get("required_gaps"))),
         },
-        actions=("ethos status",) if report["ok"] else ("ethos lane status",),
+        enforce=options.apply,
         json_output=options.json_output,
     )

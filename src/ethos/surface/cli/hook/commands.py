@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 from typing import Annotated
@@ -20,6 +21,8 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli.application import hook_app
@@ -84,15 +87,16 @@ def _report_result(
     command: str,
     report: dict[str, object],
     summary: dict[str, object],
-    next_actions: tuple[str, ...],
+    next_actions_for: Callable[[Verdict], tuple[str, ...]],
 ) -> EthosResult:
+    verdict = report_verdict(report)
     return EthosResult(
         command=command,
-        ok=bool(report["ok"]),
+        verdict=verdict,
         state=str(report["state"]),
         summary=summary,
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=next_actions,
+        next_actions=next_actions_for(verdict),
         data=report,
     )
 
@@ -139,13 +143,13 @@ def admit(
             "role": report["role"],
             "decision": _decision_action(report),
         },
-        _hook_admit_next_actions(report),
+        lambda verdict: _hook_admit_next_actions(report, verdict),
     )
     emit(result, json_output=options.json_output, enforce=True)
 
 
-def _hook_admit_next_actions(report: dict[str, object]) -> tuple[str, ...]:
-    if report["ok"] is True:
+def _hook_admit_next_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+    if verdict == "pass":
         return ()
     actions = report.get("next_actions")
     if isinstance(actions, list):
@@ -195,7 +199,7 @@ def pre_push(
             "remote": str(report.get("remote_name", options.remote)),
             "decision": _decision_action(report),
         },
-        _HEAD_BOUND_PROOF_ACTION if not report["ok"] else (),
+        lambda verdict: _HEAD_BOUND_PROOF_ACTION if verdict != "pass" else (),
     )
     emit(result, json_output=options.json_output, enforce=True)
 
@@ -241,7 +245,7 @@ def reconciliation_receipt_command(
         target.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     result = EthosResult(
         command="hook reconciliation-receipt",
-        ok=not gaps,
+        verdict="block" if gaps else "pass",
         state="observed" if not gaps else "blocked",
         summary={"proposal_branch": proposal_branch, "source_head": source_head},
         required_gaps=gaps,
@@ -282,7 +286,7 @@ def ref_transaction(
         )
         if policy.role_for_branch(branch) == "work_lane"
         else {
-            "ok": True,
+            "verdict": "pass",
             "state": "admitted",
             "phase": phase,
             "ref": ref_name,
@@ -301,7 +305,7 @@ def ref_transaction(
         "hook ref-transaction",
         report,
         {"branch": report["branch"], "decision": _decision_action(report)},
-        ("ethos land --closeout",) if not report["ok"] else (),
+        lambda verdict: ("ethos land --closeout",) if verdict != "pass" else (),
     )
     emit(result, json_output=json_output, enforce=True)
 
@@ -337,7 +341,7 @@ def install(
             gaps.append(f"hook_config_write_failed:{key}")
     result = EthosResult(
         command="hook install",
-        ok=not gaps,
+        verdict="block" if gaps else "pass",
         state="installed" if not gaps else "blocked",
         summary={
             "hooks_path": ".githooks",

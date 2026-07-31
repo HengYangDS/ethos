@@ -6,6 +6,7 @@ import re
 import shlex
 from typing import TYPE_CHECKING
 
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.registry.docs.links import markdown_links
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
@@ -75,7 +76,7 @@ def docs_health_report(
         + unindexed_plans
     )
     return {
-        "ok": not required_gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "document_count": len(registry),
         "missing_metadata": missing,
         "invalid_state": invalid_state,
@@ -92,7 +93,7 @@ def docs_health_report(
 def empty_docs_health_report(gap: str) -> dict[str, object]:
     """Return the stable fail-closed shape for an unreadable registry declaration."""
     return {
-        "ok": False,
+        "verdict": "block",
         "document_count": 0,
         "missing_metadata": [],
         "invalid_state": [],

@@ -17,6 +17,8 @@ from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import require_closed_verdict
 
 if TYPE_CHECKING:
     from ethos.contracts.coordination import MutationAdmissionRequest
@@ -26,9 +28,12 @@ if TYPE_CHECKING:
 class MutationDecision:
     """Transient verdict over one current mutation observation."""
 
-    ok: bool
+    verdict: Verdict
     state: str
     gaps: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        require_closed_verdict(self.verdict, self.gaps)
 
 
 def _closeout_candidate_gaps(
@@ -78,7 +83,7 @@ def evaluate_mutation(
 ) -> MutationDecision:
     """Admit land or publish from current facts without a lifecycle reducer."""
     if not apply and command != "land":
-        return MutationDecision(ok=True, state="dry_run")
+        return MutationDecision(verdict="pass", state="dry_run")
     status = status if status is not None else workspace_status(root)
     closeout = cast("dict[str, object]", status.get("closeout_support", {}))
     gaps = _request_gaps(
@@ -106,7 +111,7 @@ def evaluate_mutation(
         gaps.extend(proof_gaps(root, current_head))
     required_gaps = tuple(dict.fromkeys(gaps))
     return MutationDecision(
-        not required_gaps,
+        "block" if required_gaps else "pass",
         "blocked" if required_gaps else "work_lane_ready" if apply else "dry_run",
         required_gaps,
     )
@@ -151,7 +156,7 @@ def evaluate_closeout_mutation(
     required_gaps = tuple(dict.fromkeys(gaps))
     current = str(candidate.get("head") or "") == current_head
     return MutationDecision(
-        not required_gaps,
+        "block" if required_gaps else "pass",
         "blocked"
         if required_gaps
         else "current"

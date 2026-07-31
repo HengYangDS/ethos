@@ -4,7 +4,11 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
+import pytest
+from pydantic import ValidationError
+
 from ethos.contracts.authority import AuthorityQuery
+from ethos.contracts.authority import AuthorityResolution
 from ethos.contracts.authority import CarrierDescriptor
 from ethos.contracts.authority import extract_carrier_descriptor
 from ethos.contracts.authority import resolve_authority
@@ -72,7 +76,7 @@ def test_projection_adapter_and_history_never_authorize() -> None:
         query(),
         tuple(descriptor(role) for role in ("projection", "adapter", "history")),
     )
-    assert result.verdict == "block"
+    assert result.verdict == "unknown"
     assert result.required_gaps == ("unknown_required_fact",)
 
 
@@ -115,6 +119,11 @@ def test_attestation_envelope_does_not_imply_authority_meaning() -> None:
 def test_different_planes_are_not_globally_ranked() -> None:
     result = resolve_authority(query(), (descriptor("native", plane="hosted"),))
 
-    assert result.verdict == "block"
+    assert result.verdict == "unknown"
     assert result.descriptors == ()
     assert result.required_gaps == ("unknown_required_fact",)
+
+
+def test_authority_resolution_rejects_pass_with_required_gaps() -> None:
+    with pytest.raises(ValidationError, match="pass_with_required_gaps"):
+        AuthorityResolution(verdict="pass", required_gaps=("ambiguous_authority",))

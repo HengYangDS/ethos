@@ -105,7 +105,7 @@ for canonical, target in force_include.items():
 payload = {
     "schema_version": 1,
     "kind": "ethos_local_install_smoke_evidence",
-    "ok": True,
+    "verdict": "pass",
     "state": "passed",
     "head": os.environ["ETHOS_LOCAL_INSTALL_HEAD"],
     "command": "tools/ci/scripts/run-local-install-smoke.sh",

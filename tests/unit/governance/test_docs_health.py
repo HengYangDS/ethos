@@ -129,7 +129,7 @@ See also: none.
 
     report = docs_registry_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
 
 
@@ -168,7 +168,7 @@ See also: none.
 
     report = docs_registry_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert [entry["path"] for entry in report["registry"]] == ["handbook/guide.md"]
 
 
@@ -181,7 +181,7 @@ def test_docs_health_fails_closed_for_an_invalid_profile(tmp_path: Path) -> None
 
     report = docs_registry_report(tmp_path)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["document_count"] == 0
     assert report["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
 
@@ -195,7 +195,7 @@ def test_docs_health_fails_closed_for_invalid_taxonomy(tmp_path: Path) -> None:
 
     report = docs_registry_report(tmp_path)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["docs_taxonomy_invalid:docs/_meta/taxonomy.toml"]
 
 
@@ -208,7 +208,7 @@ def test_docs_health_does_not_scan_product_distribution_layout(tmp_path: Path) -
 
     report = docs_registry_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert [entry["path"] for entry in report["registry"]] == ["docs/reference/example.md"]
 
 
@@ -231,7 +231,7 @@ relations: none
 
     report = docs_registry_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["missing_visible_sections"] == []
 
 

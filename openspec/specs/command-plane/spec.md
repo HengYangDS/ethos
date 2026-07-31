@@ -78,16 +78,18 @@ ETHOS SHALL reject retired family-style command prefixes from governed docs.
 - **THEN** the command-surface and documentation gates report a required gap
 
 ### Requirement: Proof Command State Semantics
+The public result envelope has no top-level `ok` field; `verdict` is the sole public authorization result.
+
 ETHOS CLI SHALL present proof command states according to execution depth.
 
 #### Scenario: Planning proof is ready
 - **WHEN** `ethos prove --json` completes without executing gates
-- **THEN** the CLI reports `ok=true` and `state=ready` for successful readiness
+- **THEN** the CLI reports `verdict=pass` and `state=ready` for successful readiness
 - **AND** the CLI reports `executed=false`
 
 #### Scenario: Executed proof is proven
 - **WHEN** `ethos prove --execute --json` completes with all gates passing
-- **THEN** the CLI reports `ok=true` and `state=proven`
+- **THEN** the CLI reports `verdict=pass` and `state=proven`
 - **AND** the CLI reports `executed=true`
 
 ### Requirement: Self OpenSpec Lifecycle Mode
@@ -154,7 +156,7 @@ command is explicitly documented as a read-only reader view.
 #### Scenario: gapped proof refuses through process status
 
 - **WHEN** `ethos prove --expect-head <non-current-head> --json` runs
-- **THEN** the JSON payload reports `ok=false`
+- **THEN** the JSON payload reports `verdict=block`
 - **AND** the payload includes `expected_head_mismatch` in `required_gaps`
 - **AND** the process exits with non-zero status
 

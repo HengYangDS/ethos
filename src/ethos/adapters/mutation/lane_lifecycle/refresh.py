@@ -17,6 +17,8 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from ethos.contracts.verdict import Verdict
+
 
 def _ref_head(root: Path, ref: str) -> str:
     completed = run_git(root, "rev-parse", ref, check=False)
@@ -36,9 +38,11 @@ def bootstrap_candidate(
     current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
     target = (path or default_candidate_path(repo, policy.candidate_branch)).resolve()
 
-    def report(*, ok: bool, state: str, gaps: list[str], **details: object) -> dict[str, object]:
+    def report(
+        *, verdict: Verdict, state: str, gaps: list[str], **details: object
+    ) -> dict[str, object]:
         return _refresh_report(
-            ok=ok,
+            verdict=verdict,
             state=state,
             branch=policy.candidate_branch,
             head=current_head,
@@ -59,14 +63,21 @@ def bootstrap_candidate(
         if present
     ]
     if gaps:
-        return report(ok=False, state="blocked", gaps=gaps, **details)
+        return report(verdict="block", state="blocked", gaps=gaps, **details)
     candidate = cast("dict[str, object]", status["candidate"])
     if candidate["exists"] and candidate["worktree_exists"]:
-        return report(ok=True, state="present", gaps=[], path=str(candidate["worktree_path"]))
+        return report(
+            verdict="pass", state="present", gaps=[], path=str(candidate["worktree_path"])
+        )
     if not apply:
-        return report(ok=True, state="planned", gaps=[], **details)
+        return report(verdict="pass", state="planned", gaps=[], **details)
     if target.exists():
-        return report(ok=False, state="blocked", gaps=["candidate_worktree_path_exists"], **details)
+        return report(
+            verdict="block",
+            state="blocked",
+            gaps=["candidate_worktree_path_exists"],
+            **details,
+        )
     args = (
         ("worktree", "add", target.as_posix(), policy.candidate_branch)
         if candidate["exists"]
@@ -82,7 +93,7 @@ def bootstrap_candidate(
     completed = run_git(repo, *args, check=False)
     failed = completed.returncode != 0
     return report(
-        ok=not failed,
+        verdict="block" if failed else "pass",
         state="blocked" if failed else "bootstrapped",
         gaps=["candidate_worktree_add_failed"] if failed else [],
         stderr=completed.stderr.strip() if failed else "",
@@ -120,7 +131,7 @@ def _candidate_worktree_gaps(
 
 def _refresh_report(
     *,
-    ok: bool,
+    verdict: Verdict,
     state: str,
     branch: str,
     head: str,
@@ -130,7 +141,7 @@ def _refresh_report(
     return {
         key: value
         for key, value in {
-            "ok": ok,
+            "verdict": verdict,
             "state": state,
             "branch": branch,
             "head": head,
@@ -156,9 +167,11 @@ def refresh_candidate_from_accepted(
     candidate_head = str(candidate.get("head") or "")
     candidate_path = str(candidate.get("worktree_path") or "")
 
-    def report(*, ok: bool, state: str, gaps: list[str], **more: object) -> dict[str, object]:
+    def report(
+        *, verdict: Verdict, state: str, gaps: list[str], **more: object
+    ) -> dict[str, object]:
         return _refresh_report(
-            ok=ok,
+            verdict=verdict,
             state=state,
             branch=policy.candidate_branch,
             head=current_head,
@@ -183,11 +196,11 @@ def refresh_candidate_from_accepted(
         )
     )
     if gaps:
-        return report(ok=False, state="blocked", gaps=gaps)
+        return report(verdict="block", state="blocked", gaps=gaps)
     if candidate_head == current_head:
-        return report(ok=True, state="base_current", gaps=[])
+        return report(verdict="pass", state="base_current", gaps=[])
     if not apply:
-        return report(ok=True, state="ready_to_refresh_from_accepted", gaps=[])
+        return report(verdict="pass", state="ready_to_refresh_from_accepted", gaps=[])
     # Rewind candidate/dev onto the accepted head. This target is already contained in the
     # accepted branch, so the reference-transaction hook's candidate admission admits it
     # without a fresh proof (see _contained_in_accepted); no ref-move escape is needed now
@@ -195,12 +208,12 @@ def refresh_candidate_from_accepted(
     completed = run_git(Path(candidate_path), "reset", "--hard", current_head, check=False)
     if completed.returncode != 0:
         return report(
-            ok=False,
+            verdict="block",
             state="blocked",
             gaps=["candidate_refresh_from_accepted_failed"],
             stderr=completed.stderr.strip(),
         )
-    return report(ok=True, state="refreshed_from_accepted", gaps=[])
+    return report(verdict="pass", state="refreshed_from_accepted", gaps=[])
 
 
 def refresh_work_lane_base(
@@ -219,10 +232,10 @@ def refresh_work_lane_base(
     candidate_path = str(candidate.get("worktree_path") or "")
 
     def report(
-        *, ok: bool, state: str, head: str, gaps: list[str], **more: object
+        *, verdict: Verdict, state: str, head: str, gaps: list[str], **more: object
     ) -> dict[str, object]:
         return _refresh_report(
-            ok=ok,
+            verdict=verdict,
             state=state,
             branch=branch,
             head=head,
@@ -248,11 +261,11 @@ def refresh_work_lane_base(
         )
     )
     if gaps:
-        return report(ok=False, state="blocked", head=current_head, gaps=gaps)
+        return report(verdict="block", state="blocked", head=current_head, gaps=gaps)
     if is_ancestor(root, candidate_head, current_head):
-        return report(ok=True, state="base_current", head=current_head, gaps=[])
+        return report(verdict="pass", state="base_current", head=current_head, gaps=[])
     if not apply:
-        return report(ok=True, state="ready_to_refresh_base", head=current_head, gaps=[])
+        return report(verdict="pass", state="ready_to_refresh_base", head=current_head, gaps=[])
     return _replay_work_lane(
         root=root,
         snapshot=(branch, policy.candidate_branch, candidate_head, current_head),
@@ -276,7 +289,7 @@ def _replay_work_lane(
         if _ref_head(root, ref) != admitted
     ]
     if snapshot_gaps:
-        return report(ok=False, state="blocked", head=current_head, gaps=snapshot_gaps)
+        return report(verdict="block", state="blocked", head=current_head, gaps=snapshot_gaps)
     completed = run_git(
         root, "-c", "rebase.updateRefs=false", "rebase", candidate_head, current_head, check=False
     )
@@ -284,7 +297,7 @@ def _replay_work_lane(
         run_git(root, "rebase", "--abort", check=False)
         restored = run_git(root, "switch", branch, check=False)
         return report(
-            ok=False,
+            verdict="block",
             state="blocked",
             head=_ref_head(root, "HEAD"),
             gaps=[
@@ -297,7 +310,12 @@ def _replay_work_lane(
     def finish(rebased_head: str) -> dict[str, object]:
         def blocked(gaps: list[str], *, head: str, **more: object) -> dict[str, object]:
             return report(
-                ok=False, state="blocked", head=head, gaps=gaps, previous_head=current_head, **more
+                verdict="block",
+                state="blocked",
+                head=head,
+                gaps=gaps,
+                previous_head=current_head,
+                **more,
             )
 
         if not is_ancestor(root, candidate_head, rebased_head):
@@ -344,7 +362,7 @@ def _replay_work_lane(
                 stderr="work-lane branch advanced after refresh compare-and-swap",
             )
         return report(
-            ok=True,
+            verdict="pass",
             state="base_refreshed",
             head=refreshed_head,
             gaps=[],

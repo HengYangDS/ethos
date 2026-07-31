@@ -74,12 +74,12 @@ def provider_facts(provider: str, value: object) -> dict[str, str]:
 
 def observation_summary(
     observations: list[dict[str, Any]], *, execute: bool
-) -> tuple[str, list[str], bool]:
-    """Derive aggregate state without minting provider authority."""
+) -> tuple[str, str, list[str]]:
+    """Derive aggregate state and verdict without minting provider authority."""
     if not execute:
-        return "dry_run", [], True
+        return "dry_run", "unknown", []
     if not observations:
-        return "observation_failed", ["provider_configuration_empty"], False
+        return "observation_failed", "unknown", ["provider_configuration_empty"]
     states = [str(item.get("observation_state") or "") for item in observations]
     gaps = []
     for item, state in zip(observations, states, strict=True):
@@ -100,7 +100,13 @@ def observation_summary(
         if set(states) == {"not_configured"}
         else "observation_failed"
     )
-    return state, gaps, state == "observed"
+    if state == "observed":
+        verdict = "pass"
+    elif state == "not_configured":
+        verdict = "unknown"
+    else:
+        verdict = "block"
+    return state, verdict, gaps
 
 
 def _observe(provider: str, config: dict[str, Any], *, execute: bool) -> dict[str, Any]:
@@ -158,12 +164,12 @@ def capture_observation(*, execute: bool = False, output: Path | None = None) ->
     config = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
     providers = list(map(str, config.get("providers", [])))
     observations = [_observe(item, config, execute=execute) for item in providers]
-    state, gaps, ok = observation_summary(observations, execute=execute)
+    state, verdict, gaps = observation_summary(observations, execute=execute)
     boundary = config.get("boundary", {})
     payload = {
         "schema_version": 1,
         "kind": "ethos_hosted_provider_observation",
-        "ok": ok,
+        "verdict": verdict,
         "state": state,
         "head": current_tracked_head(ROOT),
         "remote_url": git_stdout(ROOT, "remote", "get-url", "origin"),
@@ -182,7 +188,7 @@ def capture_observation(*, execute: bool = False, output: Path | None = None) ->
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     path.write_text(rendered, encoding="utf-8")
     sys.stdout.write(rendered)
-    return 0 if ok else 1
+    return 0 if verdict == "pass" else 1
 
 
 app = App(name="ethos-hosted-observation", default_command=capture_observation)

@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Annotated
-from typing import Literal
 from typing import cast
 
 from cyclopts import Parameter
@@ -23,6 +22,10 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import observation_verdict
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.result import EthosResult
@@ -84,14 +87,6 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
     }
 
 
-def _terminal_check_verdict(adapter_state: str) -> str:
-    if adapter_state == "passed":
-        return "pass"
-    if adapter_state == "failed":
-        return "block"
-    return "unknown"
-
-
 def _run_plan_checks(
     *, repo: Path, plan: TransitionPlan, execute: bool
 ) -> tuple[list[dict[str, object]], bool]:
@@ -99,12 +94,10 @@ def _run_plan_checks(
     gates_by_id = resolve_gate_policy(repo, gate_ids=tuple(node.id for node in plan.nodes)).registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     checks: list[dict[str, object]] = []
-    adapter_states: list[str] = []
     for run_result in (
         runner.run(node, gates_by_id[node.id], root=repo) for node in plan.ordered_nodes()
     ):
         gate = gates_by_id[run_result.action_id]
-        adapter_states.append(run_result.state)
         checks.append(
             {
                 "action_id": run_result.action_id,
@@ -112,7 +105,7 @@ def _run_plan_checks(
                 "exit_code": run_result.exit_code,
                 "stdout": run_result.stdout,
                 "stderr": run_result.stderr,
-                "verdict": _terminal_check_verdict(run_result.state),
+                "verdict": run_result.verdict,
                 "evidence_class": gate.evidence_class,
                 "trust_bearing": gate.trust_bearing,
                 "diagnostics": list(run_result.diagnostics),
@@ -125,7 +118,7 @@ def _run_plan_checks(
     runs_ok = (
         verdicts_ok and trust_bearing_ok
         if execute
-        else all(state == "planned" for state in adapter_states)
+        else bool(checks) and all(check["exit_code"] is None for check in checks)
     )
     return checks, runs_ok
 
@@ -183,7 +176,7 @@ def prove(
             require_workspace=False,
         )
         if openspec_profile_enabled(repo, tree_ref=current_head)
-        else {"ok": True, "state": "not_applicable", "required_gaps": []}
+        else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
     )
     try:
         plan = proof_plan(
@@ -198,7 +191,7 @@ def prove(
         emit(
             EthosResult(
                 command="prove",
-                ok=False,
+                verdict="block",
                 state="gapped",
                 required_gaps=(str(exc),),
                 next_actions=("ethos adopt",),
@@ -211,7 +204,7 @@ def prove(
         emit(
             EthosResult(
                 command="prove",
-                ok=False,
+                verdict=plan.verdict,
                 state="gapped",
                 required_gaps=plan_gaps or ("plan_not_admitted",),
                 next_actions=("repair the Commitment or repository facts",),
@@ -261,19 +254,23 @@ def prove(
             + tuple(cast("list[str]", scope_binding["required_gaps"]))
         )
     )
-    ok = (
-        bool(audit["ok"])
-        and bool(openspec_lifecycle.get("ok"))
-        and runs_ok
-        and not plan_gaps
-        and not required_gaps
+    check_verdict: Verdict = (
+        reduce_verdicts(*(cast("Verdict", check["verdict"]) for check in checks))
+        if options.execute and checks
+        else observation_verdict(ok=runs_ok)
+        if checks
+        else "unknown"
+    )
+    verdict = reduce_verdicts(
+        report_verdict(audit),
+        report_verdict(openspec_lifecycle),
+        plan.verdict,
+        check_verdict,
+        required_gaps=required_gaps,
     )
     boundary = "focused" if focused else "repository"
     attestation = None
     if options.execute:
-        verdict: Literal["pass", "block", "unknown"] = (
-            "block" if required_gaps else "pass" if ok else "unknown"
-        )
         attestation = issue_proof_attestation(
             repo,
             {
@@ -294,7 +291,7 @@ def prove(
                 required_gaps = tuple(
                     dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
                 )
-                ok = False
+                verdict = "block"
                 attestation = issue_proof_attestation(
                     repo,
                     {
@@ -309,7 +306,13 @@ def prove(
                         "required_gaps": required_gaps,
                     },
                 )
-    result_state = "proven" if ok and options.execute else "ready" if ok else "gapped"
+    result_state = (
+        "proven"
+        if verdict == "pass" and options.execute
+        else "ready"
+        if verdict == "pass"
+        else "gapped"
+    )
     next_actions = _proof_next_actions(
         options=options,
         result_state=result_state,
@@ -340,7 +343,7 @@ def prove(
             "expected_head": {
                 "expected": options.expect_head or "",
                 "current": current_head,
-                "ok": options.expect_head is None or options.expect_head == current_head,
+                "matches": options.expect_head is None or options.expect_head == current_head,
             },
         }
         if detailed
@@ -353,13 +356,13 @@ def prove(
             "gate_ids": [check["action_id"] for check in checks],
             "changed_path_count": len(changed_paths),
             "audit": {
-                "ok": bool(audit.get("ok")),
+                "verdict": report_verdict(audit),
                 "mode": str(audit.get("mode") or ""),
                 "openspec_mode": str(audit_openspec.get("mode") or ""),
                 "required_gap_count": len(string_sequence(audit.get("required_gaps"))),
             },
             "openspec_lifecycle": {
-                "ok": bool(openspec_lifecycle.get("ok")),
+                "verdict": report_verdict(openspec_lifecycle),
                 "change": str(openspec_lifecycle.get("change") or ""),
                 "schema_name": str(openspec_lifecycle.get("schema_name") or ""),
                 "change_count": (
@@ -373,13 +376,13 @@ def prove(
             "expected_head": {
                 "expected": options.expect_head or "",
                 "current": current_head,
-                "ok": options.expect_head is None or options.expect_head == current_head,
+                "matches": options.expect_head is None or options.expect_head == current_head,
             },
         }
     )
     result = EthosResult(
         command="prove",
-        ok=ok,
+        verdict=verdict,
         state=result_state,
         summary={
             "objective": options.objective,

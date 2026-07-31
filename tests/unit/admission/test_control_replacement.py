@@ -157,7 +157,8 @@ def test_control_replacement_accepts_only_the_existing_signed_receipt_contract(
     assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
     verification = cast("dict[str, object]", report["independent_verification"])
-    assert verification["ok"] is True
+    assert verification["verdict"] == "pass"
+    assert "ok" not in verification
     assert verification["evidence_class"] == "independently_reexecuted"
 
 

@@ -41,8 +41,9 @@ def test_code_size_report_applies_role_limits_and_global_cap(tmp_path, monkeypat
     # no per-file escape hatch exists.
     oversized = by_path["src/ethos/domain/oversized.py"]
     assert oversized["limit"] == 3
-    assert oversized["ok"] is False
-    assert report["ok"] is False
+    assert oversized["within_limit"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
 
 
 def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, monkeypatch):
@@ -55,7 +56,8 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
 
     report = prove.code_size_report(tmp_path)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["required_gaps"] == ["code_size_exceeded:src/ethos/domain/too_big.py:3>2"]
 
 
@@ -66,7 +68,8 @@ def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
 
     report = prove.code_size_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["files"] == []
     assert report["required_gaps"] == []
 
@@ -74,7 +77,7 @@ def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
 def test_workspace_status_validation_prefixes_schema_gaps(monkeypatch, tmp_path):
     def fake_validate(schema_name, _payload, **_kwargs):
         return {
-            "ok": False,
+            "verdict": "block",
             "required_gaps": [f"{schema_name}:missing:branch"],
         }
 
@@ -83,7 +86,8 @@ def test_workspace_status_validation_prefixes_schema_gaps(monkeypatch, tmp_path)
     validation = prove.workspace_status_validation(tmp_path, {"branch": "dev"})
 
     assert validation["schema"] == "workspace-status.schema.json"
-    assert validation["ok"] is False
+    assert validation["verdict"] == "block"
+    assert "ok" not in validation
     assert prove.workspace_status_validation_gaps(validation) == (
         "workspace_status_schema:workspace-status.schema.json:missing:branch",
     )

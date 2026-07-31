@@ -71,7 +71,8 @@ def test_pre_tool_hook_rejects_invalid_path_tokens(
         )
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["decision"] == {
         "action": "block",
         "reason": f"prewrite_path_invalid_{kind}",
@@ -107,7 +108,8 @@ def test_pre_tool_hook_blocks_ignored_external_method_pack_shadow_authority(
     )
 
     gap = "external_method_pack_shadow_authority:.superpowers/sdd/tasks/progress.md"
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["decision"] == {"action": "block", "reason": gap}
     assert report["admission"]["error"] == gap
     assert report["admission"]["paths"][0]["ignored"] is True
@@ -131,7 +133,8 @@ def test_pre_tool_hook_admits_ignored_runtime_home(worktree: Path) -> None:
         )
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["admission"]["paths"][0]["ignored"] is True
     assert report["admission"]["paths"][0]["tracked_candidate"] is False
     assert report["admission"]["paths"][0]["allowed"] is True
@@ -174,10 +177,33 @@ def test_prewrite_blocks_checkout_binding_mismatch(
         require_editor_root=True,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["error"] == "root_binding_mismatch"
     assert report["runtime_binding"]["audit_root"] == worktree.as_posix()
     assert report["editor_root"]["reason"] == "matched"
+
+
+def test_prewrite_preserves_unknown_component_without_synthetic_gap(
+    worktree: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        admission_prewrite,
+        "_runtime_binding_check",
+        lambda _status: {"verdict": "unknown", "reason": ""},
+    )
+
+    report = admission_prewrite.prewrite_guard(
+        root=worktree,
+        paths=[worktree / "README.md"],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+    assert report["verdict"] == "unknown"
+    assert report["required_gaps"] == []
+    assert "ok" not in report
 
 
 def test_hook_admit_cli_preserves_control_character_path_token(
@@ -297,7 +323,8 @@ def test_patch_prewrite_rejects_reference_not_declared_at_baseline(
         patch=_patch("module.py", "VALUE = 1", "import external_sdk"),
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["error"] == ("product_reference_not_admitted_at_baseline:import:external_sdk")
 
 
@@ -347,7 +374,8 @@ def test_patch_prewrite_admits_reference_declared_at_baseline(
         patch=_patch("module.py", "VALUE = 1", "import external_sdk"),
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["patch_admission"]["baseline_head"] == git(lane, "rev-parse", "HEAD")
 
 
@@ -367,7 +395,8 @@ def test_patch_prewrite_requires_exact_baseline_scope_for_new_entity(
         patch=_patch("src/external_adapter.py", "", "VALUE = 1", new=True),
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["error"] == ("product_path_not_admitted_at_baseline:src/external_adapter.py")
 
 
@@ -387,7 +416,8 @@ def test_patch_prewrite_admits_exactly_declared_new_entity(
         patch=_patch("src/external_adapter.py", "", "VALUE = 1", new=True),
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
 
 
 def test_patch_cannot_declare_and_consume_reference_in_same_change(
@@ -413,7 +443,8 @@ def test_patch_cannot_declare_and_consume_reference_in_same_change(
         patch=declaration_patch + consumption_patch,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["error"] == ("product_reference_not_admitted_at_baseline:import:external_sdk")
 
 
@@ -439,4 +470,5 @@ def test_patch_prewrite_allows_declaration_only_change(
         patch=patch,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report

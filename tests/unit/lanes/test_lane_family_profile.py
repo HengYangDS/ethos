@@ -65,7 +65,7 @@ def test_family_profile_rejects_noncanonical_path(tmp_path: Path) -> None:
         holder_ref=_HOLDER,
         apply=True,
     )
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["work_lane_path_not_canonical"]
 
 
@@ -78,7 +78,7 @@ def test_family_profile_requires_the_canonical_work_branch_prefix(tmp_path: Path
 
     report = start_work_lane(root=repo, name="feature", source_root=repo, holder_ref=_HOLDER)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["repository_family_profile_requires_work_branch_prefix"]
 
 
@@ -97,7 +97,7 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(tmp_p
         apply=True,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["state"] == "started"
     assert report["branch"] == "work/feature"
     assert report["base"] == "candidate/dev"
@@ -157,7 +157,7 @@ def test_start_work_lane_acquires_lease_for_final_initialization_head(
         apply=True,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["head"] != base_head
     assert acquired_heads == [report["head"]]
 
@@ -185,7 +185,7 @@ def test_start_work_lane_creates_no_work_ref_before_final_lease(
         apply=True,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert ref_head(repo, "work/feature") == report["head"]
 
 
@@ -370,8 +370,8 @@ def test_start_work_lane_initialization_head_is_checkout_and_identity_independen
         apply=True,
     )
 
-    assert first["ok"] is True
-    assert second["ok"] is True
+    assert first["verdict"] == "pass"
+    assert second["verdict"] == "pass"
     assert second["head"] == first["head"]
 
 
@@ -478,6 +478,38 @@ def test_start_work_lane_blocks_candidate_active_change_carrier(tmp_path: Path) 
     assert not target.exists()
 
 
+def test_start_work_lane_blocks_unknown_candidate_change_observation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
+    target = tmp_path / "repo-work-feature"
+    monkeypatch.setattr(
+        lanes,
+        "active_change_names_in_ref",
+        lambda *_args: {
+            "verdict": "unknown",
+            "changes": [],
+            "required_gaps": ["openspec_ref_tree_unavailable:candidate/dev"],
+        },
+    )
+
+    report = start_work_lane(
+        root=repo,
+        name="feature",
+        source_root=source,
+        path=target,
+        holder_ref=_HOLDER,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["candidate_active_change_observation_unknown"]
+    assert report["candidate_active_change_observation"]["verdict"] == "unknown"
+    assert ref_head(repo, "work/feature") == ""
+    assert not target.exists()
+
+
 def test_start_work_lane_blocks_source_head_drift_before_lease_acquisition(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -518,7 +550,7 @@ def test_start_work_lane_blocks_source_head_drift_before_lease_acquisition(
         apply=True,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["source_head_changed_during_lane_start"]
     assert "work/feature" not in leases_by_branch(repo)
     assert ref_head(repo, "work/feature") == ""
@@ -553,7 +585,7 @@ def test_start_work_lane_blocks_candidate_head_drift_before_lease_acquisition(
         apply=True,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["candidate_head_changed_during_lane_start"]
     assert "work/feature" not in leases_by_branch(repo)
     assert ref_head(repo, "work/feature") == ""
@@ -572,7 +604,7 @@ def test_work_lane_status_reports_base_commitment_rewrite_as_mismatch(tmp_path: 
         holder_ref=_HOLDER,
         apply=True,
     )
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     commitment = target / "openspec" / "changes" / "fixture-change" / "commitment.toml"
     commitment.write_text(
         commitment.read_text(encoding="utf-8").replace(
@@ -604,7 +636,7 @@ def test_start_work_lane_blocks_dirty_root_before_reserving_or_creating(tmp_path
     )
 
     assert report == {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "branch": "work/feature",
         "path": target.resolve().as_posix(),
@@ -634,7 +666,7 @@ def test_start_work_lane_blocks_missing_candidate_commitment_without_effects(
         apply=True,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["source_work_lane_invalid"]
     assert "work/feature" not in leases_by_branch(repo)
     assert ref_head(repo, "work/feature") == ""
@@ -665,7 +697,7 @@ def test_start_work_lane_blocks_ambiguous_candidate_commitment_without_effects(
         apply=True,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["source_work_lane_invalid"]
     assert "work/feature" not in leases_by_branch(repo)
     assert ref_head(repo, "work/feature") == ""
@@ -687,7 +719,7 @@ def test_start_work_lane_rejects_invalid_actor_before_reserving_or_creating(tmp_
     )
 
     assert report == {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "branch": "work/feature",
         "required_gaps": ["holder_ref_invalid"],
@@ -722,7 +754,7 @@ def test_start_work_lane_leaves_no_lease_when_worktree_creation_fails(
     )
 
     assert report == {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "branch": "work/feature",
         "path": target.resolve().as_posix(),
@@ -761,7 +793,7 @@ def test_start_work_lane_retains_final_lease_when_carrier_ownership_is_unknown(
         apply=True,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["state"] == "blocked"
     assert report["lease_state"] == "retained"
     assert report["required_gaps"] == [

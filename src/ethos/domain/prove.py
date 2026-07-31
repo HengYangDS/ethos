@@ -57,7 +57,7 @@ def code_size_report(root: Path) -> dict[str, object]:
         # forbids `# pragma: no cover` cannot ship a size-exemption table either.
         # An over-limit file is decomposed into a semantic sub-package, not frozen.
         limit = role_limits[role]
-        ok = effective <= limit
+        within_limit = effective <= limit
         records.append(
             {
                 "path": relative,
@@ -65,13 +65,13 @@ def code_size_report(root: Path) -> dict[str, object]:
                 "limit": limit,
                 "role": role,
                 "category": "test" if role == "test" else "product",
-                "ok": ok,
+                "within_limit": within_limit,
             }
         )
-        if not ok:
+        if not within_limit:
             gaps.append(f"code_size_exceeded:{relative}:{effective}>{limit}")
     return {
-        "ok": not gaps,
+        "verdict": "pass" if not gaps else "block",
         "default_effective_max_lines": default_limit,
         "surface_effective_max_lines": surface_limit,
         "test_effective_max_lines": test_limit,
@@ -92,7 +92,7 @@ def command_data_validation(
         "kind": "schema_validation",
         "target": "data",
         "schema": schema_name,
-        "ok": bool(validation["ok"]),
+        "verdict": validation["verdict"],
         "required_gaps": list(cast("list[object]", validation["required_gaps"])),
     }
 

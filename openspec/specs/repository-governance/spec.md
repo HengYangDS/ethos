@@ -367,7 +367,7 @@ declared by that topology.
   names a missing or non-regular file, or lacks an executable bit
 - **THEN** release policy SHALL report a stable required gap for that field and
   path
-- **AND** `ok` SHALL be false.
+- **AND** `verdict` SHALL be `block`.
 
 #### Scenario: Local owner cannot escape the repository
 
@@ -551,7 +551,7 @@ ETHOS SHALL prove reference adopter parity through generic profile and shadow
 evidence mechanisms rather than product-core adopter terms.
 
 #### Scenario: Reference adopter parity is closed
-- **GIVEN** tracked parity evidence for a reference adopter reports `ok=true`
+- **GIVEN** tracked parity evidence for a reference adopter reports `verdict=pass`
 - **AND** the evidence covers OpenSpec claims trust review, Work Lane
   lifecycle, proof evidence, and profile boundaries
 - **WHEN** ETHOS reports parity gaps for that adopter
@@ -771,7 +771,7 @@ prior decisions SHALL NOT become reusable authorization by themselves.
 #### Scenario: mutation decision is exact-request bound
 
 - **WHEN** ETHOS evaluates a mutation request
-- **THEN** it returns `allow`, `block`, or `defer` with `why`, `next`, and
+- **THEN** it returns `pass`, `block`, or `unknown` with `why`, `next`, and
   `required_gaps`
 - **AND** the decision binds action, resource, expected mutable state, policy
   refs, evidence refs, and decision basis
@@ -1140,7 +1140,7 @@ status reader without treating them as transition-blocking required gaps.
 - **THEN** the summary includes `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals` lists non-blocking advisory gaps
 - **AND** when there are advisory gaps but no required gaps status remains
-  `ok=true` and reports `state=advisory` rather than `state=ready`
+  reports `verdict=pass` and `state=advisory` rather than `state=ready`
 - **AND** required gaps remain reserved for blocking transition failures
 
 #### Scenario: Status exposes advisory signal count, layer, and bounded next actions
@@ -1604,7 +1604,7 @@ but conflicting records for one decision SHALL fail closed.
 - **GIVEN** a stable decision and verified preservation package exist
 - **WHEN** the bounded source transition completes but immutable receipt writing
   fails
-- **THEN** ETHOS SHALL report `ok=false`, `state=partial_transition`, and
+- **THEN** ETHOS SHALL report `verdict=block`, `state=partial_transition`, and
   `lane_resolution_receipt_write_failed_after_effect`
 - **AND** the stable decision and package SHALL remain inspectable for
   reconciliation
@@ -1922,7 +1922,7 @@ without a receipt provider.
 
 - **WHEN** an active `semantic_attested` claim is evaluated
 - **THEN** ETHOS SHALL validate the receipt schema, canonical payload digest,
-  reviewer role, basis, allow verdict, validity interval, receipt digest, claim
+  reviewer role, basis, pass verdict, validity interval, receipt digest, claim
   id, dated-evidence digest, semantic scope digest, and current HEAD
 - **AND** it SHALL reject a receipt stored inside the governed repository
 - **AND** it SHALL expose only an `attested` non-authorizing trust-envelope state
@@ -2097,7 +2097,7 @@ and hosted CI as separate evidence classes.
 - **THEN** `summary.remote_publication_state` and
   `data.publication.remote_state` SHALL be `synchronized`
 - **AND** `remote_push` SHALL remain `not_performed`
-- **AND** the mutation verdict SHALL remain `defer`
+- **AND** the mutation verdict SHALL remain `unknown`
 - **AND** the next action SHALL state that no push was performed
 
 #### Scenario: Reachable but non-synchronized remote remains deferred
@@ -3094,7 +3094,7 @@ gap and SHALL not emit an uncaught traceback as its command result.
 
 #### Scenario: JSON reader observes an invalid profile
 - **WHEN** `ethos status --json` targets an invalid repository profile
-- **THEN** it SHALL emit parseable JSON with `ok = false`
+- **THEN** it SHALL emit parseable JSON with `verdict = block`
 - **AND** `required_gaps` SHALL contain
   `repository_profile_invalid:.ethos/profile.toml`.
 

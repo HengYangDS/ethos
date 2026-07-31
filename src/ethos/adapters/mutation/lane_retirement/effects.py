@@ -325,6 +325,8 @@ def holder_ref(lane: dict[str, object]) -> str:
 
 
 def holder_gaps(lane: dict[str, object]) -> list[str]:
+    if lane.get("lease_state") == "unknown":
+        return []
     required = holder_ref(lane)
     return (
         []
@@ -463,7 +465,11 @@ def actor_ref() -> str:
 
 
 def blocked(gaps: list[str], stderr: str = "") -> dict[str, object]:
-    report: dict[str, object] = {"ok": False, "state": "blocked", "required_gaps": gaps}
+    report: dict[str, object] = {
+        "verdict": "block",
+        "state": "blocked",
+        "required_gaps": gaps,
+    }
     if stderr.strip():
         report["stderr"] = stderr.strip()
     return report

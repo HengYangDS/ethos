@@ -3,11 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.coordination import MutationAdmissionRequest
 
 
 def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
@@ -46,6 +48,33 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
     assert payload["mints_authority"] is False
     assert payload["reusable_authorization"] is False
     assert payload["recheck_required"] is True
+
+
+def test_admission_models_reject_pass_with_required_gaps() -> None:
+    subject = MutationSubject(action="lane.prewrite", resource="work/example")
+    basis = DecisionBasis(
+        enforcement_boundary="local_process_guard",
+        identity_basis="holder_ref_equality",
+        evidence_boundary="current_local_observation",
+        verifier_provenance="current_runner",
+        time_basis="evaluation_time",
+    )
+
+    with pytest.raises(ValidationError, match="pass_with_required_gaps"):
+        AdmissionDecision(
+            verdict="pass",
+            subject=subject,
+            basis=basis,
+            required_gaps=("unknown_required_fact",),
+        )
+    with pytest.raises(ValidationError, match="pass_with_required_gaps"):
+        MutationAdmissionRequest(
+            action="candidate.integrate",
+            resource="refs/heads/candidate/dev",
+            expected_state={},
+            verdict="pass",
+            required_gaps=("warning:quality",),
+        )
 
 
 def test_action_preview_is_explicitly_non_authoritative() -> None:

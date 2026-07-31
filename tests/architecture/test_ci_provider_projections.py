@@ -358,13 +358,13 @@ case "$*" in
   *"ethos prove --execute --expect-head ${ETHOS_FAKE_EXPECTED_HEAD} --json")
     printf '%s\\n' prove >>"${ETHOS_FAKE_CALLS}"
     printf '%s\\n' proven >"${ETHOS_FAKE_STATE}"
-    printf '{"ok":true,"state":"proven",'
-    printf '"data":{"expected_head":{"current":"%s","ok":true}},' "${ETHOS_FAKE_EXPECTED_HEAD}"
+    printf '{"verdict":"pass","state":"proven",'
+    printf '"data":{"expected_head":{"current":"%s","matches":true}},' "${ETHOS_FAKE_EXPECTED_HEAD}"
     printf '"summary":{"gate_count":1,"evidence_digest":"fake-digest"}}\\n'
     ;;
   *"ethos status --json")
     printf '%s\\n' status >>"${ETHOS_FAKE_CALLS}"
-    printf '%s\\n' '{"ok":true,"state":"ready"}'
+    printf '%s\\n' '{"verdict":"pass","state":"ready"}'
     ;;
   *) printf 'unexpected fake uv command: %s\\n' "$*" >&2; exit 64;;
 esac
@@ -389,12 +389,12 @@ esac
     assert calls.read_text().splitlines() == ["status", "prove", "status"]
     receipt = json.loads(completed.stdout)
     assert {
-        receipt["ok"],
-        receipt["head_matches_expected"],
+        receipt["verdict"],
         receipt["status_before_state"],
         receipt["status_after_state"],
         receipt["proof_state"],
-    } == {True, "ready", "proven"}
+    } == {"pass", "ready", "proven"}
+    assert receipt["head_matches_expected"] is True
     assert receipt["head"] == expected_head
 
 
@@ -501,9 +501,109 @@ def test_ci_template_check_reports_projection_drift_as_json() -> None:
     )
     payload = json.loads(result.stdout)
     assert payload["kind"] == "ethos_ci_template_consistency"
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
+    assert "ok" not in payload
     assert {item["provider"] for item in payload["projections"]} == {"github", "gitlab"}
     assert all(item["projection_matches_template"] for item in payload["projections"])
+
+
+@pytest.mark.parametrize(
+    ("script", "kind"),
+    [
+        ("tools/ci/runbook_registry.py", "ethos_runbook_registry_check"),
+        ("tools/ci/architecture_projection.py", "ethos_architecture_projection_drift"),
+        ("tools/ci/format_selection.py", "ethos_format_selection_audit"),
+    ],
+)
+def test_ci_public_check_envelopes_use_verdict(script: str, kind: str) -> None:
+    result = subprocess.run(
+        [sys.executable, script], cwd=ROOT, capture_output=True, text=True, check=True
+    )
+    payload = json.loads(result.stdout)
+    assert payload["kind"] == kind
+    assert payload["verdict"] == "pass"
+    assert "ok" not in payload
+
+
+def test_release_supply_chain_requires_child_verdict_pass(monkeypatch, tmp_path: Path) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "ethos_test_release_supply_chain", ROOT / "tools/ci/release_supply_chain.py"
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    release = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(release)
+    config = tmp_path / "supply-chain.toml"
+    output = tmp_path / "supply-chain.json"
+    config.write_text(
+        'output = "supply-chain.json"\n'
+        'commands = ["child-pass", "child-warnings", "child-unknown"]\n',
+        encoding="utf-8",
+    )
+    responses = {
+        "child-pass": {"returncode": 0, "payload": {"verdict": "pass"}, "stderr": ""},
+        "child-warnings": {
+            "returncode": 0,
+            "payload": {"verdict": "pass", "warnings": ["stale"]},
+            "stderr": "",
+        },
+        "child-unknown": {"returncode": 0, "payload": {"verdict": "unknown"}, "stderr": ""},
+    }
+    monkeypatch.setattr(release, "ROOT", tmp_path)
+    monkeypatch.setattr(release, "CONFIG_PATH", config)
+    monkeypatch.setattr(release, "current_tracked_head", lambda _: "test-head")
+    monkeypatch.setattr(
+        release.subprocess,
+        "run",
+        lambda command, **_: type(
+            "Result",
+            (),
+            {
+                "returncode": responses[command[0]]["returncode"],
+                "stdout": json.dumps(responses[command[0]]["payload"]),
+                "stderr": responses[command[0]]["stderr"],
+            },
+        )(),
+    )
+
+    assert release.main() == 1
+    payload = json.loads(output.read_text())
+    assert payload["verdict"] == "block"
+    assert "ok" not in payload
+    assert payload["failures"] == [{"command": "child-warnings", "reason": "command blocked"}]
+
+
+def test_release_supply_chain_reports_missing_child_verdict_as_unknown(
+    monkeypatch, tmp_path: Path
+) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "ethos_test_release_supply_chain_unknown", ROOT / "tools/ci/release_supply_chain.py"
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    release = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(release)
+    config = tmp_path / "supply-chain.toml"
+    output = tmp_path / "supply-chain.json"
+    config.write_text(
+        'output = "supply-chain.json"\ncommands = ["unverifiable"]\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(release, "ROOT", tmp_path)
+    monkeypatch.setattr(release, "CONFIG_PATH", config)
+    monkeypatch.setattr(release, "current_tracked_head", lambda _: "test-head")
+    monkeypatch.setattr(
+        release.subprocess,
+        "run",
+        lambda *_args, **_kwargs: type(
+            "Result", (), {"returncode": 0, "stdout": "{}", "stderr": ""}
+        )(),
+    )
+
+    assert release.main() == 1
+    payload = json.loads(output.read_text())
+    assert payload["verdict"] == "unknown"
+    assert "ok" not in payload
+    assert payload["failures"] == []
 
 
 @pytest.mark.parametrize(
@@ -530,10 +630,10 @@ def test_local_emulator_missing_optional_tool(
     assert payload["returncode"] == 127
     assert payload["stderr"] == "tool not found"
     if mode == "doctor":
-        assert payload["ok"] is True
+        assert payload["verdict"] == "pass"
         assert payload["hosted_gitlab_status_claimed"] is False
     else:
-        assert payload["ok"] is False
+        assert payload["verdict"] == "block"
         assert payload["materialization"] == {
             "issue": "",
             "mode_allows_untracked": False,
@@ -661,7 +761,7 @@ def test_local_emulator_log_warning_policy(
         == expected_code
     )
     payload = json.loads(output.read_text())
-    assert payload["ok"] is (expected_code == 0)
+    assert payload["verdict"] == ("pass" if expected_code == 0 else "block")
     assert payload["log_warnings"] == warnings
 
 

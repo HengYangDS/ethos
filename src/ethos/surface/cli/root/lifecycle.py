@@ -29,6 +29,10 @@ from ethos.adapters.openspec.profile import protected_branch_active_change_requi
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import MutationAdmissionRequest
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import observation_verdict
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
@@ -60,7 +64,7 @@ class _CloseoutPayload:
     lifecycle: dict[str, Any]
     update: dict[str, object]
     gaps: tuple[str, ...]
-    ok: bool
+    verdict: Verdict
     control_replacement: dict[str, object]
 
 
@@ -106,23 +110,23 @@ def _int_value(value: object, *, default: int = 0) -> int:
 
 def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
     mutation_next_actions = land_core.closeout_next_actions(
-        ok=payload.ok,
+        verdict=payload.verdict,
         gaps=payload.gaps,
         current_head=git.current_head(payload.repo),
         state=payload.decision_state,
     )
     return EthosResult(
         command="land",
-        ok=payload.ok,
+        verdict=payload.verdict,
         state=(
             "accepted_current"
-            if payload.ok and payload.decision_state == "current"
+            if payload.verdict == "pass" and payload.decision_state == "current"
             else "ready_to_closeout"
-            if payload.ok and not payload.apply
+            if payload.verdict == "pass" and not payload.apply
             else "deferred"
-            if payload.control_replacement.get("verdict") == "unknown"
+            if payload.verdict == "unknown"
             else "blocked"
-            if payload.gaps
+            if payload.verdict == "block"
             else str(payload.update.get("state") or payload.command)
         ),
         required_gaps=payload.gaps,
@@ -147,17 +151,11 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                         f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}"
                     ),
                     expected_state=_closeout_expected_state(payload),
-                    verdict=(
-                        "pass"
-                        if payload.ok
-                        else "unknown"
-                        if payload.control_replacement.get("verdict") == "unknown"
-                        else "block"
-                    ),
+                    verdict=payload.verdict,
                     required_gaps=payload.gaps,
                     why=(
                         ("candidate_already_current",)
-                        if payload.ok and payload.decision_state == "current"
+                        if payload.verdict == "pass" and payload.decision_state == "current"
                         else ()
                     ),
                     next_actions=mutation_next_actions,
@@ -168,9 +166,9 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
     )
 
 
-def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[str, ...]:
+def _publish_next_actions(*, verdict: Verdict, publication: dict[str, object]) -> tuple[str, ...]:
     """Return top-level publish actions without hiding publication work."""
-    if not ok:
+    if verdict != "pass":
         return ("ethos land --json",)
 
     actions = string_sequence(publication.get("next_actions"))
@@ -337,9 +335,15 @@ def _closeout_land_result(
         + tuple(string_sequence(lifecycle.get("required_gaps")))
         + control_gaps
     )
-    ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
+    verdict = reduce_verdicts(
+        decision.verdict,
+        report_verdict(audit),
+        report_verdict(lifecycle),
+        report_verdict(control_replacement),
+        required_gaps=gaps,
+    )
     update: dict[str, object] = {}
-    if ok and apply:
+    if verdict == "pass" and apply:
         control_replacement, fresh_control_gaps = _stable_control_replacement(
             repo=repo,
             audit_root=audit_root,
@@ -347,17 +351,21 @@ def _closeout_land_result(
             candidate_head=audited_candidate_head,
             independent_verification_receipt=independent_verification_receipt,
         )
-        gaps = (*gaps, *fresh_control_gaps)
-        ok = not fresh_control_gaps
-    if ok and apply:
+        gaps = tuple(dict.fromkeys((*gaps, *fresh_control_gaps)))
+        verdict = reduce_verdicts(
+            verdict,
+            report_verdict(control_replacement),
+            required_gaps=gaps,
+        )
+    if verdict == "pass" and apply:
         update = apply_candidate_to_accepted(
             root=repo,
             authorized=authorize,
             expect_head=expect_head,
             candidate_head=audited_candidate_head,
         )
-        gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
-        ok = bool(update["ok"])
+        gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
+        verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     return _closeout_result(
         _CloseoutPayload(
             repo=repo,
@@ -371,7 +379,7 @@ def _closeout_land_result(
             lifecycle=lifecycle,
             update=update,
             gaps=gaps,
-            ok=ok,
+            verdict=verdict,
             current_head=current_head,
             control_replacement=control_replacement,
         )
@@ -409,46 +417,60 @@ def _candidate_land_result(
         f"openspec_active_change_unarchived:{name}:work_lane"
         for name in active_change_names(repo / "openspec")
     )
-    gaps = (
-        tuple(string_sequence(audit.get("required_gaps")))
-        + decision.gaps
-        + closeout_gaps
-        + tuple(string_sequence(lifecycle.get("required_gaps")))
-        + archive_gaps
+    gaps = tuple(
+        dict.fromkeys(
+            tuple(string_sequence(audit.get("required_gaps")))
+            + decision.gaps
+            + closeout_gaps
+            + tuple(string_sequence(lifecycle.get("required_gaps")))
+            + archive_gaps
+        )
     )
-    ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
+    verdict = reduce_verdicts(
+        decision.verdict,
+        report_verdict(audit),
+        report_verdict(lifecycle),
+        required_gaps=gaps,
+    )
     update: dict[str, object] = {}
-    if ok and not archive_gaps and apply:
+    if verdict == "pass" and apply:
         update = apply_land_to_candidate(
             root=repo,
             authorized=authorize,
             expect_head=expect_head,
             admitted_decision=decision,
         )
-        gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
-        ok = bool(update["ok"])
-    elif ok and not archive_gaps:
+        gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
+        verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
+    elif verdict == "pass":
         update = candidate_base_report(root=repo, status=status_payload)
-        if not update["ok"]:
-            gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
-            ok = False
+        gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
+        verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     proof_readiness: dict[str, object] = {}
-    if ok and not archive_gaps and not apply:
+    if verdict == "pass" and not apply:
         proof_readiness = proof_readiness_report(repo, current_head)
-        gaps = gaps + tuple(string_sequence(proof_readiness.get("required_gaps")))
-        ok = not bool(proof_readiness["blocking"])
-    ok = ok and not gaps
+        proof_gaps = tuple(string_sequence(proof_readiness.get("required_gaps")))
+        gaps = tuple(dict.fromkeys((*gaps, *proof_gaps)))
+        verdict = reduce_verdicts(
+            verdict,
+            observation_verdict(ok=not bool(proof_readiness["blocking"]), required_gaps=proof_gaps),
+            required_gaps=gaps,
+        )
     state = (
         "ready_to_land"
-        if ok and not apply
+        if verdict == "pass" and not apply
         else "blocked"
-        if gaps
+        if verdict == "block"
+        else "unknown"
+        if verdict == "unknown"
         else str(update.get("state") or decision.state)
     )
-    mutation_next_actions = land_core.land_next_actions(ok=ok, gaps=gaps, current_head=current_head)
+    mutation_next_actions = land_core.land_next_actions(
+        verdict=verdict, gaps=gaps, current_head=current_head
+    )
     return EthosResult(
         command="land",
-        ok=ok,
+        verdict=verdict,
         state=state,
         required_gaps=gaps,
         next_actions=mutation_next_actions,
@@ -473,7 +495,7 @@ def _candidate_land_result(
                         status_payload=status_payload,
                         closeout_support=closeout_support,
                     ),
-                    verdict="pass" if ok else "block",
+                    verdict=verdict,
                     required_gaps=gaps,
                     next_actions=mutation_next_actions,
                     state=state,
@@ -564,12 +586,11 @@ def publish(
             + terminal_gaps
         )
     )
-    ok = (
-        bool(audit["ok"])
-        and decision.ok
-        and not release_carrier_gaps
-        and bool(independent_verification.get("ok"))
-        and not terminal_gaps
+    local_verdict = reduce_verdicts(
+        decision.verdict,
+        report_verdict(audit),
+        report_verdict(independent_verification),
+        required_gaps=gaps,
     )
     remote_topology = publication_topology(release_config(repo))
     raw_topology_gaps = remote_topology.get("required_gaps", [])
@@ -577,7 +598,7 @@ def publish(
         tuple(str(gap) for gap in raw_topology_gaps) if isinstance(raw_topology_gaps, list) else ()
     )
     gaps = tuple(dict.fromkeys((*gaps, *topology_gaps)))
-    ok = ok and not topology_gaps
+    local_verdict = reduce_verdicts(local_verdict, required_gaps=gaps)
     policy = load_branch_role_policy(repo)
     configured_remotes = topology_remotes(remote_topology)
     gitlab_remote = configured_remotes["gitlab"]
@@ -607,7 +628,7 @@ def publish(
     )
     publication = land_publication.publication_readiness(
         branch=str(branch),
-        local_ok=ok,
+        local_ok=local_verdict == "pass",
         policy=policy,
         remote_availability=remote_availability,
         local_ci_fallback=local_ci_fallback,
@@ -622,7 +643,7 @@ def publish(
     remote_availability_state = str(remote_availability.get("state") or "not_probed")
     publish_summary = {
         "mode": "local_readiness",
-        "local_readiness": ok,
+        "local_readiness": local_verdict == "pass",
         "remote_push": remote_push,
         "remote_publication_state": remote_state,
         "remote_availability_state": remote_availability_state,
@@ -643,11 +664,11 @@ def publish(
         "proposal_branch": str(publication.get("proposal_branch") or ""),
         "next_publication_action": next(iter(string_sequence(publication.get("next_actions"))), ""),
     }
-    publish_next_actions = _publish_next_actions(ok=ok, publication=publication)
+    publish_next_actions = _publish_next_actions(verdict=local_verdict, publication=publication)
     # Read-only tracking synchronization observes an existing remote ref; it never
     # upgrades this no-push command into an executed publication transition.
-    publication_verdict = "block" if gaps else "unknown"
-    transition_ok = ok and (not options.apply or publication_verdict == "pass")
+    publication_verdict: Verdict = "block" if local_verdict == "block" else "unknown"
+    result_verdict = publication_verdict if options.apply else local_verdict
     publish_expected_state = _publish_expected_state(
         repo=repo,
         branch=str(branch),
@@ -658,15 +679,15 @@ def publish(
     )
     result = EthosResult(
         command="publish",
-        ok=transition_ok,
+        verdict=result_verdict,
         state=(
             "local_publish_ready"
-            if ok and not options.apply
+            if local_verdict == "pass" and not options.apply
             else "publication_deferred"
-            if ok and publication_verdict == "unknown"
+            if local_verdict == "pass" and options.apply
             else "blocked"
-            if gaps
-            else decision.state
+            if local_verdict == "block"
+            else "unknown"
         ),
         summary=publish_summary,
         required_gaps=gaps,

@@ -82,7 +82,7 @@ def emit_lease_result(command: str, report: dict[str, object], *, json_output: b
     emit(
         EthosResult(
             command=command,
-            ok=bool(report["ok"]),
+            verdict=cast("Any", report["verdict"]),
             state=str(report["state"]),
             summary={
                 "branch": report["branch"],
@@ -96,7 +96,7 @@ def emit_lease_result(command: str, report: dict[str, object], *, json_output: b
                 if isinstance(item, dict)
             ),
             required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-            next_actions=("ethos lane status --json",) if report["ok"] else (),
+            next_actions=("ethos lane status --json",) if report["verdict"] == "pass" else (),
             data=report,
         ),
         json_output=json_output,

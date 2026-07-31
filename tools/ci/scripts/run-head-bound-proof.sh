@@ -18,9 +18,10 @@ from pathlib import Path
 paths = tuple(map(Path, sys.argv[1:4]))
 try: status_before, status_after, proof = (json.loads(path.read_text()) for path in paths)
 except (OSError, json.JSONDecodeError) as error: raise SystemExit(f"invalid readiness receipt: {error}") from error
-data = proof.get("data", {}); head = data.get("expected_head", {}) if isinstance(data, dict) else {}; summary = proof.get("summary", {}); ok = all(item.get("ok") is True for item in (status_before, status_after, proof))
-print(json.dumps({"kind": "ethos_hosted_readiness_receipt", "ok": ok, "status_before_state": status_before.get("state", ""), "status_after_state": status_after.get("state", ""), "proof_state": proof.get("state", ""), "head": head.get("current", ""), "head_matches_expected": head.get("ok", False), "proof_gate_count": summary.get("gate_count", 0), "proof_evidence_digest": summary.get("evidence_digest", ""), "reports": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}}, sort_keys=True))
-raise SystemExit(not ok)
+data = proof.get("data", {}); head = data.get("expected_head", {}) if isinstance(data, dict) else {}; summary = proof.get("summary", {})
+verdict = "pass" if all(item.get("verdict") == "pass" for item in (status_before, status_after, proof)) else "block"
+print(json.dumps({"kind": "ethos_hosted_readiness_receipt", "verdict": verdict, "status_before_state": status_before.get("state", ""), "status_after_state": status_after.get("state", ""), "proof_state": proof.get("state", ""), "head": head.get("current", ""), "head_matches_expected": head.get("matches", False), "proof_gate_count": summary.get("gate_count", 0), "proof_evidence_digest": summary.get("evidence_digest", ""), "reports": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}}, sort_keys=True))
+raise SystemExit(verdict != "pass")
 PY
 receipt_status=$?; set -e
 if [[ ${proof_status} -ne 0 || ${receipt_status} -ne 0 ]]; then [[ ! -s "${stderr}" ]] || { echo "ETHOS proof diagnostics (last 200 lines):" >&2; tail -n 200 "${stderr}" >&2; }; (( proof_status )) && exit "${proof_status}"; exit "${receipt_status}"; fi

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
@@ -162,7 +163,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
         gaps.extend(str(gap) for gap in publication_gaps)
     gaps.extend(_local_command_gaps(root, publication))
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "version": version,
         "required_files": list(REQUIRED_RELEASE_FILES),

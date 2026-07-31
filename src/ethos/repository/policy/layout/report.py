@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.layout.facades import dynamic_compat_facade_findings
 from ethos.repository.policy.layout.facades import module_facade_findings
 from ethos.repository.policy.layout.facades import package_init_facade_findings
@@ -47,7 +48,7 @@ def module_layout_report(
     }
     summary["gap_count"] = len(gaps)
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "state": "clean" if not gaps else "blocked",
         "policy": POLICY_PATH.as_posix(),
         "semantic_paths": configured_semantic_paths(policy),

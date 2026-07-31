@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.openspec.cli as openspec_cli
+import ethos.repository.openspec.audit as openspec_audit
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
@@ -16,7 +17,11 @@ from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.openspec.audit import active_change_names_in_ref
+from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import openspec_shape_report
+from ethos.repository.openspec.audit import protected_branch_active_change_report
+from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.contract_helpers import git
@@ -121,7 +126,7 @@ def test_completed_active_report_blocks_unreadable_official_list(
 
     report = completed_active_changes_report(repo)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["openspec_list_unreadable"]
 
 
@@ -162,7 +167,7 @@ def test_governance_report_blocks_missing_explicit_change(monkeypatch, tmp_path:
 
     report = openspec_governance_report(repo, change="missing", lifecycle=True)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["change"] is None
     assert report["required_gaps"] == ["openspec_requested_change_missing:missing"]
 
@@ -206,7 +211,7 @@ def test_governance_report_blocks_ambiguous_implicit_change(monkeypatch, tmp_pat
 
     report = openspec_governance_report(repo, lifecycle=True)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["change"] is None
     assert report["required_gaps"] == ["openspec_active_change_ambiguous:first,second"]
 
@@ -249,6 +254,143 @@ def _enable_openspec(repo: Path, *material_paths: str) -> None:
     )
 
 
+def test_official_config_report_uses_closed_verdicts(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+
+    missing = official_config_report(repo)
+    assert missing["verdict"] == "block"
+    assert "ok" not in missing
+
+    _write_valid_accepted_specs(repo)
+    valid = official_config_report(repo)
+    assert valid["verdict"] == "pass"
+    assert "ok" not in valid
+
+
+def test_protected_branch_report_preserves_unknown_git_observation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+
+    class FailedProcess:
+        returncode = 128
+        stdout = ""
+        stderr = "fatal: cannot read ref"
+
+    monkeypatch.setattr(
+        "ethos.repository.openspec.audit.subprocess.run", lambda *_a, **_k: FailedProcess()
+    )
+
+    report = protected_branch_active_change_report(repo, current_branch="work/change")
+
+    assert report["verdict"] == "unknown"
+    assert report["required_gaps"]
+    assert "ok" not in report
+
+
+def test_publication_gaps_preserve_unknown_protected_branch_observation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    monkeypatch.setattr(
+        openspec_audit,
+        "protected_branch_active_change_report",
+        lambda _root, **_kwargs: {
+            "verdict": "unknown",
+            "records": [],
+            "required_gaps": ["openspec_ref_tree_unavailable:main"],
+        },
+    )
+
+    assert protected_branch_active_change_required_gaps(repo, current_branch="dev") == [
+        "openspec_ref_tree_unavailable:main"
+    ]
+
+
+def test_protected_branch_residue_blocks_only_its_advisory_subreport(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    _write_valid_accepted_specs(repo)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "adopt openspec")
+    git(repo, "checkout", "-b", "main")
+    carrier = repo / "openspec" / "changes" / "release-residue"
+    carrier.mkdir(parents=True)
+    (carrier / "proposal.md").write_text("# Residue\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "seed release residue")
+    git(repo, "checkout", "dev")
+
+    report = openspec_shape_report(repo)
+
+    assert report["verdict"] == "pass"
+    assert report["protected_branch_residue"]["verdict"] == "block"
+    assert report["protected_branch_residue"]["advisory_gaps"]
+
+
+def test_shape_report_preserves_unknown_protected_branch_observation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    _write_valid_accepted_specs(repo)
+    monkeypatch.setattr(
+        openspec_audit,
+        "_branch_report",
+        lambda _root, branch: {
+            "verdict": "unknown",
+            "state": "unknown",
+            "branch": branch,
+            "required_gaps": [f"openspec_branch_unavailable:{branch}"],
+        },
+    )
+
+    report = openspec_shape_report(repo)
+
+    assert report["verdict"] == "unknown"
+    assert any(gap.startswith("openspec_branch_unavailable:") for gap in report["required_gaps"])
+
+
+def test_active_change_ref_report_preserves_unknown_git_observation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+
+    class FailedProcess:
+        returncode = 128
+        stdout = ""
+        stderr = "fatal: cannot read tree"
+
+    monkeypatch.setattr(
+        "ethos.repository.openspec.audit.subprocess.run", lambda *_a, **_k: FailedProcess()
+    )
+
+    report = active_change_names_in_ref(repo, "candidate/dev")
+
+    assert report["verdict"] == "unknown"
+    assert report["changes"] == []
+    assert report["required_gaps"] == ["openspec_ref_tree_unavailable:candidate/dev"]
+
+
+def test_lifecycle_default_residue_uses_closed_verdict(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+
+    report = lifecycle_report(
+        repo,
+        request=OpenSpecRequest(change=None, lifecycle=False),
+        list_payload={"changes": []},
+    )
+
+    residue = report["protected_branch_residue"]
+    assert residue["verdict"] == "pass"
+    assert "ok" not in residue
+
+
 def test_fresh_adopter_without_material_change_does_not_require_openspec_workspace(
     tmp_path: Path,
 ) -> None:
@@ -257,7 +399,7 @@ def test_fresh_adopter_without_material_change_does_not_require_openspec_workspa
 
     report = openspec_governance_report(repo, lifecycle=True, require_workspace=False)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["state"] == "not_applicable"
     assert report["required_gaps"] == []
     assert report["lifecycle"]["scope_binding"]["state"] == "not_applicable"
@@ -274,7 +416,7 @@ def test_fresh_adopter_material_change_does_not_require_openspec_workspace(tmp_p
         require_workspace=False,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
     assert report["lifecycle"]["scope_binding"]["state"] == "not_applicable"
 
@@ -310,7 +452,7 @@ def test_openspec_shape_rejects_non_spec_capability_carriers(
 
     report = openspec_shape_report(repo)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == [expected_gap]
 
 
@@ -561,7 +703,7 @@ def test_completed_active_report_does_not_revalidate_historical_archives(
 
     report = completed_active_changes_report(repo)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
     assert "archive_closeout" not in report
 
@@ -592,7 +734,7 @@ def test_completed_active_report_blocks_official_completed_change(
 
     report = completed_active_changes_report(repo)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["completed_changes"] == ["ready"]
     assert report["required_gaps"] == ["openspec_completed_change_unarchived:ready"]
 
@@ -609,7 +751,7 @@ def test_shape_report_does_not_use_historical_archive_identity_as_current_verdic
 
     report = openspec_shape_report(repo)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert not any(gap.startswith("openspec_archive_") for gap in report["required_gaps"])
 
 
@@ -624,7 +766,7 @@ def test_generic_adopter_plan_does_not_call_openspec(monkeypatch, tmp_path: Path
     )
     plan = run_ethos("plan", "--root", repo.as_posix(), "--json")
 
-    assert plan["ok"] is False
+    assert plan["verdict"] == "block"
     assert plan["required_gaps"] == ["proof_floor_empty"]
     assert plan["data"]["commitment"]["id"].startswith("repository:")
     assert plan["data"]["transition_plan"]["verdict"] == "block"
@@ -656,7 +798,7 @@ def test_plan_uses_profile_selected_commitment_without_openspec(tmp_path: Path) 
         "--json",
     )
 
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["proof_floor_empty"]
     assert payload["data"]["commitment"]["id"] == "change:selected"
 
@@ -678,7 +820,7 @@ def test_plan_uses_explicit_openspec_profile_commitment(tmp_path: Path) -> None:
         "--json",
     )
 
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["proof_floor_empty"]
     assert payload["data"]["commitment"]["id"] == "change:selected"
     assert payload["data"]["profile_adapter"]["change"] == "selected"
@@ -739,7 +881,7 @@ def test_plan_surfaces_transition_plan_block_as_top_level_block(tmp_path: Path) 
         "--json",
     )
 
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "gapped"
     assert "repository_subject_mismatch" in payload["required_gaps"]
 

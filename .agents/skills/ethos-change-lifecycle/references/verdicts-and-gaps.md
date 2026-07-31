@@ -10,13 +10,13 @@ Every loop command emits the same envelope:
 
 | field | meaning |
 | --- | --- |
-| `ok` | true only when there are no blocking gaps |
+| `verdict` | closed state: `pass`, `block`, or `unknown`; only `pass` authorizes an effect |
 | `state` | one word: `ready` / `proven` / `blocked` / `dry_run` / `clean` / `gapped` |
 | `required_gaps` | the exact blockers; each names what to resolve |
 | `next_actions` | the next command to run |
 
-A mutation command (`land --apply`, `publish --apply`) with `ok:false` exits
-NON-ZERO — the block is enforced, not advisory. `status`, `plan`, and dry-run
+A mutation command (`land --apply`, `publish --apply`) with `verdict=block` or
+`verdict=unknown` exits NON-ZERO — the stop is enforced, not advisory. `status`, `plan`, and dry-run
 `prove` report gaps without creating a second reader command.
 
 ## Common gaps → what they mean → next action

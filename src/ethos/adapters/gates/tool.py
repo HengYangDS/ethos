@@ -11,6 +11,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import git_files
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.layout.report import module_layout_report
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ def quality_tool_report(
     """Run an external quality tool over files and structure its pass/fail result."""
     if not files:
         return {
-            "ok": True,
+            "verdict": "pass",
             "id": gate_id,
             "tool": tool,
             "state": "skipped",
@@ -43,7 +44,7 @@ def quality_tool_report(
         }
     if shutil.which(tool) is None:
         return {
-            "ok": False,
+            "verdict": "unknown",
             "id": gate_id,
             "tool": tool,
             "state": "missing_tool",
@@ -52,15 +53,31 @@ def quality_tool_report(
             "required_gaps": [f"quality_tool_missing:{tool}"],
         }
     # Fixed gate command (list form, no shell, no external input).
-    completed = subprocess.run(
-        command,
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as error:
+        return {
+            "verdict": "unknown",
+            "id": gate_id,
+            "tool": tool,
+            "state": "tool_error",
+            "file_count": len(files),
+            "command": command,
+            "error": f"{type(error).__name__}: {error}",
+            "required_gaps": [f"quality_tool_execution_unknown:{gate_id}"],
+        }
+    gaps = [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"]
     return {
-        "ok": completed.returncode == 0,
+        "verdict": close_verdict(
+            "pass" if completed.returncode == 0 else "block",
+            required_gaps=tuple(gaps),
+        ),
         "id": gate_id,
         "tool": tool,
         "state": "passed" if completed.returncode == 0 else "failed",
@@ -69,7 +86,7 @@ def quality_tool_report(
         "exit_code": completed.returncode,
         "stdout": _trim_output(completed.stdout),
         "stderr": _trim_output(completed.stderr),
-        "required_gaps": [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"],
+        "required_gaps": gaps,
     }
 
 

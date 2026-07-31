@@ -129,7 +129,7 @@ worktree is audited and proven before accepted-root movement.
 When a candidate changed a control path and needs a protected external bootstrap
 receipt, the candidate-proof input is the native JSON result of
 `ethos prove --execute --json`. The verifier requires `command = "prove"`,
-`ok = true`, `state = "proven"`, `data.executed = true`, and matching candidate
+`verdict = pass`, `state = "proven"`, `data.executed = true`, and matching candidate
 HEAD bindings at `data.evidence.head` and
 `data.provenance.predicate.head`. A hand-written `{head, state}` envelope is
 not a proof record. This keeps the bootstrap adapter bound to the product proof
@@ -175,6 +175,8 @@ options.
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.
+
+All public command results use the closed `verdict` union `pass | block | unknown`; the top-level `ok` field is absent. Missing or unverifiable required facts produce `unknown`, conflicts, explicit failures, and warnings produce `block`, and only `verdict = "pass"` authorizes an effect. Domain lifecycle `state = "deferred"` remains distinct from the authorization verdict.
 
 Status: see front matter.
 

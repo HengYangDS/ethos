@@ -27,9 +27,9 @@ def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
         return json.loads(completed.stdout)
     except json.JSONDecodeError:
         return {
-            "ok": False,
+            "verdict": "unknown",
             "state": "unparseable",
-            "required_gaps": [completed.stderr.strip()[:200]],
+            "required_gaps": [completed.stderr.strip()[:200] or "command_output_unparseable"],
         }
 
 
@@ -38,18 +38,20 @@ app = App(name="ethos-govern-check")
 
 @app.default
 def main(*, root: str = ".") -> int:
-    all_ok = True
+    all_pass = True
     for name, args in STEPS:
         payload = _run(args, root)
         gaps = [str(gap) for gap in payload.get("required_gaps", [])]
-        ok = bool(payload.get("ok"))
-        print(f"[{'ok' if ok else 'GAP'}] {name}: {payload.get('state', '?')} ({len(gaps)} gaps)")
-        if not ok:
-            all_ok = False
+        verdict = str(payload.get("verdict") or "unknown")
+        passed = verdict == "pass"
+        state = payload.get("state", "?")
+        print(f"[{'PASS' if passed else verdict.upper()}] {name}: {state} ({len(gaps)} gaps)")
+        if not passed:
+            all_pass = False
             for gap in gaps[:5]:
                 print(f"      - {gap}")
-    print("GOVERNANCE CLEAN" if all_ok else "GOVERNANCE GAPS — see above")
-    return 0 if all_ok else 1
+    print("GOVERNANCE CLEAN" if all_pass else "GOVERNANCE GAPS — see above")
+    return 0 if all_pass else 1
 
 
 if __name__ == "__main__":

@@ -73,7 +73,8 @@ def test_work_lane_ref_transition_rejects_zero_oid_without_lease(
         new_value=new_value,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
 
 
@@ -116,7 +117,8 @@ def test_work_lane_ref_transition_zero_oid_requires_exact_lease_and_base(
         new_value=head if create else "0" * 40,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["decision"] == {"action": "allow", "reason": reason}
     assert report["required_gaps"] == []
 
@@ -157,7 +159,8 @@ def test_work_lane_zero_oid_unknown_lease_is_observe_only(
         new_value=head,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "unknown"
+    assert "ok" not in report
     assert report["required_gaps"] == [f"work_lane_lease_unknown:{branch}"]
     with closing(sqlite3.connect(database)) as connection:
         stored = connection.execute(
@@ -176,7 +179,8 @@ def test_work_lane_ref_transition_rejects_non_git_zero_width(tmp_path: Path, wid
         old_value="a" * width,
         new_value="0" * width,
     )
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
 
 
@@ -191,7 +195,8 @@ def test_work_lane_ref_transition_rejects_an_empty_oid(tmp_path: Path) -> None:
         new_value="",
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
 
 
@@ -211,7 +216,8 @@ def test_work_lane_ref_transition_admits_noop_without_lease(tmp_path: Path) -> N
         new_value=head,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["decision"] == {"action": "allow", "reason": "lane_ref_noop"}
     assert report["required_gaps"] == []
 
@@ -251,7 +257,8 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
         old_value=head,
         new_value=target,
     )
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["decision"]["action"] == "allow"
     assert report["lease"]["epoch"] == 1
 
@@ -262,7 +269,8 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
         old_value="c" * 40,
         new_value=target,
     )
-    assert stale["ok"] is False
+    assert stale["verdict"] == "block"
+    assert "ok" not in stale
     assert any("lease_head_stale" in gap for gap in stale["required_gaps"])
 
 
@@ -295,7 +303,8 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
         old_value=head,
         new_value=new_head,
     )
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["state"] == "lease_head_advanced"
     assert report["lease"]["expected_head"] == new_head
 
@@ -349,7 +358,8 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_commitment(
         new_value=target,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["required_gaps"] == ["lease_base_commitment_digest_mismatch"]
     assert leases_by_branch(lane)["work/current"]["expected_head"] == head
 
@@ -391,7 +401,8 @@ def test_work_lane_ref_transition_rejects_unknown_lease_without_effect(
         new_value="b" * 40,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "unknown"
+    assert "ok" not in report
     assert report["required_gaps"] == ["work_lane_lease_unknown:work/current"]
 
 
@@ -511,14 +522,14 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path: Path) -> None:
     blocked = ref_move_admission_report(
         root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
     )
-    assert blocked["ok"] is False
+    assert blocked["verdict"] == "block"
     assert "accepted_advance_not_candidate_validated" in blocked["required_gaps"]
 
     # a move of a non-accepted (work) ref is admitted untouched
     lane = ref_move_admission_report(
         root=tmp_path, ref_name="refs/heads/work/x", old_value=base, new_value=work
     )
-    assert lane["ok"] is True
+    assert lane["verdict"] == "pass"
 
     # candidate-first: once candidate contains the commit, containment passes
     g("checkout", "candidate/dev")
@@ -541,7 +552,7 @@ def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -
         new_value=candidate_head,
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["state"] == "blocked"
     assert report["decision"] == {
         "action": "block",
@@ -565,7 +576,7 @@ def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_pa
         new_value=base,  # rewind candidate back onto accepted-contained base
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
 
 
@@ -581,7 +592,7 @@ def test_ref_move_admission_blocks_rollback_to_old_proven_commit(tmp_path: Path)
         root=repo, ref_name="refs/heads/dev", old_value=c2, new_value=c1
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "accepted_ref_move_not_fast_forward" in report["required_gaps"]
 
 
@@ -598,7 +609,7 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=c1
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "accepted_ref_move_not_candidate_head" in report["required_gaps"]
 
 
@@ -635,7 +646,7 @@ def test_ref_move_admission_admits_official_closeout_with_intent_marker(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
 
 
@@ -652,7 +663,7 @@ def test_ref_move_admission_blocks_raw_move_without_closeout_intent(tmp_path: Pa
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "accepted_ref_move_no_closeout_intent" in report["required_gaps"]
 
 
@@ -671,8 +682,8 @@ def test_ref_move_admission_blocks_reused_closeout_intent(tmp_path: Path) -> Non
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
 
-    assert first["ok"] is True
-    assert second["ok"] is False
+    assert first["verdict"] == "pass"
+    assert second["verdict"] == "block"
     assert "accepted_ref_move_no_closeout_intent" in second["required_gaps"]
 
 
@@ -689,7 +700,7 @@ def test_ref_move_admission_blocks_mismatched_closeout_intent(tmp_path: Path) ->
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "closeout_intent_mismatch" in report["required_gaps"]
 
 
@@ -706,7 +717,7 @@ def test_ref_move_admission_blocks_stale_closeout_intent(tmp_path: Path) -> None
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "closeout_intent_stale" in report["required_gaps"]
 
 
@@ -849,7 +860,7 @@ def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
         root=repo, target_ref="refs/heads/dev", pushed_head=off_train, remote_head=base
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "accepted_advance_not_candidate_validated" in report["required_gaps"]
 
 
@@ -864,7 +875,7 @@ def test_push_admission_blocks_non_head_intermediate(tmp_path: Path) -> None:
         root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=base
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "accepted_ref_move_not_candidate_head" in report["required_gaps"]
 
 
@@ -880,7 +891,7 @@ def test_push_admission_blocks_rollback(tmp_path: Path) -> None:
         root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=c2
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "accepted_ref_move_not_fast_forward" in report["required_gaps"]
 
 
@@ -900,9 +911,9 @@ def test_push_admission_requires_local_closeout_before_protected_publication(
         root=repo, target_ref="refs/heads/dev", pushed_head=candidate_head, remote_head=base
     )
 
-    assert blocked["ok"] is False
+    assert blocked["verdict"] == "block"
     assert "push_to_protected_role_not_proven:local_ref_mismatch:dev" in blocked["required_gaps"]
-    assert admitted["ok"] is True
+    assert admitted["verdict"] == "pass"
     assert admitted["required_gaps"] == []
 
 
@@ -916,7 +927,7 @@ def test_push_admission_rejects_remote_work_lane(tmp_path: Path) -> None:
         root=repo, target_ref="refs/heads/work/x", pushed_head=head, remote_head=base
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["publication_remote_branch_forbidden:work/x"]
 
 

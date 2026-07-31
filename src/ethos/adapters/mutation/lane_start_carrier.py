@@ -258,7 +258,7 @@ def initialize_lane_carrier(
     ]:
         failure = failed_process("lane_start_active_change_carrier_mismatch")
     if failure is None:
-        failure = lane_start_contract_failure(
+        failure = lane_start_commitment_failure(
             target=context.target,
             final_head=final_head,
             source_change_id=context.source_change_id,
@@ -294,19 +294,19 @@ def materialize_source_carrier(
     return None, target_tree.stdout.strip()
 
 
-def lane_start_contract_failure(
+def lane_start_commitment_failure(
     *, target: Path, final_head: str, source_change_id: str
 ) -> subprocess.CompletedProcess[str] | None:
     """Return a failure when the materialized Commitment is not exact."""
     try:
-        contract = load_openspec_commitment(
+        commitment = load_openspec_commitment(
             target,
             change_id=source_change_id,
             tree_ref=final_head,
         )
     except ValueError as exc:
         return failed_process(str(exc))
-    if contract.id != f"change:{source_change_id}":
+    if commitment.id != f"change:{source_change_id}":
         return failed_process("lane_start_commitment_identity_mismatch")
     return None
 

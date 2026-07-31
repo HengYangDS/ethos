@@ -299,7 +299,7 @@ def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
         "lease_payload_sha256": "",
         "lease_state": "none",
         "base_commitment_digest": "",
-        "contract_binding": "not_applicable",
+        "commitment_binding": "not_applicable",
         "required_gaps": ["protected_root_mutation", "git_repository_missing"],
     }
     provenance = {

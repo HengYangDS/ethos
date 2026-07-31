@@ -94,7 +94,7 @@ slice HEAD; only the campaign lane remains for this intent.
   evidence binds claim, normalized command and result, repository identity,
   input/output digests, HEAD, time, and freshness; unknown predicates remain
   visible and non-authorizing, and binding drift invalidates prior proof.
-- [ ] 1.3 Rename every transition input and digest to `commitment`; delete
+- [x] 1.3 Rename every transition input and digest to `commitment`; delete
   `contract` aliases and dual carriers. Facts and TransitionPlan remain transient.
 - [ ] 1.4 Unify verdicts as `pass | block | unknown`; unknown required inputs
   and warnings block effects and cannot coexist with pass.

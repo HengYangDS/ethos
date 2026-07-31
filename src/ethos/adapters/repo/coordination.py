@@ -128,7 +128,7 @@ def _foreign_lane_payload(
         "lease": lease_summary(lease),
         "lease_state": lease_state,
         "base_commitment_digest": base_digest if lease_state in {"valid", "expired"} else "",
-        "contract_binding": str(lease.get("contract_binding") or lease_state),
+        "commitment_binding": str(lease.get("commitment_binding") or lease_state),
         "relation_to_accepted": str(context["relation_to_accepted"]),
         "next_action": FOREIGN_WORK_LANE_NEXT_ACTION,
         "dirty": None if context["scope_state"] == "deferred" else bool(dirty_paths),
@@ -261,7 +261,7 @@ def coordination_package(
 
 def _unknown_unbound_ref() -> dict[str, object]:
     return dict.fromkeys(("branch", "head", "base_commitment_digest"), "") | {
-        "contract_binding": "missing",
+        "commitment_binding": "missing",
         "lease_state": "missing",
         "relation_to_accepted": "unknown",
         "next_action": FOREIGN_WORK_LANE_NEXT_ACTION,

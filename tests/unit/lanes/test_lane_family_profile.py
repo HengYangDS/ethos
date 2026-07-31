@@ -119,13 +119,13 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(tmp_p
     assert report["lease"] == {
         key: value
         for key, value in leases_by_branch(repo)["work/feature"].items()
-        if key != "contract_binding"
+        if key != "commitment_binding"
     }
     assert report["lease"]["base_commitment_digest"] == report["base_commitment_digest"]
     assert report["lease"]["expected_head"] == report["head"]
     assert (
         workspace_status(target, include_foreign_path_scope=False)["closeout_support"][
-            "contract_binding"
+            "commitment_binding"
         ]
         == "bound"
     )
@@ -294,7 +294,7 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
                 "branch": "work/unbound",
                 "head": "a" * 40,
                 "base_commitment_digest": "",
-                "contract_binding": "missing",
+                "commitment_binding": "missing",
                 "lease_state": "missing",
                 "relation_to_accepted": "unknown",
                 "next_action": "ignored",
@@ -407,7 +407,7 @@ def test_start_work_lane_blocks_source_lease_head_mismatch(tmp_path: Path) -> No
     assert not target.exists()
 
 
-def test_start_work_lane_blocks_source_lease_contract_mismatch(
+def test_start_work_lane_blocks_source_lease_commitment_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
@@ -415,15 +415,15 @@ def test_start_work_lane_blocks_source_lease_contract_mismatch(
     target = tmp_path / "repo-work-feature"
     leases_by_branch = lanes.leases_by_branch
 
-    def mismatched_contract(root: Path):
+    def mismatched_commitment(root: Path):
         leases = leases_by_branch(root)
         if root.resolve() == source.resolve():
             lease = dict(leases["work/change-source"])
-            lease["contract_binding"] = "mismatch"
+            lease["commitment_binding"] = "mismatch"
             leases["work/change-source"] = lease
         return leases
 
-    monkeypatch.setattr(lanes, "leases_by_branch", mismatched_contract)
+    monkeypatch.setattr(lanes, "leases_by_branch", mismatched_commitment)
 
     report = start_work_lane(
         root=repo,
@@ -434,7 +434,7 @@ def test_start_work_lane_blocks_source_lease_contract_mismatch(
         apply=True,
     )
 
-    assert report["required_gaps"] == ["source_lease_contract_unbound"]
+    assert report["required_gaps"] == ["source_lease_commitment_unbound"]
     assert ref_head(repo, "work/feature") == ""
     assert not target.exists()
 
@@ -560,7 +560,7 @@ def test_start_work_lane_blocks_candidate_head_drift_before_lease_acquisition(
     assert not target.exists()
 
 
-def test_work_lane_status_reports_base_contract_rewrite_as_mismatch(tmp_path: Path) -> None:
+def test_work_lane_status_reports_base_commitment_rewrite_as_mismatch(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
@@ -573,9 +573,9 @@ def test_work_lane_status_reports_base_contract_rewrite_as_mismatch(tmp_path: Pa
         apply=True,
     )
     assert report["ok"] is True
-    contract = target / "openspec" / "changes" / "fixture-change" / "commitment.toml"
-    contract.write_text(
-        contract.read_text(encoding="utf-8").replace(
+    commitment = target / "openspec" / "changes" / "fixture-change" / "commitment.toml"
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace(
             "Exercise the governed fixture lifecycle.",
             "Attempt to rewrite the immutable base.",
         ),
@@ -584,7 +584,7 @@ def test_work_lane_status_reports_base_contract_rewrite_as_mismatch(tmp_path: Pa
 
     status = workspace_status(target, include_foreign_path_scope=False)
 
-    assert status["closeout_support"]["contract_binding"] == "mismatch"
+    assert status["closeout_support"]["commitment_binding"] == "mismatch"
     assert status["closeout_support"]["supported"] is False
 
 
@@ -617,7 +617,9 @@ def test_start_work_lane_blocks_dirty_root_before_reserving_or_creating(tmp_path
     assert not target.exists()
 
 
-def test_start_work_lane_blocks_missing_candidate_contract_without_effects(tmp_path: Path) -> None:
+def test_start_work_lane_blocks_missing_candidate_commitment_without_effects(
+    tmp_path: Path,
+) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
@@ -639,7 +641,7 @@ def test_start_work_lane_blocks_missing_candidate_contract_without_effects(tmp_p
     assert not target.exists()
 
 
-def test_start_work_lane_blocks_ambiguous_candidate_contract_without_effects(
+def test_start_work_lane_blocks_ambiguous_candidate_commitment_without_effects(
     tmp_path: Path,
 ) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)

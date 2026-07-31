@@ -67,7 +67,7 @@ existing product around one kernel.
 ### Modified Capabilities
 
 - `kernel`: terminal semantic kernel and carrier algebra
-- `contracts`: portable root and transition contracts
+- `contracts`: portable boundary models and transition schemas
 - `repository-governance`: contextual authority, currentness, coordination, and retirement
 - `command-plane`: derived command projections and truthful verdicts
 - `adapters`: observation/effect boundary and optional profiles

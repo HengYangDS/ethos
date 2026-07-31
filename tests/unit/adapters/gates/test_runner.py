@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import ethos.adapters.gates.runner as gate_runner
-from ethos.contracts.gates import GateDescriptor
+from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 
 if TYPE_CHECKING:
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 _NODE = PlanNode(id="gate", kind="check")
 
 
-def _gate(*providers: str) -> GateDescriptor:
-    return GateDescriptor(id="gate", kind="test", providers=providers)
+def _gate(*providers: str) -> Gate:
+    return Gate(id="gate", kind="test", providers=providers)
 
 
 def _runner(monkeypatch, **providers: object) -> gate_runner.LocalGateRunner:
@@ -120,7 +120,7 @@ def test_provider_missing_verdict_is_unknown_without_legacy_fallback(
     ]
 
 
-def test_command_envelope_uses_verdict_and_plain_stderr_is_not_a_warning(tmp_path: Path) -> None:
+def test_command_envelope_uses_verdict_and_plain_stderr_is_not_a_warning() -> None:
     blocked = gate_runner.classify_action_result(
         exit_code=0,
         stdout=json.dumps({"command": "status", "verdict": "unknown", "state": "unknown"}),

@@ -114,3 +114,24 @@ def test_hook_admission_request_normalizes_pathlike_inputs() -> None:
 def test_hook_admission_request_rejects_non_path_bound_context() -> None:
     with pytest.raises(ValueError, match="filesystem path"):
         HookAdmissionRequest(root=object(), layer="pre-tool")
+
+
+def test_admission_boundary_rejects_type_coercion_and_nested_mutation() -> None:
+    with pytest.raises(ValidationError):
+        HookAdmissionRequest(root="/repo", layer=1)
+    with pytest.raises((TypeError, ValidationError)):
+        MutationSubject(
+            action="lane.prewrite",
+            resource="work/example",
+            expected_state={"epoch": object()},
+        )
+
+    subject = MutationSubject(
+        action="lane.prewrite",
+        resource="work/example",
+        expected_state={"nested": {"epoch": 1}},
+    )
+    with pytest.raises(TypeError):
+        subject.expected_state["new"] = True
+    with pytest.raises(TypeError):
+        subject.expected_state["nested"]["epoch"] = 2

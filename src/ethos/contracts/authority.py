@@ -1,9 +1,7 @@
 """Pure contextual authority extraction and resolution."""
 
-from __future__ import annotations
-
-from typing import Any
 from typing import Literal
+from typing import Self
 
 from pydantic import AwareDatetime
 from pydantic import BaseModel
@@ -11,6 +9,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.value import JsonValue
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
@@ -38,7 +37,7 @@ class CarrierDescriptor(_AuthorityModel):
 
     role: CarrierRole
     query: AuthorityQuery
-    assertion: Any
+    assertion: JsonValue
     bindings: tuple[tuple[str, str], ...]
     source: str = Field(min_length=1)
     valid_from: AwareDatetime | None = None
@@ -60,7 +59,7 @@ class AuthorityResolution(_AuthorityModel):
     required_gaps: tuple[str, ...] = ()
 
     @model_validator(mode="after")
-    def reject_false_pass(self) -> AuthorityResolution:
+    def reject_false_pass(self) -> Self:
         require_closed_verdict(self.verdict, self.required_gaps)
         return self
 

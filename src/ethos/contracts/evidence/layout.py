@@ -1,7 +1,5 @@
 """Evidence layout declaration contract."""
 
-from __future__ import annotations
-
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -12,6 +10,7 @@ from pydantic import ConfigDict
 from ethos._resources import declaration_text
 from ethos._resources import resolve_declaration_path
 from ethos.contracts.policy.cel import evaluate_cel_predicate
+from ethos.contracts.value import FrozenTuple
 
 DECLARATION_PATH = Path("system/policies/evidence-layout.toml")
 _DECLARATION_RESOURCE = "data/evidence_layout.toml"
@@ -20,12 +19,12 @@ _DECLARATION_RESOURCE = "data/evidence_layout.toml"
 class KernelEvidenceLayout(BaseModel):
     """Declared kernel evidence layout."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     mode: str = "kernel_evidence"
-    allowed_root_files: tuple[str, ...]
-    allowed_root_dirs: tuple[str, ...]
-    historical_root_dirs: tuple[str, ...]
+    allowed_root_files: FrozenTuple[str]
+    allowed_root_dirs: FrozenTuple[str]
+    historical_root_dirs: FrozenTuple[str]
     root_file_not_allowed_gap_prefix: str
     root_dir_not_allowed_gap_prefix: str
 
@@ -33,21 +32,21 @@ class KernelEvidenceLayout(BaseModel):
 class CuratedProfileEvidenceLayout(BaseModel):
     """Declared curated profile evidence layout."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     mode: str = "curated_profile_evidence"
-    allowed_root_files: tuple[str, ...]
+    allowed_root_files: FrozenTuple[str]
     root_file_not_allowed_gap_prefix: str
 
 
 class EvidenceLayoutDeclaration(BaseModel):
     """Typed declaration for evidence root topology."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str
     schema_version: int = 1
-    source_refs: tuple[str, ...] = ()
+    source_refs: FrozenTuple[str] = ()
     profile_curated_root: str
     root_missing_gap: str
     kernel: KernelEvidenceLayout

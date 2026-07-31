@@ -46,6 +46,11 @@ RETIRED_SELF_TERMS = (
     "posture",
 )
 HOST_PROJECTION_LABELS = ("Open Worktree", "Checkout")
+PORTABLE_MODEL_ROOTS = (
+    ROOT / "src/ethos/contracts",
+    ROOT / "src/ethos/result.py",
+    ROOT / "src/ethos/repository/profile.py",
+)
 
 
 def product_surface_files() -> list[Path]:
@@ -330,6 +335,66 @@ def test_tracked_python_follows_parser_model_and_export_policy() -> None:
             assert not any(isinstance(node, ast.Import | ast.ImportFrom) for node in tree.body), (
                 path
             )
+
+
+def test_portable_models_are_strict_frozen_and_extra_forbid() -> None:
+    """Keep Pydantic at portable boundaries and stdlib values inside them."""
+    for root in PORTABLE_MODEL_ROOTS:
+        paths = [root] if root.is_file() else sorted(root.rglob("*.py"))
+        for path in paths:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
+            for node in classes.values():
+                lineage = [node]
+                pending = [base.id for base in node.bases if isinstance(base, ast.Name)]
+                while pending:
+                    parent = classes.get(pending.pop())
+                    if parent is None or parent in lineage:
+                        continue
+                    lineage.append(parent)
+                    pending.extend(base.id for base in parent.bases if isinstance(base, ast.Name))
+                if not any(
+                    isinstance(base, ast.Name) and base.id == "BaseModel"
+                    for model in lineage
+                    for base in model.bases
+                ):
+                    continue
+                configs = [
+                    ast.unparse(statement.value).replace(" ", "")
+                    for model in lineage
+                    for statement in model.body
+                    if isinstance(statement, ast.Assign)
+                    and any(
+                        isinstance(target, ast.Name) and target.id == "model_config"
+                        for target in statement.targets
+                    )
+                ]
+                assert any(
+                    all(
+                        option in config
+                        for option in ("strict=True", "frozen=True", "extra='forbid'")
+                    )
+                    for config in configs
+                ), f"{path}:{node.name}"
+
+
+def test_contract_dataclasses_are_only_internal_small_values() -> None:
+    allowed = {
+        ("src/ethos/contracts/branch/roles.py", "BranchRolePolicy"),
+        ("src/ethos/contracts/coordination.py", "LeaseOperation"),
+    }
+    actual = set()
+    for path in sorted((ROOT / "src/ethos/contracts").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and any(
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Name)
+                and decorator.func.id == "dataclass"
+                for decorator in node.decorator_list
+            ):
+                actual.add((path.relative_to(ROOT).as_posix(), node.name))
+    assert actual == allowed
 
 
 def test_repository_does_not_reintroduce_mailmap_identity_rewriting() -> None:

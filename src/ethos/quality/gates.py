@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from ethos.contracts.gates import GateDescriptor
+from ethos.contracts.gates import Gate
 from ethos.contracts.gates import load_gate_registry_declaration
 
 
-def quality_gate_registry() -> dict[str, GateDescriptor]:
+def quality_gate_registry() -> dict[str, Gate]:
     """Return the immutable quality descriptor view of the gate declaration."""
     return load_gate_registry_declaration().registry("quality")
 

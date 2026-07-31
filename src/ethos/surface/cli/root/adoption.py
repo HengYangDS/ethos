@@ -41,22 +41,23 @@ def _adoption_result(
     )
     required_gaps = tuple(gaps) + tuple(string_sequence(plan_payload.get("required_gaps")))
     ok = not required_gaps
-    result = EthosResult(
+    return EthosResult(
         command="adopt",
         verdict="pass" if ok else "block",
         state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
         summary={"planned_file_count": len(object_sequence(plan_payload.get("planned_files")))},
         next_actions=("ethos status",),
         required_gaps=required_gaps,
-        data=plan_payload,
+        data=plan_payload
+        | {
+            "mutation": {
+                "apply": apply,
+                "authorized": authorize,
+                "expect_head": expect_head,
+                "current_head": current_head,
+            }
+        },
     )
-    result.data["mutation"] = {
-        "apply": apply,
-        "authorized": authorize,
-        "expect_head": expect_head,
-        "current_head": current_head,
-    }
-    return result
 
 
 @app.command

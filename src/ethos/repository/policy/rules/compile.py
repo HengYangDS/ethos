@@ -158,23 +158,7 @@ def _rules_as_contracts(
                 f"rule_schema_invalid:{rule_id or '<missing>'}:{gap}" for gap in schema_gaps
             )
             continue
-        rule = Rule(
-            id=str(raw_rule["id"]),
-            version=int(raw_rule.get("version", 1)),
-            owner=str(raw_rule["owner"]),
-            profile_layers=tuple(str(layer) for layer in raw_rule.get("profile_layers", [])),
-            authority_ref=str(raw_rule["authority_ref"]),
-            contract_ref=str(raw_rule["contract_ref"]),
-            subject=str(raw_rule.get("subject", "")),
-            path_globs=tuple(str(path) for path in raw_rule["path_globs"]),
-            severity=str(raw_rule["severity"]),
-            required_gates=tuple(str(gate) for gate in raw_rule["required_gates"]),
-            evidence_requirements=tuple(
-                str(req) for req in raw_rule.get("evidence_requirements", [])
-            ),
-            stop_condition=str(raw_rule["stop_condition"]),
-            non_waivable=bool(raw_rule.get("non_waivable", False)),
-        )
+        rule = Rule.model_validate(raw_rule)
         if _rule_active_for_profiles(rule, profile_stack):
             rules.append(rule)
     return rules, gaps
@@ -198,7 +182,7 @@ def compile_rules(root: Path) -> dict[str, object]:
         profile_layers=tuple(profile_stack),
         rules=tuple(sorted(rules, key=lambda rule: rule.id)),
     )
-    rule_set_payload = rule_set.to_dict()
+    rule_set_payload = rule_set.model_dump(mode="json")
     rule_set_digest = rule_set.digest
     source_refs = ["product:starter-rules"]
     if rules_path(root).exists():

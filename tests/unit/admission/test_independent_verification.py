@@ -450,7 +450,7 @@ def test_receipt_negative_paths_remain_local_readiness(tmp_path, monkeypatch) ->
         "independent_verification_signature_invalid",
     }
 
-    receipt = IndependentVerificationReceipt.model_validate(_receipt_payload())
+    receipt = IndependentVerificationReceipt.model_validate_json(json.dumps(_receipt_payload()))
     provider = IndependentVerificationProvider(
         receipt_store=tmp_path,
         allowed_signers=tmp_path / "allowed-signers",

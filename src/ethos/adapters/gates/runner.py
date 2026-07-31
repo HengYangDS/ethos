@@ -17,7 +17,7 @@ from ethos.contracts.verdict import report_verdict
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.contracts.gates import GateDescriptor
+    from ethos.contracts.gates import Gate
     from ethos.contracts.plan import PlanNode
 
 
@@ -78,7 +78,7 @@ def _ethos_result_verdict(stdout: str) -> tuple[Verdict, tuple[dict[str, Any], .
 
 
 class DryRunRunner:
-    def run(self, node: PlanNode, gate: GateDescriptor, *, root: Path) -> ActionRunResult:
+    def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
         root.resolve(strict=True)
         return ActionRunResult(
             action_id=node.id,
@@ -91,7 +91,7 @@ class DryRunRunner:
 class LocalGateRunner:
     """Execute a declared provider directly or an external adapter command."""
 
-    def run(self, node: PlanNode, gate: GateDescriptor, *, root: Path) -> ActionRunResult:
+    def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
         if gate.providers:
             return _run_providers(node, gate, root)
         try:
@@ -134,14 +134,22 @@ class LocalGateRunner:
         )
 
 
-def _run_providers(node: PlanNode, gate: GateDescriptor, root: Path) -> ActionRunResult:
+def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
     reports: list[dict[str, object]] = []
     diagnostics: list[dict[str, Any]] = []
     verdicts: list[Verdict] = []
     for reference in gate.providers:
         try:
             report = _provider_report(reference, root)
-        except Exception as exc:
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            subprocess.SubprocessError,
+            TypeError,
+            ValueError,
+        ) as exc:
             diagnostics.append(
                 {
                     "kind": "gate_provider_error",

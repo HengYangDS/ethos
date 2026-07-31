@@ -5,13 +5,12 @@ runtime state, generated proof output, reports, and curated evidence may live
 without encoding one adopter, profile, or repository-specific fixture name.
 """
 
-from __future__ import annotations
-
 import tomllib
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from typing import Literal
+from typing import Self
 from typing import cast
 
 from pydantic import BaseModel
@@ -21,6 +20,7 @@ from pydantic import model_validator
 from ethos._resources import declaration_text
 from ethos._resources import resolve_declaration_path
 from ethos.contracts.policy.cel import evaluate_cel_predicate
+from ethos.contracts.value import FrozenTuple
 
 DECLARATION_PATH = Path("system/policies/generated-artifact-topology.toml")
 _DECLARATION_RESOURCE = "data/generated_artifact_topology.toml"
@@ -45,7 +45,7 @@ _CEL_RULE_IDS = frozenset(
 class TopologyPrefix(BaseModel):
     """One declared path-prefix rule for generated artifact topology."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     prefix: str
     boundary: str = ""
@@ -64,10 +64,10 @@ class TopologyPrefix(BaseModel):
 class LifecycleClass(BaseModel):
     """Declared generated-artifact lifecycle class."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str
-    homes: tuple[str, ...]
+    homes: FrozenTuple[str]
     tracked: bool
     promotion_allowed: bool
     cleanup: str
@@ -86,7 +86,7 @@ class LifecycleClass(BaseModel):
 class TopologyCelRule(BaseModel):
     """One ordered, restricted CEL predicate for a topology decision."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: Literal[
         "generated",
@@ -121,35 +121,35 @@ class TopologyCelRule(BaseModel):
 class GeneratedArtifactTopologyDeclaration(BaseModel):
     """Typed declaration for generated artifact topology policy."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str
     schema_version: int = 1
-    source_refs: tuple[str, ...] = ()
+    source_refs: FrozenTuple[str] = ()
     adopter_specific_product_dirs_allowed: bool = False
     cache_flat_root_prefix: str
-    cache_allowed_prefixes: tuple[str, ...]
+    cache_allowed_prefixes: FrozenTuple[str]
     runtime_flat_root_prefix: str
-    runtime_allowed_prefixes: tuple[str, ...]
+    runtime_allowed_prefixes: FrozenTuple[str]
     ignore_boundary: str
     source_schema_suffix: str
-    generated_suffixes: tuple[str, ...]
-    generated_filenames: tuple[str, ...]
-    generated_filename_prefixes: tuple[str, ...]
-    source_metadata_filenames: tuple[str, ...]
-    product_adopter_root_prefixes: tuple[str, ...]
-    declarative_prefix: tuple[TopologyPrefix, ...]
-    allowed_prefix: tuple[TopologyPrefix, ...]
-    review_prefix: tuple[TopologyPrefix, ...]
-    denied_prefix: tuple[TopologyPrefix, ...]
-    denied_root_cache_prefix: tuple[TopologyPrefix, ...]
-    denied_legacy_generated_prefix: tuple[TopologyPrefix, ...]
-    denied_generated_prefix: tuple[TopologyPrefix, ...]
-    lifecycle_class: tuple[LifecycleClass, ...]
-    cel_rule: tuple[TopologyCelRule, ...]
+    generated_suffixes: FrozenTuple[str]
+    generated_filenames: FrozenTuple[str]
+    generated_filename_prefixes: FrozenTuple[str]
+    source_metadata_filenames: FrozenTuple[str]
+    product_adopter_root_prefixes: FrozenTuple[str]
+    declarative_prefix: FrozenTuple[TopologyPrefix]
+    allowed_prefix: FrozenTuple[TopologyPrefix]
+    review_prefix: FrozenTuple[TopologyPrefix]
+    denied_prefix: FrozenTuple[TopologyPrefix]
+    denied_root_cache_prefix: FrozenTuple[TopologyPrefix]
+    denied_legacy_generated_prefix: FrozenTuple[TopologyPrefix]
+    denied_generated_prefix: FrozenTuple[TopologyPrefix]
+    lifecycle_class: FrozenTuple[LifecycleClass]
+    cel_rule: FrozenTuple[TopologyCelRule]
 
     @model_validator(mode="after")
-    def validate_cel_rules(self) -> GeneratedArtifactTopologyDeclaration:
+    def validate_cel_rules(self) -> Self:
         """Require the complete ordered topology rule set before evaluation."""
         ids = [rule.id for rule in self.cel_rule]
         if len(ids) != len(set(ids)) or set(ids) != _CEL_RULE_IDS:

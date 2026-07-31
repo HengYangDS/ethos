@@ -11,8 +11,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from ethos.contracts.gates import GateDescriptor
-from ethos.contracts.gates import GateEntry
+from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
@@ -32,12 +31,12 @@ class ResolvedGatePolicy:
 
     declaration: GateRegistryDeclaration
     profile: RepositoryProfile | None
-    gates: tuple[GateDescriptor, ...]
+    gates: tuple[Gate, ...]
     sources: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = ()
     gaps: tuple[str, ...] = ()
 
     @property
-    def registry(self) -> dict[str, GateDescriptor]:
+    def registry(self) -> dict[str, Gate]:
         return self.declaration.registry("runtime", python_executable=sys.executable)
 
     @property
@@ -158,7 +157,14 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
             full=proof.required_gates,
         ),
         gates=tuple(
-            GateEntry.model_validate(gate.model_dump() | {"registries": ("runtime",)})
+            gate.model_copy(
+                update={
+                    "profile": "repository",
+                    "toolchain": "repository-native",
+                    "execution_mode": "subprocess",
+                    "tool_adapter": "repository-native",
+                }
+            )
             for gate in proof.gates
         ),
     )
@@ -188,7 +194,7 @@ def _gate_declaration(
     return declaration, profile
 
 
-def _source_paths(gate: GateDescriptor) -> tuple[str, ...]:
+def _source_paths(gate: Gate) -> tuple[str, ...]:
     providers = tuple(
         f"src/{reference.partition(':')[0].replace('.', '/')}.py" for reference in gate.providers
     )
@@ -208,7 +214,7 @@ def _source_paths(gate: GateDescriptor) -> tuple[str, ...]:
 def _bind_sources(
     root: Path | None,
     tree_ref: str | None,
-    gates: tuple[GateDescriptor, ...],
+    gates: tuple[Gate, ...],
 ) -> tuple[tuple[tuple[str, tuple[tuple[str, str], ...]], ...], tuple[str, ...]]:
     if root is None:
         return (), ()
@@ -261,14 +267,15 @@ def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
     return ("python", *rest) if Path(head).is_absolute() and name.startswith("python") else command
 
 
-def gate_execution_identity(gate: GateDescriptor) -> tuple[str, ...]:
+def gate_execution_identity(gate: Gate) -> tuple[str, ...]:
     return canonical_gate_command(gate.command) if gate.command else ("provider", *gate.providers)
 
 
-def gate_policy_fields(
-    gate: GateDescriptor, sources: tuple[tuple[str, str], ...] = ()
-) -> dict[str, object]:
-    payload = gate.model_dump(mode="json", exclude={"command", "providers"})
+def gate_policy_fields(gate: Gate, sources: tuple[tuple[str, str], ...] = ()) -> dict[str, object]:
+    payload = gate.model_dump(
+        mode="json",
+        exclude={"command", "providers", "registries"},
+    )
     payload["execution_identity"] = list(gate_execution_identity(gate))
     payload["sources"] = [{"path": path, "sha256": digest} for path, digest in sources]
     return payload

@@ -73,7 +73,7 @@ def test_lane_lease_binds_local_incarnation_holder_generation_and_head(tmp_path:
     assert payload["expected_head"] == "a" * 40
     assert payload["base_commitment_digest"] == "b" * 64
     assert payload["handoff"] is None
-    assert LaneLease.model_validate(payload) == lease
+    assert LaneLease.from_payload(payload) == lease
     database = tmp_path / "state.sqlite"
     acquire_lease(database, lease=lease)
     with closing(sqlite3.connect(database)) as connection:
@@ -126,5 +126,26 @@ def test_lane_lease_rejects_missing_malformed_or_legacy_wire_fields(
         **payload,
     }
 
-    with pytest.raises(ValidationError):
-        LaneLease.model_validate(candidate)
+    with pytest.raises((ValueError, ValidationError)):
+        LaneLease.from_payload(candidate)
+
+
+def test_lane_lease_rejects_non_json_python_wire_values() -> None:
+    now = datetime(2026, 7, 10, tzinfo=UTC).isoformat()
+    payload = {
+        "lane_incarnation_id": "lane-incarnation:01",
+        "lease_id": "lease:01",
+        "lane_ref": "work/example",
+        "holder_ref": "agent:claude:session:abc",
+        "epoch": 1,
+        "issued_at": now,
+        "renewed_at": now,
+        "expires_at": now,
+        "expected_head": "a" * 40,
+        "base_commitment_digest": "b" * 64,
+        "path_scope": ("src/**",),
+        "handoff": None,
+    }
+
+    with pytest.raises(TypeError, match="lane_lease_payload_type_invalid"):
+        LaneLease.from_payload(payload)

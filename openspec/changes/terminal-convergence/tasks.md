@@ -98,7 +98,7 @@ slice HEAD; only the campaign lane remains for this intent.
   `contract` aliases and dual carriers. Facts and TransitionPlan remain transient.
 - [x] 1.4 Unify verdicts as `pass | block | unknown`; unknown required inputs
   and warnings block effects and cannot coexist with pass.
-- [ ] 1.5 Use Pydantic v2 for portable boundary contracts and small frozen
+- [x] 1.5 Use Pydantic v2 for portable boundary contracts and small frozen
   standard-library values internally; reject attrs/dataclass/Pydantic dual
   models, conversion layers, and mutable semantic roots.
 - [ ] 1.6 Generate language-neutral schemas from the single model owner and use

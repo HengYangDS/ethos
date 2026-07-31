@@ -1,7 +1,5 @@
 """Strict declaration contracts for registry-backed facts."""
 
-from __future__ import annotations
-
 import shlex
 import tomllib
 from functools import lru_cache
@@ -16,6 +14,8 @@ from pydantic import model_validator
 
 from ethos._resources import declaration_text
 from ethos._resources import resolve_declaration_path
+from ethos.contracts.value import FrozenMapping
+from ethos.contracts.value import FrozenTuple
 
 COUPLING_DECLARATION_PATH = Path("system/coupling.toml")
 STANDARDS_DECLARATION_PATH = Path("system/standards.toml")
@@ -39,7 +39,7 @@ def normalize_binding_command(command: str) -> str:
 class AdapterAdmission(BaseModel):
     """Immutable admission record required for a profile or adapter binding."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     authority_ref: str = Field(min_length=1)
     truth_boundary: str = Field(min_length=1)
@@ -49,7 +49,7 @@ class AdapterAdmission(BaseModel):
 class OpenSpecGovernance(BaseModel):
     """Immutable OpenSpec relationship projection."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     required: bool
     layer: str = Field(min_length=1)
@@ -61,24 +61,24 @@ class OpenSpecGovernance(BaseModel):
 class NativeProtocols(BaseModel):
     """Immutable native protocol projection."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     layer: str = Field(min_length=1)
-    formats: tuple[str, ...]
+    formats: FrozenTuple[str]
     provider_optional: bool
 
 
 class LatentBindingReferences(BaseModel):
     """Explicitly justified binding identities not expected on current surfaces."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     reason: str = Field(min_length=1)
     distribution: str | None = None
-    import_roots: tuple[str, ...] = ()
-    executables: tuple[str, ...] = ()
-    references: tuple[str, ...] = ()
-    commands: tuple[str, ...] = ()
+    import_roots: FrozenTuple[str] = ()
+    executables: FrozenTuple[str] = ()
+    references: FrozenTuple[str] = ()
+    commands: FrozenTuple[str] = ()
 
     @model_validator(mode="after")
     def validate_nonempty(self) -> Self:
@@ -99,7 +99,7 @@ class LatentBindingReferences(BaseModel):
 class CouplingBinding(BaseModel):
     """One strict, declaration-first coupling binding."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str = Field(min_length=1)
     layer: str = Field(min_length=1)
@@ -107,24 +107,24 @@ class CouplingBinding(BaseModel):
     owns_product_semantics: bool
     adapter_replaceable: bool
     config_source: str | None = None
-    config_keys: tuple[str, ...] = ()
-    commands: tuple[str, ...] = ()
-    forbidden_workflow_state: tuple[str, ...] = ()
+    config_keys: FrozenTuple[str] = ()
+    commands: FrozenTuple[str] = ()
+    forbidden_workflow_state: FrozenTuple[str] = ()
     not_a_second_command_plane: bool = False
     not_product_substrate: bool = False
-    required_for: tuple[str, ...] = Field(min_length=1)
+    required_for: FrozenTuple[str] = Field(min_length=1)
     replaceability: str = Field(min_length=1)
     degradation_state: str = Field(min_length=1)
     proof_gate: str = Field(min_length=1)
     distribution: str | None = None
-    import_roots: tuple[str, ...] = ()
-    executables: tuple[str, ...] = ()
-    references: tuple[str, ...] = ()
+    import_roots: FrozenTuple[str] = ()
+    executables: FrozenTuple[str] = ()
+    references: FrozenTuple[str] = ()
     admission: AdapterAdmission | None = None
-    surfaces: tuple[str, ...] = ()
-    formats: tuple[str, ...] = ()
-    toolchains: tuple[str, ...] = ()
-    gates: tuple[str, ...] = ()
+    surfaces: FrozenTuple[str] = ()
+    formats: FrozenTuple[str] = ()
+    toolchains: FrozenTuple[str] = ()
+    gates: FrozenTuple[str] = ()
     latent: LatentBindingReferences | None = None
 
     @model_validator(mode="after")
@@ -156,19 +156,19 @@ class CouplingBinding(BaseModel):
 class CouplingDeclaration(BaseModel):
     """Validated coupling declaration with ordered pure projections."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid", populate_by_name=True)
 
     id: str = Field(min_length=1)
     schema_version: int = 1
-    layers: dict[str, str] = Field(min_length=1)
-    ui_projection_fields: tuple[str, ...] = ()
-    product_semantic_docs: tuple[str, ...] = ()
-    git_native_terms: tuple[str, ...] = ()
-    native_protocol_formats: tuple[str, ...] = ()
-    product_repository_gates: tuple[str, ...] = ()
+    layers: FrozenMapping[str] = Field(min_length=1)
+    ui_projection_fields: FrozenTuple[str] = ()
+    product_semantic_docs: FrozenTuple[str] = ()
+    git_native_terms: FrozenTuple[str] = ()
+    native_protocol_formats: FrozenTuple[str] = ()
+    product_repository_gates: FrozenTuple[str] = ()
     openspec_governance: OpenSpecGovernance
     native_protocols: NativeProtocols
-    bindings: tuple[CouplingBinding, ...] = Field(alias="binding", min_length=1)
+    bindings: FrozenTuple[CouplingBinding] = Field(alias="binding", min_length=1)
 
     @model_validator(mode="after")
     def validate_bindings(self) -> Self:
@@ -208,7 +208,7 @@ class CouplingDeclaration(BaseModel):
 class StandardsAdapter(BaseModel):
     """Immutable standards-adapter declaration."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str = Field(min_length=1)
     mode: str = Field(min_length=1)
@@ -228,11 +228,11 @@ class StandardsAdapter(BaseModel):
 class StandardsDeclaration(BaseModel):
     """Validated standards registry in declaration order."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid", populate_by_name=True)
 
     id: str = Field(min_length=1)
     schema_version: int = 1
-    adapters: tuple[StandardsAdapter, ...] = Field(alias="adapter", min_length=1)
+    adapters: FrozenTuple[StandardsAdapter] = Field(alias="adapter", min_length=1)
 
     @model_validator(mode="after")
     def validate_adapter_ids(self) -> Self:

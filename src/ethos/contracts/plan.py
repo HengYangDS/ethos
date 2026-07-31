@@ -23,6 +23,9 @@ from pydantic import model_validator
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from ethos.contracts.value import FrozenMapping
+from ethos.contracts.value import JsonObject
+from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 
@@ -30,11 +33,16 @@ Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
 
 def _stable_json(value: object) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return json.dumps(mutable_json(value), sort_keys=True, separators=(",", ":"))
 
 
 class _PlanModel(BaseModel):
-    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True,
+        strict=True,
+        extra="forbid",
+        validate_default=True,
+    )
 
 
 class PlanNode(_PlanModel):
@@ -84,8 +92,8 @@ class GitEffect(_PlanModel):
 
     id: str = Field(min_length=1)
     plan_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    updates: dict[str, GitRefUpdate] = Field(min_length=1)
-    assertions: dict[str, str] = Field(default_factory=dict)
+    updates: FrozenMapping[GitRefUpdate] = Field(min_length=1)
+    assertions: FrozenMapping[str] = Field(default_factory=dict)
 
     @property
     def permissions(self) -> tuple[str, ...]:
@@ -160,7 +168,7 @@ class TransitionPlan(_PlanModel):
     facts_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
     policy_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
     permissions: tuple[str, ...] = Field(default=(), json_schema_extra={"uniqueItems": True})
-    facts: dict[str, Any] = Field(default_factory=dict)
+    facts: JsonObject = Field(default_factory=dict)
     nodes: tuple[PlanNode, ...] = ()
     initial_verdict: Verdict = Field(default="pass", exclude=True)
     validation_issues: tuple[str, ...] = Field(default=(), exclude=True)

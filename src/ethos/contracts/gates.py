@@ -1,7 +1,5 @@
 """Typed declaration contract for ETHOS gate registries."""
 
-from __future__ import annotations
-
 import tomllib
 from graphlib import CycleError
 from graphlib import TopologicalSorter
@@ -16,6 +14,7 @@ from pydantic import model_validator
 
 from ethos._resources import declaration_text
 from ethos._resources import resolve_declaration_path
+from ethos.contracts.value import FrozenTuple
 
 DECLARATION_PATH = Path("system/gates.toml")
 _DECLARATION_RESOURCE = "data/gates.toml"
@@ -29,21 +28,21 @@ _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
 
 
-class GateDescriptor(BaseModel):
-    """Immutable gate descriptor shared by runtime and quality projections."""
+class Gate(BaseModel):
+    """One immutable gate declaration and executable projection."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str = Field(min_length=1)
     kind: str = Field(min_length=1)
-    command: tuple[str, ...] = ()
-    providers: tuple[str, ...] = ()
+    command: FrozenTuple[str] = ()
+    providers: FrozenTuple[str] = ()
     policy: str = "required"
     profile: str = "product"
     toolchain: str = "quality-adapter"
-    depends_on: tuple[str, ...] = ()
-    asset_classes: tuple[str, ...] = ()
-    dimensions: tuple[str, ...] = ()
+    depends_on: FrozenTuple[str] = ()
+    asset_classes: FrozenTuple[str] = ()
+    dimensions: FrozenTuple[str] = ()
     execution_mode: str = "inprocess"
     evidence_class: str = "contract"
     trust_bearing: bool = False
@@ -51,9 +50,10 @@ class GateDescriptor(BaseModel):
     writes_files: bool = False
     network_policy: str = "offline"
     version_source: str = "product"
+    registries: FrozenTuple[RegistryName] = Field(default=("runtime",), min_length=1)
 
     @model_validator(mode="after")
-    def validate_executor(self) -> GateDescriptor:
+    def validate_executor(self) -> Self:
         """Require exactly one executable adapter form per gate."""
         if bool(self.command) == bool(self.providers):
             raise ValueError(_GATE_EXECUTOR_INVALID)
@@ -66,54 +66,38 @@ class GateDescriptor(BaseModel):
             raise ValueError(_GATE_EXECUTOR_INVALID)
         return self
 
-    def resolved_command(self, python_executable: str) -> tuple[str, ...]:
-        """Resolve declaration placeholders from an explicit runtime fact."""
-        return tuple(python_executable if part == "{python}" else part for part in self.command)
-
-    def bind_python(self, python_executable: str) -> Self:
-        """Return a copy whose Python placeholder is bound to the runtime executable."""
-        return self.model_copy(update={"command": self.resolved_command(python_executable)})
-
     def to_dict(self) -> dict[str, object]:
         """Project the descriptor to the stable public quality-gate shape."""
-        payload = self.model_dump(mode="json", exclude={"command", "providers"})
+        payload = self.model_dump(
+            mode="json",
+            exclude={"command", "providers", "registries"},
+        )
         payload["command" if self.command else "providers"] = list(self.command or self.providers)
         return payload
-
-
-class GateEntry(GateDescriptor):
-    """Gate declaration record with explicit registry projections."""
-
-    registries: tuple[RegistryName, ...] = Field(min_length=1)
-
-    def descriptor(self, *, python_executable: str | None = None) -> GateDescriptor:
-        """Compile this declaration entry into an immutable descriptor."""
-        descriptor = GateDescriptor.model_validate(self.model_dump(exclude={"registries"}))
-        return descriptor.bind_python(python_executable) if python_executable else descriptor
 
 
 class GateProofSets(BaseModel):
     """Ordered proof floors compiled from the gate registry declaration."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
-    default: tuple[str, ...]
-    full: tuple[str, ...]
+    default: FrozenTuple[str]
+    full: FrozenTuple[str]
 
 
 class GateRegistryDeclaration(BaseModel):
     """Validated source declaration for gate descriptors and proof floors."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str = Field(min_length=1)
     schema_version: int = 1
-    source_refs: tuple[str, ...] = ()
+    source_refs: FrozenTuple[str] = ()
     proof_sets: GateProofSets
-    gates: tuple[GateEntry, ...]
+    gates: FrozenTuple[Gate]
 
     @model_validator(mode="after")
-    def validate_references(self) -> GateRegistryDeclaration:
+    def validate_references(self) -> Self:
         """Reject dangling or incomplete registry and proof declarations."""
         gate_ids = [gate.id for gate in self.gates]
         if len(gate_ids) != len(set(gate_ids)):
@@ -131,14 +115,22 @@ class GateRegistryDeclaration(BaseModel):
         name: RegistryName,
         *,
         python_executable: str | None = None,
-    ) -> dict[str, GateDescriptor]:
+    ) -> dict[str, Gate]:
         """Compile an ordered registry view from gate declarations."""
-        descriptors = (
-            gate.descriptor(python_executable=python_executable)
+        gates = (
+            gate.model_copy(
+                update={
+                    "command": tuple(
+                        python_executable if part == "{python}" else part for part in gate.command
+                    )
+                }
+            )
+            if python_executable
+            else gate
             for gate in self.gates
             if name in gate.registries
         )
-        return {descriptor.id: descriptor for descriptor in descriptors}
+        return {gate.id: gate for gate in gates}
 
     def proof_gates(
         self,
@@ -146,7 +138,7 @@ class GateRegistryDeclaration(BaseModel):
         *,
         full: bool = False,
         python_executable: str | None = None,
-    ) -> tuple[GateDescriptor, ...]:
+    ) -> tuple[Gate, ...]:
         """Return one stable runtime proof closure in dependency-first order."""
         registry = self.registry("runtime", python_executable=python_executable)
         selected = gate_ids or (self.proof_sets.full if full else self.proof_sets.default)
@@ -174,9 +166,9 @@ class GateRegistryDeclaration(BaseModel):
         return tuple(registry[gate_id] for gate_id in order)
 
 
-def _validate_registry(name: RegistryName, gates: tuple[GateEntry, ...]) -> set[str]:
+def _validate_registry(name: RegistryName, gates: tuple[Gate, ...]) -> set[str]:
     """Return emitted ids after validating one registry projection."""
-    entries = _registry_entries(name, gates)
+    entries = tuple(gate for gate in gates if name in gate.registries)
     emitted = {gate.id for gate in entries}
     if any(set(gate.depends_on) - emitted for gate in entries):
         raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY)
@@ -185,11 +177,6 @@ def _validate_registry(name: RegistryName, gates: tuple[GateEntry, ...]) -> set[
     except CycleError as exc:
         raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY) from exc
     return emitted
-
-
-def _registry_entries(name: RegistryName, gates: tuple[GateEntry, ...]) -> tuple[GateEntry, ...]:
-    """Return declarations projected into a registry in declaration order."""
-    return tuple(gate for gate in gates if name in gate.registries)
 
 
 def _validate_proof_sets(proof_sets: GateProofSets, runtime_ids: set[str]) -> None:

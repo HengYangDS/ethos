@@ -74,9 +74,11 @@ def proof_attestation(
             ]
             return None, list(dict.fromkeys(mismatch_gaps)) or ["model_gap"]
         resolution = resolve_authority(query, descriptors)
-        if resolution.verdict == "pass":
-            return max(valid, key=lambda item: (item.issued_at, item.id)), []
-        return None, list(resolution.required_gaps)
+        selected = max(valid, key=lambda item: (item.issued_at, item.id))
+        result = (selected, [])
+        if resolution.verdict != "pass":
+            result = (None, list(resolution.required_gaps))
+        return result
     return None, max(evaluated, key=lambda item: (item[0].issued_at, item[0].id))[1]
 
 

@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import Facts
 from ethos.normalization.coercion import string_mapping
@@ -16,37 +15,6 @@ from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
-
-
-def _closure_plan(closure: Mapping[str, object]) -> TransitionPlan:
-    raw_nodes = closure.get("nodes")
-    facts = closure.get("facts")
-    if not isinstance(raw_nodes, tuple | list) or not isinstance(facts, Mapping):
-        message = "proof_attestation_plan_invalid"
-        raise TypeError(message)
-    nodes = tuple(
-        PlanNode.model_validate(
-            {
-                "id": str(node.get("id") or ""),
-                "kind": node.get("kind"),
-                "command": tuple(string_sequence(node.get("command"))),
-                "depends_on": tuple(string_sequence(node.get("depends_on"))),
-            }
-        )
-        for node in map(string_mapping, raw_nodes)
-    )
-    return TransitionPlan.model_validate(
-        {
-            "commitment_digest": str(closure["commitment_digest"]),
-            "facts_digest": str(closure["facts_digest"]),
-            "policy_digest": str(closure["policy_digest"]),
-            "permissions": tuple(string_sequence(closure.get("permissions"))),
-            "facts": string_mapping(facts),
-            "nodes": nodes,
-            "initial_verdict": closure.get("initial_verdict", "pass"),
-            "validation_issues": tuple(string_sequence(closure.get("validation_issues"))),
-        }
-    )
 
 
 def plan_from_statement(attestation: Attestation) -> TransitionPlan:
@@ -57,14 +25,14 @@ def plan_from_statement(attestation: Attestation) -> TransitionPlan:
         message = "proof_attestation_plan_missing"
         raise TypeError(message)
     try:
-        plan = _closure_plan(string_mapping(closure))
-    except (KeyError, TypeError, ValueError) as error:
-        message = "proof_attestation_plan_invalid"
+        plan = TransitionPlan.model_validate(closure)
+    except (TypeError, ValueError) as error:
+        message = (
+            "proof_attestation_plan_digest_mismatch"
+            if "transition_plan_digest_mismatch" in str(error)
+            else "proof_attestation_plan_invalid"
+        )
         raise ValueError(message) from error
-    digest = closure.get("digest")
-    if not isinstance(digest, str) or digest != plan.digest():
-        message = "proof_attestation_plan_digest_mismatch"
-        raise ValueError(message)
     try:
         facts = Facts.model_validate(
             {
@@ -76,7 +44,7 @@ def plan_from_statement(attestation: Attestation) -> TransitionPlan:
     except (TypeError, ValueError) as error:
         message = "proof_attestation_plan_invalid"
         raise ValueError(message) from error
-    if facts.digest() != plan.facts_digest:
+    if facts.digest() != plan.inputs.facts:
         message = "proof_attestation_facts_digest_mismatch"
         raise ValueError(message)
     return plan
@@ -84,10 +52,10 @@ def plan_from_statement(attestation: Attestation) -> TransitionPlan:
 
 def _binding_gaps(attestation: Attestation, plan: TransitionPlan) -> list[str]:
     bindings = {
-        "commitment_digest": plan.commitment_digest,
-        "facts_digest": plan.facts_digest,
-        "plan_digest": plan.digest(),
-        "policy_digest": plan.policy_digest,
+        "commitment_digest": plan.inputs.commitment,
+        "facts_digest": plan.inputs.facts,
+        "plan_digest": plan.digest,
+        "policy_digest": plan.inputs.policy,
     }
     return [
         "proof_policy_digest_stale"
@@ -160,10 +128,10 @@ def proof_statement_gaps(
         "claim": {"objective": statement.get("objective"), "verdict": attestation.verdict},
         "repository": plan.facts.get("repository"),
         "inputs": {
-            "commitment": plan.commitment_digest,
-            "facts": plan.facts_digest,
-            "plan": plan.digest(),
-            "policy": plan.policy_digest,
+            "commitment": plan.inputs.commitment,
+            "facts": plan.inputs.facts,
+            "plan": plan.digest,
+            "policy": plan.inputs.policy,
         },
         "output": {"artifact": attestation.effect_digest, "verdict": attestation.verdict},
         "freshness": {
@@ -171,7 +139,7 @@ def proof_statement_gaps(
             "repository": plan.facts.get("repository"),
             "head": plan.facts.get("head"),
             "tree": plan.facts.get("tree"),
-            "policy": plan.policy_digest,
+            "policy": plan.inputs.policy,
         },
     }
     gaps.extend(
@@ -184,7 +152,7 @@ def proof_statement_gaps(
         gaps.append("proof_attestation_plan_head_mismatch")
     if statement.get("tree") != plan.facts.get("tree"):
         gaps.append("proof_attestation_tree_mismatch")
-    execution_order = tuple(node.id for node in plan.ordered_nodes())
+    execution_order = tuple(node.id for node in plan.nodes)
     if tuple(str(item) for item in gate_ids) != execution_order:
         gaps.append("proof_attestation_gate_plan_mismatch")
     if tuple(str(check["action_id"]) for check in checks) != execution_order:

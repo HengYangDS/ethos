@@ -20,6 +20,8 @@ from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.contracts.plan import PlanInputs
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import Attestation
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
@@ -182,14 +184,10 @@ def test_proof_plan_binds_commitment_facts_and_gate_policy(tmp_path: Path) -> No
 
     plan = proof_plan(repo, head=head)
 
-    assert plan.commitment_digest
-    assert plan.facts_digest
-    assert plan.policy_digest
-    assert plan.to_dict()["inputs"] == {
-        "commitment": plan.commitment_digest,
-        "facts": plan.facts_digest,
-        "policy": plan.policy_digest,
-    }
+    assert plan.inputs.commitment
+    assert plan.inputs.facts
+    assert plan.inputs.policy
+    assert plan.model_dump(mode="json")["inputs"] == plan.inputs.model_dump(mode="json")
     assert plan.facts["values"]["change_id"] == "proof-binding"
     assert plan.permissions == ("repository.read",)
 
@@ -217,7 +215,7 @@ def test_proof_plan_rejects_a_change_for_another_repository(tmp_path: Path) -> N
     )
     head = _commit(repo, "bind foreign repository")
 
-    assert proof_plan(repo, head=head, change_id="proof-binding").gaps() == (
+    assert proof_plan(repo, head=head, change_id="proof-binding").required_gaps == (
         "repository_subject_mismatch",
     )
 
@@ -233,7 +231,7 @@ def test_proof_plan_identity_is_stable_across_linked_worktrees(tmp_path: Path) -
         text=True,
     )
 
-    assert proof_plan(repo, head=head).digest() == proof_plan(linked, head=head).digest()
+    assert proof_plan(repo, head=head).digest == proof_plan(linked, head=head).digest
 
 
 def test_gate_policy_uses_one_dependency_closure_for_nodes_and_digest(tmp_path: Path) -> None:
@@ -341,7 +339,7 @@ def test_proof_plan_identity_changes_with_commitment_head_or_policy(tmp_path: Pa
     policy_head = _commit(repo, "revise policy")
     policy_changed = proof_plan(repo, head=policy_head)
 
-    assert len({first.digest(), commitment_changed.digest(), policy_changed.digest()}) == 3
+    assert len({first.digest, commitment_changed.digest, policy_changed.digest}) == 3
 
 
 def test_proof_plan_requires_a_change_selector_when_multiple_active_commitments_exist(
@@ -394,7 +392,7 @@ def test_proof_plan_uses_repository_commitment_when_no_active_commitment_exists(
 
     plan = proof_plan(repo, head=head)
 
-    assert plan.commitment_digest == load_repository_commitment(repo, tree_ref=head).digest()
+    assert plan.inputs.commitment == load_repository_commitment(repo, tree_ref=head).digest()
     assert plan.facts["values"]["change_id"] == ""
 
 
@@ -410,10 +408,10 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert attestation.predicate == "proof:execution"
     assert attestation.subject == f"git:commit:{head}"
     assert attestation.verdict == "pass"
-    assert attestation.commitment_digest == plan.commitment_digest
-    assert attestation.facts_digest == plan.facts_digest
-    assert attestation.plan_digest == plan.digest()
-    assert attestation.policy_digest == plan.policy_digest
+    assert attestation.commitment_digest == plan.inputs.commitment
+    assert attestation.facts_digest == plan.inputs.facts
+    assert attestation.plan_digest == plan.digest
+    assert attestation.policy_digest == plan.inputs.policy
     assert attestation.effect_digest
     assert attestation.evidence_refs == (f"sha256:{attestation.effect_digest}",)
     assert attestation.valid_from == attestation.issued_at
@@ -423,10 +421,10 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     }
     assert attestation.statement["repository"] == plan.facts["repository"]
     assert attestation.statement["inputs"] == {
-        "commitment": plan.commitment_digest,
-        "facts": plan.facts_digest,
-        "plan": plan.digest(),
-        "policy": plan.policy_digest,
+        "commitment": plan.inputs.commitment,
+        "facts": plan.inputs.facts,
+        "plan": plan.digest,
+        "policy": plan.inputs.policy,
     }
     assert attestation.statement["output"] == {
         "artifact": attestation.effect_digest,
@@ -437,7 +435,7 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
         "repository": plan.facts["repository"],
         "head": head,
         "tree": plan.facts["tree"],
-        "policy": plan.policy_digest,
+        "policy": plan.inputs.policy,
     }
     artifact = attestation.statement["artifact"]
     assert isinstance(artifact, Mapping)
@@ -629,16 +627,23 @@ def test_proof_plan_closure_rejects_facts_digest_drift(tmp_path: Path) -> None:
     forged_facts = original_plan.facts | {
         "values": original_plan.facts["values"] | {"forged": True}
     }
-    forged_plan = original_plan.model_copy(update={"facts": forged_facts})
+    forged_plan = TransitionPlan.compile(
+        inputs=original_plan.inputs,
+        permissions=original_plan.permissions,
+        facts=forged_facts,
+        nodes=original_plan.nodes,
+        verdict=original_plan.verdict,
+        required_gaps=original_plan.required_gaps,
+    )
     forged = Attestation.issue(
         valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {
-            "plan_digest": forged_plan.digest(),
+            "plan_digest": forged_plan.digest,
             "statement": valid.statement
             | {
-                "inputs": valid.statement["inputs"] | {"plan": forged_plan.digest()},
+                "inputs": valid.statement["inputs"] | {"plan": forged_plan.digest},
                 "plan": valid.statement["plan"]
-                | {"facts": forged_facts, "digest": forged_plan.digest()},
+                | {"facts": forged_facts, "digest": forged_plan.digest},
             },
         }
     )
@@ -849,19 +854,34 @@ def test_proof_admission_rejects_self_consistent_but_noncanonical_policy(tmp_pat
     repo, head = _adopted_repo(tmp_path / "repo")
     valid = _proof_attestation(repo, head)
     closure = dict(valid.statement["plan"])
-    forged_plan = proof_plan(repo, head=head).model_copy(update={"policy_digest": "0" * 64})
+    plan = proof_plan(repo, head=head)
+    forged_plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=plan.inputs.commitment,
+            facts=plan.inputs.facts,
+            policy="0" * 64,
+        ),
+        permissions=plan.permissions,
+        facts=plan.facts,
+        nodes=plan.nodes,
+        verdict=plan.verdict,
+        required_gaps=plan.required_gaps,
+    )
     forged = Attestation.issue(
         valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {
-            "policy_digest": forged_plan.policy_digest,
-            "plan_digest": forged_plan.digest(),
+            "policy_digest": forged_plan.inputs.policy,
+            "plan_digest": forged_plan.digest,
             "statement": valid.statement
             | {
                 "inputs": valid.statement["inputs"]
-                | {"plan": forged_plan.digest(), "policy": forged_plan.policy_digest},
-                "freshness": valid.statement["freshness"] | {"policy": forged_plan.policy_digest},
+                | {"plan": forged_plan.digest, "policy": forged_plan.inputs.policy},
+                "freshness": valid.statement["freshness"] | {"policy": forged_plan.inputs.policy},
                 "plan": closure
-                | {"policy_digest": forged_plan.policy_digest, "digest": forged_plan.digest()},
+                | {
+                    "inputs": forged_plan.inputs.model_dump(mode="json"),
+                    "digest": forged_plan.digest,
+                },
             },
         }
     )

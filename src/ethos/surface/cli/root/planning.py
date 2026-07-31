@@ -103,9 +103,11 @@ def plan(
         facts,
         nodes,
         policy_digest=policy.digest,
-        validation_issues=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps))),
+        required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps))),
     )
-    required_gaps = tuple(dict.fromkeys((*plan.gaps(), *adapter_gaps, *rule_validation_gaps)))
+    required_gaps = tuple(
+        dict.fromkeys((*plan.required_gaps, *adapter_gaps, *rule_validation_gaps))
+    )
     ok = plan.verdict == "pass" and not adapter_gaps and not rule_validation_gaps
     result = EthosResult(
         command="plan",
@@ -132,7 +134,7 @@ def plan(
             "rule_validation_gaps": rule_validation_gaps,
             "commitment": commitment.model_dump(mode="json"),
             "facts_digest": facts.digest(),
-            "transition_plan": plan.to_dict(),
+            "transition_plan": plan.model_dump(mode="json"),
             **({"profile_adapter": profile_adapter} if profile_adapter else {}),
         },
     )

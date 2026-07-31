@@ -4,9 +4,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.openspec.commitment import load_lease_bound_openspec_commitment
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
+from tests.support.contract_helpers import git
+from tests.support.contract_helpers import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -104,7 +107,7 @@ subjects = ["repository:self"]
     assert load_commitment(tmp_path).id == "repository:test"
 
 
-def test_complete_change_does_not_make_active_commitment_selection_ambiguous(
+def test_native_commitment_selection_excludes_completed_history(
     tmp_path: Path,
 ) -> None:
     (tmp_path / ".ethos").mkdir()
@@ -127,6 +130,38 @@ def test_complete_change_does_not_make_active_commitment_selection_ambiguous(
     assert load_openspec_commitment(tmp_path).id == "change:active"
     with pytest.raises(ValueError, match="commitment_complete:complete"):
         load_openspec_commitment(tmp_path, change_id="complete")
+
+
+def test_exact_lease_binding_recovers_archive_without_current_selection(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _repository_commitment(repo)
+    _enable_openspec_profile(repo)
+    carrier = _change_carrier(repo, "archive/2026-07-31-retired", "retired")
+    relative = carrier.relative_to(repo).as_posix() + "/commitment.toml"
+    digest = load_commitment(repo, carrier=relative).digest()
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "archive commitment",
+    )
+    head = git(repo, "rev-parse", "HEAD")
+
+    with pytest.raises(ValueError, match="commitment_missing:retired"):
+        load_openspec_commitment(repo, change_id="retired")
+    recovered = load_lease_bound_openspec_commitment(
+        repo,
+        expected_head=head,
+        base_commitment_digest=digest,
+        change_id="retired",
+    )
+
+    assert recovered.id == "change:retired"
 
 
 def test_commitment_missing_fails_closed(tmp_path: Path) -> None:
@@ -212,7 +247,7 @@ subjects = ["repository:second"]
 
 
 def _repository_commitment(root: Path) -> None:
-    (root / ".ethos").mkdir()
+    (root / ".ethos").mkdir(exist_ok=True)
     (root / ".ethos" / "commitment.toml").write_text(
         'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
         'subjects = ["repository:test"]\n',

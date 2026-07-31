@@ -23,6 +23,7 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Facts
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import resolve_gate_policy
@@ -177,6 +178,12 @@ def _proof_attestation(root: Path, head: str) -> Attestation:
             "boundary": "repository",
         },
     )
+
+
+def _store_untrusted(root: Path, attestation: Attestation) -> None:
+    store = attestation_store_dir(root)
+    store.mkdir(parents=True, exist_ok=True)
+    (store / f"{attestation.id}.json").write_text(attestation.canonical_json(), encoding="utf-8")
 
 
 def test_proof_plan_binds_commitment_facts_and_gate_policy(tmp_path: Path) -> None:
@@ -446,6 +453,64 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert proof_gaps(repo, head) == []
 
 
+def test_unmappable_valid_fact_blocks_admission_even_with_valid_peer(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, valid)
+    novel = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"statement": valid.statement | {"novel_semantics": {"mode": "new"}}}
+    )
+    _store_untrusted(repo, novel)
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["model_gap"]
+
+
+def test_unmappable_plan_fact_blocks_admission_even_with_valid_peer(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, valid)
+    base = proof_plan(repo, head=head)
+    fact = Facts(
+        repository=str(base.facts["repository"]),
+        head=str(base.facts["head"]),
+        tree=str(base.facts["tree"]),
+        observed_at=datetime.now(UTC),
+        values=base.facts["values"] | {"novel_semantics": True},
+        source_refs=tuple(base.facts["source_refs"]),
+    )
+    plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=base.inputs.commitment,
+            facts=fact.digest(),
+            policy=base.inputs.policy,
+        ),
+        permissions=base.permissions,
+        facts=fact.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=base.nodes,
+        verdict=base.verdict,
+        required_gaps=base.required_gaps,
+    )
+    novel = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "facts_digest": plan.inputs.facts,
+            "plan_digest": plan.digest,
+            "statement": valid.statement
+            | {
+                "inputs": valid.statement["inputs"]
+                | {"facts": plan.inputs.facts, "plan": plan.digest},
+                "plan": plan.model_dump(mode="json"),
+            },
+        }
+    )
+    _store_untrusted(repo, novel)
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["model_gap"]
+
+
 @pytest.mark.parametrize(
     ("field", "value", "gap"),
     [
@@ -458,6 +523,8 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
         ("plane", "hosted", "proof_attestation_plane_mismatch"),
         ("context", {}, "proof_attestation_context_mismatch"),
         ("boundary", "other", "proof_attestation_boundary_mismatch"),
+        ("change_id", "other", "proof_attestation_change_id_mismatch"),
+        ("changed_paths", ["other.py"], "proof_attestation_changed_paths_mismatch"),
         ("head", "0" * 40, "proof_attestation_head_mismatch"),
         ("tree", "0" * 40, "proof_attestation_tree_mismatch"),
     ],
@@ -474,9 +541,7 @@ def test_proof_attestation_predicate_evidence_drift_fails_closed(
         valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {"statement": valid.statement | {field: value}}
     )
-    store = attestation_store_dir(repo)
-    store.mkdir(parents=True, exist_ok=True)
-    (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
+    _store_untrusted(repo, forged)
 
     assert proof_attestation(repo, head) is None
     assert proof_gaps(repo, head) == [gap]
@@ -810,6 +875,31 @@ def test_proof_authority_selects_the_latest_equivalent_attestation(tmp_path: Pat
     persist_proof_attestation(repo, later)
 
     assert proof_attestation(repo, head) == later
+
+
+@pytest.mark.parametrize("novel", [False, True])
+def test_expired_attestation_cannot_replace_or_block_current_proof(
+    tmp_path: Path,
+    *,
+    novel: bool,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    current = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, current)
+    issued_at = datetime.now(UTC) - timedelta(minutes=2)
+    expired = Attestation.issue(
+        current.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "issued_at": issued_at,
+            "valid_from": issued_at,
+            "valid_until": issued_at + timedelta(minutes=1),
+            **({"statement": current.statement | {"novel_semantics": True}} if novel else {}),
+        }
+    )
+    _store_untrusted(repo, expired)
+
+    assert proof_attestation(repo, head) == current
+    assert proof_gaps(repo, head) == []
 
 
 def test_proof_authority_scope_conflict_cannot_hide_behind_valid_peer(tmp_path: Path) -> None:

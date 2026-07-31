@@ -916,8 +916,6 @@ def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Pat
         nodes=admitted.nodes,
         required_gaps=("blocked-plan",),
     )
-    monkeypatch.setattr("ethos.repository.context._contextual_authority", lambda *_args: {})
-
     monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: blocked)
     monkeypatch.setattr(
         proof_cli.LocalGateRunner,

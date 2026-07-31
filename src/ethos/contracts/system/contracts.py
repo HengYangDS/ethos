@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SYSTEM_CONTRACTS = (
-    "authority",
     "formats",
     "routing",
     "surfaces",

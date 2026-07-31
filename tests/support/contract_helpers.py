@@ -21,7 +21,9 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
@@ -552,7 +554,11 @@ def _declare_minimal_code_correctness(repo: Path) -> None:
 
 def seed_executed_proof(repo: Path, head: str) -> None:
     """Persist one complete policy-conformant generic proof Attestation."""
-    plan = proof_plan(repo, head=head)
+    plan = proof_plan(
+        repo,
+        head=head,
+        changed_paths=change_scope_paths_from_status(repo, workspace_status(repo)),
+    )
     checks = tuple(
         conformant_proof_check(gate_id, repo)
         for gate_id in resolve_gate_policy(repo, tree_ref=head).gate_ids

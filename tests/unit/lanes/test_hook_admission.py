@@ -688,8 +688,7 @@ def test_proof_attestation_ignores_legacy_forgery_and_requires_complete_floor(
     )
     persist_proof_attestation(repo, focused)
     assert proof_attestation(repo, head) is None
-    assert "trust_bearing_proof_missing" in proof_gaps(repo, head)
-    assert any(gap.startswith("proof_incomplete") for gap in proof_gaps(repo, head))
+    assert proof_gaps(repo, head) == ["proof_attestation_context_mismatch"]
 
     complete = _proof_attestation_for_head(repo, head)
     persist_proof_attestation(repo, complete)

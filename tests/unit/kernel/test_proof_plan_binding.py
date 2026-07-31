@@ -15,8 +15,10 @@ from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.mutation.proof import proof_plan_for_attestation
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -823,7 +825,9 @@ def test_proof_admission_uses_self_contained_closure_not_historical_commitment(
     assert proof_gaps(repo, head) == []
 
 
-def test_proof_authority_conflict_blocks_instead_of_selecting_latest(tmp_path: Path) -> None:
+def test_later_proof_conflict_blocks_instead_of_selecting_by_timestamp(
+    tmp_path: Path,
+) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     first = _proof_attestation(repo, head)
     persist_proof_attestation(repo, first)
@@ -832,7 +836,7 @@ def test_proof_authority_conflict_blocks_instead_of_selecting_latest(tmp_path: P
             "predicate": first.predicate,
             "verifier": "agent:test:case:conflict",
             "subject": first.subject,
-            "issued_at": first.issued_at,
+            "issued_at": first.issued_at + timedelta(seconds=1),
             "valid_from": first.valid_from,
             "verdict": first.verdict,
             "statement": first.statement
@@ -857,24 +861,148 @@ def test_proof_authority_conflict_blocks_instead_of_selecting_latest(tmp_path: P
     assert proof_gaps(repo, head) == ["contradiction"]
 
 
-def test_proof_authority_selects_the_latest_equivalent_attestation(tmp_path: Path) -> None:
+def test_equivalent_proofs_return_one_deterministic_representative(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     first = _proof_attestation(repo, head)
     persist_proof_attestation(repo, first)
-    later = next(
-        candidate
-        for seconds in range(1, 100)
-        if (
-            candidate := Attestation.issue(
-                first.model_dump(exclude={"id", "schema_version", "statement_digest"})
-                | {"issued_at": first.issued_at + timedelta(seconds=seconds)}
-            )
-        ).id
-        > first.id
+    later = Attestation.issue(
+        first.model_dump(exclude={"id", "schema_version", "statement_digest"})
+        | {"issued_at": first.issued_at + timedelta(seconds=1)}
     )
     persist_proof_attestation(repo, later)
 
-    assert proof_attestation(repo, head) == later
+    selected = proof_attestation(repo, head)
+
+    assert selected is not None
+    assert selected.id == min(first.id, later.id)
+
+
+def test_any_equivalent_proof_remains_a_current_plan_member(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    first = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, first)
+    later = Attestation.issue(
+        first.model_dump(exclude={"id", "schema_version", "statement_digest"})
+        | {"issued_at": first.issued_at + timedelta(seconds=1)}
+    )
+    persist_proof_attestation(repo, later)
+
+    assert proof_plan_for_attestation(repo, first) == proof_plan_for_attestation(repo, later)
+
+
+def test_equivalent_proof_set_has_one_stable_evidence_digest(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    first = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, first)
+    before = proof_evidence_digest(repo, head)
+    later = Attestation.issue(
+        first.model_dump(exclude={"id", "schema_version", "statement_digest"})
+        | {"issued_at": first.issued_at + timedelta(seconds=1)}
+    )
+    persist_proof_attestation(repo, later)
+
+    assert before
+    assert proof_evidence_digest(repo, head) == before
+
+
+def test_expected_plan_selects_its_operation_closure(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    change_proof = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, change_proof)
+    repository_plan = proof_plan(repo, head=head)
+    facts = Facts.model_validate(
+        {
+            **repository_plan.facts,
+            "observed_at": datetime.now(UTC),
+            "values": repository_plan.facts["values"] | {"change_id": ""},
+        }
+    )
+    repository_plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=load_repository_commitment(repo, tree_ref=head).digest(),
+            facts=facts.digest(),
+            policy=repository_plan.inputs.policy,
+        ),
+        permissions=repository_plan.permissions,
+        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=repository_plan.nodes,
+        verdict=repository_plan.verdict,
+        required_gaps=repository_plan.required_gaps,
+    )
+    repository_proof = Attestation.issue(
+        change_proof.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "issued_at": change_proof.issued_at + timedelta(seconds=1),
+            "commitment_digest": repository_plan.inputs.commitment,
+            "facts_digest": repository_plan.inputs.facts,
+            "plan_digest": repository_plan.digest,
+            "statement": change_proof.statement
+            | {
+                "change_id": "",
+                "inputs": change_proof.statement["inputs"]
+                | {
+                    "commitment": repository_plan.inputs.commitment,
+                    "facts": repository_plan.inputs.facts,
+                    "plan": repository_plan.digest,
+                },
+                "plan": repository_plan.model_dump(mode="json"),
+            },
+        }
+    )
+    _store_untrusted(repo, repository_proof)
+
+    assert change_proof.plan_digest != repository_proof.plan_digest
+    assert proof_attestation(repo, head, expected_plan=repository_plan) == repository_proof
+    assert proof_gaps(repo, head, expected_plan=repository_plan) == []
+
+
+def test_expected_plan_still_blocks_binding_drift_inside_operation(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head)
+    first = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, first)
+    second = issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": tuple(
+                check | {"stdout": f"{check['stdout']} again"} for check in _proof_checks(repo)
+            ),
+            "verdict": "pass",
+            "issuer": first.verifier,
+            "issued_at": first.issued_at + timedelta(seconds=1),
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(repo, second)
+
+    assert proof_attestation(repo, head, expected_plan=plan) is None
+    assert proof_gaps(repo, head, expected_plan=plan) == ["stale_binding"]
+
+
+def test_self_consistent_proofs_with_different_bindings_block(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    first = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, first)
+    checks = tuple(check | {"stdout": f"{check['stdout']} again"} for check in _proof_checks(repo))
+    second = issue_proof_attestation(
+        repo,
+        {
+            "plan": proof_plan(repo, head=head),
+            "checks": checks,
+            "verdict": "pass",
+            "issuer": first.verifier,
+            "issued_at": first.issued_at + timedelta(seconds=1),
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(repo, second)
+
+    assert first.effect_digest != second.effect_digest
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["stale_binding"]
 
 
 @pytest.mark.parametrize("novel", [False, True])
@@ -902,11 +1030,31 @@ def test_expired_attestation_cannot_replace_or_block_current_proof(
     assert proof_gaps(repo, head) == []
 
 
-def test_proof_authority_scope_conflict_cannot_hide_behind_valid_peer(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("scope", ("workspace",)), ("plane", "hosted")],
+)
+def test_other_query_does_not_pollute_local_repository_proof(
+    tmp_path: Path, field: str, value: object
+) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     valid = _proof_attestation(repo, head)
     persist_proof_attestation(repo, valid)
     conflicting = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"statement": valid.statement | {field: value}}
+    )
+    store = attestation_store_dir(repo)
+    (store / f"{conflicting.id}.json").write_text(conflicting.canonical_json(), encoding="utf-8")
+
+    assert proof_attestation(repo, head) == valid
+    assert proof_gaps(repo, head) == []
+
+
+def test_only_mismatched_query_reports_exact_context_gap(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    mismatched = Attestation.issue(
         valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {
             "statement": valid.statement
@@ -916,11 +1064,10 @@ def test_proof_authority_scope_conflict_cannot_hide_behind_valid_peer(tmp_path: 
             }
         }
     )
-    store = attestation_store_dir(repo)
-    (store / f"{conflicting.id}.json").write_text(conflicting.canonical_json(), encoding="utf-8")
+    _store_untrusted(repo, mismatched)
 
     assert proof_attestation(repo, head) is None
-    assert proof_gaps(repo, head) == ["contradiction"]
+    assert proof_gaps(repo, head) == ["proof_attestation_scope_mismatch"]
 
 
 def test_proof_authority_policy_binding_drift_cannot_hide_behind_valid_peer(

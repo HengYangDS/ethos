@@ -25,7 +25,6 @@ from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.system.contracts import load_system_contract
-from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.repository.context import repository_context
 from ethos.result import EthosResult
@@ -513,7 +512,7 @@ def test_system_contracts_load_validate_and_fail_closed() -> None:
     report = system_contracts_report(Path())
     assert report["verdict"] == "pass", report["required_gaps"]
     assert all(report["contracts"].values())
-    assert set(report["contracts"]) >= {"authority", "evidence_boundaries"}
+    assert set(report["contracts"]) >= {"formats", "evidence_boundaries"}
     assert not any(
         "schema_ref_missing" in gap or "schema_violation" in gap for gap in report["required_gaps"]
     )
@@ -524,16 +523,8 @@ def test_system_contracts_load_validate_and_fail_closed() -> None:
         entry["id"] for entry in contract["boundary"]
     }
     assert contract["truth"]["implies_absolute_correctness"] is False
-    assert any(
-        "schema_violation" in gap
-        for gap in schema_validation_gaps(
-            "authority",
-            {"schema": "system/schemas/contracts/authority.schema.json"},
-            Path("system/schemas/contracts/authority.schema.json"),
-        )
-    )
     with pytest.raises(FileNotFoundError):
-        load_system_contract(Path("/tmp"), "authority")
+        load_system_contract(Path("/tmp"), "formats")
 
 
 def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
@@ -562,34 +553,19 @@ def _matches_old_entity(path: Path, pattern: re.Pattern[str]) -> bool:
         return False
 
 
-def test_governance_context_projects_executable_contextual_authority_without_shadow_models() -> (
-    None
-):
+def test_governance_context_projects_repository_profile_without_shadow_models() -> None:
     context = repository_context(Path.cwd())
     assert context["repository"] == str(Path.cwd().resolve())
-    assert context["authority"] == {
-        "contract_ref": "system/authority.toml",
-        "resolver": "contextual",
-        "query_axes": ["subject", "predicate", "scope", "plane", "validity", "context"],
-        "unknown_verdict": "unknown",
-        "currentness_requirements": [
-            "integrity",
-            "declared_authority",
-            "binding_match",
-            "validity",
-            "no_more_specific_active_owner",
-        ],
-        "conflict_verdict": "block",
-        "novel_semantics": "model_gap",
-    }
+    assert "authority" not in context
     assert "authority_refs" not in context
     assert "shared_commands" not in context
     assert "transition_commands" not in context
     assert context["reader_projection_commands"] == ["ethos status"]
 
 
-def test_adopter_governance_context_uses_packaged_authority_contract(tmp_path: Path) -> None:
+def test_adopter_governance_context_uses_its_repository_profile(tmp_path: Path) -> None:
     context = repository_context(tmp_path)
 
     assert context["repository"] == str(tmp_path.resolve())
-    assert context["authority"]["resolver"] == "contextual"
+    assert context["profile"] == "unbound"
+    assert "authority" not in context

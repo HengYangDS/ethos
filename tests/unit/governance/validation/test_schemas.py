@@ -152,28 +152,6 @@ def test_result_payload_accepts_governed_repository_context() -> None:
             "contract": "governed_repository",
             "profile": "generic",
             "repository": "/workspace/repo",
-            "authority": {
-                "contract_ref": "system/authority.toml",
-                "resolver": "contextual",
-                "query_axes": [
-                    "subject",
-                    "predicate",
-                    "scope",
-                    "plane",
-                    "validity",
-                    "context",
-                ],
-                "unknown_verdict": "unknown",
-                "currentness_requirements": [
-                    "integrity",
-                    "declared_authority",
-                    "binding_match",
-                    "validity",
-                    "no_more_specific_active_owner",
-                ],
-                "conflict_verdict": "block",
-                "novel_semantics": "model_gap",
-            },
             "reader_projection_commands": ["ethos status"],
             "truth_boundary": "repository",
             "profile_boundary": "profile_or_adapter",
@@ -185,67 +163,6 @@ def test_result_payload_accepts_governed_repository_context() -> None:
     assert validation["verdict"] == "pass"
     assert "ok" not in validation
     json.dumps(validation)
-
-
-@pytest.mark.parametrize(
-    "invalid",
-    [
-        {"rank": 1},
-        {"order": []},
-        {
-            "query": {
-                "required": ["subject", "predicate", "scope", "plane", "context"],
-                "unknown_verdict": "unknown",
-            }
-        },
-    ],
-)
-def test_contextual_authority_schema_rejects_global_rank_or_noncanonical_query_axes(
-    invalid: dict[str, object],
-) -> None:
-    authority = {
-        "schema": "system/schemas/contracts/authority.schema.json",
-        "resolver": "contextual",
-        "query": {
-            "required": [
-                "subject",
-                "predicate",
-                "scope",
-                "plane",
-                "validity",
-                "context",
-            ],
-            "unknown_verdict": "unknown",
-        },
-        "currentness": {
-            "requires": [
-                "integrity",
-                "declared_authority",
-                "binding_match",
-                "validity",
-                "no_more_specific_active_owner",
-            ],
-            "history_is_current": False,
-            "projection_is_authority": False,
-            "adapter_is_authority": False,
-        },
-        "carrier_roles": [
-            {"name": "native", "may_be_authoritative": True},
-            {"name": "projection", "may_be_authoritative": False},
-            {"name": "adapter", "may_be_authoritative": False},
-            {"name": "fact", "may_be_authoritative": True, "requires_validity": True},
-            {"name": "history", "may_be_authoritative": False},
-        ],
-        "resolution": {
-            "conflict": "block",
-            "novel_semantics": "model_gap",
-            "more_specific_owner": "wins_only_within_same_query",
-        },
-    }
-    validation = validate_schema_instance("../contracts/authority.schema.json", authority | invalid)
-
-    assert validation["verdict"] == "block"
-    assert "ok" not in validation
 
 
 def test_gate_schema_accepts_quality_descriptor_fields() -> None:

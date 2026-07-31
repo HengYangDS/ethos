@@ -347,8 +347,8 @@ def test_terminal_intent_closure_and_post_cutover_task_history_are_complete() ->
     assert "## Accepted Feedback Closure" in design
     assert "## Pre-cutover Task Closure" in design
     assert "historical task identity is audited" in governance
-    assert "history_is_current = false" in read("system/authority.toml")
-    assert 'name = "history"\nmay_be_authoritative = false' in read("system/authority.toml")
+    authority = " ".join(read("docs/governance/authority.md").split())
+    assert "No hand-maintained graph, rank, currentness index" in authority
     assert "the earlier ruling remains history and cannot silently return as current" in design
     assert "Official OpenSpec 1.7 Cutover" in design
     assert "post-archive HEAD" in tasks
@@ -600,10 +600,11 @@ def _task_body_extension(first: str, second: str) -> bool:
 
 def test_entrypoints_do_not_resurrect_global_authority_or_retired_kernel_names() -> None:
     agents = read("AGENTS.md")
+    authority = read("docs/governance/authority.md")
     readme = read("README.md")
 
     assert "## Authority Order" not in agents
-    assert all(token in agents for token in ("subject", "predicate", "scope", "plane", "validity"))
+    assert all(token in authority for token in ("subject", "context", "valid Attestations"))
     assert all(token not in readme for token in ("ChangeContract", "RepositoryFacts", "PlanIR"))
     assert "(Commitment, Facts, prior Attestations) -> TransitionPlan" in readme
     assert "Only Commitment and Attestation persist" in readme

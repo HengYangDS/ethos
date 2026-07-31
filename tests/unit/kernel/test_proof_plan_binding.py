@@ -17,6 +17,8 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.semantic import Attestation
 from ethos.repository.adoption.planner import adoption_plan
@@ -415,11 +417,236 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert attestation.effect_digest
     assert attestation.evidence_refs == (f"sha256:{attestation.effect_digest}",)
     assert attestation.valid_from == attestation.issued_at
+    assert attestation.statement["claim"] == {
+        "objective": "ethos proof",
+        "verdict": "pass",
+    }
+    assert attestation.statement["repository"] == plan.facts["repository"]
+    assert attestation.statement["inputs"] == {
+        "commitment": plan.commitment_digest,
+        "facts": plan.facts_digest,
+        "plan": plan.digest(),
+        "policy": plan.policy_digest,
+    }
+    assert attestation.statement["output"] == {
+        "artifact": attestation.effect_digest,
+        "verdict": "pass",
+    }
+    assert attestation.statement["freshness"] == {
+        "mode": "semantic_scope",
+        "repository": plan.facts["repository"],
+        "head": head,
+        "tree": plan.facts["tree"],
+        "policy": plan.policy_digest,
+    }
+    artifact = attestation.statement["artifact"]
+    assert isinstance(artifact, Mapping)
     assert attestation.statement["scope"] == ("repository",)
     assert attestation.statement["plane"] == "local"
     assert attestation.statement["context"] == {"boundary": "repository"}
     assert proof_attestation(repo, head) == attestation
     assert proof_gaps(repo, head) == []
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "gap"),
+    [
+        ("claim", {"objective": "other", "verdict": "pass"}, "proof_attestation_claim_mismatch"),
+        ("repository", "repository:other", "proof_attestation_repository_mismatch"),
+        ("inputs", {}, "proof_attestation_inputs_mismatch"),
+        ("output", {}, "proof_attestation_output_mismatch"),
+        ("freshness", {}, "proof_attestation_freshness_mismatch"),
+        ("scope", [], "proof_attestation_scope_mismatch"),
+        ("plane", "hosted", "proof_attestation_plane_mismatch"),
+        ("context", {}, "proof_attestation_context_mismatch"),
+        ("boundary", "other", "proof_attestation_boundary_mismatch"),
+        ("head", "0" * 40, "proof_attestation_head_mismatch"),
+        ("tree", "0" * 40, "proof_attestation_tree_mismatch"),
+    ],
+)
+def test_proof_attestation_predicate_evidence_drift_fails_closed(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    gap: str,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    forged = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"statement": valid.statement | {field: value}}
+    )
+    store = attestation_store_dir(repo)
+    store.mkdir(parents=True, exist_ok=True)
+    (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == [gap]
+
+
+def test_proof_attestation_verifier_and_live_policy_drift_fail_closed(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, valid)
+    verifier_drift = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"verifier": "agent:test:case:other"}
+    )
+    persist_proof_attestation(repo, verifier_drift)
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["contradiction"]
+
+    fresh_repo, fresh_head = _adopted_repo(tmp_path / "policy-repo")
+    persist_proof_attestation(fresh_repo, _proof_attestation(fresh_repo, fresh_head))
+    profile = fresh_repo / ".ethos" / "profile.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8").replace(
+            'command = ["sample", "typecheck"]',
+            'command = ["sample", "typecheck", "--strict"]',
+        ),
+        encoding="utf-8",
+    )
+    current = _commit(fresh_repo, "change proof policy")
+
+    assert proof_attestation(fresh_repo, current) is None
+    assert proof_gaps(fresh_repo, current) == ["proof_not_proven"]
+
+
+def test_proof_attestation_live_tree_drift_fails_closed(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head)
+    original_tree = proof_module.current_tree
+
+    def drifted_tree(root: Path, revision: str = "HEAD") -> str:
+        return "0" * 40 if revision == head else original_tree(root, revision)
+
+    proof_module.current_tree = drifted_tree
+    try:
+        with pytest.raises(ValueError, match="proof_attestation_live_facts_stale"):
+            issue_proof_attestation(
+                repo,
+                {
+                    "plan": plan,
+                    "checks": _proof_checks(repo),
+                    "verdict": "pass",
+                    "issuer": "agent:test:case:proof",
+                    "scope": "repository",
+                    "boundary": "repository",
+                },
+            )
+    finally:
+        proof_module.current_tree = original_tree
+
+
+def test_proof_attestation_head_drift_blocks_issuance(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head)
+    (repo / "DRIFT.md").write_text("drift\n", encoding="utf-8")
+    _commit(repo, "move head before proof issuance")
+
+    with pytest.raises(ValueError, match="proof_attestation_live_facts_stale"):
+        issue_proof_attestation(
+            repo,
+            {
+                "plan": plan,
+                "checks": _proof_checks(repo),
+                "verdict": "pass",
+                "issuer": "agent:test:case:proof",
+                "scope": "repository",
+                "boundary": "repository",
+            },
+        )
+
+
+def test_proof_subject_cannot_relabel_an_equal_tree_successor(tmp_path: Path) -> None:
+    repo, first_head = _adopted_repo(tmp_path / "repo")
+    second_head = git(repo, "commit-tree", "HEAD^{tree}", "-p", first_head, "-m", "empty")
+    git(repo, "update-ref", "refs/heads/dev", second_head, first_head)
+    plan = proof_plan(repo, head=second_head)
+    attestation = issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": _proof_checks(repo),
+            "verdict": "pass",
+            "issuer": "agent:test:case:proof",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    artifact = write_proof_artifact(attestation_store_dir(repo), first_head, _proof_checks(repo))
+    artifact_digest = str(artifact["sha256"]).removeprefix("sha256:")
+    forged = Attestation.issue(
+        attestation.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "subject": f"git:commit:{first_head}",
+            "statement": attestation.statement
+            | {
+                "head": first_head,
+                "artifact": artifact,
+                "output": {"artifact": artifact_digest, "verdict": "pass"},
+            },
+            "effect_digest": artifact_digest,
+            "evidence_refs": (f"sha256:{artifact_digest}",),
+        }
+    )
+    store = attestation_store_dir(repo)
+    store.mkdir(parents=True, exist_ok=True)
+    (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
+
+    assert proof_gaps(repo, first_head) == ["proof_attestation_plan_head_mismatch"]
+
+
+def test_focused_proof_is_preserved_but_never_authorizes_repository_query(
+    tmp_path: Path,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head)
+    focused = issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": _proof_checks(repo),
+            "verdict": "pass",
+            "issuer": "agent:test:case:focused",
+            "scope": "repository",
+            "boundary": "focused",
+        },
+    )
+
+    persist_proof_attestation(repo, focused)
+
+    assert focused.statement["context"] == {"boundary": "focused"}
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_attestation_context_mismatch"]
+
+
+def test_proof_plan_closure_rejects_facts_digest_drift(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    original_plan = proof_plan(repo, head=head)
+    forged_facts = original_plan.facts | {
+        "values": original_plan.facts["values"] | {"forged": True}
+    }
+    forged_plan = original_plan.model_copy(update={"facts": forged_facts})
+    forged = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "plan_digest": forged_plan.digest(),
+            "statement": valid.statement
+            | {
+                "inputs": valid.statement["inputs"] | {"plan": forged_plan.digest()},
+                "plan": valid.statement["plan"]
+                | {"facts": forged_facts, "digest": forged_plan.digest()},
+            },
+        }
+    )
+    store = attestation_store_dir(repo)
+    store.mkdir(parents=True, exist_ok=True)
+    (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
+
+    assert proof_gaps(repo, head) == ["proof_attestation_facts_digest_mismatch"]
 
 
 def test_legacy_head_keyed_proof_file_is_immediately_inert(tmp_path: Path) -> None:
@@ -444,9 +671,13 @@ def test_unknown_attestation_predicate_cannot_authorize_proof(tmp_path: Path) ->
             "predicate": "experiment:novel",
         }
     )
-    with pytest.raises(ValueError, match="proof_attestation_binding_missing"):
-        persist_proof_attestation(repo, unknown)
-    assert not (attestation_store_dir(repo) / f"{unknown.id}.json").exists()
+    store = attestation_store_dir(repo)
+    store.mkdir(parents=True, exist_ok=True)
+    (store / f"{unknown.id}.json").write_text(unknown.canonical_json(), encoding="utf-8")
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_not_proven"]
+    assert (store / f"{unknown.id}.json").read_text(encoding="utf-8") == unknown.canonical_json()
 
 
 def test_proof_attestation_artifact_tamper_fails_closed(tmp_path: Path) -> None:
@@ -534,7 +765,14 @@ def test_proof_authority_conflict_blocks_instead_of_selecting_latest(tmp_path: P
             "issued_at": first.issued_at,
             "valid_from": first.valid_from,
             "verdict": first.verdict,
-            "statement": first.statement | {"objective": "conflicting proof meaning"},
+            "statement": first.statement
+            | {
+                "claim": {
+                    "objective": "conflicting proof meaning",
+                    "verdict": first.verdict,
+                },
+                "objective": "conflicting proof meaning",
+            },
             "evidence_refs": first.evidence_refs,
             "commitment_digest": first.commitment_digest,
             "facts_digest": first.facts_digest,
@@ -567,3 +805,87 @@ def test_proof_authority_selects_the_latest_equivalent_attestation(tmp_path: Pat
     persist_proof_attestation(repo, later)
 
     assert proof_attestation(repo, head) == later
+
+
+def test_proof_authority_scope_conflict_cannot_hide_behind_valid_peer(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, valid)
+    conflicting = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "statement": valid.statement
+            | {
+                "scope": ("workspace",),
+                "context": {"boundary": "repository"},
+            }
+        }
+    )
+    store = attestation_store_dir(repo)
+    (store / f"{conflicting.id}.json").write_text(conflicting.canonical_json(), encoding="utf-8")
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["contradiction"]
+
+
+def test_proof_authority_policy_binding_drift_cannot_hide_behind_valid_peer(
+    tmp_path: Path,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    persist_proof_attestation(repo, valid)
+    stale = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"policy_digest": "0" * 64}
+    )
+    store = attestation_store_dir(repo)
+    (store / f"{stale.id}.json").write_text(stale.canonical_json(), encoding="utf-8")
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_policy_digest_stale"]
+
+
+def test_proof_admission_rejects_self_consistent_but_noncanonical_policy(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    closure = dict(valid.statement["plan"])
+    forged_plan = proof_plan(repo, head=head).model_copy(update={"policy_digest": "0" * 64})
+    forged = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "policy_digest": forged_plan.policy_digest,
+            "plan_digest": forged_plan.digest(),
+            "statement": valid.statement
+            | {
+                "inputs": valid.statement["inputs"]
+                | {"plan": forged_plan.digest(), "policy": forged_plan.policy_digest},
+                "freshness": valid.statement["freshness"] | {"policy": forged_plan.policy_digest},
+                "plan": closure
+                | {"policy_digest": forged_plan.policy_digest, "digest": forged_plan.digest()},
+            },
+        }
+    )
+    store = attestation_store_dir(repo)
+    (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_policy_digest_stale"]
+
+
+def test_proof_artifact_descriptor_is_exact(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    forged = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "statement": valid.statement
+            | {
+                "artifact": valid.statement["artifact"]
+                | {"media_type": "text/plain", "extra": "unbound"}
+            }
+        }
+    )
+
+    assert artifact_checks(attestation_store_dir(repo), forged)[1] == [
+        "proof_attestation_artifact_binding_mismatch"
+    ]

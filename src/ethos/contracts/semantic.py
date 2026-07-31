@@ -76,7 +76,8 @@ def _canonical_json(value: object) -> str:
     return json.dumps(_mutable_json(value), sort_keys=True, separators=(",", ":"))
 
 
-def _digest(value: object) -> str:
+def canonical_json_digest(value: object) -> str:
+    """Digest one JSON value after canonical ETHOS normalization."""
     return hashlib.sha256(_canonical_json(value).encode()).hexdigest()
 
 
@@ -89,7 +90,7 @@ class _SemanticModel(BaseModel):
     )
 
     def digest(self) -> str:
-        return _digest(self.model_dump(mode="json"))
+        return canonical_json_digest(self.model_dump(mode="json"))
 
     def canonical_json(self) -> str:
         return _canonical_json(self.model_dump(mode="json"))
@@ -146,7 +147,7 @@ class Commitment(_SemanticModel):
         }
 
     def digest(self) -> str:
-        return _digest(self.identity_projection())
+        return canonical_json_digest(self.identity_projection())
 
 
 _COMMITMENT_TUPLE_FIELDS = {
@@ -240,12 +241,12 @@ class Attestation(_SemanticModel):
             msg = "attestation_validity_invalid"
             raise ValueError(msg)
         issuing = bool(info.context and info.context.get("issue_attestation"))
-        statement_digest = _digest(self.statement)
+        statement_digest = canonical_json_digest(self.statement)
         if not issuing and self.statement_digest != statement_digest:
             msg = "attestation_statement_digest_mismatch"
             raise ValueError(msg)
         object.__setattr__(self, "statement_digest", statement_digest)
-        identity = _digest(self.model_dump(mode="json", exclude={"id"}))
+        identity = canonical_json_digest(self.model_dump(mode="json", exclude={"id"}))
         if not issuing and self.id != identity:
             msg = "attestation_identity_mismatch"
             raise ValueError(msg)
@@ -268,4 +269,4 @@ class Facts(_SemanticModel):
     source_refs: tuple[str, ...] = ()
 
     def digest(self) -> str:
-        return _digest(self.model_dump(mode="json", exclude={"observed_at"}))
+        return canonical_json_digest(self.model_dump(mode="json", exclude={"observed_at"}))

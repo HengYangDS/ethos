@@ -6,7 +6,6 @@ from datetime import timedelta
 
 from ethos.contracts.authority import AuthorityQuery
 from ethos.contracts.authority import CarrierDescriptor
-from ethos.contracts.authority import descriptor_from_attestation
 from ethos.contracts.authority import extract_carrier_descriptor
 from ethos.contracts.authority import resolve_authority
 from ethos.contracts.semantic import Attestation
@@ -57,37 +56,12 @@ def test_incomplete_or_unknown_carrier_meaning_is_model_gap() -> None:
     ).required_gaps == ("model_gap",)
 
 
-def test_attestation_requires_explicit_scope_plane_and_context() -> None:
-    incomplete = Attestation.issue(
-        {
-            "predicate": "proof:execution",
-            "verifier": "agent:test",
-            "subject": "git:commit:abc",
-            "issued_at": NOW,
-            "verdict": "pass",
-            "statement": {"scope": ["repository"]},
-            "plan_digest": "a" * 64,
-        }
-    )
-    complete = Attestation.issue(
-        {
-            "predicate": "proof:execution",
-            "verifier": "agent:test",
-            "subject": "git:commit:abc",
-            "issued_at": NOW,
-            "valid_until": NOW + timedelta(minutes=1),
-            "verdict": "pass",
-            "statement": {
-                "scope": ["repository"],
-                "plane": "local",
-                "context": {"profile": "product"},
-            },
-            "plan_digest": "a" * 64,
-        }
-    )
+def test_authority_descriptor_requires_explicit_scope_plane_and_context() -> None:
+    incomplete = {"role": "fact", "source": "attestation:test"}
+    complete = descriptor("fact").model_dump()
 
-    assert descriptor_from_attestation(incomplete, validity=NOW).required_gaps == ("model_gap",)
-    extracted = descriptor_from_attestation(complete, validity=NOW)
+    assert extract_carrier_descriptor(incomplete).required_gaps == ("model_gap",)
+    extracted = extract_carrier_descriptor(complete)
     assert extracted.required_gaps == ()
     assert extracted.descriptor is not None
     assert extracted.descriptor.query == query()
@@ -121,42 +95,21 @@ def test_equal_meaning_passes_and_contradiction_blocks() -> None:
     assert blocked.required_gaps == ("contradiction",)
 
 
-def test_attestation_meaning_excludes_execution_instance_fields() -> None:
-    payload = {
-        "predicate": "proof:execution",
-        "verifier": "agent:test",
-        "subject": "git:commit:abc",
-        "issued_at": NOW,
-        "verdict": "pass",
-        "statement": {
-            "objective": "prove the commit",
-            "head": "abc",
-            "tree": "tree",
-            "gate_ids": ["tests"],
-            "scope": ["repository"],
-            "plane": "local",
-            "context": {"profile": "product"},
-            "plan": {"digest": "first"},
-            "artifact": {"sha256": "first"},
-        },
-        "plan_digest": "a" * 64,
-    }
-    first = Attestation.issue(payload)
-    second = Attestation.issue(
-        payload
-        | {
-            "statement": payload["statement"]
-            | {"plan": {"digest": "second"}, "artifact": {"sha256": "second"}},
-            "plan_digest": "b" * 64,
+def test_attestation_envelope_does_not_imply_authority_meaning() -> None:
+    attestation = Attestation.issue(
+        {
+            "predicate": "experiment:novel",
+            "verifier": "agent:test",
+            "subject": "git:commit:abc",
+            "issued_at": NOW,
+            "verdict": "pass",
+            "statement": {"scope": ["repository"], "plane": "local", "context": {}},
+            "plan_digest": "a" * 64,
         }
     )
 
-    first_descriptor = descriptor_from_attestation(first, validity=NOW).descriptor
-    second_descriptor = descriptor_from_attestation(second, validity=NOW).descriptor
-    assert first_descriptor is not None
-    assert second_descriptor is not None
-    assert first_descriptor.assertion == second_descriptor.assertion
-    assert first_descriptor.bindings != second_descriptor.bindings
+    assert attestation.predicate == "experiment:novel"
+    assert extract_carrier_descriptor(attestation.model_dump()).required_gaps == ("model_gap",)
 
 
 def test_different_planes_are_not_globally_ranked() -> None:

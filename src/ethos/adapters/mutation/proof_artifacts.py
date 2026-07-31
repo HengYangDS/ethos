@@ -8,29 +8,31 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.semantic import Attestation
+from ethos.repository.policy.gates import canonical_gate_command
 
 _ARTIFACT_SUBDIR = Path("artifacts")
 _HEX = frozenset("0123456789abcdef")
 _SHA256_HEX_LENGTH = hashlib.sha256().digest_size * 2
+_ARTIFACT_CONTENT_MISMATCH = "proof_attestation_artifact_content_mismatch"
+_ARTIFACT_INVALID = "proof_attestation_artifact_invalid"
 _CHECK_INVALID = "proof_attestation_check_invalid"
 _CHECKS_REQUIRED = "proof_attestation_checks_required"
 
 
-def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Path:
-    """Write immutable payload bytes, rejecting an identity collision."""
-    path.parent.mkdir(parents=True, exist_ok=True)
+def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]:
     try:
-        with path.open("xb") as stream:
-            stream.write(payload)
-    except FileExistsError:
-        try:
-            existing = path.read_bytes()
-        except OSError as error:
-            raise ValueError(collision) from error
-        if existing != payload:
-            raise ValueError(collision) from None
-    return path
+        document = json.loads(payload)
+    except json.JSONDecodeError as error:
+        raise ValueError(_ARTIFACT_INVALID) from error
+    if (
+        not isinstance(document, dict)
+        or document.get("schema_version") != 1
+        or document.get("head") != head
+    ):
+        raise ValueError(_ARTIFACT_CONTENT_MISMATCH)
+    return normalize_checks(document.get("checks"), allow_empty=True)
 
 
 def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict[str, object], ...]:
@@ -72,7 +74,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
         normalized.append(
             {
                 "action_id": action_id,
-                "command": list(command),
+                "command": list(canonical_gate_command(tuple(str(token) for token in command))),
                 "exit_code": exit_code,
                 "stdout": str(raw.get("stdout") or ""),
                 "stderr": str(raw.get("stderr") or ""),
@@ -145,8 +147,10 @@ def artifact_checks(
     if not isinstance(artifact, Mapping):
         gap = "proof_attestation_artifact_missing"
     elif (
-        artifact.get("path") != relative
+        set(artifact) != {"path", "sha256", "size_bytes", "media_type"}
+        or artifact.get("path") != relative
         or artifact.get("sha256") != f"sha256:{attestation.effect_digest}"
+        or artifact.get("media_type") != "application/json"
         or attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",)
     ):
         gap = "proof_attestation_artifact_binding_mismatch"
@@ -167,18 +171,10 @@ def artifact_checks(
     if gap:
         return None, [gap]
     try:
-        document = json.loads(payload)
-        if (
-            not isinstance(document, dict)
-            or document.get("schema_version") != 1
-            or document.get("head") != attestation.statement.get("head")
-        ):
-            return None, ["proof_attestation_artifact_content_mismatch"]
-        return normalize_checks(document.get("checks"), allow_empty=True), []
-    except json.JSONDecodeError:
-        return None, ["proof_attestation_artifact_invalid"]
+        checks = _decode_artifact(payload, attestation.statement.get("head"))
     except (TypeError, ValueError) as error:
         return None, [str(error)]
+    return checks, []
 
 
 def _is_identity_name(path: Path) -> bool:

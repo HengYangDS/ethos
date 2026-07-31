@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from collections.abc import Mapping
 from typing import Any
 from typing import Literal
 
@@ -11,8 +9,6 @@ from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-
-from ethos.contracts.semantic import Attestation
 
 CarrierRole = Literal["native", "projection", "adapter", "fact", "history"]
 Verdict = Literal["pass", "block", "unknown"]
@@ -59,96 +55,6 @@ class AuthorityResolution(_AuthorityModel):
     verdict: Verdict
     descriptors: tuple[CarrierDescriptor, ...] = ()
     required_gaps: tuple[str, ...] = ()
-
-
-def query_from_attestation(
-    attestation: object,
-    *,
-    validity: AwareDatetime,
-) -> AuthorityQuery | None:
-    """Extract the exact query carried by one Attestation, or preserve a model gap."""
-    if not isinstance(attestation, Attestation):
-        return None
-    scope = attestation.statement.get("scope")
-    plane = attestation.statement.get("plane")
-    context = attestation.statement.get("context")
-    if (
-        not isinstance(scope, list | tuple)
-        or not scope
-        or not all(isinstance(item, str) and item for item in scope)
-    ):
-        return None
-    if not isinstance(plane, str) or not plane or not isinstance(context, Mapping):
-        return None
-    normalized_context: list[tuple[str, str]] = []
-    for key, value in context.items():
-        if not isinstance(key, str) or not isinstance(value, str):
-            return None
-        normalized_context.append((key, value))
-    return AuthorityQuery(
-        subject=attestation.subject,
-        predicate=attestation.predicate,
-        scope=tuple(scope),
-        plane=plane,
-        validity=validity,
-        context=tuple(sorted(normalized_context)),
-    )
-
-
-def descriptor_from_attestation(
-    attestation: object,
-    *,
-    validity: AwareDatetime,
-) -> ExtractionResult:
-    """Extract a fact descriptor from an Attestation without implicit defaults."""
-    if (
-        not isinstance(attestation, Attestation)
-        or (query := query_from_attestation(attestation, validity=validity)) is None
-    ):
-        return ExtractionResult(required_gaps=("model_gap",))
-    statement = attestation.model_dump(mode="json")["statement"]
-    return ExtractionResult(
-        descriptor=CarrierDescriptor(
-            role="fact",
-            query=query,
-            assertion=json.dumps(
-                {
-                    "verdict": attestation.verdict,
-                    "statement": {
-                        key: statement[key]
-                        for key in (
-                            "objective",
-                            "head",
-                            "tree",
-                            "gate_ids",
-                            "scope",
-                            "plane",
-                            "context",
-                            "boundary",
-                            "required_gaps",
-                        )
-                        if key in statement
-                    },
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-            bindings=tuple(
-                (name, value)
-                for name in (
-                    "commitment_digest",
-                    "facts_digest",
-                    "plan_digest",
-                    "policy_digest",
-                    "effect_digest",
-                )
-                if (value := getattr(attestation, name))
-            ),
-            source=f"attestation:{attestation.id}",
-            valid_from=attestation.valid_from or attestation.issued_at,
-            valid_until=attestation.valid_until,
-        )
-    )
 
 
 def extract_carrier_descriptor(payload: object) -> ExtractionResult:

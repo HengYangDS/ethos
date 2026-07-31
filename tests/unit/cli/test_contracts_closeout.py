@@ -51,7 +51,12 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     attestation = accepted_update["attestation"]
     assert attestation["predicate"] == "effect:git-ref-update"
     assert attestation["subject"]
-    assert attestation["statement"]["state"] == "applied"
+    assert attestation["statement"]["result"]["state"] == "applied"
+    assert attestation["statement"]["repository"].startswith("repository:")
+    assert attestation["statement"]["input"]["head"] == accepted_head
+    assert attestation["statement"]["output"]["head"] == candidate_head
+    assert attestation["statement"]["freshness"]["head"] == candidate_head
+    assert attestation["statement"]["output_digest"]
     assert not {"kind", "content", "mints_authority"} & set(attestation)
     assert git(repo, "rev-parse", "dev") == candidate_head
     assert git(repo, "rev-parse", "HEAD") == candidate_head

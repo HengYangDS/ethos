@@ -13,7 +13,7 @@ import jsonschema
 import pytest
 from pydantic import ValidationError
 
-from ethos.contracts import semantic
+import ethos.contracts.semantic
 from ethos.contracts.gates import GateEntry
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -294,9 +294,9 @@ def test_attestation_predicate_is_open_and_never_amends_a_commitment() -> None:
     )
 
     assert attestation.predicate == "review:human"
-    assert not hasattr(semantic, "apply_amendments")
-    assert not hasattr(semantic, "effective_intent")
-    assert not hasattr(semantic, "AttestationKind")
+    assert not hasattr(ethos.contracts.semantic, "apply_amendments")
+    assert not hasattr(ethos.contracts.semantic, "effective_intent")
+    assert not hasattr(ethos.contracts.semantic, "AttestationKind")
     assert not hasattr(Attestation, "apply_amendments")
     assert not hasattr(attestation, "kind")
     assert not hasattr(attestation, "content")

@@ -574,8 +574,8 @@ def test_ref_move_admission_blocks_rollback_to_old_proven_commit(tmp_path: Path)
     commit is a non-fast-forward and must block — accepted history only advances."""
     repo, _base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
+    _record_complete_proof(repo, c1)
     c2 = _advance_candidate(repo, "c2")
-    _record_complete_proof(repo, c1)  # c1 proven + contained
 
     report = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=c2, new_value=c1
@@ -591,8 +591,8 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
     be promoted, so it must block."""
     repo, base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
+    _record_complete_proof(repo, c1)
     _c2 = _advance_candidate(repo, "c2")  # live candidate head is now c2
-    _record_complete_proof(repo, c1)  # c1 proven, FF, != head
 
     report = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=c1
@@ -857,8 +857,8 @@ def test_push_admission_blocks_non_head_intermediate(tmp_path: Path) -> None:
     """B/H2: pushing a candidate-contained but non-head proven commit to dev must block."""
     repo, base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
-    _advance_candidate(repo, "c2")  # live candidate head is c2
     _record_complete_proof(repo, c1)
+    _advance_candidate(repo, "c2")  # live candidate head is c2
 
     report = push_admission_report(
         root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=base
@@ -873,8 +873,8 @@ def test_push_admission_blocks_rollback(tmp_path: Path) -> None:
     must block at the push plane — the rollback needs zero forgery."""
     repo, _base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
-    c2 = _advance_candidate(repo, "c2")
     _record_complete_proof(repo, c1)
+    c2 = _advance_candidate(repo, "c2")
 
     report = push_admission_report(
         root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=c2

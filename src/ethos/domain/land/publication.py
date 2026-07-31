@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.contracts.verdict import report_verdict
+
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
 
@@ -60,8 +62,12 @@ def local_ci_fallback_evidence_status(
         return _evidence_status("missing", relative, current_head)
     except json.JSONDecodeError:
         return _evidence_status("invalid", relative, current_head)
+    if not isinstance(payload, dict):
+        return _evidence_status("invalid", relative, current_head)
     evidence_head = str(payload.get("head") or "")
-    current = bool(current_head) and evidence_head == current_head and payload.get("ok") is True
+    current = (
+        bool(current_head) and evidence_head == current_head and report_verdict(payload) == "pass"
+    )
     action = _FALLBACK
     if current:
         state = (
@@ -83,7 +89,7 @@ def local_ci_fallback_evidence_status(
         "path": relative,
         "current_head": current_head,
         "evidence_head": evidence_head,
-        "ok": current,
+        "verdict": "pass" if current else "block",
         "command": str(payload.get("command") or ""),
         "next_action": action,
     }
@@ -96,7 +102,7 @@ def _evidence_status(state: str, path: str, current_head: str) -> dict[str, obje
         "path": path,
         "current_head": current_head,
         "evidence_head": "",
-        "ok": False,
+        "verdict": "block",
         "next_action": _FALLBACK
         if state in {"missing", "not_checked"}
         else "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence",

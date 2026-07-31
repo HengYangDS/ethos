@@ -71,7 +71,7 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
     review_gaps.sort()
     path_blockers.sort()
     return {
-        "ok": not required_gaps,
+        "verdict": "pass" if not required_gaps else "block",
         "state": "clean" if not required_gaps else "blocked",
         "contract": generated_artifact_contract(declaration),
         "summary": {

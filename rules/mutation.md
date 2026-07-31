@@ -7,10 +7,12 @@ Purpose: define tracked write admission and Work Lane discipline.
 | Authority | `ethos status --json`, `ethos lane prewrite --json`, [Runner And Mutation](../docs/architecture/runner-and-mutation.md) |
 | Trigger | Any tracked file write, generated tracked output, or command with tracked mutation potential. |
 | Action | Resolve the Git worktree root, classify branch role, bind runner/schema/editor roots, and run write admission before mutation. |
-| Evidence | `ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json` returns `ok=true`. |
+| Evidence | `ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json` returns `verdict=pass`. |
 | Stop | Protected root, candidate checkout, detached checkout, stale editor root, root-binding mismatch, or path outside target root. |
 
 ## Rules
+
+- Public mutation authorization is the closed `verdict` union `pass | block | unknown`; only `verdict=pass` authorizes an effect. Missing or unverifiable required facts produce `unknown`; conflicts, explicit failures, and warnings produce `block`.
 
 - Normal tracked mutation belongs only in an owned `work/*` Work Lane.
 - `accepted_root` and `candidate` checkouts are observe-only for normal edits.

@@ -23,8 +23,9 @@ from pydantic import model_validator
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import close_verdict
 
-PlanVerdict = Literal["pass", "block", "unknown"]
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
 
@@ -161,7 +162,7 @@ class TransitionPlan(_PlanModel):
     permissions: tuple[str, ...] = Field(default=(), json_schema_extra={"uniqueItems": True})
     facts: dict[str, Any] = Field(default_factory=dict)
     nodes: tuple[PlanNode, ...] = ()
-    initial_verdict: PlanVerdict = Field(default="pass", exclude=True)
+    initial_verdict: Verdict = Field(default="pass", exclude=True)
     validation_issues: tuple[str, ...] = Field(default=(), exclude=True)
 
     @computed_field
@@ -182,15 +183,11 @@ class TransitionPlan(_PlanModel):
         _, gaps = _ordered_ids(self.nodes)
         return tuple(dict.fromkeys((*self.validation_issues, *gaps)))
 
-    @property
-    def ok(self) -> bool:
-        return self.verdict == "pass"
-
     @computed_field
     @property
-    def verdict(self) -> PlanVerdict:
+    def verdict(self) -> Verdict:
         """Return the closed transition verdict; hard gaps always block."""
-        return "block" if self.gaps() else self.initial_verdict
+        return close_verdict(self.initial_verdict, self.gaps())
 
     @computed_field(alias="required_gaps")
     @property

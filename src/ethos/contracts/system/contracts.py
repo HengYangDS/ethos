@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING
 
 import jsonschema
 
+from ethos.contracts.verdict import close_verdict
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -77,7 +79,7 @@ def system_contracts_report(root: Path) -> dict[str, object]:
             else:
                 gaps.extend(schema_validation_gaps(name, payload, schema_path))
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "contracts": loaded,
         "required_gaps": gaps,
     }

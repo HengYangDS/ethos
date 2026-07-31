@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import cast
 
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.normalization.coercion import integer
@@ -62,10 +64,19 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         },
     }
     compact_coordination = data["coordination"]
+    verdict = reduce_verdicts(report_verdict(validation), required_gaps=gaps)
     result = EthosResult(
         command="status",
-        ok=bool(validation["ok"]) and not gaps,
-        state="blocked" if gaps else "dirty" if data["dirty"] else "ready",
+        verdict=verdict,
+        state=(
+            "blocked"
+            if verdict == "block"
+            else "unknown"
+            if verdict == "unknown"
+            else "dirty"
+            if data["dirty"]
+            else "ready"
+        ),
         summary={
             key: data[key] for key in ("root", "branch", "role", "dirty", "changed_path_count")
         }

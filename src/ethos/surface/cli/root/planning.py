@@ -60,7 +60,7 @@ def plan(
         emit(
             EthosResult(
                 command="plan",
-                ok=False,
+                verdict="block",
                 state="gapped",
                 required_gaps=(gap,),
                 next_actions=("repair or select the Commitment carrier",),
@@ -106,10 +106,10 @@ def plan(
         validation_issues=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps))),
     )
     required_gaps = tuple(dict.fromkeys((*plan.gaps(), *adapter_gaps, *rule_validation_gaps)))
-    ok = plan.ok and not adapter_gaps and not rule_validation_gaps
+    ok = plan.verdict == "pass" and not adapter_gaps and not rule_validation_gaps
     result = EthosResult(
         command="plan",
-        ok=ok,
+        verdict="pass" if ok else "block" if required_gaps else "unknown",
         state="planned" if ok else "gapped",
         summary={
             "changed": changed,

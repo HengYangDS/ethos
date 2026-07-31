@@ -13,6 +13,7 @@ from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.contracts.skill.activation import skill_registry_digest
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.profile import DEFAULT_ROOTS
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
@@ -70,9 +71,17 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
     if not skills_root.exists():
         required_gaps.append(".agents/skills")
     required_gaps.extend(dict.fromkeys(v2_gaps))
+    package_quality_gaps = list(
+        dict.fromkeys(
+            str(gap)
+            for report in package_reports
+            for gap in cast("list[object]", report["required_gaps"])
+        )
+    )
+    v2_required_gaps = list(dict.fromkeys(v2_gaps))
     score = max(0, 5 - min(5, len(dict.fromkeys(required_gaps))))
     return {
-        "ok": not required_gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "schema_version": 2,
         "mode": selected_mode,
         "skills_root": skills_root_relative,
@@ -84,15 +93,16 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         "portfolio_coverage": portfolio_coverage_report,
         "portfolio_design": portfolio_design_report,
         "package_quality": {
-            "ok": not any(report["required_gaps"] for report in package_reports),
+            "verdict": close_verdict("pass", required_gaps=tuple(package_quality_gaps)),
             "packages": package_reports,
             "capabilities": package_capabilities,
+            "required_gaps": package_quality_gaps,
         },
         "v2_compliance": {
-            "ok": not v2_gaps,
+            "verdict": close_verdict("pass", required_gaps=tuple(v2_required_gaps)),
             "score": score,
             "max_score": 5,
-            "required_gaps": list(dict.fromkeys(v2_gaps)),
+            "required_gaps": v2_required_gaps,
         },
         "advisory_gaps": list(dict.fromkeys(advisory_gaps)),
         "required_gaps": list(dict.fromkeys(required_gaps)),

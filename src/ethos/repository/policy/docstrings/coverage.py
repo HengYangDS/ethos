@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.docstrings.style import DocstringStyleIssue
 from ethos.repository.policy.docstrings.style import style_issues
 
@@ -62,7 +63,7 @@ def docstring_coverage_report(root: Path) -> dict[str, object]:
         for issue in style_issues[:20]
     )
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "state": "clean" if not gaps else "blocked",
         "policy": _POLICY_PATH.as_posix(),
         "style": str(policy.get("style", "google")),

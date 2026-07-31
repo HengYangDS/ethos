@@ -110,7 +110,7 @@ def design_tree(tmp_path: Path) -> Path:
 def test_design_integrity_uses_owner_relations_not_prose_equivalence() -> None:
     report = design_integrity_report(ROOT)
 
-    assert report["ok"] is True, report["required_gaps"]
+    assert report["verdict"] == "pass", report["required_gaps"]
     assert report["semantic_equivalence"] == "not_evaluated"
     assert PLAN in report["references"]
 

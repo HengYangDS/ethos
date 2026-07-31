@@ -7,11 +7,11 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.contracts.plan import PlanNode
-from ethos.contracts.plan import PlanVerdict
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from ethos.contracts.verdict import Verdict
 
 _INPUTS = {
     "commitment_digest": "a" * 64,
@@ -28,9 +28,7 @@ _INPUTS = {
 }
 
 
-def _plan(
-    *, initial_verdict: PlanVerdict = "pass", validation_issues=(), nodes=()
-) -> TransitionPlan:
+def _plan(*, initial_verdict: Verdict = "pass", validation_issues=(), nodes=()) -> TransitionPlan:
     return TransitionPlan(
         **_INPUTS,
         initial_verdict=initial_verdict,
@@ -92,7 +90,7 @@ def test_transition_plan_rejects_missing_dependency() -> None:
         )
     )
 
-    assert plan.ok is False
+    assert plan.verdict == "block"
     assert "missing_dependency:prove->status" in plan.gaps()
 
 
@@ -104,7 +102,7 @@ def test_transition_plan_rejects_cycle() -> None:
         )
     )
 
-    assert plan.ok is False
+    assert plan.verdict == "block"
     assert "cycle_detected" in plan.gaps()
 
 
@@ -116,7 +114,7 @@ def test_transition_plan_rejects_duplicate_node_id() -> None:
         )
     )
 
-    assert plan.ok is False
+    assert plan.verdict == "block"
     assert "duplicate_node_id:prove" in plan.gaps()
 
 
@@ -146,18 +144,19 @@ def test_valid_transition_plan_has_pass_verdict() -> None:
     assert plan.to_dict()["verdict"] == "pass"
 
 
-def test_transition_plan_unknown_verdict_is_explicit_and_cannot_hide_hard_gaps() -> None:
+def test_transition_plan_unknown_verdict_remains_explicit_and_non_authorizing() -> None:
     unknown = _plan(initial_verdict="unknown")
     blocked = _plan(initial_verdict="unknown", validation_issues=("facts_unavailable",))
 
-    assert unknown.ok is False
+    assert unknown.verdict == "unknown"
+    assert not hasattr(unknown, "ok")
     assert unknown.to_dict()["verdict"] == "unknown"
-    assert blocked.verdict == "block"
-    assert blocked.to_dict()["verdict"] == "block"
+    assert blocked.verdict == "unknown"
+    assert blocked.to_dict()["verdict"] == "unknown"
 
 
-def test_plan_verdict_algebra_is_closed() -> None:
-    assert PlanVerdict.__args__ == ("pass", "block", "unknown")
+def test_verdict_algebra_is_closed() -> None:
+    assert Verdict.__args__ == ("pass", "block", "unknown")
 
 
 def test_transition_plan_requires_all_bound_inputs() -> None:

@@ -11,6 +11,8 @@ from typing import Any
 from typing import cast
 
 from ethos.adapters.repo.git import current_head
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -23,7 +25,7 @@ if TYPE_CHECKING:
 class ActionRunResult:
     action_id: str
     command: tuple[str, ...]
-    state: str
+    verdict: Verdict
     exit_code: int | None
     stdout: str = ""
     stderr: str = ""
@@ -34,28 +36,43 @@ def classify_action_result(
     *,
     exit_code: int | None,
     stdout: str,
-) -> tuple[str, tuple[dict[str, Any], ...]]:
+) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
     if exit_code != 0:
-        return "failed", ()
-    diagnostics = _ethos_result_diagnostics(stdout)
-    if diagnostics:
-        return "failed", diagnostics
-    return "passed", ()
+        return "block", ()
+    return _ethos_result_verdict(stdout)
 
 
-def _ethos_result_diagnostics(stdout: str) -> tuple[dict[str, Any], ...]:
+def _ethos_result_verdict(stdout: str) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
-        return ()
-    if not isinstance(payload, dict) or payload.get("ok") is not False:
-        return ()
-    return (
+        return "pass", ()
+    if not isinstance(payload, dict) or "command" not in payload:
+        return "pass", ()
+    raw_verdict = payload.get("verdict")
+    if raw_verdict not in {"pass", "block", "unknown"}:
+        return "unknown", (
+            {
+                "kind": "ethos_result",
+                "verdict": "unknown",
+                "state": str(payload.get("state", "")),
+                "required_gaps": ["ethos_result_verdict_missing_or_invalid"],
+            },
+        )
+    required_gaps = _strings(payload.get("required_gaps"))
+    warnings = _strings(payload.get("warnings"))
+    diagnostic_gaps = _diagnostic_gaps(payload.get("diagnostics"), "ethos_result")
+    gaps = tuple(dict.fromkeys((*required_gaps, *diagnostic_gaps)))
+    verdict = report_verdict(payload)
+    if verdict == "pass":
+        return verdict, ()
+    warning_gaps = tuple(f"ethos_result_warning:{warning}" for warning in warnings)
+    return verdict, (
         {
             "kind": "ethos_result",
-            "ok": False,
+            "verdict": verdict,
             "state": str(payload.get("state", "")),
-            "required_gaps": [str(gap) for gap in payload.get("required_gaps", []) if str(gap)],
+            "required_gaps": list(dict.fromkeys((*gaps, *warning_gaps))),
         },
     )
 
@@ -66,7 +83,7 @@ class DryRunRunner:
         return ActionRunResult(
             action_id=node.id,
             command=gate.command,
-            state="planned",
+            verdict="unknown",
             exit_code=None,
         )
 
@@ -90,7 +107,7 @@ class LocalGateRunner:
             return ActionRunResult(
                 action_id=node.id,
                 command=gate.command,
-                state="failed",
+                verdict="block",
                 exit_code=127,
                 stderr=str(exc),
                 diagnostics=(
@@ -102,14 +119,14 @@ class LocalGateRunner:
                     },
                 ),
             )
-        state, diagnostics = classify_action_result(
+        verdict, diagnostics = classify_action_result(
             exit_code=completed.returncode,
             stdout=completed.stdout,
         )
         return ActionRunResult(
             action_id=node.id,
             command=gate.command,
-            state=state,
+            verdict=verdict,
             exit_code=completed.returncode,
             stdout=completed.stdout,
             stderr=completed.stderr,
@@ -120,6 +137,7 @@ class LocalGateRunner:
 def _run_providers(node: PlanNode, gate: GateDescriptor, root: Path) -> ActionRunResult:
     reports: list[dict[str, object]] = []
     diagnostics: list[dict[str, Any]] = []
+    verdicts: list[Verdict] = []
     for reference in gate.providers:
         try:
             report = _provider_report(reference, root)
@@ -134,31 +152,71 @@ def _run_providers(node: PlanNode, gate: GateDescriptor, root: Path) -> ActionRu
             )
             continue
         reports.append({"provider": reference, "report": dict(report)})
-        raw_gaps = report.get("required_gaps", ())
-        gaps = (
-            [str(gap) for gap in raw_gaps if str(gap)]
-            if isinstance(raw_gaps, (list, tuple))
-            else []
+        gaps = _strings(report.get("required_gaps"))
+        warnings = _strings(report.get("warnings"))
+        warning_gaps = tuple(
+            f"gate_provider_warning:{gate.id}:{reference}:{warning}" for warning in warnings
         )
-        if report.get("ok") is not True or gaps:
+        diagnostic_gaps = _diagnostic_gaps(
+            report.get("diagnostics"), f"gate_provider_diagnostic:{gate.id}:{reference}"
+        )
+        provider_gaps = tuple(dict.fromkeys((*gaps, *warning_gaps, *diagnostic_gaps)))
+        verdict = report_verdict(
+            {
+                **report,
+                "required_gaps": provider_gaps,
+            }
+        )
+        if verdict == "block" and not provider_gaps:
+            provider_gaps = (f"gate_provider_blocked:{gate.id}:{reference}",)
+        elif verdict == "unknown" and not provider_gaps:
+            provider_gaps = (f"gate_provider_unknown:{gate.id}:{reference}",)
+        verdicts.append(verdict)
+        if verdict != "pass":
             diagnostics.append(
                 {
                     "kind": "gate_provider",
                     "provider": reference,
-                    "ok": report.get("ok") is True,
-                    "required_gaps": gaps or [f"gate_provider_blocked:{gate.id}:{reference}"],
+                    "verdict": verdict,
+                    "required_gaps": list(provider_gaps),
                 }
             )
-    ok = not diagnostics and len(reports) == len(gate.providers)
-    payload = {"ok": ok, "gate": gate.id, "providers": reports}
+    if len(reports) != len(gate.providers) or "block" in verdicts:
+        verdict: Verdict = "block"
+    elif "unknown" in verdicts:
+        verdict = "unknown"
+    else:
+        verdict = "pass"
+    payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(
         action_id=node.id,
         command=("provider", *gate.providers),
-        state="passed" if ok else "failed",
-        exit_code=0 if ok else 1,
+        verdict=verdict,
+        exit_code=0 if verdict == "pass" else 1,
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),
         diagnostics=tuple(diagnostics),
     )
+
+
+def _strings(value: object) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(str(item) for item in value if str(item))
+
+
+def _diagnostic_gaps(value: object, prefix: str) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    gaps = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        severity = str(item.get("severity", "")).lower()
+        if severity not in {"warning", "error"}:
+            continue
+        message = str(item.get("message") or item.get("code") or severity)
+        gaps.append(f"{prefix}:{severity}:{message}")
+    return tuple(gaps)
 
 
 def _provider_report(reference: str, root: Path) -> Mapping[str, object]:

@@ -41,7 +41,7 @@ undeclared = "forbidden"
 
     result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
 
-    assert result["ok"] is False
+    assert result["verdict"] == "block"
     assert "skill_package_eval_invalid:sample-skill" in result["required_gaps"]
 
 

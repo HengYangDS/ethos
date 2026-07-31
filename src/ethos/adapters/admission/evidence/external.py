@@ -236,10 +236,10 @@ def _absent_receipt_report(
 ) -> dict[str, object]:
     """Return the action-policy outcome when no provider receipt was supplied."""
     if policy.mode == "optional":
-        return {**base, "ok": True, "state": "local_readiness"}
+        return {**base, "verdict": "pass", "state": "local_readiness"}
     return {
         **base,
-        "ok": False,
+        "verdict": "unknown",
         "state": "blocked",
         "required_gaps": ["independent_verification_receipt_required"],
     }
@@ -288,18 +288,18 @@ def independent_verification_report(
     """Validate one receipt without upgrading it beyond exact re-execution."""
     base = _local_verification_report(root=root, policy=policy)
     if policy.mode == "disabled":
-        return {**base, "ok": True, "state": "disabled"}
+        return {**base, "verdict": "pass", "state": "disabled"}
     if receipt_path is None:
         return _absent_receipt_report(base=base, policy=policy)
     payload, gap = _read_mapping(receipt_path, "independent_verification_receipt_invalid")
     if gap:
-        return {**base, "ok": False, "state": "invalid", "required_gaps": [gap]}
+        return {**base, "verdict": "block", "state": "invalid", "required_gaps": [gap]}
     try:
         receipt = IndependentVerificationReceipt.model_validate(payload)
     except ValidationError:
         return {
             **base,
-            "ok": False,
+            "verdict": "block",
             "state": "invalid",
             "required_gaps": ["independent_verification_receipt_invalid"],
         }
@@ -310,7 +310,7 @@ def independent_verification_report(
     )
     return {
         **base,
-        "ok": not gaps,
+        "verdict": "block" if gaps else "pass",
         "state": "independently_verified" if not gaps else "invalid",
         "receipt": receipt.to_payload(),
         "evidence_class": "independently_reexecuted" if not gaps else "local_readiness",
@@ -358,7 +358,7 @@ def independent_verification_admission_report(
             "receipt": {},
             "evidence_class": "local_readiness",
             "mints_authority": False,
-            "ok": False,
+            "verdict": "block",
             "state": "blocked" if policy.mode == "required" else "invalid",
             "required_gaps": provider_gaps,
         }
@@ -369,7 +369,7 @@ def independent_verification_admission_report(
             "receipt": {},
             "evidence_class": "local_readiness",
             "mints_authority": False,
-            "ok": False,
+            "verdict": "block",
             "state": "invalid",
             "required_gaps": ["independent_verification_receipt_outside_store"],
         }

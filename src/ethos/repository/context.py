@@ -43,7 +43,7 @@ def _contextual_authority(root: Path) -> dict[str, object]:
     if tuple(axes) != _AUTHORITY_QUERY_AXES or tuple(requirements) != _CURRENTNESS_REQUIREMENTS:
         msg = "authority_contract_query_axes_invalid"
         raise ValueError(msg)
-    if contract.get("resolver") != "contextual" or query.get("unknown_verdict") != "block":
+    if contract.get("resolver") != "contextual" or query.get("unknown_verdict") != "unknown":
         msg = "authority_contract_resolution_invalid"
         raise ValueError(msg)
     if any(
@@ -63,7 +63,7 @@ def _contextual_authority(root: Path) -> dict[str, object]:
         "contract_ref": "system/authority.toml",
         "resolver": "contextual",
         "query_axes": list(_AUTHORITY_QUERY_AXES),
-        "unknown_verdict": "block",
+        "unknown_verdict": "unknown",
         "currentness_requirements": list(_CURRENTNESS_REQUIREMENTS),
         "conflict_verdict": "block",
         "novel_semantics": "model_gap",

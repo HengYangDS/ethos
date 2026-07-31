@@ -39,7 +39,7 @@ def inspect_adopter(root: Path) -> dict[str, object]:
         else list(profile_required_gaps(profile))
     )
     return {
-        "ok": not required_gaps,
+        "verdict": "pass" if not required_gaps else "block",
         "adopter": {
             "root": str(repo),
             "binding": {"source": profile.source, "ready": profile.state == "valid"},

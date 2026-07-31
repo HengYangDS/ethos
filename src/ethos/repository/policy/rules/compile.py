@@ -117,7 +117,7 @@ STARTER_RULES: tuple[Rule, ...] = (
 
 def _rule_schema_gaps(rule: dict[str, Any]) -> list[str]:
     validation = validate_schema_instance("rule.schema.json", rule)
-    if validation["ok"]:
+    if validation["verdict"] == "pass":
         return []
     return [str(gap) for gap in cast("list[object]", validation["required_gaps"])]
 

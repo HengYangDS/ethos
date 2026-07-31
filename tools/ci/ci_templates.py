@@ -32,7 +32,7 @@ CONFIG_PATH = ROOT / CONFIG_RELATIVE_PATH
 UNTRACKED_PREVIEW_LIMIT = 12
 EMULATOR_REQUIRED_FIELDS = _words("emulator_tool emulator_event emulator_job emulator_image")
 EVIDENCE_FIELDS = _words(
-    "schema_version kind provider mode ok dry_run head head_start head_end head_stable dirty "
+    "schema_version kind provider mode verdict dry_run head head_start head_end head_stable dirty "
     "git_start git_end generated_at started_at finished_at tool tool_available tool_path command "
     "returncode log_warnings stdout stderr materialization"
 )
@@ -262,7 +262,7 @@ def check_templates(*, json_output: bool) -> int:
     evidence = {
         "schema_version": 1,
         "kind": "ethos_ci_template_consistency",
-        "ok": not failures,
+        "verdict": "block" if failures else "pass",
         "head": _git_output("rev-parse", "HEAD"),
         "dirty": bool(_git_output("status", "--short")),
         "config": str(CONFIG_PATH.relative_to(ROOT)),
@@ -276,7 +276,7 @@ def check_templates(*, json_output: bool) -> int:
     elif failures:
         for failure in failures:
             sys.stderr.write(f"{failure['provider']}: {failure['reason']}\n")
-    return 0 if evidence["ok"] else 1
+    return 0 if evidence["verdict"] == "pass" else 1
 
 
 def _run_result(
@@ -480,7 +480,7 @@ def emulator_evidence(
     head_start, head_end = map(str, (git_start["head"], git_end["head"]))
     schema_version, head = 1, head_end
     head_stable, dirty = head_start == head_end, git_end["dirty"]
-    ok = bool(run["ok"]) and head_stable
+    verdict = "pass" if bool(run["ok"]) and head_stable and not log_warnings else "block"
     generated_at = finished_at = finished_at.isoformat()
     started_at = started_at.isoformat()
     tool_available, tool_path = executable is not None, executable or ""
@@ -521,7 +521,7 @@ def emulator_evidence(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    return 0 if ok else int(returncode or 1)
+    return 0 if verdict == "pass" else int(returncode or 1)
 
 
 cli_app = App(name="ethos-ci", help="ETHOS CI projection and local emulator helpers.")

@@ -34,14 +34,14 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
         "--json",
         cwd=repo,
     )
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
     assert payload["next_actions"] == [
         "ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head>"
     ]
     accepted_update = payload["data"]["accepted_update"]
-    assert accepted_update["ok"] is True
+    assert accepted_update["verdict"] == "pass"
     assert accepted_update["state"] == "accepted_validated"
     assert accepted_update["branch"] == "dev"
     assert accepted_update["source_branch"] == "candidate/dev"
@@ -123,9 +123,9 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         assert openspec_mode == "shape"
         if root.resolve() == candidate.resolve():
-            return {"ok": True, "required_gaps": [], "root": root.as_posix()}
+            return {"verdict": "pass", "required_gaps": [], "root": root.as_posix()}
         return {
-            "ok": False,
+            "verdict": "block",
             "required_gaps": ["accepted_root_precloseout_audit"],
             "root": root.as_posix(),
         }
@@ -141,7 +141,7 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
         "--json",
         cwd=repo,
     )
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
     assert payload["required_gaps"] == []
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
@@ -152,7 +152,7 @@ def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> N
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     payload = run_ethos("land", "--json", cwd=repo)
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert "protected_root_mutation" in payload["required_gaps"]
     assert payload["next_actions"] == ["ethos land --closeout --json"]
@@ -164,7 +164,7 @@ def test_land_dry_run_blocks_candidate_root_without_closeout(tmp_path: Path) -> 
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     payload = run_ethos("land", "--root", candidate.as_posix(), "--json", cwd=repo)
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert "protected_root_mutation" in payload["required_gaps"]
     assert payload["next_actions"] == ["ethos land --closeout --json"]
@@ -177,7 +177,7 @@ def test_land_closeout_dry_run_reports_expect_head_mismatch(tmp_path: Path) -> N
     commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
     candidate_head = git(candidate, "rev-parse", "HEAD")
     payload = run_ethos("land", "--closeout", "--expect-head", candidate_head, "--json", cwd=repo)
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["expect_head_mismatch"]
     assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
@@ -200,7 +200,7 @@ def test_land_closeout_dry_run_reports_accepted_root_required(tmp_path: Path) ->
         "--json",
         cwd=repo,
     )
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["accepted_root_required"]
     assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
@@ -216,7 +216,7 @@ def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     accepted_head = git(repo, "rev-parse", "HEAD")
     payload = run_ethos("land", "--closeout", "--json", cwd=repo)
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_current"
     assert payload["required_gaps"] == []
     assert payload["next_actions"] == ["ethos publish"]
@@ -257,7 +257,7 @@ def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_pro
         "--json",
         cwd=repo,
     )
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_current"
     assert payload["required_gaps"] == []
     assert payload["next_actions"] == ["ethos publish"]
@@ -278,7 +278,7 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(tmp_path: Pa
     candidate_head = git(candidate, "rev-parse", "HEAD")
     payload = run_ethos("land", "--closeout", "--json", cwd=repo)
     bootstrap = payload["data"]["closeout_bootstrap"]
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
     runner_binding = bootstrap["runner_binding"]
     assert runner_binding["kind"] == "closeout_runner_binding"
     assert runner_binding["accepted_root"] == repo.resolve().as_posix()
@@ -321,7 +321,7 @@ def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(tmp_p
         cwd=repo,
     )
     bootstrap = payload["data"]["closeout_bootstrap"]
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["proof_not_proven"]
     assert bootstrap["audit_root"] == repo.resolve().as_posix()
     assert bootstrap["proof_target"] == {
@@ -344,7 +344,7 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         assert root.resolve() == candidate.resolve()
         assert openspec_mode == "shape"
-        return {"ok": True, "required_gaps": [], "root": root.as_posix()}
+        return {"verdict": "pass", "required_gaps": [], "root": root.as_posix()}
 
     monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
     monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
@@ -370,7 +370,7 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
         },
     )
     payload = run_ethos("land", "--closeout", "--json", cwd=repo)
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert "openspec_completed_change_unarchived:sample-change" in payload["required_gaps"]
     assert payload["data"]["openspec_lifecycle"]["root"] == candidate.as_posix()

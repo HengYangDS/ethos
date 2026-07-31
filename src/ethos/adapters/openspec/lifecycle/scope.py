@@ -25,7 +25,7 @@ def material_change_scope_report(
     """Report material paths covered by active Commitment declarations."""
     paths = tuple(dict.fromkeys(filter(None, changed_paths)))
     report: dict[str, Any] = {
-        "ok": True,
+        "verdict": "pass",
         "state": "invalid",
         "changed_paths": list(paths),
         "material_patterns": [],
@@ -56,7 +56,7 @@ def material_change_scope_report(
     ]
     if not material:
         report.update(
-            ok=not invalid_gaps,
+            verdict="block" if invalid_gaps else "pass",
             state="invalid" if invalid_gaps else "no_material_paths",
             changes=changes,
             required_gaps=invalid_gaps,
@@ -68,7 +68,7 @@ def material_change_scope_report(
             "changes": [
                 str(change.get("name", ""))
                 for change in changes
-                if change.get("ok") is True
+                if change.get("verdict") == "pass"
                 and any(_matches(path, pattern) for pattern in string_sequence(change.get("scope")))
             ],
         }
@@ -76,7 +76,7 @@ def material_change_scope_report(
     ]
     uncovered = [item["path"] for item in covered if not item["changes"]]
     report.update(
-        ok=not uncovered,
+        verdict="block" if invalid_gaps or uncovered else "pass",
         state="uncovered" if uncovered else "covered",
         changes=changes,
         covered_paths=[item for item in covered if item["changes"]],
@@ -86,7 +86,6 @@ def material_change_scope_report(
             *(f"openspec_material_path_uncovered:{path}" for path in uncovered),
         ],
     )
-    report["ok"] = not report["required_gaps"]
     return report
 
 
@@ -112,11 +111,16 @@ def commitment_report(root: Path, name: str) -> dict[str, object]:
     except (OSError, UnicodeError, TypeError, ValueError):
         return {
             "name": name,
-            "ok": False,
+            "verdict": "block",
             "scope": [],
             "required_gaps": [f"commitment_invalid:{name}"],
         }
-    return {"name": name, "ok": True, "scope": list(contract.scope), "required_gaps": []}
+    return {
+        "name": name,
+        "verdict": "pass",
+        "scope": list(contract.scope),
+        "required_gaps": [],
+    }
 
 
 def _matches(path: str, pattern: str) -> bool:

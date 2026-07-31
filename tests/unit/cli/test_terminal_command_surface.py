@@ -105,6 +105,8 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
         f"ethos lane refresh-base --apply --authorize --expect-head {payload['data']['head']} --json",
     ]
     assert payload["verdict"] == "block"
+    assert "ok" not in payload
+    assert "ok" not in payload["data"]
     assert payload["required_gaps"] == ["candidate_base_stale"]
     assert payload["next_actions"] == expected
     assert payload["next_actions"] == payload["data"]["authority"]["next_commands"]
@@ -123,6 +125,9 @@ def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_pat
     )
 
     serialized = json.dumps(payload)
+    assert "ok" not in payload
+    assert "ok" not in payload["data"]
+    assert payload["data"]["verdict"] == payload["verdict"]
     for retired in (
         "closeout_disposition",
         "residue_state",

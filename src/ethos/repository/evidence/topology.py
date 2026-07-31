@@ -5,6 +5,7 @@ from typing import Any
 
 from ethos.contracts.evidence.layout import EvidenceLayoutDeclaration
 from ethos.contracts.evidence.layout import load_evidence_layout_declaration
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
 
@@ -19,7 +20,7 @@ def evidence_topology_report(root: Path) -> dict[str, Any]:
     profile = load_repository_profile(repo)
     if gaps := profile_required_gaps(profile):
         return {
-            "ok": False,
+            "verdict": "block",
             "required_gaps": list(gaps),
             "layout": declaration.layout_payload("evidence"),
             "counts": _empty_counts(),
@@ -66,7 +67,7 @@ def _kernel_evidence_report(
 
     if not evidence_root.exists():
         return {
-            "ok": False,
+            "verdict": "block",
             "required_gaps": [declaration.root_missing_gap],
             "layout": declaration.layout_payload(evidence_root_relative),
             "counts": _empty_counts(),
@@ -84,7 +85,7 @@ def _kernel_evidence_report(
         len(_files(evidence_root / directory)) for directory in kernel.historical_root_dirs
     )
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "layout": declaration.layout_payload(evidence_root_relative),
         "counts": {
@@ -104,7 +105,7 @@ def _curated_profile_evidence_report(
     gaps: list[str] = []
     if not evidence_root.exists():
         return {
-            "ok": False,
+            "verdict": "block",
             "required_gaps": [declaration.root_missing_gap],
             "layout": declaration.layout_payload(evidence_root_relative, curated_profile=True),
             "counts": _empty_counts(curated_profile=True),
@@ -122,7 +123,7 @@ def _curated_profile_evidence_report(
         if path.is_file() and path.name not in curated.allowed_root_files
     ]
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "layout": declaration.layout_payload(evidence_root_relative, curated_profile=True),
         "counts": {

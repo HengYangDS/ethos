@@ -38,7 +38,7 @@ def _sequence(value: object) -> list[object]:
 
 def _blocked(*gaps: str) -> dict[str, object]:
     return {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "terminal": {},
         "metrics": {},
@@ -415,7 +415,7 @@ def source_budget_report(root: Path) -> dict[str, object]:
     )
     required = list(dict.fromkeys((*measure_gaps, *cross_gaps, *terminal_gaps)))
     return {
-        "ok": not required,
+        "verdict": "pass" if not required else "block",
         "state": "clean" if not required else "blocked",
         "terminal": terminal,
         "metrics": metrics,

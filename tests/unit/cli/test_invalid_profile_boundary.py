@@ -33,7 +33,7 @@ def test_invalid_profilecommand_name_detection_skips_option_values(
 def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> None:
     result = EthosResult(
         command="plan",
-        ok=False,
+        verdict="block",
         state="gapped",
         summary={"required_gate_count": 1},
         required_gaps=("example_gap",),
@@ -44,7 +44,7 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
     bounded = apply_payload_budget(result, root=tmp_path)
 
     assert len(bounded.to_json().encode()) <= 32 * 1024
-    assert bounded.ok is False
+    assert bounded.verdict == "block"
     assert bounded.required_gaps == result.required_gaps
     assert bounded.next_actions == result.next_actions
     reference = bounded.data["artifact_reference"]
@@ -78,7 +78,7 @@ def test_invalid_profile_readercommand_names_emit_json_result(
     main()
 
     payload = json.loads(capsys.readouterr().out)
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
 
 
@@ -121,5 +121,5 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["command"] == command
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]

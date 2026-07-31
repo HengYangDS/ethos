@@ -4,6 +4,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter
 
@@ -221,11 +222,12 @@ def design_integrity_report(root: Path) -> dict[str, object]:
     gaps.extend(_projection_gaps(root, documents, registry))
     gaps.extend(reference_gaps)
     gaps.extend(_axiom_gaps(root, documents))
+    required_gaps = list(dict.fromkeys(gaps))
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "semantic_equivalence": "not_evaluated",
         "references": sorted(references),
-        "required_gaps": list(dict.fromkeys(gaps)),
+        "required_gaps": required_gaps,
     }
 
 

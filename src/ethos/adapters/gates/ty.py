@@ -7,6 +7,8 @@ import subprocess
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos.contracts.verdict import close_verdict
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -89,7 +91,7 @@ def ty_gate_report(root: Path) -> dict[str, object]:
     policy_path = root / ".config" / "checks" / "ty" / "policy.toml"
     if not policy_path.exists():
         return {
-            "ok": False,
+            "verdict": "block",
             "state": "blocked",
             "required_gaps": ["ty_policy_missing"],
             "packages": {},
@@ -109,7 +111,7 @@ def ty_gate_report(root: Path) -> dict[str, object]:
         elif isinstance(count, int) and count > 0:
             gaps.append(f"ty_zero_tolerance_violation:{package}:{count}")
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "state": "clean" if not gaps else "blocked",
         "required_gaps": gaps,
         "packages": results,

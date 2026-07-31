@@ -212,7 +212,7 @@ def test_handoff_manifest_rejects_a_symlinked_manifest(
     monkeypatch.setattr(
         handoff_package,
         "validate_schema_instance",
-        lambda *_args, **_kwargs: {"ok": True, "required_gaps": []},
+        lambda *_args, **_kwargs: {"verdict": "pass", "required_gaps": []},
     )
 
     _, gaps = handoff_package.verified_handoff_manifest(package=package, root=tmp_path)

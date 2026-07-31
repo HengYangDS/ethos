@@ -268,7 +268,9 @@ def test_unknown_lease_is_observe_only_for_public_mutation_and_retirement(
             apply=False,
         ),
     )
-    assert mutation["ok"] is False
+    assert mutation["verdict"] == "unknown"
+    assert "ok" not in mutation
+    assert mutation["mutation"]["decision"]["verdict"] == mutation["verdict"]
     assert mutation["required_gaps"] == [f"work_lane_lease_unknown:{branch}"]
     assert observe_lease(database, branch).state == "unknown"
 
@@ -296,7 +298,9 @@ def test_unknown_lease_is_observe_only_for_public_mutation_and_retirement(
             apply=False,
         ),
     )
-    assert retirement["ok"] is False
+    assert retirement["verdict"] == "unknown", retirement
+    assert "ok" not in retirement
+    assert retirement["mutation"]["decision"]["verdict"] == retirement["verdict"]
     assert "work_lane_lease_unknown:work/superseded" in retirement["required_gaps"]
     assert observe_lease(retirement_database, "work/superseded").state == "unknown"
 
@@ -372,22 +376,26 @@ def test_missing_lease_source_retires_through_exact_leased_successor(
         mode="superseded",
         request=request,
     )
-    assert (ready["ok"], ready["state"], ready["required_gaps"]) == (
-        True,
+    assert (ready["verdict"], ready["state"], ready["required_gaps"]) == (
+        "pass",
         "ready_to_retire_superseded",
         [],
     )
+    assert "ok" not in ready
+    assert ready["mutation"]["decision"]["verdict"] == ready["verdict"]
 
     retired = retire_linked_work_lane(
         root=successor,
         mode="superseded",
         request=request.model_copy(update={"apply": True}),
     )
-    assert (retired["ok"], retired["state"], retired["required_gaps"]) == (
-        True,
+    assert (retired["verdict"], retired["state"], retired["required_gaps"]) == (
+        "pass",
         "retired_superseded",
         [],
     )
+    assert "ok" not in retired
+    assert retired["mutation"]["decision"]["verdict"] == retired["verdict"]
     assert not source.exists()
     assert git(repo, "branch", "--list", "work/superseded") == ""
     assert (
@@ -451,7 +459,9 @@ def test_successor_retirement_restores_binding_after_ref_cas_failure(
         request=request.model_copy(update={"apply": True}),
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
+    assert report["mutation"]["decision"]["verdict"] == report["verdict"]
     assert source.exists()
     assert git(source, "branch", "--show-current") == "work/superseded"
     assert git(repo, "rev-parse", "work/superseded") == source_head
@@ -498,11 +508,13 @@ def test_successor_retirement_uses_the_installed_reference_transaction_hook(
         request=request.model_copy(update={"apply": True}),
     )
 
-    assert (report["ok"], report["state"], report["required_gaps"]) == (
-        True,
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        "pass",
         "retired_superseded",
         [],
     )
+    assert "ok" not in report
+    assert report["mutation"]["decision"]["verdict"] == report["verdict"]
     assert not source.exists()
     assert git(repo, "branch", "--list", "work/superseded") == ""
     assert observe_lease(database, successor_branch).state == "valid"
@@ -716,7 +728,9 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
             operation="renew", branch=branch, holder_ref=source_holder, lease=initial, apply=True
         ),
     )
-    assert wrong_actor["ok"] is False
+    assert wrong_actor["verdict"] == "block"
+    assert "ok" not in wrong_actor
+    assert wrong_actor["mutation"]["decision"]["verdict"] == wrong_actor["verdict"]
     assert "lease_actor_mismatch" in wrong_actor["required_gaps"]
 
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
@@ -726,7 +740,9 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
             operation="renew", branch=branch, holder_ref=source_holder, lease=initial, apply=True
         ),
     )
-    assert renewed["ok"] is True
+    assert renewed["verdict"] == "pass"
+    assert "ok" not in renewed
+    assert renewed["mutation"]["decision"]["verdict"] == renewed["verdict"]
     renewed_lease = renewed["lease"]
     assert isinstance(renewed_lease, dict)
     offered = execute_lease_operation(
@@ -740,7 +756,9 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
             target_holder_ref=target_holder,
         ),
     )
-    assert offered["ok"] is True
+    assert offered["verdict"] == "pass"
+    assert "ok" not in offered
+    assert offered["mutation"]["decision"]["verdict"] == offered["verdict"]
     offer = offered["handoff_offer"]
     assert isinstance(offer, dict)
 
@@ -758,7 +776,9 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
             holder_quiesced=False,
         ),
     )
-    assert not_quiesced["ok"] is False
+    assert not_quiesced["verdict"] == "block"
+    assert "ok" not in not_quiesced
+    assert not_quiesced["mutation"]["decision"]["verdict"] == not_quiesced["verdict"]
     assert "holder_quiescence_confirmation_required" in not_quiesced["required_gaps"]
     accepted = execute_lease_operation(
         root=fixture.worktree,
@@ -773,7 +793,9 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
             holder_quiesced=True,
         ),
     )
-    assert accepted["ok"] is True
+    assert accepted["verdict"] == "pass"
+    assert "ok" not in accepted
+    assert accepted["mutation"]["decision"]["verdict"] == accepted["verdict"]
     accepted_lease = accepted["lease"]
     assert isinstance(accepted_lease, dict)
     assert (accepted_lease["holder_ref"], accepted_lease["epoch"]) == (
@@ -793,7 +815,9 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
             holder_quiesced=True,
         ),
     )
-    assert replay["ok"] is False
+    assert replay["verdict"] == "block"
+    assert "ok" not in replay
+    assert replay["mutation"]["decision"]["verdict"] == replay["verdict"]
     assert any("lease_holder_mismatch" in gap for gap in replay["required_gaps"])
 
 
@@ -948,7 +972,13 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
         ),
     )
     assert "receipt" not in public
-    assert (public["ok"], public["state"], public["branch"]) == (True, "renewed", branch)
+    assert (public["verdict"], public["state"], public["branch"]) == (
+        "pass",
+        "renewed",
+        branch,
+    )
+    assert "ok" not in public
+    assert public["mutation"]["decision"]["verdict"] == public["verdict"]
     assert public["handoff_offer"] == {}
     assert set(public["lease"]) >= {
         "lease_id",

@@ -16,6 +16,7 @@ from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.rules import stable_digest
+from ethos.contracts.verdict import report_verdict
 from ethos.repository.profile import IndependentVerificationPolicy
 
 if TYPE_CHECKING:
@@ -92,8 +93,7 @@ def control_replacement_report(
     )
     report["independent_verification"] = verification
     report["required_gaps"] = list(cast("list[str]", verification["required_gaps"]))
-    if verification["ok"] is True:
-        report["verdict"] = "pass"
+    report["verdict"] = report_verdict(verification)
     return report
 
 
@@ -193,7 +193,7 @@ def _blocked_verification(root: Path, gaps: list[str]) -> dict[str, object]:
         "receipt": {},
         "evidence_class": "local_readiness",
         "mints_authority": False,
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "required_gaps": gaps,
     }

@@ -10,7 +10,7 @@ not a second source of truth (the ETHOS command JSON remains authoritative).
 Usage:
     python readiness.py [--root PATH]
 
-Exit status mirrors readiness: 0 when status+plan+prove are all ok, 1 when any
+Exit status mirrors readiness: 0 when status+plan+prove all return `verdict=pass`, 1 when any
 read-only gate reports a gap (so a caller can gate on it), 2 on a harness error.
 """
 
@@ -40,7 +40,11 @@ def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
         return json.loads(completed.stdout)
     except json.JSONDecodeError:
         stderr = completed.stderr.strip()[:200]
-        return {"ok": False, "state": "unparseable", "required_gaps": [stderr]}
+        return {
+            "verdict": "unknown",
+            "state": "unparseable",
+            "required_gaps": [stderr or "command_output_unparseable"],
+        }
 
 
 app = App(name="ethos-readiness")
@@ -48,23 +52,23 @@ app = App(name="ethos-readiness")
 
 @app.default
 def main(*, root: str = ".") -> int:
-    all_ok = True
+    all_pass = True
     for name, args in READONLY_STEPS:
         payload = _run(args, root)
-        ok = bool(payload.get("ok"))
+        verdict = str(payload.get("verdict") or "unknown")
         state = payload.get("state", "?")
         gaps = list(payload.get("required_gaps", []))
-        marker = "ok" if ok else "GAP"
-        print(f"[{marker}] {name}: {state}")
-        if not ok:
-            all_ok = False
+        passed = verdict == "pass"
+        print(f"[{'PASS' if passed else verdict.upper()}] {name}: {state}")
+        if not passed:
+            all_pass = False
             for gap in gaps[:5]:
                 print(f"      - {gap}")
             next_actions = payload.get("next_actions") or ()
             for action in next_actions[:1]:
                 print(f"      next: {action}")
-    print("READY" if all_ok else "NOT READY — resolve the gaps above before land/publish")
-    return 0 if all_ok else 1
+    print("READY" if all_pass else "NOT READY — resolve the gaps above before land/publish")
+    return 0 if all_pass else 1
 
 
 if __name__ == "__main__":

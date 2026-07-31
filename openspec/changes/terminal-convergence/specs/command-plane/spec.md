@@ -42,16 +42,19 @@ Commands SHALL project one mechanism: observe, extract, resolve, compile, evalua
   fails closed before governed mutation
 
 ### Requirement: Proof Command State Semantics
-Verdicts SHALL be compact and truthful: `pass`, `block`, or `unknown`; unknown required facts block effects.
+Verdicts SHALL be compact and truthful: `pass`, `block`, or `unknown`; missing or
+unverifiable required facts produce `unknown` and block effects, while conflicts,
+explicit failures, and warnings produce `block`. The public result envelope has no
+top-level `ok` field.
 
 #### Scenario: Planning proof is ready
 - **WHEN** `ethos prove --json` completes without executing gates
-- **THEN** the CLI reports `ok=true` and `state=ready` for successful readiness
+- **THEN** the CLI reports `verdict=pass` and `state=ready` for successful readiness
 - **AND** the CLI reports `executed=false`
 
 #### Scenario: Executed proof is proven
 - **WHEN** `ethos prove --execute --json` completes with all gates passing
-- **THEN** the CLI reports `ok=true` and `state=proven`
+- **THEN** the CLI reports `verdict=pass` and `state=proven`
 - **AND** the CLI reports `executed=true`
 
 #### Scenario: a required fact is unavailable

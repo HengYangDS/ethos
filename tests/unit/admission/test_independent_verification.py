@@ -52,7 +52,8 @@ def test_disabled_policy_is_local_first_without_a_provider(tmp_path) -> None:
         receipt_path=None,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["state"] == "disabled"
     assert report["evidence_class"] == "local_readiness"
 
@@ -84,8 +85,8 @@ def test_optional_policy_accepts_absence_but_marks_supplied_invalid_receipt(
         receipt_path=invalid,
     )
 
-    assert absent["ok"] is True
-    assert supplied["ok"] is False
+    assert absent["verdict"] == "pass"
+    assert supplied["verdict"] == "block"
     assert "independent_verification_receipt_invalid" in supplied["required_gaps"]
 
 
@@ -118,9 +119,9 @@ def test_required_policy_fails_closed_and_accepts_only_exact_valid_receipt(
         signature_verifier=lambda receipt: receipt.issuer == "provider:example",
     )
 
-    assert missing["ok"] is False
+    assert missing["verdict"] == "unknown"
     assert "independent_verification_receipt_required" in missing["required_gaps"]
-    assert accepted["ok"] is True
+    assert accepted["verdict"] == "pass"
     assert accepted["evidence_class"] == "independently_reexecuted"
 
 
@@ -147,9 +148,9 @@ def test_profile_defaults_disabled_but_required_publish_is_action_scoped(
         request={"action": "land"},
     )
 
-    assert default["ok"] is True
+    assert default["verdict"] == "pass"
     assert required["required_gaps"] == ["independent_verification_receipt_required"]
-    assert unrelated["ok"] is True
+    assert unrelated["verdict"] == "pass"
 
 
 def test_request_builder_binds_publish_to_exact_git_revision_and_gate_policy(
@@ -256,7 +257,7 @@ def test_required_provider_rejects_receipt_outside_the_read_only_store(
         provider_config_path=tmp_path / "provider.toml",
     )
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert "independent_verification_receipt_outside_store" in report["required_gaps"]
 
 
@@ -370,7 +371,7 @@ def test_provider_verifies_a_signature_from_its_protected_anchor(tmp_path, monke
         provider_config_path=config,
     )
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["evidence_class"] == "independently_reexecuted"
 
 

@@ -3,7 +3,7 @@ id = "evidence-layout"
 source_refs = ["system/policies/evidence-layout.toml"]
 profile_curated_root = "docs/evidence"
 root_missing_gap = "evidence_root_missing"
-freshness_expression = "facts.components.all(component, component.ok)"
+freshness_expression = "facts.components.all(component, component.verdict == 'pass')"
 
 [kernel]
 mode = "kernel_evidence"

@@ -149,7 +149,7 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
             gap=gap,
         )
     return {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "branch": branch,
         "path": target.as_posix(),
@@ -194,7 +194,7 @@ def retained_lane_start_report(
 ) -> dict[str, object]:
     """Report the evidence and retained authority after incomplete compensation."""
     return {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "branch": branch,
         "path": target.as_posix(),

@@ -60,6 +60,7 @@ def test_entrypoint_audit_requires_semantic_package_build_output(
 
     report = generated_artifact_entrypoint_audit(tmp_path)
 
+    assert report["verdict"] == ("pass" if expected_gap_count == 0 else "block")
     assert report["summary"]["checked_file_count"] == 1
     assert report["summary"]["blocker_count"] == expected_gap_count
 
@@ -75,6 +76,7 @@ package = { cmd = ["uv", "build", "--out-dir", "./dist/"] }
 
     report = generated_artifact_entrypoint_audit(tmp_path)
 
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == [
         "generated_artifact_entrypoint_denied_generated_home:pyproject.toml:dist/"
     ]
@@ -90,6 +92,7 @@ def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
 
     report = generated_artifact_topology_report(tmp_path)
 
+    assert report["verdict"] == "block"
     assert report["summary"]["entrypoint_blocker_count"] == 2
     assert report["required_gaps"] == [
         "generated_artifact_entrypoint_denied_generated_home:tools/ci/scripts/example.sh:dist/",
@@ -110,6 +113,7 @@ def test_topology_report_blocks_tracked_untracked_lifecycle_home(
 
     report = generated_artifact_topology_report(repo)
 
+    assert report["verdict"] == "block"
     assert report["required_gaps"] == [
         "generated_artifact_tracked_untracked_home:build/evidence/proof.json"
     ]

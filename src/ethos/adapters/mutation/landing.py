@@ -25,6 +25,7 @@ from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.verdict import report_verdict
 
 
 def apply_land_to_candidate(
@@ -48,14 +49,14 @@ def apply_land_to_candidate(
         root=root,
         current_head=current_head,
     )
-    if not decision.ok:
+    if decision.verdict != "pass":
         return fail(
             list(decision.gaps),
             state=decision.state,
             remediation=remediation.remediation_for_gaps(decision.gaps),
         )
     base_report = candidate_base_report(root=root)
-    if not base_report["ok"]:
+    if report_verdict(base_report) != "pass":
         return base_report
     candidate_path = Path(str(base_report["path"]))
     proof = proof_attestation(candidate_path, current_head)
@@ -107,7 +108,7 @@ def apply_land_to_candidate(
             attestation=attestation.model_dump(mode="json"),
         )
     return {
-        "ok": True,
+        "verdict": "pass",
         "state": "candidate_validated",
         "branch": policy.candidate_branch,
         "head": current_head,
@@ -119,7 +120,7 @@ def apply_land_to_candidate(
 
 def _blocked(policy, head, gaps, *, state="blocked", **extra):
     return dict(
-        ok=False,
+        verdict="block",
         state=state,
         branch=policy.candidate_branch,
         head=head,
@@ -144,7 +145,7 @@ def apply_candidate_to_accepted(
         root=root,
         current_head=current_head,
     )
-    if not decision.ok:
+    if decision.verdict != "pass":
         return {
             **accepted.accepted_payload(policy, current_head),
             "state": decision.state,
@@ -170,7 +171,7 @@ def apply_candidate_to_accepted(
     if decision.state == "current" and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF:
         return {
             **accepted.accepted_payload(policy, current_head),
-            "ok": True,
+            "verdict": "pass",
             "state": "accepted_current",
             "candidate_head": candidate_head,
             "attestation": {},
@@ -222,7 +223,7 @@ def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
             remediation=remediation.remediation_for_gaps(["candidate_base_stale"]),
         )
     return {
-        "ok": True,
+        "verdict": "pass",
         "state": "candidate_base_current",
         "branch": policy.candidate_branch,
         "head": current_head,

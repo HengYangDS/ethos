@@ -4,6 +4,7 @@ from typing import Any
 from typing import cast
 
 from ethos.assistants.skills.capabilities import capability_command_strings
+from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_list
 
 SKILL_PACKAGE_FILE_LIMIT = 6
@@ -46,7 +47,7 @@ def portfolio_coverage(
         if len(subject_owners) > 1:
             gaps.append(f"skill_portfolio_subject_duplicate:{subject}:{','.join(subject_owners)}")
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "contract": {
             "required_primary_subjects": required_subjects,
             "single_owner_subjects": single_owner_subjects,
@@ -89,7 +90,7 @@ def portfolio_design(
     for token, owners in sorted(duplicate_tokens.items()):
         gaps.append(f"skill_portfolio_intent_token_overclaimed:{token}:{','.join(owners)}")
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "command_owner_count": {key: len(ids) for key, ids in sorted(command_owners.items())},
         "path_glob_owner_count": {key: len(ids) for key, ids in sorted(path_owners.items())},
         "intent_token_owner_count": {key: len(ids) for key, ids in sorted(token_owners.items())},

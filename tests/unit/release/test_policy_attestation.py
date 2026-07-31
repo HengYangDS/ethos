@@ -170,7 +170,7 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
         all_package_versions_match=True,
         packages={"ethos": "0.1.0a2"},
     )
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
     assert release_report(Path.cwd())["version"] == manifest
     assert "release" not in config
@@ -238,7 +238,7 @@ def test_release_policy_rejects_invalid_local_install_owner(
         outside.chmod(0o755)
     _topology(monkeypatch, command)
     report = release_policy_report(root)
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
     assert gap in report["required_gaps"]
 
 
@@ -251,7 +251,7 @@ def test_release_policy_ignores_malformed_publication_gap_collection(
         lambda _config: {"local": _LOCAL, "required_gaps": "malformed"},
     )
     report = release_policy_report(Path.cwd())
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
 
 

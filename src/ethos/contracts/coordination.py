@@ -18,6 +18,9 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import require_closed_verdict
+
 _HOLDER_REF_PART_COUNT = 4
 
 
@@ -370,7 +373,7 @@ class MutationAdmissionRequest(BaseModel):
     action: str = Field(min_length=1)
     resource: str = Field(min_length=1)
     expected_state: dict[str, object]
-    verdict: Literal["pass", "block", "unknown"]
+    verdict: Verdict
     required_gaps: tuple[str, ...] = ()
     why: tuple[str, ...] = ()
     next_actions: tuple[str, ...] = ()
@@ -379,6 +382,11 @@ class MutationAdmissionRequest(BaseModel):
     evidence_boundary: str = "current_local_observation"
     enforcement_boundary: str = "local_process_guard"
     verifier_provenance: str = "current_runner"
+
+    @model_validator(mode="after")
+    def reject_false_pass(self) -> MutationAdmissionRequest:
+        require_closed_verdict(self.verdict, self.required_gaps)
+        return self
 
 
 class LeaseOperationRequest(BaseModel):

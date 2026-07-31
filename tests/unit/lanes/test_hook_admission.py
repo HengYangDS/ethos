@@ -135,7 +135,8 @@ def test_push_admission_rejects_invalid_targets_before_or_without_proof(
         pushed_head=git(repo, "rev-parse", "HEAD"),
         remote_name=remote_name,
     )
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert gap in report["required_gaps"]
     if proof_check == "absent":
         assert not any("proof" in str(item) for item in report["required_gaps"])
@@ -164,13 +165,30 @@ def test_context_hook_rejects_stale_target_root(tmp_path: Path) -> None:
     report = _hook(repo, "context", expected_root=other)
     _assert_fields(
         report,
-        ok=False,
+        verdict="block",
         state="blocked",
         decision={"action": "block", "reason": "hook_context_root_mismatch"},
         target_root=repo.resolve().as_posix(),
         expected_root=other.resolve().as_posix(),
     )
     assert "hook_context_root_mismatch" in report["required_gaps"]
+
+
+def test_unknown_hook_layer_blocks_without_pretool_fallback(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    report = _hook(repo, "unknown-layer")
+
+    _assert_fields(
+        report,
+        verdict="block",
+        state="blocked",
+        layer="unknown-layer",
+        decision={"action": "block", "reason": "hook_layer_invalid"},
+    )
+    assert report["hook"] == {}
+    assert report["required_gaps"] == ["hook_layer_invalid"]
+    assert "ok" not in report
 
 
 @pytest.mark.parametrize(
@@ -201,7 +219,7 @@ def test_pre_tool_hook_blocks_protected_or_unleased_mutation(
     report = _hook(root, "pre-tool", **values)
     _assert_fields(
         report,
-        ok=False,
+        verdict="block",
         state="blocked",
         role=expected_role,
         decision={"action": "block", "reason": reason},
@@ -209,12 +227,8 @@ def test_pre_tool_hook_blocks_protected_or_unleased_mutation(
     assert reason in report["required_gaps"]
     if admission_error:
         assert report["admission"]["error"] == admission_error
-    else:
-        assert (
-            report["admission"]["work_lane_lease"]["ok"] is False
-            if kind == "unleased-work"
-            else True
-        )
+    elif kind == "unleased-work":
+        assert report["admission"]["work_lane_lease"]["verdict"] == "block"
 
 
 @pytest.mark.parametrize(
@@ -242,7 +256,7 @@ def test_pre_tool_hook_evaluates_leased_work_lane_actor(
     )
     _assert_fields(
         report,
-        ok=state == "admitted",
+        verdict="pass" if state == "admitted" else "block",
         state=state,
         role="work_lane",
         decision={
@@ -253,7 +267,7 @@ def test_pre_tool_hook_evaluates_leased_work_lane_actor(
     lease = report["admission"]["work_lane_lease"]
     _assert_fields(
         lease,
-        ok=state == "admitted",
+        verdict="pass" if state == "admitted" else "block",
         required=True,
         branch="work/feature",
         holder_ref="agent:test:case:agent-a",
@@ -296,7 +310,7 @@ def test_pre_tool_hook_handles_rebase_context(leased_worktree: Path) -> None:
         editor_root=leased_worktree,
         require_editor_root=True,
     )
-    _assert_fields(report, ok=True, role="work_lane", branch="work/feature")
+    _assert_fields(report, verdict="pass", role="work_lane", branch="work/feature")
     _assert_fields(
         report["admission"],
         status_role="detached",
@@ -326,7 +340,7 @@ def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(tmp_path: P
     )
     _assert_fields(
         report,
-        ok=False,
+        verdict="block",
         role="detached",
         decision={"action": "block", "reason": "protected_lane_prewrite_blocked"},
     )
@@ -354,7 +368,7 @@ def test_pre_run_hook_blocks_mutation_risk_without_target_paths(
     report = _hook(repo, "pre-run", command=command, editor_root=repo, require_editor_root=True)
     _assert_fields(
         report,
-        ok=False,
+        verdict="block",
         state="blocked",
         decision={"action": "block", "reason": "hook_prerun_paths_required"},
     )
@@ -429,7 +443,7 @@ def test_pre_run_hook_blocks_unclassifiable_shell_even_with_target_paths(
 
     _assert_fields(
         report,
-        ok=False,
+        verdict="block",
         state="blocked",
         decision={"action": "block", "reason": "shell_command_unclassifiable"},
     )
@@ -491,7 +505,7 @@ def test_post_write_hook_fuses_dirty_state(
     report = _hook(root, "post-write", **values)
     _assert_fields(
         report,
-        ok=False,
+        verdict="block",
         state="fused",
         role=role,
         decision={"action": "fuse", "reason": reason},
@@ -511,7 +525,8 @@ def test_push_admission_blocks_unproven_protected_and_work_lane_pushes(tmp_path:
         ("refs/heads/work/feature", "publication_remote_branch_forbidden:work/feature"),
     ):
         report = push_admission_report(root=repo, target_ref=ref, pushed_head=head)
-        assert report["ok"] is False
+        assert report["verdict"] == "block"
+        assert "ok" not in report
         assert report["state"] == "blocked"
         assert any(gap in str(item) for item in report["required_gaps"])
 
@@ -542,7 +557,11 @@ def test_push_identity_policy_checks_configured_author_and_committer(
         pushed_head=pushed_head,
         remote_head=remote_head,
     )
-    _assert_fields(policy, ok=expected_result == "allowed", checked_commit_count=1)
+    _assert_fields(
+        policy,
+        verdict="pass" if expected_result == "allowed" else "block",
+        checked_commit_count=1,
+    )
     assert report["identity_policy"] == policy
     assert "publication_remote_branch_forbidden:work/identity" in report["required_gaps"]
     for kind, identity in (("author", author), ("committer", committer)):
@@ -588,7 +607,7 @@ def test_new_proposal_push_validates_origin_accepted_baseline(
         remote_head="0" * 40,
     )["identity_policy"]
     assert policy["checked_commit_count"] == count
-    assert (gap in policy["required_gaps"]) if gap else policy["ok"] is True
+    assert (gap in policy["required_gaps"]) if gap else policy["verdict"] == "pass"
 
 
 def test_push_identity_helpers_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -614,7 +633,8 @@ def test_push_identity_helpers_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_
 
     report = push_identity_policy_report(repo, head)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["checked_commit_count"] == 0
     assert report["required_gaps"] == ["push_identity_commit_range_unreadable"]
 

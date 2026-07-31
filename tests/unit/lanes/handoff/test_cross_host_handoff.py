@@ -235,14 +235,18 @@ def _export_handoff_fixture(
     }
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
     exported = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
-    assert exported["ok"] is True
+    assert exported["verdict"] == "pass"
+    assert "ok" not in exported
+    assert exported["mutation"]["decision"]["verdict"] == exported["verdict"]
     assert exported["manifest"]["base_commitment_digest"] == lease["base_commitment_digest"]
     package = Path(str(exported["package_path"]))
     repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
-    assert (repeated_export["ok"], repeated_export["package_id"]) == (
-        True,
+    assert (repeated_export["verdict"], repeated_export["package_id"]) == (
+        "pass",
         exported["package_id"],
     )
+    assert "ok" not in repeated_export
+    assert repeated_export["mutation"]["decision"]["verdict"] == repeated_export["verdict"]
     return source, destination, package, head, lease
 
 
@@ -256,7 +260,9 @@ def _assert_failed_import_is_compensated(
     preserved_objects: list[str],
     stage: str,
 ) -> None:
-    assert rolled_back["ok"] is False
+    assert rolled_back["verdict"] == "block"
+    assert "ok" not in rolled_back
+    assert rolled_back["mutation"]["decision"]["verdict"] == rolled_back["verdict"]
     assert f"handoff_import_failed:forced-{stage}-failure" in rolled_back["required_gaps"]
     assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
     assert not expected_worktree.exists()
@@ -281,7 +287,9 @@ def _assert_uncertain_import_is_compensated(
     object_probe: list[str],
     stage: str,
 ) -> None:
-    assert rolled_back["ok"] is False
+    assert rolled_back["verdict"] == "block"
+    assert "ok" not in rolled_back
+    assert rolled_back["mutation"]["decision"]["verdict"] == rolled_back["verdict"]
     assert f"handoff_import_failed:forced-{stage}-uncertain" in rolled_back["required_gaps"]
     assert not expected_worktree.exists()
     assert observe_lease(state_database(destination), branch).state == "missing"
@@ -306,7 +314,9 @@ def _assert_source_revoked(
             apply=True,
         )
     )
-    assert imported["ok"] is True
+    assert imported["verdict"] == "pass"
+    assert "ok" not in imported
+    assert imported["mutation"]["decision"]["verdict"] == imported["verdict"]
     assert imported["lease"]["base_commitment_digest"] == lease["base_commitment_digest"]
     assert imported["acknowledgement"]["base_commitment_digest"] == lease["base_commitment_digest"]
     acknowledgement = package.parent / "acknowledgement.json"
@@ -328,7 +338,9 @@ def _assert_source_revoked(
             apply=True,
         )
     )
-    assert (revoked["ok"], revoked["state"]) == (True, "source_revoked")
+    assert (revoked["verdict"], revoked["state"]) == ("pass", "source_revoked")
+    assert "ok" not in revoked
+    assert revoked["mutation"]["decision"]["verdict"] == revoked["verdict"]
     assert branch not in leases_by_branch(source.worktree)
 
 
@@ -407,7 +419,9 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
             apply=True,
         )
     )
-    assert denied["ok"] is False
+    assert denied["verdict"] == "block"
+    assert "ok" not in denied
+    assert denied["mutation"]["decision"]["verdict"] == denied["verdict"]
     assert "handoff_target_actor_mismatch" in denied["required_gaps"]
 
     expected_worktree = destination.with_name(f"{destination.name}-{branch.replace('/', '-')}")
@@ -420,7 +434,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
 
         def fail_reservation(*_args: object, **_kwargs: object) -> dict[str, object]:
             msg = "forced-lease-failure"
-            raise ValueError(msg)
+            raise RuntimeError(msg)
 
         faults.setattr(destination_import, "acquire_lease", fail_reservation)
         monkeypatch.setenv("ETHOS_ACTOR", target_holder)

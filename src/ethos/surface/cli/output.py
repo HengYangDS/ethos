@@ -36,7 +36,7 @@ def emit(
                 sys.stdout.write(f"next: {action}\n")
     except (BrokenPipeError, BlockingIOError):
         return
-    if enforce and not result.ok:
+    if enforce and result.verdict != "pass":
         raise SystemExit(1)
 
 
@@ -45,7 +45,7 @@ def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce:
     emit(
         EthosResult(
             command=command,
-            ok=False,
+            verdict="block",
             state="gapped",
             required_gaps=("repository_profile_invalid:.ethos/profile.toml",),
             next_actions=("repair .ethos/profile.toml and rerun the command",),

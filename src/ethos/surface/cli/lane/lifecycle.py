@@ -22,6 +22,9 @@ from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_work_lane_bas
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
@@ -60,7 +63,7 @@ _DEFAULT_REFRESH_BASE = _RefreshBase()
 
 
 Summary = Callable[[dict[str, object]], dict[str, object]]
-Actions = Callable[[dict[str, object]], tuple[str, ...]]
+Actions = Callable[[dict[str, object], Verdict], tuple[str, ...]]
 
 
 def _fields(*names: str) -> Summary:
@@ -68,7 +71,55 @@ def _fields(*names: str) -> Summary:
 
 
 def _actions(success: tuple[str, ...], blocked: tuple[str, ...] = ()) -> Actions:
-    return lambda report: success if report["ok"] else blocked
+    return lambda _report, verdict: success if verdict == "pass" else blocked
+
+
+def _status_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+    gates = cast("dict[str, object]", report.get("stage_gates") or {})
+    commands = tuple(str(item) for item in cast("list[object]", gates.get("next_commands") or []))
+    if verdict != "pass":
+        return commands or (
+            ("ethos lane prewrite <path>",)
+            if report.get("role") == "work_lane"
+            else ("ethos status --json",)
+        )
+    return commands or (
+        ("ethos lane prewrite <path>",)
+        if report.get("role") == "work_lane"
+        else ("ethos lane start <name> --path <path> --holder-ref <holder-ref> --apply --json",)
+    )
+
+
+def _start_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+    if verdict != "pass":
+        return ()
+    bootstrap = cast("dict[str, object]", report.get("runner_bootstrap") or {})
+    return tuple(
+        filter(None, (str(bootstrap.get("next_action") or ""), "ethos lane prewrite <path>"))
+    )
+
+
+def _refresh_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+    raw = report.get("next_actions")
+    if verdict == "pass" and isinstance(raw, list | tuple):
+        return tuple(str(item) for item in raw)
+    return ("ethos land --json",) if verdict == "pass" else ("ethos status --json",)
+
+
+def _retirement_actions(_report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+    return ("ethos status",) if verdict == "pass" else ("ethos lane status",)
+
+
+def _public_state(command: str, report: dict[str, object], verdict: Verdict) -> str:
+    if command == "lane status":
+        return "ready" if verdict == "pass" else "blocked" if verdict == "block" else "unknown"
+    if command == "lane prewrite":
+        return "admitted" if verdict == "pass" else "blocked" if verdict == "block" else "unknown"
+    if verdict == "block":
+        return "blocked"
+    if verdict == "unknown":
+        return "unknown"
+    return str(report.get("state") or "ready")
 
 
 _SUMMARIES: dict[str, Summary] = {
@@ -82,8 +133,13 @@ _SUMMARIES: dict[str, Summary] = {
     "lane refresh-base": _fields("branch", "candidate_branch", "head", "candidate_head"),
 }
 _ACTIONS: dict[str, Actions] = {
+    "lane status": _status_actions,
     "lane candidate": _actions(("ethos lane start <name>",), ("ethos status",)),
     "lane prewrite": _actions((), ("ethos lane start <name>",)),
+    "lane start": _start_actions,
+    "lane refresh-base": _refresh_actions,
+    "lane retire superseded": _retirement_actions,
+    "lane retire landed": _retirement_actions,
 }
 
 
@@ -93,20 +149,26 @@ def project_lane_result(
     *,
     summary: dict[str, object] | None = None,
     diagnostics: tuple[dict[str, object], ...] = (),
-    actions: tuple[str, ...] | None = None,
+    actions: tuple[str, ...] | Actions | None = None,
     enforce: bool = False,
     json_output: bool,
 ) -> None:
+    verdict = report_verdict(report)
+    next_actions = (
+        actions(report, verdict)
+        if callable(actions)
+        else actions
+        if actions is not None
+        else _ACTIONS.get(command, lambda _report, _verdict: ())(report, verdict)
+    )
     result = EthosResult(
         command=command,
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
+        verdict=verdict,
+        state=_public_state(command, report, verdict),
         summary=summary or _SUMMARIES.get(command, lambda _report: {})(report),
         diagnostics=diagnostics,
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=(
-            actions if actions is not None else _ACTIONS.get(command, lambda _report: ())(report)
-        ),
+        next_actions=next_actions,
         data=report,
     )
     emit(result, json_output=json_output, enforce=enforce)
@@ -124,8 +186,7 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
     )
     report = {
         **report,
-        "ok": bool(validation["ok"]),
-        "state": "blocked" if gaps else "ready" if validation["ok"] else "invalid",
+        "verdict": reduce_verdicts(report_verdict(report), report_verdict(validation)),
         "required_gaps": gaps,
     }
     coordination = cast("dict[str, object]", report.get("coordination") or {})
@@ -145,21 +206,11 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
         "coordination_blocking": bool(coordination.get("blocking")),
         "coordination_next_action": str(coordination.get("next_action") or ""),
     }
-    gates = cast("dict[str, object]", report.get("stage_gates") or {})
-    commands = tuple(str(item) for item in cast("list[object]", gates.get("next_commands") or []))
-    actions = commands or (
-        ("ethos lane prewrite <path>",)
-        if report.get("role") == "work_lane"
-        else ("ethos status --json",)
-        if gaps
-        else ("ethos lane start <name> --path <path> --holder-ref <holder-ref> --apply --json",)
-    )
     project_lane_result(
         "lane status",
         report,
         summary=summary,
         diagnostics=(validation,),
-        actions=actions,
         json_output=json_output,
     )
 
@@ -173,15 +224,14 @@ def housekeeping(
         root=resolve_root(options.root), authorized=options.authorize, apply=options.apply
     )
     removable = integer(cast("dict[str, object]", report["summary"]).get("removable_count"))
-    actions = (
-        ("ethos lane housekeeping --authorize --apply --json",)
-        if removable and not options.apply
-        else ()
-    )
     project_lane_result(
         options.command,
         report,
-        actions=actions,
+        actions=lambda _report, verdict: (
+            ("ethos lane housekeeping --authorize --apply --json",)
+            if verdict == "pass" and removable and not options.apply
+            else ()
+        ),
         enforce=options.apply,
         json_output=options.json_output,
     )
@@ -253,7 +303,6 @@ def prewrite(
     report = {
         **report,
         "path_count": len(resolved_paths),
-        "state": "admitted" if report["ok"] else "blocked",
     }
     project_lane_result("lane prewrite", report, enforce=True, json_output=json_output)
 
@@ -278,13 +327,7 @@ def start(
         holder_ref=holder_ref,
         apply=apply,
     )
-    bootstrap = cast("dict[str, object]", report.get("runner_bootstrap") or {})
-    actions = (
-        tuple(filter(None, (str(bootstrap.get("next_action") or ""), "ethos lane prewrite <path>")))
-        if report["ok"]
-        else ()
-    )
-    project_lane_result("lane start", report, actions=actions, json_output=json_output)
+    project_lane_result("lane start", report, enforce=apply, json_output=json_output)
 
 
 @lane_app.command(name="refresh-base")
@@ -298,10 +341,9 @@ def lane_refresh_base(
         authorized=options.authorize,
         expect_head=options.expect_head,
     )
-    raw = report.get("next_actions")
-    actions = (
-        tuple(str(item) for item in raw)
-        if isinstance(raw, list | tuple)
-        else (("ethos land --json",) if report["ok"] else ("ethos status --json",))
+    project_lane_result(
+        options.command,
+        report,
+        enforce=options.apply,
+        json_output=options.json_output,
     )
-    project_lane_result(options.command, report, actions=actions, json_output=options.json_output)

@@ -11,6 +11,9 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.verdict import close_verdict
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
@@ -46,7 +49,7 @@ def official_config_report(root: Path) -> dict[str, object]:
     path = root / "openspec" / "config.yaml"
     if not path.exists():
         return {
-            "ok": False,
+            "verdict": "block",
             "path": path.as_posix(),
             "required_gaps": ["openspec_config_missing"],
         }
@@ -54,9 +57,15 @@ def official_config_report(root: Path) -> dict[str, object]:
         payload = _load_official_config(path)
     except yaml.YAMLError as exc:
         return {
-            "ok": False,
+            "verdict": "block",
             "path": path.as_posix(),
             "required_gaps": [f"openspec_config_invalid:{exc.__class__.__name__}"],
+        }
+    except (OSError, UnicodeError) as exc:
+        return {
+            "verdict": "unknown",
+            "path": path.as_posix(),
+            "required_gaps": [f"openspec_config_unavailable:{exc.__class__.__name__}"],
         }
     gaps: list[str] = []
     if not payload:
@@ -81,7 +90,11 @@ def official_config_report(root: Path) -> dict[str, object]:
         f"openspec_config_legacy_key:{key}"
         for key in sorted(key for key in ("project", "version") if key in payload)
     )
-    return {"ok": not gaps, "path": path.as_posix(), "required_gaps": gaps}
+    return {
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
+        "path": path.as_posix(),
+        "required_gaps": gaps,
+    }
 
 
 def active_change_names(openspec_root: Path) -> list[str]:
@@ -121,11 +134,25 @@ def protected_branch_active_change_report(root: Path, *, current_branch: str) ->
     )
     records: list[dict[str, str]] = []
     advisory_gaps: list[str] = []
+    required_gaps: list[str] = []
+    observations: list[dict[str, object]] = []
     seen: set[tuple[str, str, str]] = set()
     for branch, role in branches:
-        if not branch or branch == current_branch or not _branch_exists(root, branch):
+        if not branch or branch == current_branch:
             continue
-        for change in active_change_names_in_ref(root, branch):
+        branch_report = _branch_report(root, branch)
+        observations.append(branch_report)
+        if branch_report["verdict"] == "unknown":
+            required_gaps.extend(cast("list[str]", branch_report["required_gaps"]))
+            continue
+        if branch_report["state"] == "absent":
+            continue
+        changes = active_change_names_in_ref(root, branch)
+        observations.append(changes)
+        if changes["verdict"] != "pass":
+            required_gaps.extend(cast("list[str]", changes["required_gaps"]))
+            continue
+        for change in cast("list[str]", changes["changes"]):
             key = (branch, role, change)
             if key in seen:
                 continue
@@ -134,9 +161,15 @@ def protected_branch_active_change_report(root: Path, *, current_branch: str) ->
             advisory_gaps.append(gap)
             records.append({"branch": branch, "role": role, "change": change, "gap": gap})
     return {
-        "ok": not advisory_gaps,
+        "verdict": reduce_verdicts(
+            *(report_verdict(item) for item in observations),
+            "block" if advisory_gaps else "pass",
+            required_gaps=tuple(required_gaps),
+        ),
         "records": records,
         "advisory_gaps": advisory_gaps,
+        "required_gaps": required_gaps,
+        "observations": observations,
         "summary": {"residue_count": len(records)},
     }
 
@@ -154,7 +187,7 @@ def protected_branch_active_change_required_gaps(
     """
     blocked_roles = roles or {ROLE_RELEASE_ROOT}
     report = protected_branch_active_change_report(root, current_branch=current_branch)
-    gaps: list[str] = []
+    gaps = list(cast("list[str]", report["required_gaps"]))
     for record in cast("list[object]", report["records"]):
         if not isinstance(record, dict):
             continue
@@ -162,10 +195,10 @@ def protected_branch_active_change_required_gaps(
             gap = str(record.get("gap") or "")
             if gap:
                 gaps.append(gap)
-    return gaps
+    return list(dict.fromkeys(gaps))
 
 
-def _branch_exists(root: Path, branch: str) -> bool:
+def _branch_report(root: Path, branch: str) -> dict[str, object]:
     completed = subprocess.run(
         ["git", "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}"],
         cwd=root,
@@ -173,11 +206,20 @@ def _branch_exists(root: Path, branch: str) -> bool:
         capture_output=True,
         check=False,
     )
-    return completed.returncode == 0
+    if completed.returncode == 0:
+        return {"verdict": "pass", "state": "present", "branch": branch, "required_gaps": []}
+    if completed.returncode == 1:
+        return {"verdict": "pass", "state": "absent", "branch": branch, "required_gaps": []}
+    return {
+        "verdict": "unknown",
+        "state": "unknown",
+        "branch": branch,
+        "required_gaps": [f"openspec_branch_unavailable:{branch}"],
+    }
 
 
-def active_change_names_in_ref(root: Path, ref: str) -> list[str]:
-    """Return active OpenSpec change names found in a protected branch Git tree."""
+def active_change_names_in_ref(root: Path, ref: str) -> dict[str, object]:
+    """Report active OpenSpec change names in one exact Git tree."""
     completed = subprocess.run(
         ["git", "ls-tree", "-r", "--name-only", ref, "--", "openspec/changes"],
         cwd=root,
@@ -186,7 +228,12 @@ def active_change_names_in_ref(root: Path, ref: str) -> list[str]:
         check=False,
     )
     if completed.returncode != 0:
-        return []
+        return {
+            "verdict": "unknown",
+            "ref": ref,
+            "changes": [],
+            "required_gaps": [f"openspec_ref_tree_unavailable:{ref}"],
+        }
     active: set[str] = set()
     for line in completed.stdout.splitlines():
         parts = line.split("/")
@@ -196,7 +243,12 @@ def active_change_names_in_ref(root: Path, ref: str) -> list[str]:
         if change == "archive":
             continue
         active.add(change)
-    return sorted(active)
+    return {
+        "verdict": "pass",
+        "ref": ref,
+        "changes": sorted(active),
+        "required_gaps": [],
+    }
 
 
 def active_change_violations_for_role(openspec_root: Path, role: str) -> list[str]:
@@ -311,10 +363,15 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
     protected_branch_residue = protected_branch_active_change_report(
         root, current_branch=current_branch
     )
+    required_gaps.extend(cast("list[str]", protected_branch_residue["required_gaps"]))
     required_gaps.extend(active_change_identifier_violations(openspec_root))
     required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))
     return {
-        "ok": not required_gaps,
+        "verdict": reduce_verdicts(
+            report_verdict(official_config),
+            ("unknown" if protected_branch_residue["verdict"] == "unknown" else "pass"),
+            required_gaps=tuple(required_gaps),
+        ),
         "mode": "shape",
         "official_config": official_config,
         "protected_branch_residue": protected_branch_residue,
@@ -327,7 +384,7 @@ def openspec_provider_missing_report(root: Path) -> dict[str, object]:
     """Return the deep-mode gap used when no OpenSpec provider reporter is configured."""
     shape = openspec_shape_report(root)
     return {
-        "ok": False,
+        "verdict": "block",
         "mode": "deep",
         "shape": shape,
         "required_gaps": ["openspec_reporter_not_configured"],

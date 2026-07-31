@@ -627,7 +627,7 @@ def _land_configured_lane(
     assert accepted_update["required_gaps"] == []
     accepted_attestation = accepted_update["attestation"]
     assert accepted_attestation["predicate"] == "effect:git-ref-update"
-    assert accepted_attestation["statement"]["state"] == "applied"
+    assert accepted_attestation["statement"]["result"]["state"] == "applied"
     assert not {"kind", "content", "mints_authority"} & set(accepted_attestation)
 
 

@@ -8,8 +8,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.repo.git_effect_attestation
+from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
@@ -18,6 +23,8 @@ if TYPE_CHECKING:
     from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
 
 _SHA256_HEX_LENGTH = 64
+_REPOSITORY_IDENTITY_MISMATCH = "git_effect_repository_identity_mismatch"
+_ZERO_OIDS = {"0" * 40, "0" * 64, ""}
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +60,7 @@ def execute_git_effect(
     replayed = _replay_git_effect(
         root,
         effect,
+        issuer=issuer,
         attestations=attestations,
         commitment_digest=commitment_digest,
         facts_digest=facts_digest,
@@ -60,16 +68,23 @@ def execute_git_effect(
     )
     if replayed is not None:
         return replayed
+    before = _observation(root, effect, datetime.now(UTC))
+    repository = _effect_repository(root, effect, before)
     observed = {ref: _effect_ref(root, ref) for ref in effect.updates}
     if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
         message = "git_effect_cas_mismatch"
         raise ValueError(message)
     desired = {ref: update.desired for ref, update in effect.updates.items()}
     if observed == desired:
-        return _attestation(
+        return ethos.adapters.repo.git_effect_attestation.issue(
             effect,
             issuer=issuer,
-            state="recovered",
+            evidence=(
+                repository,
+                "recovered",
+                before,
+                _observation(root, effect, datetime.now(UTC)),
+            ),
             commitment_digest=commitment_digest,
             facts_digest=facts_digest,
             policy_digest=policy_digest,
@@ -78,24 +93,7 @@ def execute_git_effect(
     if observed != expected:
         message = "git_effect_cas_mismatch"
         raise ValueError(message)
-    program = "\0".join(
-        (
-            "start",
-            *(
-                token
-                for ref, value in effect.assertions.items()
-                for token in (f"update {ref}", value, value)
-            ),
-            *(
-                token
-                for ref, update in effect.updates.items()
-                for token in (f"update {ref}", update.desired, update.expected)
-            ),
-            "prepare",
-            "commit",
-            "",
-        )
-    )
+    program = ethos.adapters.repo.git_effect_attestation.transaction_program(effect)
     completed = run_git(root, "update-ref", "--stdin", "-z", check=False, stdin=program)
     if completed.returncode:
         message = "git_effect_cas_rejected"
@@ -103,10 +101,15 @@ def execute_git_effect(
     if {ref: _effect_ref(root, ref) for ref in effect.updates} != desired:
         message = "git_effect_postcondition_failed"
         raise ValueError(message)
-    return _attestation(
+    return ethos.adapters.repo.git_effect_attestation.issue(
         effect,
         issuer=issuer,
-        state="applied",
+        evidence=(
+            repository,
+            "applied",
+            before,
+            _observation(root, effect, datetime.now(UTC)),
+        ),
         commitment_digest=commitment_digest,
         facts_digest=facts_digest,
         policy_digest=policy_digest,
@@ -117,6 +120,7 @@ def _replay_git_effect(
     root: Path,
     effect: GitEffect,
     *,
+    issuer: str,
     attestations: tuple[Attestation, ...],
     commitment_digest: str,
     facts_digest: str,
@@ -137,12 +141,12 @@ def _replay_git_effect(
         message = "git_effect_attestation_duplicate"
         raise ValueError(message)
     attestation = matching[0]
-    _validate_git_effect_attestation(
+    ethos.adapters.repo.git_effect_attestation.validate(
+        root,
         effect,
         attestation,
-        commitment_digest=commitment_digest,
-        facts_digest=facts_digest,
-        policy_digest=policy_digest,
+        issuer=issuer,
+        bindings=(commitment_digest, facts_digest, policy_digest),
     )
     if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
         message = "git_effect_cas_mismatch"
@@ -151,41 +155,6 @@ def _replay_git_effect(
         message = "git_effect_postcondition_failed"
         raise ValueError(message)
     return attestation
-
-
-def _validate_git_effect_attestation(
-    effect: GitEffect,
-    attestation: Attestation,
-    *,
-    commitment_digest: str,
-    facts_digest: str,
-    policy_digest: str,
-) -> None:
-    if (
-        attestation.predicate != "effect:git-ref-update"
-        or attestation.subject != effect.id
-        or attestation.plan_digest != effect.plan_digest
-        or attestation.effect_digest != effect.digest()
-    ):
-        message = "git_effect_identity_collision"
-        raise ValueError(message)
-    for name, expected in (
-        ("commitment_digest", commitment_digest),
-        ("facts_digest", facts_digest),
-        ("policy_digest", policy_digest),
-    ):
-        if getattr(attestation, name) != expected:
-            message = f"git_effect_attestation_binding_mismatch:{name}"
-            raise ValueError(message)
-    if attestation.verdict != "pass":
-        message = f"git_effect_attestation_verdict_{attestation.verdict}"
-        raise ValueError(message)
-    if (
-        attestation.statement.get("state") not in {"applied", "recovered"}
-        or attestation.statement.get("updates") != effect.model_dump(mode="json")["updates"]
-    ):
-        message = "git_effect_attestation_content_mismatch"
-        raise ValueError(message)
 
 
 def _require_effect_bindings(
@@ -223,22 +192,21 @@ def git_effect_attestations(
 ) -> tuple[Attestation, ...]:
     path = Path(git_common_dir(root), "ethos", "git-effects", f"{effect.digest()}.json")
     if record is not None:
+        ethos.adapters.repo.git_effect_attestation.validate(
+            root,
+            effect,
+            record,
+            issuer=record.verifier,
+            bindings=(record.commitment_digest, record.facts_digest, record.policy_digest),
+        )
         existing = git_effect_attestations(root, effect)
         if existing:
             if existing[0].canonical_json() != record.canonical_json():
                 message = "git_effect_attestation_collision"
                 raise ValueError(message)
             return existing
-        if (
-            record.predicate != "effect:git-ref-update"
-            or record.subject != effect.id
-            or record.plan_digest != effect.plan_digest
-            or record.effect_digest != effect.digest()
-        ):
-            message = "git_effect_attestation_binding_mismatch"
-            raise ValueError(message)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(record.canonical_json(), encoding="utf-8")
+        payload = record.canonical_json().encode("utf-8")
+        write_content_addressed(path, payload, collision="git_effect_attestation_collision")
         return (record,)
     if not path.exists():
         return ()
@@ -343,27 +311,41 @@ def _effect_ref(root: Path, ref: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def _attestation(
-    effect: GitEffect,
-    *,
-    issuer: str,
-    state: str,
-    commitment_digest: str,
-    facts_digest: str,
-    policy_digest: str,
-) -> Attestation:
-    return Attestation.issue(
-        {
-            "predicate": "effect:git-ref-update",
-            "verifier": issuer,
-            "subject": effect.id,
-            "issued_at": datetime.now(UTC),
-            "verdict": "pass",
-            "commitment_digest": commitment_digest,
-            "facts_digest": facts_digest,
-            "plan_digest": effect.plan_digest,
-            "policy_digest": policy_digest,
-            "effect_digest": effect.digest(),
-            "statement": {"state": state, "updates": effect.model_dump(mode="json")["updates"]},
-        }
+def _observation(root: Path, effect: GitEffect, observed_at: datetime) -> dict[str, object]:
+    head = current_tracked_head(root)
+    return {
+        "observed_at": observed_at.isoformat(),
+        "head": head,
+        "tree": current_tree(root, head),
+        "refs": {ref: _effect_ref(root, ref) for ref in effect.updates},
+        "assertions": {ref: _effect_ref(root, ref) for ref in effect.assertions},
+    }
+
+
+def _effect_repository(root: Path, effect: GitEffect, before: dict[str, object]) -> str:
+    before_refs = before.get("refs")
+    before_assertions = before.get("assertions")
+    observed = (
+        (
+            *(str(value) for value in before_refs.values()),
+            *(str(value) for value in before_assertions.values()),
+        )
+        if isinstance(before_refs, dict) and isinstance(before_assertions, dict)
+        else ()
     )
+    revisions = {
+        str(before["head"]),
+        *observed,
+        *(update.expected for update in effect.updates.values()),
+        *(update.desired for update in effect.updates.values()),
+        *effect.assertions.values(),
+    } - _ZERO_OIDS
+    try:
+        identities = {
+            load_repository_commitment(root, tree_ref=revision).id for revision in revisions
+        }
+    except ValueError as error:
+        raise ValueError(_REPOSITORY_IDENTITY_MISMATCH) from error
+    if len(identities) != 1:
+        raise ValueError(_REPOSITORY_IDENTITY_MISMATCH)
+    return identities.pop()

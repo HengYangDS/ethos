@@ -8,25 +8,22 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
+import ethos.adapters.mutation.proof_admission
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
-from ethos.adapters.mutation.proof_artifacts import scan_attestations
-from ethos.adapters.mutation.proof_artifacts import write_content_addressed
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
-from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import current_branch
-from ethos.contracts.authority import AuthorityQuery
-from ethos.contracts.authority import descriptor_from_attestation
-from ethos.contracts.authority import resolve_authority
+from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
@@ -151,6 +148,13 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if plan.verdict != "pass":
         msg = "proof_plan_not_admitted"
         raise ValueError(msg)
+    if (
+        current_tracked_head(root) != head
+        or current_tree(root, head) != plan.facts.get("tree")
+        or load_repository_commitment(root, tree_ref=head).id != plan.facts.get("repository")
+    ):
+        msg = "proof_attestation_live_facts_stale"
+        raise ValueError(msg)
     if not head or not _proof_plan_matches(root, head, plan):
         msg = "proof_plan_binding_mismatch"
         raise ValueError(msg)
@@ -178,7 +182,9 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
             "valid_from": issued,
             "verdict": verdict,
             "statement": {
+                "claim": {"objective": objective, "verdict": verdict},
                 "objective": objective,
+                "repository": str(plan.facts.get("repository") or ""),
                 "head": head,
                 "tree": str(plan.facts.get("tree") or ""),
                 "change_id": str(fact_values.get("change_id") or ""),
@@ -189,6 +195,20 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                 "context": {"boundary": boundary},
                 "boundary": boundary,
                 "required_gaps": list(required_gaps),
+                "inputs": {
+                    "commitment": plan.commitment_digest,
+                    "facts": plan.facts_digest,
+                    "plan": plan.digest(),
+                    "policy": plan.policy_digest,
+                },
+                "output": {"artifact": digest, "verdict": verdict},
+                "freshness": {
+                    "mode": "semantic_scope",
+                    "repository": str(plan.facts.get("repository") or ""),
+                    "head": head,
+                    "tree": str(plan.facts.get("tree") or ""),
+                    "policy": plan.policy_digest,
+                },
                 "plan": _plan_closure(plan),
                 "artifact": artifact,
             },
@@ -219,21 +239,26 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
 
 def persist_proof_attestation(root: Path, attestation: Attestation) -> Path:
     """Persist one proof Attestation directly by its content-addressed identity."""
-    if (
-        attestation.predicate != "proof:execution"
-        or not attestation.subject.startswith("git:commit:")
-        or not all(
-            (
-                attestation.commitment_digest,
-                attestation.facts_digest,
-                attestation.plan_digest,
-                attestation.policy_digest,
-                attestation.effect_digest,
-            )
-        )
+    if attestation.predicate != "proof:execution" or not attestation.subject.startswith(
+        "git:commit:"
     ):
         msg = "proof_attestation_binding_missing"
         raise ValueError(msg)
+    checks, artifact_gaps = artifact_checks(attestation_store_dir(root), attestation)
+    gaps = artifact_gaps if checks is None else proof_statement_gaps(attestation, checks)
+    structural_gaps = [
+        gap
+        for gap in gaps
+        if gap
+        not in {
+            "proof_attestation_verdict_block",
+            "proof_attestation_verdict_unknown",
+            "proof_attestation_check_not_passed",
+            "trust_bearing_proof_missing",
+        }
+    ]
+    if structural_gaps:
+        raise ValueError(structural_gaps[0])
     payload = attestation.canonical_json().encode("utf-8")
     Attestation.model_validate_json(payload)
     return write_content_addressed(
@@ -299,118 +324,26 @@ def proof_plan(
     )
 
 
-def _proof_candidate_gaps(root: Path, head: str, attestation: Attestation) -> list[str]:
-    """Validate a proof from immutable Attestation closure only."""
-    if attestation.subject != f"git:commit:{head}" or attestation.statement.get("head") != head:
-        return ["proof_attestation_head_mismatch"]
-    checks, artifact_gaps = artifact_checks(attestation_store_dir(root), attestation)
-    if artifact_gaps or checks is None:
-        return artifact_gaps
-    return [
-        *proof_statement_gaps(attestation, checks),
-        *_proof_policy_gaps(root, head, checks),
-    ]
-
-
-def _proof_policy_gaps(
-    root: Path,
-    head: str,
-    checks: tuple[dict[str, object], ...],
-) -> list[str]:
-    gaps: list[str] = []
-    policy = resolve_gate_policy(root, tree_ref=head)
-    required = policy.gate_ids
-    present = {str(check["action_id"]) for check in checks}
-    if missing := sorted(gate_id for gate_id in required if gate_id not in present):
-        gaps.append(f"proof_incomplete:{','.join(missing)}")
-    selected = resolve_gate_policy(
-        root,
-        tree_ref=head,
-        gate_ids=tuple(str(check["action_id"]) for check in checks),
-    )
-    gaps.extend(selected.conformance_gaps(list(checks)))
-    return gaps
-
-
-def _proof_query(head: str, validity: datetime) -> AuthorityQuery:
-    return AuthorityQuery(
-        subject=f"git:commit:{head}",
-        predicate="proof:execution",
-        scope=("repository",),
-        plane="local",
-        validity=validity,
-        context=(("boundary", "repository"),),
-    )
-
-
-def _proof_validation(root: Path, head: str) -> tuple[Attestation | None, list[str]]:
-    attestations, store_gaps = scan_attestations(attestation_store_dir(root))
-    candidates = tuple(
-        attestation
-        for attestation in attestations
-        if (
-            attestation.predicate == "proof:execution"
-            and attestation.subject == f"git:commit:{head}"
-        )
-    )
-    if store_gaps or not candidates:
-        return None, store_gaps or ["proof_not_proven"]
-    evaluated = [
-        (attestation, _proof_candidate_gaps(root, head, attestation)) for attestation in candidates
-    ]
-    integrity_gaps = [
-        gap
-        for _attestation, gaps in evaluated
-        for gap in gaps
-        if gap.startswith(
-            (
-                "proof_attestation_artifact_",
-                "proof_attestation_binding_mismatch:",
-                "proof_attestation_head_",
-                "proof_attestation_plan_",
-                "proof_attestation_tree_",
-            )
-        )
-    ]
-    if integrity_gaps:
-        return None, list(dict.fromkeys(integrity_gaps))
-    valid = tuple(attestation for attestation, gaps in evaluated if not gaps)
-    if valid:
-        validity = datetime.now(UTC)
-        extracted = tuple(
-            descriptor_from_attestation(attestation, validity=validity) for attestation in valid
-        )
-        if any(result.required_gaps for result in extracted):
-            return None, ["model_gap"]
-        descriptors = tuple(
-            result.descriptor for result in extracted if result.descriptor is not None
-        )
-        resolution = resolve_authority(_proof_query(head, validity), descriptors)
-        if resolution.verdict != "pass":
-            return None, list(resolution.required_gaps)
-        return max(valid, key=lambda attestation: (attestation.issued_at, attestation.id)), []
-    latest = max(evaluated, key=lambda item: (item[0].issued_at, item[0].id))
-    return None, latest[1]
-
-
 def proof_attestation(root: Path, head: str) -> Attestation | None:
     """Return the newest fully valid generic proof Attestation for one exact HEAD."""
-    attestation, gaps = _proof_validation(root, head)
+    attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
+        root, head, store=attestation_store_dir(root)
+    )
     return attestation if not gaps else None
 
 
 def proof_plan_for_attestation(root: Path, attestation: Attestation) -> TransitionPlan:
     """Return the exact plan closure after immutable proof admission."""
-    head = attestation.subject.removeprefix("git:commit:")
-    selected, gaps = _proof_validation(root, head)
-    if gaps or selected is None or selected.id != attestation.id:
-        raise ValueError(gaps[0] if gaps else "proof_attestation_not_current")
-    return plan_from_statement(attestation)
+    return ethos.adapters.mutation.proof_admission.plan_for_attestation(
+        root, attestation, store=attestation_store_dir(root)
+    )
 
 
 def proof_gaps(root: Path, head: str) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
-    _attestation, gaps = _proof_validation(root, head)
+    _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
+        root, head, store=attestation_store_dir(root)
+    )
     return gaps
 
 

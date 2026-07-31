@@ -89,7 +89,7 @@ slice HEAD; only the campaign lane remains for this intent.
 
 - [x] 1.1 Remove Commitment process fields, amendment APIs, effective-intent
   folds, closed Attestation kinds, and all preserving readers and schemas.
-- [ ] 1.2 Make Attestation predicate, statement, bindings, validity, verifier,
+- [x] 1.2 Make Attestation predicate, statement, bindings, validity, verifier,
   and evidence references the open immutable envelope. Predicate-owned typed
   evidence binds claim, normalized command and result, repository identity,
   input/output digests, HEAD, time, and freshness; unknown predicates remain

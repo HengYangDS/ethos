@@ -424,7 +424,11 @@ def test_publish_blocks_exact_head_proof_gap_without_parallel_quality_verdict(
     seed_executed_proof(repo, head)
     gap = "proof_attestation_stale:quality-policy"
     monkeypatch.setattr(lifecycle_cli, "repository_context", lambda _repo: {"profile": "test"})
-    monkeypatch.setattr(lifecycle_cli, "proof_gaps", lambda _repo, _head: [gap])
+    monkeypatch.setattr(
+        lifecycle_cli,
+        "proof_gaps",
+        lambda _repo, _head, **_kwargs: [gap],
+    )
     payload = run_ethos("publish", "--json", cwd=repo)
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"

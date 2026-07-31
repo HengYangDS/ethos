@@ -22,10 +22,12 @@ from ethos.adapters.mutation.landing import apply_candidate_to_accepted
 from ethos.adapters.mutation.landing import apply_land_to_candidate
 from ethos.adapters.mutation.landing import candidate_base_report
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof import proof_readiness_report
 from ethos.adapters.openspec.profile import active_change_names
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import MutationAdmissionRequest
@@ -448,7 +450,22 @@ def _candidate_land_result(
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     proof_readiness: dict[str, object] = {}
     if verdict == "pass" and not apply:
-        proof_readiness = proof_readiness_report(repo, current_head)
+        try:
+            expected_plan = proof_plan(
+                repo,
+                head=current_head,
+                binding_branch=str(status_payload["branch"]),
+                changed_paths=change_scope_paths_from_status(repo, status_payload),
+            )
+        except ValueError as error:
+            proof_readiness = {
+                "blocking": True,
+                "required_gaps": [str(error)],
+            }
+        else:
+            proof_readiness = proof_readiness_report(
+                repo, current_head, expected_plan=expected_plan
+            )
         proof_gaps = tuple(string_sequence(proof_readiness.get("required_gaps")))
         gaps = tuple(dict.fromkeys((*gaps, *proof_gaps)))
         verdict = reduce_verdicts(
@@ -572,11 +589,29 @@ def publish(
         action="publish",
         request=independent_verification_request(root=repo, action="publish"),
     )
-    branch = workspace_status(repo, include_foreign_path_scope=False)["branch"]
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
+    branch = status_payload["branch"]
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
-    terminal_gaps = tuple(proof_gaps(repo, current_head))
+    if decision.verdict == "block":
+        terminal_gaps = ()
+    else:
+        try:
+            expected_plan = proof_plan(
+                repo,
+                head=current_head,
+                binding_branch=str(status_payload["branch"]),
+                changed_paths=(
+                    change_scope_paths_from_status(repo, status_payload)
+                    if status_payload["role"] == "work_lane"
+                    else ()
+                ),
+            )
+        except ValueError as error:
+            terminal_gaps = (str(error),)
+        else:
+            terminal_gaps = tuple(proof_gaps(repo, current_head, expected_plan=expected_plan))
     gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))

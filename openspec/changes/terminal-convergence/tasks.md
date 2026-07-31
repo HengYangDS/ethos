@@ -113,7 +113,7 @@ deterministic transient TransitionPlan reproduce every public lifecycle verdict.
   fact, or history at its narrow owner; emit a transient descriptor only for a
   real contextual-resolution consumer, keep other roles in their native owner,
   and reject unmappable valid semantics as `model_gap`.
-- [ ] 2.2 Replace global rank/currentness indexes with resolution over subject,
+- [x] 2.2 Replace global rank/currentness indexes with resolution over subject,
   predicate, scope, plane, validity, exact bindings, and contradiction blocking.
 - [ ] 2.3 Remove historical workflow re-evaluation from admission; validate
   closure over exact Commitment, Facts, policy, plan, effect, and artifact.

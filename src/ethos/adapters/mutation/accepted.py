@@ -10,6 +10,9 @@ from ethos.adapters.admission.closeout_intent.marker import MarkerExpectation
 from ethos.adapters.admission.closeout_intent.marker import execute_closeout_effect
 from ethos.adapters.admission.closeout_intent.marker import sweep_stale_closeout_intents
 from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_evidence_digest
+from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof import proof_plan_for_attestation
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -78,7 +81,6 @@ def _apply_candidate_promotion(*, root, policy, status, heads, context):
             else ()
         ),
     )
-    evidence_digest = proof.id
     result = None
     try:
         plan, commitment_digest, facts_digest = proof_attestation_bindings(root, proof)
@@ -92,6 +94,7 @@ def _apply_candidate_promotion(*, root, policy, status, heads, context):
             stderr=str(error),
         )
     if result is None:
+        evidence_digest = proof_evidence_digest(root, candidate_head, expected_plan=plan)
         bootstrap, bootstrap_gap = _release_bootstrap(root, current_head, candidate_head, mirror)
         if bootstrap_gap:
             result = _accepted_block(
@@ -237,9 +240,22 @@ def _promotion_blocker(*, root, policy, current_head, candidate_head, release_ol
             _accepted_block(policy, current_head, topology_gaps, candidate_head=candidate_head),
             None,
         )
-    proof = proof_attestation(root, candidate_head)
+    try:
+        expected_plan = proof_plan(
+            root, head=candidate_head, binding_branch=policy.candidate_branch
+        )
+    except ValueError as error:
+        return _accepted_block(policy, current_head, [str(error)]), None
+    proof = proof_attestation(root, candidate_head, expected_plan=expected_plan)
     if proof is None:
-        return _accepted_block(policy, current_head, ["proof_not_proven"]), None
+        return (
+            _accepted_block(
+                policy,
+                current_head,
+                proof_gaps(root, candidate_head, expected_plan=expected_plan),
+            ),
+            None,
+        )
     return None, proof
 
 

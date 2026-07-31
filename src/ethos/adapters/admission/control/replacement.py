@@ -15,6 +15,10 @@ from ethos.adapters.admission.evidence.external import load_independent_verifica
 from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
 from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_evidence_digest
+from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof import proof_plan
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.rules import stable_digest
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.profile import IndependentVerificationPolicy
@@ -126,12 +130,24 @@ def _verification_subject(
     candidate_tree = git.git_stdout(root, "rev-parse", f"{candidate_head}^{{tree}}")
     accepted_digest = _control_digest(root, accepted_head, control_paths)
     candidate_digest = _control_digest(root, candidate_head, control_paths)
-    proof = proof_attestation(root, candidate_head)
-    proof_digest = proof.id if proof is not None else ""
+    try:
+        expected_plan = proof_plan(
+            root,
+            head=candidate_head,
+            binding_branch=load_branch_role_policy(root).candidate_branch,
+        )
+    except ValueError as error:
+        return {}, {}, [str(error)]
+    proof = proof_attestation(root, candidate_head, expected_plan=expected_plan)
+    proof_digest = (
+        proof_evidence_digest(root, candidate_head, expected_plan=expected_plan)
+        if proof is not None
+        else ""
+    )
     if not accepted_tree or not candidate_tree or not accepted_digest or not candidate_digest:
         return {}, {}, ["control_replacement_control_snapshot_unavailable"]
     if not proof_digest:
-        return {}, {}, ["control_replacement_candidate_proof_not_proven"]
+        return {}, {}, proof_gaps(root, candidate_head, expected_plan=expected_plan)
     subject = {
         "schema_version": 1,
         "kind": "control-replacement",

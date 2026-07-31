@@ -25,20 +25,6 @@ vendor-specific assistant root canonical.
 - OpenSpec workspace: [OpenSpec](openspec/)
 - Documentation index: [Documentation Index](docs/index.md)
 
-## Authority Resolution
-
-The current user instruction sets the objective and authorization boundary; it
-does not turn an assertion, projection, or stale observation into repository
-fact. Resolve every repository claim and effect contextually through
-[`system/authority.toml`](system/authority.toml), using subject, predicate,
-scope, plane, validity, and context.
-
-Native carriers and fresh facts may be authoritative only for their declared
-query. Projections, adapters, history, evidence, rules, skills, and host state
-do not gain authority from a global rank. Unknown required facts, stale
-bindings, ambiguity, contradictions, and unmodelled valid semantics block the
-effect until the owning carrier is repaired or the model is promoted.
-
 ## Load Order
 
 1. Read this file.

@@ -101,7 +101,7 @@ slice HEAD; only the campaign lane remains for this intent.
 - [x] 1.5 Use Pydantic v2 for portable boundary contracts and small frozen
   standard-library values internally; reject attrs/dataclass/Pydantic dual
   models, conversion layers, and mutable semantic roots.
-- [ ] 1.6 Generate language-neutral schemas from the single model owner and use
+- [x] 1.6 Generate language-neutral schemas from the single model owner and use
   direct `graphlib.TopologicalSorter` for TransitionPlan ordering and cycles.
 
 **Exit 1:** only Commitment and Attestation persist; fresh Facts plus a

@@ -96,7 +96,7 @@ def _candidate_gaps(root: Path, head: str, store: Path, attestation: Attestation
         return gaps
     return [
         *proof_statement_gaps(attestation, checks),
-        *_policy_gaps(root, head, checks, policy_digest=plan.policy_digest),
+        *_policy_gaps(root, head, checks, policy_digest=plan.inputs.policy),
     ]
 
 

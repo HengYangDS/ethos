@@ -10,6 +10,8 @@ import ethos.adapters.openspec.cli as openspec_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.contracts.plan import PlanInputs
+from ethos.contracts.plan import TransitionPlan
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
@@ -839,17 +841,13 @@ def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
 
-    def rejected_plan(*_args, **_kwargs):
-        class RejectedPlan:
-            verdict = "block"
+    rejected_plan = TransitionPlan.compile(
+        inputs=PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
+        facts={},
+        required_gaps=("repository_subject_mismatch",),
+    )
 
-            @staticmethod
-            def gaps() -> tuple[str, ...]:
-                return ("repository_subject_mismatch",)
-
-        return RejectedPlan()
-
-    monkeypatch.setattr(proof_cli, "proof_plan", rejected_plan)
+    monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: rejected_plan)
     rejected = run_ethos_blocked("prove", "--json", cwd=repo)
     assert rejected["required_gaps"] == ["repository_subject_mismatch"]
     assert rejected["next_actions"] == ["repair the Commitment or repository facts"]
@@ -870,21 +868,10 @@ def test_prove_empty_focused_plan_keeps_host_probe_separate_without_claiming_rea
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
 
-    class ReadyPlan:
-        verdict = "pass"
-        nodes: tuple[object, ...] = ()
-
-        @staticmethod
-        def gaps() -> tuple[str, ...]:
-            return ()
-
-        @staticmethod
-        def ordered_nodes() -> tuple[object, ...]:
-            return ()
-
-        @staticmethod
-        def to_dict() -> dict[str, object]:
-            return {}
+    ready_plan = TransitionPlan.compile(
+        inputs=PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
+        facts={},
+    )
 
     monkeypatch.setattr(
         proof_cli.status_domain,
@@ -902,7 +889,7 @@ def test_prove_empty_focused_plan_keeps_host_probe_separate_without_claiming_rea
         "openspec_governance_report",
         lambda *_args, **_kwargs: {"verdict": "pass", "required_gaps": [], "summary": {}},
     )
-    monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: ReadyPlan())
+    monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: ready_plan)
     completed = run_ethos_raw("prove", "--scope", "docs", "--host", "--probe", "--json", cwd=repo)
     assert completed.returncode == 1
     payload = json.loads(completed.stdout)

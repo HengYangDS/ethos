@@ -94,9 +94,7 @@ def _run_plan_checks(
     gates_by_id = resolve_gate_policy(repo, gate_ids=tuple(node.id for node in plan.nodes)).registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     checks: list[dict[str, object]] = []
-    for run_result in (
-        runner.run(node, gates_by_id[node.id], root=repo) for node in plan.ordered_nodes()
-    ):
+    for run_result in (runner.run(node, gates_by_id[node.id], root=repo) for node in plan.nodes):
         gate = gates_by_id[run_result.action_id]
         checks.append(
             {
@@ -199,7 +197,7 @@ def prove(
             json_output=json_output,
         )
         return
-    plan_gaps = plan.gaps()
+    plan_gaps = plan.required_gaps
     if plan.verdict != "pass":
         emit(
             EthosResult(
@@ -336,7 +334,7 @@ def prove(
             "scope": scope_binding["scope"],
             "scope_binding": scope_binding,
             "host_probe": host_probe,
-            "transition_plan": plan.to_dict(),
+            "transition_plan": plan.model_dump(mode="json"),
             "attestation": attestation_data,
             "artifact_reference": artifact_reference,
             "checks": check_summaries,

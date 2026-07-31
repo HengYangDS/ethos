@@ -17,6 +17,7 @@ import ethos.contracts.semantic
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
+from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import terminal_schema_documents
@@ -30,9 +31,7 @@ from ethos.repository.context import repository_context
 from ethos.result import EthosResult
 
 _PLAN_INPUTS = {
-    "commitment_digest": "a" * 64,
-    "facts_digest": "b" * 64,
-    "policy_digest": "c" * 64,
+    "inputs": PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
     "facts": {
         "schema_version": 1,
         "repository": "repository:test",
@@ -77,9 +76,12 @@ def _attestation(
 def test_transition_plan_is_deterministic_and_digest_bound() -> None:
     prove = PlanNode(id="prove", kind="check", command=("ethos", "prove", "--json"))
     status = PlanNode(id="status", kind="check", command=("ethos", "status", "--json"))
-    plan = TransitionPlan(**_PLAN_INPUTS, nodes=(prove, status))
-    assert [node["id"] for node in plan.to_dict()["nodes"]] == ["prove", "status"]
-    assert plan.digest() == TransitionPlan(**_PLAN_INPUTS, nodes=(status, prove)).digest()
+    plan = TransitionPlan.compile(**_PLAN_INPUTS, nodes=(prove, status))
+    assert [node["id"] for node in plan.model_dump(mode="json")["nodes"]] == [
+        "prove",
+        "status",
+    ]
+    assert plan.digest == TransitionPlan.compile(**_PLAN_INPUTS, nodes=(status, prove)).digest
 
 
 def test_gate_declaration_compiles_one_stable_transitive_proof_closure() -> None:
@@ -469,10 +471,10 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "unknown",
         "missing",
     ]
-    plan = TransitionPlan(
+    plan = TransitionPlan.compile(
         **_PLAN_INPUTS, nodes=(PlanNode(id="land", kind="effect", command=("ethos", "land")),)
     )
-    assert plan.to_dict()["inputs"]["commitment"] == "a" * 64
+    assert plan.model_dump(mode="json")["inputs"]["commitment"] == "a" * 64
     assert set(generated["transition-plan.schema.json"]["required"]) == {
         "schema_version",
         "inputs",

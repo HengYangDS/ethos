@@ -70,7 +70,7 @@ class MarkerExpectation:
     """The proof and terminal bindings required for one closeout effect.
 
     Marker consumption skips an absent evidence or policy comparison. Effect execution
-    separately rejects missing contract, facts, or policy bindings before mutation.
+    separately rejects missing Commitment, Facts, or policy bindings before mutation.
     Bundling keeps the boundary cohesive rather than passing a bag of digest parameters.
     """
 

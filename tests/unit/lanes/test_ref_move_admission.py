@@ -300,7 +300,7 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     assert report["lease"]["expected_head"] == new_head
 
 
-def test_work_lane_ref_transition_blocks_target_with_rewritten_base_contract(
+def test_work_lane_ref_transition_blocks_target_with_rewritten_base_commitment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -319,15 +319,15 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_contract(
             base_commitment_digest=base_digest,
         ),
     )
-    contract = candidate / "openspec" / "changes" / "fixture-change" / "commitment.toml"
-    contract.write_text(
-        contract.read_text(encoding="utf-8").replace(
+    commitment = candidate / "openspec" / "changes" / "fixture-change" / "commitment.toml"
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace(
             "Exercise the governed fixture lifecycle.",
             "Rewrite the governed fixture lifecycle.",
         ),
         encoding="utf-8",
     )
-    git(candidate, "add", contract.relative_to(candidate).as_posix())
+    git(candidate, "add", commitment.relative_to(candidate).as_posix())
     git(
         candidate,
         "-c",
@@ -336,7 +336,7 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_contract(
         "user.email=test@example.com",
         "commit",
         "-m",
-        "rewrite base contract",
+        "rewrite base commitment",
     )
     target = git(candidate, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")

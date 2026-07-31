@@ -257,7 +257,7 @@ def _lease_binding_reason(
 ) -> str:
     base_digest = str(lease.get("base_commitment_digest") or "")
     expected_head = str(lease.get("expected_head") or "")
-    contract_reason = ""
+    commitment_reason = ""
     try:
         load_profile_lease_bound_commitment(
             root,
@@ -266,7 +266,7 @@ def _lease_binding_reason(
         )
     except ValueError as exc:
         reason = str(exc)
-        contract_reason = f"{reason}:{branch}" if reason.startswith("lease_base_") else reason
+        commitment_reason = f"{reason}:{branch}" if reason.startswith("lease_base_") else reason
     checks = (
         (
             actor != str(lease.get("holder_ref") or ""),
@@ -280,7 +280,7 @@ def _lease_binding_reason(
             expected_head != current_head,
             f"lease_head_stale:{branch}",
         ),
-        (bool(contract_reason), contract_reason),
+        (bool(commitment_reason), commitment_reason),
     )
     return next((reason for failed, reason in checks if failed), "")
 

@@ -416,6 +416,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     serialized_workspace_schema = json.dumps(workspace_schema, sort_keys=True)
     assert "claim_id" not in serialized_workspace_schema
     assert "claim_binding" not in serialized_workspace_schema
+    assert "contract_binding" not in serialized_workspace_schema
     assert "closeoutResidueLane" not in workspace_schema["$defs"]
     for retired_field in (
         "closeout_disposition",
@@ -434,7 +435,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         properties = workspace_schema["$defs"][definition]["properties"]
         assert {
             "base_commitment_digest",
-            "contract_binding",
+            "commitment_binding",
             "lease_state",
         } <= set(properties)
     assert workspace_schema["$defs"]["foreignWorkLane"]["properties"]["lease_state"]["enum"] == [

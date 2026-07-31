@@ -84,11 +84,11 @@ def start_work_lane(
     candidate, admission_block = admit_lane_start(repo, branch=branch, target=target)
     if admission_block:
         return admission_block
-    source, contract_block = lane_start_contract(
+    source, commitment_block = lane_start_commitment(
         repo, branch=branch, target=target, source_root=source_root
     )
-    if contract_block:
-        return contract_block
+    if commitment_block:
+        return commitment_block
     source_root, source_change_id, base_digest, source_head, source_branch = source
     return create_lane_start_carrier(
         LaneStartContext(
@@ -199,7 +199,7 @@ def lane_start_target(
     return branch, target, None
 
 
-def lane_start_contract(
+def lane_start_commitment(
     repo: Path,
     *,
     branch: str,
@@ -211,7 +211,7 @@ def lane_start_contract(
     source_branch = ""
     source_head = ""
     change_id = ""
-    contract_digest = ""
+    commitment_digest = ""
     gap = "source_root_required" if source_root is None else ""
     if not gap and source_root is not None:
         try:
@@ -236,29 +236,29 @@ def lane_start_contract(
                 str(source_lease.get("expected_head") or "") != source_head,
             ),
             (
-                "source_lease_contract_unbound",
-                str(source_lease.get("contract_binding") or "") != "bound",
+                "source_lease_commitment_unbound",
+                str(source_lease.get("commitment_binding") or "") != "bound",
             ),
         )
         gap = next((name for name, failed in checks if failed), "")
     if not gap:
         try:
-            contract = load_openspec_commitment(source, tree_ref=source_head)
+            commitment = load_openspec_commitment(source, tree_ref=source_head)
         except ValueError as exc:
             gap = str(exc)
         else:
-            change_id = contract.id.removeprefix("change:")
-            contract_digest = str(source_lease.get("base_commitment_digest") or "")
+            change_id = commitment.id.removeprefix("change:")
+            commitment_digest = str(source_lease.get("base_commitment_digest") or "")
     if (
         not gap
         and tree_entries(source, source_head, f"openspec/changes/{change_id}", run=run_git) is None
     ):
         gap = "source_change_carrier_missing"
-    source_contract = (source, change_id, contract_digest, source_head, source_branch)
+    source_commitment = (source, change_id, commitment_digest, source_head, source_branch)
     return (
         ((Path(), "", "", "", ""), blocked_lane_start(branch, target, gap))
         if gap
-        else (source_contract, None)
+        else (source_commitment, None)
     )
 
 

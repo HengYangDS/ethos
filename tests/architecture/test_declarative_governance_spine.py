@@ -69,6 +69,17 @@ def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() ->
     source = _read("src/ethos/contracts/plan.py")
     assert "from graphlib import" in source
     assert "TopologicalSorter" in source
+    parallel = [
+        path.relative_to(ROOT).as_posix()
+        for path in CORE_SOURCE.rglob("*.py")
+        if path != CORE_SOURCE / "contracts" / "plan.py"
+        and "TopologicalSorter" in path.read_text(encoding="utf-8")
+    ]
+    assert parallel == []
+    assert "def _plan_closure(" not in _read("src/ethos/adapters/mutation/proof.py")
+    assert "def _closure_plan(" not in _read("src/ethos/adapters/mutation/proof_validation.py")
+    assert "def to_dict(" not in source
+    assert "def normalized(" not in source
     assert "GraphKernel" not in source
     assert "ActionGraph" not in source
     assert not (CORE_SOURCE / "graph").exists()

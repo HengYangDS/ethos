@@ -1,7 +1,5 @@
 """Transient, deterministic TransitionPlan compiled from repository declarations."""
 
-from __future__ import annotations
-
 import fnmatch
 import hashlib
 import json
@@ -16,14 +14,13 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import computed_field
-from pydantic import field_serializer
 from pydantic import model_validator
 
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.value import FrozenMapping
+from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
@@ -57,19 +54,8 @@ class PlanNode(_PlanModel):
 
     id: str = Field(min_length=1)
     kind: Literal["check", "decision", "effect"]
-    command: tuple[str, ...] = ()
-    depends_on: tuple[str, ...] = Field(default=(), json_schema_extra={"uniqueItems": True})
-
-    def normalized(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "kind": self.kind,
-            "command": list(self.command),
-            "depends_on": sorted(self.depends_on),
-        }
-
-    def to_dict(self) -> dict[str, Any]:
-        return self.normalized()
+    command: FrozenTuple[str] = ()
+    depends_on: FrozenTuple[str] = Field(default=(), json_schema_extra={"uniqueItems": True})
 
 
 class PlanInputs(_PlanModel):
@@ -122,37 +108,6 @@ class GitEffect(_PlanModel):
         return hashlib.sha256(_stable_json(self.model_dump(mode="json")).encode()).hexdigest()
 
 
-def _ordered_ids(nodes: tuple[PlanNode, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    seen: set[str] = set()
-    duplicates: set[str] = set()
-    ids = {node.id for node in nodes}
-    gaps: list[str] = []
-    for node in nodes:
-        if node.id in seen:
-            duplicates.add(node.id)
-        seen.add(node.id)
-        gaps.extend(
-            f"missing_dependency:{node.id}->{dependency}"
-            for dependency in node.depends_on
-            if dependency not in ids
-        )
-    gaps = [*(f"duplicate_node_id:{node_id}" for node_id in sorted(duplicates)), *gaps]
-    stable = tuple(sorted(node.id for node in nodes))
-    if gaps:
-        return stable, tuple(dict.fromkeys(gaps))
-    sorter = TopologicalSorter(
-        {
-            node.id: tuple(sorted(node.depends_on))
-            for node in sorted(nodes, key=lambda item: item.id)
-        }
-    )
-    try:
-        ordered = tuple(sorter.static_order())
-    except CycleError:
-        return stable, ("cycle_detected",)
-    return ordered, ()
-
-
 class TransitionPlan(_PlanModel):
     """Hashable transient plan; it owns no repository truth or mutation."""
 
@@ -164,77 +119,114 @@ class TransitionPlan(_PlanModel):
         json_schema_serialization_defaults_required=True,
     )
 
-    commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
-    facts_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
-    policy_digest: str = Field(pattern=r"^[a-f0-9]{64}$", exclude=True)
-    permissions: tuple[str, ...] = Field(default=(), json_schema_extra={"uniqueItems": True})
+    schema_version: Literal[1] = Field(default=1, json_schema_extra={"readOnly": True})
+    inputs: PlanInputs = Field(json_schema_extra={"readOnly": True})
+    permissions: FrozenTuple[str] = Field(default=(), json_schema_extra={"uniqueItems": True})
     facts: JsonObject = Field(default_factory=dict)
-    nodes: tuple[PlanNode, ...] = ()
-    initial_verdict: Verdict = Field(default="pass", exclude=True)
-    validation_issues: tuple[str, ...] = Field(default=(), exclude=True)
+    nodes: FrozenTuple[PlanNode] = ()
+    verdict: Verdict = Field(json_schema_extra={"readOnly": True})
+    required_gaps: FrozenTuple[str] = Field(json_schema_extra={"readOnly": True})
+    digest: Digest = Field(json_schema_extra={"readOnly": True})
 
-    @computed_field
-    @property
-    def schema_version(self) -> Literal[1]:
-        return 1
+    @staticmethod
+    def _resolve_nodes(
+        nodes: tuple[PlanNode, ...], selected: tuple[str, ...] | None = None
+    ) -> tuple[tuple[PlanNode, ...], tuple[str, ...]]:
+        duplicates: set[str] = set()
+        by_id: dict[str, PlanNode] = {}
+        normalized = tuple(
+            node.model_copy(update={"depends_on": tuple(sorted(set(node.depends_on)))})
+            for node in nodes
+        )
+        for node in normalized:
+            if node.id in by_id:
+                duplicates.add(node.id)
+            by_id[node.id] = node
+        gaps = [f"duplicate_node_id:{node_id}" for node_id in sorted(duplicates)]
+        required = set(by_id if selected is None else selected)
+        pending = list(required)
+        while pending:
+            node_id = pending.pop()
+            node = by_id.get(node_id)
+            if node is None:
+                gaps.append(f"missing_node:{node_id}")
+                continue
+            for dependency in node.depends_on:
+                if dependency not in by_id:
+                    gaps.append(f"missing_dependency:{node.id}->{dependency}")
+                elif dependency not in required:
+                    required.add(dependency)
+                    pending.append(dependency)
+        selected_nodes = tuple(node for node in normalized if node.id in required)
+        stable = tuple(
+            sorted(
+                selected_nodes,
+                key=lambda node: (node.id, node.kind, node.command, node.depends_on),
+            )
+        )
+        if gaps:
+            return stable, tuple(dict.fromkeys(gaps))
+        sorter = TopologicalSorter(
+            {
+                node.id: tuple(sorted(node.depends_on))
+                for node in sorted(selected_nodes, key=lambda item: item.id)
+            }
+        )
+        try:
+            order = tuple(sorter.static_order())
+        except CycleError:
+            return stable, ("cycle_detected",)
+        return tuple(by_id[node_id] for node_id in order), ()
 
-    @computed_field
-    @property
-    def inputs(self) -> PlanInputs:
-        return PlanInputs(
-            commitment=self.commitment_digest,
-            facts=self.facts_digest,
-            policy=self.policy_digest,
+    @classmethod
+    def closure(
+        cls, nodes: tuple[PlanNode, ...], selected: tuple[str, ...] | None = None
+    ) -> tuple[PlanNode, ...]:
+        """Return one dependency-complete canonical DAG closure."""
+        ordered, gaps = cls._resolve_nodes(nodes, selected)
+        if gaps:
+            raise ValueError(gaps[0])
+        return ordered
+
+    @classmethod
+    def compile(
+        cls,
+        *,
+        inputs: PlanInputs,
+        permissions: tuple[str, ...] = (),
+        facts: JsonObject,
+        nodes: tuple[PlanNode, ...] = (),
+        verdict: Verdict = "pass",
+        required_gaps: tuple[str, ...] = (),
+    ) -> Self:
+        """Compile one canonical immutable DAG projection from exact inputs."""
+        ordered, graph_gaps = cls._resolve_nodes(nodes)
+        gaps = tuple(dict.fromkeys((*required_gaps, *graph_gaps)))
+        payload: dict[str, Any] = {
+            "schema_version": 1,
+            "inputs": inputs.model_dump(mode="json"),
+            "permissions": sorted(set(permissions)),
+            "facts": mutable_json(facts),
+            "nodes": [node.model_dump(mode="json") for node in ordered],
+            "verdict": close_verdict(verdict, gaps),
+            "required_gaps": list(gaps),
+        }
+        return cls.model_validate(
+            payload | {"digest": hashlib.sha256(_stable_json(payload).encode()).hexdigest()}
         )
 
-    def gaps(self) -> tuple[str, ...]:
-        _, gaps = _ordered_ids(self.nodes)
-        return tuple(dict.fromkeys((*self.validation_issues, *gaps)))
-
-    @computed_field
-    @property
-    def verdict(self) -> Verdict:
-        """Return the closed transition verdict; hard gaps always block."""
-        return close_verdict(self.initial_verdict, self.gaps())
-
-    @computed_field(alias="required_gaps")
-    @property
-    def public_gaps(self) -> tuple[str, ...]:
-        return self.gaps()
-
-    @computed_field(alias="digest")
-    @property
-    def public_digest(self) -> Digest:
-        return self.digest()
-
-    def ordered_nodes(self) -> tuple[PlanNode, ...]:
-        ordered, _ = _ordered_ids(self.nodes)
-        by_id = {node.id: node for node in self.nodes}
-        return tuple(by_id[node_id] for node_id in ordered if node_id in by_id)
-
-    @field_serializer("nodes", when_used="json")
-    def serialize_nodes(self, _: tuple[PlanNode, ...]) -> tuple[PlanNode, ...]:
-        return self.ordered_nodes()
-
-    def to_dict(self) -> dict[str, Any]:
-        return self.model_dump(mode="json", by_alias=True)
-
-    def digest(self) -> str:
-        payload: dict[str, Any] = {
-            "inputs": {
-                "commitment": self.commitment_digest,
-                "facts": self.facts_digest,
-                "policy": self.policy_digest,
-            },
-            "permissions": sorted(self.permissions),
-            "facts": self.facts,
-            "nodes": [node.normalized() for node in self.ordered_nodes()],
-        }
-        if self.initial_verdict != "pass":
-            payload["initial_verdict"] = self.initial_verdict
-        if self.validation_issues:
-            payload["validation_issues"] = list(self.validation_issues)
-        return hashlib.sha256(_stable_json(payload).encode()).hexdigest()
+    @model_validator(mode="after")
+    def validate_canonical_projection(self) -> Self:
+        """Reject noncanonical order, open verdicts, graph gaps, or stale identity."""
+        ordered, graph_gaps = self._resolve_nodes(self.nodes)
+        if ordered != self.nodes or any(gap not in self.required_gaps for gap in graph_gaps):
+            raise ValueError("transition_plan_graph_invalid")
+        if close_verdict(self.verdict, self.required_gaps) != self.verdict:
+            raise ValueError("transition_plan_verdict_invalid")
+        payload = self.model_dump(mode="json", exclude={"digest"})
+        if self.digest != hashlib.sha256(_stable_json(payload).encode()).hexdigest():
+            raise ValueError("transition_plan_digest_mismatch")
+        return self
 
 
 def compile_plan(
@@ -243,32 +235,34 @@ def compile_plan(
     nodes: tuple[PlanNode, ...],
     *,
     policy_digest: str,
-    validation_issues: tuple[str, ...] = (),
+    required_gaps: tuple[str, ...] = (),
 ) -> TransitionPlan:
     """Compile one effective commitment and current fact snapshot into TransitionPlan."""
-    issues = list(validation_issues)
+    gaps = list(required_gaps)
     if commitment.subjects and facts.repository not in commitment.subjects:
-        issues.append("repository_subject_mismatch")
+        gaps.append("repository_subject_mismatch")
     if commitment.scope:
         changed_paths = facts.values.get("changed_paths", ())
         if not isinstance(changed_paths, tuple | list) or any(
             not _valid_relative_path(path) for path in changed_paths
         ):
-            issues.append("changed_paths_invalid")
+            gaps.append("changed_paths_invalid")
         elif any(
             not any(_path_matches(path, pattern) for pattern in commitment.scope)
             for path in changed_paths
             if isinstance(path, str)
         ):
-            issues.append("change_scope_exceeded")
-    return TransitionPlan(
-        commitment_digest=commitment.digest(),
-        facts_digest=facts.digest(),
-        policy_digest=policy_digest,
+            gaps.append("change_scope_exceeded")
+    return TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=commitment.digest(),
+            facts=facts.digest(),
+            policy=policy_digest,
+        ),
         permissions=commitment.permissions,
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=nodes,
-        validation_issues=tuple(dict.fromkeys(issues)),
+        required_gaps=tuple(dict.fromkeys(gaps)),
     )
 
 

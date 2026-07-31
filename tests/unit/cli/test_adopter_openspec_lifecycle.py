@@ -16,6 +16,7 @@ from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.contracts.openspec.models import OpenSpecPolicy
+from ethos.contracts.plan import TransitionPlan
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import active_change_names_in_ref
 from ethos.repository.openspec.audit import official_config_report
@@ -907,8 +908,13 @@ def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Pat
     adoption_plan(repo, apply=True)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
-    blocked = proof_plan(repo, head=git(repo, "rev-parse", "HEAD")).model_copy(
-        update={"validation_issues": ("blocked-plan",)}
+    admitted = proof_plan(repo, head=git(repo, "rev-parse", "HEAD"))
+    blocked = TransitionPlan.compile(
+        inputs=admitted.inputs,
+        permissions=admitted.permissions,
+        facts=admitted.facts,
+        nodes=admitted.nodes,
+        required_gaps=("blocked-plan",),
     )
     monkeypatch.setattr("ethos.repository.context._contextual_authority", lambda *_args: {})
 

@@ -124,21 +124,6 @@ def _proof_issue_values(
     )
 
 
-def _plan_closure(plan: TransitionPlan) -> dict[str, object]:
-    """Embed the exact transient plan inside the immutable proof statement."""
-    return {
-        "commitment_digest": plan.commitment_digest,
-        "facts_digest": plan.facts_digest,
-        "policy_digest": plan.policy_digest,
-        "permissions": list(plan.permissions),
-        "facts": plan.facts,
-        "nodes": [node.model_dump(mode="json") for node in plan.nodes],
-        "initial_verdict": plan.initial_verdict,
-        "validation_issues": list(plan.validation_issues),
-        "digest": plan.digest(),
-    }
-
-
 def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attestation:
     """Issue a proof with a self-contained plan and executed-check closure."""
     plan, checks, verdict, issuer, scope, boundary, issued_at, objective, required_gaps = (
@@ -158,7 +143,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if not head or not _proof_plan_matches(root, head, plan):
         msg = "proof_plan_binding_mismatch"
         raise ValueError(msg)
-    execution_order = tuple(node.id for node in plan.ordered_nodes())
+    execution_order = tuple(node.id for node in plan.nodes)
     checks_by_id = {str(check["action_id"]): check for check in checks}
     if set(checks_by_id) != set(execution_order):
         msg = "proof_attestation_check_plan_mismatch"
@@ -196,10 +181,10 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                 "boundary": boundary,
                 "required_gaps": list(required_gaps),
                 "inputs": {
-                    "commitment": plan.commitment_digest,
-                    "facts": plan.facts_digest,
-                    "plan": plan.digest(),
-                    "policy": plan.policy_digest,
+                    "commitment": plan.inputs.commitment,
+                    "facts": plan.inputs.facts,
+                    "plan": plan.digest,
+                    "policy": plan.inputs.policy,
                 },
                 "output": {"artifact": digest, "verdict": verdict},
                 "freshness": {
@@ -207,16 +192,16 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                     "repository": str(plan.facts.get("repository") or ""),
                     "head": head,
                     "tree": str(plan.facts.get("tree") or ""),
-                    "policy": plan.policy_digest,
+                    "policy": plan.inputs.policy,
                 },
-                "plan": _plan_closure(plan),
+                "plan": plan.model_dump(mode="json"),
                 "artifact": artifact,
             },
             "evidence_refs": (f"sha256:{digest}",),
-            "commitment_digest": plan.commitment_digest,
-            "facts_digest": plan.facts_digest,
-            "plan_digest": plan.digest(),
-            "policy_digest": plan.policy_digest,
+            "commitment_digest": plan.inputs.commitment,
+            "facts_digest": plan.inputs.facts,
+            "plan_digest": plan.digest,
+            "policy_digest": plan.inputs.policy,
             "effect_digest": digest,
         }
     )
@@ -320,7 +305,7 @@ def proof_plan(
         facts,
         nodes,
         policy_digest=policy.digest,
-        validation_issues=policy.gaps,
+        required_gaps=policy.gaps,
     )
 
 
@@ -385,4 +370,4 @@ def _proof_plan_matches(root: Path, head: str, plan: TransitionPlan) -> bool:
         )
     except ValueError:
         return False
-    return expected.digest() == plan.digest()
+    return expected.digest == plan.digest

@@ -6,6 +6,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
+from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
@@ -14,9 +15,7 @@ from ethos.contracts.semantic import Facts
 from ethos.contracts.verdict import Verdict
 
 _INPUTS = {
-    "commitment_digest": "a" * 64,
-    "facts_digest": "b" * 64,
-    "policy_digest": "c" * 64,
+    "inputs": PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
     "facts": {
         "schema_version": 1,
         "repository": "repository:test",
@@ -28,11 +27,11 @@ _INPUTS = {
 }
 
 
-def _plan(*, initial_verdict: Verdict = "pass", validation_issues=(), nodes=()) -> TransitionPlan:
-    return TransitionPlan(
+def _plan(*, verdict: Verdict = "pass", required_gaps=(), nodes=()) -> TransitionPlan:
+    return TransitionPlan.compile(
         **_INPUTS,
-        initial_verdict=initial_verdict,
-        validation_issues=validation_issues,
+        verdict=verdict,
+        required_gaps=required_gaps,
         nodes=nodes,
     )
 
@@ -56,14 +55,51 @@ def test_transition_plan_orders_dependencies_before_dependents() -> None:
         )
     )
 
-    assert [node.id for node in plan.ordered_nodes()] == ["status", "prove", "publish"]
-    assert plan.to_dict()["nodes"][0]["id"] == "status"
+    assert [node.id for node in plan.nodes] == ["status", "prove", "publish"]
+
+
+def test_transition_plan_canonicalizes_set_like_inputs() -> None:
+    inputs = (
+        PlanNode(id="lint", kind="check"),
+        PlanNode(id="test", kind="check"),
+    )
+    first = TransitionPlan.compile(
+        **_INPUTS,
+        permissions=("repository.write", "repository.read", "repository.write"),
+        nodes=(
+            *inputs,
+            PlanNode(
+                id="publish",
+                kind="effect",
+                depends_on=("test", "lint", "test"),
+            ),
+        ),
+    )
+    second = TransitionPlan.compile(
+        **_INPUTS,
+        permissions=("repository.read", "repository.write"),
+        nodes=(
+            *reversed(inputs),
+            PlanNode(id="publish", kind="effect", depends_on=("lint", "test")),
+        ),
+    )
+
+    assert first == second
+    assert first.permissions == ("repository.read", "repository.write")
+    assert first.nodes[-1].depends_on == ("lint", "test")
+
+
+def test_transition_plan_distinguishes_all_nodes_from_an_empty_selection() -> None:
+    nodes = (PlanNode(id="status", kind="check"),)
+
+    assert TransitionPlan.closure(nodes) == nodes
+    assert TransitionPlan.closure(nodes, ()) == ()
 
 
 def test_transition_plan_public_projection_round_trips_through_its_model_owner() -> None:
     plan = _plan(nodes=(PlanNode(id="status", kind="check", command=("ethos", "status")),))
 
-    payload = plan.to_dict()
+    payload = plan.model_dump(mode="json", by_alias=True)
 
     assert set(payload) == {
         "schema_version",
@@ -75,7 +111,7 @@ def test_transition_plan_public_projection_round_trips_through_its_model_owner()
         "required_gaps",
         "digest",
     }
-    assert "commitment_digest" not in payload
+    assert TransitionPlan.model_validate(payload) == plan
 
 
 def test_transition_plan_facts_are_deeply_immutable() -> None:
@@ -98,7 +134,7 @@ def test_transition_plan_rejects_missing_dependency() -> None:
     )
 
     assert plan.verdict == "block"
-    assert "missing_dependency:prove->status" in plan.gaps()
+    assert "missing_dependency:prove->status" in plan.required_gaps
 
 
 def test_transition_plan_rejects_cycle() -> None:
@@ -110,7 +146,7 @@ def test_transition_plan_rejects_cycle() -> None:
     )
 
     assert plan.verdict == "block"
-    assert "cycle_detected" in plan.gaps()
+    assert "cycle_detected" in plan.required_gaps
 
 
 def test_transition_plan_rejects_duplicate_node_id() -> None:
@@ -122,7 +158,7 @@ def test_transition_plan_rejects_duplicate_node_id() -> None:
     )
 
     assert plan.verdict == "block"
-    assert "duplicate_node_id:prove" in plan.gaps()
+    assert "duplicate_node_id:prove" in plan.required_gaps
 
 
 def test_invalid_transition_plan_still_serializes_without_recursion() -> None:
@@ -137,7 +173,7 @@ def test_invalid_transition_plan_still_serializes_without_recursion() -> None:
         )
     )
 
-    payload = plan.to_dict()
+    payload = plan.model_dump(mode="json")
 
     assert payload["nodes"][0]["id"] == "prove"
     assert payload["verdict"] == "block"
@@ -148,18 +184,18 @@ def test_valid_transition_plan_has_pass_verdict() -> None:
     plan = _plan(nodes=(PlanNode(id="status", kind="check", command=("ethos", "status")),))
 
     assert plan.verdict == "pass"
-    assert plan.to_dict()["verdict"] == "pass"
+    assert plan.model_dump(mode="json")["verdict"] == "pass"
 
 
 def test_transition_plan_unknown_verdict_remains_explicit_and_non_authorizing() -> None:
-    unknown = _plan(initial_verdict="unknown")
-    blocked = _plan(initial_verdict="unknown", validation_issues=("facts_unavailable",))
+    unknown = _plan(verdict="unknown")
+    blocked = _plan(verdict="unknown", required_gaps=("facts_unavailable",))
 
     assert unknown.verdict == "unknown"
     assert not hasattr(unknown, "ok")
-    assert unknown.to_dict()["verdict"] == "unknown"
+    assert unknown.model_dump(mode="json")["verdict"] == "unknown"
     assert blocked.verdict == "unknown"
-    assert blocked.to_dict()["verdict"] == "unknown"
+    assert blocked.model_dump(mode="json")["verdict"] == "unknown"
 
 
 def test_verdict_algebra_is_closed() -> None:
@@ -205,7 +241,7 @@ def test_compile_plan_binds_commitment_subject_and_scope_to_current_facts() -> N
         facts=facts,
         nodes=(node,),
         policy_digest="c" * 64,
-    ).gaps() == ("repository_subject_mismatch", "change_scope_exceeded")
+    ).required_gaps == ("repository_subject_mismatch", "change_scope_exceeded")
 
 
 def test_repository_wide_scope_matches_root_and_nested_paths() -> None:
@@ -247,7 +283,7 @@ def test_compile_plan_rejects_noncanonical_changed_paths(path: object) -> None:
 
     assert compile_plan(
         commitment=commitment, facts=facts, nodes=(), policy_digest="c" * 64
-    ).gaps() == ("changed_paths_invalid",)
+    ).required_gaps == ("changed_paths_invalid",)
 
 
 def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
@@ -299,18 +335,18 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
     assert (
         len(
             {
-                base.digest(),
-                changed_commitment.digest(),
-                changed_facts.digest(),
-                changed_policy.digest(),
+                base.digest,
+                changed_commitment.digest,
+                changed_facts.digest,
+                changed_policy.digest,
             }
         )
         == 4
     )
-    assert base.to_dict()["inputs"] == {
+    assert base.model_dump(mode="json")["inputs"] == {
         "commitment": base_commitment.digest(),
         "facts": base_facts.digest(),
         "policy": "c" * 64,
     }
     assert base.permissions == ("repository.read",)
-    assert base.to_dict()["permissions"] == ["repository.read"]
+    assert base.model_dump(mode="json")["permissions"] == ["repository.read"]

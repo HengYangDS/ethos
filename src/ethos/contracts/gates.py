@@ -1,8 +1,6 @@
 """Typed declaration contract for ETHOS gate registries."""
 
 import tomllib
-from graphlib import CycleError
-from graphlib import TopologicalSorter
 from pathlib import Path
 from typing import Literal
 from typing import Self
@@ -14,6 +12,8 @@ from pydantic import model_validator
 
 from ethos._resources import declaration_text
 from ethos._resources import resolve_declaration_path
+from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import FrozenTuple
 
 DECLARATION_PATH = Path("system/gates.toml")
@@ -145,25 +145,11 @@ class GateRegistryDeclaration(BaseModel):
         missing = set(selected) - registry.keys()
         if missing:
             raise ValueError(_UNKNOWN_PROOF_GATE)
-        required = set(selected)
-        pending = list(selected)
-        while pending:
-            gate = registry[pending.pop()]
-            for dependency in gate.depends_on:
-                if dependency not in required:
-                    required.add(dependency)
-                    pending.append(dependency)
-        order = TopologicalSorter(
-            {
-                gate_id: tuple(
-                    dependency
-                    for dependency in registry[gate_id].depends_on
-                    if dependency in required
-                )
-                for gate_id in sorted(required)
-            }
-        ).static_order()
-        return tuple(registry[gate_id] for gate_id in order)
+        nodes = tuple(
+            PlanNode(id=gate.id, kind="check", command=gate.command, depends_on=gate.depends_on)
+            for gate in registry.values()
+        )
+        return tuple(registry[node.id] for node in TransitionPlan.closure(nodes, selected))
 
 
 def _validate_registry(name: RegistryName, gates: tuple[Gate, ...]) -> set[str]:
@@ -173,8 +159,18 @@ def _validate_registry(name: RegistryName, gates: tuple[Gate, ...]) -> set[str]:
     if any(set(gate.depends_on) - emitted for gate in entries):
         raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY)
     try:
-        tuple(TopologicalSorter({gate.id: gate.depends_on for gate in entries}).static_order())
-    except CycleError as exc:
+        TransitionPlan.closure(
+            tuple(
+                PlanNode(
+                    id=gate.id,
+                    kind="check",
+                    command=gate.command,
+                    depends_on=gate.depends_on,
+                )
+                for gate in entries
+            )
+        )
+    except ValueError as exc:
         raise ValueError(_UNAVAILABLE_GATE_DEPENDENCY) from exc
     return emitted
 

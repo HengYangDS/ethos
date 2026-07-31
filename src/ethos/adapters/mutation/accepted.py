@@ -301,7 +301,7 @@ def proof_attestation_bindings(
     if not proof.plan_digest:
         msg = "git_effect_binding_missing:plan_digest"
         raise ValueError(msg)
-    if proof.policy_digest != plan.policy_digest:
+    if proof.policy_digest != plan.inputs.policy:
         msg = "git_effect_binding_stale:policy_digest"
         raise ValueError(msg)
     return plan, proof.commitment_digest, proof.facts_digest

@@ -19,7 +19,10 @@ new product ontology.
    no amendment chain survives.
 2. **Five processing roles.** Every carrier is native, projection, adapter,
    fact, or history. The resolver may emit transient descriptors, but no
-   universal manifest, registry, ledger, or index is persisted.
+   universal manifest, registry, ledger, or index is persisted. Classification
+   is operation-selected and does not itself mint authority; an owner validates its
+   carrier directly unless a real contextual-resolution consumer needs a
+   descriptor, and no operation must manufacture all five roles.
 3. **Contextual authority.** Authority/currentness resolves per subject,
    predicate, scope, plane, validity, and context. Global rank, timestamp-only
    selection, `CURRENT`, accepted/superseded directory status, and manual
@@ -269,6 +272,7 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 
 | Task | Prior body SHA-256 | Successor body SHA-256 | Disposition | Ruling |
 | --- | --- | --- | --- | --- |
+| `2.1` | `f1152551ce2a0c177e6be6873e10a1e9984caa7ee4f4d3ae5a3a5fa8b69efdbd` | `a4442bf4be9d6e836916542c8f177766bafe37d1bbb64feef5e1956c39bd5bb9` | clarified | Five roles are owner-local processing classifications; only a real contextual-resolution consumer justifies a transient descriptor. |
 | `4.1` | `b7918d4d35027a9193c1b5424b1abfe58ddd11f44fa824b2c751782cfa942e7c` | `b301e40fa59dc5bd192d169f033515d9879e78ec8d1a50a17dceca1884c5a3da` | clarified | OpenSpec 1.7 characterization, nested specs, artifact dependencies, and removal of the 1.6 reader became explicit acceptance obligations. |
 | `6.10` | `9fe10d07717cf56b5696e8e4fc0ed91737e060de10e8e89121f78ba01a0d49c6` | `6dfc3d418c1b630624d1281111cf564cc6dc1f605b80ed511fe184c70a8c8905` | clarified | Official 1.7 archive edge cases and fail-closed validation became explicit acceptance obligations. |
 | `4.1` | `b301e40fa59dc5bd192d169f033515d9879e78ec8d1a50a17dceca1884c5a3da` | `3c12cf104f3867dbe7e926b9622390117c81b008cc496bc693ab73eae817e64f` | superseded | The later product ruling keeps the kernel vendor-neutral but requires verified OpenSpec for every mutation-capable complete adopter. |

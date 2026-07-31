@@ -80,7 +80,7 @@ def test_ethos_result_rejects_coercion_and_unknown_fields(payload: dict[str, obj
         EthosResult.model_validate(payload)
 
 
-def test_ethos_result_json_contract_has_no_parallel_success_flag() -> None:
+def test_projection_preserves_blocking_gaps_without_parallel_success_flag() -> None:
     result = EthosResult(
         command="plan",
         verdict="block",

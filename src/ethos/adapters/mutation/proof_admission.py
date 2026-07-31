@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -35,12 +34,19 @@ def proof_attestation(
     )
     if store_gaps or not candidates:
         return None, store_gaps or ["proof_not_proven"]
-    evaluated = [(item, _candidate_gaps(root, head, store, item)) for item in candidates]
+    validity = datetime.now(UTC)
+    current = tuple(item for item in candidates if _current_at(item, validity))
+    if not current:
+        return None, ["unknown_required_fact"]
+    evaluated = [(item, _candidate_gaps(root, head, store, item)) for item in current]
     integrity = [
         gap
         for _item, gaps in evaluated
         for gap in gaps
-        if (gap.startswith("proof_attestation_") or gap == "proof_policy_digest_stale")
+        if (
+            gap.startswith("proof_attestation_")
+            or gap in {"model_gap", "proof_policy_digest_stale"}
+        )
         and gap
         not in {
             "proof_attestation_verdict_block",
@@ -52,7 +58,6 @@ def proof_attestation(
         return None, list(dict.fromkeys(integrity))
     valid = tuple(item for item, gaps in evaluated if not gaps)
     if valid:
-        validity = datetime.now(UTC)
         descriptors = tuple(_descriptor(item, validity) for item in valid)
         query = _query(head, validity)
         mismatched = tuple(descriptor for descriptor in descriptors if descriptor.query != query)
@@ -80,6 +85,12 @@ def proof_attestation(
             result = (None, list(resolution.required_gaps))
         return result
     return None, max(evaluated, key=lambda item: (item[0].issued_at, item[0].id))[1]
+
+
+def _current_at(attestation: Attestation, instant: datetime) -> bool:
+    return (attestation.valid_from or attestation.issued_at) <= instant and (
+        attestation.valid_until is None or instant <= attestation.valid_until
+    )
 
 
 def _candidate_gaps(root: Path, head: str, store: Path, attestation: Attestation) -> list[str]:
@@ -153,6 +164,7 @@ def _descriptor(attestation: Attestation, validity: datetime) -> CarrierDescript
     )
     return CarrierDescriptor(
         role="fact",
+        declared_authority=True,
         query=_query(
             attestation.subject.removeprefix("git:commit:"),
             validity,
@@ -160,20 +172,16 @@ def _descriptor(attestation: Attestation, validity: datetime) -> CarrierDescript
             plane=str(statement["plane"]),
             boundary=str(statement["boundary"]),
         ),
-        assertion=json.dumps(
-            {
-                "claim": statement.get("claim"),
-                "repository": statement.get("repository"),
-                "scope": statement.get("scope"),
-                "plane": statement.get("plane"),
-                "context": statement.get("context"),
-                "boundary": statement.get("boundary"),
-                "required_gaps": statement.get("required_gaps"),
-                "verifier": attestation.verifier,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        ),
+        assertion={
+            "claim": statement.get("claim"),
+            "repository": statement.get("repository"),
+            "scope": statement.get("scope"),
+            "plane": statement.get("plane"),
+            "context": statement.get("context"),
+            "boundary": statement.get("boundary"),
+            "required_gaps": statement.get("required_gaps"),
+            "verifier": attestation.verifier,
+        },
         bindings=bindings,
         source=f"attestation:{attestation.id}",
         valid_from=attestation.valid_from or attestation.issued_at,

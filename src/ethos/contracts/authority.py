@@ -9,6 +9,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import JsonValue
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
@@ -36,19 +37,13 @@ class CarrierDescriptor(_AuthorityModel):
     """Transient carrier meaning extracted for one exact query."""
 
     role: CarrierRole
+    declared_authority: bool = False
     query: AuthorityQuery
     assertion: JsonValue
     bindings: tuple[tuple[str, str], ...]
     source: str = Field(min_length=1)
     valid_from: AwareDatetime | None = None
     valid_until: AwareDatetime | None = None
-
-
-class ExtractionResult(_AuthorityModel):
-    """Lossless descriptor extraction or an explicit model gap."""
-
-    descriptor: CarrierDescriptor | None = None
-    required_gaps: tuple[str, ...] = ()
 
 
 class AuthorityResolution(_AuthorityModel):
@@ -64,16 +59,6 @@ class AuthorityResolution(_AuthorityModel):
         return self
 
 
-def extract_carrier_descriptor(payload: object) -> ExtractionResult:
-    """Extract one descriptor without guessing absent authority semantics."""
-    if not isinstance(payload, dict):
-        return ExtractionResult(required_gaps=("model_gap",))
-    try:
-        return ExtractionResult(descriptor=CarrierDescriptor.model_validate(payload))
-    except (TypeError, ValueError):
-        return ExtractionResult(required_gaps=("model_gap",))
-
-
 def resolve_authority(
     query: AuthorityQuery,
     descriptors: tuple[CarrierDescriptor, ...],
@@ -83,7 +68,9 @@ def resolve_authority(
     candidates = tuple(
         descriptor
         for descriptor in relevant
-        if descriptor.role in {"native", "fact"} and _valid_at(descriptor, query.validity)
+        if descriptor.declared_authority
+        and descriptor.role in {"native", "fact"}
+        and _valid_at(descriptor, query.validity)
     )
     if not candidates:
         return AuthorityResolution(
@@ -91,7 +78,7 @@ def resolve_authority(
             descriptors=relevant,
             required_gaps=("unknown_required_fact",),
         )
-    meanings = {repr(descriptor.assertion) for descriptor in candidates}
+    meanings = {canonical_json_digest(descriptor.assertion) for descriptor in candidates}
     if len(meanings) > 1:
         return AuthorityResolution(
             verdict="block",

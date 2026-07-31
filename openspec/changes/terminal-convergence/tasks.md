@@ -109,8 +109,10 @@ deterministic transient TransitionPlan reproduce every public lifecycle verdict.
 
 ## 2. Replace Parallel Truth With Contextual Resolution
 
-- [ ] 2.1 Implement native, projection, adapter, fact, and history extraction;
-  reject unmappable valid semantics as `model_gap`.
+- [x] 2.1 Classify each operation-selected carrier as native, projection, adapter,
+  fact, or history at its narrow owner; emit a transient descriptor only for a
+  real contextual-resolution consumer, keep other roles in their native owner,
+  and reject unmappable valid semantics as `model_gap`.
 - [ ] 2.2 Replace global rank/currentness indexes with resolution over subject,
   predicate, scope, plane, validity, exact bindings, and contradiction blocking.
 - [ ] 2.3 Remove historical workflow re-evaluation from admission; validate

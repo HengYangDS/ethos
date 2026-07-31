@@ -10,9 +10,7 @@ from pydantic import ValidationError
 from ethos.contracts.authority import AuthorityQuery
 from ethos.contracts.authority import AuthorityResolution
 from ethos.contracts.authority import CarrierDescriptor
-from ethos.contracts.authority import extract_carrier_descriptor
 from ethos.contracts.authority import resolve_authority
-from ethos.contracts.semantic import Attestation
 
 NOW = datetime(2026, 7, 29, tzinfo=UTC)
 
@@ -33,9 +31,11 @@ def descriptor(
     *,
     assertion: object = True,
     plane: str = "local",
+    declared_authority: bool = True,
 ) -> CarrierDescriptor:
     return CarrierDescriptor(
         role=role,
+        declared_authority=declared_authority,
         query=query(plane=plane),
         assertion=assertion,
         bindings=(("head", "abc"),),
@@ -45,32 +45,6 @@ def descriptor(
     )
 
 
-def test_five_carrier_roles_extract_without_persistent_registry() -> None:
-    for role in ("native", "projection", "adapter", "fact", "history"):
-        result = extract_carrier_descriptor(descriptor(role).model_dump())
-        assert result.descriptor is not None
-        assert result.descriptor.role == role
-        assert result.required_gaps == ()
-
-
-def test_incomplete_or_unknown_carrier_meaning_is_model_gap() -> None:
-    assert extract_carrier_descriptor({"role": "native"}).required_gaps == ("model_gap",)
-    assert extract_carrier_descriptor(
-        descriptor("native").model_dump() | {"role": "registry"}
-    ).required_gaps == ("model_gap",)
-
-
-def test_authority_descriptor_requires_explicit_scope_plane_and_context() -> None:
-    incomplete = {"role": "fact", "source": "attestation:test"}
-    complete = descriptor("fact").model_dump()
-
-    assert extract_carrier_descriptor(incomplete).required_gaps == ("model_gap",)
-    extracted = extract_carrier_descriptor(complete)
-    assert extracted.required_gaps == ()
-    assert extracted.descriptor is not None
-    assert extracted.descriptor.query == query()
-
-
 def test_projection_adapter_and_history_never_authorize() -> None:
     result = resolve_authority(
         query(),
@@ -78,6 +52,16 @@ def test_projection_adapter_and_history_never_authorize() -> None:
     )
     assert result.verdict == "unknown"
     assert result.required_gaps == ("unknown_required_fact",)
+
+
+def test_role_without_declared_authority_never_authorizes() -> None:
+    for role in ("native", "fact"):
+        result = resolve_authority(
+            query(),
+            (descriptor(role, declared_authority=False),),
+        )
+        assert result.verdict == "unknown"
+        assert result.required_gaps == ("unknown_required_fact",)
 
 
 def test_fact_requires_current_validity() -> None:
@@ -99,21 +83,11 @@ def test_equal_meaning_passes_and_contradiction_blocks() -> None:
     assert blocked.required_gaps == ("contradiction",)
 
 
-def test_attestation_envelope_does_not_imply_authority_meaning() -> None:
-    attestation = Attestation.issue(
-        {
-            "predicate": "experiment:novel",
-            "verifier": "agent:test",
-            "subject": "git:commit:abc",
-            "issued_at": NOW,
-            "verdict": "pass",
-            "statement": {"scope": ["repository"], "plane": "local", "context": {}},
-            "plan_digest": "a" * 64,
-        }
-    )
+def test_authority_meaning_is_independent_of_mapping_order() -> None:
+    first = descriptor("native", assertion={"a": 1, "b": 2})
+    reordered = descriptor("fact", assertion={"b": 2, "a": 1})
 
-    assert attestation.predicate == "experiment:novel"
-    assert extract_carrier_descriptor(attestation.model_dump()).required_gaps == ("model_gap",)
+    assert resolve_authority(query(), (first, reordered)).verdict == "pass"
 
 
 def test_different_planes_are_not_globally_ranked() -> None:

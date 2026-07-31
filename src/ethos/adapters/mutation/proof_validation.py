@@ -16,6 +16,28 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
 
+_STATEMENT_FIELDS = {
+    "artifact",
+    "boundary",
+    "change_id",
+    "changed_paths",
+    "claim",
+    "context",
+    "freshness",
+    "gate_ids",
+    "head",
+    "inputs",
+    "objective",
+    "output",
+    "plan",
+    "plane",
+    "repository",
+    "required_gaps",
+    "scope",
+    "tree",
+}
+_FACT_VALUE_FIELDS = {"change_id", "changed_paths", "gate_ids"}
+
 
 def plan_from_statement(attestation: Attestation) -> TransitionPlan:
     """Rehydrate the exact transient plan carried by an admitted proof statement."""
@@ -124,7 +146,11 @@ def proof_statement_gaps(
     except (TypeError, ValueError) as error:
         return [str(error)]
     gaps = _binding_gaps(attestation, plan)
+    values = plan.facts.get("values")
+    fact_values = values if isinstance(values, Mapping) else {}
     expected = {
+        "change_id": str(fact_values.get("change_id") or ""),
+        "changed_paths": tuple(string_sequence(fact_values.get("changed_paths"))),
         "claim": {"objective": statement.get("objective"), "verdict": attestation.verdict},
         "repository": plan.facts.get("repository"),
         "inputs": {
@@ -142,6 +168,10 @@ def proof_statement_gaps(
             "policy": plan.inputs.policy,
         },
     }
+    if statement.keys() - _STATEMENT_FIELDS:
+        gaps.append("model_gap")
+    if fact_values.keys() - _FACT_VALUE_FIELDS:
+        gaps.append("model_gap")
     gaps.extend(
         f"proof_attestation_{name}_mismatch"
         for name, value in expected.items()

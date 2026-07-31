@@ -85,3 +85,12 @@ A valid requirement that cannot be represented losslessly by the roots and carri
 #### Scenario: a new requirement does not fit the model
 - **WHEN** carrier extraction cannot map the requirement without an exception or parallel truth owner
 - **THEN** ETHOS preserves the distinction for model promotion and blocks the effect
+
+#### Scenario: processing roles stay owner-local
+- **WHEN** a selected operation observes a native, projection, adapter, fact, or
+  history carrier
+- **THEN** the carrier's narrow owner SHALL classify and validate it without a
+  universal registry or parallel read model
+- **AND** it SHALL emit a transient descriptor only when a real contextual
+  resolution consumer requires one
+- **AND** the processing role alone SHALL NOT grant authority

@@ -14,6 +14,7 @@ from jsonschema.exceptions import SchemaError
 from ethos._resources import resolve_declaration_path
 from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.capabilities import contained_package_path
+from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_list
 
 FRONTMATTER_PART_COUNT = 3
@@ -185,7 +186,7 @@ def validate_skill_markdown(
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        return {"ok": False, "required_gaps": [f"skill_missing_file:{skill_id}"]}
+        return {"verdict": "block", "required_gaps": [f"skill_missing_file:{skill_id}"]}
     if not _frontmatter_ok(text):
         gaps.append(f"skill_quality_missing_frontmatter:{skill_id}")
     gaps.extend(_frontmatter_gaps(skill_id, text))
@@ -207,13 +208,16 @@ def validate_skill_markdown(
             body = _section_body(text, section)
             if _is_placeholder_body(body):
                 gaps.append(f"skill_quality_placeholder_section:{skill_id}:{section}")
-    return {"ok": not gaps, "required_gaps": gaps}
+    return {
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
+        "required_gaps": gaps,
+    }
 
 
 def _manifest_result(result: SkillPackageResult) -> dict[str, Any]:
     gaps = list(result.required_gaps)
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "id": result.skill_id,
         "manifest": result.manifest_path,
         "digest": result.digest,

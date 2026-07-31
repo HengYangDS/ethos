@@ -74,7 +74,7 @@ def start_work_lane(
         normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
     except ValueError:
         return {
-            "ok": False,
+            "verdict": "block",
             "state": "blocked",
             "branch": branch,
             "required_gaps": ["holder_ref_invalid"],
@@ -156,7 +156,13 @@ def candidate_lane_start_gap(
     )
     if gap := next((name for name, failed in checks if failed), ""):
         return gap, {}
-    active_changes = active_change_names_in_ref(repo, candidate_branch)
+    active_change_report = active_change_names_in_ref(repo, candidate_branch)
+    if active_change_report["verdict"] != "pass":
+        return (
+            "candidate_active_change_observation_unknown",
+            {"candidate_active_change_observation": active_change_report},
+        )
+    active_changes = cast("list[str]", active_change_report["changes"])
     return (
         ("candidate_active_change_carrier_present", {"candidate_active_changes": active_changes})
         if active_changes
@@ -177,7 +183,7 @@ def lane_start_target(
             branch,
             Path(),
             {
-                "ok": False,
+                "verdict": "block",
                 "state": "blocked",
                 "branch": branch,
                 "required_gaps": ["repository_family_profile_requires_work_branch_prefix"],
@@ -189,7 +195,7 @@ def lane_start_target(
             branch,
             target,
             {
-                "ok": False,
+                "verdict": "block",
                 "state": "blocked",
                 "branch": branch,
                 "path": path.resolve().as_posix(),
@@ -272,7 +278,7 @@ def lane_start_carrier_gap(repo: Path, *, target: Path, branch: str) -> str:
 def planned_lane_start(*, branch: str, target: Path) -> dict[str, object]:
     """Build the no-effect lane-start plan receipt."""
     return {
-        "ok": True,
+        "verdict": "pass",
         "state": "planned",
         "branch": branch,
         "path": target.as_posix(),
@@ -284,7 +290,7 @@ def planned_lane_start(*, branch: str, target: Path) -> dict[str, object]:
 def blocked_lane_start(branch: str, target: Path, *gaps: str, **extra: object) -> dict[str, object]:
     """Build a blocked lane-start receipt with all verified gaps."""
     return {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "branch": branch,
         "path": target.as_posix(),

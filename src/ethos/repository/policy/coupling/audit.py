@@ -7,6 +7,7 @@ from typing import Any
 
 from ethos.contracts.registry.declarations import CouplingDeclaration
 from ethos.contracts.registry.declarations import load_coupling_declaration
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.coupling.closure import repository_product_reference_gaps
 from ethos.repository.policy.coupling.registry import binding_registry
 from ethos.repository.policy.coupling.registry import binding_registry_gaps
@@ -40,7 +41,7 @@ def coupling_audit_report(root: Path) -> dict[str, Any]:
         *repository_product_reference_gaps(root),
     ]
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "taxonomy": dict(declaration.layers),
         "git_native": {

@@ -59,26 +59,15 @@ ROLE_POLICY_SAMPLE = {
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     report = schema_validation_report()
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["mode"] == "product"
     assert set(REQUIRED_SCHEMAS) <= set(report["schemas"])
     assert report["required_gaps"] == []
-    assert report["schemas"]["quality-asset.schema.json"]["ok"] is True
-    assert report["schemas"]["quality-gate-plan.schema.json"]["ok"] is True
-    assert report["schemas"]["quality-profile.schema.json"]["ok"] is True
-    assert report["schemas"]["review-record.schema.json"]["ok"] is True
-    assert report["schemas"]["host-capability.schema.json"]["ok"] is True
-    assert report["schemas"]["skill-activation.schema.json"]["ok"] is True
-    assert report["schemas"]["skill-registry.schema.json"]["ok"] is True
-    assert report["schemas"]["skill-package-manifest.schema.json"]["ok"] is True
-    assert report["instances"]["docs-registry"]["ok"] is True
-    assert report["instances"]["gate-registry"]["ok"] is True
-    assert report["instances"]["quality-profile"]["ok"] is True
-    assert report["instances"]["quality-gate-plan"]["ok"] is True
-    assert report["instances"]["live-skill-activation-contract"]["ok"] is True
-    assert report["instances"]["live-skill-registry-contract"]["ok"] is True
-    assert report["instances"]["live-skill-package-manifests"]["ok"] is True
-    assert report["instances"]["coupling-audit-contract"]["ok"] is True
+    assert all(item["verdict"] == "pass" for item in report["schemas"].values())
+    assert all("ok" not in item for item in report["schemas"].values())
+    assert all(item["verdict"] == "pass" for item in report["instances"].values())
+    assert all("ok" not in item for item in report["instances"].values())
 
 
 def test_container_contract_is_not_a_product_schema_or_profile_field() -> None:
@@ -100,10 +89,11 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(
     report = schema_validation_report(tmp_path)
 
     assert report["mode"] == "adopter"
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["schema_count"] >= 24
     assert report["required_gaps"] == []
-    assert report["instances"]["docs-registry"]["ok"] is True
+    assert report["instances"]["docs-registry"]["verdict"] == "pass"
 
 
 def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contracts(
@@ -120,9 +110,10 @@ def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contra
     report = schema_validation_report(tmp_path)
 
     assert report["mode"] == "adopter"
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["schema_count"] >= 24
-    assert report["instances"]["docs-registry"]["ok"] is True
+    assert report["instances"]["docs-registry"]["verdict"] == "pass"
 
 
 def test_schema_validation_rejects_retired_capability_profile_schema(tmp_path) -> None:
@@ -136,24 +127,26 @@ def test_schema_validation_rejects_retired_capability_profile_schema(tmp_path) -
 
     report = schema_validation_report(tmp_path)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["required_gaps"] == ["schema_retired:capability-profile.schema.json"]
-    assert report["schemas"]["capability-profile.schema.json"]["ok"] is False
+    assert report["schemas"]["capability-profile.schema.json"]["verdict"] == "block"
 
 
 def test_result_payload_validates_against_schema() -> None:
-    result = EthosResult(command="status", ok=True, state="ready").to_dict()
+    result = EthosResult(command="status", verdict="pass", state="ready").to_dict()
 
     validation = validate_ethos_result(result)
 
-    assert validation["ok"] is True
+    assert validation["verdict"] == "pass"
+    assert "ok" not in validation
     json.dumps(validation)
 
 
 def test_result_payload_accepts_governed_repository_context() -> None:
     result = EthosResult(
         command="status",
-        ok=True,
+        verdict="pass",
         state="ready",
         governance_context={
             "contract": "governed_repository",
@@ -170,7 +163,7 @@ def test_result_payload_accepts_governed_repository_context() -> None:
                     "validity",
                     "context",
                 ],
-                "unknown_verdict": "block",
+                "unknown_verdict": "unknown",
                 "currentness_requirements": [
                     "integrity",
                     "declared_authority",
@@ -189,7 +182,8 @@ def test_result_payload_accepts_governed_repository_context() -> None:
 
     validation = validate_ethos_result(result)
 
-    assert validation["ok"] is True
+    assert validation["verdict"] == "pass"
+    assert "ok" not in validation
     json.dumps(validation)
 
 
@@ -201,7 +195,7 @@ def test_result_payload_accepts_governed_repository_context() -> None:
         {
             "query": {
                 "required": ["subject", "predicate", "scope", "plane", "context"],
-                "unknown_verdict": "block",
+                "unknown_verdict": "unknown",
             }
         },
     ],
@@ -221,7 +215,7 @@ def test_contextual_authority_schema_rejects_global_rank_or_noncanonical_query_a
                 "validity",
                 "context",
             ],
-            "unknown_verdict": "block",
+            "unknown_verdict": "unknown",
         },
         "currentness": {
             "requires": [
@@ -250,7 +244,8 @@ def test_contextual_authority_schema_rejects_global_rank_or_noncanonical_query_a
     }
     validation = validate_schema_instance("../contracts/authority.schema.json", authority | invalid)
 
-    assert validation["ok"] is False
+    assert validation["verdict"] == "block"
+    assert "ok" not in validation
 
 
 def test_gate_schema_accepts_quality_descriptor_fields() -> None:
@@ -275,7 +270,7 @@ def test_gate_schema_accepts_quality_descriptor_fields() -> None:
 
     validation = validate_schema_instance("gate.schema.json", payload)
 
-    assert validation["ok"] is True
+    assert validation["verdict"] == "pass"
 
 
 def test_coupling_audit_payload_validates_binding_registry_contract() -> None:
@@ -284,7 +279,7 @@ def test_coupling_audit_payload_validates_binding_registry_contract() -> None:
         coupling_audit_report(Path.cwd()),
     )
 
-    assert validation["ok"] is True
+    assert validation["verdict"] == "pass"
     json.dumps(validation)
 
 
@@ -294,7 +289,7 @@ def test_coupling_audit_schema_rejects_ui_projection_fields() -> None:
 
     validation = validate_schema_instance("coupling-audit.schema.json", payload)
 
-    assert validation["ok"] is False
+    assert validation["verdict"] == "block"
     assert validation["required_gaps"]
 
 
@@ -312,7 +307,8 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
 
     report = schema_validation_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["mode"] == "adopter"
     assert report["schema_count"] >= 19
-    assert report["instances"]["docs-registry"]["ok"] is True
+    assert report["instances"]["docs-registry"]["verdict"] == "pass"

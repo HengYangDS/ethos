@@ -70,7 +70,7 @@ def main() -> int:
     payload = {
         "schema_version": 1,
         "kind": "ethos_architecture_projection_drift",
-        "ok": not failures,
+        "verdict": "block" if failures else "pass",
         "head": current_tracked_head(ROOT),
         "config": str(CONFIG_PATH.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),
@@ -78,7 +78,7 @@ def main() -> int:
         "failures": failures,
     }
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    return 0 if payload["ok"] else 1
+    return 0 if payload["verdict"] == "pass" else 1
 
 
 if __name__ == "__main__":

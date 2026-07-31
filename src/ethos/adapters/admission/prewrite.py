@@ -25,6 +25,9 @@ from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import ROLE_DETACHED
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 from ethos.repository.profile import profile_gate_registry
 
@@ -99,10 +102,20 @@ def prewrite_guard(
         patch=patch,
     )
     blocked = [path for path in checked if path["allowed"] is False]
-    error = _error(runtime_check, lease, editor, patch_report, scope, blocked)
-    decision = _prewrite_decision(root, effective, checked, lease, error)
+    gaps = _gaps(runtime_check, lease, editor, patch_report, scope, blocked)
+    verdict = reduce_verdicts(
+        report_verdict(runtime_check),
+        "block" if blocked else "pass",
+        report_verdict(lease),
+        report_verdict(editor),
+        report_verdict(patch_report),
+        report_verdict(scope),
+        required_gaps=tuple(gaps),
+    )
+    error = gaps[0] if gaps else ""
+    decision = _prewrite_decision(root, effective, checked, lease, verdict, tuple(gaps))
     return {
-        "ok": not error,
+        "verdict": decision.verdict,
         "error": error,
         "role": role,
         "branch": effective["branch"],
@@ -119,7 +132,7 @@ def prewrite_guard(
         "blocked_paths": blocked,
         "request_binding": decision.subject.model_dump(mode="json"),
         "decision": decision.to_payload(),
-        "required_gaps": [error] if error else [],
+        "required_gaps": gaps,
     }
 
 
@@ -186,7 +199,7 @@ def _work_lane_lease_check(
     role, branch, source = effective["role"], effective["branch"], effective["source"]
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     if role != ROLE_WORK_LANE or not tracked_write_requested:
-        return _lease_report(branch, actor, {}, (True, False, "not_required"))
+        return _lease_report(branch, actor, {}, ("pass", False, "not_required"))
     lease = _work_lane_lease(root=root, status=status, branch=branch)
     lease_state = str(lease.get("lease_state") or "missing")
     holder = str(lease.get("holder_ref") or "")
@@ -195,7 +208,12 @@ def _work_lane_lease_check(
             "unknown": f"work_lane_lease_unknown:{branch}",
             "expired": f"work_lane_lease_expired:{branch}",
         }.get(lease_state, f"work_lane_missing_lease:{branch}")
-        return _lease_report(branch, actor, lease, (False, True, reason))
+        return _lease_report(
+            branch,
+            actor,
+            lease,
+            ("unknown" if lease_state == "unknown" else "block", True, reason),
+        )
     current = git_stdout(root, "rev-parse", "HEAD")
     binding, binding_source = (
         (
@@ -216,7 +234,7 @@ def _work_lane_lease_check(
         branch,
         actor,
         lease,
-        (not reason, True, reason or "matched"),
+        ("block" if reason else "pass", True, reason or "matched"),
         observed=(current, binding, binding_source),
     )
 
@@ -225,13 +243,13 @@ def _lease_report(
     branch: str,
     actor: str,
     lease: dict[str, object],
-    result: tuple[bool, bool, str],
+    result: tuple[Verdict, bool, str],
     *,
     observed: tuple[str, str, str] | None = None,
 ) -> dict[str, object]:
-    ok, required, reason = result
+    verdict, required, reason = result
     report: dict[str, object] = {
-        "ok": ok,
+        "verdict": verdict,
         "required": required,
         "branch": branch,
         "holder_ref": str(lease.get("holder_ref") or ""),
@@ -290,7 +308,8 @@ def _prewrite_decision(
     effective: dict[str, str],
     checked_paths: list[dict[str, object]],
     lease_check: dict[str, object],
-    error: str,
+    verdict: Verdict,
+    gaps: tuple[str, ...],
 ) -> AdmissionDecision:
     branch, role = effective["branch"], effective["role"]
     paths = tuple(
@@ -307,7 +326,7 @@ def _prewrite_decision(
         "head": str(lease_check.get("expected_head") or ""),
     }
     return AdmissionDecision(
-        verdict="block" if error else "pass",
+        verdict=verdict,
         subject=MutationSubject(
             action="lane.prewrite",
             resource=f"{branch}:{','.join(paths)}",
@@ -323,9 +342,15 @@ def _prewrite_decision(
             verifier_provenance="current_worktree_runner",
             time_basis="evaluation_time",
         ),
-        why=(error or "request_matches_current_local_state",),
-        next=(("repair_required_gap",) if error else ()),
-        required_gaps=((error,) if error else ()),
+        why=(
+            gaps[0]
+            if gaps
+            else "request_matches_current_local_state"
+            if verdict == "pass"
+            else "required_fact_unverified",
+        ),
+        next=(("repair_required_gap",) if verdict != "pass" else ()),
+        required_gaps=gaps,
     )
 
 
@@ -339,14 +364,20 @@ def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
     checkout_binding_required = bool(audit and profile_gate_registry(Path(audit)))
     runner_matches = binding.get("runner_matches_audit_root") is True
     schema_matches = binding.get("schema_matches_audit_root") is True
-    ok = not checkout_binding_required or (runner_matches and schema_matches)
+    verdict: Verdict = (
+        "unknown"
+        if not available
+        else "pass"
+        if not checkout_binding_required or (runner_matches and schema_matches)
+        else "block"
+    )
     return {
-        "ok": ok,
+        "verdict": verdict,
         "reason": (
             "runtime_binding_unavailable"
             if not available
             else "matched"
-            if ok
+            if verdict == "pass"
             else "root_binding_mismatch"
         ),
         "audit_root": audit,
@@ -363,7 +394,9 @@ def _editor_root_check(
 ) -> dict[str, object]:
     expected = root.resolve()
     actual = editor_root.resolve() if editor_root else None
-    ok = actual == expected if actual else not require_editor_root
+    verdict: Verdict = (
+        "pass" if actual == expected or (actual is None and not require_editor_root) else "block"
+    )
     if actual == expected:
         reason = "matched"
     elif actual:
@@ -371,7 +404,7 @@ def _editor_root_check(
     else:
         reason = "editor_root_missing" if require_editor_root else "not_checked"
     return {
-        "ok": ok,
+        "verdict": verdict,
         "required": require_editor_root,
         "expected": expected.as_posix(),
         "actual": actual.as_posix() if actual else "",
@@ -443,24 +476,24 @@ def _is_ignored(root: Path, relative_path: str) -> bool:
     return subprocess.run(command, cwd=root, check=False).returncode == 0
 
 
-def _error(
+def _gaps(
     runtime_check: dict[str, object],
     lease_check: dict[str, object],
     editor_check: dict[str, object],
     patch_admission: dict[str, object],
     material_scope: dict[str, object],
     blocked_paths: list[dict[str, object]],
-) -> str:
+) -> list[str]:
     scope_gaps = material_scope.get("required_gaps")
     checks = (
-        str(runtime_check["reason"]) if runtime_check["ok"] is not True else "",
+        str(runtime_check["reason"]) if report_verdict(runtime_check) != "pass" else "",
         _blocked_path_error(blocked_paths),
-        str(lease_check["reason"]) if lease_check["ok"] is not True else "",
-        str(editor_check["reason"]) if editor_check["ok"] is not True else "",
-        str(patch_admission["reason"]) if patch_admission["ok"] is not True else "",
+        str(lease_check["reason"]) if report_verdict(lease_check) != "pass" else "",
+        str(editor_check["reason"]) if report_verdict(editor_check) != "pass" else "",
+        str(patch_admission["reason"]) if report_verdict(patch_admission) != "pass" else "",
         str(scope_gaps[0]) if isinstance(scope_gaps, list) and scope_gaps else "",
     )
-    return next((error for error in checks if error), "")
+    return list(dict.fromkeys(error for error in checks if error))
 
 
 def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
@@ -486,9 +519,10 @@ def _openspec_scope(report: dict[str, object]) -> dict[str, object]:
     if isinstance(scope, dict):
         return string_mapping(scope)
     return {
-        "ok": True,
+        "verdict": "unknown",
         "state": "not_available",
         **{key: [] for key in _SCOPE_LIST_FIELDS},
+        "required_gaps": ["openspec_scope_unavailable"],
     }
 
 
@@ -496,8 +530,13 @@ def _commitment_scope(
     root: Path, requested: tuple[str, ...], lease: dict[str, object]
 ) -> dict[str, object]:
     """Evaluate generic writes against the selected Commitment scope."""
-    if lease.get("required") is True and lease.get("ok") is not True:
-        return {"ok": True, "state": "not_available", "required_gaps": []}
+    lease_verdict = report_verdict(lease)
+    if lease.get("required") is True and lease_verdict != "pass":
+        return {
+            "verdict": lease_verdict,
+            "state": "not_available",
+            "required_gaps": [str(lease.get("reason") or "commitment_scope_unavailable")],
+        }
     try:
         commitment = (
             load_profile_lease_bound_commitment(
@@ -509,14 +548,14 @@ def _commitment_scope(
             else load_commitment(root)
         )
     except ValueError as exc:
-        return {"ok": False, "state": "invalid", "required_gaps": [str(exc)]}
+        return {"verdict": "block", "state": "invalid", "required_gaps": [str(exc)]}
     uncovered = [
         path
         for path in requested
         if not any(_scope_matches(path, pattern) for pattern in commitment.scope)
     ]
     return {
-        "ok": not uncovered,
+        "verdict": "block" if uncovered else "pass",
         "state": "uncovered" if uncovered else "covered" if requested else "no_paths",
         "changed_paths": list(requested),
         "material_patterns": list(commitment.scope),

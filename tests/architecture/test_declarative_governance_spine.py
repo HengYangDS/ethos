@@ -5,11 +5,17 @@ import re
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
+from ethos.repository.evidence.freshness import evidence_freshness_report
 from ethos.repository.evidence.topology import evidence_topology_report
+
+if TYPE_CHECKING:
+    import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 CORE_SOURCE = ROOT / "src/ethos"
@@ -97,8 +103,15 @@ def test_declared_offline_providers_execute_through_one_runner() -> None:
 
         assert payload["gate"] == gate_id
         assert [entry["provider"] for entry in payload["providers"]] == list(gate.providers)
-        assert result.state == ("passed" if payload["ok"] else "failed")
-        assert result.exit_code == (0 if payload["ok"] else 1)
+        assert result.verdict == payload["verdict"]
+        assert result.exit_code == (0 if payload["verdict"] == "pass" else 1)
+
+
+def test_playbooks_provider_publishes_closed_verdict() -> None:
+    report = playbooks_report(ROOT)
+
+    assert report["verdict"] == "pass", report["required_gaps"]
+    assert "ok" not in report
 
 
 def test_wheel_resources_are_native_projections_without_a_build_hook() -> None:
@@ -155,6 +168,8 @@ def test_declaration_backed_policies_are_first_class() -> None:
     assert "freshness_ok" in freshness
     assert "and bool(" not in freshness
     evidence_layout = declaration.read_text(encoding="utf-8")
+    assert "component.verdict" in evidence_layout
+    assert "component.ok" not in evidence_layout
     assert 'allowed_root_dirs = ["attestations"]' in evidence_layout
     assert 'historical_root_dirs = ["claims", "chronicle", "parity"]' in evidence_layout
     for token in ("chronicle_record_glob", "flat_chronicle_glob", "required_subroot"):
@@ -197,7 +212,8 @@ def test_evidence_topology_separates_current_attestations_from_historical_bytes(
 
     report = evidence_topology_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["layout"]["attestation_root"] == "evidence/attestations"
     assert report["layout"]["historical_roots"] == [
         "evidence/claims",
@@ -205,6 +221,38 @@ def test_evidence_topology_separates_current_attestations_from_historical_bytes(
         "evidence/parity",
     ]
     assert report["counts"] == {"attestation_files": 1, "historical_artifacts": 3}
+
+
+def test_evidence_topology_blocks_invalid_or_missing_root(tmp_path: Path) -> None:
+    missing = evidence_topology_report(tmp_path)
+    assert missing["verdict"] == "block"
+    assert "ok" not in missing
+
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    (evidence / "unexpected.txt").write_text("invalid\n", encoding="utf-8")
+    invalid = evidence_topology_report(tmp_path)
+
+    assert invalid["verdict"] == "block"
+    assert invalid["required_gaps"] == ["evidence_root_file_not_allowed:unexpected.txt"]
+
+
+def test_evidence_freshness_preserves_unknown_topology(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "ethos.repository.evidence.freshness.evidence_topology_report",
+        lambda _root: {
+            "verdict": "unknown",
+            "required_gaps": ["evidence_topology_unavailable"],
+            "warnings": [],
+        },
+    )
+
+    report = evidence_freshness_report(tmp_path, current_head="abc123")
+
+    assert report["verdict"] == "unknown"
+    assert report["required_gaps"] == ["evidence_topology_unavailable"]
 
 
 def test_terminal_gate_owners_are_singular_and_hosted_logic_stays_in_tools() -> None:

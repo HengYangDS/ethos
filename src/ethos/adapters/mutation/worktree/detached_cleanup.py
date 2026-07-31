@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.contracts.verdict import close_verdict
 
 
 def housekeeping_worktrees(
@@ -57,14 +58,15 @@ def _report(
         "removed_count": len(removed),
     }
     state = "blocked" if gaps else "cleaned" if removed else "ready" if apply else "planned"
+    required_gaps = sorted(set(gaps))
     return {
-        "ok": not gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "state": state,
         "summary": summary,
         "entries": entries,
         "temporary_roots": [path.as_posix() for path in roots],
         "removed_paths": removed,
-        "required_gaps": sorted(set(gaps)),
+        "required_gaps": required_gaps,
     }
 
 

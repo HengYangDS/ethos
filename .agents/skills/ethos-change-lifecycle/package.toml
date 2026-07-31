@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:0155eaf930a97f975b90fbee65566884d7213c886796721377b090d8828b7ab6"
+expected_digest = "sha256:ac756f640e82dfe34f4bec6e400e8d3aef54af253bb913a0ca2a607339a8cc2a"
 
 [quality]
 placeholder_allowed = false

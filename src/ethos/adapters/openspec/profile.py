@@ -63,7 +63,7 @@ def completed_active_changes_report(root: Path) -> dict[str, object]:
     """Return completion facts only when the OpenSpec profile adapter is enabled."""
     if not openspec_profile_enabled(root):
         return {
-            "ok": True,
+            "verdict": "pass",
             "state": "not_applicable",
             "root": root.resolve().as_posix(),
             "completed_changes": [],
@@ -95,7 +95,7 @@ def completed_active_changes_report(root: Path) -> dict[str, object]:
             f"openspec_completed_change_unarchived:{name}" for name in completed_changes
         )
     return {
-        "ok": not required_gaps,
+        "verdict": "block" if required_gaps else "pass",
         "state": "blocked" if required_gaps else "clean",
         "root": root.resolve().as_posix(),
         "completed_changes": completed_changes,
@@ -114,12 +114,12 @@ def active_change_names(root: Path) -> list[str]:
     )
 
 
-def active_change_names_in_ref(root: Path, ref: str) -> list[str]:
+def active_change_names_in_ref(root: Path, ref: str) -> dict[str, object]:
     """Discover tree-bound active changes only for the selected profile."""
     return (
         ethos.repository.openspec.audit.active_change_names_in_ref(root, ref)
         if openspec_profile_enabled(root)
-        else []
+        else {"verdict": "pass", "ref": ref, "changes": [], "required_gaps": []}
     )
 
 

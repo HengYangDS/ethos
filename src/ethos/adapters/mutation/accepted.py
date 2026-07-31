@@ -145,7 +145,7 @@ def _apply_candidate_promotion(*, root, policy, status, heads, context):
         result = _mirror_sync_blocker(policy, candidate_head, mirror_result)
     if result is None:
         result = {
-            "ok": True,
+            "verdict": "pass",
             "state": "accepted_validated",
             "branch": policy.accepted_branch,
             "source_branch": policy.candidate_branch,
@@ -318,7 +318,7 @@ def _accepted_block(policy, current, gaps, **extra):
 
 def accepted_payload(policy, head):
     return {
-        "ok": False,
+        "verdict": "block",
         "state": "blocked",
         "branch": policy.accepted_branch,
         "source_branch": policy.candidate_branch,

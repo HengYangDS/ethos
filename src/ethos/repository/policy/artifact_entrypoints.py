@@ -7,6 +7,8 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.contracts.verdict import close_verdict
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -75,7 +77,7 @@ def generated_artifact_entrypoint_audit(root: Path) -> dict[str, Any]:
     )
     required_gaps = sorted({finding["required_gap"] for finding in findings})
     return {
-        "ok": not required_gaps,
+        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "state": "clean" if not required_gaps else "blocked",
         "summary": {
             "checked_file_count": len(checked_files),

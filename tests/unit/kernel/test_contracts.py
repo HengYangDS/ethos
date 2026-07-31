@@ -463,7 +463,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
 def test_result_contract_has_stable_top_level_fields() -> None:
     payload = EthosResult(
         command="status",
-        ok=True,
+        verdict="pass",
         state="ready",
         summary={"branch": "dev"},
         next_actions=("ethos plan --changed",),
@@ -471,7 +471,6 @@ def test_result_contract_has_stable_top_level_fields() -> None:
     assert tuple(payload) == (
         "schema_version",
         "command",
-        "ok",
         "verdict",
         "state",
         "summary",
@@ -485,7 +484,7 @@ def test_result_contract_has_stable_top_level_fields() -> None:
 
 def test_system_contracts_load_validate_and_fail_closed() -> None:
     report = system_contracts_report(Path())
-    assert report["ok"] is True, report["required_gaps"]
+    assert report["verdict"] == "pass", report["required_gaps"]
     assert all(report["contracts"].values())
     assert set(report["contracts"]) >= {"authority", "evidence_boundaries"}
     assert not any(
@@ -545,7 +544,7 @@ def test_governance_context_projects_executable_contextual_authority_without_sha
         "contract_ref": "system/authority.toml",
         "resolver": "contextual",
         "query_axes": ["subject", "predicate", "scope", "plane", "validity", "context"],
-        "unknown_verdict": "block",
+        "unknown_verdict": "unknown",
         "currentness_requirements": [
             "integrity",
             "declared_authority",

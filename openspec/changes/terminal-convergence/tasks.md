@@ -96,7 +96,7 @@ slice HEAD; only the campaign lane remains for this intent.
   visible and non-authorizing, and binding drift invalidates prior proof.
 - [x] 1.3 Rename every transition input and digest to `commitment`; delete
   `contract` aliases and dual carriers. Facts and TransitionPlan remain transient.
-- [ ] 1.4 Unify verdicts as `pass | block | unknown`; unknown required inputs
+- [x] 1.4 Unify verdicts as `pass | block | unknown`; unknown required inputs
   and warnings block effects and cannot coexist with pass.
 - [ ] 1.5 Use Pydantic v2 for portable boundary contracts and small frozen
   standard-library values internally; reject attrs/dataclass/Pydantic dual

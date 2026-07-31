@@ -9,9 +9,12 @@ from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import model_validator
+
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import require_closed_verdict
 
 CarrierRole = Literal["native", "projection", "adapter", "fact", "history"]
-Verdict = Literal["pass", "block", "unknown"]
 _PREDICATE_PATTERN = r"^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)+$"
 
 
@@ -56,6 +59,11 @@ class AuthorityResolution(_AuthorityModel):
     descriptors: tuple[CarrierDescriptor, ...] = ()
     required_gaps: tuple[str, ...] = ()
 
+    @model_validator(mode="after")
+    def reject_false_pass(self) -> AuthorityResolution:
+        require_closed_verdict(self.verdict, self.required_gaps)
+        return self
+
 
 def extract_carrier_descriptor(payload: object) -> ExtractionResult:
     """Extract one descriptor without guessing absent authority semantics."""
@@ -80,7 +88,7 @@ def resolve_authority(
     )
     if not candidates:
         return AuthorityResolution(
-            verdict="block",
+            verdict="unknown",
             descriptors=relevant,
             required_gaps=("unknown_required_fact",),
         )

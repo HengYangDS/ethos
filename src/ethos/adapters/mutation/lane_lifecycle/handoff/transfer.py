@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -107,7 +106,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
     )
     evaluation = _guarded(tuple(gaps), apply=request.apply)
     report = _handoff_report(branch=request.branch, evaluation=evaluation)
-    if request.apply and evaluation.ok:
+    if request.apply and evaluation.verdict == "pass":
         output_root = Path(request.output_root) if request.output_root else None
         _apply_report(
             report,
@@ -171,7 +170,7 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
     )
     evaluation = _guarded(tuple(gaps), checks=checks, apply=request.apply)
     report = _handoff_report(branch=branch, evaluation=evaluation)
-    if request.apply and evaluation.ok:
+    if request.apply and evaluation.verdict == "pass":
         _apply_report(
             report,
             "handoff_import_failed",
@@ -312,7 +311,7 @@ def revoke_cross_host_source(
     )
     evaluation = _guarded(tuple(gaps), checks=checks, apply=request.apply)
     report = _handoff_report(branch=branch, evaluation=evaluation)
-    if request.apply and evaluation.ok:
+    if request.apply and evaluation.verdict == "pass":
         try:
             revoked = revoke_lease(
                 state_database(repo),
@@ -328,8 +327,8 @@ def revoke_cross_host_source(
                     apply=True,
                 ),
             )
-        except ValueError as exc:
-            report.update(ok=False, state="blocked", required_gaps=[str(exc)])
+        except Exception as exc:
+            report.update(verdict="block", state="blocked", required_gaps=[str(exc)])
         else:
             report.update(
                 state="source_revoked",
@@ -370,7 +369,7 @@ def _guarded(
     """Reduce one handoff observation without a generic lifecycle owner."""
     required = tuple(dict.fromkeys((*gaps, *(gap for ok, gap in checks if not ok))))
     return MutationDecision(
-        ok=not required,
+        verdict="block" if required else "pass",
         state="blocked" if required else "applying" if apply else "planned",
         gaps=required,
     )
@@ -398,7 +397,7 @@ def _handoff_context(*, context_text: str, context_file: Path | None) -> tuple[s
 
 def _handoff_report(*, branch: str, evaluation: Any) -> dict[str, object]:
     return {
-        "ok": evaluation.ok,
+        "verdict": evaluation.verdict,
         "state": evaluation.state,
         "branch": branch,
         **dict.fromkeys(("package_id", "package_path"), ""),
@@ -412,8 +411,8 @@ def _apply_report(
 ) -> None:
     try:
         report.update(effect())
-    except (OSError, subprocess.SubprocessError, ValueError) as exc:
-        report.update(ok=False, state="blocked", required_gaps=[f"{gap}:{exc}"])
+    except Exception as exc:
+        report.update(verdict="block", state="blocked", required_gaps=[f"{gap}:{exc}"])
 
 
 def _finish_report(
@@ -434,9 +433,9 @@ def _finish_report(
             action=action,
             resource=resource,
             expected_state=expected_state,
-            verdict=cast("Any", "pass" if report["ok"] else "block"),
+            verdict=cast("Any", report["verdict"]),
             required_gaps=gaps,
-            why=(str(report["state"]),) if report["ok"] else (),
+            why=(str(report["state"]),) if report["verdict"] == "pass" else (),
             state=str(report["state"]),
             identity_basis="holder_ref_equality",
             evidence_boundary="content_addressed_git_and_context",

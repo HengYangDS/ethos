@@ -10,7 +10,7 @@ from ethos.result import EthosResult
 
 
 def test_ethos_result_is_frozen_strict_schema_model() -> None:
-    result = EthosResult(command="status", ok=True, state="ready")
+    result = EthosResult(command="status", verdict="pass", state="ready")
     mutable: Any = result
 
     with pytest.raises(ValidationError) as exc_info:
@@ -25,53 +25,45 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
         "type": "integer",
     }
     assert schema["properties"]["command"]["type"] == "string"
-    assert schema["properties"]["ok"]["type"] == "boolean"
+    assert "ok" not in schema["properties"]
     assert schema["properties"]["verdict"]["enum"] == ["pass", "block", "unknown"]
 
 
-def test_ethos_result_derives_closed_verdict_without_false_green() -> None:
-    assert EthosResult(command="status", ok=True, state="ready").verdict == "pass"
-    assert (
+def test_ethos_result_exposes_only_the_authoritative_verdict() -> None:
+    result = EthosResult(command="status", verdict="pass", state="ready")
+
+    assert result.verdict == "pass"
+    assert not hasattr(result, "ok")
+
+
+def test_ethos_result_rejects_pass_with_required_gaps() -> None:
+    with pytest.raises(ValidationError, match="pass_with_required_gaps"):
         EthosResult(
             command="status",
-            ok=False,
-            state="blocked",
-            required_gaps=("hard_gap",),
-        ).verdict
-        == "block"
-    )
-    assert EthosResult(command="status", ok=False, state="unknown").verdict == "unknown"
-    assert (
-        EthosResult(
-            command="status",
-            ok=True,
+            verdict="pass",
             state="ready",
             required_gaps=("hard_gap",),
-        ).verdict
-        == "block"
-    )
+        )
 
 
-def test_ethos_result_cannot_serialize_false_green_ok() -> None:
-    result = EthosResult(
-        command="status",
-        ok=True,
-        state="ready",
-        required_gaps=("hard_gap",),
-    )
-
-    assert result.ok is False
-    assert result.state == "ready"
-    assert result.to_dict()["ok"] is False
-    assert result.to_dict()["state"] == "ready"
+@pytest.mark.parametrize("severity", ["warning", "error"])
+def test_ethos_result_rejects_pass_with_adverse_diagnostic(severity: str) -> None:
+    with pytest.raises(ValidationError, match="pass_with_warnings"):
+        EthosResult(
+            command="status",
+            verdict="pass",
+            state="ready",
+            diagnostics=({"severity": severity, "message": "adverse"},),
+        )
 
 
 @pytest.mark.parametrize(
     "payload",
     [
-        {"command": "status", "ok": "true", "state": "ready"},
-        {"command": "status", "ok": True, "state": 3},
-        {"command": "status", "ok": True, "state": "ready", "extra": "blocked"},
+        {"command": "status", "verdict": "passed", "state": "ready"},
+        {"command": "status", "verdict": "pass", "state": 3},
+        {"command": "status", "verdict": "pass", "state": "ready", "ok": True},
+        {"command": "status", "verdict": "pass", "state": "ready", "extra": "blocked"},
     ],
 )
 def test_ethos_result_rejects_coercion_and_unknown_fields(payload: dict[str, object]) -> None:
@@ -79,10 +71,10 @@ def test_ethos_result_rejects_coercion_and_unknown_fields(payload: dict[str, obj
         EthosResult.model_validate(payload)
 
 
-def test_ethos_result_json_contract_stays_compatible() -> None:
+def test_ethos_result_json_contract_has_no_parallel_success_flag() -> None:
     result = EthosResult(
         command="plan",
-        ok=True,
+        verdict="block",
         state="planned",
         summary={"changed": True},
         diagnostics=({"kind": "probe", "ok": True},),
@@ -96,7 +88,6 @@ def test_ethos_result_json_contract_stays_compatible() -> None:
     assert payload == {
         "schema_version": 1,
         "command": "plan",
-        "ok": False,
         "verdict": "block",
         "state": "planned",
         "summary": {"changed": True},

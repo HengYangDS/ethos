@@ -6,7 +6,7 @@ resolver = "contextual"
 
 [query]
 required = ["subject", "predicate", "scope", "plane", "validity", "context"]
-unknown_verdict = "block"
+unknown_verdict = "unknown"
 
 [currentness]
 requires = [

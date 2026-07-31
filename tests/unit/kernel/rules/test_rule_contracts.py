@@ -24,7 +24,7 @@ def test_rule_contract_schemas_validate_minimal_payloads() -> None:
         "required_gates": ["docs-registry"],
         "stop_condition": "docs_registry_drift",
     }
-    assert validate_schema_instance("rule.schema.json", rule)["ok"] is True
+    assert validate_schema_instance("rule.schema.json", rule)["verdict"] == "pass"
 
 
 def test_contract_dataclasses_serialize_to_schema_payloads() -> None:

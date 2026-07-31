@@ -7,6 +7,8 @@ SQLite, process, package-manager, hosted CI, and protocol runtimes without
 treating any provider as product truth.
 ## Requirements
 ### Requirement: Exact-request Mutation Admission
+Only a `pass` verdict may authorize an effect; `block` and `unknown` both fail closed.
+
 ETHOS SHALL block apply-mode land and publish unless execution confirmation,
 expected HEAD binding, applicable Commitments, current facts, and required
 Evidence admit the exact request. Confirmation SHALL NOT authenticate a caller
@@ -123,12 +125,12 @@ receipt contract.
   both heads, both control digests, verifier digest, proof digest, and bootstrap
   decision digest
 - **AND** the candidate proof is a native executed `ethos prove --execute --json`
-  result with `command = "prove"`, `ok = true`, `state = "proven"`,
+  result with `command = "prove"`, `verdict = pass`, `state = "proven"`,
   `data.executed = true`, and matching candidate HEAD bindings in
   `data.evidence.head` and `data.provenance.predicate.head`
 - **AND** a hand-authored `{head, state}` envelope is not accepted as candidate
   proof
-- **AND** missing or unverifiable provenance returns `defer`.
+- **AND** missing or unverifiable provenance returns `unknown`.
 
 #### Scenario: Control removal and branch-role changes cannot evade admission
 
@@ -136,7 +138,7 @@ receipt contract.
   or renames a control path into a non-control location
 - **THEN** closeout treats the source control path as changed and requires the
   same candidate-external receipt
-- **AND** an unavailable Git diff returns `defer` rather than allowing closeout.
+- **AND** an unavailable Git diff returns `unknown` and blocks closeout.
 
 #### Scenario: hosted prevention requires exact receipt
 

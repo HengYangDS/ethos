@@ -40,7 +40,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
 
     if operation is None:
         evaluation = MutationDecision(
-            ok=False,
+            verdict="block",
             state="blocked",
             gaps=tuple(dict.fromkeys((*contract_gaps, *holder_gaps))),
         )
@@ -97,22 +97,28 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
         )
         gaps = tuple(dict.fromkeys((*holder_gaps, *(gap for valid, gap in checks if not valid))))
         evaluation = MutationDecision(
-            ok=not gaps,
+            verdict=(
+                "unknown"
+                if any(gap.startswith("work_lane_lease_unknown:") for gap in gaps)
+                else "block"
+                if gaps
+                else "pass"
+            ),
             state="blocked" if gaps else operation.applied_state if request.apply else "planned",
             gaps=gaps,
         )
 
-    ok, state, gaps = evaluation.ok, evaluation.state, evaluation.gaps
+    verdict, state, gaps = evaluation.verdict, evaluation.state, evaluation.gaps
     lease: dict[str, object] = {}
     handoff_offer: dict[str, object] = {}
-    if request.apply and ok and operation is not None:
+    if request.apply and verdict == "pass" and operation is not None:
         try:
             payload = apply_lease_operation(
                 database,
                 request=_lease_effect_request(request, operation.effect_fields, expected_state),
             )
-        except ValueError as exc:
-            ok, state, gaps = False, "blocked", (str(exc),)
+        except Exception as exc:
+            verdict, state, gaps = "block", "blocked", (str(exc),)
         else:
             if "offer_id" in payload:
                 handoff_offer = payload
@@ -121,7 +127,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
             state = operation.applied_state
 
     result: dict[str, object] = {
-        "ok": ok,
+        "verdict": verdict,
         "state": state,
         "branch": request.branch,
         "lease": lease,
@@ -137,9 +143,9 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
             action=f"lane.lease.{request.operation.replace('_', '.')}",
             resource=f"refs/heads/{request.branch}",
             expected_state=expected_state,
-            verdict="pass" if ok else "block",
+            verdict=verdict,
             required_gaps=gaps,
-            why=(state,) if ok else (),
+            why=(state,) if verdict == "pass" else (),
             state=state,
             identity_basis="declared_actor_ref_equality",
             evidence_boundary="current_git_and_local_lease_observation",

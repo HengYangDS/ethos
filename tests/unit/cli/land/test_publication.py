@@ -37,7 +37,7 @@ def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
         "path": "build/evidence/local-ci/fallback.json",
         "current_head": head,
         "evidence_head": "",
-        "ok": False,
+        "verdict": "block",
         "next_action": (
             "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence"
         ),

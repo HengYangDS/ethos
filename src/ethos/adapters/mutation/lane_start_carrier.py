@@ -9,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
+from typing import cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -253,10 +254,12 @@ def initialize_lane_carrier(
             run=context.run,
         )
         failure = failed_process(gap) if gap else None
-    if failure is None and active_change_names_in_ref(context.target, final_head) != [
-        context.source_change_id
-    ]:
-        failure = failed_process("lane_start_active_change_carrier_mismatch")
+    if failure is None:
+        active_change_report = active_change_names_in_ref(context.target, final_head)
+        if active_change_report["verdict"] != "pass":
+            failure = failed_process("lane_start_active_change_observation_unknown")
+        elif cast("list[str]", active_change_report["changes"]) != [context.source_change_id]:
+            failure = failed_process("lane_start_active_change_carrier_mismatch")
     if failure is None:
         failure = lane_start_commitment_failure(
             target=context.target,
@@ -403,7 +406,7 @@ def started_lane_report(
 ) -> dict[str, object]:
     """Build the receipt for an exact, leased, linked Work Lane."""
     return {
-        "ok": True,
+        "verdict": "pass",
         "state": "started",
         "branch": context.branch,
         "base": context.policy.candidate_branch,

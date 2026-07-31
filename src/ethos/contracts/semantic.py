@@ -26,6 +26,9 @@ from pydantic import WithJsonSchema
 from pydantic import field_validator
 from pydantic import model_validator
 
+from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import require_closed_verdict
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -187,7 +190,7 @@ class Attestation(_SemanticModel):
     verifier: str = Field(min_length=1)
     subject: str = Field(min_length=1)
     issued_at: AwareDatetime
-    verdict: Literal["pass", "block", "unknown"]
+    verdict: Verdict
     statement: JsonObject
     statement_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     advisories: tuple[str, ...] = ()
@@ -225,6 +228,13 @@ class Attestation(_SemanticModel):
 
     @model_validator(mode="after")
     def validate_statement_and_identity(self, info: ValidationInfo) -> Self:
+        raw_gaps = self.statement.get("required_gaps", ())
+        raw_warnings = self.statement.get("warnings", ())
+        required_gaps = tuple(str(item) for item in raw_gaps) if isinstance(raw_gaps, tuple) else ()
+        warnings = (
+            tuple(str(item) for item in raw_warnings) if isinstance(raw_warnings, tuple) else ()
+        )
+        require_closed_verdict(self.verdict, required_gaps, warnings)
         if not any(
             (
                 self.commitment_digest,

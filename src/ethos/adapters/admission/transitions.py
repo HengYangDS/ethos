@@ -19,6 +19,8 @@ from ethos.contracts.coordination import LeaseOperationRequest
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.verdict import Verdict
+
 
 def work_lane_ref_transition_report(
     *, root: Path, phase: str, ref_name: str, old_value: str, new_value: str
@@ -90,7 +92,7 @@ def work_lane_ref_transition_report(
             new_head=new_value,
         )
     except ValueError as exc:
-        base.update(ok=False, state="repair_required")
+        base.update(verdict="block", state="repair_required")
         base.update(decision={"action": "block", "reason": "lease_head_update_failed"})
         base["required_gaps"] = [str(exc)]
         return base
@@ -118,7 +120,11 @@ def _report(
     gaps: list[str],
     reason: str = "",
 ) -> dict[str, object]:
-    report: dict[str, object] = {"ok": not gaps, "state": "admitted" if not gaps else "blocked"}
+    verdict = _transition_verdict(gaps)
+    report: dict[str, object] = {
+        "verdict": verdict,
+        "state": "admitted" if verdict == "pass" else verdict,
+    }
     report.update(phase=phase, ref=ref_name, branch=ref_name.removeprefix("refs/heads/"))
     report.update(old_value=old_value, new_value=new_value, lease=lease)
     report["decision"] = {
@@ -128,6 +134,12 @@ def _report(
     }
     report["required_gaps"] = gaps
     return report
+
+
+def _transition_verdict(gaps: list[str]) -> Verdict:
+    if not gaps:
+        return "pass"
+    return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"
 
 
 def _work_lane_lease_transition_gaps(

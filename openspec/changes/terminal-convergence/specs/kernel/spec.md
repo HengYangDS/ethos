@@ -1,5 +1,18 @@
 ## MODIFIED Requirements
 
+### Requirement: Closed Verdict Reduction
+ETHOS SHALL derive one public `verdict` from required facts and diagnostics.
+The only values are `pass`, `block`, and `unknown`; missing or unverifiable
+required facts produce `unknown`, while conflicts, explicit failures, and
+warnings produce `block`. Only `pass` may authorize an effect.
+
+#### Scenario: Required facts reduce to a closed verdict
+- **WHEN** ETHOS reduces current required facts and diagnostics
+- **THEN** missing or unverifiable required facts produce `unknown`, conflicts,
+  explicit failures, or warnings produce `block`, and only `pass` authorizes an
+  effect
+- **AND** the result has no top-level `ok` field
+
 ### Requirement: Minimal Semantic Kernel
 Commitment and Attestation are the only persistent semantic entities. Facts is freshly observed context, and TransitionPlan is transient compiled closure. The kernel SHALL keep this boundary.
 
@@ -15,7 +28,7 @@ Commitment and Attestation are the only persistent semantic entities. Facts is f
 - **WHEN** an Attestation declares an independently verified semantic predicate
 - **THEN** it SHALL bind a candidate-external receipt to its statement identity,
   evidence digest, semantic scope digest, and exact HEAD
-- **AND** the receipt SHALL name an independent reviewer role, basis, allow verdict, validity interval, and `mints_authority = false`
+- **AND** the receipt SHALL name an independent reviewer role, basis, pass verdict, validity interval, and `mints_authority = false`
 - **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the dependent effect
 - **AND** `digest_only` Attestations SHALL require no receipt directory, account,
   daemon, credential, network, or dedicated local account

@@ -27,7 +27,7 @@ def patch_admission(
     """Validate a patch against its baseline scope and product closure."""
     if not patch:
         return {
-            "ok": True,
+            "verdict": "pass",
             "state": "not_requested",
             "reason": "not_requested",
             "baseline_head": baseline_head,
@@ -70,7 +70,7 @@ def patch_admission(
         gaps = product_reference_gaps(baseline_references, references)
         reason = gaps[0] if gaps else ""
     return {
-        "ok": not reason,
+        "verdict": "block" if reason else "pass",
         "state": "admitted" if not reason else "blocked",
         "reason": reason or "baseline_product_closure_matched",
         "baseline_head": baseline_head,

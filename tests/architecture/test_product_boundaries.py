@@ -134,12 +134,14 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
 @pytest.mark.parametrize("report_factory", [product_boundary_report])
 def test_product_reports_are_clean(report_factory) -> None:
     report = report_factory(ROOT)
-    assert report["ok"] is True, report["findings"]
+    assert report["verdict"] == "pass", report["findings"]
+    assert "ok" not in report
 
 
 def test_workspace_contributor_policy_is_multi_actor() -> None:
     report = contributor_policy_report(ROOT)
-    assert report["ok"] is True, report["findings"]
+    assert report["verdict"] == "pass", report["findings"]
+    assert "ok" not in report
     summary, policy = report["summary"], report["policy"]
     assert summary["identity_mode"] == "external"
     assert summary["identity_count"] >= 2
@@ -170,7 +172,7 @@ def test_distribution_package_manifest_is_enterprise_neutral() -> None:
     report = product_boundary_report(ROOT)
     npm = json.loads((ROOT / "distributions/npm/package.json").read_text())
     root = json.loads((ROOT / "package.json").read_text())
-    assert report["ok"] is True, report["findings"]
+    assert report["verdict"] == "pass", report["findings"]
     assert root["private"] is True
     assert npm["files"] == ["bin/ethos.mjs", "README.md"]
     assert not {"author", "authors", "maintainers", "contributors"} & npm.keys()
@@ -180,7 +182,7 @@ def test_distribution_package_manifest_is_enterprise_neutral() -> None:
 
 def test_active_product_surfaces_have_no_named_private_reference_dependency() -> None:
     report = product_boundary_report(ROOT)
-    assert report["ok"] is True, report["findings"]
+    assert report["verdict"] == "pass", report["findings"]
     assert report["summary"]["by_kind"].get("private_reference_literal", 0) == 0
     assert "private_reference_boundary" in report["policy"]
     assert not (ROOT / ".ethos" / "quality-regime-decision.md").exists()
@@ -274,6 +276,20 @@ def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
         modules = imported_modules(path)
         assert "cyclopts" in modules, path
         assert "arg" + "parse" not in modules, path
+
+
+def test_ci_public_envelopes_do_not_publish_top_level_ok() -> None:
+    for relative in (
+        "tools/ci/runbook_registry.py",
+        "tools/ci/release_supply_chain.py",
+        "tools/ci/architecture_projection.py",
+        "tools/ci/format_selection.py",
+        "tools/ci/ci_templates.py",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert '"verdict"' in text
+        assert 'payload["ok"]' not in text
+        assert 'evidence["ok"]' not in text
 
 
 def test_tracked_python_follows_parser_model_and_export_policy() -> None:

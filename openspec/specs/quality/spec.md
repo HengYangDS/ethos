@@ -26,7 +26,7 @@ owner command, never both.
 
 - **WHEN** `ethos prove --execute --gate <gate-id> --json` selects a provider gate
 - **THEN** the provider is invoked directly in the admitted checkout
-- **AND** every provider returns a mapping with an explicit `ok` result and
+- **AND** every provider returns a mapping with an explicit `verdict` result and
   required gaps
 - **AND** the proof run records the gate, provider identity, diagnostics, and
   closed verdict

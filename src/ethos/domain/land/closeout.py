@@ -8,6 +8,7 @@ closeout live in sibling semantic modules.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos
@@ -17,10 +18,14 @@ from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 
+if TYPE_CHECKING:
+    from ethos.adapters.mutation.decision import MutationDecision
+    from ethos.contracts.verdict import Verdict
 
-def closeout_audit_root(repo: Path, decision: object) -> Path:
+
+def closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
     """Resolve closeout audit root, preserving land.workspace_status patchability."""
-    if not getattr(decision, "ok", False):
+    if decision.verdict != "pass":
         return repo
     candidate = workspace_status(repo, include_foreign_path_scope=False).get("candidate", {})
     if not isinstance(candidate, dict):
@@ -133,12 +138,12 @@ def closeout_bootstrap_package(
 
 def land_next_actions(
     *,
-    ok: bool,
+    verdict: Verdict,
     gaps: tuple[str, ...],
     current_head: str,
 ) -> tuple[str, ...]:
     """Derive the recommended next commands after a land attempt."""
-    if ok:
+    if verdict == "pass":
         return ("ethos publish",)
     if "protected_root_mutation" in gaps:
         return ("ethos land --closeout --json",)
@@ -160,15 +165,15 @@ def land_next_actions(
 
 def closeout_next_actions(
     *,
-    ok: bool,
+    verdict: Verdict,
     gaps: tuple[str, ...],
     current_head: str,
     state: str = "",
 ) -> tuple[str, ...]:
     """Derive recommended next commands after accepted-root closeout."""
-    if ok and state == "current":
+    if verdict == "pass" and state == "current":
         return ("ethos publish",)
-    if ok:
+    if verdict == "pass":
         return ("ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head>",)
     if "candidate_diverged_from_accepted" in gaps:
         return (
@@ -188,11 +193,11 @@ def closeout_next_actions(
     return ("ethos prove --json",)
 
 
-def repository_audit_after_admission(repo: Path, decision: object) -> dict[str, object]:
+def repository_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
     """Run the shape audit after admission, or skip when mutation was blocked."""
-    if not getattr(decision, "ok", False):
+    if decision.verdict != "pass":
         return {
-            "ok": False,
+            "verdict": "block",
             "state": "skipped",
             "reason": "mutation_admission_blocked",
             "required_gaps": [],

@@ -33,13 +33,13 @@ def adopter_audit(root: Path) -> dict[str, object]:
     gaps = list(cast("list[str]", adopter["required_gaps"]))
     capabilities = cast("dict[str, dict[str, bool]]", adopter["adopter"])["capabilities"]
     return {
-        "ok": not gaps,
+        "verdict": "pass" if not gaps else "block",
         "mode": "repository",
         "governance_context": repository_context(root),
         "required_gaps": gaps,
         "adopter": adopter,
         "openspec": {
-            "ok": True,
+            "verdict": "pass",
             "mode": "adopter-shape",
             "configured": bool(capabilities["openspec"]),
             "required_gaps": [],

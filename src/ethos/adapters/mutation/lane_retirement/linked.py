@@ -22,6 +22,8 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.verdict import Verdict
+
 
 class LinkedRetirementRequest(BaseModel):
     """Exact request for one linked Work Lane retirement transition."""
@@ -103,12 +105,15 @@ def retire_linked_work_lane(
     if request.apply and control_root is None:
         gaps.append("retirement_control_root_unavailable")
     required_gaps = sorted(set(gaps))
+
+    verdict = _retirement_verdict(required_gaps)
     if lane:
         lane = {**lane, "retire_ready": not required_gaps, "required_gaps": required_gaps}
 
     def mutation(current_gaps: list[str]) -> dict[str, object]:
         required_holder = effects.holder_ref(authority)
         gaps = tuple(sorted(set(current_gaps)))
+        current_verdict = _retirement_verdict(gaps)
         return mutation_envelope(
             command=f"lane-retire-{mode}",
             apply=request.apply,
@@ -133,9 +138,15 @@ def retire_linked_work_lane(
                         else {}
                     ),
                 },
-                verdict="pass" if not gaps else "block",
+                verdict=current_verdict,
                 required_gaps=gaps,
-                state="ready" if not gaps else "blocked",
+                state=(
+                    "ready"
+                    if current_verdict == "pass"
+                    else "unknown"
+                    if current_verdict == "unknown"
+                    else "blocked"
+                ),
                 identity_basis=("exact_lease_generation" if required_holder else "not_evaluated"),
                 evidence_boundary="current_git_lane_and_lease_observation",
                 enforcement_boundary=(
@@ -148,10 +159,12 @@ def retire_linked_work_lane(
         )
 
     report: dict[str, object] = {
-        "ok": not required_gaps,
+        "verdict": verdict,
         "state": (
-            "blocked"
-            if required_gaps
+            "unknown"
+            if verdict == "unknown"
+            else "blocked"
+            if verdict == "block"
             else "planned"
             if mode == "landed"
             else "ready_to_retire_superseded"
@@ -182,6 +195,7 @@ def retire_linked_work_lane(
     if effect:
         effect_gaps = string_sequence(effect.get("required_gaps"))
         report.update(effect)
+        report["verdict"] = "block"
         report["mutation"] = mutation(effect_gaps)
         report["required_gaps"] = effect_gaps
         return report
@@ -190,6 +204,12 @@ def retire_linked_work_lane(
         retired=lane,
     )
     return report
+
+
+def _retirement_verdict(gaps: list[str] | tuple[str, ...]) -> Verdict:
+    if not gaps:
+        return "pass"
+    return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"
 
 
 def _landed_gaps(

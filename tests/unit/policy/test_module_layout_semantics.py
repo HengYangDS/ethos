@@ -135,6 +135,8 @@ def test_module_layout_gate_includes_untracked_and_excludes_ignored_python(tmp_p
 
     report = module_layout_gate_report(tmp_path)
 
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["required_gaps"] == ["module_layout_ambiguous_module:tools/core.py"]
 
 

@@ -21,7 +21,7 @@ Facts, and TransitionPlan without parallel semantic entity owners.
 
 - **WHEN** a claim declares `semantic_attested`
 - **THEN** it SHALL bind a candidate-external receipt to its claim id, dated-evidence digest, semantic scope digest, and exact HEAD
-- **AND** the receipt SHALL name an independent reviewer role, basis, allow verdict, validity interval, and `mints_authority = false`
+- **AND** the receipt SHALL name an independent reviewer role, basis, pass verdict, validity interval, and `mints_authority = false`
 - **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the claim
 - **AND** `digest_only` claims SHALL require no receipt directory, account, daemon, credential, network, or dedicated local account
 
@@ -47,8 +47,21 @@ SHALL NOT turn that text into a subsystem, feature map, or low-level implementat
 - **AND** generated projections do not outrank source, tests, schemas, docs,
   OpenSpec records, attestations, evidence, or command JSON
 
+### Requirement: Closed Verdict Reduction
+ETHOS SHALL derive one public `verdict` from required facts and diagnostics.
+The only values are `pass`, `block`, and `unknown`; missing or unverifiable
+required facts produce `unknown`, while conflicts, explicit failures, and
+warnings produce `block`. Only `pass` may authorize an effect.
+
+#### Scenario: Required facts reduce to a closed verdict
+- **WHEN** ETHOS reduces current required facts and diagnostics
+- **THEN** missing or unverifiable required facts produce `unknown`, conflicts,
+  explicit failures, or warnings produce `block`, and only `pass` authorizes an
+  effect
+- **AND** the result has no top-level `ok` field
+
 ### Requirement: Kernel Result Contract
-ETHOS SHALL emit stable JSON result envelopes with `ok`, `summary`,
+ETHOS SHALL emit stable JSON result envelopes with `verdict`, `summary`,
 `diagnostics`, `required_gaps`, `next_actions`, and `data`.
 
 #### Scenario: Automation reads command output
@@ -87,7 +100,7 @@ for explicit parity contract records.
 ETHOS SHALL admit `semantic_attested` only when a typed candidate-external
 receipt binds the exact claim, dated evidence digest, semantic promotion scope,
 and current HEAD. The receipt SHALL record an independent reviewer role, basis,
-allow verdict, validity interval, canonical payload digest, and
+pass verdict, validity interval, canonical payload digest, and
 `mints_authority = false`.
 
 #### Scenario: Attestation is absent or mismatched

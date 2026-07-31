@@ -145,7 +145,7 @@ def _edge_report(
     commands: dict[str, Any],
 ) -> dict[str, Any]:
     return {
-        "ok": False,
+        "verdict": "block",
         "official_config": context.official_config,
         "official_cli": openspec_official_cli(
             package=context.official_package, base_command=base_command
@@ -280,9 +280,10 @@ def lifecycle_report(
     protected_branch_residue: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     residue = protected_branch_residue or {
-        "ok": True,
+        "verdict": "pass",
         "records": [],
         "advisory_gaps": [],
+        "required_gaps": [],
         "summary": {"residue_count": 0},
     }
     if not request.lifecycle:

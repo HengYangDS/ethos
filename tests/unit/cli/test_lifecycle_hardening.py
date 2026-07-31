@@ -57,7 +57,7 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
         "--json",
     )
 
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "gapped"
     assert "gate_failed:docs-registry" in payload["required_gaps"]
     attestation = payload["data"]["attestation"]
@@ -100,7 +100,7 @@ def test_lane_candidate_refresh_from_accepted_resets_clean_diverged_candidate(
         cwd=repo,
     )
 
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
     assert payload["state"] == "refreshed_from_accepted"
     assert payload["required_gaps"] == []
     assert payload["data"]["previous_head"] == old_candidate_head
@@ -134,7 +134,7 @@ def test_lane_candidate_refresh_from_accepted_uses_official_ref_move_context(
         cwd=repo,
     )
 
-    assert payload["ok"] is True
+    assert payload["verdict"] == "pass"
     assert payload["state"] == "refreshed_from_accepted"
     assert payload["data"]["previous_head"] == old_candidate_head
     assert payload["data"]["head"] == accepted_head
@@ -159,7 +159,7 @@ def test_land_closeout_reports_actionable_candidate_divergence(
         cwd=repo,
     )
 
-    assert payload["ok"] is False
+    assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert "candidate_diverged_from_accepted" in payload["required_gaps"]
     assert payload["next_actions"] == [

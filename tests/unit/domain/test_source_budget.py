@@ -185,11 +185,12 @@ def test_direct_measurement_is_clean_when_bounded_counters_agree(
 
     report = source_budget.source_budget_report(tmp_path)
 
-    assert (report["ok"], report["state"], report["required_gaps"]) == (
-        True,
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        "pass",
         "clean",
         [],
     )
+    assert "ok" not in report
     assert report["metrics"]["python_total"] == 2
     assert report["inventory"]["file_count"] == 3
 
@@ -550,7 +551,8 @@ def test_first_versioned_policy_uses_candidate_control_replacement(
 
     report = source_budget.source_budget_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
     assert report["terminal"] == {"python_total": 1_000, "global_total": 2_000}
 
 
@@ -601,6 +603,7 @@ def test_malformed_or_incomplete_policy_fails_closed(
 
     report = source_budget.source_budget_report(tmp_path)
 
-    assert report["ok"] is False
+    assert report["verdict"] == "block"
+    assert "ok" not in report
     assert report["metrics"] == {}
     assert report["required_gaps"][0].startswith("source_budget_policy_invalid:")

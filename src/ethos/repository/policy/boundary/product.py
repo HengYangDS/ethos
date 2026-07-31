@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
+from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.boundary.catalog import ADOPTER_LITERAL_PATTERNS
 from ethos.repository.policy.boundary.catalog import ALLOWED_IDENTITY_ROLES
 from ethos.repository.policy.boundary.catalog import DISTINCT_IDENTITY_FACTS
@@ -279,8 +280,9 @@ def product_boundary_report(root: Path) -> dict[str, object]:
     by_kind: dict[str, int] = {}
     for finding in findings:
         by_kind[finding.kind] = by_kind.get(finding.kind, 0) + 1
+    required_gaps = [finding.code() for finding in findings]
     return {
-        "ok": not findings,
+        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "state": "clean" if not findings else "blocked",
         "summary": {
             "scanned_file_count": len(files),
@@ -289,7 +291,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
             "by_kind": by_kind,
         },
         "findings": [finding.to_dict() for finding in findings],
-        "required_gaps": [finding.code() for finding in findings],
+        "required_gaps": required_gaps,
         "policy": {
             "product_surfaces": list(declared_product_surface_roots(root)),
             "historical_surface_prefixes": list(HISTORICAL_SURFACE_PREFIXES),
@@ -424,8 +426,9 @@ def contributor_policy_report(root: Path) -> dict[str, object]:
         *_identity_entry_findings(entries=entries, policy_path=policy_path),
     ]
 
+    required_gaps = [finding.code() for finding in findings]
     return {
-        "ok": not findings,
+        "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "state": "clean" if not findings else "blocked",
         "summary": {
             "identity_mode": identity_mode,
@@ -434,7 +437,7 @@ def contributor_policy_report(root: Path) -> dict[str, object]:
             "finding_count": len(findings),
         },
         "allowed_identities": entries,
-        "required_gaps": [finding.code() for finding in findings],
+        "required_gaps": required_gaps,
         "findings": [finding.to_dict() for finding in findings],
         "policy": {
             "principle": "Git author / committer != Work Lane actor != governance authority",

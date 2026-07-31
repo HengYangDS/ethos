@@ -8,7 +8,7 @@ schema = "system/schemas/contracts/invalid_states.schema.json"
 id = "commitment_invalid"
 concept = "Commitment"
 question = "Is the selected Commitment complete, valid, and authoritative for this transition?"
-summary = "The selected contract, its subject, scope, declared policy, or OpenSpec carrier is absent, ambiguous, or invalid."
+summary = "The selected Commitment, its subject, scope, declared policy, or OpenSpec carrier is absent, ambiguous, or invalid."
 match_prefixes = [
   "governance_rule_gap",
   "rule_not_table",

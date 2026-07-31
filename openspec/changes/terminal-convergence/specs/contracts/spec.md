@@ -55,7 +55,7 @@ A Commitment SHALL be immutable identity and intent. Changed scope or intent SHA
 - **WHEN** intended scope changes
 - **THEN** the operator creates a new Commitment and binds the new transition explicitly
 
-### Requirement: TransitionPlan Transition Contract
+### Requirement: TransitionPlan Boundary Semantics
 TransitionPlan SHALL be transient closure over exact Commitment, Facts, prior Attestation, policy, and effect bindings; it SHALL be regenerated whenever an input changes.
 
 #### Scenario: A transition plan is inspected

@@ -28,7 +28,7 @@ semantic roles. The role order is
 release_root -> accepted_root -> candidate -> work_lane -> proposal_lane. Bindings
 are ordered by that semantic order, then by branch name for additional bound
 branches. Work Lane bindings include `lease_state`,
-`base_commitment_digest`, and `contract_binding`. The Lease state vocabulary
+`base_commitment_digest`, and `commitment_binding`. The Lease state vocabulary
 is exactly `valid`, `expired`, `unknown`, or `missing`; non-Work-Lane bindings use
 `none`. This keeps invalid persisted state observable without converting it or
 collapsing it to absence.

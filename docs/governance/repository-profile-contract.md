@@ -125,7 +125,7 @@ carriers. Tool-native configuration and provider state remain outside the profil
 A profile does not declare execution-substrate transition state. Unknown tables
 fail closed; ETHOS neither parses nor migrates them into a second lifecycle path.
 See [Adopter Boundary And Retirement](adopter-boundary-and-retirement.md) for the
-attested transition contract.
+attested transition proof.
 
 Repository-native proof gates use the shared gate descriptor vocabulary. A
 profile-native gate id without a descriptor fails closed through

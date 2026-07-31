@@ -23,7 +23,7 @@ class _BindingFields:
     path: str
     worktree: str
     base_commitment_digest: str
-    contract_binding: str
+    commitment_binding: str
     lease_state: str
 
 
@@ -125,7 +125,7 @@ def unbound_work_lane_refs(
                     "branch",
                     "head",
                     "base_commitment_digest",
-                    "contract_binding",
+                    "commitment_binding",
                     "lease_state",
                 )
             },
@@ -176,7 +176,7 @@ def _binding(fields: _BindingFields) -> dict[str, str]:
         "worktree_path": fields.path,
         "worktree_binding": fields.worktree,
         "base_commitment_digest": fields.base_commitment_digest,
-        "contract_binding": fields.contract_binding,
+        "commitment_binding": fields.commitment_binding,
         "lease_state": fields.lease_state,
     }
 
@@ -214,8 +214,8 @@ def _branch_binding(
         if lease_state in {"valid", "expired"}
         else ""
     )
-    observed_binding = str(lease.get("contract_binding") or "")
-    contract_binding = (
+    observed_binding = str(lease.get("commitment_binding") or "")
+    commitment_binding = (
         observed_binding
         if lease_state == "valid" and observed_binding
         else "unknown"
@@ -234,7 +234,7 @@ def _branch_binding(
             path=path,
             worktree=binding,
             base_commitment_digest=base_digest,
-            contract_binding=contract_binding,
+            commitment_binding=commitment_binding,
             lease_state=lease_state,
         )
     )
@@ -255,12 +255,12 @@ def leases_by_branch(current_path: Path) -> dict[str, dict[str, object]]:
     leases: dict[str, dict[str, object]] = {}
     for observation in lease_observations(state_database(current_path)):
         record = observation.record()
-        record["contract_binding"] = _lease_contract_binding(current_path, record)
+        record["commitment_binding"] = _lease_commitment_binding(current_path, record)
         leases[observation.subject] = record
     return leases
 
 
-def _lease_contract_binding(root: Path, lease: dict[str, object]) -> str:
+def _lease_commitment_binding(root: Path, lease: dict[str, object]) -> str:
     state = str(lease.get("lease_state") or "missing")
     if state != "valid":
         return state
@@ -304,13 +304,13 @@ def closeout_support(
     """Return closeout support and required gaps for a branch role."""
     is_work_lane = role == ROLE_WORK_LANE
     lease = lease_by_branch.get(branch, {}) if is_work_lane else {}
-    contract_binding = _current_contract_binding(root, lease)
+    commitment_binding = _current_commitment_binding(root, lease)
     gaps = _closeout_lease_gaps(
         branch=branch,
         is_work_lane=is_work_lane,
         dirty=dirty,
         lease=lease,
-        contract_binding=contract_binding,
+        commitment_binding=commitment_binding,
     )
     if not candidate["exists"]:
         gaps.append("candidate_branch_missing")
@@ -335,8 +335,8 @@ def closeout_support(
         "lease_payload_sha256": str(lease.get("payload_sha256") or ""),
         "lease_state": (str(lease.get("lease_state") or "missing") if is_work_lane else "none"),
         "base_commitment_digest": base_digest,
-        "contract_binding": (
-            contract_binding
+        "commitment_binding": (
+            commitment_binding
             if is_work_lane and lease.get("lease_state") == "valid"
             else "unknown"
             if is_work_lane and lease.get("lease_state") == "unknown"
@@ -350,8 +350,8 @@ def closeout_support(
     }
 
 
-def _current_contract_binding(root: Path, lease: dict[str, object]) -> str:
-    binding = str(lease.get("contract_binding") or "missing")
+def _current_commitment_binding(root: Path, lease: dict[str, object]) -> str:
+    binding = str(lease.get("commitment_binding") or "missing")
     if lease.get("lease_state") != "valid" or binding != "bound":
         return binding
     try:
@@ -371,7 +371,7 @@ def _closeout_lease_gaps(
     is_work_lane: bool,
     dirty: bool,
     lease: dict[str, object],
-    contract_binding: str,
+    commitment_binding: str,
 ) -> list[str]:
     state = str(lease.get("lease_state") or "missing")
     if not is_work_lane:
@@ -384,7 +384,7 @@ def _closeout_lease_gaps(
         gap = f"work_lane_lease_expired:{branch}"
     elif state != "valid" or not lease.get("holder_ref"):
         gap = f"work_lane_missing_lease:{branch}"
-    elif contract_binding != "bound":
+    elif commitment_binding != "bound":
         gap = f"lease_base_commitment_digest_mismatch:{branch}"
     else:
         return []

@@ -14,7 +14,7 @@ import pytest
 from pydantic import ValidationError
 
 import ethos.contracts.semantic
-from ethos.contracts.gates import GateEntry
+from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.plan import PlanNode
@@ -87,27 +87,27 @@ def test_gate_declaration_compiles_one_stable_transitive_proof_closure() -> None
         id="test-gates",
         proof_sets=GateProofSets(default=("publish",), full=("publish",)),
         gates=(
-            GateEntry(
+            Gate(
                 id="publish",
                 kind="release",
                 command=("publish",),
                 depends_on=("test", "lint"),
                 registries=("runtime",),
             ),
-            GateEntry(
+            Gate(
                 id="lint",
                 kind="lint",
                 command=("lint",),
                 depends_on=("compile",),
                 registries=("runtime",),
             ),
-            GateEntry(
+            Gate(
                 id="compile",
                 kind="compile",
                 command=("compile",),
                 registries=("runtime",),
             ),
-            GateEntry(
+            Gate(
                 id="test",
                 kind="test",
                 command=("test",),
@@ -125,6 +125,25 @@ def test_gate_declaration_compiles_one_stable_transitive_proof_closure() -> None
     )
     with pytest.raises(ValueError, match="unknown proof gate"):
         declaration.proof_gates(("missing",))
+
+
+def test_gate_boundary_rejects_coercion_without_dump_validate_bridges() -> None:
+    with pytest.raises(ValidationError):
+        Gate(
+            id="test",
+            kind="test",
+            command=("test",),
+            registries=("runtime",),
+            trust_bearing=1,
+        )
+
+    entry = Gate(
+        id="test",
+        kind="test",
+        command=("test",),
+        registries=("runtime",),
+    )
+    assert not hasattr(entry, "descriptor")
 
 
 def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None:
@@ -149,6 +168,12 @@ def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None
     assert commitment.digest() == Commitment.model_validate(commitment.model_dump()).digest()
     assert facts.digest() == Facts.model_validate(facts.model_dump()).digest()
     assert commitment.model_config["frozen"] is facts.model_config["frozen"] is True
+
+
+@pytest.mark.parametrize("value", [{"unordered"}, iter(("generated",))])
+def test_frozen_tuple_rejects_unordered_or_consumable_iterables(value: object) -> None:
+    with pytest.raises((TypeError, ValidationError)):
+        Gate(id="test", kind="test", command=value)
 
 
 def test_only_commitment_and_attestation_have_production_persistence_owners() -> None:

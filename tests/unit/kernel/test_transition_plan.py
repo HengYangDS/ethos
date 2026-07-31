@@ -78,6 +78,13 @@ def test_transition_plan_public_projection_round_trips_through_its_model_owner()
     assert "commitment_digest" not in payload
 
 
+def test_transition_plan_facts_are_deeply_immutable() -> None:
+    plan = _plan()
+
+    with pytest.raises(TypeError):
+        plan.facts["values"]["new"] = True
+
+
 def test_transition_plan_rejects_missing_dependency() -> None:
     plan = _plan(
         nodes=(

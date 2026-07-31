@@ -4,8 +4,7 @@ These values identify one cooperative local executor and one Work Lane lease.
 They do not model users, teams, permissions, or durable repository truth.
 """
 
-from __future__ import annotations
-
+import json
 from dataclasses import dataclass
 from typing import Any
 from typing import Literal
@@ -15,13 +14,21 @@ from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import JsonValue
+from pydantic import TypeAdapter
+from pydantic import ValidationError
 from pydantic import field_validator
 from pydantic import model_validator
 
+from ethos.contracts.value import FrozenTuple
+from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
 _HOLDER_REF_PART_COUNT = 4
+_LANE_LEASE_PAYLOAD_FIELDS_INVALID = "lane_lease_payload_fields_invalid"
+_LANE_LEASE_PAYLOAD_TYPE_INVALID = "lane_lease_payload_type_invalid"
+_JSON_OBJECT = TypeAdapter(dict[str, JsonValue], config=ConfigDict(strict=True))
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,7 +110,7 @@ def lease_operation(identifier: str) -> LeaseOperation:
 class HolderRef(BaseModel):
     """Provider-neutral reference to one concrete local execution instance."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     kind: str = Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
     namespace: str = Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -136,7 +143,7 @@ class HolderRef(BaseModel):
 class LeaseHandoffOffer(BaseModel):
     """One exact pending holder transfer offer inside a Lane Lease."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     offer_id: str = Field(min_length=1)
     target_holder_ref: str = Field(min_length=1)
@@ -151,7 +158,7 @@ class LeaseHandoffOffer(BaseModel):
 class LaneLease(BaseModel):
     """One current cooperative writer lease in one Git common directory."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     lane_incarnation_id: str = Field(min_length=1)
     lease_id: str = Field(min_length=1)
@@ -163,7 +170,7 @@ class LaneLease(BaseModel):
     expires_at: AwareDatetime
     expected_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     base_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    path_scope: tuple[str, ...] = ()
+    path_scope: FrozenTuple[str] = ()
     handoff: LeaseHandoffOffer | None = None
 
     @field_validator("holder_ref", mode="before")
@@ -172,7 +179,7 @@ class LaneLease(BaseModel):
         return HolderRef.parse(value) if isinstance(value, str) else value
 
     @model_validator(mode="after")
-    def validate_times(self) -> LaneLease:
+    def validate_times(self) -> Self:
         """Keep renewal and expiry ordered without claiming clock authority."""
         if self.renewed_at < self.issued_at:
             msg = "renewed_at must not precede issued_at"
@@ -202,55 +209,18 @@ class LaneLease(BaseModel):
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> Self:
         """Parse only the strict terminal persisted Lease wire."""
-        expected = {
-            "lane_incarnation_id",
-            "lease_id",
-            "lane_ref",
-            "holder_ref",
-            "epoch",
-            "issued_at",
-            "renewed_at",
-            "expires_at",
-            "expected_head",
-            "base_commitment_digest",
-            "path_scope",
-            "handoff",
-        }
-        if set(payload) != expected:
-            msg = "lane_lease_payload_fields_invalid"
-            raise ValueError(msg)
-        string_fields = expected - {"epoch", "path_scope", "handoff"}
-        if any(not isinstance(payload[field], str) for field in string_fields):
-            msg = "lane_lease_payload_type_invalid"
-            raise ValueError(msg)
-        epoch = payload["epoch"]
-        path_scope = payload["path_scope"]
-        handoff = payload["handoff"]
-        if isinstance(epoch, bool) or not isinstance(epoch, int):
-            msg = "lane_lease_payload_type_invalid"
-            raise TypeError(msg)
-        if not isinstance(path_scope, list) or any(
-            not isinstance(path, str) for path in path_scope
-        ):
-            msg = "lane_lease_payload_type_invalid"
-            raise TypeError(msg)
-        if handoff is not None and not isinstance(handoff, dict):
-            msg = "lane_lease_payload_type_invalid"
-            raise TypeError(msg)
-        return cls(
-            lane_incarnation_id=payload["lane_incarnation_id"],
-            lease_id=payload["lease_id"],
-            lane_ref=payload["lane_ref"],
-            holder_ref=HolderRef.parse(payload["holder_ref"]),
-            epoch=epoch,
-            issued_at=payload["issued_at"],
-            renewed_at=payload["renewed_at"],
-            expires_at=payload["expires_at"],
-            expected_head=payload["expected_head"],
-            base_commitment_digest=payload["base_commitment_digest"],
-            path_scope=tuple(path_scope),
-            handoff=handoff,
-        )
+        if set(payload) != set(cls.model_fields):
+            raise ValueError(_LANE_LEASE_PAYLOAD_FIELDS_INVALID)
+        try:
+            _JSON_OBJECT.validate_python(payload, strict=True)
+        except (TypeError, ValidationError) as exc:
+            raise TypeError(_LANE_LEASE_PAYLOAD_TYPE_INVALID) from exc
+        try:
+            return cls.model_validate_json(json.dumps(payload))
+        except ValidationError as exc:
+            if any(str(error["type"]).endswith("_type") for error in exc.errors()):
+                raise TypeError(_LANE_LEASE_PAYLOAD_TYPE_INVALID) from exc
+            raise
 
 
 class HandoffArtifact(BaseModel):
@@ -290,7 +260,7 @@ class CrossHostHandoff(BaseModel):
     source_lease_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     base_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_holder_ref: HolderRef
-    artifacts: tuple[HandoffArtifact, ...] = ()
+    artifacts: FrozenTuple[HandoffArtifact] = ()
 
     def to_payload(self) -> dict[str, Any]:
         """Project transferable Git/context facts without the source lease."""
@@ -372,7 +342,7 @@ class MutationAdmissionRequest(BaseModel):
 
     action: str = Field(min_length=1)
     resource: str = Field(min_length=1)
-    expected_state: dict[str, object]
+    expected_state: JsonObject
     verdict: Verdict
     required_gaps: tuple[str, ...] = ()
     why: tuple[str, ...] = ()
@@ -384,7 +354,7 @@ class MutationAdmissionRequest(BaseModel):
     verifier_provenance: str = "current_runner"
 
     @model_validator(mode="after")
-    def reject_false_pass(self) -> MutationAdmissionRequest:
+    def reject_false_pass(self) -> Self:
         require_closed_verdict(self.verdict, self.required_gaps)
         return self
 

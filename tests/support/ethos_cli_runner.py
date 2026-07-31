@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from cyclopts.exceptions import CycloptsError
+
 from ethos.cli import app
 from ethos.surface.cli.application import load_command_groups
 
@@ -158,9 +160,9 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
             except SystemExit as exc:
                 code = exc.code if isinstance(exc.code, int) else 1
                 returncode = code
-    except BaseException as exc:
-        returncode = 1
-        stderr.write(f"{type(exc).__name__}: {exc}")
+            except CycloptsError as exc:
+                returncode = 1
+                stderr.write(f"{type(exc).__name__}: {exc}")
     finally:
         os.chdir(previous_cwd)
         os.environ.update(removed_git_env)

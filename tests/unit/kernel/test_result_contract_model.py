@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
 from ethos.result import EthosResult
+from ethos.result import apply_payload_budget
 
 
 def test_ethos_result_is_frozen_strict_schema_model() -> None:
@@ -27,6 +29,13 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
     assert schema["properties"]["command"]["type"] == "string"
     assert "ok" not in schema["properties"]
     assert schema["properties"]["verdict"]["enum"] == ["pass", "block", "unknown"]
+    assert json.loads(Path("system/schemas/kernel/result.schema.json").read_text()) == (
+        schema
+        | {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ethos.local/schemas/result.schema.json",
+        }
+    )
 
 
 def test_ethos_result_exposes_only_the_authoritative_verdict() -> None:
@@ -96,3 +105,39 @@ def test_ethos_result_json_contract_has_no_parallel_success_flag() -> None:
         "next_actions": ["ethos prove --json"],
         "data": {"value": 1},
     }
+
+
+def test_ethos_result_payload_is_deeply_immutable() -> None:
+    result = EthosResult(
+        command="status",
+        verdict="pass",
+        state="ready",
+        summary={"nested": {"value": 1}},
+        diagnostics=({"kind": "probe", "details": {"value": 1}},),
+        governance_context={"authority": {"owner": "repository"}},
+        data={"nested": {"value": 1}},
+    )
+
+    with pytest.raises(TypeError):
+        result.summary["nested"]["value"] = 2
+    with pytest.raises(TypeError):
+        result.diagnostics[0]["details"]["value"] = 2
+    with pytest.raises(TypeError):
+        result.governance_context["authority"]["owner"] = "host"
+    with pytest.raises(TypeError):
+        result.data["nested"]["value"] = 2
+
+
+def test_payload_budget_preserves_deep_immutability(tmp_path) -> None:
+    bounded = apply_payload_budget(
+        EthosResult(
+            command="status",
+            verdict="pass",
+            state="ready",
+            data={"large": "x" * 20_000},
+        ),
+        root=tmp_path,
+    )
+
+    with pytest.raises(TypeError):
+        bounded.data["artifact_reference"]["path"] = "changed"

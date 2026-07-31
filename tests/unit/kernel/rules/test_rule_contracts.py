@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+from pydantic import ValidationError
+
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
+from ethos.contracts.rules import stable_digest
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.rules.config import resolve_profile_stack
@@ -27,7 +31,7 @@ def test_rule_contract_schemas_validate_minimal_payloads() -> None:
     assert validate_schema_instance("rule.schema.json", rule)["verdict"] == "pass"
 
 
-def test_contract_dataclasses_serialize_to_schema_payloads() -> None:
+def test_rule_contracts_serialize_to_schema_payloads_without_handwritten_conversion() -> None:
     rule = Rule(
         id="custom.docs",
         owner="docs-team",
@@ -39,7 +43,38 @@ def test_contract_dataclasses_serialize_to_schema_payloads() -> None:
         stop_condition="docs_gap",
     )
     rule_set = RuleSet(id="custom", profile_layers=("generic",), rules=(rule,))
-    assert rule_set.to_dict()["rules"][0]["id"] == "custom.docs"
+    payload = rule_set.model_dump(mode="json")
+    assert payload == {
+        "schema_version": 1,
+        "id": "custom",
+        "profile_layers": ["generic"],
+        "rules": [
+            {
+                "id": "custom.docs",
+                "owner": "docs-team",
+                "authority_ref": "docs/governance/docs.md",
+                "contract_ref": "docs/governance/docs.md",
+                "path_globs": ["docs/**"],
+                "severity": "advisory",
+                "required_gates": ["docs-registry"],
+                "stop_condition": "docs_gap",
+                "version": 1,
+            }
+        ],
+    }
+    assert rule_set.digest == stable_digest(payload)
+    with pytest.raises(ValidationError):
+        Rule(
+            id="invalid",
+            owner="docs-team",
+            authority_ref="docs/governance/docs.md",
+            contract_ref="docs/governance/docs.md",
+            path_globs=("docs/**",),
+            severity="advisory",
+            required_gates=("docs-registry",),
+            stop_condition="docs_gap",
+            non_waivable=1,
+        )
 
 
 def test_compile_rules_rejects_v1_keys_without_normalization(tmp_path: Path) -> None:

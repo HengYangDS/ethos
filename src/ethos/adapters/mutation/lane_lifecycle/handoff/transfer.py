@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sqlite3
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -327,7 +329,7 @@ def revoke_cross_host_source(
                     apply=True,
                 ),
             )
-        except Exception as exc:
+        except (sqlite3.Error, ValueError) as exc:
             report.update(verdict="block", state="blocked", required_gaps=[str(exc)])
         else:
             report.update(
@@ -411,7 +413,13 @@ def _apply_report(
 ) -> None:
     try:
         report.update(effect())
-    except Exception as exc:
+    except (
+        OSError,
+        RuntimeError,
+        sqlite3.Error,
+        subprocess.SubprocessError,
+        ValueError,
+    ) as exc:
         report.update(verdict="block", state="blocked", required_gaps=[f"{gap}:{exc}"])
 
 

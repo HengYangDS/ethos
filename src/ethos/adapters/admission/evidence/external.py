@@ -295,7 +295,7 @@ def independent_verification_report(
     if gap:
         return {**base, "verdict": "block", "state": "invalid", "required_gaps": [gap]}
     try:
-        receipt = IndependentVerificationReceipt.model_validate(payload)
+        receipt = IndependentVerificationReceipt.model_validate_json(json.dumps(payload))
     except ValidationError:
         return {
             **base,

@@ -16,12 +16,6 @@ _INVALID_SCOPE_PATTERN = "scope path must be a non-empty relative POSIX pattern"
 _DOT_SEGMENT_SCOPE_PATTERN = "scope path must not contain dot segments"
 
 
-class _OpenSpecScopeModel(BaseModel):
-    """Strict immutable base for portable OpenSpec scope declarations."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
 class OpenSpecPolicy(BaseModel):
     """Profile-owned material-path declaration for one repository."""
 

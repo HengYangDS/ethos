@@ -154,13 +154,12 @@ def project_lane_result(
     json_output: bool,
 ) -> None:
     verdict = report_verdict(report)
-    next_actions = (
-        actions(report, verdict)
-        if callable(actions)
-        else actions
-        if actions is not None
-        else _ACTIONS.get(command, lambda _report, _verdict: ())(report, verdict)
-    )
+    if actions is None:
+        next_actions = _ACTIONS.get(command, _actions(()))(report, verdict)
+    elif isinstance(actions, tuple):
+        next_actions = cast("tuple[str, ...]", actions)
+    else:
+        next_actions = actions(report, verdict)
     result = EthosResult(
         command=command,
         verdict=verdict,

@@ -1,4 +1,4 @@
-"""Admit current proof Attestations for one exact repository query."""
+"""Admit proof Attestations for one exact local repository query."""
 
 from __future__ import annotations
 
@@ -10,86 +10,146 @@ from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
-from ethos.contracts.authority import AuthorityQuery
-from ethos.contracts.authority import CarrierDescriptor
-from ethos.contracts.authority import resolve_authority
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.policy.gates import resolve_gate_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
 
 
+_BINDINGS = (
+    "commitment_digest",
+    "facts_digest",
+    "plan_digest",
+    "policy_digest",
+    "effect_digest",
+)
+
+
 def proof_attestation(
-    root: Path, head: str, *, store: Path
+    root: Path,
+    head: str,
+    *,
+    store: Path,
+    expected_plan: TransitionPlan | None = None,
 ) -> tuple[Attestation | None, list[str]]:
-    """Return the current repository proof or its fail-closed gaps."""
+    """Return one deterministic member of the current exact proof set."""
+    admitted, gaps = _admitted_proofs(root, head, store=store, expected_plan=expected_plan)
+    return (min(admitted, key=lambda item: item.id), []) if admitted else (None, gaps)
+
+
+def _admitted_proofs(
+    root: Path,
+    head: str,
+    *,
+    store: Path,
+    expected_plan: TransitionPlan | None = None,
+) -> tuple[tuple[Attestation, ...], list[str]]:
     attestations, store_gaps = scan_attestations(store)
     candidates = tuple(
-        attestation
-        for attestation in attestations
-        if attestation.predicate == "proof:execution"
-        and attestation.subject == f"git:commit:{head}"
+        item
+        for item in attestations
+        if item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
     )
     if store_gaps or not candidates:
-        return None, store_gaps or ["proof_not_proven"]
-    validity = datetime.now(UTC)
-    current = tuple(item for item in candidates if _current_at(item, validity))
+        return (), store_gaps or ["proof_not_proven"]
+    instant = datetime.now(UTC)
+    current = tuple(item for item in candidates if _current_at(item, instant))
     if not current:
-        return None, ["unknown_required_fact"]
-    evaluated = [(item, _candidate_gaps(root, head, store, item)) for item in current]
-    integrity = [
-        gap
-        for _item, gaps in evaluated
-        for gap in gaps
-        if (
-            gap.startswith("proof_attestation_")
-            or gap in {"model_gap", "proof_policy_digest_stale"}
-        )
-        and gap
-        not in {
-            "proof_attestation_verdict_block",
-            "proof_attestation_verdict_unknown",
-            "proof_attestation_check_not_passed",
-        }
-    ]
+        return (), ["unknown_required_fact"]
+    matching = tuple(item for item in current if not _query_gaps(item))
+    if not matching:
+        return (), list(dict.fromkeys(gap for item in current for gap in _query_gaps(item)))
+    if expected_plan is not None:
+        matching = tuple(item for item in matching if _plan_matches(item, expected_plan))
+        if not matching:
+            return (), ["proof_not_proven"]
+    evaluated = tuple((item, _candidate_gaps(root, head, store, item)) for item in matching)
+    integrity = _integrity_gaps(evaluated)
     if integrity:
-        return None, list(dict.fromkeys(integrity))
-    valid = tuple(item for item, gaps in evaluated if not gaps)
-    if valid:
-        descriptors = tuple(_descriptor(item, validity) for item in valid)
-        query = _query(head, validity)
-        mismatched = tuple(descriptor for descriptor in descriptors if descriptor.query != query)
-        if mismatched:
-            if len(mismatched) != len(descriptors):
-                return None, ["contradiction"]
-            mismatch_gaps = [
-                gap
-                for descriptor in mismatched
-                for gap, differs in (
-                    ("proof_attestation_scope_mismatch", descriptor.query.scope != query.scope),
-                    ("proof_attestation_plane_mismatch", descriptor.query.plane != query.plane),
-                    (
-                        "proof_attestation_context_mismatch",
-                        descriptor.query.context != query.context,
-                    ),
-                )
-                if differs
-            ]
-            return None, list(dict.fromkeys(mismatch_gaps)) or ["model_gap"]
-        resolution = resolve_authority(query, descriptors)
-        selected = max(valid, key=lambda item: (item.issued_at, item.id))
-        result = (selected, [])
-        if resolution.verdict != "pass":
-            result = (None, list(resolution.required_gaps))
-        return result
-    return None, max(evaluated, key=lambda item: (item[0].issued_at, item[0].id))[1]
+        return (), integrity
+    valid = tuple(item for item, item_gaps in evaluated if not item_gaps)
+    if not valid:
+        return (), list(dict.fromkeys(gap for _item, item_gaps in evaluated for gap in item_gaps))
+    bindings = {_bindings(item) for item in valid}
+    if len(bindings) > 1:
+        return (), ["stale_binding"]
+    meanings = {_assertion_digest(item) for item in valid}
+    if len(meanings) > 1:
+        return (), ["contradiction"]
+    return valid, []
+
+
+def _integrity_gaps(evaluated: tuple[tuple[Attestation, list[str]], ...]) -> list[str]:
+    ignored = {
+        "proof_attestation_verdict_block",
+        "proof_attestation_verdict_unknown",
+        "proof_attestation_check_not_passed",
+    }
+    return list(
+        dict.fromkeys(
+            gap
+            for _item, gaps in evaluated
+            for gap in gaps
+            if (
+                gap.startswith("proof_attestation_")
+                or gap in {"model_gap", "proof_policy_digest_stale"}
+            )
+            and gap not in ignored
+        )
+    )
 
 
 def _current_at(attestation: Attestation, instant: datetime) -> bool:
     return (attestation.valid_from or attestation.issued_at) <= instant and (
         attestation.valid_until is None or instant <= attestation.valid_until
+    )
+
+
+def _query_gaps(attestation: Attestation) -> list[str]:
+    statement = attestation.statement
+    return [
+        gap
+        for gap, mismatch in (
+            ("proof_attestation_scope_mismatch", statement.get("scope") != ("repository",)),
+            ("proof_attestation_plane_mismatch", statement.get("plane") != "local"),
+            (
+                "proof_attestation_context_mismatch",
+                statement.get("context") != {"boundary": "repository"},
+            ),
+        )
+        if mismatch
+    ]
+
+
+def _bindings(attestation: Attestation) -> tuple[str, ...]:
+    return tuple(getattr(attestation, name) for name in _BINDINGS)
+
+
+def _plan_matches(attestation: Attestation, expected: TransitionPlan) -> bool:
+    try:
+        plan = plan_from_statement(attestation)
+    except (TypeError, ValueError):
+        return False
+    return plan.digest == expected.digest
+
+
+def _assertion_digest(attestation: Attestation) -> str:
+    statement = attestation.statement
+    return canonical_json_digest(
+        {
+            "claim": statement.get("claim"),
+            "repository": statement.get("repository"),
+            "scope": statement.get("scope"),
+            "plane": statement.get("plane"),
+            "context": statement.get("context"),
+            "boundary": statement.get("boundary"),
+            "required_gaps": statement.get("required_gaps"),
+            "verifier": attestation.verifier,
+        }
     )
 
 
@@ -131,69 +191,31 @@ def _policy_gaps(
     ]
 
 
-def _query(
-    head: str,
-    validity: datetime,
-    *,
-    scope: tuple[str, ...] = ("repository",),
-    plane: str = "local",
-    boundary: str = "repository",
-) -> AuthorityQuery:
-    return AuthorityQuery(
-        subject=f"git:commit:{head}",
-        predicate="proof:execution",
-        scope=scope,
-        plane=plane,
-        validity=validity,
-        context=(("boundary", boundary),),
-    )
-
-
-def _descriptor(attestation: Attestation, validity: datetime) -> CarrierDescriptor:
-    statement = attestation.model_dump(mode="json")["statement"]
-    bindings = tuple(
-        (name, value)
-        for name in (
-            "commitment_digest",
-            "facts_digest",
-            "plan_digest",
-            "policy_digest",
-            "effect_digest",
-        )
-        if (value := getattr(attestation, name))
-    )
-    return CarrierDescriptor(
-        role="fact",
-        declared_authority=True,
-        query=_query(
-            attestation.subject.removeprefix("git:commit:"),
-            validity,
-            scope=tuple(str(item) for item in statement["scope"]),
-            plane=str(statement["plane"]),
-            boundary=str(statement["boundary"]),
-        ),
-        assertion={
-            "claim": statement.get("claim"),
-            "repository": statement.get("repository"),
-            "scope": statement.get("scope"),
-            "plane": statement.get("plane"),
-            "context": statement.get("context"),
-            "boundary": statement.get("boundary"),
-            "required_gaps": statement.get("required_gaps"),
-            "verifier": attestation.verifier,
-        },
-        bindings=bindings,
-        source=f"attestation:{attestation.id}",
-        valid_from=attestation.valid_from or attestation.issued_at,
-        valid_until=attestation.valid_until,
-    )
-
-
 def plan_for_attestation(root: Path, attestation: Attestation, *, store: Path):
-    """Return the exact transient plan after current proof admission."""
-    selected, gaps = proof_attestation(
-        root, attestation.subject.removeprefix("git:commit:"), store=store
+    """Return the exact transient plan for any member of the current proof set."""
+    plan = plan_from_statement(attestation)
+    admitted, gaps = _admitted_proofs(
+        root,
+        attestation.subject.removeprefix("git:commit:"),
+        store=store,
+        expected_plan=plan,
     )
-    if gaps or selected is None or selected.id != attestation.id:
+    if gaps or attestation.id not in {item.id for item in admitted}:
         raise ValueError(gaps[0] if gaps else "proof_attestation_not_current")
-    return plan_from_statement(attestation)
+    return plan
+
+
+def evidence_digest(
+    root: Path,
+    head: str,
+    *,
+    store: Path,
+    expected_plan: TransitionPlan | None = None,
+) -> str:
+    """Return the stable semantic identity of one admitted proof set."""
+    admitted, gaps = _admitted_proofs(root, head, store=store, expected_plan=expected_plan)
+    if gaps or not admitted:
+        return ""
+    return canonical_json_digest(
+        {"bindings": _bindings(admitted[0]), "assertion": _assertion_digest(admitted[0])}
+    )

@@ -257,13 +257,14 @@ def proof_plan(
     root: Path,
     *,
     head: str,
+    binding_branch: str | None = None,
     change_id: str | None = None,
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
     changed_paths: tuple[str, ...] = (),
 ) -> TransitionPlan:
     """Compile the exact commitment-, fact-, and policy-bound proof plan."""
-    branch = current_branch(root)
+    branch = binding_branch if binding_branch is not None else current_branch(root)
     lease = leases_by_branch(root).get(branch, {})
     work_lane = load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
     if work_lane:
@@ -309,10 +310,12 @@ def proof_plan(
     )
 
 
-def proof_attestation(root: Path, head: str) -> Attestation | None:
-    """Return the newest fully valid generic proof Attestation for one exact HEAD."""
+def proof_attestation(
+    root: Path, head: str, *, expected_plan: TransitionPlan | None = None
+) -> Attestation | None:
+    """Return one resolved generic proof Attestation for one exact HEAD."""
     attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=attestation_store_dir(root)
+        root, head, store=attestation_store_dir(root), expected_plan=expected_plan
     )
     return attestation if not gaps else None
 
@@ -324,17 +327,28 @@ def proof_plan_for_attestation(root: Path, attestation: Attestation) -> Transiti
     )
 
 
-def proof_gaps(root: Path, head: str) -> list[str]:
+def proof_gaps(root: Path, head: str, *, expected_plan: TransitionPlan | None = None) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
     _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=attestation_store_dir(root)
+        root, head, store=attestation_store_dir(root), expected_plan=expected_plan
     )
     return gaps
 
 
-def proof_readiness_report(root: Path, head: str) -> dict[str, object]:
+def proof_evidence_digest(
+    root: Path, head: str, *, expected_plan: TransitionPlan | None = None
+) -> str:
+    """Return the admitted proof set's stable semantic evidence identity."""
+    return ethos.adapters.mutation.proof_admission.evidence_digest(
+        root, head, store=attestation_store_dir(root), expected_plan=expected_plan
+    )
+
+
+def proof_readiness_report(
+    root: Path, head: str, *, expected_plan: TransitionPlan | None = None
+) -> dict[str, object]:
     """Describe whether the exact HEAD has a valid generic proof Attestation."""
-    gaps = proof_gaps(root, head)
+    gaps = proof_gaps(root, head, expected_plan=expected_plan)
     independent = independent_verification_admission_report(
         root=root,
         action="publish",

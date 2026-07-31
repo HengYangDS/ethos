@@ -12,6 +12,9 @@ from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
@@ -59,9 +62,22 @@ def apply_land_to_candidate(
     if report_verdict(base_report) != "pass":
         return base_report
     candidate_path = Path(str(base_report["path"]))
-    proof = proof_attestation(candidate_path, current_head)
+    status = workspace_status(root)
+    try:
+        expected_plan = proof_plan(
+            root,
+            head=current_head,
+            binding_branch=str(status["branch"]),
+            changed_paths=change_scope_paths_from_status(root, status),
+        )
+    except ValueError as error:
+        return fail([str(error)], path=candidate_path.as_posix())
+    proof = proof_attestation(candidate_path, current_head, expected_plan=expected_plan)
     if proof is None:
-        return fail(["proof_not_proven"], path=candidate_path.as_posix())
+        return fail(
+            proof_gaps(candidate_path, current_head, expected_plan=expected_plan),
+            path=candidate_path.as_posix(),
+        )
     candidate_head = str(base_report["candidate_head"])
     try:
         plan, commitment_digest, facts_digest = accepted.proof_attestation_bindings(

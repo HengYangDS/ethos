@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[2]
 CORE_SOURCE = ROOT / "src/ethos"
 WHEEL_PROJECTIONS = (
-    ("system/authority.toml", "authority.toml"),
     ("system/gates.toml", "gates.toml"),
     ("system/invalid_states.toml", "invalid_states.toml"),
     ("system/coupling.toml", "coupling.toml"),

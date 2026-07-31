@@ -21,7 +21,7 @@ from pydantic import PlainSerializer
 from pydantic import ValidationError
 from pydantic import model_validator
 
-from ethos.contracts.gates import GateDescriptor
+from ethos.contracts.gates import Gate
 from ethos.contracts.openspec.models import OpenSpecPolicy  # noqa: TC001
 
 DEFAULT_ROOTS = {
@@ -66,7 +66,7 @@ CodeCorrectnessMap = Annotated[
     PlainSerializer(dict, return_type=dict),
 ]
 GateTuple = Annotated[
-    tuple["ProfileGateDescriptor", ...],
+    tuple[Gate, ...],
     BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
 ]
 
@@ -90,13 +90,6 @@ class EvidenceRoots(_ProfileModel):
     host_local_roots: RepositoryPathTuple = ()
 
 
-class ProfileGateDescriptor(GateDescriptor):
-    profile: Literal["repository"] = "repository"
-    toolchain: str = "repository-native"
-    execution_mode: str = "subprocess"
-    tool_adapter: str = "repository-native"
-
-
 class ProofPolicy(_ProfileModel):
     gate_registry: RepositoryPath | None = None
     required_gates: NonEmptyTuple = ()
@@ -109,6 +102,9 @@ class ProofPolicy(_ProfileModel):
         native = bool(self.required_gates or self.gates or self.code_axes)
         if self.gate_registry and native:
             msg = "proof policy has parallel gate owners"
+            raise ValueError(msg)
+        if any("registries" in gate.model_fields_set for gate in self.gates):
+            msg = "profile gates cannot select registries"
             raise ValueError(msg)
         gate_ids = tuple(gate.id for gate in self.gates)
         if len(gate_ids) != len(set(gate_ids)) or set(gate_ids) != set(self.required_gates):

@@ -86,6 +86,24 @@ def test_profile_rejects_legacy_or_incomplete_proof_owners(tmp_path: Path, proof
     assert load_repository_profile(tmp_path).state == "invalid"
 
 
+def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "sample"\n\n'
+        "[proof]\n"
+        'required_gates = ["tests"]\n\n'
+        "[[proof.gates]]\n"
+        'id = "tests"\n'
+        'kind = "test"\n'
+        'command = ["pytest"]\n'
+        'registries = ["quality"]\n',
+        encoding="utf-8",
+    )
+
+    assert load_repository_profile(tmp_path).state == "invalid"
+
+
 @pytest.mark.parametrize(
     "text",
     [

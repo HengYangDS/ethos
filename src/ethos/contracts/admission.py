@@ -4,11 +4,10 @@ Admission evaluates one action over current facts. It is not a truth store,
 identity directory, capability grant, or reusable authorization token.
 """
 
-from __future__ import annotations
-
 import os
 from typing import Annotated
 from typing import Any
+from typing import Self
 from typing import cast
 
 from pydantic import BaseModel
@@ -17,6 +16,8 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.value import FrozenTuple
+from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
@@ -81,11 +82,11 @@ FilesystemPath = Annotated[str, BeforeValidator(_path_text)]
 class HookAdmissionRequest(BaseModel):
     """One hook-layer admission request bound to its exact local context."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     root: FilesystemPath
     layer: str
-    paths: tuple[FilesystemPath, ...] = ()
+    paths: FrozenTuple[FilesystemPath] = ()
     editor_root: FilesystemPath | None = None
     require_editor_root: bool = False
     command: str = ""
@@ -95,17 +96,17 @@ class HookAdmissionRequest(BaseModel):
 class MutationSubject(BaseModel):
     """The exact action, resource, and mutable pre-state being evaluated."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     action: str = Field(min_length=1)
     resource: str = Field(min_length=1)
-    expected_state: dict[str, Any] = Field(default_factory=dict)
+    expected_state: JsonObject = Field(default_factory=dict, validate_default=True)
 
 
 class DecisionBasis(BaseModel):
     """Orthogonal facts supporting a verdict; dimensions never compensate."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     enforcement_boundary: str = Field(min_length=1)
     identity_basis: str = Field(min_length=1)
@@ -118,7 +119,7 @@ class DecisionBasis(BaseModel):
 class AdmissionDecision(BaseModel):
     """Non-reusable verdict for one fully bound mutation subject."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     verdict: Verdict
     subject: MutationSubject
@@ -130,7 +131,7 @@ class AdmissionDecision(BaseModel):
     required_gaps: tuple[str, ...] = ()
 
     @model_validator(mode="after")
-    def reject_false_pass(self) -> AdmissionDecision:
+    def reject_false_pass(self) -> Self:
         require_closed_verdict(self.verdict, self.required_gaps)
         return self
 

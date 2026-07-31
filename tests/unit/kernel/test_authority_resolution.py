@@ -127,3 +127,10 @@ def test_different_planes_are_not_globally_ranked() -> None:
 def test_authority_resolution_rejects_pass_with_required_gaps() -> None:
     with pytest.raises(ValidationError, match="pass_with_required_gaps"):
         AuthorityResolution(verdict="pass", required_gaps=("ambiguous_authority",))
+
+
+def test_carrier_assertion_is_deeply_immutable() -> None:
+    carrier = descriptor("native", assertion={"nested": {"value": True}})
+
+    with pytest.raises(TypeError):
+        carrier.assertion["nested"]["value"] = False

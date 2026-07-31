@@ -255,6 +255,25 @@ def test_git_effect_program_is_canonical_across_mapping_order() -> None:
     ) == ethos.adapters.repo.git_effect_attestation.program_digest(reordered)
 
 
+def test_git_effect_mappings_are_immutable() -> None:
+    effect = GitEffect(
+        id="effect:immutable",
+        plan_digest="a" * 64,
+        updates={
+            "refs/heads/dev": GitRefUpdate(expected="0" * 40, desired="1" * 40),
+        },
+        assertions={"refs/heads/main": "2" * 40},
+    )
+
+    with pytest.raises(TypeError):
+        effect.updates["refs/heads/main"] = GitRefUpdate(
+            expected="2" * 40,
+            desired="3" * 40,
+        )
+    with pytest.raises(TypeError):
+        effect.assertions["refs/heads/main"] = "3" * 40
+
+
 def test_git_effect_recovers_attestation_when_desired_state_already_holds(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     _declare_repository(repo)

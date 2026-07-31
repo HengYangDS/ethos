@@ -20,7 +20,7 @@ class IndependentVerificationReceipt(BaseModel):
     provider configuration part of repository truth.
     """
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     remote: str = Field(min_length=1)
     commit: str = Field(pattern=r"^[a-f0-9]{40,64}$")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -117,7 +118,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
                 database,
                 request=_lease_effect_request(request, operation.effect_fields, expected_state),
             )
-        except Exception as exc:
+        except (sqlite3.Error, ValueError) as exc:
             verdict, state, gaps = "block", "blocked", (str(exc),)
         else:
             if "offer_id" in payload:

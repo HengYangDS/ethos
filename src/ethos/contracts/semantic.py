@@ -4,28 +4,23 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import tomllib
 from collections.abc import Mapping
 from pathlib import PurePosixPath
-from types import MappingProxyType
 from typing import TYPE_CHECKING
-from typing import Annotated
-from typing import Any
 from typing import Literal
 from typing import Self
 
 from pydantic import AwareDatetime
 from pydantic import BaseModel
-from pydantic import BeforeValidator
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import PlainSerializer
 from pydantic import ValidationInfo
-from pydantic import WithJsonSchema
 from pydantic import field_validator
 from pydantic import model_validator
 
+from ethos.contracts.value import JsonObject
+from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
@@ -33,50 +28,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _mutable_json(value: object) -> object:
-    if isinstance(value, Mapping):
-        return {str(key): _mutable_json(item) for key, item in value.items()}
-    if isinstance(value, tuple | list):
-        return [_mutable_json(item) for item in value]
-    return value
-
-
-def _immutable_json(value: object) -> object:
-    if isinstance(value, Mapping):
-        if not all(isinstance(key, str) for key in value):
-            msg = "json_object_key_invalid"
-            raise TypeError(msg)
-        return MappingProxyType({key: _immutable_json(item) for key, item in value.items()})
-    if isinstance(value, tuple | list):
-        return tuple(_immutable_json(item) for item in value)
-    if value is None or isinstance(value, bool | int | str):
-        return value
-    if isinstance(value, float) and math.isfinite(value):
-        return value
-    msg = "json_value_invalid"
-    raise TypeError(msg)
-
-
-def _immutable_json_object(value: object) -> object:
-    if not isinstance(value, Mapping):
-        msg = "json_object_invalid"
-        raise TypeError(msg)
-    if not all(isinstance(key, str) for key in value):
-        msg = "json_object_key_invalid"
-        raise TypeError(msg)
-    return _immutable_json(dict(value))
-
-
-JsonObject = Annotated[
-    Any,
-    BeforeValidator(_immutable_json_object),
-    PlainSerializer(_mutable_json, return_type=Any, when_used="always"),
-    WithJsonSchema({"type": "object", "additionalProperties": {}}),
-]
-
-
 def _canonical_json(value: object) -> str:
-    return json.dumps(_mutable_json(value), sort_keys=True, separators=(",", ":"))
+    return json.dumps(mutable_json(value), sort_keys=True, separators=(",", ":"))
 
 
 def canonical_json_digest(value: object) -> str:

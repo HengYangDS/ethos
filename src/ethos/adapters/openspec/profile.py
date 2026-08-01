@@ -7,12 +7,10 @@ from typing import Any
 
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.repository.openspec.audit
-from ethos.adapters.openspec.commitment import load_lease_bound_openspec_commitment
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -34,29 +32,6 @@ def load_profile_commitment(
             if change_id is not None or str(error) != "commitment_missing":
                 raise
     return load_commitment(root, change_id=change_id, tree_ref=tree_ref)
-
-
-def load_profile_lease_bound_commitment(
-    root: Path,
-    *,
-    expected_head: str,
-    base_commitment_digest: str,
-    change_id: str | None = None,
-) -> Commitment:
-    """Load a Lease carrier through the explicitly selected profile adapter."""
-    if openspec_profile_enabled(root, tree_ref=expected_head):
-        return load_lease_bound_openspec_commitment(
-            root,
-            change_id=change_id,
-            expected_head=expected_head,
-            base_commitment_digest=base_commitment_digest,
-        )
-    return load_lease_bound_commitment(
-        root,
-        change_id=change_id,
-        expected_head=expected_head,
-        base_commitment_digest=base_commitment_digest,
-    )
 
 
 def completed_active_changes_report(root: Path) -> dict[str, object]:
@@ -111,15 +86,6 @@ def active_change_names(root: Path) -> list[str]:
         ethos.repository.openspec.audit.active_change_names(repo / "openspec")
         if openspec_profile_enabled(repo)
         else []
-    )
-
-
-def active_change_names_in_ref(root: Path, ref: str) -> dict[str, object]:
-    """Discover tree-bound active changes only for the selected profile."""
-    return (
-        ethos.repository.openspec.audit.active_change_names_in_ref(root, ref)
-        if openspec_profile_enabled(root)
-        else {"verdict": "pass", "ref": ref, "changes": [], "required_gaps": []}
     )
 
 

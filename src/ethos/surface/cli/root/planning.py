@@ -8,7 +8,7 @@ from datetime import datetime
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
@@ -42,13 +42,22 @@ def plan(
     paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     try:
         support = status_payload.get("closeout_support")
-        lease = support if isinstance(support, dict) else {}
+        lease = (
+            {
+                "expected_head": support.get("lease_expected_head"),
+                "expected_tree": support.get("lease_expected_tree"),
+                "base_commitment_path": support.get("lease_base_commitment_path"),
+                "base_commitment_bytes_sha256": support.get("lease_base_commitment_bytes_sha256"),
+                "base_commitment_digest": support.get("base_commitment_digest"),
+            }
+            if isinstance(support, dict)
+            else {}
+        )
         commitment = (
-            load_profile_lease_bound_commitment(
+            load_lease_bound_commitment(
                 repo,
                 change_id=change,
-                expected_head=str(lease.get("lease_expected_head") or ""),
-                base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
+                lease=lease,
             )
             if status_payload.get("role") == ROLE_WORK_LANE
             else load_profile_commitment(repo, change_id=change)

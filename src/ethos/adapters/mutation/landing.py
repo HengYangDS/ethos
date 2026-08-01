@@ -17,7 +17,7 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import current_tree
@@ -85,11 +85,7 @@ def apply_land_to_candidate(
     attestation = None
     try:
         lease = leases_by_branch(root).get(branch, {})
-        authority = load_profile_lease_bound_commitment(
-            root,
-            expected_head=current_head,
-            base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
-        )
+        authority = load_lease_bound_commitment(root, lease=lease)
         if proof.commitment_digest != authority.digest():
             failure = (authority_gap, "")
         else:

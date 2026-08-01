@@ -16,10 +16,7 @@ import os
 import shutil
 import sqlite3
 import subprocess
-import uuid
 from contextlib import closing
-from datetime import UTC
-from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 
@@ -36,11 +33,10 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.coordination import LaneLease
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
@@ -49,27 +45,31 @@ from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.contract_helpers import commit_active_commitment
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import conformant_proof_check
+from tests.support.contract_helpers import exact_lease
+from tests.support.contract_helpers import render_branch_policy
 from tests.support.contract_helpers import seed_executed_proof
 from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.contract_helpers import write_active_commitment
 from tests.support.contract_helpers import write_publication_topology
+from tests.support.contract_helpers import write_role_policy
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
+_FIXTURE_COMMITMENT_CARRIER = "openspec/changes/fixture-change/commitment.toml"
+
 
 @pytest.mark.parametrize(
-    ("old_value", "new_value", "reason"),
+    ("old_value", "new_value"),
     [
-        ("a" * 40, "0" * 40, "lane_teardown_ref_deletion"),
-        ("a" * 64, "0" * 64, "lane_teardown_ref_deletion"),
-        ("0" * 40, "a" * 40, "lane_creation_saga_started"),
-        ("0" * 64, "a" * 64, "lane_creation_saga_started"),
+        ("a" * 40, "0" * 40),
+        ("a" * 64, "0" * 64),
+        ("0" * 40, "a" * 40),
+        ("0" * 64, "a" * 64),
     ],
 )
 def test_work_lane_ref_transition_rejects_zero_oid_without_lease(
-    tmp_path: Path, old_value: str, new_value: str, reason: str
+    tmp_path: Path, old_value: str, new_value: str
 ) -> None:
-    del reason
     repo = init_repo(tmp_path / "repo")
     report = work_lane_ref_transition_report(
         root=repo,
@@ -84,33 +84,22 @@ def test_work_lane_ref_transition_rejects_zero_oid_without_lease(
     assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
 
 
-@pytest.mark.parametrize(
-    ("case", "reason"),
-    [
-        ("create", "lane_creation_saga_started"),
-        ("delete", "lane_teardown_ref_deletion"),
-    ],
-)
-def test_work_lane_ref_transition_zero_oid_requires_exact_lease_and_base(
+def test_work_lane_ref_creation_requires_exact_lease_and_base(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    case: str,
-    reason: str,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_commitment(repo)
+    commit_active_commitment(repo)
     branch = "work/zero-bound"
     head = git(repo, "rev-parse", "HEAD")
-    create = case == "create"
-    if not create:
-        git(repo, "branch", branch, head)
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch=branch,
             holder_ref="agent:test:case:zero-bound",
             expected_head=head,
-            base_commitment_digest=base_digest,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:zero-bound")
@@ -119,13 +108,76 @@ def test_work_lane_ref_transition_zero_oid_requires_exact_lease_and_base(
         root=repo,
         phase="prepared",
         ref_name=f"refs/heads/{branch}",
-        old_value="0" * 40 if create else head,
-        new_value=head if create else "0" * 40,
+        old_value="0" * 40,
+        new_value=head,
     )
 
     assert report["verdict"] == "pass"
     assert "ok" not in report
-    assert report["decision"] == {"action": "allow", "reason": reason}
+    assert report["decision"] == {"action": "allow", "reason": "lane_creation_saga_started"}
+    assert report["required_gaps"] == []
+
+
+def test_work_lane_ref_deletion_requires_closeout_intent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    commit_active_commitment(repo)
+    branch = "work/zero-bound"
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "branch", branch, head)
+    database = state_database(repo)
+    acquire_lease(
+        database,
+        lease=exact_lease(
+            repo=repo,
+            branch=branch,
+            holder_ref="agent:test:case:zero-bound",
+            expected_head=head,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
+        ),
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:zero-bound")
+
+    report = work_lane_ref_transition_report(
+        root=repo,
+        phase="prepared",
+        ref_name=f"refs/heads/{branch}",
+        old_value=head,
+        new_value="0" * 40,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["work_lane_ref_delete_no_closeout_intent"]
+    assert git(repo, "rev-parse", branch) == head
+    assert observe_lease(database, branch).state == "valid"
+
+
+@pytest.mark.parametrize("case", ["create", "delete"])
+def test_work_lane_ref_transition_committed_accepts_observed_zero_oid_terminal_state(
+    tmp_path: Path,
+    case: str,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    branch = "work/terminal"
+    if case == "create":
+        git(repo, "branch", branch, head)
+    report = work_lane_ref_transition_report(
+        root=repo,
+        phase="committed",
+        ref_name=f"refs/heads/{branch}",
+        old_value="0" * 40 if case == "create" else head,
+        new_value=head if case == "create" else "0" * 40,
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["state"] == "admitted"
+    assert report["decision"] == {
+        "action": "allow",
+        "reason": "lane_ref_terminal_state_observed",
+    }
     assert report["required_gaps"] == []
 
 
@@ -133,17 +185,18 @@ def test_work_lane_zero_oid_unknown_lease_is_observe_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_commitment(repo)
+    commit_active_commitment(repo)
     branch = "work/unknown-create"
     head = git(repo, "rev-parse", "HEAD")
     database = state_database(repo)
     lease = acquire_lease(
         database,
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch=branch,
             holder_ref="agent:test:case:unknown-create",
             expected_head=head,
-            base_commitment_digest=base_digest,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
         ),
     )
     payload = dict(lease["payload"])
@@ -232,7 +285,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_commitment(repo)
+    commit_active_commitment(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
@@ -241,11 +294,12 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     target = _advance_candidate(candidate, "target")
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_commitment_digest=base_digest,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
@@ -277,14 +331,14 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     )
     assert stale["verdict"] == "block"
     assert "ok" not in stale
-    assert any("lease_head_stale" in gap for gap in stale["required_gaps"])
+    assert stale["required_gaps"] == [f"lane_ref_observation_stale:{'c' * 40}!={head}"]
 
 
 def test_work_lane_ref_transition_committed_advances_local_lease_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_commitment(repo)
+    commit_active_commitment(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
@@ -293,11 +347,183 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     new_head = _advance_candidate(candidate, "target")
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_commitment_digest=base_digest,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
+        ),
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+    git(repo, "update-ref", "refs/heads/work/current", new_head, head)
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="committed",
+        ref_name="refs/heads/work/current",
+        old_value=head,
+        new_value=new_head,
+    )
+    assert report["verdict"] == "pass"
+    assert "ok" not in report
+    assert report["state"] == "lease_ref_advanced"
+    assert report["lease"]["expected_head"] == new_head
+    assert report["lease"]["expected_tree"] == git(repo, "rev-parse", f"{new_head}^{{tree}}")
+
+
+def test_work_lane_ref_transition_rebinds_one_exact_carrier_rename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    commit_active_commitment(repo)
+    candidate = tmp_path / "repo-candidate"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    lane = tmp_path / "repo-work-current"
+    git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+    initial = acquire_lease(
+        state_database(repo),
+        lease=exact_lease(
+            repo=repo,
+            branch="work/current",
+            holder_ref="agent:codex:thread:first",
+            expected_head=head,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
+        ),
+    )
+    relocated = "records/fixture-change/commitment.toml"
+    (candidate / relocated).parent.mkdir(parents=True)
+    git(candidate, "mv", _FIXTURE_COMMITMENT_CARRIER, relocated)
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "relocate commitment carrier",
+    )
+    target = git(candidate, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+    git(repo, "update-ref", "refs/heads/work/current", target, head)
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="committed",
+        ref_name="refs/heads/work/current",
+        old_value=head,
+        new_value=target,
+    )
+
+    assert report["verdict"] == "pass", report
+    assert report["state"] == "lease_ref_advanced"
+    assert report["required_gaps"] == []
+    rebound = report["lease"]
+    assert rebound["expected_head"] == target
+    assert rebound["expected_tree"] == git(repo, "rev-parse", f"{target}^{{tree}}")
+    assert rebound["base_commitment_path"] == relocated
+    assert rebound["base_commitment_bytes_sha256"] == initial["base_commitment_bytes_sha256"]
+    assert rebound["base_commitment_digest"] == initial["base_commitment_digest"]
+    assert rebound["payload_sha256"] != initial["payload_sha256"]
+    assert {
+        name for name in initial["payload"] if initial["payload"][name] != rebound["payload"][name]
+    } == {"expected_head", "expected_tree", "base_commitment_path"}
+
+
+@pytest.mark.parametrize("case", ["content_change", "non_unique"])
+def test_work_lane_ref_transition_rejects_inexact_carrier_relocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    commit_active_commitment(repo)
+    candidate = tmp_path / "repo-candidate"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    lane = tmp_path / "repo-work-current"
+    git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+    initial = acquire_lease(
+        state_database(repo),
+        lease=exact_lease(
+            repo=repo,
+            branch="work/current",
+            holder_ref="agent:codex:thread:first",
+            expected_head=head,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
+        ),
+    )
+    relocated = candidate / "records/fixture-change/commitment.toml"
+    relocated.parent.mkdir(parents=True)
+    git(candidate, "mv", _FIXTURE_COMMITMENT_CARRIER, relocated.relative_to(candidate).as_posix())
+    if case == "non_unique":
+        duplicate_path = candidate / "records/fixture-change-copy/commitment.toml"
+        duplicate_path.parent.mkdir(parents=True)
+        shutil.copyfile(relocated, duplicate_path)
+        git(candidate, "add", duplicate_path.relative_to(candidate).as_posix())
+    else:
+        relocated.write_text(
+            relocated.read_text(encoding="utf-8").replace(
+                "Exercise the governed fixture lifecycle.",
+                "Rewrite the governed fixture lifecycle.",
+            ),
+            encoding="utf-8",
+        )
+        git(candidate, "add", relocated.relative_to(candidate).as_posix())
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "relocate commitment carrier inexactly",
+    )
+    target = git(candidate, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+    git(repo, "update-ref", "refs/heads/work/current", target, head)
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="committed",
+        ref_name="refs/heads/work/current",
+        old_value=head,
+        new_value=target,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["lease_base_commitment_path_mismatch"]
+    stored = leases_by_branch(lane)["work/current"]
+    assert (stored["expected_head"], stored["expected_tree"], stored["base_commitment_path"]) == (
+        initial["expected_head"],
+        initial["expected_tree"],
+        initial["base_commitment_path"],
+    )
+    assert stored["payload_sha256"] == initial["payload_sha256"]
+
+
+def test_work_lane_ref_transition_committed_rejects_unmoved_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    commit_active_commitment(repo)
+    candidate = tmp_path / "repo-candidate"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    lane = tmp_path / "repo-work-current"
+    git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+    new_head = _advance_candidate(candidate, "target")
+    acquire_lease(
+        state_database(repo),
+        lease=exact_lease(
+            repo=repo,
+            branch="work/current",
+            holder_ref="agent:codex:thread:first",
+            expected_head=head,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
@@ -309,17 +535,21 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
         old_value=head,
         new_value=new_head,
     )
-    assert report["verdict"] == "pass"
-    assert "ok" not in report
-    assert report["state"] == "lease_head_advanced"
-    assert report["lease"]["expected_head"] == new_head
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == [f"lane_ref_observation_stale:{new_head}!={head}"]
+    lease = leases_by_branch(lane)["work/current"]
+    assert (lease["expected_head"], lease["expected_tree"]) == (
+        head,
+        git(repo, "rev-parse", f"{head}^{{tree}}"),
+    )
 
 
 def test_work_lane_ref_transition_blocks_target_with_rewritten_base_commitment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_commitment(repo)
+    commit_active_commitment(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
     lane = tmp_path / "repo-work-current"
@@ -327,11 +557,12 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_commitment(
     head = git(lane, "rev-parse", "HEAD")
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_commitment_digest=base_digest,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
         ),
     )
     commitment = candidate / "openspec" / "changes" / "fixture-change" / "commitment.toml"
@@ -355,6 +586,7 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_commitment(
     )
     target = git(candidate, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+    git(repo, "update-ref", "refs/heads/work/current", target, head)
 
     report = work_lane_ref_transition_report(
         root=lane,
@@ -366,7 +598,7 @@ def test_work_lane_ref_transition_blocks_target_with_rewritten_base_commitment(
 
     assert report["verdict"] == "block"
     assert "ok" not in report
-    assert report["required_gaps"] == ["lease_base_commitment_digest_mismatch"]
+    assert report["required_gaps"] == ["lease_base_commitment_bytes_mismatch"]
     assert leases_by_branch(lane)["work/current"]["expected_head"] == head
 
 
@@ -375,18 +607,19 @@ def test_work_lane_ref_transition_rejects_unknown_lease_without_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_commitment(repo)
+    commit_active_commitment(repo)
     lane = tmp_path / "repo-work-current"
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
     database = state_database(repo)
     lease = acquire_lease(
         database,
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch="work/current",
             holder_ref="agent:codex:thread:first",
             expected_head=head,
-            base_commitment_digest=base_digest,
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
         ),
     )
     payload = dict(lease["payload"])
@@ -459,6 +692,12 @@ def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
     g("config", "user.name", "t")
     g("config", "user.email", "t@e.x")
     adoption_plan(tmp_path, apply=True)
+    write_role_policy(
+        tmp_path,
+        candidate_branch="candidate/dev",
+        work_branch_prefix="work/",
+        proposal_branch_prefix="proposal/",
+    )
     write_publication_topology(tmp_path)
     write_active_commitment(tmp_path)
     profile = tmp_path / ".ethos" / "profile.toml"
@@ -524,6 +763,19 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path: Path) -> None:
     g("init", "-b", "dev")
     g("config", "user.name", "t")
     g("config", "user.email", "t@e.x")
+    workspace = tmp_path / ".ethos/workspace.toml"
+    workspace.parent.mkdir()
+    workspace.write_text(
+        render_branch_policy(
+            release_branch="main",
+            accepted_branch="dev",
+            candidate_branch="candidate/dev",
+            work_branch_prefix="work/",
+            proposal_branch_prefix="proposal/",
+            release_mirror="independent",
+        ),
+        encoding="utf-8",
+    )
     (tmp_path / "a").write_text("1", encoding="utf-8")
     g("add", ".")
     g("commit", "-m", "base")
@@ -559,6 +811,12 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path: Path) -> None:
 
 def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
+    write_role_policy(
+        repo,
+        candidate_branch="candidate/dev",
+        work_branch_prefix="work/",
+        proposal_branch_prefix="proposal/",
+    )
     head = git(repo, "rev-parse", "HEAD")
     candidate_head = "c" * 40
 
@@ -824,11 +1082,11 @@ def _backdate_markers(repo: Path) -> None:
         path.write_text(json.dumps(marker), encoding="utf-8")
 
 
-def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Path) -> None:
+def test_reference_transaction_hook_fails_closed_on_governed_branches(tmp_path: Path) -> None:
     """The accepted-branch ref-move gate fails CLOSED: with no reachable ethos binary a
     direct commit onto the accepted branch is BLOCKED (the hole that let a direct commit
-    bypass candidate while the CLI lagged its own command). Non-accepted branches fail
-    OPEN so an unavailable binary does not brick ordinary work-lane commits. There is NO
+    bypass candidate while the CLI lagged its own command). Existing Work Lane mutations
+    also fail closed because their ref may not outrun the exact Lease. There is NO
     env escape: the former ETHOS_ALLOW_REF_MOVE=1 short-circuit was itself a hole (any
     process could set it) and was removed, so setting it no longer advances the accepted
     branch — sanctioned closeout must earn an admitted verdict through the reducer."""
@@ -844,18 +1102,34 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     g("init", "-b", "dev")
     g("config", "user.name", "t")
     g("config", "user.email", "t@e.x")
-    hooks = tmp_path / ".githooks"
-    hooks.mkdir()
-    shutil.copy(hook_src, hooks / "reference-transaction")
-    (hooks / "reference-transaction").chmod(0o755)
+    (hooks := tmp_path / ".githooks").mkdir()
+    Path(shutil.copy(hook_src, hooks / "reference-transaction")).chmod(0o755)
+    (workspace := tmp_path / ".ethos/workspace.toml").parent.mkdir()
+    workspace.write_text(
+        render_branch_policy(
+            release_branch="main",
+            accepted_branch="dev",
+            candidate_branch="candidate/dev",
+            work_branch_prefix="work/",
+            proposal_branch_prefix="proposal/",
+            release_mirror="independent",
+        ),
+        encoding="utf-8",
+    )
     (tmp_path / "a").write_text("1", encoding="utf-8")
     g("add", ".")
     g("commit", "-m", "base")
     g("branch", "candidate/dev")
+    g("branch", "work/x")
     g("config", "core.hooksPath", ".githooks")
-    g("config", "ethos.acceptedBranch", "dev")
 
     no_binary = {**os.environ, "PATH": "/usr/bin:/bin"}
+
+    # New Work Lane refs are also fail-closed: official lane start acquires the
+    # exact Lease before it creates the ref, so raw branch creation has no bootstrap bypass.
+    raw_creation = g("checkout", "-b", "work/unleased", env=no_binary)
+    assert raw_creation.returncode != 0
+    assert g("show-ref", "--verify", "refs/heads/work/unleased").returncode != 0
 
     # `pack-refs` presents ref creation/deletion records indistinguishable from
     # real transitions. The hook must reject it rather than admitting direct
@@ -864,7 +1138,7 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     maintenance = g("pack-refs", "--all", "--prune", env=no_binary)
     assert maintenance.returncode != 0
     assert g("rev-parse", "dev").stdout.strip() == dev_before_noop
-    g("checkout", "-b", "work/x", env=no_binary)
+    g("checkout", "work/x", env=no_binary)
     blocked_delete = g("branch", "-D", "dev", env=no_binary)
     assert blocked_delete.returncode != 0
     assert g("rev-parse", "dev").stdout.strip() == dev_before_noop
@@ -877,12 +1151,16 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     assert blocked.returncode != 0
     dev_head = g("rev-parse", "dev").stdout.strip()
 
-    # (2) non-accepted branch, no ethos binary -> ALLOWED (fail-open)
+    # (2) existing Work Lane, no ethos binary -> BLOCKED (exact Lease fail-closed)
     g("checkout", "work/x", env=no_binary)
     (tmp_path / "w").write_text("w", encoding="utf-8")
     g("add", ".")
     work_commit = g("commit", "-m", "work commit", env=no_binary)
-    assert work_commit.returncode == 0
+    assert work_commit.returncode != 0
+    g("config", "core.hooksPath", "")
+    committed = g("commit", "-m", "work commit")
+    assert committed.returncode == 0
+    g("config", "core.hooksPath", ".githooks")
 
     # (3) the removed env escape no longer works: a raw ff-merge to the accepted branch is
     # STILL blocked even with ETHOS_ALLOW_REF_MOVE=1 set, and dev does not move.
@@ -941,11 +1219,12 @@ def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
     off_train = _advance_candidate(repo, "d")  # commit on work/x, never on candidate
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch="work/x",
             holder_ref="agent:test:case:ref-move",
             expected_head=off_train,
-            base_commitment_digest=load_profile_commitment(repo, tree_ref=off_train).digest(),
+            carrier=_FIXTURE_COMMITMENT_CARRIER,
         ),
     )
     _record_complete_proof(repo, off_train)
@@ -1042,22 +1321,3 @@ def test_push_admission_rejects_remote_work_lane(tmp_path: Path) -> None:
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["publication_remote_branch_forbidden:work/x"]
-
-
-def _lease(
-    *, branch: str, holder_ref: str, expected_head: str, base_commitment_digest: str
-) -> LaneLease:
-    now = datetime.now(UTC)
-    return LaneLease(
-        lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
-        lease_id=f"lease:{uuid.uuid4()}",
-        lane_ref=branch,
-        holder_ref=holder_ref,
-        epoch=1,
-        issued_at=now,
-        renewed_at=now,
-        expires_at=now + timedelta(days=1),
-        expected_head=expected_head,
-        base_commitment_digest=base_commitment_digest,
-        path_scope=(),
-    )

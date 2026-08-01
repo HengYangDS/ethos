@@ -20,7 +20,7 @@ from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -161,7 +161,7 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
                 os.environ.pop("ETHOS_ACTOR", None)
             else:
                 os.environ["ETHOS_ACTOR"] = original
-        assert report["state"] == "lease_head_advanced"
+        assert report["state"] == "lease_ref_advanced"
     return head
 
 
@@ -259,11 +259,13 @@ def create_change_source_lane(
     )
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch=branch,
             holder_ref=holder_ref,
             expected_head=git(path, "rev-parse", "HEAD"),
-            base_commitment_digest=load_openspec_commitment(path).digest(),
+            carrier=f"openspec/changes/{change_id}/commitment.toml",
+            change_id=change_id,
         ),
     )
     return path
@@ -418,7 +420,13 @@ def commit_active_commitment(
             "-m",
             "declare active change",
         )
-    return load_openspec_commitment(repo, change_id=change_id).digest()
+    head = git(repo, "rev-parse", "HEAD")
+    return exact_commitment_fields(
+        repo,
+        head=head,
+        carrier=f"openspec/changes/{change_id}/commitment.toml",
+        change_id=change_id,
+    )["base_commitment_digest"]
 
 
 def _enable_openspec_profile(repo: Path) -> None:
@@ -447,18 +455,13 @@ def write_role_policy(
     """Write and commit a branch-role policy fixture."""
     workspace_path = repo / ".ethos" / "workspace.toml"
     workspace_path.write_text(
-        "\n".join(
-            (
-                "[branch_roles]",
-                f'release_branch = "{release_branch}"',
-                f'accepted_branch = "{accepted_branch}"',
-                f'candidate_branch = "{candidate_branch}"',
-                f'work_branch_prefix = "{work_branch_prefix}"',
-                f'proposal_branch_prefix = "{proposal_branch_prefix}"',
-                f'release_mirror = "{release_mirror}"',
-                "repository_family_worktrees = false",
-                "",
-            )
+        render_branch_policy(
+            release_branch=release_branch,
+            accepted_branch=accepted_branch,
+            candidate_branch=candidate_branch,
+            work_branch_prefix=work_branch_prefix,
+            proposal_branch_prefix=proposal_branch_prefix,
+            release_mirror=release_mirror,
         ),
         encoding="utf-8",
     )
@@ -478,6 +481,17 @@ def write_role_policy(
 def adopt_and_commit(repo: Path) -> None:
     plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
+    (repo / ".ethos" / "workspace.toml").write_text(
+        render_branch_policy(
+            release_branch="main",
+            accepted_branch="dev",
+            candidate_branch="candidate/dev",
+            work_branch_prefix="work/",
+            proposal_branch_prefix="proposal/",
+            release_mirror="independent",
+        ),
+        encoding="utf-8",
+    )
     _declare_minimal_code_correctness(repo)
     _enable_openspec_profile(repo)
     write_publication_topology(repo)
@@ -492,6 +506,31 @@ def adopt_and_commit(repo: Path) -> None:
         "commit",
         "-m",
         "adopt ethos governance",
+    )
+
+
+def render_branch_policy(
+    *,
+    release_branch: str,
+    accepted_branch: str,
+    candidate_branch: str,
+    work_branch_prefix: str,
+    proposal_branch_prefix: str,
+    release_mirror: str,
+) -> str:
+    """Render the complete branch-role policy shared by repository fixtures."""
+    return "\n".join(
+        (
+            "[branch_roles]",
+            f'release_branch = "{release_branch}"',
+            f'accepted_branch = "{accepted_branch}"',
+            f'candidate_branch = "{candidate_branch}"',
+            f'work_branch_prefix = "{work_branch_prefix}"',
+            f'proposal_branch_prefix = "{proposal_branch_prefix}"',
+            f'release_mirror = "{release_mirror}"',
+            "repository_family_worktrees = false",
+            "",
+        )
     )
 
 
@@ -617,10 +656,23 @@ def conformant_proof_check(gate_id: str, root: Path, *, tree_ref: str) -> dict[s
     }
 
 
-def _lease(
-    *, branch: str, holder_ref: str, expected_head: str, base_commitment_digest: str
+def exact_lease(
+    *,
+    repo: Path,
+    branch: str,
+    holder_ref: str,
+    expected_head: str,
+    carrier: str,
+    change_id: str | None = None,
+    ttl_seconds: int = 86_400,
 ) -> LaneLease:
     now = datetime.now(UTC)
+    binding = exact_commitment_fields(
+        repo,
+        head=expected_head,
+        carrier=carrier,
+        change_id=change_id,
+    )
     return LaneLease(
         lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
         lease_id=f"lease:{uuid.uuid4()}",
@@ -629,8 +681,11 @@ def _lease(
         epoch=1,
         issued_at=now,
         renewed_at=now,
-        expires_at=now + timedelta(days=1),
-        expected_head=expected_head,
-        base_commitment_digest=base_commitment_digest,
+        expires_at=now + timedelta(seconds=ttl_seconds),
+        expected_head=binding["expected_head"],
+        expected_tree=binding["expected_tree"],
+        base_commitment_path=binding["base_commitment_path"],
+        base_commitment_bytes_sha256=binding["base_commitment_bytes_sha256"],
+        base_commitment_digest=binding["base_commitment_digest"],
         path_scope=(),
     )

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
@@ -195,6 +195,18 @@ def _verify_export_snapshot(
                 require_expired=False,
             )
             _require(
+                "handoff_export_lane_incarnation_mismatch",
+                holds=lease.lane_incarnation_id == handoff.source_lane_incarnation_id,
+            )
+            _require(
+                "handoff_export_base_commitment_path_mismatch",
+                holds=lease.base_commitment_path == handoff.base_commitment_path,
+            )
+            _require(
+                "handoff_export_base_commitment_bytes_mismatch",
+                holds=(lease.base_commitment_bytes_sha256 == handoff.base_commitment_bytes_sha256),
+            )
+            _require(
                 "handoff_export_base_commitment_digest_mismatch",
                 holds=lease.base_commitment_digest == handoff.base_commitment_digest,
             )
@@ -202,11 +214,7 @@ def _verify_export_snapshot(
             message = "handoff_export_lease_drift"
             raise ValueError(message) from error
     try:
-        load_profile_lease_bound_commitment(
-            repo,
-            expected_head=handoff.source_head,
-            base_commitment_digest=handoff.base_commitment_digest,
-        )
+        load_lease_bound_commitment(repo, lease=lease.to_payload())
     except ValueError as error:
         if str(error) == "lease_base_commitment_digest_mismatch":
             message = "handoff_export_base_commitment_digest_mismatch"
@@ -261,8 +269,11 @@ def validated_handoff_acknowledgement(
         "destination_lease_id": lease["lease_id"],
         "destination_lease_epoch": lease["epoch"],
         "destination_lease_expected_head": lease["expected_head"],
+        "destination_lease_expected_tree": lease["expected_tree"],
         "destination_lease_expires_at": lease["expires_at"],
         "destination_lease_payload_sha256": lease["payload_sha256"],
+        "destination_lease_base_commitment_path": lease["base_commitment_path"],
+        "destination_lease_base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
         "base_commitment_digest": lease["base_commitment_digest"],
         "source_lease_transferred": False,
         "truth_boundary": "destination_holder_asserted_local_generation",

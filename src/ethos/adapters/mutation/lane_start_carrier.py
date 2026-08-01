@@ -7,16 +7,15 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import NamedTuple
-from typing import cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 import ethos.adapters.mutation.lane_start_rollback as rollback
-from ethos.adapters.openspec.commitment import load_openspec_commitment
-from ethos.adapters.openspec.profile import active_change_names_in_ref
+from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -37,6 +36,7 @@ class LaneStartContext(NamedTuple):
     candidate: dict[str, object]
     source_root: Path
     source_change_id: str
+    source_commitment_path: str
     source_head: str
     source_branch: str
     run: Callable[..., subprocess.CompletedProcess[str]]
@@ -66,6 +66,12 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
             )
         )
     try:
+        binding = exact_commitment_fields(
+            context.target,
+            head=final_head,
+            carrier=context.source_commitment_path,
+            change_id=context.source_change_id,
+        )
         issued_at = datetime.now(UTC)
         lease = context.acquire(
             state_database(context.repo),
@@ -79,7 +85,10 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
                 renewed_at=issued_at,
                 expires_at=issued_at + timedelta(days=1),
                 expected_head=final_head,
-                base_commitment_digest=context.base_commitment_digest,
+                expected_tree=binding["expected_tree"],
+                base_commitment_path=binding["base_commitment_path"],
+                base_commitment_bytes_sha256=binding["base_commitment_bytes_sha256"],
+                base_commitment_digest=binding["base_commitment_digest"],
                 path_scope=(),
             ),
         )
@@ -207,7 +216,7 @@ def initialize_lane_carrier(
         target=context.target,
         source_root=context.source_root,
         source_head=context.source_head,
-        change_id=context.source_change_id,
+        carrier=context.source_commitment_path,
         run=context.run,
     )
     if failure is None:
@@ -254,18 +263,6 @@ def initialize_lane_carrier(
             run=context.run,
         )
         failure = failed_process(gap) if gap else None
-    if failure is None:
-        active_change_report = active_change_names_in_ref(context.target, final_head)
-        if active_change_report["verdict"] != "pass":
-            failure = failed_process("lane_start_active_change_observation_unknown")
-        elif cast("list[str]", active_change_report["changes"]) != [context.source_change_id]:
-            failure = failed_process("lane_start_active_change_carrier_mismatch")
-    if failure is None:
-        failure = lane_start_commitment_failure(
-            target=context.target,
-            final_head=final_head,
-            source_change_id=context.source_change_id,
-        )
     return failure, final_head
 
 
@@ -274,11 +271,11 @@ def materialize_source_carrier(
     target: Path,
     source_root: Path,
     source_head: str,
-    change_id: str,
+    carrier: str,
     run: Callable[..., subprocess.CompletedProcess[str]],
 ) -> tuple[subprocess.CompletedProcess[str] | None, str]:
     """Copy one safe source Change carrier into a detached target tree."""
-    relative = f"openspec/changes/{change_id}"
+    relative = str(PurePosixPath(carrier).parent)
     entries = tree_entries(source_root, source_head, relative, run=run)
     if entries is None:
         return failed_process("source_change_carrier_missing"), ""
@@ -295,23 +292,6 @@ def materialize_source_carrier(
     if tree_entries(target, target_tree.stdout.strip(), relative, run=run) != entries:
         return failed_process("source_change_carrier_materialization_mismatch"), ""
     return None, target_tree.stdout.strip()
-
-
-def lane_start_commitment_failure(
-    *, target: Path, final_head: str, source_change_id: str
-) -> subprocess.CompletedProcess[str] | None:
-    """Return a failure when the materialized Commitment is not exact."""
-    try:
-        commitment = load_openspec_commitment(
-            target,
-            change_id=source_change_id,
-            tree_ref=final_head,
-        )
-    except ValueError as exc:
-        return failed_process(str(exc))
-    if commitment.id != f"change:{source_change_id}":
-        return failed_process("lane_start_commitment_identity_mismatch")
-    return None
 
 
 def lane_start_drift_gap(
@@ -417,7 +397,6 @@ def started_lane_report(
         "source_head": context.source_head,
         "source_change_id": context.source_change_id,
         "source_commitment_digest": context.base_commitment_digest,
-        "materialized_carrier": f"openspec/changes/{context.source_change_id}",
         "worktree": started_worktree(branch=context.branch, path=context.target, run=context.run),
         "holder_ref": context.holder_ref,
         "base_commitment_digest": context.base_commitment_digest,

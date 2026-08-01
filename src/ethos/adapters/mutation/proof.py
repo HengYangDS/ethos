@@ -16,7 +16,7 @@ from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -156,11 +156,10 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
             msg = "lease_actor_mismatch"
             raise ValueError(msg)
     commitment = (
-        load_profile_lease_bound_commitment(
+        load_lease_bound_commitment(
             root,
             change_id=change_id or None,
-            expected_head=head,
-            base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
+            lease=lease,
         )
         if work_lane
         else load_profile_commitment(root, change_id=change_id or None, tree_ref=head)
@@ -320,11 +319,10 @@ def proof_plan(
             message = "lease_actor_mismatch"
             raise ValueError(message)
     if work_lane:
-        commitment = load_profile_lease_bound_commitment(
+        commitment = load_lease_bound_commitment(
             root,
             change_id=change_id,
-            expected_head=head,
-            base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
+            lease=lease,
         )
     else:
         commitment = load_profile_commitment(root, change_id=change_id, tree_ref=head)

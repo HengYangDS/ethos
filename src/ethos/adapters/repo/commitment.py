@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import tomllib
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.git import committed_file_text
-from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import committed_file_bytes
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import exact_rename_target
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
 from ethos.normalization.coercion import object_sequence
@@ -64,9 +66,10 @@ def _load(
     try:
         if tree_ref is None:
             return load_commitment_file(repo / relative, repository_id=repository_id)
-        text = committed_file_text(repo, tree_ref, relative)
-        if not text:
+        raw = committed_file_bytes(repo, tree_ref, relative)
+        if not raw:
             raise FileNotFoundError(relative)
+        text = raw.decode("utf-8")
         payload = _normalized(tomllib.loads(text))
         if repository_id:
             payload["subjects"] = tuple(
@@ -134,35 +137,112 @@ def load_commitment(
     return commitment
 
 
-def load_lease_bound_commitment(
+def exact_commitment_fields(
     repo: Path,
     *,
-    expected_head: str,
-    base_commitment_digest: str,
-    carrier: str | None = None,
+    head: str,
+    carrier: str,
     change_id: str | None = None,
-) -> Commitment:
-    """Load one immutable carrier and reject a rewrite at the same current path."""
-    if not base_commitment_digest:
-        msg = "lease_base_commitment_digest_missing"
-        raise ValueError(msg)
+) -> dict[str, str]:
+    """Describe one committed carrier by its exact Git and semantic coordinates."""
     try:
-        relative = _selected_carrier(repo, tree_ref=expected_head, carrier=carrier)
-        committed = load_commitment(
+        relative = _relative_carrier(carrier)
+    except ValueError as exc:
+        message = "commitment_carrier_path_invalid"
+        raise ValueError(message) from exc
+    tree = current_tree(repo, head)
+    if not tree:
+        message = "commitment_head_unreadable"
+        raise ValueError(message)
+    raw = committed_file_bytes(repo, tree, relative)
+    if not raw:
+        message = "commitment_carrier_missing"
+        raise ValueError(message)
+    return {
+        "expected_head": head,
+        "expected_tree": tree,
+        "base_commitment_path": relative,
+        "base_commitment_bytes_sha256": hashlib.sha256(raw).hexdigest(),
+        "base_commitment_digest": load_commitment(
             repo,
             carrier=relative,
             change_id=change_id,
-            tree_ref=expected_head,
-            expected_digest=base_commitment_digest,
+            tree_ref=tree,
+        ).digest(),
+    }
+
+
+def relocated_commitment_fields(
+    repo: Path,
+    *,
+    old_head: str,
+    new_head: str,
+    lease: Mapping[str, object],
+) -> dict[str, str]:
+    """Resolve one Commitment target moved by one exact Git rename."""
+    source = str(lease.get("base_commitment_path") or "")
+    target = exact_rename_target(repo, old_head, new_head, source)
+    if not target:
+        message = "lease_base_commitment_path_mismatch"
+        raise ValueError(message)
+    return exact_commitment_fields(repo, head=new_head, carrier=target)
+
+
+def load_lease_bound_commitment(
+    repo: Path,
+    *,
+    lease: Mapping[str, object],
+    change_id: str | None = None,
+) -> Commitment:
+    """Load one exact tree-bound carrier without discovery or working-tree reads."""
+    expected = {
+        name: str(lease.get(name) or "")
+        for name in (
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
         )
-        if git_stdout(repo, "rev-parse", "HEAD") == expected_head:
-            load_commitment(
-                repo,
-                carrier=relative,
-                change_id=change_id,
-                expected_digest=base_commitment_digest,
-            )
+    }
+    missing = next((name for name, value in expected.items() if not value), "")
+    if missing:
+        message = f"lease_{missing}_missing"
+        raise ValueError(message)
+    try:
+        actual = exact_commitment_fields(
+            repo,
+            head=expected["expected_head"],
+            carrier=expected["base_commitment_path"],
+            change_id=change_id,
+        )
     except ValueError as exc:
-        msg = "lease_base_commitment_digest_mismatch"
-        raise ValueError(msg) from exc
-    return committed
+        mapped = {
+            "commitment_carrier_path_invalid": "lease_base_commitment_path_mismatch",
+            "commitment_carrier_missing": "lease_base_commitment_path_mismatch",
+            "commitment_head_unreadable": "lease_expected_tree_mismatch",
+        }.get(str(exc))
+        if mapped:
+            raise ValueError(mapped) from exc
+        message = "lease_base_commitment_digest_mismatch"
+        raise ValueError(message) from exc
+    mismatch = next((name for name in expected if actual[name] != expected[name]), "")
+    if mismatch:
+        raise ValueError(
+            {
+                "expected_tree": "lease_expected_tree_mismatch",
+                "base_commitment_path": "lease_base_commitment_path_mismatch",
+                "base_commitment_bytes_sha256": "lease_base_commitment_bytes_mismatch",
+                "base_commitment_digest": "lease_base_commitment_digest_mismatch",
+            }.get(mismatch, "lease_head_stale")
+        )
+    try:
+        return load_commitment(
+            repo,
+            carrier=actual["base_commitment_path"],
+            change_id=change_id,
+            tree_ref=actual["expected_tree"],
+        )
+    except ValueError as exc:
+        message = "lease_base_commitment_digest_mismatch"
+        raise ValueError(message) from exc

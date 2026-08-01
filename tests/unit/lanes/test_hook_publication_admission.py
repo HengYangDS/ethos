@@ -86,10 +86,19 @@ def test_committed_ref_move_report_declares_verdict_without_top_level_ok(
     monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
     monkeypatch.setattr(
         hook_commands,
-        "load_branch_role_policy",
-        lambda _repo: type(
-            "Policy", (), {"role_for_branch": lambda _self, _branch: "accepted_root"}
-        )(),
+        "committed_file_text",
+        lambda *_args: (
+            """
+[branch_roles]
+release_branch = "main"
+accepted_branch = "dev"
+candidate_branch = "candidate/dev"
+work_branch_prefix = "work/"
+proposal_branch_prefix = "proposal/"
+release_mirror = "independent"
+repository_family_worktrees = false
+"""
+        ),
     )
 
     hook_commands.ref_transaction(
@@ -104,3 +113,35 @@ def test_committed_ref_move_report_declares_verdict_without_top_level_ok(
     assert result.next_actions == ()
     assert result.data["verdict"] == "pass"
     assert "ok" not in result.data
+
+
+def test_ref_move_policy_unavailable_preserves_the_ref_transaction_shape(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    emitted: list[object] = []
+    monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
+    monkeypatch.setattr(hook_commands, "committed_file_text", lambda *_args: "")
+
+    hook_commands.ref_transaction(
+        "refs/heads/work/example",
+        "0" * 40,
+        "a" * 40,
+        phase="prepared",
+    )
+
+    result = emitted[-1]
+    assert result.verdict == "block"
+    assert result.data == {
+        "verdict": "block",
+        "state": "blocked",
+        "phase": "prepared",
+        "hook": "reference-transaction",
+        "ref": "refs/heads/work/example",
+        "branch": "work/example",
+        "old_value": "0" * 40,
+        "new_value": "a" * 40,
+        "decision": {"action": "block", "reason": "ref_move_policy_unavailable"},
+        "required_gaps": ("ref_move_policy_unavailable",),
+    }

@@ -142,6 +142,60 @@ def committed_file_text(root: Path, ref: str, path: str) -> str:
     return git_stdout(root, "show", f"{ref}:{path}") if ref else ""
 
 
+def committed_file_bytes(root: Path, ref: str, path: str) -> bytes:
+    """Return exact tracked bytes from one committed tree, or ``b''`` on failure."""
+    if not ref:
+        return b""
+    try:
+        completed = run_git(root, "show", f"{ref}:{path}", check=False, text=False)
+    except (FileNotFoundError, NotADirectoryError):
+        return b""
+    return completed.stdout if completed.returncode == 0 else b""
+
+
+def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> str:
+    """Return the sole target of one exact Git rename from ``source``."""
+    completed = run_git(
+        root,
+        "diff",
+        "--no-ext-diff",
+        "--name-status",
+        "-z",
+        "--find-renames=100%",
+        "--find-copies=100%",
+        old_ref,
+        new_ref,
+        check=False,
+        text=False,
+        observation=True,
+    )
+    if completed.returncode != 0:
+        return ""
+    fields = completed.stdout.split(b"\0")
+    renames: list[str] = []
+    exact_targets = 0
+    index = 0
+    while index < len(fields) and fields[index]:
+        status = fields[index]
+        index += 1
+        has_target = status.startswith((b"R", b"C"))
+        width = 2 if has_target else 1
+        if index + width > len(fields):
+            return ""
+        paths = fields[index : index + width]
+        index += width
+        try:
+            old_path = paths[0].decode()
+            new_path = paths[1].decode() if has_target else ""
+        except UnicodeDecodeError:
+            return ""
+        if status in {b"R100", b"C100"} and old_path == source:
+            exact_targets += 1
+            if status == b"R100":
+                renames.append(new_path)
+    return renames[0] if exact_targets == len(renames) == 1 else ""
+
+
 def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:
     """Project local HEAD versus the local remote-tracking ref without network IO."""
     branch_name = branch.strip()

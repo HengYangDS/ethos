@@ -47,7 +47,7 @@ class _StatusPayload:
     landing: dict[str, object]
     support: dict[str, object]
     worktrees: list[dict[str, str]]
-    bindings: list[dict[str, str]]
+    bindings: list[dict[str, object]]
     foreign: list[dict[str, object]]
     required: list[str]
     advisory: list[str]
@@ -138,7 +138,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
         include_path_scope=include_foreign_path_scope,
     )
     required, advisory = coordination_gaps(foreign, current_role=role, current_scope_state=scope[1])
-    unbound_refs = unbound_work_lane_refs(repo, bindings, policy=policy)
+    unbound_refs = unbound_work_lane_refs(repo, bindings, policy=policy, lease_by_branch=leases)
     if unbound_refs:
         advisory.append("unbound_work_lane_ref_present")
     coordination = coordination_package(
@@ -149,7 +149,6 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
         unbound_work_lane_refs=unbound_refs,
     )
     support = closeout_support(
-        root=repo,
         branch=branch,
         role=role,
         dirty=bool(paths),
@@ -295,6 +294,9 @@ def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
         "lease_id": "",
         "lease_epoch": 0,
         "lease_expected_head": "",
+        "lease_expected_tree": "",
+        "lease_base_commitment_path": None,
+        "lease_base_commitment_bytes_sha256": "",
         "lease_expires_at": "",
         "lease_payload_sha256": "",
         "lease_state": "none",

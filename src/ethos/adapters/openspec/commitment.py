@@ -39,22 +39,6 @@ def _paths(repo: Path, tree_ref: str | None) -> tuple[str, ...]:
     )
 
 
-def _all_paths(repo: Path, tree_ref: str | None) -> tuple[str, ...]:
-    """Return active and archived Commitment paths inside the OpenSpec adapter."""
-    if tree_ref is not None:
-        return tuple(
-            path
-            for path in git_stdout(
-                repo, "ls-tree", "-r", "--name-only", tree_ref, "--", _CHANGES
-            ).splitlines()
-            if path.endswith("/commitment.toml")
-        )
-    root = repo / _CHANGES
-    return tuple(
-        path.relative_to(repo).as_posix() for path in sorted(root.rglob("commitment.toml"))
-    )
-
-
 def _text(repo: Path, relative: str, tree_ref: str | None) -> str:
     if tree_ref is None:
         try:
@@ -122,48 +106,5 @@ def load_openspec_commitment(
     logical_id = Path(carrier).parent.name
     if commitment.id != f"change:{logical_id}":
         message = f"commitment_identity_mismatch:{logical_id}"
-        raise ValueError(message)
-    return commitment
-
-
-def load_lease_bound_openspec_commitment(
-    repo: Path,
-    *,
-    expected_head: str,
-    base_commitment_digest: str,
-    change_id: str | None = None,
-):
-    """Load the unique immutable carrier and reject a current rewrite of its path."""
-    if not base_commitment_digest:
-        msg = "lease_base_commitment_digest_missing"
-        raise ValueError(msg)
-    matches = tuple(
-        (carrier, commitment)
-        for carrier in _all_paths(repo, expected_head)
-        if (
-            commitment := load_commitment(
-                repo,
-                carrier=carrier,
-                tree_ref=expected_head,
-            )
-        ).digest()
-        == base_commitment_digest
-    )
-    if len(matches) != 1:
-        msg = "lease_base_commitment_digest_mismatch"
-        raise ValueError(msg)
-    carrier, commitment = matches[0]
-    if git_stdout(repo, "rev-parse", "HEAD") == expected_head:
-        try:
-            load_commitment(
-                repo,
-                carrier=carrier,
-                expected_digest=base_commitment_digest,
-            )
-        except ValueError as exc:
-            msg = "lease_base_commitment_digest_mismatch"
-            raise ValueError(msg) from exc
-    if change_id is not None and commitment.id != f"change:{change_id}":
-        message = f"commitment_missing:{change_id}"
         raise ValueError(message)
     return commitment

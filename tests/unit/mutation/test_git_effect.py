@@ -16,6 +16,7 @@ import ethos.adapters.store.content_addressed
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import git_effect_attestations
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -29,6 +30,28 @@ from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 
 _ISSUER = "agent:test:case:one"
+
+
+def test_git_effect_lease_generation_binds_exact_carrier_coordinates() -> None:
+    lease = {
+        "lane_ref": "work/example",
+        "lane_incarnation_id": "lane-incarnation:example",
+        "lease_id": "lease:example",
+        "epoch": 2,
+        "holder_ref": _ISSUER,
+        "expected_head": "a" * 40,
+        "expected_tree": "b" * 40,
+        "base_commitment_path": "openspec/changes/example/commitment.toml",
+        "base_commitment_bytes_sha256": "c" * 64,
+        "base_commitment_digest": "d" * 64,
+        "expires_at": "2026-08-02T00:00:00+00:00",
+        "payload_sha256": "e" * 64,
+    }
+
+    assert lease_generation(lease) == {
+        "branch": lease["lane_ref"],
+        **{name: lease[name] for name in lease if name != "lane_ref"},
+    }
 
 
 def _declare_repository(repo: Path, repository_id: str | None = None) -> str:
@@ -345,6 +368,9 @@ def test_git_effect_recovery_requires_a_live_commitment_bound_lease(
         "epoch": 1,
         "holder_ref": _ISSUER,
         "expected_head": old,
+        "expected_tree": git(repo, "rev-parse", "HEAD^{tree}"),
+        "base_commitment_path": ".ethos/commitment.toml",
+        "base_commitment_bytes_sha256": "c" * 64,
         "base_commitment_digest": "a" * 64,
         "expires_at": "2026-08-02T00:00:00+00:00",
         "payload_sha256": "b" * 64,
@@ -753,6 +779,9 @@ def test_git_effect_blocks_stale_lease_generation_before_mutation(
         "epoch": 1,
         "holder_ref": _ISSUER,
         "expected_head": old,
+        "expected_tree": git(repo, "rev-parse", "HEAD^{tree}"),
+        "base_commitment_path": ".ethos/commitment.toml",
+        "base_commitment_bytes_sha256": "c" * 64,
         "base_commitment_digest": "a" * 64,
         "expires_at": "2026-08-02T00:00:00+00:00",
         "payload_sha256": "b" * 64,
@@ -790,6 +819,9 @@ def test_git_effect_requires_a_live_commitment_bound_lease_before_mutation(
         "epoch": 1,
         "holder_ref": _ISSUER,
         "expected_head": old,
+        "expected_tree": git(repo, "rev-parse", "HEAD^{tree}"),
+        "base_commitment_path": ".ethos/commitment.toml",
+        "base_commitment_bytes_sha256": "c" * 64,
         "base_commitment_digest": "a" * 64,
         "expires_at": "2026-08-02T00:00:00+00:00",
         "payload_sha256": "b" * 64,

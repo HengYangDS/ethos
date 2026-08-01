@@ -2,9 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 import subprocess
+from contextlib import closing
 from contextlib import contextmanager
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -16,15 +22,19 @@ import ethos.adapters.mutation.lane_lifecycle.handoff.destination_import as dest
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import export_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import import_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import revoke_cross_host_source
+from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import LeaseObservation
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CrossHostHandoffExportRequest
 from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
+from ethos.contracts.coordination import HolderRef
+from ethos.contracts.coordination import LaneLease
 from tests.support.contract_helpers import start_adopted_candidate
-from tests.support.contract_helpers import start_adopted_work_lane
+from tests.support.contract_helpers import write_active_commitment
 
 
 def _write_object(destination: Path, content: str) -> str:
@@ -208,16 +218,70 @@ def _export_handoff_fixture(
     target_holder: str,
     branch: str,
 ) -> tuple[Any, Any, Path, str, dict[str, object]]:
-    source = start_adopted_work_lane(tmp_path / "source", name="handoff", holder_ref=source_holder)
-    destination, _candidate = start_adopted_candidate(tmp_path / "destination")
+    source_repo, _candidate = start_adopted_candidate(tmp_path / "source")
+    source_worktree = tmp_path / "source-worktree"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", branch, source_worktree.as_posix(), "dev"],
+        cwd=source_repo,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    write_active_commitment(source_worktree, change_id="handoff")
+    subprocess.run(
+        ["git", "add", "."],
+        cwd=source_worktree,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "declare handoff",
+        ],
+        cwd=source_worktree,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"],
-        cwd=source.worktree,
+        cwd=source_worktree,
         check=True,
         text=True,
         capture_output=True,
     ).stdout.strip()
-    lease = leases_by_branch(source.worktree)[branch]
+    coordinates = exact_commitment_fields(
+        source_worktree,
+        head=head,
+        carrier="openspec/changes/handoff/commitment.toml",
+        change_id="handoff",
+    )
+    now = datetime.now(UTC)
+    lease = acquire_lease(
+        state_database(source_worktree),
+        lease=LaneLease(
+            lane_incarnation_id="lane-incarnation:handoff",
+            lease_id="lease:handoff",
+            lane_ref=branch,
+            holder_ref=HolderRef.parse(source_holder),
+            epoch=1,
+            issued_at=now,
+            renewed_at=now,
+            expires_at=now + timedelta(days=1),
+            **coordinates,
+            path_scope=(),
+        ),
+    )
+    source = SimpleNamespace(worktree=source_worktree)
+    destination, _candidate = start_adopted_candidate(tmp_path / "destination")
     export_arguments = {
         "root": source.worktree.as_posix(),
         "branch": branch,
@@ -238,7 +302,24 @@ def _export_handoff_fixture(
     assert exported["verdict"] == "pass"
     assert "ok" not in exported
     assert exported["mutation"]["decision"]["verdict"] == exported["verdict"]
-    assert exported["manifest"]["base_commitment_digest"] == lease["base_commitment_digest"]
+    manifest = exported["manifest"]
+    assert manifest["source_lease_binding"]["lane_incarnation_id"] == lease["lane_incarnation_id"]
+    assert {
+        key: manifest[key]
+        for key in (
+            "source_head",
+            "source_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    } == {
+        "source_head": lease["expected_head"],
+        "source_tree": lease["expected_tree"],
+        "base_commitment_path": lease["base_commitment_path"],
+        "base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
+        "base_commitment_digest": lease["base_commitment_digest"],
+    }
     package = Path(str(exported["package_path"]))
     repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
     assert (repeated_export["verdict"], repeated_export["package_id"]) == (
@@ -317,14 +398,180 @@ def _assert_source_revoked(
     assert imported["verdict"] == "pass"
     assert "ok" not in imported
     assert imported["mutation"]["decision"]["verdict"] == imported["verdict"]
-    assert imported["lease"]["base_commitment_digest"] == lease["base_commitment_digest"]
-    assert imported["acknowledgement"]["base_commitment_digest"] == lease["base_commitment_digest"]
+    assert {
+        key: imported["lease"][key]
+        for key in (
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    } == {
+        key: lease[key]
+        for key in (
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    }
+    assert {
+        key: imported["acknowledgement"][key]
+        for key in (
+            "destination_lease_expected_head",
+            "destination_lease_expected_tree",
+            "destination_lease_base_commitment_path",
+            "destination_lease_base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    } == {
+        "destination_lease_expected_head": lease["expected_head"],
+        "destination_lease_expected_tree": lease["expected_tree"],
+        "destination_lease_base_commitment_path": lease["base_commitment_path"],
+        "destination_lease_base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
+        "base_commitment_digest": lease["base_commitment_digest"],
+    }
+    original_identity = {key: imported["lease"][key] for key in ("lane_incarnation_id", "lease_id")}
+    replayed_import = import_cross_host_handoff(
+        CrossHostHandoffImportRequest(
+            root=destination.as_posix(),
+            package=package.as_posix(),
+            target_holder_ref="agent:test:case:target",
+            apply=True,
+        )
+    )
+    assert replayed_import["verdict"] == "pass"
+    assert {key: replayed_import["lease"][key] for key in original_identity} == original_identity
+    database = state_database(destination)
+    expired_at = datetime.now(UTC) - timedelta(seconds=1)
+    with closing(sqlite3.connect(database)) as connection, connection:
+        payload_json = connection.execute(
+            "select payload_json from leases where subject = ?", (branch,)
+        ).fetchone()[0]
+        payload = json.loads(payload_json)
+        payload.update(
+            issued_at=(expired_at - timedelta(seconds=2)).isoformat(),
+            renewed_at=(expired_at - timedelta(seconds=1)).isoformat(),
+            expires_at=expired_at.isoformat(),
+        )
+        connection.execute(
+            "update leases set expires_at = ?, payload_json = ? where subject = ?",
+            (expired_at.isoformat(), json.dumps(payload, sort_keys=True), branch),
+        )
+    resumed_import = import_cross_host_handoff(
+        CrossHostHandoffImportRequest(
+            root=destination.as_posix(),
+            package=package.as_posix(),
+            target_holder_ref="agent:test:case:target",
+            apply=True,
+        )
+    )
+    assert resumed_import["verdict"] == "pass"
+    assert {key: resumed_import["lease"][key] for key in original_identity} == original_identity
+    acknowledgement = package.parent / "acknowledgement.json"
+    acknowledgement.write_text(
+        json.dumps(resumed_import["acknowledgement"], sort_keys=True) + "\n", encoding="utf-8"
+    )
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("delete from leases where subject = ?", (branch,))
+    orphan = import_cross_host_handoff(
+        CrossHostHandoffImportRequest(
+            root=destination.as_posix(),
+            package=package.as_posix(),
+            target_holder_ref="agent:test:case:target",
+            apply=True,
+        )
+    )
+    assert orphan["verdict"] == "block"
+    assert orphan["required_gaps"] == ["handoff_import_failed:handoff_destination_orphan_carrier"]
+    assert observe_lease(database, branch).state == "missing"
+    monkeypatch.setenv("ETHOS_ACTOR", source_holder)
+    request = CrossHostHandoffSourceRevocationRequest(
+        root=source.worktree.as_posix(),
+        package=package.as_posix(),
+        acknowledgement=acknowledgement.as_posix(),
+        holder_ref=source_holder,
+        lease_id=str(lease["lease_id"]),
+        epoch=int(lease["epoch"]),
+        expected_expires_at=str(lease["expires_at"]),
+        expected_payload_sha256=str(lease["payload_sha256"]),
+        expect_head=head,
+        apply=True,
+    )
+    revoked = revoke_cross_host_source(request)
+    assert (revoked["verdict"], revoked["state"]) == ("pass", "source_revoked")
+    assert "ok" not in revoked
+    assert revoked["mutation"]["decision"]["verdict"] == revoked["verdict"]
+    assert {
+        key: revoked["receipt"][key]
+        for key in (
+            "lane_incarnation_id",
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    } == {
+        key: lease[key]
+        for key in (
+            "lane_incarnation_id",
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    }
+    assert branch not in leases_by_branch(source.worktree)
+    replayed_revoke = revoke_cross_host_source(request)
+    assert replayed_revoke["verdict"] == "block"
+    assert replayed_revoke["required_gaps"] == ["handoff_source_lease_missing"]
+    assert replayed_revoke["receipt"] == {}
+    mismatched = revoke_cross_host_source(request.model_copy(update={"lease_id": "lease:other"}))
+    assert mismatched["verdict"] == "block"
+    assert "handoff_source_lease_mismatch" in mismatched["required_gaps"]
+
+
+def test_handoff_source_revoke_rejects_live_incarnation_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_holder = "agent:test:case:source"
+    source, destination, package, _head, lease = _export_handoff_fixture(
+        tmp_path,
+        monkeypatch,
+        source_holder,
+        "agent:test:case:target",
+        "work/handoff",
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:target")
+    imported = import_cross_host_handoff(
+        CrossHostHandoffImportRequest(
+            root=destination.as_posix(),
+            package=package.as_posix(),
+            target_holder_ref="agent:test:case:target",
+            apply=True,
+        )
+    )
     acknowledgement = package.parent / "acknowledgement.json"
     acknowledgement.write_text(
         json.dumps(imported["acknowledgement"], sort_keys=True) + "\n", encoding="utf-8"
     )
+    database = state_database(source.worktree)
+    with closing(sqlite3.connect(database)) as connection, connection:
+        payload_json = connection.execute(
+            "select payload_json from leases where subject = ?", ("work/handoff",)
+        ).fetchone()[0]
+        payload = json.loads(payload_json)
+        payload["lane_incarnation_id"] = "lane-incarnation:replacement"
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (json.dumps(payload, sort_keys=True), "work/handoff"),
+        )
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
-    revoked = revoke_cross_host_source(
+    report = revoke_cross_host_source(
         CrossHostHandoffSourceRevocationRequest(
             root=source.worktree.as_posix(),
             package=package.as_posix(),
@@ -334,14 +581,63 @@ def _assert_source_revoked(
             epoch=int(lease["epoch"]),
             expected_expires_at=str(lease["expires_at"]),
             expected_payload_sha256=str(lease["payload_sha256"]),
-            expect_head=head,
+            expect_head=str(lease["expected_head"]),
             apply=True,
         )
     )
-    assert (revoked["verdict"], revoked["state"]) == ("pass", "source_revoked")
-    assert "ok" not in revoked
-    assert revoked["mutation"]["decision"]["verdict"] == revoked["verdict"]
-    assert branch not in leases_by_branch(source.worktree)
+
+    assert report["verdict"] == "block"
+    assert set(report["required_gaps"]) == {
+        "handoff_source_lane_incarnation_mismatch",
+        "lease_generation_stale",
+    }
+    assert observe_lease(database, "work/handoff").state == "valid"
+
+
+@pytest.mark.parametrize(
+    ("field", "gap"),
+    [
+        ("base_commitment_path", "handoff_import_failed:handoff_base_commitment_path_mismatch"),
+        (
+            "base_commitment_bytes_sha256",
+            "handoff_import_failed:handoff_base_commitment_bytes_mismatch",
+        ),
+        ("base_commitment_digest", "handoff_import_failed:handoff_base_commitment_digest_mismatch"),
+    ],
+)
+def test_handoff_import_rejects_tampered_exact_commitment_coordinate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, gap: str
+) -> None:
+    source_holder = "agent:test:case:source"
+    target_holder = "agent:test:case:target"
+    _source, destination, package, _head, _lease = _export_handoff_fixture(
+        tmp_path, monkeypatch, source_holder, target_holder, "work/handoff"
+    )
+    manifest_path = package / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest[field] = (
+        "openspec/changes/other/commitment.toml" if field == "base_commitment_path" else "0" * 64
+    )
+    body = {key: value for key, value in manifest.items() if key != "package_id"}
+    package_id = f"handoff:{hashlib.sha256(json.dumps(body, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}"
+    manifest["package_id"] = package_id
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+    package = package.rename(package.with_name(package_id))
+    monkeypatch.setenv("ETHOS_ACTOR", target_holder)
+
+    report = import_cross_host_handoff(
+        CrossHostHandoffImportRequest(
+            root=destination.as_posix(),
+            package=package.as_posix(),
+            target_holder_ref=target_holder,
+            apply=True,
+        )
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == [gap]
+    assert report["lease"] == {}
+    assert not (destination.parent / f"{destination.name}-work-handoff").exists()
 
 
 def test_handoff_import_rejects_object_format_mismatch_before_effects(

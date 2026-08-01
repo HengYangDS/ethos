@@ -192,16 +192,17 @@ def retire_linked_work_lane(
         authority_lane=authority,
         accepted_head=accepted_head,
     )
-    if effect:
-        effect_gaps = string_sequence(effect.get("required_gaps"))
+    effect_gaps = string_sequence(effect.get("required_gaps"))
+    if effect_gaps:
         report.update(effect)
         report["verdict"] = "block"
         report["mutation"] = mutation(effect_gaps)
         report["required_gaps"] = effect_gaps
         return report
+    observed = cast("dict[str, object]", effect["observed"])
     report.update(
         state="retired" if mode == "landed" else "retired_superseded",
-        retired=lane,
+        retired=observed,
     )
     return report
 

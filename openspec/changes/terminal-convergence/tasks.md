@@ -117,7 +117,7 @@ deterministic transient TransitionPlan reproduce every public lifecycle verdict.
   predicate, scope, plane, validity, exact bindings, and contradiction blocking.
 - [x] 2.3 Remove historical workflow re-evaluation from admission; validate
   closure over exact Commitment, Facts, policy, plan, effect, and artifact.
-- [ ] 2.4 Complete exact carrier-byte/tree Lease bootstrap and CAS cutover;
+- [x] 2.4 Complete exact carrier-byte/tree Lease bootstrap and CAS cutover;
   delete legacy evaluators, repair paths, dual reads, and fallbacks.
 - [ ] 2.5 Add one exact one-shot Commitment-rebind transition for an owned dirty
   lane: bind old generation, index tree, new immutable Commitment, target commit,

@@ -155,11 +155,16 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
             "lease_id",
             "holder_ref",
             "expected_head",
+            "expected_tree",
+            "base_commitment_bytes_sha256",
             "expires_at",
             "payload_sha256",
             "base_commitment_digest",
         )
     }
+    result["base_commitment_path"] = (
+        str(lease["base_commitment_path"]) if lease.get("base_commitment_path") else None
+    )
     result.update(epoch=integer_value(lease.get("epoch")), mints_authority=False)
     return result
 
@@ -260,7 +265,18 @@ def coordination_package(
 
 
 def _unknown_unbound_ref() -> dict[str, object]:
-    return dict.fromkeys(("branch", "head", "base_commitment_digest"), "") | {
+    return dict.fromkeys(
+        (
+            "branch",
+            "head",
+            "expected_head",
+            "expected_tree",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        ),
+        "",
+    ) | {
+        "base_commitment_path": None,
         "commitment_binding": "missing",
         "lease_state": "missing",
         "relation_to_accepted": "unknown",

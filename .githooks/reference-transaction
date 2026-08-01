@@ -29,11 +29,6 @@ case "$phase" in
 esac
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 
-# The accepted branch — the one the candidate train promotes into. ETHOS records it at
-# `ethos hook install`; default to dev when unset.
-accepted="$(git config --get ethos.acceptedBranch 2>/dev/null)"
-[ -n "$accepted" ] || accepted="dev"
-
 runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
 runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
 ethos_pythonpath="$repo_root/src"
@@ -85,9 +80,12 @@ while read -r old_value new_value ref_name; do
         *) continue ;;
     esac
     branch="${ref_name#refs/heads/}"
-    case "$old_value" in
-        *[!0]*) old_is_zero="false" ;;
-        *) old_is_zero="true" ;;
+    case "${#old_value}:$old_value" in
+        40:0000000000000000000000000000000000000000|\
+        64:0000000000000000000000000000000000000000000000000000000000000000)
+            old_is_zero="true"
+            ;;
+        *) old_is_zero="false" ;;
     esac
     # Closeout uses a same-value `update <ref> <head> <head>` as an atomic source-ref
     # CAS. Git exposes it here as old==new: it is not a ref move, needs neither
@@ -97,20 +95,40 @@ while read -r old_value new_value ref_name; do
     if [ "$old_is_zero" = "false" ] && [ "$old_value" = "$new_value" ]; then
         continue
     fi
-    # `git worktree add -b work/<name>` creates then reasserts its fresh Work
-    # Lane ref before `ethos lane start` can create a lease.  A fresh checkout
-    # also lacks its checkout-local interpreter.  Do not bootstrap a full
-    # runtime for that work-lane setup event: it has no lease transition to
-    # repair and must not require network access merely to create the lane that
-    # will own subsequent work.  Changed existing Work Lane refs still use the
-    # normal hook path so their committed phase repairs the lease head.
+    policy_ref="$old_value"
+    [ "$old_is_zero" = "false" ] || policy_ref="$new_value"
+    policy_text="$(git -C "$repo_root" show "${policy_ref}:.ethos/workspace.toml" 2>/dev/null)" || {
+        echo "ethos: blocked ref move on $ref_name — committed branch policy is unavailable." >&2
+        [ "$phase" = "prepared" ] && exit 1
+        continue
+    }
+    policy_value() {
+        printf '%s\n' "$policy_text" | awk -v key="$1" '
+            /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
+            /^\[/ { in_roles = 0 }
+            in_roles && $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+                value = $0
+                sub(/^[^=]*=[[:space:]]*"/, "", value)
+                sub(/".*$/, "", value)
+                print value
+                exit
+            }
+        '
+    }
+    accepted="$(policy_value accepted_branch)"
+    candidate_branch="$(policy_value candidate_branch)"
+    release_branch="$(policy_value release_branch)"
+    release_mirror="$(policy_value release_mirror)"
+    work_branch_prefix="$(policy_value work_branch_prefix)"
+    if [ -z "$accepted" ] || [ -z "$candidate_branch" ] || [ -z "$release_branch" ] || \
+        [ -z "$release_mirror" ] || [ -z "$work_branch_prefix" ]; then
+        echo "ethos: blocked ref move on $ref_name — committed branch policy is incomplete." >&2
+        [ "$phase" = "prepared" ] && exit 1
+        continue
+    fi
+    work_lane_ref="false"
     case "$branch" in
-        work/*)
-            if [ ! -x "$runtime_python" ] && \
-                { [ "$old_value" = "$new_value" ] || [ "$old_is_zero" = "true" ]; }; then
-                continue
-            fi
-            ;;
+        "$work_branch_prefix"*) work_lane_ref="true" ;;
     esac
     # An accepted_ff closeout atomically advances both the accepted ref and its
     # release mirror. Both transitions are protected closeout surfaces: they need
@@ -118,50 +136,9 @@ while read -r old_value new_value ref_name; do
     # remains one tree behind throughout the transaction). Ordinary refs retain the
     # existing fail-open runner path.
     if [ "$phase" = "prepared" ]; then
-        release_mirror="$(awk '
-            /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
-            /^\[/ { in_roles = 0 }
-            in_roles && /^[[:space:]]*release_mirror[[:space:]]*=/ {
-                value = $0
-                sub(/^[^=]*=[[:space:]]*"/, "", value)
-                sub(/".*$/, "", value)
-                print value
-                exit
-            }
-        ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
-        [ -n "$release_mirror" ] || release_mirror="independent"
-        release_branch="$(awk '
-            /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
-            /^\[/ { in_roles = 0 }
-            in_roles && /^[[:space:]]*release_branch[[:space:]]*=/ {
-                value = $0
-                sub(/^[^=]*=[[:space:]]*"/, "", value)
-                sub(/".*$/, "", value)
-                print value
-                exit
-            }
-        ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
-        [ -n "$release_branch" ] || release_branch="$(git -C "$repo_root" config --get ethos.releaseBranch 2>/dev/null)"
-        [ -n "$release_branch" ] || release_branch="$(git -C "$repo_root" config --get ethos.release_branch 2>/dev/null)"
-        [ -n "$release_branch" ] || release_branch="main"
-
         if [ "$branch" = "$accepted" ] || \
             { [ "$release_mirror" = "accepted_ff" ] && [ "$branch" = "$release_branch" ]; }; then
             protected_ref="true"
-            candidate_branch="$(awk '
-                /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
-                /^\[/ { in_roles = 0 }
-                in_roles && /^[[:space:]]*candidate_branch[[:space:]]*=/ {
-                    value = $0
-                    sub(/^[^=]*=[[:space:]]*"/, "", value)
-                    sub(/".*$/, "", value)
-                    print value
-                    exit
-                }
-            ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
-            [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidateBranch 2>/dev/null)"
-            [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidate_branch 2>/dev/null)"
-            [ -n "$candidate_branch" ] || candidate_branch="candidate/dev"
             candidate_runner="$(resolve_candidate_runner "$candidate_branch" "$new_value")" || {
                 echo "ethos: blocked ref move on $ref_name — candidate semantic runner is unavailable." >&2
                 exit 1
@@ -191,9 +168,20 @@ while read -r old_value new_value ref_name; do
 
     if [ "$phase" = "committed" ]; then
         case "$verdict" in
-            *'"state":"lease_head_advanced"'* | *'"state":"admitted"'*) : ;;
+            *'"state":"lease_ref_advanced"'* | *'"state":"admitted"'*) : ;;
             *)
                 echo "ethos: lease repair required after ref move on $ref_name." >&2
+                ;;
+        esac
+    elif [ "$work_lane_ref" = "true" ]; then
+        # Every evaluated Work Lane transition is fail-closed. The only bootstrap
+        # exception is the earlier, explicit first-creation path when no local runtime
+        # exists; an existing Work Lane may never outrun its exact Lease binding.
+        case "$verdict" in
+            *'"state":"admitted"'* | *'"state":"lease_ref_advanced"'*) : ;;
+            *)
+                echo "ethos: blocked Work Lane ref move on $ref_name — exact Lease admission failed." >&2
+                exit 1
                 ;;
         esac
     elif [ "$protected_ref" = "true" ]; then

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.openspec.commitment import load_lease_bound_openspec_commitment
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
@@ -132,13 +133,47 @@ def test_native_commitment_selection_excludes_completed_history(
         load_openspec_commitment(tmp_path, change_id="complete")
 
 
-def test_exact_lease_binding_recovers_archive_without_current_selection(tmp_path: Path) -> None:
+def test_exact_lease_binding_does_not_follow_a_carrier_move(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     _repository_commitment(repo)
     _enable_openspec_profile(repo)
-    carrier = _change_carrier(repo, "archive/2026-07-31-retired", "retired")
+    carrier = _change_carrier(repo, "retired", "retired")
     relative = carrier.relative_to(repo).as_posix() + "/commitment.toml"
+    bytes_sha256 = hashlib.sha256((repo / relative).read_bytes()).hexdigest()
     digest = load_commitment(repo, carrier=relative).digest()
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "declare commitment",
+    )
+    head = git(repo, "rev-parse", "HEAD")
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+
+    lease = {
+        "expected_head": head,
+        "expected_tree": tree,
+        "base_commitment_path": relative,
+        "base_commitment_bytes_sha256": bytes_sha256,
+        "base_commitment_digest": digest,
+    }
+    assert (
+        load_lease_bound_commitment(
+            repo,
+            lease=lease,
+            change_id="retired",
+        ).id
+        == "change:retired"
+    )
+
+    archived = repo / "openspec/changes/archive/2026-07-31-retired"
+    archived.parent.mkdir(parents=True)
+    carrier.rename(archived)
     git(repo, "add", ".")
     git(
         repo,
@@ -150,18 +185,17 @@ def test_exact_lease_binding_recovers_archive_without_current_selection(tmp_path
         "-m",
         "archive commitment",
     )
-    head = git(repo, "rev-parse", "HEAD")
 
-    with pytest.raises(ValueError, match="commitment_missing:retired"):
-        load_openspec_commitment(repo, change_id="retired")
-    recovered = load_lease_bound_openspec_commitment(
-        repo,
-        expected_head=head,
-        base_commitment_digest=digest,
-        change_id="retired",
-    )
-
-    assert recovered.id == "change:retired"
+    with pytest.raises(ValueError, match="lease_base_commitment_path_mismatch"):
+        load_lease_bound_commitment(
+            repo,
+            lease=lease
+            | {
+                "expected_head": git(repo, "rev-parse", "HEAD"),
+                "expected_tree": git(repo, "rev-parse", "HEAD^{tree}"),
+            },
+            change_id="retired",
+        )
 
 
 def test_commitment_missing_fails_closed(tmp_path: Path) -> None:

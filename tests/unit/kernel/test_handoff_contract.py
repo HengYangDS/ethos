@@ -21,9 +21,12 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
         source_lane_ref="work/example",
         source_head="a" * width,
         source_tree="b" * width,
+        base_commitment_path="openspec/changes/example/commitment.toml",
+        base_commitment_bytes_sha256="1" * 64,
         target_holder_ref=HolderRef.parse("agent:other:run:two"),
         context_digest="c" * 64,
         dirty_content_sha256="f" * 64,
+        source_lane_incarnation_id="lane-incarnation:one",
         source_lease_id="lease:one",
         source_lease_epoch=3,
         source_lease_expires_at="2026-07-20T00:00:00+00:00",
@@ -36,17 +39,23 @@ def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> No
     payload = handoff.to_payload()
     assert payload["source_head"] == "a" * width
     assert payload["source_tree"] == "b" * width
+    assert payload["base_commitment_path"] == "openspec/changes/example/commitment.toml"
+    assert payload["base_commitment_bytes_sha256"] == "1" * 64
     assert payload["target_holder_ref"] == "agent:other:run:two"
     assert payload["dirty_content_sha256"] == "f" * 64
     assert payload["base_commitment_digest"] == "f" * 64
     assert payload["transfers_source_lease"] is False
     assert payload["destination_creates_local_incarnation"] is True
+    assert payload["source_lease_binding"]["lane_incarnation_id"] == "lane-incarnation:one"
     assert payload["source_lease_binding"]["epoch"] == 3
     assert payload["source_lease_binding"]["expires_at"] == "2026-07-20T00:00:00+00:00"
     assert payload["source_lease_binding"]["payload_sha256"] == "e" * 64
     assert payload["truth_boundary"] == "content_addressed_context_until_promoted"
     assert CrossHostHandoff.model_fields["source_lease_expires_at"].is_required()
+    assert CrossHostHandoff.model_fields["source_lane_incarnation_id"].is_required()
     assert CrossHostHandoff.model_fields["source_lease_payload_sha256"].is_required()
+    assert CrossHostHandoff.model_fields["base_commitment_path"].is_required()
+    assert CrossHostHandoff.model_fields["base_commitment_bytes_sha256"].is_required()
     assert CrossHostHandoff.model_fields["base_commitment_digest"].is_required()
 
 
@@ -56,15 +65,43 @@ def test_cross_host_handoff_rejects_missing_base_commitment_digest() -> None:
             source_lane_ref="work/example",
             source_head="a" * 40,
             source_tree="b" * 40,
+            base_commitment_path="openspec/changes/example/commitment.toml",
+            base_commitment_bytes_sha256="1" * 64,
             target_holder_ref=HolderRef.parse("agent:other:run:two"),
             context_digest="c" * 64,
             dirty_content_sha256="f" * 64,
+            source_lane_incarnation_id="lane-incarnation:one",
             source_lease_id="lease:one",
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
             source_lease_payload_sha256="e" * 64,
             source_holder_ref=HolderRef.parse("agent:source:run:one"),
         )
+
+
+@pytest.mark.parametrize("field", ["base_commitment_path", "base_commitment_bytes_sha256"])
+def test_cross_host_handoff_rejects_missing_exact_carrier_coordinate(field: str) -> None:
+    payload = {
+        "source_lane_ref": "work/example",
+        "source_head": "a" * 40,
+        "source_tree": "b" * 40,
+        "base_commitment_path": "openspec/changes/example/commitment.toml",
+        "base_commitment_bytes_sha256": "1" * 64,
+        "target_holder_ref": HolderRef.parse("agent:other:run:two"),
+        "context_digest": "c" * 64,
+        "dirty_content_sha256": "f" * 64,
+        "source_lane_incarnation_id": "lane-incarnation:one",
+        "source_lease_id": "lease:one",
+        "source_lease_epoch": 3,
+        "source_lease_expires_at": "2026-07-20T00:00:00+00:00",
+        "source_lease_payload_sha256": "e" * 64,
+        "base_commitment_digest": "f" * 64,
+        "source_holder_ref": HolderRef.parse("agent:source:run:one"),
+    }
+    del payload[field]
+
+    with pytest.raises(ValidationError):
+        CrossHostHandoff(**payload)
 
 
 @pytest.mark.parametrize("width", [41, 63])
@@ -74,9 +111,12 @@ def test_cross_host_handoff_rejects_intermediate_oid_widths(width: int) -> None:
             source_lane_ref="work/example",
             source_head="a" * width,
             source_tree="b" * width,
+            base_commitment_path="openspec/changes/example/commitment.toml",
+            base_commitment_bytes_sha256="1" * 64,
             target_holder_ref=HolderRef.parse("agent:other:run:two"),
             context_digest="c" * 64,
             dirty_content_sha256="f" * 64,
+            source_lane_incarnation_id="lane-incarnation:one",
             source_lease_id="lease:one",
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
@@ -92,10 +132,13 @@ def test_cross_host_handoff_rejects_legacy_dirty_disposition() -> None:
             source_lane_ref="work/example",
             source_head="a" * 40,
             source_tree="b" * 40,
+            base_commitment_path="openspec/changes/example/commitment.toml",
+            base_commitment_bytes_sha256="1" * 64,
             target_holder_ref=HolderRef.parse("agent:other:run:two"),
             context_digest="c" * 64,
             dirty_content_sha256="f" * 64,
             dirty_disposition="preserved",
+            source_lane_incarnation_id="lane-incarnation:one",
             source_lease_id="lease:one",
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
@@ -112,9 +155,12 @@ def test_cross_host_handoff_rejects_coercive_lease_epochs(epoch: object) -> None
             source_lane_ref="work/example",
             source_head="a" * 40,
             source_tree="b" * 40,
+            base_commitment_path="openspec/changes/example/commitment.toml",
+            base_commitment_bytes_sha256="1" * 64,
             target_holder_ref=HolderRef.parse("agent:other:run:two"),
             context_digest="c" * 64,
             dirty_content_sha256="f" * 64,
+            source_lane_incarnation_id="lane-incarnation:one",
             source_lease_id="lease:one",
             source_lease_epoch=epoch,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
@@ -145,9 +191,12 @@ def test_cross_host_handoff_rejects_noncanonical_artifacts(
             source_lane_ref="work/example",
             source_head="a" * 40,
             source_tree="b" * 40,
+            base_commitment_path="openspec/changes/example/commitment.toml",
+            base_commitment_bytes_sha256="1" * 64,
             target_holder_ref=HolderRef.parse("agent:other:run:two"),
             context_digest="c" * 64,
             dirty_content_sha256="f" * 64,
+            source_lane_incarnation_id="lane-incarnation:one",
             source_lease_id="lease:one",
             source_lease_epoch=3,
             source_lease_expires_at="2026-07-20T00:00:00+00:00",
@@ -165,9 +214,12 @@ def test_handoff_export_rejects_a_bundle_from_another_generation(
         source_lane_ref="work/example",
         source_head="a" * 40,
         source_tree="b" * 40,
+        base_commitment_path="openspec/changes/example/commitment.toml",
+        base_commitment_bytes_sha256="1" * 64,
         target_holder_ref=HolderRef.parse("agent:other:run:two"),
         context_digest="c" * 64,
         dirty_content_sha256="d" * 64,
+        source_lane_incarnation_id="lane-incarnation:one",
         source_lease_id="lease:one",
         source_lease_epoch=1,
         source_lease_expires_at="2026-07-21T00:00:00+00:00",
@@ -220,9 +272,16 @@ def test_handoff_manifest_rejects_a_symlinked_manifest(
     assert gaps == ["handoff_manifest_unsafe"]
 
 
-@pytest.mark.parametrize("state", ["valid", "expired", "unknown"])
+@pytest.mark.parametrize(
+    ("state", "gap"),
+    [
+        ("valid", "handoff_import_lease_conflict"),
+        ("expired", "handoff_import_lease_conflict"),
+        ("unknown", "handoff_import_lease_unknown"),
+    ],
+)
 def test_handoff_import_rejects_destination_lease_before_git_effects(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, state: str
+    tmp_path, monkeypatch: pytest.MonkeyPatch, state: str, gap: str
 ) -> None:
     branch = "work/example"
     destination = tmp_path / "destination"
@@ -245,7 +304,7 @@ def test_handoff_import_rejects_destination_lease_before_git_effects(
 
     monkeypatch.setattr(destination_import, "run_git", unexpected_git)
 
-    with pytest.raises(ValueError, match=r"^handoff_import_lease_conflict$"):
+    with pytest.raises(ValueError, match=rf"^{gap}$"):
         destination_import.apply_handoff_import(
             destination=destination,
             package=tmp_path / "package",
@@ -253,6 +312,9 @@ def test_handoff_import_rejects_destination_lease_before_git_effects(
                 "package_id": f"handoff:{'c' * 64}",
                 "source_lane_ref": branch,
                 "source_head": "a" * 40,
+                "source_tree": "d" * 40,
+                "base_commitment_path": "openspec/changes/example/commitment.toml",
+                "base_commitment_bytes_sha256": "e" * 64,
                 "base_commitment_digest": "b" * 64,
             },
             target_holder_ref="agent:test:case:target",

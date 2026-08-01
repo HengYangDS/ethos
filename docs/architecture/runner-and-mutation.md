@@ -76,10 +76,11 @@ second proof-carry receipt. The projection exposes
 `mints_proof = false`, `same_head_only = true`, and source/target verification
 flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
 closeout can prove the candidate head without requiring a redundant runner pass.
-The standard Work Lane lifecycle is command-bound: `ethos lane start` resolves
-the unique active Commitment at the exact candidate HEAD, creates the lane,
-and records its immutable base digest in the Lease. Missing or ambiguous active
-contracts block before any ref, worktree, or SQLite effect. `ethos lane
+The standard Work Lane lifecycle is command-bound: `ethos lane start` consumes
+the source Work Lane's exact Lease-bound Commitment, creates the lane, and binds
+the new Lease to the resulting HEAD, tree, carrier path, carrier-byte SHA-256,
+and semantic digest. Missing or mismatched Lease coordinates block before any
+ref, worktree, or SQLite effect. `ethos lane
 refresh-base` replays a stale lane onto the configured candidate branch, `ethos
 land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
@@ -88,9 +89,11 @@ successor retire one clean, ownerless source whose exact HEAD is its ancestor;
 the transaction preserves both accepted and successor refs and retains the
 successor Lease. Prewrite, TransitionPlan, proof, head advance, handoff,
 closeout, retirement, and status all consume the same strict Lease observation
-and exact base-digest binding.
+and exact carrier binding. Cross-host source revocation is likewise an exact
+live-Lease CAS: a missing Lease blocks and never masquerades as successful replay.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
-HEAD, Lease, and accepted-relation facts, but no lifecycle command deletes them.
+HEAD, complete Lease generation, and accepted-relation facts, but no lifecycle
+command deletes them.
 Unknown, dirty, unbound, or owner-uncertain state remains blocked until a future
 generic recovery Commitment is independently admitted. Raw Git worktree
 creation can exist as a repository fact, but it is not standard ETHOS workflow

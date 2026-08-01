@@ -8,18 +8,14 @@ no-UI-projection assertion — are the setup every split imports.
 
 from __future__ import annotations
 
-import uuid
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
-from ethos.contracts.coordination import LaneLease
 from tests.support.contract_helpers import commit_active_commitment
+from tests.support.contract_helpers import exact_lease
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo as init_repo
+from tests.support.contract_helpers import write_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,19 +28,23 @@ def add_candidate_worktree(repo: Path, path: Path) -> Path:
 
 def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:case:agent-a") -> Path:
     """Create one owned worktree with a matching lease for admission tests."""
-    base_digest = (
+    carrier = ".ethos/commitment.toml"
+    change_id = None
+    if not (repo / carrier).exists():
         commit_active_commitment(repo)
-        if not (repo / ".ethos/commitment.toml").exists()
-        else load_profile_commitment(repo).digest()
-    )
+        carrier = "openspec/changes/fixture-change/commitment.toml"
+        change_id = "fixture-change"
     git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
+    head = git(path, "rev-parse", "HEAD")
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch="work/feature",
             holder_ref=holder_ref,
-            expected_head=git(path, "rev-parse", "HEAD"),
-            base_commitment_digest=base_digest,
+            expected_head=head,
+            carrier=carrier,
+            change_id=change_id,
         ),
     )
     return path
@@ -83,7 +83,15 @@ def superseded_work_lane(
 ) -> tuple[Path, Path, str, str, Path]:
     """Create an owned obsolete lane and optionally absorb its change on dev."""
     repo = init_repo(tmp_path / "repo")
-    base_digest = commit_active_commitment(repo)
+    write_role_policy(
+        repo,
+        candidate_branch="candidate/dev",
+        work_branch_prefix="work/",
+        proposal_branch_prefix="proposal/",
+    )
+    commit_active_commitment(repo)
+    carrier = "openspec/changes/fixture-change/commitment.toml"
+    change_id = "fixture-change"
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     lane = tmp_path / "repo-work-superseded"
     git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
@@ -106,11 +114,13 @@ def superseded_work_lane(
     database = repo / ".ethos" / "state" / "state.sqlite"
     acquire_lease(
         database,
-        lease=_lease(
+        lease=exact_lease(
+            repo=repo,
             branch="work/superseded",
             holder_ref=holder_ref,
             expected_head=head,
-            base_commitment_digest=base_digest,
+            carrier=carrier,
+            change_id=change_id,
             ttl_seconds=3600,
         ),
     )
@@ -126,27 +136,3 @@ def assert_no_ui_projection(value: object) -> None:
     elif isinstance(value, list):
         for child in value:
             assert_no_ui_projection(child)
-
-
-def _lease(
-    *,
-    branch: str,
-    holder_ref: str,
-    expected_head: str,
-    base_commitment_digest: str,
-    ttl_seconds: int = 86_400,
-) -> LaneLease:
-    now = datetime.now(UTC)
-    return LaneLease(
-        lane_incarnation_id=f"lane-incarnation:{uuid.uuid4()}",
-        lease_id=f"lease:{uuid.uuid4()}",
-        lane_ref=branch,
-        holder_ref=holder_ref,
-        epoch=1,
-        issued_at=now,
-        renewed_at=now,
-        expires_at=now + timedelta(seconds=ttl_seconds),
-        expected_head=expected_head,
-        base_commitment_digest=base_commitment_digest,
-        path_scope=(),
-    )

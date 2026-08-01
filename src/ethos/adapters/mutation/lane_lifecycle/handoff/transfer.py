@@ -15,7 +15,7 @@ import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
 from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_import import apply_handoff_import
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
@@ -45,15 +45,15 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
     head = _git_value(repo, "rev-parse", "HEAD")
     tree = _git_value(repo, "rev-parse", "HEAD^{tree}")
     lease = leases_by_branch(repo).get(request.branch, {})
-    base_commitment_digest = str(lease.get("base_commitment_digest") or "")
     try:
-        selected_base_digest = load_profile_lease_bound_commitment(
-            repo,
-            expected_head=head,
-            base_commitment_digest=base_commitment_digest,
-        ).digest()
-    except ValueError:
-        selected_base_digest = ""
+        load_lease_bound_commitment(repo, lease=lease)
+        commitment_gap = ""
+    except ValueError as error:
+        commitment_gap = f"lease_base_commitment_invalid:{error}"
+    base_commitment_path = str(lease.get("base_commitment_path") or "")
+    base_commitment_bytes_sha256 = str(lease.get("base_commitment_bytes_sha256") or "")
+    base_commitment_digest = str(lease.get("base_commitment_digest") or "")
+    lane_incarnation_id = str(lease.get("lane_incarnation_id") or "")
     context_file = Path(request.context_file) if request.context_file else None
     context, context_gap = _handoff_context(
         context_text=request.context_text,
@@ -64,14 +64,17 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
     expected_state: dict[str, object] = {
         "root": repo.resolve().as_posix(),
         "branch": request.branch,
-        "head": request.expect_head,
-        "tree": tree,
+        "source_head": request.expect_head,
+        "source_tree": tree,
         "holder_ref": request.holder_ref,
         "target_holder_ref": request.target_holder_ref,
+        "lane_incarnation_id": lane_incarnation_id,
         "lease_id": request.lease_id,
         "epoch": request.epoch,
         "expires_at": request.expected_expires_at,
         "payload_sha256": request.expected_payload_sha256,
+        "base_commitment_path": base_commitment_path,
+        "base_commitment_bytes_sha256": base_commitment_bytes_sha256,
         "base_commitment_digest": base_commitment_digest,
     }
     checks = (
@@ -80,6 +83,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
         (lease.get("lease_state") == "valid", _lease_state_gap(request.branch, lease)),
         (head == request.expect_head, "expect_head_mismatch"),
         (str(lease.get("holder_ref") or "") == request.holder_ref, "lease_holder_mismatch"),
+        (bool(lane_incarnation_id), "lane_incarnation_id_missing"),
         (str(lease.get("lease_id") or "") == request.lease_id, "lease_id_stale"),
         (integer_value(lease.get("epoch")) == request.epoch, "lease_epoch_stale"),
         (str(lease.get("expected_head") or "") == head, "lease_head_stale"),
@@ -88,11 +92,12 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
             and str(lease.get("payload_sha256") or "") == request.expected_payload_sha256,
             "lease_generation_stale",
         ),
-        (bool(base_commitment_digest), "lease_base_commitment_digest_missing"),
+        (bool(base_commitment_path), "lease_base_commitment_path_missing"),
         (
-            base_commitment_digest == selected_base_digest,
-            "lease_base_commitment_digest_mismatch",
+            bool(base_commitment_bytes_sha256),
+            "lease_base_commitment_bytes_sha256_missing",
         ),
+        (bool(base_commitment_digest), "lease_base_commitment_digest_missing"),
         (
             os.environ.get("ETHOS_ACTOR", "").strip() == request.holder_ref,
             "lease_actor_mismatch",
@@ -102,6 +107,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
     gaps = list(
         dict.fromkeys(
             [context_gap] * bool(context_gap)
+            + [commitment_gap] * bool(commitment_gap)
             + _holder_ref_gaps(request.holder_ref, request.target_holder_ref)
             + [gap for ok, gap in checks if not ok]
         )
@@ -119,7 +125,10 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
                     source_lane_ref=request.branch,
                     source_head=head,
                     source_tree=tree,
+                    base_commitment_path=base_commitment_path,
+                    base_commitment_bytes_sha256=base_commitment_bytes_sha256,
                     source_holder_ref=HolderRef.parse(request.holder_ref),
+                    source_lane_incarnation_id=lane_incarnation_id,
                     target_holder_ref=HolderRef.parse(request.target_holder_ref),
                     source_lease_id=request.lease_id,
                     source_lease_epoch=request.epoch,
@@ -153,7 +162,10 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
         "package_id": str(manifest.get("package_id") or ""),
         "source_lane_ref": str(manifest.get("source_lane_ref") or ""),
         "source_head": str(manifest.get("source_head") or ""),
+        "source_tree": str(manifest.get("source_tree") or ""),
         "target_holder_ref": request.target_holder_ref,
+        "base_commitment_path": str(manifest.get("base_commitment_path") or ""),
+        "base_commitment_bytes_sha256": str(manifest.get("base_commitment_bytes_sha256") or ""),
         "base_commitment_digest": str(manifest.get("base_commitment_digest") or ""),
     }
     try:
@@ -214,16 +226,20 @@ def revoke_cross_host_source(
         "root": repo.resolve().as_posix(),
         "package_id": str(manifest.get("package_id") or ""),
         "branch": branch,
-        "head": request.expect_head,
+        "source_head": request.expect_head,
+        "source_tree": str(manifest.get("source_tree") or ""),
         "holder_ref": request.holder_ref,
+        "lane_incarnation_id": str(binding.get("lane_incarnation_id") or ""),
         "lease_id": request.lease_id,
         "epoch": request.epoch,
         "expires_at": request.expected_expires_at,
         "payload_sha256": request.expected_payload_sha256,
         "acknowledgement_id": str(ack.get("acknowledgement_id") or ""),
+        "base_commitment_path": str(manifest.get("base_commitment_path") or ""),
+        "base_commitment_bytes_sha256": str(manifest.get("base_commitment_bytes_sha256") or ""),
         "base_commitment_digest": str(manifest.get("base_commitment_digest") or ""),
     }
-    comparisons = (
+    static_comparisons = (
         (
             str(binding.get("holder_ref") or ""),
             request.holder_ref,
@@ -267,14 +283,24 @@ def revoke_cross_host_source(
             "handoff_acknowledgement_destination_head_mismatch",
         ),
         (
+            str(ack.get("destination_lease_expected_tree") or ""),
+            str(manifest.get("source_tree") or ""),
+            "handoff_acknowledgement_destination_tree_mismatch",
+        ),
+        (
+            str(ack.get("destination_lease_base_commitment_path") or ""),
+            str(manifest.get("base_commitment_path") or ""),
+            "handoff_acknowledgement_base_commitment_path_mismatch",
+        ),
+        (
+            str(ack.get("destination_lease_base_commitment_bytes_sha256") or ""),
+            str(manifest.get("base_commitment_bytes_sha256") or ""),
+            "handoff_acknowledgement_base_commitment_bytes_mismatch",
+        ),
+        (
             str(ack.get("base_commitment_digest") or ""),
             str(manifest.get("base_commitment_digest") or ""),
             "handoff_acknowledgement_base_commitment_digest_mismatch",
-        ),
-        (
-            str(lease.get("base_commitment_digest") or ""),
-            str(manifest.get("base_commitment_digest") or ""),
-            "handoff_source_base_commitment_digest_mismatch",
         ),
         (
             request.expected_expires_at,
@@ -286,6 +312,47 @@ def revoke_cross_host_source(
             str(binding.get("payload_sha256") or ""),
             "handoff_source_lease_mismatch",
         ),
+        (os.environ.get("ETHOS_ACTOR", "").strip(), request.holder_ref, "lease_actor_mismatch"),
+    )
+    static_checks = (
+        (
+            status.get("role") == ROLE_WORK_LANE and status.get("branch") == branch,
+            "handoff_source_lane_mismatch",
+        ),
+        (head == request.expect_head, "expect_head_mismatch"),
+        *((actual == expected, gap) for actual, expected, gap in static_comparisons),
+        (
+            ack.get("source_lease_transferred") is False,
+            "handoff_acknowledgement_lease_boundary_invalid",
+        ),
+    )
+    lease_state = str(lease.get("lease_state") or "missing")
+    live_comparisons = (
+        (
+            str(lease.get("lane_incarnation_id") or ""),
+            str(binding.get("lane_incarnation_id") or ""),
+            "handoff_source_lane_incarnation_mismatch",
+        ),
+        (
+            str(lease.get("expected_tree") or ""),
+            str(manifest.get("source_tree") or ""),
+            "handoff_source_expected_tree_mismatch",
+        ),
+        (
+            str(lease.get("base_commitment_path") or ""),
+            str(manifest.get("base_commitment_path") or ""),
+            "handoff_source_base_commitment_path_mismatch",
+        ),
+        (
+            str(lease.get("base_commitment_bytes_sha256") or ""),
+            str(manifest.get("base_commitment_bytes_sha256") or ""),
+            "handoff_source_base_commitment_bytes_mismatch",
+        ),
+        (
+            str(lease.get("base_commitment_digest") or ""),
+            str(manifest.get("base_commitment_digest") or ""),
+            "handoff_source_base_commitment_digest_mismatch",
+        ),
         (
             str(lease.get("expires_at") or ""),
             request.expected_expires_at,
@@ -296,19 +363,19 @@ def revoke_cross_host_source(
             request.expected_payload_sha256,
             "lease_generation_stale",
         ),
-        (os.environ.get("ETHOS_ACTOR", "").strip(), request.holder_ref, "lease_actor_mismatch"),
     )
     checks = (
+        *static_checks,
         (
-            status.get("role") == ROLE_WORK_LANE and status.get("branch") == branch,
-            "handoff_source_lane_mismatch",
+            lease_state == "valid",
+            "handoff_source_lease_missing"
+            if lease_state == "missing"
+            else _lease_state_gap(branch, lease),
         ),
-        (lease.get("lease_state") == "valid", _lease_state_gap(branch, lease)),
-        (head == request.expect_head, "expect_head_mismatch"),
-        *((actual == expected, gap) for actual, expected, gap in comparisons),
-        (
-            ack.get("source_lease_transferred") is False,
-            "handoff_acknowledgement_lease_boundary_invalid",
+        *(
+            tuple((actual == expected, gap) for actual, expected, gap in live_comparisons)
+            if lease_state != "missing"
+            else ()
         ),
     )
     evaluation = _guarded(tuple(gaps), checks=checks, apply=request.apply)

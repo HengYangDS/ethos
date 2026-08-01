@@ -21,7 +21,7 @@ from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementReque
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
-from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_head
+from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import initialize_state_connection
@@ -129,6 +129,27 @@ def _assert_reissue_changes(
     } == set(declared_fields)
 
 
+def _install_reference_transaction_hook(
+    repo: Path,
+    invocation_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hooks = repo / ".githooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    hook = hooks / "reference-transaction"
+    shutil.copy(Path(__file__).resolve().parents[4] / ".githooks/reference-transaction", hook)
+    hook.chmod(0o755)
+    exclude = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    exclude.write_text("tools/\n", encoding="utf-8")
+    runtime = invocation_root / "tools/ci/scripts/with-python-runtime.sh"
+    runtime.parent.mkdir(parents=True, exist_ok=True)
+    runtime.write_text('#!/bin/sh\n[ "$1" = "--" ] && shift\nexec "$@"\n', encoding="utf-8")
+    runtime.chmod(0o755)
+    git(repo, "config", "core.hooksPath", hooks.as_posix())
+    monkeypatch.setenv("ETHOS_PYTHON", sys.executable)
+
+
 def _apply_lease(database: Path, request: LeaseOperationRequest) -> dict[str, object]:
     return apply_lease_operation(database, request=request)
 
@@ -175,6 +196,9 @@ def test_lease_observation_keeps_valid_expired_unknown_and_missing_distinct(
         renewed_at=now,
         expires_at=now + timedelta(hours=1),
         expected_head="a" * 40,
+        expected_tree="c" * 40,
+        base_commitment_path="openspec/changes/terminal-convergence/commitment.toml",
+        base_commitment_bytes_sha256="d" * 64,
         base_commitment_digest="b" * 64,
         path_scope=(),
         handoff=None,
@@ -467,6 +491,145 @@ def test_successor_retirement_restores_binding_after_ref_cas_failure(
     assert git(repo, "rev-parse", "work/superseded") == source_head
 
 
+def test_direct_retirement_ref_cas_failure_restores_exact_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    holder_ref = "agent:test:case:source"
+    repo, source, source_head, accepted, database = superseded_work_lane(
+        tmp_path / "direct-ref-failure", holder_ref=holder_ref
+    )
+    before = _lease_snapshot(source, "work/superseded")
+    original = retirement_effects.run_git
+
+    def fail_ref_cas(root: Path, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ("update-ref", "--stdin"):
+            return subprocess.CompletedProcess(["git", *args], 1, "", "forced ref failure")
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(retirement_effects, "run_git", fail_ref_cas)
+    monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
+    report = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch="work/superseded",
+            expect_head=source_head,
+            absorbed_by=accepted,
+            reason="accepted tree contains the obsolete delta",
+            authorize=True,
+            apply=True,
+        ),
+    )
+
+    assert report["verdict"] == "block"
+    assert source.exists()
+    assert git(source, "branch", "--show-current") == "work/superseded"
+    assert git(repo, "rev-parse", "work/superseded") == source_head
+    assert _lease_snapshot(source, "work/superseded") == before
+    assert observe_lease(database, "work/superseded").state == "valid"
+
+
+def test_retirement_reobservation_blocks_target_branch_rebind(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    holder_ref = "agent:test:case:source"
+    repo, source, source_head, accepted, database = superseded_work_lane(
+        tmp_path / "target-branch-rebind", holder_ref=holder_ref
+    )
+    original = retirement_effects.apply_retirement
+
+    def switch_target_branch(*args: Any, **kwargs: Any) -> dict[str, object]:
+        git(source, "branch", "work/other", source_head)
+        git(source, "symbolic-ref", "HEAD", "refs/heads/work/other")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(retirement_effects, "apply_retirement", switch_target_branch)
+    monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
+    report = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch="work/superseded",
+            expect_head=source_head,
+            absorbed_by=accepted,
+            reason="accepted tree contains the obsolete delta",
+            authorize=True,
+            apply=True,
+        ),
+    )
+
+    assert report["required_gaps"] == ["retirement_worktree_branch_stale"]
+    assert source.exists()
+    assert git(repo, "rev-parse", "work/superseded") == source_head
+    assert observe_lease(database, "work/superseded").state == "valid"
+
+
+@pytest.mark.parametrize("commit_outcome", ["before", "after"])
+def test_retirement_commit_error_reports_observed_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    commit_outcome: str,
+) -> None:
+    commit_applied = commit_outcome == "after"
+    holder_ref = "agent:test:case:source"
+    repo, source, source_head, accepted, database = superseded_work_lane(
+        tmp_path / f"commit-error-{commit_outcome}", holder_ref=holder_ref
+    )
+    real_closing = retirement_effects.closing
+
+    class CommitProxy:
+        def __init__(self, connection: sqlite3.Connection) -> None:
+            self.connection = connection
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self.connection, name)
+
+        def commit(self) -> None:
+            if commit_applied:
+                self.connection.commit()
+            message = "forced uncertain commit"
+            raise sqlite3.OperationalError(message)
+
+        def close(self) -> None:
+            self.connection.close()
+
+    monkeypatch.setattr(
+        retirement_effects,
+        "closing",
+        lambda connection: real_closing(CommitProxy(connection)),
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
+    report = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch="work/superseded",
+            expect_head=source_head,
+            absorbed_by=accepted,
+            reason="accepted tree contains the obsolete delta",
+            authorize=True,
+            apply=True,
+        ),
+    )
+
+    observed = report["retired"] if commit_applied else report["observed"]
+    if commit_applied:
+        assert (report["verdict"], report["state"]) == ("pass", "retired_superseded")
+        assert observed["lease_state"] == "missing"
+        assert observed["ref_state"] == "absent"
+        assert observed["worktree_state"] == "absent"
+        assert not source.exists()
+    else:
+        assert report["verdict"] == "block"
+        assert observed["lease_state"] == "valid"
+        assert observed["ref_state"] == "absent"
+        assert observed["worktree_state"] == "absent"
+        assert not source.exists()
+        assert observe_lease(database, "work/superseded").state == "valid"
+
+
 def test_successor_retirement_uses_the_installed_reference_transaction_hook(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -475,23 +638,7 @@ def test_successor_retirement_uses_the_installed_reference_transaction_hook(
         tmp_path / "installed-hook",
         monkeypatch,
     )
-    hooks = repo / ".githooks"
-    hooks.mkdir(parents=True)
-    hook = hooks / "reference-transaction"
-    shutil.copy(Path(__file__).resolve().parents[4] / ".githooks/reference-transaction", hook)
-    hook.chmod(0o755)
-    exclude = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
-    exclude.parent.mkdir(parents=True, exist_ok=True)
-    exclude.write_text("tools/\n", encoding="utf-8")
-    runtime = successor / "tools/ci/scripts/with-python-runtime.sh"
-    runtime.parent.mkdir(parents=True)
-    runtime.write_text(
-        '#!/bin/sh\n[ "$1" = "--" ] && shift\nexec "$@"\n',
-        encoding="utf-8",
-    )
-    runtime.chmod(0o755)
-    git(repo, "config", "core.hooksPath", hooks.as_posix())
-    monkeypatch.setenv("ETHOS_PYTHON", sys.executable)
+    _install_reference_transaction_hook(repo, successor, monkeypatch)
     raw_delete = subprocess.run(
         ["git", "update-ref", "-d", "refs/heads/work/superseded", request.expect_head],
         cwd=successor,
@@ -518,6 +665,53 @@ def test_successor_retirement_uses_the_installed_reference_transaction_hook(
     assert not source.exists()
     assert git(repo, "branch", "--list", "work/superseded") == ""
     assert observe_lease(database, successor_branch).state == "valid"
+
+
+def test_raw_delete_of_valid_leased_work_lane_requires_closeout_intent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    holder_ref = "agent:test:case:source"
+    repo, source, source_head, accepted, database = superseded_work_lane(
+        tmp_path / "leased-delete",
+        holder_ref=holder_ref,
+    )
+    _install_reference_transaction_hook(repo, repo, monkeypatch)
+    monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
+
+    raw_delete = subprocess.run(
+        ["git", "update-ref", "-d", "refs/heads/work/superseded", source_head],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert raw_delete.returncode != 0
+    assert git(repo, "rev-parse", "work/superseded") == source_head
+    assert observe_lease(database, "work/superseded").state == "valid"
+
+    report = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch="work/superseded",
+            expect_head=source_head,
+            absorbed_by=accepted,
+            reason="accepted tree contains the obsolete delta",
+            authorize=True,
+            apply=True,
+        ),
+    )
+
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        "pass",
+        "retired_superseded",
+        [],
+    )
+    assert not source.exists()
+    assert git(repo, "branch", "--list", "work/superseded") == ""
+    assert observe_lease(database, "work/superseded").state == "missing"
 
 
 def test_full_lease_reissues_preserve_every_undeclared_field(
@@ -586,7 +780,7 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
         "handoff",
     )
 
-    advanced = advance_lease_head(
+    advanced = advance_lease_ref(
         database,
         request=_lease_request(
             operation="advance",
@@ -595,9 +789,23 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
             lease=accepted,
             apply=True,
         ),
-        new_head="c" * 40,
+        binding={
+            "expected_head": "c" * 40,
+            "expected_tree": "d" * 40,
+            "base_commitment_path": "records/change/commitment.toml",
+            "base_commitment_bytes_sha256": "e" * 64,
+            "base_commitment_digest": "f" * 64,
+        },
     )
-    _assert_reissue_changes(accepted, advanced, "expected_head")
+    _assert_reissue_changes(
+        accepted,
+        advanced,
+        "expected_head",
+        "expected_tree",
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+        "base_commitment_digest",
+    )
 
     def unexpected_replace(*_args: object, **_kwargs: object) -> dict[str, object]:
         raise AssertionError
@@ -609,7 +817,7 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
             unexpected_replace,
         )
         with pytest.raises(ValueError, match="expected_head"):
-            advance_lease_head(
+            advance_lease_ref(
                 database,
                 request=_lease_request(
                     operation="advance",
@@ -618,7 +826,13 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
                     lease=advanced,
                     apply=True,
                 ),
-                new_head="invalid-head",
+                binding={
+                    "expected_head": "invalid-head",
+                    "expected_tree": "d" * 40,
+                    "base_commitment_path": advanced["base_commitment_path"],
+                    "base_commitment_bytes_sha256": advanced["base_commitment_bytes_sha256"],
+                    "base_commitment_digest": advanced["base_commitment_digest"],
+                },
             )
     assert observe_lease(database, branch).record() == advanced
 
@@ -670,6 +884,9 @@ def test_full_lease_reissue_rejects_legacy_payload(tmp_path: Path) -> None:
             renewed_at=now,
             expires_at=now + timedelta(days=1),
             expected_head="a" * 40,
+            expected_tree="c" * 40,
+            base_commitment_path="openspec/changes/terminal-convergence/commitment.toml",
+            base_commitment_bytes_sha256="d" * 64,
             base_commitment_digest="b" * 64,
             path_scope=(),
         ),

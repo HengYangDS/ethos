@@ -41,6 +41,16 @@ Evidence boundaries (enforced in `system/evidence_boundaries.toml`): dry-run
 readiness != executed proof; digest-bound != semantic correctness; local != hosted;
 promotion != absolute correctness (only: a bounded claim was admitted).
 
+## Convergence Discipline
+
+- Count progress only when an acceptance gap closes; file churn and reruns are
+  not progress.
+- Freeze the complete candidate before expensive checks, run the smallest
+  discriminating test first, then affected-domain tests, and reserve the full
+  proof for the atomic-task boundary.
+- A tool yield is not a test timeout. Resume the same live process instead of
+  duplicating it.
+
 ## Bundled Resources
 
 - `scripts/readiness.py` — deterministic read-only driver: runs status -> plan ->

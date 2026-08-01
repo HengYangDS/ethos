@@ -12,7 +12,7 @@ from typing import cast
 
 from ethos.adapters.admission.closeout_intent.marker import clear_closeout_intent
 from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -21,6 +21,7 @@ from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.lease.projection import observe_lease_from_connection
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -40,8 +41,8 @@ def apply_retirement(
     authority_lane: dict[str, object],
     accepted_head: str,
 ) -> dict[str, object]:
-    removed = False
     result: dict[str, object] = {}
+    error: OSError | sqlite3.Error | None = None
     successor_authority = authority_lane.get("branch") != lane.get("branch")
     try:
         with closing(sqlite3.connect(state_database(repo))) as connection:
@@ -59,6 +60,7 @@ def apply_retirement(
                     connection,
                     request=lease_request(lane),
                 )
+                require_missing_lease(connection, str(lane["branch"]))
             if gaps := effect_gaps(
                 repo,
                 control_root,
@@ -78,28 +80,49 @@ def apply_retirement(
                     authority_head=str(authority_lane.get("head") or ""),
                     authority_path=str(authority_lane.get("path") or ""),
                 )
-                result = {
-                    **effect,
-                    **({"lease_state": "retained"} if effect.get("worktree_removed") else {}),
-                }
+                result = effect
             if result or successor_authority:
                 if result:
                     connection.rollback()
                 else:
-                    removed = True
                     connection.commit()
             else:
-                removed = True
                 connection.commit()
     except ValueError as exc:
         result = blocked([str(exc).partition(":")[0]], str(exc))
     except (OSError, sqlite3.Error) as exc:
-        result = (
-            recover_removed_lane(control_root, lane, exc)
-            if removed
-            else blocked(["lease_cleanup_failed"], str(exc))
-        )
-    return result
+        error = exc
+    return retirement_result(
+        repo,
+        control_root,
+        lane,
+        result=result,
+        error=error,
+    )
+
+
+def retirement_result(
+    repo: Path,
+    control_root: Path,
+    lane: dict[str, object],
+    *,
+    result: dict[str, object],
+    error: OSError | sqlite3.Error | None,
+) -> dict[str, object]:
+    """Resolve one retirement attempt from fresh native carrier observations."""
+    observed = retirement_observation(repo, control_root, lane)
+    if error is not None:
+        if retirement_terminal(observed):
+            return {"observed": observed}
+        return {**blocked(["lease_cleanup_failed"], str(error)), "observed": observed}
+    if result:
+        return {**result, "observed": observed}
+    if retirement_terminal(observed):
+        return {"observed": observed}
+    return {
+        **blocked(["retirement_postcondition_not_terminal"]),
+        "observed": observed,
+    }
 
 
 def remove_linked_lane(
@@ -227,9 +250,9 @@ def ref_outcome(root: Path, branch: str, expected: str) -> str:
     try:
         observed = run_git(
             root,
-            "show-ref",
+            "rev-parse",
             "--verify",
-            "--hash",
+            "--quiet",
             f"refs/heads/{branch}",
             check=False,
         )
@@ -301,11 +324,7 @@ def lane(
         )
     else:
         try:
-            load_profile_lease_bound_commitment(
-                path,
-                expected_head=head,
-                base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
-            )
+            load_lease_bound_commitment(path, lease=lease)
         except ValueError as exc:
             gaps.append(str(exc))
     return {
@@ -402,36 +421,37 @@ def restore_worktree(control_root: Path, lane: dict[str, object]) -> bool:
     )
 
 
-def recover_removed_lane(
-    control_root: Path,
-    lane: dict[str, object],
-    error: OSError | sqlite3.Error,
-) -> dict[str, object]:
-    """Restore a ref and linked worktree after the final Lease commit fails."""
-    try:
-        restored = run_git(
-            control_root,
-            "update-ref",
-            "--stdin",
-            check=False,
-            stdin=f"create refs/heads/{lane['branch']} {lane['head']}\n",
-        )
-    except OSError:
-        restored = None
-    ref_restored = restored is not None and restored.returncode == 0
-    worktree_restored = ref_restored and restore_worktree(control_root, lane)
-    gaps = ["lease_cleanup_failed_after_lane_removed"]
-    if not ref_restored:
-        gaps.append("branch_restore_failed_after_lease_cleanup")
-    elif not worktree_restored:
-        gaps.append("worktree_restore_failed_after_lease_cleanup")
+def retirement_observation(
+    repo: Path, control_root: Path, lane: dict[str, object]
+) -> dict[str, str]:
+    """Observe the three native carriers after one retirement attempt."""
+    branch, expected = (str(lane.get(key) or "") for key in ("branch", "head"))
     return {
-        **blocked(gaps, str(error)),
-        "worktree_removed": not worktree_restored,
-        "worktree_restored": worktree_restored,
-        "ref_restored": ref_restored,
-        "lease_state": "retained",
+        "lease_state": observe_lease(state_database(repo), branch).state,
+        "ref_state": ref_outcome(control_root, branch, expected),
+        "worktree_state": worktree_outcome(lane),
     }
+
+
+def retirement_terminal(observed: dict[str, str]) -> bool:
+    return observed == {
+        "lease_state": "missing",
+        "ref_state": "absent",
+        "worktree_state": "absent",
+    }
+
+
+def worktree_outcome(lane: dict[str, object]) -> str:
+    path = Path(str(lane.get("path") or ""))
+    if not path.exists():
+        return "absent"
+    branch = output(path, "symbolic-ref", "--short", "HEAD")
+    head = output(path, "rev-parse", "HEAD")
+    return (
+        "expected"
+        if branch == str(lane.get("branch") or "") and head == str(lane.get("head") or "")
+        else "moved"
+    )
 
 
 def reobservation_gaps(
@@ -445,6 +465,7 @@ def reobservation_gaps(
         return [*gaps, "retirement_worktree_path_unavailable"]
     for args, gap, expected in (
         (("rev-parse", f"refs/heads/{branch}"), "retirement_ref", expect_head),
+        (("symbolic-ref", "--short", "HEAD"), "retirement_worktree_branch", branch),
         (("rev-parse", "HEAD"), "retirement_worktree_head", expect_head),
         (("status", "--porcelain", "--untracked-files=all"), "retirement_worktree_status", ""),
     ):

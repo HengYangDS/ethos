@@ -11,20 +11,24 @@ import pytest
 from pydantic import ValidationError
 
 import ethos.adapters.repo.git_effect_attestation
+import ethos.adapters.repo.git_effects
 import ethos.adapters.store.content_addressed
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git_effects import GitEffectExecutionRequest
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import git_effect_attestations
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.value import mutable_json
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 
-_COMMITMENT_DIGEST = "c" * 64
-_REPOSITORY_FACTS_DIGEST = "f" * 64
-_POLICY_DIGEST = "d" * 64
+_ISSUER = "agent:test:case:one"
 
 
 def _declare_repository(repo: Path, repository_id: str | None = None) -> str:
@@ -56,38 +60,48 @@ def _declare_repository(repo: Path, repository_id: str | None = None) -> str:
 
 
 def _effect(*, old: str, new: str) -> GitEffect:
-    return GitEffect(
-        id="effect:advance-dev",
-        plan_digest="a" * 64,
-        updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)},
-    )
+    return GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
 
 
-def _execute(
+def _plan(
     repo: Path,
     effect: GitEffect,
     *,
-    attestations: tuple[Attestation, ...] = (),
     permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
-    commitment_digest: str = _COMMITMENT_DIGEST,
-    facts_digest: str = _REPOSITORY_FACTS_DIGEST,
-    policy_digest: str = _POLICY_DIGEST,
-) -> Attestation:
-    return execute_git_effect(
-        repo,
-        effect,
-        GitEffectExecutionRequest(
-            issuer="agent:test:case:one",
-            attestations=attestations,
-            permissions=permissions,
-            commitment_digest=commitment_digest,
-            facts_digest=facts_digest,
-            policy_digest=policy_digest,
-        ),
+    facts_values: dict[str, object] | None = None,
+    policy: dict[str, object] | None = None,
+) -> TransitionPlan:
+    repository = f"repository:{repo.name}"
+    authority = Commitment(
+        id="authority:test:git-effect",
+        intent="Apply one verified Git ref transition.",
+        subjects=(repository,),
+        permissions=permissions,
+    )
+    values = facts_values or {}
+    facts = Facts(
+        repository=repository,
+        head=git(repo, "rev-parse", "HEAD"),
+        tree=git(repo, "rev-parse", "HEAD^{tree}"),
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        values={
+            "refs": {ref: update.expected for ref, update in effect.updates.items()},
+            "assertions": effect.assertions,
+            **values,
+        },
+    )
+    return compile_git_effect_plan(
+        authority,
+        facts,
+        prior_attestations={},
+        policy=policy or {"name": "test"},
+        effect=effect,
     )
 
 
-def test_git_effect_applies_exact_cas_and_replays_matching_attestation(tmp_path: Path) -> None:
+def test_git_effect_applies_exact_cas_and_replays_matching_attestation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     repository_id = _declare_repository(repo)
     old = git(repo, "rev-parse", "HEAD")
@@ -96,30 +110,43 @@ def test_git_effect_applies_exact_cas_and_replays_matching_attestation(tmp_path:
     git(repo, "add", "NEXT.md")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
+    plan = _plan(repo, effect)
+    programs: list[tuple[object, object]] = []
+    run_git = ethos.adapters.repo.git_effects.run_git
 
-    applied = _execute(repo, effect)
-    replayed = _execute(repo, effect, attestations=(applied,))
+    def record_program(root, *args, **kwargs):
+        if args == ("update-ref", "--stdin", "-z"):
+            programs.append((kwargs.get("stdin"), kwargs.get("text", True)))
+        return run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(ethos.adapters.repo.git_effects, "run_git", record_program)
+
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
+    replayed = execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(applied,))
 
     assert git(repo, "rev-parse", "dev") == new
     assert applied.predicate == "effect:git-ref-update"
-    assert applied.subject == effect.id
+    assert applied.subject == f"git-effect:{effect.digest()}"
     assert applied.verdict == "pass"
-    assert applied.plan_digest == effect.plan_digest
+    assert applied.plan_digest == plan.digest
     assert applied.effect_digest == effect.digest()
-    assert applied.commitment_digest == _COMMITMENT_DIGEST
-    assert applied.facts_digest == _REPOSITORY_FACTS_DIGEST
-    assert applied.policy_digest == _POLICY_DIGEST
+    assert applied.commitment_digest == plan.inputs.commitment
+    assert applied.facts_digest == plan.inputs.facts
+    assert applied.policy_digest == plan.inputs.policy
     assert len(applied.id) == 64
     assert "state" not in applied.statement
     assert "updates" not in applied.statement
     assert applied.statement["claim"] == {
         "operation": "git.ref.compare-and-swap",
-        "effect": effect.id,
+        "effect": applied.subject,
     }
     assert applied.statement["repository"] == repository_id
     assert applied.statement["command"] == ("git", "update-ref", "--stdin", "-z")
-    program = f"start\0update refs/heads/dev\0{new}\0{old}\0prepare\0commit\0"
-    assert applied.statement["program_sha256"] == hashlib.sha256(program.encode()).hexdigest()
+    program = f"start\0update refs/heads/dev\0{new}\0{old}\0prepare\0commit\0".encode()
+    assert programs == [(program, False)]
+    assert applied.statement["program_sha256"] == hashlib.sha256(program).hexdigest()
+    assert mutable_json(applied.statement["plan"]) == plan.model_dump(mode="json")
+    assert mutable_json(applied.statement["effect"]) == effect.model_dump(mode="json")
     assert applied.statement["input"] == {
         "head": old,
         "tree": old_tree,
@@ -136,10 +163,11 @@ def test_git_effect_applies_exact_cas_and_replays_matching_attestation(tmp_path:
         "refs": {"refs/heads/dev": new},
     }
     assert applied.statement["inputs"] == {
-        "commitment": _COMMITMENT_DIGEST,
-        "facts": _REPOSITORY_FACTS_DIGEST,
-        "plan": effect.plan_digest,
-        "policy": _POLICY_DIGEST,
+        "commitment": plan.inputs.commitment,
+        "facts": plan.inputs.facts,
+        "prior_attestations": plan.inputs.prior_attestations,
+        "plan": plan.digest,
+        "policy": plan.inputs.policy,
         "effect": effect.digest(),
     }
     assert isinstance(applied.statement["input_digest"], str)
@@ -163,8 +191,9 @@ def test_git_effect_repository_identity_is_stable_across_worktrees(tmp_path: Pat
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     linked = tmp_path / "linked"
     git(repo, "worktree", "add", "--detach", linked.as_posix(), "dev")
+    effect = _effect(old=old, new=new)
 
-    attestation = _execute(linked, _effect(old=old, new=new))
+    attestation = execute_git_effect(linked, _plan(linked, effect), issuer=_ISSUER)
 
     assert attestation.statement["repository"] == repository_id
 
@@ -179,8 +208,9 @@ def test_git_effect_repository_identity_ignores_dirty_carrier_edits(tmp_path: Pa
         carrier.read_text(encoding="utf-8").replace(repository_id, "repository:dirty"),
         encoding="utf-8",
     )
+    effect = _effect(old=old, new=new)
 
-    attestation = _execute(repo, _effect(old=old, new=new))
+    attestation = execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
 
     assert attestation.statement["repository"] == repository_id
 
@@ -208,9 +238,10 @@ def test_git_effect_blocks_repository_identity_change_before_ref_mutation(tmp_pa
     )
     new = git(repo, "rev-parse", "HEAD")
     git(repo, "checkout", "-q", "dev")
+    effect = _effect(old=old, new=new)
 
     with pytest.raises(ValueError, match="git_effect_repository_identity_mismatch"):
-        _execute(repo, _effect(old=old, new=new))
+        execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
 
     assert git(repo, "rev-parse", "dev") == old
 
@@ -224,15 +255,14 @@ def test_git_effect_blocks_foreign_expected_ref_identity(tmp_path: Path) -> None
     _declare_repository(foreign, "repository:foreign")
     foreign_head = git(foreign, "rev-parse", "HEAD")
     git(repo, "fetch", foreign.as_posix(), f"{foreign_head}:refs/heads/foreign")
+    effect = _effect(old=foreign_head, new=new)
 
     with pytest.raises(ValueError, match="git_effect_repository_identity_mismatch"):
-        _execute(repo, _effect(old=foreign_head, new=new))
+        execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
 
 
 def test_git_effect_program_is_canonical_across_mapping_order() -> None:
     first = GitEffect(
-        id="effect:ordered",
-        plan_digest="a" * 64,
         updates={
             "refs/heads/z": GitRefUpdate(expected="0" * 40, desired="1" * 40),
             "refs/heads/a": GitRefUpdate(expected="2" * 40, desired="3" * 40),
@@ -240,25 +270,28 @@ def test_git_effect_program_is_canonical_across_mapping_order() -> None:
         assertions={"refs/heads/y": "4" * 40, "refs/heads/b": "5" * 40},
     )
     reordered = GitEffect(
-        id=first.id,
-        plan_digest=first.plan_digest,
         updates=dict(reversed(tuple(first.updates.items()))),
         assertions=dict(reversed(tuple(first.assertions.items()))),
     )
 
     assert first.digest() == reordered.digest()
-    assert ethos.adapters.repo.git_effect_attestation.transaction_program(
-        first
-    ) == ethos.adapters.repo.git_effect_attestation.transaction_program(reordered)
-    assert ethos.adapters.repo.git_effect_attestation.program_digest(
-        first
-    ) == ethos.adapters.repo.git_effect_attestation.program_digest(reordered)
+    assert first.program() == reordered.program()
+    assert isinstance(first.program(), bytes)
+
+
+def test_git_effect_program_hashes_the_exact_utf8_ref_bytes() -> None:
+    effect = GitEffect(
+        updates={
+            "refs/heads/变更": GitRefUpdate(expected="0" * 40, desired="1" * 40),
+        }
+    )
+
+    assert b"refs/heads/\xe5\x8f\x98\xe6\x9b\xb4" in effect.program()
+    assert effect.digest() == hashlib.sha256(effect.program()).hexdigest()
 
 
 def test_git_effect_mappings_are_immutable() -> None:
     effect = GitEffect(
-        id="effect:immutable",
-        plan_digest="a" * 64,
         updates={
             "refs/heads/dev": GitRefUpdate(expected="0" * 40, desired="1" * 40),
         },
@@ -278,13 +311,60 @@ def test_git_effect_recovers_attestation_when_desired_state_already_holds(tmp_pa
     repo = init_git_repo(tmp_path / "repo")
     _declare_repository(repo)
     old = git(repo, "rev-parse", "HEAD")
+    (repo / "NEXT.md").write_text("next\n", encoding="utf-8")
+    git(repo, "add", "NEXT.md")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
+    plan = _plan(repo, effect)
     git(repo, "update-ref", "refs/heads/dev", new, old)
 
-    recovered = _execute(repo, _effect(old=old, new=new))
+    recovered = execute_git_effect(repo, plan, issuer=_ISSUER)
 
     assert recovered.statement["result"]["state"] == "recovered"
     assert recovered.statement["result"]["executed"] is False
+
+
+@pytest.mark.parametrize(
+    ("lease_state", "commitment_binding"),
+    [("expired", "expired"), ("unknown", "unknown"), ("valid", "mismatch")],
+)
+def test_git_effect_recovery_requires_a_live_commitment_bound_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    lease_state: str,
+    commitment_binding: str,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _declare_repository(repo)
+    old = git(repo, "rev-parse", "HEAD")
+    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
+    generation = {
+        "branch": "dev",
+        "lease_id": "lease:test",
+        "epoch": 1,
+        "holder_ref": _ISSUER,
+        "expected_head": old,
+        "base_commitment_digest": "a" * 64,
+        "expires_at": "2026-08-02T00:00:00+00:00",
+        "payload_sha256": "b" * 64,
+    }
+    plan = _plan(repo, effect, facts_values={"lease_generation": generation})
+    git(repo, "update-ref", "refs/heads/dev", new, old)
+    monkeypatch.setenv("ETHOS_ACTOR", _ISSUER)
+    monkeypatch.setattr(
+        "ethos.adapters.repo.git_effects.leases_by_branch",
+        lambda _root: {
+            "dev": generation
+            | {
+                "lease_state": lease_state,
+                "commitment_binding": commitment_binding,
+            }
+        },
+    )
+
+    with pytest.raises(ValueError, match="git_effect_lease_generation_stale"):
+        execute_git_effect(repo, plan, issuer=_ISSUER)
 
 
 def test_git_effect_blocks_identity_collision_and_stale_cas(tmp_path: Path) -> None:
@@ -293,28 +373,30 @@ def test_git_effect_blocks_identity_collision_and_stale_cas(tmp_path: Path) -> N
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
+    plan = _plan(repo, effect)
     collision = Attestation.issue(
         {
             "predicate": "effect:git-ref-update",
-            "verifier": "agent:test:case:one",
-            "subject": effect.id,
+            "verifier": _ISSUER,
+            "subject": f"git-effect:{'b' * 64}",
             "issued_at": datetime(2026, 7, 25, tzinfo=UTC),
             "verdict": "pass",
-            "statement": {"state": "applied", "updates": effect.model_dump(mode="json")["updates"]},
-            "commitment_digest": _COMMITMENT_DIGEST,
-            "facts_digest": _REPOSITORY_FACTS_DIGEST,
-            "plan_digest": effect.plan_digest,
-            "policy_digest": _POLICY_DIGEST,
-            "effect_digest": "b" * 64,
+            "statement": {},
+            "commitment_digest": plan.inputs.commitment,
+            "facts_digest": plan.inputs.facts,
+            "plan_digest": plan.digest,
+            "policy_digest": plan.inputs.policy,
+            "effect_digest": effect.digest(),
         }
     )
 
     with pytest.raises(ValueError, match="git_effect_identity_collision"):
-        _execute(repo, effect, attestations=(collision,))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(collision,))
 
     git(repo, "update-ref", "refs/heads/dev", new, old)
+    stale_effect = _effect(old="0" * 40, new=old)
     with pytest.raises(ValueError, match="git_effect_cas_mismatch"):
-        _execute(repo, _effect(old="0" * 40, new=old))
+        execute_git_effect(repo, _plan(repo, stale_effect), issuer=_ISSUER)
 
 
 def test_git_effect_requires_explicit_permission_admission(tmp_path: Path) -> None:
@@ -322,9 +404,10 @@ def test_git_effect_requires_explicit_permission_admission(tmp_path: Path) -> No
     _declare_repository(repo)
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
 
     with pytest.raises(ValueError, match="git_effect_permission_denied"):
-        _execute(repo, _effect(old=old, new=new), permissions=())
+        execute_git_effect(repo, _plan(repo, effect, permissions=()), issuer=_ISSUER)
 
 
 def test_git_effect_blocks_assertion_drift_before_recovery(tmp_path: Path) -> None:
@@ -333,13 +416,14 @@ def test_git_effect_blocks_assertion_drift_before_recovery(tmp_path: Path) -> No
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     git(repo, "branch", "candidate/dev", old)
-    effect = _effect(old=old, new=new).model_copy(
-        update={"assertions": {"refs/heads/candidate/dev": old}}
+    effect = GitEffect(
+        updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)},
+        assertions={"refs/heads/candidate/dev": old},
     )
     git(repo, "update-ref", "refs/heads/candidate/dev", new, old)
 
     with pytest.raises(ValueError, match="git_effect_cas_mismatch"):
-        _execute(repo, effect)
+        execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
 
 
 def test_git_effect_revalidates_state_before_replaying_attestation(tmp_path: Path) -> None:
@@ -348,11 +432,12 @@ def test_git_effect_revalidates_state_before_replaying_attestation(tmp_path: Pat
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
     git(repo, "update-ref", "refs/heads/dev", old, new)
 
     with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-        _execute(repo, effect, attestations=(applied,))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(applied,))
 
 
 def test_git_effect_replay_rejects_typed_evidence_drift(tmp_path: Path) -> None:
@@ -361,7 +446,8 @@ def test_git_effect_replay_rejects_typed_evidence_drift(tmp_path: Path) -> None:
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
 
     for field, value in (
         ("repository", "git:other"),
@@ -376,7 +462,7 @@ def test_git_effect_replay_rejects_typed_evidence_drift(tmp_path: Path) -> None:
             | {"statement": applied.statement | {field: value}}
         )
         with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-            _execute(repo, effect, attestations=(forged,))
+            execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(forged,))
 
 
 def test_git_effect_replay_rejects_invalid_validity_window(tmp_path: Path) -> None:
@@ -385,7 +471,8 @@ def test_git_effect_replay_rejects_invalid_validity_window(tmp_path: Path) -> No
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
     stale = Attestation.issue(
         applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {
@@ -396,7 +483,7 @@ def test_git_effect_replay_rejects_invalid_validity_window(tmp_path: Path) -> No
     )
 
     with pytest.raises(ValueError, match="git_effect_attestation_stale"):
-        _execute(repo, effect, attestations=(stale,))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(stale,))
 
 
 def test_git_effect_replay_binds_issue_time_to_post_observation(tmp_path: Path) -> None:
@@ -405,14 +492,15 @@ def test_git_effect_replay_binds_issue_time_to_post_observation(tmp_path: Path) 
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
     forged = Attestation.issue(
         applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {"issued_at": applied.issued_at + timedelta(seconds=1)}
     )
 
     with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-        _execute(repo, effect, attestations=(forged,))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(forged,))
 
 
 def test_git_effect_stale_evidence_is_classified_before_live_postcondition(
@@ -423,7 +511,8 @@ def test_git_effect_stale_evidence_is_classified_before_live_postcondition(
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
     stale = Attestation.issue(
         applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {
@@ -435,7 +524,7 @@ def test_git_effect_stale_evidence_is_classified_before_live_postcondition(
     git(repo, "update-ref", "refs/heads/dev", old, new)
 
     with pytest.raises(ValueError, match="git_effect_attestation_stale"):
-        _execute(repo, effect, attestations=(stale,))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(stale,))
 
 
 def test_git_effect_replay_rejects_checkout_head_drift(tmp_path: Path) -> None:
@@ -444,7 +533,8 @@ def test_git_effect_replay_rejects_checkout_head_drift(tmp_path: Path) -> None:
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
     git(repo, "checkout", "-q", "-b", "side")
     (repo / "SIDE.md").write_text("side\n", encoding="utf-8")
     git(repo, "add", "SIDE.md")
@@ -460,7 +550,7 @@ def test_git_effect_replay_rejects_checkout_head_drift(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-        _execute(repo, effect, attestations=(applied,))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(applied,))
 
 
 def test_git_effect_store_rejects_invalid_typed_evidence(tmp_path: Path) -> None:
@@ -469,13 +559,74 @@ def test_git_effect_store_rejects_invalid_typed_evidence(tmp_path: Path) -> None
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
     forged = Attestation.issue(
         applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {"statement": applied.statement | {"repository": "git:other"}}
     )
 
     with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
+        git_effect_attestations(repo, effect, forged)
+
+
+def test_git_effect_store_validates_the_exact_plan_carried_by_attestation(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _declare_repository(repo)
+    old = git(repo, "rev-parse", "HEAD")
+    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
+    applied = execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
+    carried_plan = _plan(repo, effect, policy={"name": "carried"})
+    carried_inputs = {
+        "commitment": carried_plan.inputs.commitment,
+        "facts": carried_plan.inputs.facts,
+        "prior_attestations": carried_plan.inputs.prior_attestations,
+        "plan": carried_plan.digest,
+        "policy": carried_plan.inputs.policy,
+        "effect": effect.digest(),
+    }
+    carried_statement = applied.statement | {
+        "plan": carried_plan.model_dump(mode="json"),
+        "inputs": carried_inputs,
+        "input_digest": canonical_json_digest(
+            {"input": applied.statement["input"], "inputs": carried_inputs}
+        ),
+    }
+    carried = Attestation.issue(
+        applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "commitment_digest": carried_plan.inputs.commitment,
+            "facts_digest": carried_plan.inputs.facts,
+            "plan_digest": carried_plan.digest,
+            "policy_digest": carried_plan.inputs.policy,
+            "statement": carried_statement,
+        }
+    )
+
+    stored = git_effect_attestations(repo, effect, carried)
+
+    assert stored == (carried,)
+    assert git_effect_attestations(repo, effect) == stored
+    assert mutable_json(stored[0].statement["plan"]) == carried_plan.model_dump(mode="json")
+
+
+def test_git_effect_store_rejects_invalid_carried_plan_closure(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _declare_repository(repo)
+    old = git(repo, "rev-parse", "HEAD")
+    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
+    applied = execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
+    carried = mutable_json(applied.statement["plan"])
+    assert isinstance(carried, dict)
+    carried["commitment"] = carried["commitment"] | {"intent": "forged"}
+    forged = Attestation.issue(
+        applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"statement": applied.statement | {"plan": carried}}
+    )
+
+    with pytest.raises(ValueError, match="git_effect_attestation_plan_invalid"):
         git_effect_attestations(repo, effect, forged)
 
 
@@ -487,7 +638,7 @@ def test_git_effect_store_is_atomic_and_rejects_collision(
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    applied = execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
     original_link = ethos.adapters.store.content_addressed.os.link
     original_fsync = ethos.adapters.store.content_addressed.os.fsync
     fsync_modes: list[bool] = []
@@ -544,34 +695,125 @@ def test_content_addressed_store_rejects_existing_symlink(tmp_path: Path) -> Non
         )
 
 
-@pytest.mark.parametrize(
-    ("field", "error"),
-    [
-        ("commitment_digest", "git_effect_binding_missing:commitment_digest"),
-        ("facts_digest", "git_effect_binding_missing:facts_digest"),
-        ("policy_digest", "git_effect_binding_missing:policy_digest"),
-    ],
-)
-def test_git_effect_blocks_before_mutation_when_required_binding_is_missing(
-    tmp_path: Path, field: str, error: str
+@pytest.mark.parametrize("field", ["commitment", "facts", "policy", "effect"])
+def test_git_effect_blocks_tampered_plan_bindings_before_mutation(
+    tmp_path: Path, field: str
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     _declare_repository(repo)
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    with pytest.raises(ValueError, match=error):
-        _execute(
-            repo,
-            effect,
-            commitment_digest=("" if field == "commitment_digest" else _COMMITMENT_DIGEST),
-            facts_digest=("" if field == "facts_digest" else _REPOSITORY_FACTS_DIGEST),
-            policy_digest="" if field == "policy_digest" else _POLICY_DIGEST,
-        )
+    plan = _plan(repo, effect)
+    tampered = plan.model_copy(update={"inputs": plan.inputs.model_copy(update={field: "0" * 64})})
+
+    with pytest.raises(ValueError, match="git_effect_plan_mismatch"):
+        execute_git_effect(repo, tampered, issuer=_ISSUER)
+
     assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") == old
 
 
-def test_git_effect_replay_blocks_stale_binding_unknown_verdict_and_duplicate(
+def test_git_effect_blocks_stale_carried_prestate_before_mutation(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _declare_repository(repo)
+    old = git(repo, "rev-parse", "HEAD")
+    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
+    plan = _plan(repo, effect)
+    (repo / "DRIFT.md").write_text("drift\n", encoding="utf-8")
+    git(repo, "add", "DRIFT.md")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "drift",
+    )
+
+    with pytest.raises(ValueError, match="git_effect_plan_prestate_stale"):
+        execute_git_effect(repo, plan, issuer=_ISSUER)
+
+    assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") != new
+
+
+def test_git_effect_blocks_stale_lease_generation_before_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _declare_repository(repo)
+    old = git(repo, "rev-parse", "HEAD")
+    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
+    generation = {
+        "branch": "work/test",
+        "lease_id": "lease:test",
+        "epoch": 1,
+        "holder_ref": _ISSUER,
+        "expected_head": old,
+        "base_commitment_digest": "a" * 64,
+        "expires_at": "2026-08-02T00:00:00+00:00",
+        "payload_sha256": "b" * 64,
+    }
+    plan = _plan(repo, effect, facts_values={"lease_generation": generation})
+    monkeypatch.setattr(
+        "ethos.adapters.repo.git_effects.leases_by_branch",
+        lambda _root: {"work/test": generation | {"epoch": 2}},
+    )
+
+    with pytest.raises(ValueError, match="git_effect_lease_generation_stale"):
+        execute_git_effect(repo, plan, issuer=_ISSUER)
+
+    assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") == old
+
+
+@pytest.mark.parametrize(
+    ("lease_state", "commitment_binding"),
+    [("expired", "expired"), ("unknown", "unknown"), ("valid", "mismatch")],
+)
+def test_git_effect_requires_a_live_commitment_bound_lease_before_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    lease_state: str,
+    commitment_binding: str,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _declare_repository(repo)
+    old = git(repo, "rev-parse", "HEAD")
+    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+    effect = _effect(old=old, new=new)
+    generation = {
+        "branch": "work/test",
+        "lease_id": "lease:test",
+        "epoch": 1,
+        "holder_ref": _ISSUER,
+        "expected_head": old,
+        "base_commitment_digest": "a" * 64,
+        "expires_at": "2026-08-02T00:00:00+00:00",
+        "payload_sha256": "b" * 64,
+    }
+    plan = _plan(repo, effect, facts_values={"lease_generation": generation})
+    monkeypatch.setattr(
+        "ethos.adapters.repo.git_effects.leases_by_branch",
+        lambda _root: {
+            "work/test": generation
+            | {
+                "subject": "work/test",
+                "lease_state": lease_state,
+                "commitment_binding": commitment_binding,
+            }
+        },
+    )
+
+    with pytest.raises(ValueError, match="git_effect_lease_generation_stale"):
+        execute_git_effect(repo, plan, issuer=_ISSUER)
+
+    assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") == old
+
+
+def test_git_effect_replay_blocks_binding_drift_unknown_verdict_and_duplicate(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -579,39 +821,28 @@ def test_git_effect_replay_blocks_stale_binding_unknown_verdict_and_duplicate(
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = _execute(repo, effect)
+    plan = _plan(repo, effect)
+    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
+    stale_binding = Attestation.issue(
+        applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"facts_digest": "e" * 64}
+    )
 
     with pytest.raises(
         ValueError,
         match="git_effect_attestation_binding_mismatch:facts_digest",
     ):
-        _execute(
-            repo,
-            effect,
-            attestations=(applied,),
-            facts_digest="e" * 64,
-        )
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(stale_binding,))
 
     unknown = Attestation.issue(
-        {
-            "predicate": "effect:git-ref-update",
-            "verifier": applied.verifier,
-            "subject": effect.id,
-            "issued_at": applied.issued_at,
-            "verdict": "unknown",
-            "statement": applied.statement,
-            "commitment_digest": applied.commitment_digest,
-            "facts_digest": applied.facts_digest,
-            "plan_digest": applied.plan_digest,
-            "policy_digest": applied.policy_digest,
-            "effect_digest": applied.effect_digest,
-        }
+        applied.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"verdict": "unknown"}
     )
     with pytest.raises(ValueError, match="git_effect_attestation_verdict_unknown"):
-        _execute(repo, effect, attestations=(unknown,))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(unknown,))
 
     with pytest.raises(ValueError, match="git_effect_attestation_duplicate"):
-        _execute(repo, effect, attestations=(applied, applied))
+        execute_git_effect(repo, plan, issuer=_ISSUER, attestations=(applied, applied))
 
 
 @pytest.mark.parametrize(
@@ -632,19 +863,12 @@ def test_git_effect_rejects_invalid_assertions(
     assertions: dict[str, str],
 ) -> None:
     with pytest.raises(ValidationError, match="git_effect_permissions_invalid"):
-        GitEffect(
-            id="effect:invalid",
-            plan_digest="a" * 64,
-            updates=updates,
-            assertions=assertions,
-        )
+        GitEffect(updates=updates, assertions=assertions)
 
 
 def test_git_effect_rejects_noncanonical_ref_name() -> None:
     with pytest.raises(ValidationError, match="git_effect_permissions_invalid"):
         GitEffect(
-            id="effect:invalid-ref",
-            plan_digest="a" * 64,
             updates={
                 "refs/heads/dev\nupdate refs/heads/main": GitRefUpdate(
                     expected="0" * 40,

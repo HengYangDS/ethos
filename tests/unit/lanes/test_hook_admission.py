@@ -74,7 +74,7 @@ def _identity_commit(
 def _proof_attestation_for_head(root: Path, head: str):
     plan = proof_plan(root, head=head)
     checks = tuple(
-        conformant_proof_check(gate, root)
+        conformant_proof_check(gate, root, tree_ref=head)
         for gate in resolve_gate_policy(root, tree_ref=head).gate_ids
     )
     return issue_proof_attestation(
@@ -673,8 +673,7 @@ def test_proof_attestation_ignores_legacy_forgery_and_requires_complete_floor(
 
     focused_gate = resolve_gate_policy(repo, tree_ref=head).gate_ids[0]
     focused_plan = proof_plan(repo, head=head, gate_ids=(focused_gate,))
-    focused_check = conformant_proof_check(focused_gate, repo)
-    focused_check["trust_bearing"] = False
+    focused_check = conformant_proof_check(focused_gate, repo, tree_ref=head)
     focused = issue_proof_attestation(
         repo,
         {

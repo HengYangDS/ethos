@@ -2,33 +2,42 @@
 
 from __future__ import annotations
 
-import os
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.mutation.accepted as accepted
 import ethos.adapters.mutation.remediation.guidance as remediation
+from ethos.adapters.admission.closeout_intent.marker import execute_closeout_effect
 from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
-from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_effects import GitEffectExecutionRequest
-from ethos.adapters.repo.git_effects import execute_git_effect
-from ethos.adapters.repo.git_effects import git_effect_attestations
+from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
-from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import compile_git_effect_plan
+from ethos.contracts.semantic import Facts
 from ethos.contracts.verdict import report_verdict
+
+if TYPE_CHECKING:
+    from ethos.contracts.branch.roles import BranchRolePolicy
+    from ethos.contracts.semantic import Commitment
 
 
 def apply_land_to_candidate(
@@ -62,58 +71,60 @@ def apply_land_to_candidate(
     if report_verdict(base_report) != "pass":
         return base_report
     candidate_path = Path(str(base_report["path"]))
-    status = workspace_status(root)
-    try:
-        expected_plan = proof_plan(
-            root,
-            head=current_head,
-            binding_branch=str(status["branch"]),
-            changed_paths=change_scope_paths_from_status(root, status),
-        )
-    except ValueError as error:
-        return fail([str(error)], path=candidate_path.as_posix())
-    proof = proof_attestation(candidate_path, current_head, expected_plan=expected_plan)
+    candidate_head = str(base_report["candidate_head"])
+    status = workspace_status(root, include_foreign_path_scope=False)
+    branch = str(status["branch"])
+    proof = proof_attestation(candidate_path, current_head)
     if proof is None:
         return fail(
-            proof_gaps(candidate_path, current_head, expected_plan=expected_plan),
+            proof_gaps(candidate_path, current_head),
             path=candidate_path.as_posix(),
         )
-    candidate_head = str(base_report["candidate_head"])
+    authority_gap = "proof_attestation_authority_binding_mismatch"
+    failure: tuple[str, str] | None = None
+    attestation = None
     try:
-        plan, commitment_digest, facts_digest = accepted.proof_attestation_bindings(
-            candidate_path, proof
-        )
-        policy_digest = proof.policy_digest
-        effect = GitEffect(
-            id=f"git-effect:candidate:{policy.candidate_branch}:{current_head}",
-            plan_digest=proof.plan_digest,
-            updates={
-                f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
-                    expected=candidate_head,
-                    desired=current_head,
-                )
-            },
-        )
-        attestation = execute_git_effect(
+        lease = leases_by_branch(root).get(branch, {})
+        authority = load_profile_lease_bound_commitment(
             root,
-            effect,
-            GitEffectExecutionRequest(
-                issuer=_effect_issuer(),
-                attestations=git_effect_attestations(root, effect),
-                permissions=plan.permissions,
-                commitment_digest=commitment_digest,
-                facts_digest=facts_digest,
-                policy_digest=policy_digest,
-            ),
+            expected_head=current_head,
+            base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
         )
-        git_effect_attestations(root, effect, attestation)
+        if proof.commitment_digest != authority.digest():
+            failure = (authority_gap, "")
+        else:
+            effect = GitEffect(
+                updates={
+                    f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
+                        expected=candidate_head,
+                        desired=current_head,
+                    )
+                },
+                assertions={f"refs/heads/{branch}": current_head},
+            )
+            plan = _candidate_transition_plan(
+                root=root,
+                authority=authority,
+                effect=effect,
+                head=current_head,
+                lease=lease,
+                prior_attestations={
+                    "proof": proof.model_dump(mode="json"),
+                    "proof_set": proof_evidence_digest(candidate_path, current_head),
+                },
+                policy=policy,
+            )
+            attestation = execute_closeout_effect(root=root, plan=plan)
     except (TypeError, ValueError) as error:
-        gaps = ["candidate_update_failed"]
+        failure = ("candidate_update_failed", str(error))
+    if failure is not None or attestation is None:
+        gap, stderr = failure or ("candidate_update_failed", "candidate attestation missing")
+        extra = {"stderr": stderr} if stderr else {}
         return fail(
-            gaps,
+            [gap],
             path=candidate_path.as_posix(),
-            remediation=remediation.remediation_for_gaps(gaps),
-            stderr=str(error),
+            remediation=remediation.remediation_for_gaps([gap]),
+            **extra,
         )
     synced = run_git(candidate_path, "reset", "--hard", current_head, check=False)
     if synced.returncode:
@@ -132,6 +143,49 @@ def apply_land_to_candidate(
         "attestation": attestation.model_dump(mode="json"),
         "required_gaps": [],
     }
+
+
+def _candidate_transition_plan(
+    *,
+    root: Path,
+    authority: Commitment,
+    effect: GitEffect,
+    head: str,
+    lease: dict[str, object],
+    prior_attestations: dict[str, object],
+    policy: BranchRolePolicy,
+) -> TransitionPlan:
+    if not prior_attestations.get("proof_set"):
+        message = "candidate_prior_proof_missing"
+        raise ValueError(message)
+    facts = Facts(
+        repository=load_repository_commitment(root, tree_ref=head).id,
+        head=head,
+        tree=current_tree(root, head),
+        observed_at=datetime.now(UTC),
+        values={
+            "operation": "candidate.integrate",
+            "refs": {ref: update.expected for ref, update in effect.updates.items()},
+            "assertions": effect.assertions,
+            "lease_generation": lease_generation(lease),
+        },
+        source_refs=(
+            "git:HEAD",
+            "git:HEAD^{tree}",
+            "lease:current-generation",
+            *(f"git:{ref}" for ref in (*effect.updates, *effect.assertions)),
+        ),
+    )
+    return compile_git_effect_plan(
+        authority,
+        facts,
+        prior_attestations=prior_attestations,
+        policy={
+            "operation": "candidate.integrate",
+            "candidate_branch": policy.candidate_branch,
+        },
+        effect=effect,
+    )
 
 
 def _blocked(policy, head, gaps, *, state="blocked", **extra):
@@ -181,9 +235,6 @@ def apply_candidate_to_accepted(
             "remediation": remediation.remediation_for_gaps(gaps),
         }
     candidate_head = candidate_head or observed_candidate_head
-    policy = branch_role_policy_from_text(
-        committed_file_text(root, candidate_head, ".ethos/workspace.toml")
-    )
     if decision.state == "current" and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF:
         return {
             **accepted.accepted_payload(policy, current_head),
@@ -199,10 +250,6 @@ def apply_candidate_to_accepted(
         candidate_head=candidate_head,
         status=status,
     )
-
-
-def _effect_issuer() -> str:
-    return os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
 
 
 def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:

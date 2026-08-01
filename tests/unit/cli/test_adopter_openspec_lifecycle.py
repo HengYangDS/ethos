@@ -911,6 +911,12 @@ def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Pat
     admitted = proof_plan(repo, head=git(repo, "rev-parse", "HEAD"))
     blocked = TransitionPlan.compile(
         inputs=admitted.inputs,
+        closure={
+            "commitment": admitted.commitment,
+            "prior_attestations": admitted.prior_attestations,
+            "policy": admitted.policy,
+            "effect": admitted.effect,
+        },
         permissions=admitted.permissions,
         facts=admitted.facts,
         nodes=admitted.nodes,

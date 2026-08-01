@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
@@ -12,8 +11,11 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
+from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -26,49 +28,20 @@ _IDENTITY_COLLISION = "git_effect_identity_collision"
 _STALE = "git_effect_attestation_stale"
 
 
-def transaction_program(effect: GitEffect) -> str:
-    """Render the exact deterministic update-ref transaction program."""
-    return "\0".join(
-        (
-            "start",
-            *(
-                token
-                for ref in sorted(effect.assertions)
-                for token in (
-                    f"update {ref}",
-                    effect.assertions[ref],
-                    effect.assertions[ref],
-                )
-            ),
-            *(
-                token
-                for ref in sorted(effect.updates)
-                for token in (
-                    f"update {ref}",
-                    effect.updates[ref].desired,
-                    effect.updates[ref].expected,
-                )
-            ),
-            "prepare",
-            "commit",
-            "",
-        )
-    )
-
-
-def program_digest(effect: GitEffect) -> str:
-    """Digest the exact transaction bytes bound by the Attestation."""
-    return hashlib.sha256(transaction_program(effect).encode()).hexdigest()
+def _statement(attestation: Attestation) -> dict[str, object]:
+    projected = mutable_json(attestation.statement)
+    if not isinstance(projected, dict):
+        message = "git_effect_attestation_statement_invalid"
+        raise TypeError(message)
+    return projected
 
 
 def issue(
     effect: GitEffect,
     *,
+    plan: TransitionPlan,
     issuer: str,
     evidence: Evidence,
-    commitment_digest: str,
-    facts_digest: str,
-    policy_digest: str,
 ) -> Attestation:
     """Issue one effect-time Attestation from pre/post observations."""
     repository, state, before, after = evidence
@@ -76,31 +49,35 @@ def issue(
     input_observation = {name: before[name] for name in ("head", "tree", "refs", "assertions")}
     output_observation = {name: after[name] for name in ("head", "tree", "refs")}
     result = _result(state, output_observation["refs"])
+    subject = f"git-effect:{effect.digest()}"
     inputs = {
-        "commitment": commitment_digest,
-        "facts": facts_digest,
-        "plan": effect.plan_digest,
-        "policy": policy_digest,
+        "commitment": plan.inputs.commitment,
+        "facts": plan.inputs.facts,
+        "prior_attestations": plan.inputs.prior_attestations,
+        "plan": plan.digest,
+        "policy": plan.inputs.policy,
         "effect": effect.digest(),
     }
     return Attestation.issue(
         {
             "predicate": "effect:git-ref-update",
             "verifier": issuer,
-            "subject": effect.id,
+            "subject": subject,
             "issued_at": issued,
             "valid_from": issued,
             "verdict": "pass",
-            "commitment_digest": commitment_digest,
-            "facts_digest": facts_digest,
-            "plan_digest": effect.plan_digest,
-            "policy_digest": policy_digest,
+            "commitment_digest": plan.inputs.commitment,
+            "facts_digest": plan.inputs.facts,
+            "plan_digest": plan.digest,
+            "policy_digest": plan.inputs.policy,
             "effect_digest": effect.digest(),
             "statement": {
-                "claim": {"operation": "git.ref.compare-and-swap", "effect": effect.id},
+                "claim": {"operation": "git.ref.compare-and-swap", "effect": subject},
                 "repository": repository,
                 "command": ("git", "update-ref", "--stdin", "-z"),
-                "program_sha256": program_digest(effect),
+                "program_sha256": effect.digest(),
+                "plan": plan.model_dump(mode="json"),
+                "effect": effect.model_dump(mode="json"),
                 "input": input_observation,
                 "result": result,
                 "output": output_observation,
@@ -131,29 +108,40 @@ def validate(
     attestation: Attestation,
     *,
     issuer: str,
-    bindings: tuple[str, str, str],
+    plan: TransitionPlan,
 ) -> None:
     """Validate immutable typed evidence, validity, and current postconditions."""
+    if git_effect_from_plan(plan) != effect:
+        raise ValueError(_CONTENT_MISMATCH)
+    statement = _statement(attestation)
+    subject = f"git-effect:{effect.digest()}"
     if (
         attestation.predicate != "effect:git-ref-update"
-        or attestation.subject != effect.id
-        or attestation.plan_digest != effect.plan_digest
+        or attestation.subject != subject
+        or attestation.plan_digest != plan.digest
         or attestation.effect_digest != effect.digest()
     ):
         raise ValueError(_IDENTITY_COLLISION)
-    for name, expected in zip(
-        ("commitment_digest", "facts_digest", "policy_digest"), bindings, strict=True
-    ):
-        if getattr(attestation, name) != expected:
-            message = f"git_effect_attestation_binding_mismatch:{name}"
-            raise ValueError(message)
+    binding_mismatch = next(
+        (
+            name
+            for name, expected in (
+                ("commitment_digest", plan.inputs.commitment),
+                ("facts_digest", plan.inputs.facts),
+                ("policy_digest", plan.inputs.policy),
+            )
+            if getattr(attestation, name) != expected
+        ),
+        "",
+    )
+    if binding_mismatch:
+        message = f"git_effect_attestation_binding_mismatch:{binding_mismatch}"
+        raise ValueError(message)
     if attestation.verdict != "pass":
         message = f"git_effect_attestation_verdict_{attestation.verdict}"
         raise ValueError(message)
-    statement = attestation.statement
-    if statement.get("program_sha256") != program_digest(effect):
+    if statement.get("program_sha256") != effect.digest():
         raise ValueError(_CONTENT_MISMATCH)
-    commitment_digest, facts_digest, policy_digest = bindings
     before, process, after = (
         statement.get("input"),
         statement.get("result"),
@@ -161,19 +149,22 @@ def validate(
     )
     state = process.get("state") if isinstance(process, Mapping) else None
     inputs = {
-        "commitment": commitment_digest,
-        "facts": facts_digest,
-        "plan": effect.plan_digest,
-        "policy": policy_digest,
+        "commitment": plan.inputs.commitment,
+        "facts": plan.inputs.facts,
+        "prior_attestations": plan.inputs.prior_attestations,
+        "plan": plan.digest,
+        "policy": plan.inputs.policy,
         "effect": effect.digest(),
     }
     result = _result(state, after.get("refs") if isinstance(after, Mapping) else {})
     repository = _repository_identity(root, before, after)
     expected = {
-        "claim": {"operation": "git.ref.compare-and-swap", "effect": effect.id},
+        "claim": {"operation": "git.ref.compare-and-swap", "effect": subject},
         "repository": repository,
-        "command": ("git", "update-ref", "--stdin", "-z"),
+        "command": ["git", "update-ref", "--stdin", "-z"],
         "program_sha256": statement.get("program_sha256"),
+        "plan": plan.model_dump(mode="json"),
+        "effect": effect.model_dump(mode="json"),
         "input": before,
         "result": result,
         "output": after,
@@ -219,6 +210,19 @@ def validate(
         dict(statement["freshness"]) if isinstance(statement["freshness"], Mapping) else {},
     ):
         raise ValueError(_CONTENT_MISMATCH)
+
+
+def plan_from_attestation(attestation: Attestation) -> TransitionPlan:
+    """Return the exact TransitionPlan carried by one Git effect Attestation."""
+    statement = _statement(attestation)
+    try:
+        plan = TransitionPlan.model_validate(statement["plan"])
+        git_effect_from_plan(plan)
+    except (KeyError, TypeError, ValueError) as error:
+        message = "git_effect_attestation_plan_invalid"
+        raise ValueError(message) from error
+    else:
+        return plan
 
 
 def _result(state: object, refs: object) -> dict[str, object]:

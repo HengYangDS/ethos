@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import os
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git_effect_attestation
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -14,87 +14,72 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.plan import GitEffect
-from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 
-if TYPE_CHECKING:
-    from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
-
-_SHA256_HEX_LENGTH = 64
 _REPOSITORY_IDENTITY_MISMATCH = "git_effect_repository_identity_mismatch"
 _ZERO_OIDS = {"0" * 40, "0" * 64, ""}
 
 
-@dataclass(frozen=True, slots=True)
-class GitEffectExecutionRequest:
-    """Immutable bindings required to execute one Git effect."""
-
-    issuer: str
-    permissions: tuple[str, ...]
-    commitment_digest: str
-    facts_digest: str
-    policy_digest: str
-    attestations: tuple[Attestation, ...] = ()
-
-
 def execute_git_effect(
     root: Path,
-    effect: GitEffect,
-    request: GitEffectExecutionRequest,
+    plan: TransitionPlan,
+    *,
+    issuer: str,
+    attestations: tuple[Attestation, ...] = (),
 ) -> Attestation:
     """Execute, recover, or replay one exact Git ref transaction."""
-    issuer = request.issuer
-    attestations = request.attestations
-    permissions = request.permissions
-    commitment_digest = request.commitment_digest
-    facts_digest = request.facts_digest
-    policy_digest = request.policy_digest
-    _require_effect_bindings(
-        commitment_digest=commitment_digest,
-        facts_digest=facts_digest,
-        policy_digest=policy_digest,
-    )
-    _require_effect_permission(effect, permissions)
+    effect = git_effect_from_plan(plan)
+    _require_effect_permission(effect, plan.permissions)
     replayed = _replay_git_effect(
         root,
         effect,
         issuer=issuer,
         attestations=attestations,
-        commitment_digest=commitment_digest,
-        facts_digest=facts_digest,
-        policy_digest=policy_digest,
+        plan=plan,
     )
     if replayed is not None:
         return replayed
-    before = _observation(root, effect, datetime.now(UTC))
-    repository = _effect_repository(root, effect, before)
     observed = {ref: _effect_ref(root, ref) for ref in effect.updates}
     if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
         message = "git_effect_cas_mismatch"
         raise ValueError(message)
     desired = {ref: update.desired for ref, update in effect.updates.items()}
     if observed == desired:
+        _require_live_lease(root, plan)
+        before = _observation(root, effect, datetime.now(UTC))
         return ethos.adapters.repo.git_effect_attestation.issue(
             effect,
+            plan=plan,
             issuer=issuer,
             evidence=(
-                repository,
+                str(plan.facts.get("repository") or ""),
                 "recovered",
                 before,
                 _observation(root, effect, datetime.now(UTC)),
             ),
-            commitment_digest=commitment_digest,
-            facts_digest=facts_digest,
-            policy_digest=policy_digest,
         )
+    _require_plan_prestate(root, plan, effect)
+    before = _observation(root, effect, datetime.now(UTC))
+    repository = _effect_repository(root, effect, before)
     expected = {ref: update.expected for ref, update in effect.updates.items()}
     if observed != expected:
         message = "git_effect_cas_mismatch"
         raise ValueError(message)
-    program = ethos.adapters.repo.git_effect_attestation.transaction_program(effect)
-    completed = run_git(root, "update-ref", "--stdin", "-z", check=False, stdin=program)
+    completed = run_git(
+        root,
+        "update-ref",
+        "--stdin",
+        "-z",
+        check=False,
+        stdin=effect.program(),
+        text=False,
+    )
     if completed.returncode:
         message = "git_effect_cas_rejected"
         raise ValueError(message)
@@ -103,6 +88,7 @@ def execute_git_effect(
         raise ValueError(message)
     return ethos.adapters.repo.git_effect_attestation.issue(
         effect,
+        plan=plan,
         issuer=issuer,
         evidence=(
             repository,
@@ -110,9 +96,6 @@ def execute_git_effect(
             before,
             _observation(root, effect, datetime.now(UTC)),
         ),
-        commitment_digest=commitment_digest,
-        facts_digest=facts_digest,
-        policy_digest=policy_digest,
     )
 
 
@@ -122,15 +105,11 @@ def _replay_git_effect(
     *,
     issuer: str,
     attestations: tuple[Attestation, ...],
-    commitment_digest: str,
-    facts_digest: str,
-    policy_digest: str,
+    plan: TransitionPlan,
 ) -> Attestation | None:
     digest = effect.digest()
     matching = tuple(
-        attestation
-        for attestation in attestations
-        if attestation.subject == effect.id or attestation.effect_digest == digest
+        attestation for attestation in attestations if attestation.effect_digest == digest
     )
     if not matching:
         return None
@@ -146,7 +125,7 @@ def _replay_git_effect(
         effect,
         attestation,
         issuer=issuer,
-        bindings=(commitment_digest, facts_digest, policy_digest),
+        plan=plan,
     )
     if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
         message = "git_effect_cas_mismatch"
@@ -157,32 +136,50 @@ def _replay_git_effect(
     return attestation
 
 
-def _require_effect_bindings(
-    *,
-    commitment_digest: str,
-    facts_digest: str,
-    policy_digest: str,
-) -> None:
-    for name, value in (
-        ("commitment_digest", commitment_digest),
-        ("facts_digest", facts_digest),
-        ("policy_digest", policy_digest),
-    ):
-        if not value:
-            message = f"git_effect_binding_missing:{name}"
-            raise ValueError(message)
-        if len(value) != _SHA256_HEX_LENGTH or any(
-            character not in "0123456789abcdef" for character in value
-        ):
-            message = f"git_effect_binding_invalid:{name}"
-            raise ValueError(message)
-
-
 def _require_effect_permission(effect: GitEffect, permissions: tuple[str, ...]) -> None:
     admitted = set(permissions)
     if "git.ref.compare-and-swap" not in admitted and not set(effect.permissions) <= admitted:
         message = "git_effect_permission_denied"
         raise ValueError(message)
+
+
+def _require_plan_prestate(root: Path, plan: TransitionPlan, effect: GitEffect) -> None:
+    """Reject a carried plan whose exact mutation facts have gone stale."""
+    values = plan.facts.get("values")
+    facts = values if isinstance(values, Mapping) else {}
+    expected_refs = {ref: update.expected for ref, update in effect.updates.items()}
+    if facts.get("refs") != expected_refs or facts.get("assertions") != effect.assertions:
+        message = "git_effect_plan_prestate_mismatch"
+        raise ValueError(message)
+    _require_live_lease(root, plan)
+    head = str(plan.facts.get("head") or "")
+    tree = str(plan.facts.get("tree") or "")
+    if current_tracked_head(root) != head or current_tree(root, head) != tree:
+        message = "git_effect_plan_prestate_stale"
+        raise ValueError(message)
+
+
+def _require_live_lease(root: Path, plan: TransitionPlan) -> None:
+    values = plan.facts.get("values")
+    facts = values if isinstance(values, Mapping) else {}
+    generation = facts.get("lease_generation")
+    if isinstance(generation, Mapping):
+        branch = str(generation.get("branch") or "")
+        current = leases_by_branch(root).get(branch, {})
+        if (
+            current.get("lease_state") != "valid"
+            or current.get("commitment_binding") != "bound"
+            or dict(generation) != lease_generation(current)
+        ):
+            message = "git_effect_lease_generation_stale"
+            raise ValueError(message)
+        actor = os.environ.get("ETHOS_ACTOR", "").strip()
+        if actor != str(generation.get("holder_ref") or ""):
+            message = "lease_actor_mismatch"
+            raise ValueError(message)
+        if run_git(root, "branch", "--show-current").stdout.strip() != branch:
+            message = "git_effect_lease_branch_mismatch"
+            raise ValueError(message)
 
 
 def git_effect_attestations(
@@ -197,7 +194,7 @@ def git_effect_attestations(
             effect,
             record,
             issuer=record.verifier,
-            bindings=(record.commitment_digest, record.facts_digest, record.policy_digest),
+            plan=ethos.adapters.repo.git_effect_attestation.plan_from_attestation(record),
         )
         existing = git_effect_attestations(root, effect)
         if existing:
@@ -215,25 +212,6 @@ def git_effect_attestations(
     except (OSError, ValueError) as error:
         message = "git_effect_attestation_invalid"
         raise ValueError(message) from error
-
-
-def git_ref_effect(
-    effect_id: str,
-    plan_digest: str,
-    transitions: tuple[CloseoutTransition, ...],
-    assertions: dict[str, str],
-) -> GitEffect:
-    """Build one exact ref effect from transition-shaped records."""
-    updates = {
-        str(item.ref_name): GitRefUpdate(expected=str(item.old_value), desired=str(item.new_value))
-        for item in transitions
-    }
-    return GitEffect(
-        id=effect_id,
-        plan_digest=plan_digest,
-        updates=updates,
-        assertions=assertions,
-    )
 
 
 def sync_linked_ref_worktree(
@@ -288,22 +266,6 @@ def sync_current_worktree(root: Path, head: str) -> dict[str, object]:
         "status": status.stdout.strip(),
         "stderr": status.stderr.strip(),
     }
-
-
-def reference_transaction_hook_changed(
-    root: Path,
-    accepted_head: str,
-    candidate_head: str,
-) -> bool:
-    path = ".githooks/reference-transaction"
-    entries = [
-        run_git(root, "ls-tree", head, path, check=False).stdout.strip()
-        for head in (accepted_head, candidate_head)
-    ]
-    if not entries[1].startswith("100755 blob "):
-        message = "release_mirror_candidate_hook_invalid"
-        raise ValueError(message)
-    return entries[0] != entries[1]
 
 
 def _effect_ref(root: Path, ref: str) -> str:

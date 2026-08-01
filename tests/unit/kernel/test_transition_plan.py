@@ -6,24 +6,46 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
+from ethos.contracts.plan import EMPTY_ATTESTATION_SET_DIGEST
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
+from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import Verdict
 
+_COMMITMENT = Commitment(
+    id="change:test",
+    intent="Exercise one transition plan.",
+    subjects=("repository:test",),
+)
+_FACTS = Facts(
+    repository="repository:test",
+    head="a" * 40,
+    tree="b" * 40,
+    observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+    values={},
+)
+_POLICY = {"name": "test"}
+_EFFECT = {"operation": "test"}
 _INPUTS = {
-    "inputs": PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
-    "facts": {
-        "schema_version": 1,
-        "repository": "repository:test",
-        "head": "a" * 40,
-        "tree": "b" * 40,
-        "values": {},
-        "source_refs": [],
+    "inputs": PlanInputs(
+        commitment=_COMMITMENT.digest(),
+        facts=_FACTS.digest(),
+        prior_attestations=EMPTY_ATTESTATION_SET_DIGEST,
+        policy=canonical_json_digest(_POLICY),
+        effect=canonical_json_digest(_EFFECT),
+    ),
+    "closure": {
+        "commitment": _COMMITMENT.identity_projection(),
+        "prior_attestations": {},
+        "policy": _POLICY,
+        "effect": _EFFECT,
     },
+    "facts": _FACTS.model_dump(mode="json", exclude={"observed_at"}),
 }
 
 
@@ -59,12 +81,19 @@ def test_transition_plan_orders_dependencies_before_dependents() -> None:
 
 
 def test_transition_plan_canonicalizes_set_like_inputs() -> None:
+    commitment = _COMMITMENT.model_copy(
+        update={"permissions": ("repository.read", "repository.write")}
+    )
+    inputs_with_permissions = _INPUTS | {
+        "inputs": _INPUTS["inputs"].model_copy(update={"commitment": commitment.digest()}),
+        "closure": _INPUTS["closure"] | {"commitment": commitment.identity_projection()},
+    }
     inputs = (
         PlanNode(id="lint", kind="check"),
         PlanNode(id="test", kind="check"),
     )
     first = TransitionPlan.compile(
-        **_INPUTS,
+        **inputs_with_permissions,
         permissions=("repository.write", "repository.read", "repository.write"),
         nodes=(
             *inputs,
@@ -76,7 +105,7 @@ def test_transition_plan_canonicalizes_set_like_inputs() -> None:
         ),
     )
     second = TransitionPlan.compile(
-        **_INPUTS,
+        **inputs_with_permissions,
         permissions=("repository.read", "repository.write"),
         nodes=(
             *reversed(inputs),
@@ -87,6 +116,23 @@ def test_transition_plan_canonicalizes_set_like_inputs() -> None:
     assert first == second
     assert first.permissions == ("repository.read", "repository.write")
     assert first.nodes[-1].depends_on == ("lint", "test")
+
+
+def test_proof_effect_digest_canonicalizes_dag_before_hashing() -> None:
+    nodes = (
+        PlanNode(id="publish", kind="effect", command=("publish",), depends_on=("prove",)),
+        PlanNode(id="status", kind="check", command=("status",)),
+        PlanNode(id="prove", kind="decision", command=("prove",), depends_on=("status",)),
+    )
+    inputs = {
+        "commitment": "a" * 64,
+        "facts": "b" * 64,
+        "policy": "c" * 64,
+    }
+
+    assert proof_effect_digest(**inputs, nodes=nodes) == proof_effect_digest(
+        **inputs, nodes=tuple(reversed(nodes))
+    )
 
 
 def test_transition_plan_distinguishes_all_nodes_from_an_empty_selection() -> None:
@@ -104,6 +150,10 @@ def test_transition_plan_public_projection_round_trips_through_its_model_owner()
     assert set(payload) == {
         "schema_version",
         "inputs",
+        "commitment",
+        "prior_attestations",
+        "policy",
+        "effect",
         "permissions",
         "facts",
         "nodes",
@@ -207,6 +257,34 @@ def test_transition_plan_requires_all_bound_inputs() -> None:
         TransitionPlan(nodes=(PlanNode(id="status", kind="check"),))
 
 
+def test_transition_plan_requires_one_complete_closure() -> None:
+    without_closure = {key: value for key, value in _INPUTS.items() if key != "closure"}
+    with pytest.raises(TypeError):
+        TransitionPlan.compile(**without_closure)
+
+    for field in ("commitment", "prior_attestations", "policy", "effect"):
+        incomplete = dict(_INPUTS["closure"])
+        incomplete.pop(field)
+        with pytest.raises(ValueError, match="transition_plan_closure_invalid"):
+            TransitionPlan.compile(**without_closure, closure=incomplete)
+
+
+@pytest.mark.parametrize("field", ["commitment", "prior_attestations", "policy", "effect"])
+def test_transition_plan_rejects_a_mismatched_closure_binding(field: str) -> None:
+    closure = dict(_INPUTS["closure"])
+    closure[field] = {
+        "commitment": _COMMITMENT.model_copy(
+            update={"intent": "Different intent."}
+        ).identity_projection(),
+        "prior_attestations": {"proof": "different"},
+        "policy": {"name": "different"},
+        "effect": {"operation": "different"},
+    }[field]
+
+    with pytest.raises(ValidationError, match="transition_plan_closure_mismatch"):
+        TransitionPlan.compile(**(_INPUTS | {"closure": closure}))
+
+
 def test_compile_plan_binds_commitment_subject_and_scope_to_current_facts() -> None:
     facts = Facts(
         repository="repository:test",
@@ -227,7 +305,7 @@ def test_compile_plan_binds_commitment_subject_and_scope_to_current_facts() -> N
             ),
             facts=facts,
             nodes=(node,),
-            policy_digest="c" * 64,
+            policy={"digest": "c" * 64},
         ).verdict
         == "pass"
     )
@@ -240,7 +318,7 @@ def test_compile_plan_binds_commitment_subject_and_scope_to_current_facts() -> N
         ),
         facts=facts,
         nodes=(node,),
-        policy_digest="c" * 64,
+        policy={"digest": "c" * 64},
     ).required_gaps == ("repository_subject_mismatch", "change_scope_exceeded")
 
 
@@ -260,7 +338,9 @@ def test_repository_wide_scope_matches_root_and_nested_paths() -> None:
     )
 
     assert (
-        compile_plan(commitment=commitment, facts=facts, nodes=(), policy_digest="c" * 64).verdict
+        compile_plan(
+            commitment=commitment, facts=facts, nodes=(), policy={"digest": "c" * 64}
+        ).verdict
         == "pass"
     )
 
@@ -282,7 +362,7 @@ def test_compile_plan_rejects_noncanonical_changed_paths(path: object) -> None:
     )
 
     assert compile_plan(
-        commitment=commitment, facts=facts, nodes=(), policy_digest="c" * 64
+        commitment=commitment, facts=facts, nodes=(), policy={"digest": "c" * 64}
     ).required_gaps == ("changed_paths_invalid",)
 
 
@@ -305,7 +385,10 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
     node = PlanNode(id="status", kind="check", command=("ethos", "status"))
 
     base = compile_plan(
-        commitment=base_commitment, facts=base_facts, nodes=(node,), policy_digest="c" * 64
+        commitment=base_commitment,
+        facts=base_facts,
+        nodes=(node,),
+        policy={"digest": "c" * 64},
     )
     changed_commitment = compile_plan(
         commitment=base_commitment.model_copy(
@@ -317,19 +400,19 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
         ),
         facts=base_facts,
         nodes=(node,),
-        policy_digest="c" * 64,
+        policy={"digest": "c" * 64},
     )
     changed_facts = compile_plan(
         commitment=base_commitment,
         facts=base_facts.model_copy(update={"head": "d" * 40, "tree": "e" * 40}),
         nodes=(node,),
-        policy_digest="c" * 64,
+        policy={"digest": "c" * 64},
     )
     changed_policy = compile_plan(
         commitment=base_commitment,
         facts=base_facts,
         nodes=(node,),
-        policy_digest="f" * 64,
+        policy={"digest": "f" * 64},
     )
 
     assert (
@@ -346,7 +429,9 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
     assert base.model_dump(mode="json")["inputs"] == {
         "commitment": base_commitment.digest(),
         "facts": base_facts.digest(),
-        "policy": "c" * 64,
+        "prior_attestations": EMPTY_ATTESTATION_SET_DIGEST,
+        "policy": base.inputs.policy,
+        "effect": base.inputs.effect,
     }
     assert base.permissions == ("repository.read",)
     assert base.model_dump(mode="json")["permissions"] == ["repository.read"]

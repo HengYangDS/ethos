@@ -21,6 +21,7 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import current_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
@@ -28,6 +29,7 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
+from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
 from ethos.repository.policy.gates import resolve_gate_policy
@@ -140,7 +142,46 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     ):
         msg = "proof_attestation_live_facts_stale"
         raise ValueError(msg)
-    if not head or not _proof_plan_matches(root, head, plan):
+    values = plan.facts.get("values")
+    fact_values = values if isinstance(values, Mapping) else {}
+    change_id = str(fact_values.get("change_id") or "")
+    branch = current_branch(root)
+    lease = leases_by_branch(root).get(branch, {})
+    work_lane = load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
+    if work_lane:
+        if fact_values.get("lease_generation") != lease_generation(lease):
+            msg = "proof_lease_generation_stale"
+            raise ValueError(msg)
+        if os.environ.get("ETHOS_ACTOR", "").strip() != str(lease.get("holder_ref") or ""):
+            msg = "lease_actor_mismatch"
+            raise ValueError(msg)
+    commitment = (
+        load_profile_lease_bound_commitment(
+            root,
+            change_id=change_id or None,
+            expected_head=head,
+            base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
+        )
+        if work_lane
+        else load_profile_commitment(root, change_id=change_id or None, tree_ref=head)
+    )
+    policy = resolve_gate_policy(
+        root,
+        tree_ref=head,
+        gate_ids=tuple(node.id for node in plan.nodes),
+    )
+    if (
+        not head
+        or commitment.digest() != plan.inputs.commitment
+        or policy.digest != plan.inputs.policy
+        or plan.inputs.effect
+        != proof_effect_digest(
+            commitment=plan.inputs.commitment,
+            facts=plan.inputs.facts,
+            policy=plan.inputs.policy,
+            nodes=plan.nodes,
+        )
+    ):
         msg = "proof_plan_binding_mismatch"
         raise ValueError(msg)
     execution_order = tuple(node.id for node in plan.nodes)
@@ -155,8 +196,6 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         raise ValueError(msg)
     artifact = write_proof_artifact(attestation_store_dir(root), head, normalized)
     digest = str(artifact["sha256"]).removeprefix("sha256:")
-    values = plan.facts.get("values")
-    fact_values = values if isinstance(values, Mapping) else {}
     issued = issued_at or datetime.now(UTC)
     attestation = Attestation.issue(
         {
@@ -185,6 +224,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                     "facts": plan.inputs.facts,
                     "plan": plan.digest,
                     "policy": plan.inputs.policy,
+                    "effect": plan.inputs.effect,
                 },
                 "output": {"artifact": digest, "verdict": verdict},
                 "freshness": {
@@ -195,6 +235,8 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                     "policy": plan.inputs.policy,
                 },
                 "plan": plan.model_dump(mode="json"),
+                "commitment": commitment.identity_projection(),
+                "policy": policy.projection,
                 "artifact": artifact,
             },
             "evidence_refs": (f"sha256:{digest}",),
@@ -202,7 +244,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
-            "effect_digest": digest,
+            "effect_digest": plan.inputs.effect,
         }
     )
     gaps = proof_statement_gaps(attestation, normalized)
@@ -274,6 +316,9 @@ def proof_plan(
         if str(lease.get("expected_head") or "") != head:
             message = f"lease_head_stale:{branch}"
             raise ValueError(message)
+        if os.environ.get("ETHOS_ACTOR", "").strip() != str(lease.get("holder_ref") or ""):
+            message = "lease_actor_mismatch"
+            raise ValueError(message)
     if work_lane:
         commitment = load_profile_lease_bound_commitment(
             root,
@@ -298,24 +343,27 @@ def proof_plan(
             "changed_paths": changed_paths,
             "change_id": selected_change_id,
             "gate_ids": tuple(node.id for node in nodes),
+            **({"lease_generation": lease_generation(lease)} if work_lane else {}),
         },
-        source_refs=("git:HEAD", "git:HEAD^{tree}"),
+        source_refs=(
+            "git:HEAD",
+            "git:HEAD^{tree}",
+            *(("lease:current-generation",) if work_lane else ()),
+        ),
     )
     return compile_plan(
         commitment,
         facts,
         nodes,
-        policy_digest=policy.digest,
+        policy=policy.projection,
         required_gaps=policy.gaps,
     )
 
 
-def proof_attestation(
-    root: Path, head: str, *, expected_plan: TransitionPlan | None = None
-) -> Attestation | None:
+def proof_attestation(root: Path, head: str) -> Attestation | None:
     """Return one resolved generic proof Attestation for one exact HEAD."""
     attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=attestation_store_dir(root), expected_plan=expected_plan
+        root, head, store=attestation_store_dir(root)
     )
     return attestation if not gaps else None
 
@@ -327,28 +375,24 @@ def proof_plan_for_attestation(root: Path, attestation: Attestation) -> Transiti
     )
 
 
-def proof_gaps(root: Path, head: str, *, expected_plan: TransitionPlan | None = None) -> list[str]:
+def proof_gaps(root: Path, head: str) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
     _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=attestation_store_dir(root), expected_plan=expected_plan
+        root, head, store=attestation_store_dir(root)
     )
     return gaps
 
 
-def proof_evidence_digest(
-    root: Path, head: str, *, expected_plan: TransitionPlan | None = None
-) -> str:
+def proof_evidence_digest(root: Path, head: str) -> str:
     """Return the admitted proof set's stable semantic evidence identity."""
     return ethos.adapters.mutation.proof_admission.evidence_digest(
-        root, head, store=attestation_store_dir(root), expected_plan=expected_plan
+        root, head, store=attestation_store_dir(root)
     )
 
 
-def proof_readiness_report(
-    root: Path, head: str, *, expected_plan: TransitionPlan | None = None
-) -> dict[str, object]:
+def proof_readiness_report(root: Path, head: str) -> dict[str, object]:
     """Describe whether the exact HEAD has a valid generic proof Attestation."""
-    gaps = proof_gaps(root, head, expected_plan=expected_plan)
+    gaps = proof_gaps(root, head)
     independent = independent_verification_admission_report(
         root=root,
         action="publish",
@@ -365,23 +409,3 @@ def proof_readiness_report(
         "required_gaps": gaps,
         "next_action": "" if not gaps else f"ethos prove --execute --expect-head {head} --json",
     }
-
-
-def _proof_plan_matches(root: Path, head: str, plan: TransitionPlan) -> bool:
-    values = plan.facts.get("values")
-    changed = values.get("changed_paths", ()) if isinstance(values, Mapping) else ()
-    changed_paths = (
-        tuple(str(path) for path in changed) if isinstance(changed, list | tuple) else ()
-    )
-    change_id = str(values.get("change_id") or "") if isinstance(values, Mapping) else ""
-    try:
-        expected = proof_plan(
-            root,
-            head=head,
-            change_id=change_id or None,
-            gate_ids=tuple(node.id for node in plan.nodes),
-            changed_paths=changed_paths,
-        )
-    except ValueError:
-        return False
-    return expected.digest == plan.digest

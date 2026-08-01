@@ -102,7 +102,7 @@ def plan(
         commitment,
         facts,
         nodes,
-        policy_digest=policy.digest,
+        policy=policy.projection,
         required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps))),
     )
     required_gaps = tuple(

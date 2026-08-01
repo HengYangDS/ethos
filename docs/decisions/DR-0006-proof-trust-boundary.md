@@ -33,10 +33,11 @@ See also: [Decision Records](README.md) and [Decision Index](decision-index.md).
 
 ETHOS governs autonomous agents that run as the **same OS user** as the human operator.
 The local executed-proof carrier is a content-addressed proof Attestation under
-`.ethos/state/attestations/<attestation-id>.json`. It binds the exact Git HEAD,
-Commitment, Facts, transient TransitionPlan, policy digest, and a digest-addressed
-checks artifact under `artifacts/<sha256>.json`; promotion admission revalidates those
-bindings and the required proof floor.
+`.ethos/state/attestations/<attestation-id>.json`. Admission validates one self-contained
+closure over the exact Commitment, Facts, policy, transient TransitionPlan, proof operation,
+and digest-addressed checks artifact under `artifacts/<sha256>.json`. It does not replay a
+historical workflow: it validates the carried closure, the current Git tree at the attested
+HEAD, and either the canonical default or full repository proof policy.
 
 Those checks remain **same-UID local evidence**: the governed agent can author files that
 the same UID may also verify. Content addressing and exact bindings detect partial edits,
@@ -60,8 +61,12 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
 
 1. **The local proof Attestation is a `local_readiness` claim, never an enforcement/prevention
    guarantee.** Consumers must not surface a valid local record as "enforced" or
-   "prevented". Exact content, contract, fact, plan, policy, HEAD, and artifact bindings
-   are the real and sufficient job of the local layer.
+   "prevented". Exact Commitment, Facts, policy, plan, operation, HEAD, and artifact
+   bindings are the real and sufficient job of the local layer. The operation identity is
+   the canonical digest of `proof.execute`, Commitment, Facts, policy, and the dependency-
+   complete DAG. Artifact identity is the SHA-256 of the exact checks bytes carried through
+   `evidence_refs`; equivalent executions may have different artifacts without changing
+   operation identity.
 
 2. **No keyed MAC / signature is added to the local proof record.** Under the same-UID
    threat model it is security theatre and enlarges blast radius. Rejected deliberately.
@@ -91,10 +96,27 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
    suffices; agents may still share the operator's account. The product owns this receipt
    contract, not a bundled provider executable or deployment recipe.
 
+6. **Proof does not mint mutation authority.** Proof admission establishes correctness for
+   one exact operation closure. Mutation consumers derive authority independently:
+
+   | Proof or consumer | Authority |
+   | --- | --- |
+   | Focused proof | Observation only; never satisfies repository proof or mutation admission. |
+   | Default repository proof | Admits the exact default policy closure. It supports candidate integration only when its plan matches freshly derived Lease-bound authority. |
+   | Full repository proof | Admits the exact full policy closure. It grants no authority beyond the default proof. |
+   | Candidate transition | Admits the current proof set, derives authority from the current Work Lane Lease, then compiles a separate Git-CAS plan from fresh repository, HEAD/tree, ref, actor, and Lease-generation facts; proof nodes never become the mutation plan. |
+   | Accepted transition | Authorizes the Git effect only from the pre-transition accepted-root Commitment; candidate bytes cannot grant accepted-root authority. |
+
+7. **Execution identity follows the admitted DAG.** Gate policy is resolved from
+   `plan.facts.head`; every runner node command must equal the corresponding policy execution
+   identity before invocation; and dependency closure is canonicalized topologically before
+   operation identity is computed.
+
 ## Consequences
 
-- ETHOS stops over-claiming: a local land is honestly a readiness assertion. Solo and
-  same-UID multi-agent users get exactly that, with no new moving parts.
+- ETHOS stops over-claiming: local proof is a readiness assertion; a successful land also
+  records one bounded local Git effect. Neither constitutes independent enforcement. Solo
+  and same-UID multi-agent users get exactly that, with no new moving parts.
 - The optional plug has a provider-neutral exact-receipt contract and no bundled
   provider executable. It remains default-off: implementation, installation,
   provider-local trust anchors, key ownership, and any daemon, hook, or hosted
@@ -111,12 +133,16 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
 
 ## Proof Or Evidence
 
-- `src/ethos/adapters/mutation/proof.py`, `proof_artifacts.py`, and
-  `proof_validation.py` — issue, persist, and validate the content-addressed local proof
-  Attestation and its checks artifact without claiming independent enforcement.
-- `tests/unit/kernel/test_proof_plan_binding.py` — pins exact Attestation identity and
-  contract/fact/plan/policy bindings, makes the retired head-keyed proof file inert, and
-  fails closed on artifact tampering.
+- `src/ethos/adapters/mutation/proof.py`, `proof_validation.py`, `proof_artifacts.py`,
+  `landing.py`, `accepted.py`, `src/ethos/adapters/repo/git_effects.py`, and
+  `src/ethos/adapters/gates/runner.py` — issue and validate the proof closure, keep artifact,
+  proof-operation, and Git-effect identity distinct, derive mutation authority outside proof,
+  and reject stale HEAD/tree/ref/Lease facts immediately before CAS.
+- `tests/unit/kernel/test_proof_plan_binding.py`,
+  `tests/unit/cli/test_contracts_land.py`, and
+  `tests/unit/adapters/gates/test_runner.py` — pin exact closure, canonical default/full
+  floors, artifact variance, DAG identity, Lease-bound candidate authority, pre-transition
+  accepted authority, and runner identity drift.
 - `src/ethos/adapters/admission/evidence/external.py`,
   `src/ethos/contracts/evidence/external.py` — exact receipt
   contract and provider-local admission boundary.
@@ -157,5 +183,6 @@ each claim at its real boundary.
 
 | Version | Date | Change | Reason | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | 2026-07-10 | Established local-readiness and independent-verification boundaries | Avoid same-UID security overclaim | Threat-model analysis and proof tests |
+| 3 | 2026-07-31 | Defined self-contained proof closure, separated operation and artifact identity, and fixed proof, candidate, accepted, runner, and DAG authority boundaries | Remove historical replay without allowing artifact variance or target bytes to mint authority | Proof, landing, accepted, runner contracts and focused tests |
 | 2 | 2026-07-28 | Added explicit rejected assurance models | Make the trust boundary non-negotiable | Terminal-convergence decision discipline |
+| 1 | 2026-07-10 | Established local-readiness and independent-verification boundaries | Avoid same-UID security overclaim | Threat-model analysis and proof tests |

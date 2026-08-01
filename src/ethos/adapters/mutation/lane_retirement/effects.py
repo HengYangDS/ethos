@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
-from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.marker import clear_closeout_intent
 from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
 from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
@@ -26,6 +25,7 @@ from ethos.adapters.store.state.lease.projection import observe_lease_from_conne
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
@@ -132,11 +132,10 @@ def remove_linked_lane(
     try:
         intent = write_closeout_intent(
             root=transaction_root,
-            transition=CloseoutTransition(
-                ref_name=f"refs/heads/{branch}",
-                old_value=expected,
-                new_value="0" * len(expected),
-                candidate_head=authority_head or accepted_head,
+            ref_name=f"refs/heads/{branch}",
+            update=GitRefUpdate(
+                expected=expected,
+                desired="0" * len(expected),
             ),
             evidence_digest="",
         )

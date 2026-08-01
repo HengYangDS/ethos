@@ -492,6 +492,7 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "ethos-pytest" in runner
     assert "fail_under" not in coverage
     assert "branch = True" in coverage
+    assert "patch = subprocess" in coverage
     assert "current_hard_floor = 95" in policy
     assert "aspirational_floor = 95" in policy
     assert 'source = "tools/ci/scripts/run-python-tests.sh"' in policy

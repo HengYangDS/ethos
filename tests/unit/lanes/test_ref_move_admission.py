@@ -26,7 +26,6 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.admission.transitions as transitions
-from ethos.adapters.admission.closeout_intent.marker import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.marker import closeout_intent_dir
 from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
 from ethos.adapters.admission.git_admission import push_admission_report
@@ -42,6 +41,8 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LaneLease
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import resolve_gate_policy
@@ -412,23 +413,34 @@ def test_work_lane_ref_transition_rejects_unknown_lease_without_effect(
 
 
 def _record_complete_proof(root: Path, head: str, *, changed_paths: tuple[str, ...] = ()) -> None:
-    plan = proof_plan(root, head=head, changed_paths=changed_paths)
-    checks = tuple(
-        conformant_proof_check(gate_id, root)
-        for gate_id in resolve_gate_policy(root, tree_ref=head).gate_ids
-    )
-    attestation = issue_proof_attestation(
-        root,
-        {
-            "plan": plan,
-            "checks": checks,
-            "verdict": "pass",
-            "issuer": "agent:test:case:ref-move",
-            "scope": "repository",
-            "boundary": "repository",
-        },
-    )
-    persist_proof_attestation(root, attestation)
+    branch = git(root, "branch", "--show-current")
+    holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
+    original = os.environ.get("ETHOS_ACTOR")
+    if holder:
+        os.environ["ETHOS_ACTOR"] = holder
+    try:
+        plan = proof_plan(root, head=head, changed_paths=changed_paths)
+        checks = tuple(
+            conformant_proof_check(gate_id, root, tree_ref=head)
+            for gate_id in resolve_gate_policy(root, tree_ref=head).gate_ids
+        )
+        attestation = issue_proof_attestation(
+            root,
+            {
+                "plan": plan,
+                "checks": checks,
+                "verdict": "pass",
+                "issuer": "agent:test:case:ref-move",
+                "scope": "repository",
+                "boundary": "repository",
+            },
+        )
+        persist_proof_attestation(root, attestation)
+    finally:
+        if original is None:
+            os.environ.pop("ETHOS_ACTOR", None)
+        else:
+            os.environ["ETHOS_ACTOR"] = original
 
 
 def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
@@ -566,6 +578,24 @@ def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -
     assert any("proof" in str(gap) or "not_proven" in str(gap) for gap in report["required_gaps"])
 
 
+def test_ref_move_admission_blocks_proven_candidate_move_without_land_intent(
+    tmp_path: Path,
+) -> None:
+    repo, base = _accepted_boundary_repo(tmp_path)
+    candidate_head = _advance_candidate(repo, "c1")
+    _record_complete_proof(repo, candidate_head)
+
+    report = ref_move_admission_report(
+        root=repo,
+        ref_name="refs/heads/candidate/dev",
+        old_value=base,
+        new_value=candidate_head,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["candidate_ref_move_no_land_intent"]
+
+
 def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_path: Path) -> None:
     """A candidate-branch move to a commit the accepted branch already contains (a
     refresh-from-accepted rewind) promotes no new work, so it is admitted WITHOUT a fresh
@@ -574,6 +604,19 @@ def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_pa
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
 
+    write_closeout_intent(
+        root=repo,
+        ref_name="refs/heads/candidate/dev",
+        update=GitEffect(
+            updates={
+                "refs/heads/candidate/dev": GitRefUpdate(
+                    expected=candidate_head,
+                    desired=base,
+                )
+            }
+        ).updates["refs/heads/candidate/dev"],
+        evidence_digest="candidate-refresh-from-accepted",
+    )
     report = ref_move_admission_report(
         root=repo,
         ref_name="refs/heads/candidate/dev",
@@ -620,17 +663,19 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
 
 def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
     """Write the official marker bound to the proof set's semantic identity."""
-    expected_plan = proof_plan(repo, head=new_value)
-    attestation = proof_attestation(repo, new_value, expected_plan=expected_plan)
+    attestation = proof_attestation(repo, new_value)
     write_closeout_intent(
         root=repo,
-        transition=CloseoutTransition(
-            ref_name="refs/heads/dev",
-            old_value=old_value,
-            new_value=new_value,
-            candidate_head=new_value,
-        ),
-        evidence_digest=proof_evidence_digest(repo, new_value, expected_plan=expected_plan),
+        ref_name="refs/heads/dev",
+        update=GitEffect(
+            updates={
+                "refs/heads/dev": GitRefUpdate(
+                    expected=old_value,
+                    desired=new_value,
+                )
+            }
+        ).updates["refs/heads/dev"],
+        evidence_digest=proof_evidence_digest(repo, new_value),
         gate_policy_digest=attestation.policy_digest if attestation is not None else "",
     )
 
@@ -659,7 +704,7 @@ def test_equivalent_proof_cannot_invalidate_matching_closeout_intent(tmp_path: P
     assert report["required_gaps"] == []
 
 
-def test_other_operation_proof_cannot_invalidate_matching_closeout_intent(
+def test_distinct_proof_closures_block_ref_move_admission(
     tmp_path: Path,
 ) -> None:
     repo, base = _accepted_boundary_repo(tmp_path)
@@ -675,8 +720,8 @@ def test_other_operation_proof_cannot_invalidate_matching_closeout_intent(
         new_value=candidate_head,
     )
 
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["stale_binding"]
 
 
 def test_ref_move_admission_admits_official_closeout_with_intent_marker(

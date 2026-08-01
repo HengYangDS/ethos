@@ -141,20 +141,23 @@ def artifact_checks(
 ) -> tuple[tuple[dict[str, Any], ...] | None, list[str]]:
     """Load checks only when the Attestation binds their immutable artifact."""
     artifact = attestation.statement.get("artifact")
-    relative = (_ARTIFACT_SUBDIR / f"{attestation.effect_digest}.json").as_posix()
     gap = ""
     payload = b""
     if not isinstance(artifact, Mapping):
         gap = "proof_attestation_artifact_missing"
-    elif (
-        set(artifact) != {"path", "sha256", "size_bytes", "media_type"}
-        or artifact.get("path") != relative
-        or artifact.get("sha256") != f"sha256:{attestation.effect_digest}"
-        or artifact.get("media_type") != "application/json"
-        or attestation.evidence_refs != (f"sha256:{attestation.effect_digest}",)
-    ):
-        gap = "proof_attestation_artifact_binding_mismatch"
     else:
+        digest = str(artifact.get("sha256") or "").removeprefix("sha256:")
+        relative = (_ARTIFACT_SUBDIR / f"{digest}.json").as_posix()
+        if (
+            set(artifact) != {"path", "sha256", "size_bytes", "media_type"}
+            or len(digest) != _SHA256_HEX_LENGTH
+            or set(digest) - _HEX
+            or artifact.get("path") != relative
+            or artifact.get("sha256") != f"sha256:{digest}"
+            or artifact.get("media_type") != "application/json"
+            or attestation.evidence_refs != (f"sha256:{digest}",)
+        ):
+            return None, ["proof_attestation_artifact_binding_mismatch"]
         path = store / relative
         try:
             payload = path.read_bytes()
@@ -164,7 +167,7 @@ def artifact_checks(
                 if not path.is_file()
                 else "proof_attestation_artifact_unavailable"
             )
-    if not gap and hashlib.sha256(payload).hexdigest() != attestation.effect_digest:
+    if not gap and hashlib.sha256(payload).hexdigest() != digest:
         gap = "proof_attestation_artifact_digest_mismatch"
     if not gap and artifact.get("size_bytes") != len(payload):
         gap = "proof_attestation_artifact_size_mismatch"

@@ -6,6 +6,7 @@ They do not model users, teams, permissions, or durable repository truth.
 
 import json
 from dataclasses import dataclass
+from typing import Annotated
 from typing import Any
 from typing import Literal
 from typing import Self
@@ -29,6 +30,21 @@ _HOLDER_REF_PART_COUNT = 4
 _LANE_LEASE_PAYLOAD_FIELDS_INVALID = "lane_lease_payload_fields_invalid"
 _LANE_LEASE_PAYLOAD_TYPE_INVALID = "lane_lease_payload_type_invalid"
 _JSON_OBJECT = TypeAdapter(dict[str, JsonValue], config=ConfigDict(strict=True))
+
+
+_REPOSITORY_RELATIVE_PATH_PATTERN = (
+    r"^(?:"
+    r"[^./\\\x00:][^/\\\x00:]*"
+    r"|\.[^./\\\x00:][^/\\\x00:]*"
+    r"|\.\.[^/\\\x00:][^/\\\x00]*"
+    r")"
+    r"(?:/(?:"
+    r"[^./\\\x00][^/\\\x00]*"
+    r"|\.[^./\\\x00][^/\\\x00]*"
+    r"|\.\.[^/\\\x00][^/\\\x00]*"
+    r"))*$"
+)
+RepositoryRelativePath = Annotated[str, Field(pattern=_REPOSITORY_RELATIVE_PATH_PATTERN)]
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,6 +185,9 @@ class LaneLease(BaseModel):
     renewed_at: AwareDatetime
     expires_at: AwareDatetime
     expected_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    expected_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    base_commitment_path: RepositoryRelativePath
+    base_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     base_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     path_scope: FrozenTuple[str] = ()
     handoff: LeaseHandoffOffer | None = None
@@ -201,6 +220,9 @@ class LaneLease(BaseModel):
             "renewed_at": self.renewed_at.isoformat(),
             "expires_at": self.expires_at.isoformat(),
             "expected_head": self.expected_head,
+            "expected_tree": self.expected_tree,
+            "base_commitment_path": self.base_commitment_path,
+            "base_commitment_bytes_sha256": self.base_commitment_bytes_sha256,
             "base_commitment_digest": self.base_commitment_digest,
             "path_scope": list(self.path_scope),
             "handoff": self.handoff.model_dump(mode="json") if self.handoff else None,
@@ -228,19 +250,9 @@ class HandoffArtifact(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
-    path: str = Field(min_length=1)
+    path: RepositoryRelativePath
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     kind: Literal["git_bundle", "context"]
-
-    @field_validator("path")
-    @classmethod
-    def validate_relative_path(cls, value: str) -> str:
-        """Reject absolute, URI-like, and parent-traversing artifact paths."""
-        parts = value.split("/")
-        if value.startswith("/") or ":" in parts[0] or ".." in parts:
-            msg = "handoff artifact path must stay package-relative"
-            raise ValueError(msg)
-        return value
 
 
 class CrossHostHandoff(BaseModel):
@@ -251,9 +263,12 @@ class CrossHostHandoff(BaseModel):
     source_lane_ref: str = Field(min_length=1)
     source_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     source_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    base_commitment_path: RepositoryRelativePath
+    base_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     target_holder_ref: HolderRef
     context_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     dirty_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_lane_incarnation_id: str = Field(min_length=1)
     source_lease_id: str = Field(min_length=1)
     source_lease_epoch: int = Field(ge=1)
     source_lease_expires_at: str = Field(min_length=1)
@@ -268,11 +283,14 @@ class CrossHostHandoff(BaseModel):
             "source_lane_ref": self.source_lane_ref,
             "source_head": self.source_head,
             "source_tree": self.source_tree,
+            "base_commitment_path": self.base_commitment_path,
+            "base_commitment_bytes_sha256": self.base_commitment_bytes_sha256,
             "target_holder_ref": self.target_holder_ref.serialize(),
             "context_digest": self.context_digest,
             "dirty_content_sha256": self.dirty_content_sha256,
             "base_commitment_digest": self.base_commitment_digest,
             "source_lease_binding": {
+                "lane_incarnation_id": self.source_lane_incarnation_id,
                 "lease_id": self.source_lease_id,
                 "epoch": self.source_lease_epoch,
                 "holder_ref": self.source_holder_ref.serialize(),

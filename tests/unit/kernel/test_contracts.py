@@ -471,18 +471,66 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "closeout_residue_lanes",
     ):
         assert retired_field not in serialized_workspace_schema
-    for definition in (
-        "branchBinding",
-        "closeoutSupport",
-        "foreignWorkLane",
-        "unboundWorkLaneRef",
-    ):
-        properties = workspace_schema["$defs"][definition]["properties"]
-        assert {
-            "base_commitment_digest",
-            "commitment_binding",
-            "lease_state",
-        } <= set(properties)
+    branch_binding = workspace_schema["$defs"]["branchBinding"]
+    exact_coordinates = {
+        "lane_incarnation_id",
+        "lease_id",
+        "holder_ref",
+        "epoch",
+        "expected_head",
+        "expected_tree",
+        "expires_at",
+        "payload_sha256",
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+    }
+    assert exact_coordinates.isdisjoint(branch_binding["properties"])
+    assert set(branch_binding["required"]) == {
+        "branch",
+        "role",
+        "head",
+        "worktree_path",
+        "worktree_binding",
+        "base_commitment_digest",
+        "commitment_binding",
+        "lease_state",
+    }
+    unbound = workspace_schema["$defs"]["unboundWorkLaneRef"]
+    assert exact_coordinates <= set(unbound["properties"])
+    assert set(unbound["required"]) == {
+        "branch",
+        "head",
+        "relation_to_accepted",
+        "next_action",
+        "base_commitment_digest",
+        "commitment_binding",
+        "lease_state",
+        *exact_coordinates,
+    }
+    lane_lease_schema = json.loads(
+        (schema_dir / "lane-lease.schema.json").read_text(encoding="utf-8")
+    )
+    assert {
+        "expected_head",
+        "expected_tree",
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+        "base_commitment_digest",
+    } <= set(lane_lease_schema["required"])
+    assert {
+        "expected_head",
+        "expected_tree",
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+        "base_commitment_digest",
+    } <= set(workspace_schema["$defs"]["leaseSummary"]["required"])
+    assert {
+        "lease_expected_head",
+        "lease_expected_tree",
+        "lease_base_commitment_path",
+        "lease_base_commitment_bytes_sha256",
+        "base_commitment_digest",
+    } <= set(workspace_schema["$defs"]["closeoutSupport"]["required"])
     assert workspace_schema["$defs"]["foreignWorkLane"]["properties"]["lease_state"]["enum"] == [
         "valid",
         "expired",

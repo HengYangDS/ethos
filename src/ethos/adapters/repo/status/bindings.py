@@ -4,7 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import lease_observations
@@ -42,10 +42,10 @@ def branch_bindings(
     *,
     policy: BranchRolePolicy,
     lease_by_branch: dict[str, dict[str, object]],
-) -> list[dict[str, str]]:
+) -> list[dict[str, object]]:
     """Return configured, linked, and unbound branch bindings."""
     by_branch = {item["branch"]: item for item in worktrees if item["branch"] != "detached"}
-    bindings: list[dict[str, str]] = []
+    bindings: list[dict[str, object]] = []
     seen: set[str] = set()
     configured = (
         (policy.release_branch, policy.role_for_branch(policy.release_branch)),
@@ -114,27 +114,34 @@ def _work_lane_refs(root: Path, *, policy: BranchRolePolicy) -> list[tuple[str, 
 
 
 def unbound_work_lane_refs(
-    root: Path, branch_bindings: list[dict[str, str]], *, policy: BranchRolePolicy
+    root: Path,
+    branch_bindings: list[dict[str, object]],
+    *,
+    policy: BranchRolePolicy,
+    lease_by_branch: dict[str, dict[str, object]],
 ) -> list[dict[str, object]]:
-    """Return unbound Work Lane refs derived from branch bindings."""
-    return [
-        {
-            **{
-                name: binding[name]
-                for name in (
-                    "branch",
-                    "head",
-                    "base_commitment_digest",
-                    "commitment_binding",
-                    "lease_state",
-                )
-            },
-            "relation_to_accepted": ref_relation(root, binding["branch"], policy.accepted_branch),
-            "next_action": unbound_ref_next_action(root, binding["branch"], policy.accepted_branch),
-        }
-        for binding in branch_bindings
-        if binding["role"] == ROLE_WORK_LANE and binding["worktree_binding"] == "unbound"
-    ]
+    """Return exact Lease observations for unbound Work Lane refs."""
+    refs: list[dict[str, object]] = []
+    for binding in branch_bindings:
+        if binding["role"] != ROLE_WORK_LANE or binding["worktree_binding"] != "unbound":
+            continue
+        branch = str(binding["branch"])
+        generation = lease_generation(lease_by_branch.get(branch, {}))
+        generation.pop("branch")
+        generation["base_commitment_path"] = generation["base_commitment_path"] or None
+        relation = ref_relation(root, branch, policy.accepted_branch)
+        refs.append(
+            {
+                "branch": branch,
+                "head": binding["head"],
+                **generation,
+                "commitment_binding": binding["commitment_binding"],
+                "lease_state": binding["lease_state"],
+                "relation_to_accepted": relation,
+                "next_action": unbound_ref_next_action(relation),
+            }
+        )
+    return refs
 
 
 def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
@@ -150,17 +157,14 @@ def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
     )
 
 
-def unbound_ref_next_action(root: Path, branch: str, accepted_branch: str) -> str:
+def unbound_ref_next_action(relation: str) -> str:
     """Return an observation-only action for an unbound Work Lane ref."""
     return {
         "ancestor_of_accepted": "preserve unbound Work Lane ref; no retirement effect is admitted",
         "descendant_of_accepted": (
             "preserve unbound Work Lane ref; bind a recovery contract before action"
         ),
-    }.get(
-        ref_relation(root, branch, accepted_branch),
-        "preserve and block on unbound Work Lane ref",
-    )
+    }.get(relation, "preserve and block on unbound Work Lane ref")
 
 
 def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
@@ -168,7 +172,7 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     return _git(root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
-def _binding(fields: _BindingFields) -> dict[str, str]:
+def _binding(fields: _BindingFields) -> dict[str, object]:
     return {
         "branch": fields.branch,
         "role": fields.role,
@@ -190,7 +194,7 @@ def _branch_binding(
     worktree: dict[str, str] | None = None,
     candidate: dict[str, object] | None = None,
     head: str = "",
-) -> dict[str, str]:
+) -> dict[str, object]:
     if worktree is not None:
         branch, role, head, path, binding = (
             worktree["branch"],
@@ -263,11 +267,15 @@ def leases_by_branch(current_path: Path) -> dict[str, dict[str, object]]:
 def lease_generation(lease: dict[str, object]) -> dict[str, object]:
     """Project the exact current Lease generation bound by transient Facts."""
     return {
-        "branch": str(lease.get("subject") or lease.get("lane_ref") or ""),
-        "lease_id": str(lease.get("lease_id") or lease.get("id") or ""),
+        "branch": str(lease.get("lane_ref") or ""),
+        "lane_incarnation_id": str(lease.get("lane_incarnation_id") or ""),
+        "lease_id": str(lease.get("lease_id") or ""),
         "epoch": integer_value(lease.get("epoch")),
-        "holder_ref": str(lease.get("holder_ref") or lease.get("owner") or ""),
+        "holder_ref": str(lease.get("holder_ref") or ""),
         "expected_head": str(lease.get("expected_head") or ""),
+        "expected_tree": str(lease.get("expected_tree") or ""),
+        "base_commitment_path": str(lease.get("base_commitment_path") or ""),
+        "base_commitment_bytes_sha256": str(lease.get("base_commitment_bytes_sha256") or ""),
         "base_commitment_digest": str(lease.get("base_commitment_digest") or ""),
         "expires_at": str(lease.get("expires_at") or ""),
         "payload_sha256": str(lease.get("payload_sha256") or ""),
@@ -279,13 +287,8 @@ def _lease_commitment_binding(root: Path, lease: dict[str, object]) -> str:
     if state != "valid":
         return state
     digest = str(lease.get("base_commitment_digest") or "")
-    expected_head = str(lease.get("expected_head") or "")
     try:
-        selected = load_profile_lease_bound_commitment(
-            root,
-            expected_head=expected_head,
-            base_commitment_digest=digest,
-        ).digest()
+        selected = load_lease_bound_commitment(root, lease=lease).digest()
     except ValueError:
         return "mismatch"
     return "bound" if digest and selected == digest else "mismatch"
@@ -307,7 +310,6 @@ def accepted_worktree_root(worktrees: object, default: Path) -> Path:
 
 def closeout_support(
     *,
-    root: Path,
     branch: str,
     role: str,
     dirty: bool,
@@ -318,7 +320,7 @@ def closeout_support(
     """Return closeout support and required gaps for a branch role."""
     is_work_lane = role == ROLE_WORK_LANE
     lease = lease_by_branch.get(branch, {}) if is_work_lane else {}
-    commitment_binding = _current_commitment_binding(root, lease)
+    commitment_binding = str(lease.get("commitment_binding") or "missing")
     gaps = _closeout_lease_gaps(
         branch=branch,
         is_work_lane=is_work_lane,
@@ -345,6 +347,11 @@ def closeout_support(
         "lease_id": str(lease.get("lease_id") or ""),
         "lease_epoch": integer_value(lease.get("epoch")) if lease else 0,
         "lease_expected_head": str(lease.get("expected_head") or ""),
+        "lease_expected_tree": str(lease.get("expected_tree") or ""),
+        "lease_base_commitment_path": (
+            str(lease["base_commitment_path"]) if lease.get("base_commitment_path") else None
+        ),
+        "lease_base_commitment_bytes_sha256": str(lease.get("base_commitment_bytes_sha256") or ""),
         "lease_expires_at": str(lease.get("expires_at") or ""),
         "lease_payload_sha256": str(lease.get("payload_sha256") or ""),
         "lease_state": (str(lease.get("lease_state") or "missing") if is_work_lane else "none"),
@@ -362,21 +369,6 @@ def closeout_support(
         ),
         "required_gaps": gaps,
     }
-
-
-def _current_commitment_binding(root: Path, lease: dict[str, object]) -> str:
-    binding = str(lease.get("commitment_binding") or "missing")
-    if lease.get("lease_state") != "valid" or binding != "bound":
-        return binding
-    try:
-        load_profile_lease_bound_commitment(
-            root,
-            expected_head=str(lease.get("expected_head") or ""),
-            base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
-        )
-    except ValueError:
-        return "mismatch"
-    return "bound"
 
 
 def _closeout_lease_gaps(

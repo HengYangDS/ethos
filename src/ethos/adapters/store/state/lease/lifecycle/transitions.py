@@ -138,7 +138,6 @@ def _reissued_lease(
             epoch=current.epoch,
             renewed_at=now,
             expires_at=now + timedelta(seconds=request.ttl_seconds),
-            expected_head=current.expected_head,
             handoff=current.handoff,
         )
     if kind == "offer":
@@ -148,7 +147,6 @@ def _reissued_lease(
             epoch=current.epoch,
             renewed_at=current.renewed_at,
             expires_at=current.expires_at,
-            expected_head=current.expected_head,
             handoff=LeaseHandoffOffer(
                 offer_id=offer_id,
                 target_holder_ref=request.target_holder_ref,
@@ -166,7 +164,6 @@ def _reissued_lease(
         epoch=current.epoch + 1,
         renewed_at=now,
         expires_at=now + timedelta(seconds=request.ttl_seconds),
-        expected_head=current.expected_head,
         handoff=None,
     )
 
@@ -178,10 +175,21 @@ def _validated_reissue(
     epoch: int,
     renewed_at: datetime,
     expires_at: datetime,
-    expected_head: str,
     handoff: LeaseHandoffOffer | None,
+    binding: dict[str, str] | None = None,
 ) -> LaneLease:
     """Validate one complete replacement before it reaches the SQL CAS boundary."""
+    expected_head = binding["expected_head"] if binding is not None else current.expected_head
+    expected_tree = binding["expected_tree"] if binding is not None else current.expected_tree
+    path = binding["base_commitment_path"] if binding is not None else current.base_commitment_path
+    bytes_sha256 = (
+        binding["base_commitment_bytes_sha256"]
+        if binding is not None
+        else current.base_commitment_bytes_sha256
+    )
+    digest = (
+        binding["base_commitment_digest"] if binding is not None else current.base_commitment_digest
+    )
     return LaneLease(
         lane_incarnation_id=current.lane_incarnation_id,
         lease_id=current.lease_id,
@@ -192,19 +200,22 @@ def _validated_reissue(
         renewed_at=renewed_at,
         expires_at=expires_at,
         expected_head=expected_head,
-        base_commitment_digest=current.base_commitment_digest,
+        expected_tree=expected_tree,
+        base_commitment_path=path,
+        base_commitment_bytes_sha256=bytes_sha256,
+        base_commitment_digest=digest,
         path_scope=current.path_scope,
         handoff=handoff,
     )
 
 
-def advance_lease_head(
+def advance_lease_ref(
     db_path: Path,
     *,
     request: LeaseOperationRequest,
-    new_head: str,
+    binding: dict[str, str],
 ) -> dict[str, object]:
-    """Reissue one strict Lease with only its expected HEAD changed."""
+    """Atomically rebind one strict Lease to one complete Git carrier binding."""
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")
@@ -223,8 +234,8 @@ def advance_lease_head(
                 epoch=current.epoch,
                 renewed_at=current.renewed_at,
                 expires_at=current.expires_at,
-                expected_head=new_head,
                 handoff=current.handoff,
+                binding=binding,
             ),
         )
         connection.commit()

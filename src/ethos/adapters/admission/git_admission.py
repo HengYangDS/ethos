@@ -24,6 +24,7 @@ from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
@@ -48,7 +49,7 @@ HOOK_LAYERS = {
     )
 }
 _NO_RECONCILIATION = ReconciliationObservation()
-_ZERO_OID = "0" * 40
+_ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
 def hook_admission_report(request: HookAdmissionRequest) -> dict[str, object]:
@@ -164,7 +165,7 @@ def push_admission_report(
             reconciliation,
             proposal_branch=branch if role == "proposal_lane" else reconciliation.proposal_branch,
         )
-        if (role == "proposal_lane" and remote_head == _ZERO_OID)
+        if (role == "proposal_lane" and remote_head in _ZERO_OIDS)
         or (role in PROTECTED_WRITE_ROLES and reconciliation.receipt_path)
         else _NO_RECONCILIATION
     )
@@ -173,7 +174,7 @@ def push_admission_report(
         pushed_head,
         remote_head,
         f"{remote_name}/{policy.accepted_branch}"
-        if role == "proposal_lane" and remote_head == _ZERO_OID
+        if role == "proposal_lane" and remote_head in _ZERO_OIDS
         else "",
         reconciliation=reconcile,
     )
@@ -252,7 +253,7 @@ def accepted_advance_gaps(
         if contained
         else ["accepted_advance_not_candidate_validated"]
     )
-    if old_value not in (_ZERO_OID, "") and not commit_contained_in(repo, old_value, new_value):
+    if old_value not in _ZERO_OIDS and not commit_contained_in(repo, old_value, new_value):
         gaps.append("accepted_ref_move_not_fast_forward")
     return gaps
 
@@ -266,13 +267,30 @@ def ref_move_admission_report(
 ) -> dict[str, object]:
     """Admit a local ref move only through the protected candidate train."""
     repo = root.resolve()
-    policy = load_branch_role_policy(repo)
+    policy_ref = old_value if old_value not in _ZERO_OIDS else new_value
+    try:
+        policy = strict_branch_role_policy_from_text(
+            committed_file_text(repo, policy_ref, ".ethos/workspace.toml")
+        )
+    except (ValueError, TypeError):
+        branch = ref_name.removeprefix("refs/heads/")
+        return {
+            "verdict": "block",
+            "state": "blocked",
+            "hook": "reference-transaction",
+            "ref": ref_name,
+            "branch": branch,
+            "old_value": old_value,
+            "new_value": new_value,
+            "decision": {"action": "block", "reason": "ref_move_policy_unavailable"},
+            "required_gaps": ["ref_move_policy_unavailable"],
+        }
     branch = ref_name.removeprefix("refs/heads/")
     base: dict[str, object] = {"verdict": "pass", "state": "admitted"}
     base.update(hook="reference-transaction", ref=ref_name, branch=branch)
     base.update(old_value=old_value, new_value=new_value)
     base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
-    if new_value in (_ZERO_OID, "") or new_value == old_value:
+    if new_value in _ZERO_OIDS or new_value == old_value:
         return base
     candidate_policy = branch_role_policy_from_text(
         committed_file_text(repo, policy.candidate_branch, ".ethos/workspace.toml")

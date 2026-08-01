@@ -51,10 +51,15 @@ def revoke_lease_from_connection(
     return {
         "revoked": True,
         "subject": request.branch,
+        "lane_incarnation_id": lease.lane_incarnation_id,
         "lease_id": row.id,
         "holder_ref": request.holder_ref,
         "epoch": lease.epoch,
         "expected_head": lease.expected_head,
+        "expected_tree": lease.expected_tree,
+        "base_commitment_path": lease.base_commitment_path,
+        "base_commitment_bytes_sha256": lease.base_commitment_bytes_sha256,
+        "base_commitment_digest": lease.base_commitment_digest,
         "expires_at": row.expires_at,
         "payload_sha256": row.payload_sha256,
     }

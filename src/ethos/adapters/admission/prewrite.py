@@ -8,8 +8,8 @@ from pathlib import Path
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -273,15 +273,10 @@ def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> d
 def _lease_binding_reason(
     *, root: Path, branch: str, lease: dict[str, object], actor: str, current_head: str
 ) -> str:
-    base_digest = str(lease.get("base_commitment_digest") or "")
     expected_head = str(lease.get("expected_head") or "")
     commitment_reason = ""
     try:
-        load_profile_lease_bound_commitment(
-            root,
-            expected_head=expected_head,
-            base_commitment_digest=base_digest,
-        )
+        load_lease_bound_commitment(root, lease=lease)
     except ValueError as exc:
         reason = str(exc)
         commitment_reason = f"{reason}:{branch}" if reason.startswith("lease_base_") else reason
@@ -539,11 +534,7 @@ def _commitment_scope(
         }
     try:
         commitment = (
-            load_profile_lease_bound_commitment(
-                root,
-                expected_head=str(lease.get("expected_head") or ""),
-                base_commitment_digest=str(lease.get("base_commitment_digest") or ""),
-            )
+            load_lease_bound_commitment(root, lease=lease)
             if lease.get("required") is True
             else load_commitment(root)
         )

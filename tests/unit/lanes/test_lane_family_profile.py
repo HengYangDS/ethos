@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from datetime import UTC
 from datetime import datetime
@@ -13,9 +14,13 @@ from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import coordination_package
 from ethos.adapters.repo.coordination import foreign_work_lane
+from ethos.adapters.repo.coordination import lease_summary
+from ethos.adapters.repo.status.bindings import closeout_support
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import create_change_source_lane
 from tests.support.contract_helpers import git
@@ -29,6 +34,54 @@ if TYPE_CHECKING:
 
 
 _HOLDER = "agent:test:case:agent-test"
+
+
+def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:
+    lease = {
+        "lane_incarnation_id": "lane-incarnation:example",
+        "lease_id": "lease:example",
+        "holder_ref": _HOLDER,
+        "epoch": 2,
+        "expected_head": "a" * 40,
+        "expected_tree": "b" * 40,
+        "base_commitment_path": "openspec/changes/example/commitment.toml",
+        "base_commitment_bytes_sha256": "c" * 64,
+        "base_commitment_digest": "d" * 64,
+        "expires_at": "2026-08-02T00:00:00+00:00",
+        "payload_sha256": "e" * 64,
+        "lease_state": "valid",
+        "commitment_binding": "mismatch",
+    }
+
+    summary = lease_summary(lease)
+    support = closeout_support(
+        branch="work/example",
+        role=ROLE_WORK_LANE,
+        dirty=False,
+        candidate={
+            "exists": False,
+            "worktree_exists": False,
+            "branch": "candidate/dev",
+            "worktree_path": "",
+        },
+        lease_by_branch={"work/example": lease},
+        coordination_required_gaps=[],
+    )
+
+    assert {
+        "expected_head": lease["expected_head"],
+        "expected_tree": lease["expected_tree"],
+        "base_commitment_path": lease["base_commitment_path"],
+        "base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
+        "base_commitment_digest": lease["base_commitment_digest"],
+    }.items() <= summary.items()
+    assert {
+        "lease_expected_head": lease["expected_head"],
+        "lease_expected_tree": lease["expected_tree"],
+        "lease_base_commitment_path": lease["base_commitment_path"],
+        "lease_base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
+        "base_commitment_digest": lease["base_commitment_digest"],
+    }.items() <= support.items()
 
 
 def _enable(repo: Path) -> None:
@@ -123,12 +176,28 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(tmp_p
     }
     assert report["lease"]["base_commitment_digest"] == report["base_commitment_digest"]
     assert report["lease"]["expected_head"] == report["head"]
-    assert (
-        workspace_status(target, include_foreign_path_scope=False)["closeout_support"][
-            "commitment_binding"
-        ]
-        == "bound"
+    assert report["lease"]["expected_tree"] == git(target, "rev-parse", "HEAD^{tree}")
+    assert report["lease"]["base_commitment_path"] == (
+        "openspec/changes/fixture-change/commitment.toml"
     )
+    assert "materialized_carrier" not in report
+    assert (
+        report["lease"]["base_commitment_bytes_sha256"]
+        == hashlib.sha256(
+            (target / report["lease"]["base_commitment_path"]).read_bytes()
+        ).hexdigest()
+    )
+    closeout_support = workspace_status(target, include_foreign_path_scope=False)[
+        "closeout_support"
+    ]
+    assert closeout_support["commitment_binding"] == "bound"
+    assert {
+        "lease_expected_head": report["lease"]["expected_head"],
+        "lease_expected_tree": report["lease"]["expected_tree"],
+        "lease_base_commitment_path": report["lease"]["base_commitment_path"],
+        "lease_base_commitment_bytes_sha256": report["lease"]["base_commitment_bytes_sha256"],
+        "base_commitment_digest": report["lease"]["base_commitment_digest"],
+    }.items() <= closeout_support.items()
     assert report["required_gaps"] == []
 
 
@@ -293,6 +362,16 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
             {
                 "branch": "work/unbound",
                 "head": "a" * 40,
+                "lane_incarnation_id": "",
+                "lease_id": "",
+                "holder_ref": "",
+                "epoch": 0,
+                "expected_head": "",
+                "expected_tree": "",
+                "expires_at": "",
+                "payload_sha256": "",
+                "base_commitment_path": None,
+                "base_commitment_bytes_sha256": "",
                 "base_commitment_digest": "",
                 "commitment_binding": "missing",
                 "lease_state": "missing",
@@ -303,6 +382,14 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
     )
 
     assert lane["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
+    lease = leases_by_branch(repo)[branch]
+    assert {
+        "expected_head": lease["expected_head"],
+        "expected_tree": lease["expected_tree"],
+        "base_commitment_path": lease["base_commitment_path"],
+        "base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
+        "base_commitment_digest": lease["base_commitment_digest"],
+    }.items() <= lane["lease"].items()
     assert lane["action_preview"] == {
         "candidate_actions": ["observe"],
         "blocked_actions": ["write", "land", "retire"],
@@ -314,6 +401,65 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
     unbound = coordination["unbound_work_lane_refs"]
     assert isinstance(unbound, list)
     assert unbound[0]["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
+
+
+def test_unbound_work_lane_ref_preserves_exact_lease_coordinates(tmp_path: Path) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    path = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-unbound",
+        branch="work/unbound",
+        holder_ref="agent:test:case:unbound",
+    )
+    lease = leases_by_branch(repo)["work/unbound"]
+    git(repo, "worktree", "remove", path.as_posix())
+
+    status = workspace_status(repo, include_foreign_path_scope=False)
+    binding = next(item for item in status["branch_bindings"] if item["branch"] == "work/unbound")
+    unbound = status["coordination"]["unbound_work_lane_refs"]
+
+    assert {
+        "expected_head",
+        "expected_tree",
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+    }.isdisjoint(binding)
+    assert len(unbound) == 1
+    assert {
+        name: unbound[0][name]
+        for name in (
+            "lane_incarnation_id",
+            "lease_id",
+            "holder_ref",
+            "epoch",
+            "expected_head",
+            "expected_tree",
+            "expires_at",
+            "payload_sha256",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    } == {
+        name: lease[name]
+        for name in (
+            "lane_incarnation_id",
+            "lease_id",
+            "holder_ref",
+            "epoch",
+            "expected_head",
+            "expected_tree",
+            "expires_at",
+            "payload_sha256",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    }
+    assert validate_schema_instance("workspace-status.schema.json", status, root=repo) == {
+        "verdict": "pass",
+        "required_gaps": [],
+    }
 
 
 def test_start_work_lane_initialization_head_is_checkout_and_identity_independent(
@@ -407,23 +553,23 @@ def test_start_work_lane_blocks_source_lease_head_mismatch(tmp_path: Path) -> No
     assert not target.exists()
 
 
-def test_start_work_lane_blocks_source_lease_commitment_mismatch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_start_work_lane_blocks_source_lease_commitment_mismatch(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
-    leases_by_branch = lanes.leases_by_branch
-
-    def mismatched_commitment(root: Path):
-        leases = leases_by_branch(root)
-        if root.resolve() == source.resolve():
-            lease = dict(leases["work/change-source"])
-            lease["commitment_binding"] = "mismatch"
-            leases["work/change-source"] = lease
-        return leases
-
-    monkeypatch.setattr(lanes, "leases_by_branch", mismatched_commitment)
+    carrier = source / "openspec/changes/fixture-change/commitment.toml"
+    carrier.write_text(carrier.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    git(source, "add", carrier.as_posix())
+    git(
+        source,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "rewrite commitment bytes",
+    )
 
     report = start_work_lane(
         root=repo,
@@ -434,7 +580,7 @@ def test_start_work_lane_blocks_source_lease_commitment_mismatch(
         apply=True,
     )
 
-    assert report["required_gaps"] == ["source_lease_commitment_unbound"]
+    assert report["required_gaps"] == ["source_lease_head_mismatch"]
     assert ref_head(repo, "work/feature") == ""
     assert not target.exists()
 
@@ -472,40 +618,7 @@ def test_start_work_lane_blocks_candidate_active_change_carrier(tmp_path: Path) 
         apply=True,
     )
 
-    assert report["required_gaps"] == ["candidate_active_change_carrier_present"]
-    assert report["candidate_active_changes"] == ["stale"]
-    assert ref_head(repo, "work/feature") == ""
-    assert not target.exists()
-
-
-def test_start_work_lane_blocks_unknown_candidate_change_observation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
-    target = tmp_path / "repo-work-feature"
-    monkeypatch.setattr(
-        lanes,
-        "active_change_names_in_ref",
-        lambda *_args: {
-            "verdict": "unknown",
-            "changes": [],
-            "required_gaps": ["openspec_ref_tree_unavailable:candidate/dev"],
-        },
-    )
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        source_root=source,
-        path=target,
-        holder_ref=_HOLDER,
-        apply=True,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["candidate_active_change_observation_unknown"]
-    assert report["candidate_active_change_observation"]["verdict"] == "unknown"
+    assert report["required_gaps"] == ["openspec_active_change_unarchived:stale:candidate"]
     assert ref_head(repo, "work/feature") == ""
     assert not target.exists()
 
@@ -592,7 +705,7 @@ def test_start_work_lane_blocks_candidate_head_drift_before_lease_acquisition(
     assert not target.exists()
 
 
-def test_work_lane_status_reports_base_commitment_rewrite_as_mismatch(tmp_path: Path) -> None:
+def test_work_lane_status_keeps_committed_binding_and_blocks_dirty_rewrite(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
@@ -616,8 +729,13 @@ def test_work_lane_status_reports_base_commitment_rewrite_as_mismatch(tmp_path: 
 
     status = workspace_status(target, include_foreign_path_scope=False)
 
-    assert status["closeout_support"]["commitment_binding"] == "mismatch"
+    assert validate_schema_instance("workspace-status.schema.json", status, root=target) == {
+        "verdict": "pass",
+        "required_gaps": [],
+    }
+    assert status["closeout_support"]["commitment_binding"] == "bound"
     assert status["closeout_support"]["supported"] is False
+    assert status["closeout_support"]["required_gaps"] == ["work_lane_dirty"]
 
 
 def test_start_work_lane_blocks_dirty_root_before_reserving_or_creating(tmp_path: Path) -> None:

@@ -25,11 +25,12 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.destination_cleanup import (
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import validated_handoff_acknowledgement
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
-from ethos.adapters.openspec.profile import load_profile_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
+from ethos.adapters.store.state.lease.projection import LeaseObservation
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
@@ -50,19 +51,9 @@ def apply_handoff_import(
     """Apply one destination-local import with exact compensation before commit."""
     branch, head = str(manifest["source_lane_ref"]), str(manifest["source_head"])
     worktree_path = destination.with_name(f"{destination.name}-{branch.replace('/', '-')}")
-    lease: dict[str, Any] = {}
-    lease_identity = {
-        "lane_incarnation_id": f"lane-incarnation:{uuid.uuid4()}",
-        "lease_id": f"lease:{uuid.uuid4()}",
-    }
     observed = observe_lease(state_database(destination), branch)
-    if observed.state != "missing":
-        lease = _recover_import_lease(
-            destination,
-            manifest,
-            target_holder_ref,
-            lease_identity,
-        )
+    lease = _recover_import_lease(observed, manifest, target_holder_ref)
+    compensate_on_failure = observed.state == "missing"
     with (
         verified_package_snapshot(package=package, manifest=manifest, root=destination) as snapshot,
         _verified_import_repository(snapshot, manifest, destination) as isolated,
@@ -70,11 +61,11 @@ def apply_handoff_import(
         object_environment = _import_object_environment(destination, isolated)
         with _prepared_import_pack(destination, isolated, head) as prepared_pack:
             try:
-                lease = _acquire_or_recover_lease(
+                lease, compensate_on_failure = _acquire_or_recover_lease(
                     destination,
                     manifest,
                     target_holder_ref,
-                    lease_identity,
+                    worktree_path,
                 )
                 _ensure_import_ref(destination, branch, head, object_environment)
                 _ensure_import_worktree(
@@ -93,13 +84,13 @@ def apply_handoff_import(
                 )
                 _install_pack(_object_directory(destination), prepared_pack)
             except (OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError, ValueError):
-                lease = lease or _recover_import_lease(
-                    destination,
-                    manifest,
-                    target_holder_ref,
-                    lease_identity,
-                )
-                if lease:
+                if compensate_on_failure:
+                    lease = lease or _recover_import_lease(
+                        observe_lease(state_database(destination), branch),
+                        manifest,
+                        target_holder_ref,
+                    )
+                if lease and compensate_on_failure:
                     compensate_failed_import(
                         destination=destination,
                         manifest=manifest,
@@ -288,24 +279,27 @@ def _install_pack(
 
 
 def _recover_import_lease(
-    destination: Path,
+    observed: LeaseObservation,
     manifest: dict[str, Any],
     target_holder_ref: str,
-    identity: dict[str, str],
 ) -> dict[str, Any]:
-    observed = observe_lease(state_database(destination), str(manifest["source_lane_ref"]))
     if observed.state == "missing":
         return {}
     record = observed.record()
     expected = {
-        **identity,
         "holder_ref": target_holder_ref,
         "expected_head": str(manifest["source_head"]),
+        "expected_tree": str(manifest["source_tree"]),
+        "base_commitment_path": str(manifest["base_commitment_path"]),
+        "base_commitment_bytes_sha256": str(manifest["base_commitment_bytes_sha256"]),
         "base_commitment_digest": str(manifest["base_commitment_digest"]),
-        "epoch": 1,
     }
     _require(
-        "handoff_import_lease_conflict",
+        (
+            "handoff_import_lease_unknown"
+            if observed.state == "unknown"
+            else "handoff_import_lease_conflict"
+        ),
         holds=observed.state in {"valid", "expired"}
         and all(record.get(key) == value for key, value in expected.items()),
     )
@@ -316,30 +310,59 @@ def _acquire_or_recover_lease(
     destination: Path,
     manifest: dict[str, Any],
     target_holder_ref: str,
-    identity: dict[str, str],
-) -> dict[str, Any]:
-    observed = observe_lease(state_database(destination), str(manifest["source_lane_ref"]))
+    worktree_path: Path,
+) -> tuple[dict[str, Any], bool]:
+    branch = str(manifest["source_lane_ref"])
+    observed = observe_lease(state_database(destination), branch)
     if observed.state != "missing":
-        recovered = _recover_import_lease(destination, manifest, target_holder_ref, identity)
+        recovered = _recover_import_lease(observed, manifest, target_holder_ref)
         if observed.state == "expired":
-            return _resume_import_lease(destination, manifest, target_holder_ref, recovered)
-        return recovered
+            return _resume_import_lease(destination, manifest, target_holder_ref, recovered), False
+        return recovered, False
+    ref = run_git(
+        destination,
+        "show-ref",
+        "--verify",
+        "--quiet",
+        f"refs/heads/{branch}",
+        check=False,
+    )
+    _require("handoff_destination_carrier_state_unknown", holds=ref.returncode in {0, 1})
+    try:
+        worktree = import_worktree_record(destination, worktree_path, run_git=run_git)
+    except ValueError:
+        message = "handoff_destination_carrier_state_unknown"
+        raise ValueError(message) from None
+    _require(
+        "handoff_destination_orphan_carrier",
+        holds=ref.returncode == 1 and not os.path.lexists(worktree_path) and not worktree,
+    )
+    identity = {
+        "lane_incarnation_id": f"lane-incarnation:{uuid.uuid4()}",
+        "lease_id": f"lease:{uuid.uuid4()}",
+    }
     now = datetime.now(UTC)
-    return acquire_lease(
-        state_database(destination),
-        lease=LaneLease(
-            lane_incarnation_id=identity["lane_incarnation_id"],
-            lease_id=identity["lease_id"],
-            lane_ref=str(manifest["source_lane_ref"]),
-            holder_ref=HolderRef.parse(target_holder_ref),
-            epoch=1,
-            issued_at=now,
-            renewed_at=now,
-            expires_at=now + timedelta(days=1),
-            expected_head=str(manifest["source_head"]),
-            base_commitment_digest=str(manifest["base_commitment_digest"]),
-            path_scope=(),
+    return (
+        acquire_lease(
+            state_database(destination),
+            lease=LaneLease(
+                lane_incarnation_id=identity["lane_incarnation_id"],
+                lease_id=identity["lease_id"],
+                lane_ref=branch,
+                holder_ref=HolderRef.parse(target_holder_ref),
+                epoch=1,
+                issued_at=now,
+                renewed_at=now,
+                expires_at=now + timedelta(days=1),
+                expected_head=str(manifest["source_head"]),
+                expected_tree=str(manifest["source_tree"]),
+                base_commitment_path=str(manifest["base_commitment_path"]),
+                base_commitment_bytes_sha256=str(manifest["base_commitment_bytes_sha256"]),
+                base_commitment_digest=str(manifest["base_commitment_digest"]),
+                path_scope=(),
+            ),
         ),
+        True,
     )
 
 
@@ -430,24 +453,31 @@ def _verify_destination_identity(
         run_git(worktree, "rev-parse", "HEAD", env=object_environment).stdout.strip(),
         run_git(worktree, "rev-parse", "HEAD^{tree}", env=object_environment).stdout.strip(),
         str(lease.get("expected_head") or head),
+        str(lease.get("expected_tree") or tree),
     )
-    _require("handoff_destination_identity_drift", holds=actual == (head, head, tree, head))
+    _require(
+        "handoff_destination_identity_drift",
+        holds=actual == (head, head, tree, head, tree),
+    )
 
 
 def _verify_import_contract(destination: Path, manifest: dict[str, Any]) -> None:
-    head = str(manifest["source_head"])
-    expected_digest = str(manifest["base_commitment_digest"])
     try:
-        load_profile_lease_bound_commitment(
+        load_lease_bound_commitment(
             destination,
-            expected_head=head,
-            base_commitment_digest=expected_digest,
+            lease=manifest
+            | {
+                "expected_head": manifest["source_head"],
+                "expected_tree": manifest["source_tree"],
+            },
         )
     except ValueError as error:
-        if str(error) == "lease_base_commitment_digest_mismatch":
-            gap = "handoff_base_commitment_digest_mismatch"
-            raise ValueError(gap) from None
-        gap = "handoff_base_commitment_invalid"
+        gap = {
+            "lease_expected_tree_mismatch": "handoff_base_commitment_tree_mismatch",
+            "lease_base_commitment_path_mismatch": "handoff_base_commitment_path_mismatch",
+            "lease_base_commitment_bytes_mismatch": "handoff_base_commitment_bytes_mismatch",
+            "lease_base_commitment_digest_mismatch": "handoff_base_commitment_digest_mismatch",
+        }.get(str(error), "handoff_base_commitment_invalid")
         raise ValueError(gap) from None
 
 

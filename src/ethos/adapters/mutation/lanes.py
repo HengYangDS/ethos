@@ -8,21 +8,22 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.lane_start_carrier import LaneStartContext
 from ethos.adapters.mutation.lane_start_carrier import create_lane_start_carrier
 from ethos.adapters.mutation.lane_start_carrier import runner_bootstrap
-from ethos.adapters.mutation.lane_start_carrier import tree_entries
-from ethos.adapters.openspec.commitment import load_openspec_commitment
-from ethos.adapters.openspec.profile import active_change_names_in_ref
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git import same_git_repository
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.lease.projection import observe_lease
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -89,7 +90,7 @@ def start_work_lane(
     )
     if commitment_block:
         return commitment_block
-    source_root, source_change_id, base_digest, source_head, source_branch = source
+    source_root, source_change_id, carrier, base_digest, source_head, source_branch = source
     return create_lane_start_carrier(
         LaneStartContext(
             repo=repo,
@@ -101,6 +102,7 @@ def start_work_lane(
             candidate=candidate,
             source_root=source_root,
             source_change_id=source_change_id,
+            source_commitment_path=carrier,
             source_head=source_head,
             source_branch=source_branch,
             run=run_git,
@@ -156,18 +158,8 @@ def candidate_lane_start_gap(
     )
     if gap := next((name for name, failed in checks if failed), ""):
         return gap, {}
-    active_change_report = active_change_names_in_ref(repo, candidate_branch)
-    if active_change_report["verdict"] != "pass":
-        return (
-            "candidate_active_change_observation_unknown",
-            {"candidate_active_change_observation": active_change_report},
-        )
-    active_changes = cast("list[str]", active_change_report["changes"])
-    return (
-        ("candidate_active_change_carrier_present", {"candidate_active_changes": active_changes})
-        if active_changes
-        else ("", {})
-    )
+    gaps = openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
+    return (gaps[0], {}) if gaps else ("", {})
 
 
 def lane_start_target(
@@ -211,12 +203,13 @@ def lane_start_commitment(
     branch: str,
     target: Path,
     source_root: Path | None,
-) -> tuple[tuple[Path, str, str, str, str], dict[str, object] | None]:
+) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object] | None]:
     """Bind lane start to one exact active Commitment in a source Work Lane."""
     source = Path()
     source_branch = ""
     source_head = ""
     change_id = ""
+    carrier = ""
     commitment_digest = ""
     gap = "source_root_required" if source_root is None else ""
     if not gap and source_root is not None:
@@ -227,42 +220,43 @@ def lane_start_commitment(
     if not gap and (source.resolve() == repo.resolve() or not same_git_repository(repo, source)):
         gap = "source_work_lane_invalid"
     if not gap:
-        source_status = workspace_status(source)
-        source_branch = str(source_status.get("branch") or "")
-        source_lease = leases_by_branch(source).get(source_branch, {})
-        source_head = str(source_status.get("head") or "")
+        source_branch = run_git(
+            source, "symbolic-ref", "--short", "HEAD", check=False
+        ).stdout.strip()
+        source_head = run_git(source, "rev-parse", "HEAD", check=False).stdout.strip()
+        source_lease = observe_lease(state_database(source), source_branch).record()
         checks = (
             (
                 "source_work_lane_invalid",
-                source_status["role"] != ROLE_WORK_LANE or bool(source_status["dirty"]),
+                load_branch_role_policy(source).role_for_branch(source_branch) != ROLE_WORK_LANE
+                or bool(changed_paths(source)),
             ),
             ("source_work_lane_invalid", source_lease.get("lease_state") != "valid"),
             (
                 "source_lease_head_mismatch",
                 str(source_lease.get("expected_head") or "") != source_head,
             ),
-            (
-                "source_lease_commitment_unbound",
-                str(source_lease.get("commitment_binding") or "") != "bound",
-            ),
         )
         gap = next((name for name, failed in checks if failed), "")
     if not gap:
         try:
-            commitment = load_openspec_commitment(source, tree_ref=source_head)
+            commitment = load_lease_bound_commitment(source, lease=source_lease)
         except ValueError as exc:
             gap = str(exc)
         else:
             change_id = commitment.id.removeprefix("change:")
-            commitment_digest = str(source_lease.get("base_commitment_digest") or "")
-    if (
-        not gap
-        and tree_entries(source, source_head, f"openspec/changes/{change_id}", run=run_git) is None
-    ):
-        gap = "source_change_carrier_missing"
-    source_commitment = (source, change_id, commitment_digest, source_head, source_branch)
+            carrier = str(source_lease.get("base_commitment_path") or "")
+            commitment_digest = commitment.digest()
+    source_commitment = (
+        source,
+        change_id,
+        carrier,
+        commitment_digest,
+        source_head,
+        source_branch,
+    )
     return (
-        ((Path(), "", "", "", ""), blocked_lane_start(branch, target, gap))
+        ((Path(), "", "", "", "", ""), blocked_lane_start(branch, target, gap))
         if gap
         else (source_commitment, None)
     )

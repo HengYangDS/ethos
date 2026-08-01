@@ -13,6 +13,7 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.repository.evidence.freshness import evidence_freshness_report
 from ethos.repository.evidence.topology import evidence_topology_report
+from ethos.repository.policy.gates import gate_execution_identity
 
 if TYPE_CHECKING:
     import pytest
@@ -105,7 +106,12 @@ def test_declared_offline_providers_execute_through_one_runner() -> None:
         assert gate.writes_files is False
 
         result = runner.run(
-            PlanNode(id=gate.id, kind="check", depends_on=gate.depends_on),
+            PlanNode(
+                id=gate.id,
+                kind="check",
+                command=gate_execution_identity(gate),
+                depends_on=gate.depends_on,
+            ),
             gate,
             root=ROOT,
         )

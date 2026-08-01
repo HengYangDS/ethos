@@ -115,7 +115,7 @@ deterministic transient TransitionPlan reproduce every public lifecycle verdict.
   and reject unmappable valid semantics as `model_gap`.
 - [x] 2.2 Replace global rank/currentness indexes with resolution over subject,
   predicate, scope, plane, validity, exact bindings, and contradiction blocking.
-- [ ] 2.3 Remove historical workflow re-evaluation from admission; validate
+- [x] 2.3 Remove historical workflow re-evaluation from admission; validate
   closure over exact Commitment, Facts, policy, plan, effect, and artifact.
 - [ ] 2.4 Complete exact carrier-byte/tree Lease bootstrap and CAS cutover;
   delete legacy evaluators, repair paths, dual reads, and fallbacks.

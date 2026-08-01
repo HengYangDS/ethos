@@ -17,7 +17,6 @@ from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -188,12 +187,7 @@ def push_admission_report(
     )
     base.update(decision={"action": "allow", "reason": "push_admitted"}, required_gaps=[])
     if role in PROTECTED_WRITE_ROLES and not branch_gaps:
-        try:
-            expected_plan = proof_plan(repo, head=pushed_head, binding_branch=branch)
-        except ValueError as error:
-            proof_gap_list = ["proof_not_proven", str(error)]
-        else:
-            proof_gap_list = proof_gaps(repo, pushed_head, expected_plan=expected_plan)
+        proof_gap_list = proof_gaps(repo, pushed_head)
     else:
         proof_gap_list = []
     topology_gaps = (
@@ -289,26 +283,10 @@ def ref_move_admission_report(
     )
     if mirror or branch == policy.accepted_branch:
         move_policy = candidate_policy if mirror else policy
-        try:
-            expected_plan = proof_plan(repo, head=new_value, binding_branch=branch)
-        except ValueError as error:
-            expected_plan = None
-            plan_gaps = [str(error)]
-        else:
-            plan_gaps = []
-        proof = (
-            proof_attestation(repo, new_value, expected_plan=expected_plan)
-            if expected_plan is not None
-            else None
-        )
+        proof = proof_attestation(repo, new_value)
         gaps = [
             *accepted_advance_gaps(repo, move_policy, old_value=old_value, new_value=new_value),
-            *plan_gaps,
-            *(
-                proof_gaps(repo, new_value, expected_plan=expected_plan)
-                if expected_plan is not None
-                else []
-            ),
+            *proof_gaps(repo, new_value),
         ]
         intent = consume_closeout_intent(
             root=repo,
@@ -317,9 +295,7 @@ def ref_move_admission_report(
             new_value=new_value,
             expect=MarkerExpectation(
                 evidence_digest=(
-                    proof_evidence_digest(repo, new_value, expected_plan=expected_plan)
-                    if expected_plan is not None
-                    else ""
+                    proof_evidence_digest(repo, new_value) if proof is not None else ""
                 ),
                 gate_policy_digest=proof.policy_digest if proof is not None else "",
             ),
@@ -335,15 +311,30 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
+        proof = proof_attestation(repo, new_value)
         if commit_contained_in(repo, new_value, policy.accepted_branch):
             gaps = []
         else:
-            try:
-                expected_plan = proof_plan(repo, head=new_value)
-            except ValueError as error:
-                gaps = ["proof_not_proven", str(error)]
-            else:
-                gaps = proof_gaps(repo, new_value, expected_plan=expected_plan)
+            gaps = proof_gaps(repo, new_value)
+        intent = consume_closeout_intent(
+            root=repo,
+            ref_name=ref_name,
+            old_value=old_value,
+            new_value=new_value,
+            expect=MarkerExpectation(
+                evidence_digest=(
+                    proof_evidence_digest(repo, new_value) if proof is not None else ""
+                ),
+                gate_policy_digest=proof.policy_digest if proof is not None else "",
+            ),
+        )
+        if intent["gap"]:
+            gap = str(intent["gap"])
+            gaps.append(
+                "candidate_ref_move_no_land_intent"
+                if gap == "accepted_ref_move_no_closeout_intent"
+                else gap.replace("closeout_intent", "candidate_land_intent")
+            )
         reason = "protected_ref_move_not_proven"
     else:
         return base

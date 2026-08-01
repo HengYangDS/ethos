@@ -2,16 +2,37 @@ from __future__ import annotations
 
 import json
 import subprocess
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.mutation.accepted as accepted_mutation
+import ethos.adapters.mutation.landing as landing_mutation
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.proof as proof_cli
+from ethos.adapters.mutation.proof import attestation_store_dir
+from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof import proof_evidence_digest
+from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
+from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import compile_plan
+from ethos.contracts.plan import proof_effect_digest
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
@@ -19,6 +40,7 @@ from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import init_repo_with_candidate
 from tests.support.contract_helpers import lane_start_arguments
 from tests.support.contract_helpers import seed_executed_proof
+from tests.support.contract_helpers import start_adopted_candidate
 from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.contract_helpers import write_role_policy
 from tests.support.ethos_cli_runner import run_ethos
@@ -290,7 +312,252 @@ def test_land_allows_officially_archived_work_lane_head(monkeypatch, tmp_path: P
     assert payload["verdict"] == "pass"
     assert payload["state"] == "candidate_validated"
     assert payload["required_gaps"] == []
+    proof = proof_attestation(worktree, archived_head)
+    assert proof is not None
+    assert payload["data"]["candidate_update"]["attestation"]["statement"]["plan"][
+        "prior_attestations"
+    ] == {
+        "proof": proof.model_dump(mode="json"),
+        "proof_set": proof_evidence_digest(worktree, archived_head),
+    }
     assert git(candidate, "rev-parse", "HEAD") == archived_head
+
+
+def test_work_lane_proof_is_invalid_after_same_head_lease_handoff(
+    monkeypatch, tmp_path: Path
+) -> None:
+    holder = "agent:test:case:agent-test"
+    successor = "agent:test:case:successor"
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path, holder_ref=holder)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    head = _archive_fixture_change(monkeypatch, worktree)
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    seed_executed_proof(worktree, head)
+    assert proof_attestation(worktree, head) is not None
+    assert proof_gaps(worktree, head) == []
+    branch = git(worktree, "branch", "--show-current")
+    lease = leases_by_branch(worktree)[branch]
+    offer = apply_lease_operation(
+        state_database(worktree),
+        request=LeaseOperationRequest(
+            operation="handoff_offer",
+            branch=branch,
+            holder_ref=holder,
+            target_holder_ref=successor,
+            lease_id=str(lease["lease_id"]),
+            expected_epoch=int(lease["epoch"]),
+            expect_head=head,
+            expected_expires_at=str(lease["expires_at"]),
+            expected_payload_sha256=str(lease["payload_sha256"]),
+            apply=True,
+        ),
+    )
+    accepted = apply_lease_operation(
+        state_database(worktree),
+        request=LeaseOperationRequest(
+            operation="handoff_accept",
+            branch=branch,
+            holder_ref=holder,
+            target_holder_ref=successor,
+            offer_id=str(offer["offer_id"]),
+            lease_id=str(offer["lease_id"]),
+            expected_epoch=int(offer["epoch"]),
+            expect_head=head,
+            expected_expires_at=str(offer["expires_at"]),
+            expected_payload_sha256=str(offer["payload_sha256"]),
+            holder_quiesced=True,
+            apply=True,
+        ),
+    )
+    assert (accepted["holder_ref"], accepted["epoch"]) == (successor, int(lease["epoch"]) + 1)
+
+    assert proof_attestation(worktree, head) is None
+    assert proof_gaps(worktree, head) == ["proof_lease_generation_stale"]
+    assert proof_attestation(candidate, head) is None
+    assert proof_gaps(candidate, head) == ["proof_lease_generation_stale"]
+
+
+@pytest.mark.parametrize(
+    ("lease_state", "commitment_binding"),
+    [("expired", "expired"), ("unknown", "unknown"), ("valid", "mismatch")],
+)
+def test_work_lane_proof_requires_a_live_commitment_bound_lease(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    lease_state: str,
+    commitment_binding: str,
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    head = _archive_fixture_change(monkeypatch, worktree)
+    seed_executed_proof(worktree, head)
+    branch = git(worktree, "branch", "--show-current")
+    lease = leases_by_branch(worktree)[branch]
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.proof_admission.leases_by_branch",
+        lambda _root: {
+            branch: lease
+            | {
+                "lease_state": lease_state,
+                "commitment_binding": commitment_binding,
+            }
+        },
+    )
+
+    assert proof_attestation(worktree, head) is None
+    assert proof_gaps(worktree, head) == ["proof_lease_generation_stale"]
+
+
+def test_land_allows_full_proof_for_lease_bound_authority(monkeypatch, tmp_path: Path) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(
+        worktree,
+        "system/gates.toml",
+        'schema_version = 1\nid = "fixture-gates"\n\n'
+        '[proof_sets]\ndefault = ["sample-tests", "sample-static"]\n'
+        'full = ["sample-tests", "sample-static", "full-only"]\n\n'
+        '[[gates]]\nid = "sample-tests"\nregistries = ["runtime"]\n'
+        'kind = "test"\ncommand = ["sample", "test"]\n'
+        'asset_classes = ["python-code"]\n'
+        'dimensions = ["test", "coverage"]\nevidence_class = "proof"\n'
+        'trust_bearing = true\ntool_adapter = "fixture"\n\n'
+        '[[gates]]\nid = "sample-static"\nregistries = ["runtime"]\n'
+        'kind = "typing"\ncommand = ["sample", "typecheck"]\n'
+        'asset_classes = ["python-code"]\n'
+        'dimensions = ["static-analysis"]\nevidence_class = "contract"\n'
+        'trust_bearing = true\ntool_adapter = "fixture"\n\n'
+        '[[gates]]\nid = "full-only"\nregistries = ["runtime"]\n'
+        'kind = "test"\ncommand = ["sample", "full"]\n'
+        'asset_classes = ["python-code"]\n'
+        'dimensions = ["behavior"]\nevidence_class = "proof"\n'
+        'trust_bearing = true\ntool_adapter = "fixture"\n',
+        "declare split proof floors",
+    )
+    commit_fixture_file(
+        worktree,
+        ".ethos/profile.toml",
+        'profile_id = "repo"\n\n'
+        '[proof]\ngate_registry = "system/gates.toml"\n\n'
+        '[openspec]\nmaterial_paths = ["openspec/**"]\n',
+        "select split proof floors",
+    )
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    archived_head = _archive_fixture_change(monkeypatch, worktree)
+    seed_executed_proof(worktree, archived_head, full=True)
+    monkeypatch.setattr(
+        "ethos.domain.status.audit_for_root",
+        lambda root, **_: {
+            "verdict": "pass",
+            "required_gaps": [],
+            "root": root.as_posix(),
+        },
+    )
+
+    payload = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        archived_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["verdict"] == "pass"
+    assert payload["state"] == "candidate_validated"
+    assert payload["required_gaps"] == []
+    assert git(candidate, "rev-parse", "HEAD") == archived_head
+
+
+def test_land_rejects_proof_self_granted_candidate_authority(monkeypatch, tmp_path: Path) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    work_head = _archive_fixture_change(monkeypatch, worktree)
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_executed_proof(worktree, work_head)
+    valid = proof_attestation(worktree, work_head)
+    assert valid is not None
+    plan = TransitionPlan.model_validate(valid.model_dump(mode="json")["statement"]["plan"])
+    commitment = dict(valid.statement["commitment"])
+    commitment["permissions"] = ["git.ref.compare-and-swap"]
+    commitment_digest = Commitment.model_validate_json(json.dumps(commitment)).digest()
+    fact_values = dict(plan.facts["values"])
+    fact_values["changed_paths"] = ()
+    facts = Facts.model_validate(
+        {
+            **plan.facts,
+            "observed_at": datetime.now(UTC),
+            "values": fact_values,
+        }
+    )
+    effect_digest = proof_effect_digest(
+        commitment=commitment_digest,
+        facts=facts.digest(),
+        policy=plan.inputs.policy,
+        nodes=plan.nodes,
+    )
+    forged_plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=commitment_digest,
+            facts=facts.digest(),
+            prior_attestations=plan.inputs.prior_attestations,
+            policy=plan.inputs.policy,
+            effect=effect_digest,
+        ),
+        closure={
+            "commitment": commitment,
+            "prior_attestations": plan.prior_attestations,
+            "policy": valid.statement["policy"],
+            "effect": {
+                "operation": "proof.execute",
+                "commitment": commitment_digest,
+                "facts": facts.digest(),
+                "policy": plan.inputs.policy,
+                "nodes": [node.model_dump(mode="json") for node in plan.nodes],
+            },
+        },
+        permissions=("git.ref.compare-and-swap",),
+        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=plan.nodes,
+    )
+    forged = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "commitment_digest": commitment_digest,
+            "facts_digest": facts.digest(),
+            "plan_digest": forged_plan.digest,
+            "effect_digest": effect_digest,
+            "statement": valid.statement
+            | {
+                "changed_paths": (),
+                "inputs": {
+                    "commitment": commitment_digest,
+                    "facts": facts.digest(),
+                    "plan": forged_plan.digest,
+                    "policy": plan.inputs.policy,
+                    "effect": effect_digest,
+                },
+                "plan": forged_plan.model_dump(mode="json"),
+                "commitment": commitment,
+            },
+        }
+    )
+    (attestation_store_dir(worktree) / f"{valid.id}.json").unlink()
+    persist_proof_attestation(worktree, forged)
+    assert proof_attestation(worktree, work_head) == forged
+
+    payload = run_ethos_blocked(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        work_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["required_gaps"] == ["proof_attestation_authority_binding_mismatch"]
+    assert git(candidate, "rev-parse", "HEAD") == candidate_head
 
 
 def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None:
@@ -523,6 +790,7 @@ def _prepare_configured_branch_roles(tmp_path: Path) -> tuple[Path, Path, Path, 
         candidate_branch="stage/integration",
         work_branch_prefix="lane/",
         proposal_branch_prefix="review/",
+        release_mirror="accepted_ff",
     )
     git(repo, "branch", "release", "integration")
     accepted_head = git(repo, "rev-parse", "HEAD")
@@ -634,9 +902,15 @@ def _land_configured_lane(
     candidate_attestation = land_payload["data"]["candidate_update"]["attestation"]
     assert candidate_attestation["predicate"] == "effect:git-ref-update"
     assert not {"kind", "content", "mints_authority"} & set(candidate_attestation)
+    proof = proof_attestation(worktree, work_head)
+    assert proof is not None
+    prior_attestations = {
+        "proof": proof.model_dump(mode="json"),
+        "proof_set": proof_evidence_digest(worktree, work_head),
+    }
+    assert candidate_attestation["statement"]["plan"]["prior_attestations"] == prior_attestations
     assert git(candidate_path, "rev-parse", "HEAD") == work_head
     assert git(repo, "rev-parse", "integration") == accepted_head
-    seed_executed_proof(candidate_path, work_head)
     closeout_payload = run_ethos(
         "land",
         "--closeout",
@@ -658,8 +932,123 @@ def _land_configured_lane(
     assert accepted_update["required_gaps"] == []
     accepted_attestation = accepted_update["attestation"]
     assert accepted_attestation["predicate"] == "effect:git-ref-update"
+    assert (
+        accepted_attestation["commitment_digest"]
+        == load_repository_commitment(repo, tree_ref=accepted_head).digest()
+    )
+    assert accepted_attestation["statement"]["plan"]["prior_attestations"] == prior_attestations
     assert accepted_attestation["statement"]["result"]["state"] == "applied"
     assert not {"kind", "content", "mints_authority"} & set(accepted_attestation)
+    assert git(repo, "rev-parse", "release") == work_head
+    mirror_attestation = accepted_update["attestations"][1]
+    assert mirror_attestation["statement"]["plan"]["prior_attestations"] == {
+        **prior_attestations,
+        "accepted_effect": accepted_attestation,
+    }
+
+
+def test_closeout_rejects_candidate_self_granted_accepted_authority(tmp_path: Path) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    repository_commitment = repo / ".ethos" / "commitment.toml"
+    repository_commitment.write_text(
+        repository_commitment.read_text(encoding="utf-8").replace(
+            ', "git.ref.compare-and-swap"', ""
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", repository_commitment.as_posix())
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "remove accepted update authority",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", accepted_head)
+    candidate_commitment = candidate / ".ethos" / "commitment.toml"
+    candidate_commitment.write_text(
+        candidate_commitment.read_text(encoding="utf-8").replace(
+            'permissions = ["repository.read"]',
+            'permissions = ["repository.read", "git.ref.compare-and-swap"]',
+        ),
+        encoding="utf-8",
+    )
+    git(candidate, "add", candidate_commitment.as_posix())
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "self grant accepted update authority",
+    )
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    git(repo, "branch", "candidate-selected-accepted", accepted_head)
+    seed_executed_proof(candidate, candidate_head)
+
+    report = accepted_mutation.promote_candidate(
+        root=repo,
+        policy=load_branch_role_policy(repo),
+        current_head=accepted_head,
+        candidate_head=candidate_head,
+        status=workspace_status(repo),
+    )
+
+    assert report["verdict"] == "block", report
+    assert report["required_gaps"] == ["accepted_atomic_update_rejected"]
+    assert "git_effect_permission_denied" in report["stderr"]
+    assert git(repo, "rev-parse", "dev") == accepted_head
+
+
+def test_closeout_first_cas_uses_the_accepted_policy_when_candidate_changes_topology(
+    tmp_path: Path,
+) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    workspace = candidate / ".ethos" / "workspace.toml"
+    workspace.parent.mkdir(parents=True, exist_ok=True)
+    workspace.write_text(
+        """[branch_roles]
+release_branch = "main"
+accepted_branch = "candidate-selected-accepted"
+candidate_branch = "candidate/dev"
+work_branch_prefix = "work/"
+proposal_branch_prefix = "proposal/"
+release_mirror = "independent"
+repository_family_worktrees = false
+""",
+        encoding="utf-8",
+    )
+    git(candidate, "add", workspace.as_posix())
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "change future branch topology",
+    )
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    git(repo, "branch", "candidate-selected-accepted", accepted_head)
+    seed_executed_proof(candidate, candidate_head)
+
+    report = landing_mutation.apply_candidate_to_accepted(
+        root=repo,
+        authorized=True,
+        expect_head=accepted_head,
+    )
+
+    assert report["verdict"] == "pass", report
+    assert git(repo, "rev-parse", "dev") == candidate_head
+    assert git(repo, "rev-parse", "candidate-selected-accepted") == accepted_head
 
 
 def _retire_configured_lane(repo: Path, work_head: str) -> None:
@@ -845,9 +1234,18 @@ def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
 
+    admitted = proof_cli.proof_plan(repo, head=git(repo, "rev-parse", "HEAD"))
     rejected_plan = TransitionPlan.compile(
-        inputs=PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
-        facts={},
+        inputs=admitted.inputs,
+        closure={
+            "commitment": admitted.commitment,
+            "prior_attestations": admitted.prior_attestations,
+            "policy": admitted.policy,
+            "effect": admitted.effect,
+        },
+        permissions=admitted.permissions,
+        facts=admitted.facts,
+        nodes=admitted.nodes,
         required_gaps=("repository_subject_mismatch",),
     )
 
@@ -871,10 +1269,19 @@ def test_prove_empty_focused_plan_keeps_host_probe_separate_without_claiming_rea
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-
-    ready_plan = TransitionPlan.compile(
-        inputs=PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
-        facts={},
+    head = git(repo, "rev-parse", "HEAD")
+    commitment = load_repository_commitment(repo, tree_ref=head)
+    ready_plan = compile_plan(
+        commitment,
+        Facts(
+            repository=commitment.id,
+            head=head,
+            tree=git(repo, "rev-parse", "HEAD^{tree}"),
+            observed_at=datetime.now(UTC),
+            values={"changed_paths": ()},
+        ),
+        (),
+        policy={},
     )
 
     monkeypatch.setattr(
@@ -912,3 +1319,39 @@ def test_prove_empty_focused_plan_keeps_host_probe_separate_without_claiming_rea
         "truth_boundary": "host-local projection",
         "state": "boundary_recorded",
     }
+
+
+def test_run_plan_checks_resolves_policy_from_plan_head(monkeypatch, tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    commitment = Commitment(
+        id="repository:test",
+        intent="Test one empty proof plan.",
+        subjects=("repository:test",),
+    )
+    plan = compile_plan(
+        commitment,
+        Facts(
+            repository=commitment.id,
+            head=head,
+            tree=git(repo, "rev-parse", "HEAD^{tree}"),
+            observed_at=datetime.now(UTC),
+            values={"changed_paths": ()},
+        ),
+        (),
+        policy={},
+    )
+    seen: list[dict[str, object]] = []
+
+    class EmptyPolicy:
+        def __init__(self) -> None:
+            self.registry: dict[str, object] = {}
+
+    def resolve(*_args, **kwargs):
+        seen.append(kwargs)
+        return EmptyPolicy()
+
+    monkeypatch.setattr(proof_cli, "resolve_gate_policy", resolve)
+
+    assert proof_cli.run_plan_checks(repo=repo, plan=plan, execute=False) == ([], False)
+    assert seen == [{"tree_ref": head, "gate_ids": ()}]

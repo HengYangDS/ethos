@@ -8,7 +8,7 @@ discriminator, blocking raw ref moves would also block the sanctioned closeout, 
 admitting the sanctioned closeout would admit the raw one.
 
 This module is that discriminator. Official closeout writes a ONE-SHOT marker just
-before its CAS, binding the exact transition (ref/old/new/candidate_head) and the
+before its CAS, binding the exact transition (ref/old/new) and the
 proof it carries. The hook consumes the marker during `prepared`: a matching,
 unexpired, unconsumed marker means "this process started this closeout".
 
@@ -34,14 +34,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+import ethos.adapters.repo.git_effect_attestation
+from ethos.adapters.mutation.proof import proof_evidence_digest
+from ethos.adapters.mutation.proof import proof_plan_for_attestation
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git_effects import GitEffectExecutionRequest
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import git_effect_attestations
+from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import git_effect_from_plan
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
-    from ethos.contracts.plan import GitEffect
-    from ethos.contracts.semantic import Attestation
+    from ethos.contracts.plan import TransitionPlan
 
 # Marker TTL: a closeout writes the marker immediately before its CAS, so the live
 # window is sub-second. A minute is a generous ceiling that still expires a crashed
@@ -52,32 +57,15 @@ _SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True)
-class CloseoutTransition:
-    """The exact accepted-ref move an official closeout authorizes.
-
-    These four fields always travel together — the marker binds them and the hook
-    matches against them — so they are one value, not four parameters.
-    """
-
-    ref_name: str
-    old_value: str
-    new_value: str
-    candidate_head: str
-
-
-@dataclass(frozen=True, slots=True)
 class MarkerExpectation:
-    """The proof and terminal bindings required for one closeout effect.
+    """The proof bindings checked by the one-shot closeout discriminator.
 
-    Marker consumption skips an absent evidence or policy comparison. Effect execution
-    separately rejects missing Commitment, Facts, or policy bindings before mutation.
-    Bundling keeps the boundary cohesive rather than passing a bag of digest parameters.
+    Marker consumption skips an absent evidence or policy comparison. The TransitionPlan,
+    not this local marker, owns effect authority and semantic closure.
     """
 
     evidence_digest: str = ""
     gate_policy_digest: str = ""
-    commitment_digest: str = ""
-    facts_digest: str = ""
 
 
 def _git_path(root: Path, relative: str) -> Path:
@@ -105,16 +93,17 @@ def _marker_path(root: Path, nonce: str) -> Path:
 def write_closeout_intent(
     *,
     root: Path,
-    transition: CloseoutTransition,
+    ref_name: str,
+    update: GitRefUpdate,
     evidence_digest: str,
     gate_policy_digest: str = "",
 ) -> dict[str, Any]:
     """Write a one-shot closeout-intent marker and return it.
 
-    Called by official closeout AFTER capturing accepted_old + candidate_head and
+    Called by official closeout AFTER capturing the expected and desired ref values and
     BEFORE the CAS, in a single capture with the values the CAS will use. The marker is
     keyed by an unguessable nonce and carries the exact transition it authorizes so the
-    hook can match old/new/candidate_head and reject a marker written for a different
+    hook can match old/new and reject a marker written for a different
     move. It also carries the proof's evidence_digest and the live gate_policy_digest so
     admission can reject a marker whose bound proof/policy does not match this transition.
     """
@@ -122,10 +111,9 @@ def write_closeout_intent(
     created = datetime.now(UTC)
     marker: dict[str, Any] = {
         "schema_version": _SCHEMA_VERSION,
-        "ref_name": transition.ref_name,
-        "old_value": transition.old_value,
-        "new_value": transition.new_value,
-        "candidate_head": transition.candidate_head,
+        "ref_name": ref_name,
+        "old_value": update.expected,
+        "new_value": update.desired,
         "evidence_digest": evidence_digest,
         "gate_policy_digest": gate_policy_digest,
         "nonce": nonce,
@@ -198,40 +186,84 @@ def sweep_stale_closeout_intents(root: Path, *, now: datetime | None = None) -> 
 def execute_closeout_effect(
     *,
     root: Path,
-    effect: GitEffect,
-    transitions: tuple[CloseoutTransition, ...],
-    expectation: MarkerExpectation,
-    permissions: tuple[str, ...],
+    plan: TransitionPlan,
 ) -> Attestation:
     """Execute one effect while its exact closeout intents are live."""
+    effect = git_effect_from_plan(plan)
+    expectation = _proof_expectation(root, plan, effect)
     intents = []
     try:
         intents.extend(
             write_closeout_intent(
                 root=root,
-                transition=transition,
+                ref_name=ref_name,
+                update=update,
                 evidence_digest=expectation.evidence_digest,
                 gate_policy_digest=expectation.gate_policy_digest,
             )
-            for transition in transitions
+            for ref_name, update in effect.updates.items()
         )
         attestation = execute_git_effect(
             root,
-            effect,
-            GitEffectExecutionRequest(
-                issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
-                attestations=git_effect_attestations(root, effect),
-                permissions=permissions,
-                commitment_digest=expectation.commitment_digest,
-                facts_digest=expectation.facts_digest,
-                policy_digest=expectation.gate_policy_digest,
-            ),
+            plan,
+            issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+            attestations=git_effect_attestations(root, effect),
         )
         git_effect_attestations(root, effect, attestation)
         return attestation
     finally:
         for intent in intents:
             clear_closeout_intent(root, str(intent["nonce"]))
+
+
+def _proof_expectation(root: Path, plan: TransitionPlan, effect) -> MarkerExpectation:
+    proof_set = plan.prior_attestations.get("proof_set")
+    try:
+        proof = Attestation.model_validate_json(
+            json.dumps(mutable_json(plan.prior_attestations["proof"]))
+        )
+        proof_plan_for_attestation(root, proof)
+    except (KeyError, TypeError, ValueError) as error:
+        message = f"git_effect_prior_proof_invalid:{error}"
+        raise ValueError(message) from error
+    proof_head = proof.subject.removeprefix("git:commit:")
+    if (
+        not isinstance(proof_set, str)
+        or not proof_set
+        or proof_evidence_digest(root, proof_head) != proof_set
+    ):
+        message = "git_effect_prior_proof_set_mismatch"
+        raise ValueError(message)
+    if {update.desired for update in effect.updates.values()} != {proof_head}:
+        message = "git_effect_prior_proof_head_mismatch"
+        raise ValueError(message)
+    accepted_payload = plan.prior_attestations.get("accepted_effect")
+    if accepted_payload is not None:
+        try:
+            accepted = Attestation.model_validate_json(json.dumps(mutable_json(accepted_payload)))
+            accepted_plan = ethos.adapters.repo.git_effect_attestation.plan_from_attestation(
+                accepted
+            )
+            accepted_effect = git_effect_from_plan(accepted_plan)
+            ethos.adapters.repo.git_effect_attestation.validate(
+                root,
+                accepted_effect,
+                accepted,
+                issuer=accepted.verifier,
+                plan=accepted_plan,
+            )
+        except (TypeError, ValueError) as error:
+            message = f"git_effect_prior_accepted_effect_invalid:{error}"
+            raise ValueError(message) from error
+        if {
+            ref: update.desired for ref, update in accepted_effect.updates.items()
+        } != effect.assertions:
+            message = "git_effect_prior_accepted_effect_mismatch"
+            raise ValueError(message)
+    return MarkerExpectation(
+        evidence_digest=proof_set,
+        gate_policy_digest=proof.policy_digest,
+    )
 
 
 def consume_closeout_intent(
@@ -258,7 +290,7 @@ def consume_closeout_intent(
 
     An empty expected_* skips that comparison when the caller has no digest to bind.
     Reuse (B6) falls out of the one-shot delete. Consuming does NOT admit — the
-    caller still re-runs FF / == candidate_head / proof completeness / policy digest.
+    caller still re-runs FF / candidate-head / proof completeness / policy checks.
     """
     moment = datetime.now(UTC)
     marker_dir = closeout_intent_dir(root)

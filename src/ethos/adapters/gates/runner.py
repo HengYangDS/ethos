@@ -13,6 +13,7 @@ from typing import cast
 from ethos.adapters.repo.git import current_head
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.policy.gates import gate_execution_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -78,11 +79,11 @@ def _ethos_result_verdict(stdout: str) -> tuple[Verdict, tuple[dict[str, Any], .
 
 
 class DryRunRunner:
-    def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
+    def run(self, node: PlanNode, _gate: Gate, *, root: Path) -> ActionRunResult:
         root.resolve(strict=True)
         return ActionRunResult(
             action_id=node.id,
-            command=gate.command,
+            command=node.command,
             verdict="unknown",
             exit_code=None,
         )
@@ -92,21 +93,35 @@ class LocalGateRunner:
     """Execute a declared provider directly or an external adapter command."""
 
     def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
+        if node.command != gate_execution_identity(gate):
+            return ActionRunResult(
+                action_id=node.id,
+                command=node.command,
+                verdict="block",
+                exit_code=1,
+                diagnostics=(
+                    {
+                        "kind": "gate_execution_identity",
+                        "required_gaps": [f"gate_execution_identity_mismatch:{node.id}"],
+                    },
+                ),
+            )
         if gate.providers:
             return _run_providers(node, gate, root)
+        command = gate.command
         try:
             completed = subprocess.run(
-                list(gate.command),
+                list(command),
                 cwd=root,
                 text=True,
                 capture_output=True,
                 check=False,
             )
         except FileNotFoundError as exc:
-            missing = str(exc.filename or gate.command[0])
+            missing = str(exc.filename or command[0])
             return ActionRunResult(
                 action_id=node.id,
-                command=gate.command,
+                command=node.command,
                 verdict="block",
                 exit_code=127,
                 stderr=str(exc),
@@ -125,7 +140,7 @@ class LocalGateRunner:
         )
         return ActionRunResult(
             action_id=node.id,
-            command=gate.command,
+            command=node.command,
             verdict=verdict,
             exit_code=completed.returncode,
             stdout=completed.stdout,
@@ -198,7 +213,7 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(
         action_id=node.id,
-        command=("provider", *gate.providers),
+        command=node.command,
         verdict=verdict,
         exit_code=0 if verdict == "pass" else 1,
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),

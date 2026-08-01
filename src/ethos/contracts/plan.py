@@ -2,7 +2,8 @@
 
 import fnmatch
 import hashlib
-import json
+from datetime import UTC
+from datetime import datetime
 from graphlib import CycleError
 from graphlib import TopologicalSorter
 from pathlib import PurePosixPath
@@ -19,6 +20,7 @@ from pydantic import model_validator
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import FrozenMapping
 from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
@@ -27,10 +29,7 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
-
-
-def _stable_json(value: object) -> str:
-    return json.dumps(mutable_json(value), sort_keys=True, separators=(",", ":"))
+EMPTY_ATTESTATION_SET_DIGEST = canonical_json_digest({})
 
 
 class _PlanModel(BaseModel):
@@ -63,7 +62,9 @@ class PlanInputs(_PlanModel):
 
     commitment: Digest
     facts: Digest
+    prior_attestations: Digest = EMPTY_ATTESTATION_SET_DIGEST
     policy: Digest
+    effect: Digest
 
 
 class GitRefUpdate(_PlanModel):
@@ -76,8 +77,6 @@ class GitRefUpdate(_PlanModel):
 class GitEffect(_PlanModel):
     """One typed, permission-bounded Git ref transaction."""
 
-    id: str = Field(min_length=1)
-    plan_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     updates: FrozenMapping[GitRefUpdate] = Field(min_length=1)
     assertions: FrozenMapping[str] = Field(default_factory=dict)
 
@@ -104,8 +103,33 @@ class GitEffect(_PlanModel):
         return self
 
     def digest(self) -> str:
-        """Return the deterministic identity of this exact effect content."""
-        return hashlib.sha256(_stable_json(self.model_dump(mode="json")).encode()).hexdigest()
+        """Return the identity of the exact canonical update-ref program bytes."""
+        return hashlib.sha256(self.program()).hexdigest()
+
+    def program(self) -> bytes:
+        """Render the exact deterministic update-ref transaction program."""
+        return "\0".join(
+            (
+                "start",
+                *(
+                    token
+                    for ref in sorted(self.assertions)
+                    for token in (f"update {ref}", self.assertions[ref], self.assertions[ref])
+                ),
+                *(
+                    token
+                    for ref in sorted(self.updates)
+                    for token in (
+                        f"update {ref}",
+                        self.updates[ref].desired,
+                        self.updates[ref].expected,
+                    )
+                ),
+                "prepare",
+                "commit",
+                "",
+            )
+        ).encode()
 
 
 class TransitionPlan(_PlanModel):
@@ -121,6 +145,10 @@ class TransitionPlan(_PlanModel):
 
     schema_version: Literal[1] = Field(default=1, json_schema_extra={"readOnly": True})
     inputs: PlanInputs = Field(json_schema_extra={"readOnly": True})
+    commitment: JsonObject
+    prior_attestations: JsonObject
+    policy: JsonObject
+    effect: JsonObject
     permissions: FrozenTuple[str] = Field(default=(), json_schema_extra={"uniqueItems": True})
     facts: JsonObject = Field(default_factory=dict)
     nodes: FrozenTuple[PlanNode] = ()
@@ -193,6 +221,7 @@ class TransitionPlan(_PlanModel):
         cls,
         *,
         inputs: PlanInputs,
+        closure: JsonObject,
         permissions: tuple[str, ...] = (),
         facts: JsonObject,
         nodes: tuple[PlanNode, ...] = (),
@@ -202,31 +231,141 @@ class TransitionPlan(_PlanModel):
         """Compile one canonical immutable DAG projection from exact inputs."""
         ordered, graph_gaps = cls._resolve_nodes(nodes)
         gaps = tuple(dict.fromkeys((*required_gaps, *graph_gaps)))
+        carried = mutable_json(closure)
+        if not isinstance(carried, dict) or set(carried) != {
+            "commitment",
+            "prior_attestations",
+            "policy",
+            "effect",
+        }:
+            message = "transition_plan_closure_invalid"
+            raise ValueError(message)
         payload: dict[str, Any] = {
             "schema_version": 1,
             "inputs": inputs.model_dump(mode="json"),
+            "commitment": carried["commitment"],
+            "prior_attestations": carried["prior_attestations"],
+            "policy": carried["policy"],
+            "effect": carried["effect"],
             "permissions": sorted(set(permissions)),
             "facts": mutable_json(facts),
             "nodes": [node.model_dump(mode="json") for node in ordered],
             "verdict": close_verdict(verdict, gaps),
             "required_gaps": list(gaps),
         }
-        return cls.model_validate(
-            payload | {"digest": hashlib.sha256(_stable_json(payload).encode()).hexdigest()}
-        )
+        return cls.model_validate(payload | {"digest": canonical_json_digest(payload)})
 
     @model_validator(mode="after")
     def validate_canonical_projection(self) -> Self:
         """Reject noncanonical order, open verdicts, graph gaps, or stale identity."""
         ordered, graph_gaps = self._resolve_nodes(self.nodes)
         if ordered != self.nodes or any(gap not in self.required_gaps for gap in graph_gaps):
-            raise ValueError("transition_plan_graph_invalid")
+            message = "transition_plan_graph_invalid"
+            raise ValueError(message)
         if close_verdict(self.verdict, self.required_gaps) != self.verdict:
-            raise ValueError("transition_plan_verdict_invalid")
+            message = "transition_plan_verdict_invalid"
+            raise ValueError(message)
+        try:
+            commitment = Commitment.model_validate(mutable_json(self.commitment), strict=False)
+            facts = Facts.model_validate(
+                {
+                    **mutable_json(self.facts),
+                    "observed_at": datetime(1970, 1, 1, tzinfo=UTC),
+                },
+                strict=False,
+            )
+            effect_digest = (
+                GitEffect.model_validate(mutable_json(self.effect), strict=False).digest()
+                if self.nodes
+                == (
+                    PlanNode(
+                        id="git.ref.compare-and-swap",
+                        kind="effect",
+                        command=("git", "update-ref", "--stdin", "-z"),
+                    ),
+                )
+                else canonical_json_digest(self.effect)
+            )
+        except (TypeError, ValueError) as error:
+            message = "transition_plan_closure_invalid"
+            raise ValueError(message) from error
+        if self.inputs != PlanInputs(
+            commitment=commitment.digest(),
+            facts=facts.digest(),
+            prior_attestations=canonical_json_digest(self.prior_attestations),
+            policy=canonical_json_digest(self.policy),
+            effect=effect_digest,
+        ) or self.permissions != tuple(sorted(set(commitment.permissions))):
+            message = "transition_plan_closure_mismatch"
+            raise ValueError(message)
         payload = self.model_dump(mode="json", exclude={"digest"})
-        if self.digest != hashlib.sha256(_stable_json(payload).encode()).hexdigest():
-            raise ValueError("transition_plan_digest_mismatch")
+        if self.digest != canonical_json_digest(payload):
+            message = "transition_plan_digest_mismatch"
+            raise ValueError(message)
         return self
+
+
+def compile_git_effect_plan(
+    commitment: Commitment,
+    facts: Facts,
+    *,
+    prior_attestations: JsonObject,
+    policy: JsonObject,
+    effect: GitEffect,
+) -> TransitionPlan:
+    """Compile one self-contained plan around one exact Git CAS effect."""
+    return TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=commitment.digest(),
+            facts=facts.digest(),
+            prior_attestations=canonical_json_digest(prior_attestations),
+            policy=canonical_json_digest(policy),
+            effect=effect.digest(),
+        ),
+        closure={
+            "commitment": commitment.identity_projection(),
+            "prior_attestations": prior_attestations,
+            "policy": policy,
+            "effect": effect.model_dump(mode="json"),
+        },
+        permissions=commitment.permissions,
+        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=(
+            PlanNode(
+                id="git.ref.compare-and-swap",
+                kind="effect",
+                command=("git", "update-ref", "--stdin", "-z"),
+            ),
+        ),
+    )
+
+
+def git_effect_from_plan(plan: TransitionPlan) -> GitEffect:
+    """Return the exact Git effect after validating its carried plan closure."""
+    try:
+        validated = TransitionPlan.model_validate(plan.model_dump(mode="json"))
+        effect = GitEffect.model_validate(mutable_json(validated.effect), strict=False)
+    except (TypeError, ValueError) as error:
+        message = (
+            "git_effect_plan_mismatch"
+            if "transition_plan_closure_mismatch" in str(error)
+            or "transition_plan_digest_mismatch" in str(error)
+            else "git_effect_plan_invalid"
+        )
+        raise ValueError(message) from error
+    if validated.nodes != (
+        PlanNode(
+            id="git.ref.compare-and-swap",
+            kind="effect",
+            command=("git", "update-ref", "--stdin", "-z"),
+        ),
+    ):
+        message = "git_effect_plan_mismatch"
+        raise ValueError(message)
+    if validated.verdict != "pass":
+        message = "git_effect_plan_not_admitted"
+        raise ValueError(message)
+    return effect
 
 
 def compile_plan(
@@ -234,7 +373,7 @@ def compile_plan(
     facts: Facts,
     nodes: tuple[PlanNode, ...],
     *,
-    policy_digest: str,
+    policy: JsonObject,
     required_gaps: tuple[str, ...] = (),
 ) -> TransitionPlan:
     """Compile one effective commitment and current fact snapshot into TransitionPlan."""
@@ -257,13 +396,59 @@ def compile_plan(
         inputs=PlanInputs(
             commitment=commitment.digest(),
             facts=facts.digest(),
-            policy=policy_digest,
+            prior_attestations=EMPTY_ATTESTATION_SET_DIGEST,
+            policy=canonical_json_digest(policy),
+            effect=proof_effect_digest(
+                commitment=commitment.digest(),
+                facts=facts.digest(),
+                policy=canonical_json_digest(policy),
+                nodes=nodes,
+            ),
         ),
+        closure={
+            "commitment": commitment.identity_projection(),
+            "prior_attestations": {},
+            "policy": policy,
+            "effect": proof_effect_projection(
+                commitment=commitment.digest(),
+                facts=facts.digest(),
+                policy=canonical_json_digest(policy),
+                nodes=nodes,
+            ),
+        },
         permissions=commitment.permissions,
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=nodes,
         required_gaps=tuple(dict.fromkeys(gaps)),
     )
+
+
+def proof_effect_digest(
+    *, commitment: str, facts: str, policy: str, nodes: tuple[PlanNode, ...]
+) -> str:
+    """Return the canonical identity of one proof execution closure."""
+    return canonical_json_digest(
+        proof_effect_projection(
+            commitment=commitment,
+            facts=facts,
+            policy=policy,
+            nodes=nodes,
+        )
+    )
+
+
+def proof_effect_projection(
+    *, commitment: str, facts: str, policy: str, nodes: tuple[PlanNode, ...]
+) -> JsonObject:
+    """Return the exact proof operation carried by its TransitionPlan."""
+    ordered = TransitionPlan.closure(nodes)
+    return {
+        "operation": "proof.execute",
+        "commitment": commitment,
+        "facts": facts,
+        "policy": policy,
+        "nodes": [node.model_dump(mode="json") for node in ordered],
+    }
 
 
 def terminal_schema_documents() -> dict[str, dict[str, Any]]:

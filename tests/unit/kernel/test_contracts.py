@@ -24,21 +24,40 @@ from ethos.contracts.plan import terminal_schema_documents
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.repository.context import repository_context
 from ethos.result import EthosResult
 
+_PLAN_COMMITMENT = Commitment(
+    id="change:test-plan",
+    intent="Exercise one transition plan.",
+    subjects=("repository:test",),
+)
+_PLAN_FACTS = Facts(
+    repository="repository:test",
+    head="a" * 40,
+    tree="b" * 40,
+    observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+    values={},
+)
+_PLAN_POLICY = {"name": "test"}
+_PLAN_EFFECT = {"operation": "test"}
 _PLAN_INPUTS = {
-    "inputs": PlanInputs(commitment="a" * 64, facts="b" * 64, policy="c" * 64),
-    "facts": {
-        "schema_version": 1,
-        "repository": "repository:test",
-        "head": "a" * 40,
-        "tree": "b" * 40,
-        "values": {},
-        "source_refs": [],
+    "inputs": PlanInputs(
+        commitment=_PLAN_COMMITMENT.digest(),
+        facts=_PLAN_FACTS.digest(),
+        policy=canonical_json_digest(_PLAN_POLICY),
+        effect=canonical_json_digest(_PLAN_EFFECT),
+    ),
+    "closure": {
+        "commitment": _PLAN_COMMITMENT.identity_projection(),
+        "prior_attestations": {},
+        "policy": _PLAN_POLICY,
+        "effect": _PLAN_EFFECT,
     },
+    "facts": _PLAN_FACTS.model_dump(mode="json", exclude={"observed_at"}),
 }
 _BASE = {"id": "change:terminal-kernel", "intent": "Base", "subjects": ("repo",)}
 _ISSUED_AT = datetime(2026, 7, 25, tzinfo=UTC)
@@ -473,10 +492,14 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     plan = TransitionPlan.compile(
         **_PLAN_INPUTS, nodes=(PlanNode(id="land", kind="effect", command=("ethos", "land")),)
     )
-    assert plan.model_dump(mode="json")["inputs"]["commitment"] == "a" * 64
+    assert plan.inputs.commitment == _PLAN_COMMITMENT.digest()
     assert set(generated["transition-plan.schema.json"]["required"]) == {
         "schema_version",
         "inputs",
+        "commitment",
+        "prior_attestations",
+        "policy",
+        "effect",
         "permissions",
         "facts",
         "nodes",

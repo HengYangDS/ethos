@@ -87,11 +87,19 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
     }
 
 
-def _run_plan_checks(
+def run_plan_checks(
     *, repo: Path, plan: TransitionPlan, execute: bool
 ) -> tuple[list[dict[str, object]], bool]:
     """Run or project the admitted TransitionPlan gate sequence."""
-    gates_by_id = resolve_gate_policy(repo, gate_ids=tuple(node.id for node in plan.nodes)).registry
+    plan_head = plan.facts.get("head")
+    if not isinstance(plan_head, str) or not plan_head:
+        message = "proof_plan_head_missing"
+        raise ValueError(message)
+    gates_by_id = resolve_gate_policy(
+        repo,
+        tree_ref=plan_head,
+        gate_ids=tuple(node.id for node in plan.nodes),
+    ).registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     checks: list[dict[str, object]] = []
     for run_result in (runner.run(node, gates_by_id[node.id], root=repo) for node in plan.nodes):
@@ -210,7 +218,20 @@ def prove(
             json_output=json_output,
         )
         return
-    checks, runs_ok = _run_plan_checks(repo=repo, plan=plan, execute=options.execute)
+    try:
+        checks, runs_ok = run_plan_checks(repo=repo, plan=plan, execute=options.execute)
+    except ValueError as exc:
+        emit(
+            EthosResult(
+                command="prove",
+                verdict="block",
+                state="gapped",
+                required_gaps=(str(exc),),
+                next_actions=("ethos plan --changed --json",),
+            ),
+            json_output=json_output,
+        )
+        return
     verdicts_ok = bool(checks) and all(check["verdict"] == "pass" for check in checks)
     trust_bearing_ok = any(
         check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
@@ -233,8 +254,10 @@ def prove(
         if options.execute and verdicts_ok and not trust_bearing_ok
         else ()
     )
-    scope_binding = proof_scope_binding(options.scope)
-    host_probe = host_probe_boundary(host=options.host, probe=options.probe)
+    scope_binding, host_probe = (
+        proof_scope_binding(options.scope),
+        host_probe_boundary(host=options.host, probe=options.probe),
+    )
     focused = bool(options.gate) or scope_binding["scope"] != "repository"
     required_gaps = tuple(
         dict.fromkeys(

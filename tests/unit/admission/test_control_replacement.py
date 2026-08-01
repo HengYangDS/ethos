@@ -14,7 +14,6 @@ import ethos.adapters.admission.control.replacement as control_replacement
 import ethos.adapters.admission.evidence.external as external_evidence
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_plan
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.rules import stable_digest
 from ethos.contracts.semantic import Attestation
@@ -146,8 +145,7 @@ def test_equivalent_proof_does_not_change_control_replacement_subject(tmp_path: 
         accepted_head=accepted_head,
         candidate_head=candidate_head,
     )
-    plan = proof_plan(candidate, head=candidate_head)
-    first = proof_attestation(candidate, candidate_head, expected_plan=plan)
+    first = proof_attestation(candidate, candidate_head)
     assert first is not None
     equivalent = Attestation.issue(
         first.model_dump(exclude={"id", "schema_version", "statement_digest"})

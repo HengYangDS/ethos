@@ -24,10 +24,14 @@ from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import proof_effect_digest
+from ethos.contracts.plan import proof_effect_projection
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
+from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
@@ -144,8 +148,8 @@ permissions = ["repository.read", "git.ref.compare-and-swap"]
     return repo, _commit(repo, "adopt and bind proof")
 
 
-def _proof_checks(root: Path) -> tuple[dict[str, object], ...]:
-    policy = resolve_gate_policy(root)
+def _proof_checks(root: Path, *, head: str) -> tuple[dict[str, object], ...]:
+    policy = resolve_gate_policy(root, tree_ref=head)
     registry = policy.registry
     checks: list[dict[str, object]] = []
     for gate_id in policy.gate_ids:
@@ -153,7 +157,7 @@ def _proof_checks(root: Path) -> tuple[dict[str, object], ...]:
         checks.append(
             {
                 "action_id": gate_id,
-                "command": list(canonical_gate_command(gate.command)) if gate else ["pytest"],
+                "command": list(gate_execution_identity(gate)) if gate else ["pytest"],
                 "exit_code": 0,
                 "stdout": f"{gate_id} passed",
                 "stderr": "",
@@ -172,7 +176,7 @@ def _proof_attestation(root: Path, head: str) -> Attestation:
         root,
         {
             "plan": plan,
-            "checks": _proof_checks(root),
+            "checks": _proof_checks(root, head=head),
             "verdict": "pass",
             "issuer": "agent:test:case:proof",
             "issued_at": datetime(2026, 7, 26, tzinfo=UTC),
@@ -186,6 +190,40 @@ def _store_untrusted(root: Path, attestation: Attestation) -> None:
     store = attestation_store_dir(root)
     store.mkdir(parents=True, exist_ok=True)
     (store / f"{attestation.id}.json").write_text(attestation.canonical_json(), encoding="utf-8")
+
+
+def _forged_proof(
+    valid: Attestation,
+    plan: TransitionPlan,
+    *,
+    statement: Mapping[str, object] | None = None,
+    evidence_refs: tuple[str, ...] | None = None,
+) -> Attestation:
+    inputs = {
+        "commitment": plan.inputs.commitment,
+        "facts": plan.inputs.facts,
+        "plan": plan.digest,
+        "policy": plan.inputs.policy,
+        "effect": plan.inputs.effect,
+    }
+    payload = valid.model_dump(
+        mode="python", exclude={"id", "schema_version", "statement_digest"}
+    ) | {
+        "commitment_digest": plan.inputs.commitment,
+        "facts_digest": plan.inputs.facts,
+        "plan_digest": plan.digest,
+        "policy_digest": plan.inputs.policy,
+        "effect_digest": plan.inputs.effect,
+        "statement": valid.statement
+        | {
+            "inputs": valid.statement["inputs"] | inputs,
+            "plan": plan.model_dump(mode="json"),
+            **(statement or {}),
+        },
+    }
+    if evidence_refs is not None:
+        payload["evidence_refs"] = evidence_refs
+    return Attestation.issue(payload)
 
 
 def test_proof_plan_binds_commitment_facts_and_gate_policy(tmp_path: Path) -> None:
@@ -421,8 +459,12 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert attestation.facts_digest == plan.inputs.facts
     assert attestation.plan_digest == plan.digest
     assert attestation.policy_digest == plan.inputs.policy
-    assert attestation.effect_digest
-    assert attestation.evidence_refs == (f"sha256:{attestation.effect_digest}",)
+    artifact = attestation.statement["artifact"]
+    assert isinstance(artifact, Mapping)
+    artifact_digest = str(artifact["sha256"]).removeprefix("sha256:")
+    assert attestation.effect_digest == plan.inputs.effect
+    assert attestation.effect_digest != artifact_digest
+    assert attestation.evidence_refs == (f"sha256:{artifact_digest}",)
     assert attestation.valid_from == attestation.issued_at
     assert attestation.statement["claim"] == {
         "objective": "ethos proof",
@@ -434,9 +476,10 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
         "facts": plan.inputs.facts,
         "plan": plan.digest,
         "policy": plan.inputs.policy,
+        "effect": plan.inputs.effect,
     }
     assert attestation.statement["output"] == {
-        "artifact": attestation.effect_digest,
+        "artifact": artifact_digest,
         "verdict": "pass",
     }
     assert attestation.statement["freshness"] == {
@@ -446,8 +489,12 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
         "tree": plan.facts["tree"],
         "policy": plan.inputs.policy,
     }
-    artifact = attestation.statement["artifact"]
-    assert isinstance(artifact, Mapping)
+    statement = attestation.model_dump(mode="json")["statement"]
+    assert (
+        statement["commitment"]
+        == proof_module.load_profile_commitment(repo, tree_ref=head).identity_projection()
+    )
+    assert statement["policy"] == resolve_gate_policy(repo, tree_ref=head).projection
     assert attestation.statement["scope"] == ("repository",)
     assert attestation.statement["plane"] == "local"
     assert attestation.statement["context"] == {"boundary": "repository"}
@@ -486,27 +533,33 @@ def test_unmappable_plan_fact_blocks_admission_even_with_valid_peer(tmp_path: Pa
         inputs=PlanInputs(
             commitment=base.inputs.commitment,
             facts=fact.digest(),
+            prior_attestations=base.inputs.prior_attestations,
             policy=base.inputs.policy,
+            effect=proof_effect_digest(
+                commitment=base.inputs.commitment,
+                facts=fact.digest(),
+                policy=base.inputs.policy,
+                nodes=base.nodes,
+            ),
         ),
+        closure={
+            "commitment": base.commitment,
+            "prior_attestations": base.prior_attestations,
+            "policy": base.policy,
+            "effect": proof_effect_projection(
+                commitment=base.inputs.commitment,
+                facts=fact.digest(),
+                policy=base.inputs.policy,
+                nodes=base.nodes,
+            ),
+        },
         permissions=base.permissions,
         facts=fact.model_dump(mode="json", exclude={"observed_at"}),
         nodes=base.nodes,
         verdict=base.verdict,
         required_gaps=base.required_gaps,
     )
-    novel = Attestation.issue(
-        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
-        | {
-            "facts_digest": plan.inputs.facts,
-            "plan_digest": plan.digest,
-            "statement": valid.statement
-            | {
-                "inputs": valid.statement["inputs"]
-                | {"facts": plan.inputs.facts, "plan": plan.digest},
-                "plan": plan.model_dump(mode="json"),
-            },
-        }
-    )
+    novel = _forged_proof(valid, plan)
     _store_untrusted(repo, novel)
 
     assert proof_attestation(repo, head) is None
@@ -593,7 +646,7 @@ def test_proof_attestation_live_tree_drift_fails_closed(tmp_path: Path) -> None:
                 repo,
                 {
                     "plan": plan,
-                    "checks": _proof_checks(repo),
+                    "checks": _proof_checks(repo, head=head),
                     "verdict": "pass",
                     "issuer": "agent:test:case:proof",
                     "scope": "repository",
@@ -615,7 +668,7 @@ def test_proof_attestation_head_drift_blocks_issuance(tmp_path: Path) -> None:
             repo,
             {
                 "plan": plan,
-                "checks": _proof_checks(repo),
+                "checks": _proof_checks(repo, head=head),
                 "verdict": "pass",
                 "issuer": "agent:test:case:proof",
                 "scope": "repository",
@@ -633,14 +686,16 @@ def test_proof_subject_cannot_relabel_an_equal_tree_successor(tmp_path: Path) ->
         repo,
         {
             "plan": plan,
-            "checks": _proof_checks(repo),
+            "checks": _proof_checks(repo, head=second_head),
             "verdict": "pass",
             "issuer": "agent:test:case:proof",
             "scope": "repository",
             "boundary": "repository",
         },
     )
-    artifact = write_proof_artifact(attestation_store_dir(repo), first_head, _proof_checks(repo))
+    artifact = write_proof_artifact(
+        attestation_store_dir(repo), first_head, _proof_checks(repo, head=first_head)
+    )
     artifact_digest = str(artifact["sha256"]).removeprefix("sha256:")
     forged = Attestation.issue(
         attestation.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
@@ -672,7 +727,7 @@ def test_focused_proof_is_preserved_but_never_authorizes_repository_query(
         repo,
         {
             "plan": plan,
-            "checks": _proof_checks(repo),
+            "checks": _proof_checks(repo, head=head),
             "verdict": "pass",
             "issuer": "agent:test:case:focused",
             "scope": "repository",
@@ -691,26 +746,19 @@ def test_proof_plan_closure_rejects_facts_digest_drift(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     valid = _proof_attestation(repo, head)
     original_plan = proof_plan(repo, head=head)
-    forged_facts = original_plan.facts | {
-        "values": original_plan.facts["values"] | {"forged": True}
-    }
-    forged_plan = TransitionPlan.compile(
-        inputs=original_plan.inputs,
-        permissions=original_plan.permissions,
-        facts=forged_facts,
-        nodes=original_plan.nodes,
-        verdict=original_plan.verdict,
-        required_gaps=original_plan.required_gaps,
+    forged_plan = original_plan.model_dump(mode="json")
+    forged_plan["facts"]["values"]["forged"] = True
+    forged_plan["digest"] = canonical_json_digest(
+        {key: value for key, value in forged_plan.items() if key != "digest"}
     )
     forged = Attestation.issue(
         valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
         | {
-            "plan_digest": forged_plan.digest,
+            "plan_digest": forged_plan["digest"],
             "statement": valid.statement
             | {
-                "inputs": valid.statement["inputs"] | {"plan": forged_plan.digest},
-                "plan": valid.statement["plan"]
-                | {"facts": forged_facts, "digest": forged_plan.digest},
+                "inputs": valid.statement["inputs"] | {"plan": forged_plan["digest"]},
+                "plan": forged_plan,
             },
         }
     )
@@ -718,7 +766,7 @@ def test_proof_plan_closure_rejects_facts_digest_drift(tmp_path: Path) -> None:
     store.mkdir(parents=True, exist_ok=True)
     (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
 
-    assert proof_gaps(repo, head) == ["proof_attestation_facts_digest_mismatch"]
+    assert proof_gaps(repo, head) == ["proof_attestation_plan_invalid"]
 
 
 def test_legacy_head_keyed_proof_file_is_immediately_inert(tmp_path: Path) -> None:
@@ -820,9 +868,321 @@ def test_proof_admission_uses_self_contained_closure_not_historical_commitment(
 
     monkeypatch.setattr(proof_module, "load_profile_commitment", historical_read_forbidden)
     monkeypatch.setattr(proof_module, "load_repository_commitment", historical_read_forbidden)
-
     assert proof_attestation(repo, head) == attestation
     assert proof_gaps(repo, head) == []
+
+
+@pytest.mark.parametrize(
+    ("field", "tamper", "gap"),
+    [
+        (
+            "commitment",
+            {"intent": "unbound replacement intent"},
+            "proof_attestation_commitment_digest_mismatch",
+        ),
+        ("policy", {"gaps": ("forged",)}, "proof_policy_digest_stale"),
+    ],
+)
+def test_proof_projection_tamper_fails_closed(
+    tmp_path: Path, field: str, tamper: dict[str, object], gap: str
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    projection = valid.statement[field]
+    assert isinstance(projection, Mapping)
+    forged = Attestation.issue(
+        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {"statement": valid.statement | {field: projection | tamper}}
+    )
+    _store_untrusted(repo, forged)
+
+    assert proof_gaps(repo, head) == [gap]
+
+
+def test_self_consistent_commitment_scope_bypass_fails_closed(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head, changed_paths=("src/feature.py",))
+    valid = issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": _proof_checks(repo, head=head),
+            "verdict": "pass",
+            "issuer": "agent:test:case:proof",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    commitment = valid.statement["commitment"] | {"scope": ["docs/**"]}
+    commitment_digest = canonical_json_digest(commitment)
+    effect_digest = proof_effect_digest(
+        commitment=commitment_digest,
+        facts=plan.inputs.facts,
+        policy=plan.inputs.policy,
+        nodes=plan.nodes,
+    )
+    forged_plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=commitment_digest,
+            facts=plan.inputs.facts,
+            policy=plan.inputs.policy,
+            effect=effect_digest,
+        ),
+        closure={
+            "commitment": commitment,
+            "prior_attestations": plan.prior_attestations,
+            "policy": plan.policy,
+            "effect": proof_effect_projection(
+                commitment=commitment_digest,
+                facts=plan.inputs.facts,
+                policy=plan.inputs.policy,
+                nodes=plan.nodes,
+            ),
+        },
+        permissions=tuple(commitment["permissions"]),
+        facts=plan.facts,
+        nodes=plan.nodes,
+    )
+    forged = _forged_proof(valid, forged_plan, statement={"commitment": commitment})
+    _store_untrusted(repo, forged)
+
+    assert proof_gaps(repo, head) == [
+        "proof_attestation_plan_semantics_mismatch:change_scope_exceeded"
+    ]
+
+
+def test_self_consistent_policy_gate_omission_fails_closed(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    plan = proof_plan(repo, head=head)
+    nodes = plan.nodes[:-1]
+    policy = dict(valid.statement["policy"])
+    policy["gates"] = list(policy["gates"][:-1])
+    policy_digest = canonical_json_digest(policy)
+    values = dict(plan.facts["values"])
+    values["gate_ids"] = [node.id for node in nodes]
+    facts = Facts(
+        repository=str(plan.facts["repository"]),
+        head=head,
+        tree=str(plan.facts["tree"]),
+        observed_at=datetime.now(UTC),
+        values=values,
+        source_refs=tuple(plan.facts["source_refs"]),
+    )
+    effect_digest = proof_effect_digest(
+        commitment=plan.inputs.commitment,
+        facts=facts.digest(),
+        policy=policy_digest,
+        nodes=nodes,
+    )
+    forged_plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=plan.inputs.commitment,
+            facts=facts.digest(),
+            prior_attestations=plan.inputs.prior_attestations,
+            policy=policy_digest,
+            effect=effect_digest,
+        ),
+        closure={
+            "commitment": plan.commitment,
+            "prior_attestations": plan.prior_attestations,
+            "policy": policy,
+            "effect": proof_effect_projection(
+                commitment=plan.inputs.commitment,
+                facts=facts.digest(),
+                policy=policy_digest,
+                nodes=nodes,
+            ),
+        },
+        permissions=plan.permissions,
+        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=nodes,
+    )
+    checks = _proof_checks(repo, head=head)[:-1]
+    artifact = write_proof_artifact(attestation_store_dir(repo), head, checks)
+    artifact_digest = str(artifact["sha256"]).removeprefix("sha256:")
+    forged = _forged_proof(
+        valid,
+        forged_plan,
+        evidence_refs=(f"sha256:{artifact_digest}",),
+        statement={
+            "gate_ids": [node.id for node in nodes],
+            "policy": policy,
+            "freshness": valid.statement["freshness"] | {"policy": policy_digest},
+            "artifact": artifact,
+            "output": {"artifact": artifact_digest, "verdict": "pass"},
+        },
+    )
+    _store_untrusted(repo, forged)
+
+    assert proof_gaps(repo, head) == ["proof_attestation_repository_policy_mismatch"]
+
+
+def test_repository_admission_prefers_full_when_default_and_full_coexist(tmp_path: Path) -> None:
+    repo, _head = _adopted_repo(tmp_path / "repo")
+    profile = repo / ".ethos" / "profile.toml"
+    profile.write_text(
+        'profile_id = "repo"\n'
+        'commitment = ".ethos/commitment.toml"\n\n'
+        "[openspec]\n"
+        'material_paths = ["openspec/**"]\n\n'
+        "[proof]\n"
+        'gate_registry = "system/gates.toml"\n',
+        encoding="utf-8",
+    )
+    registry = repo / "system" / "gates.toml"
+    registry.parent.mkdir()
+    registry.write_text(
+        'schema_version = 1\nid = "policy-test"\n\n'
+        '[proof_sets]\ndefault = ["check"]\nfull = ["check", "publish"]\n\n'
+        '[[gates]]\nid = "publish"\nregistries = ["runtime"]\n'
+        'kind = "release"\ncommand = ["publish"]\ndepends_on = ["check"]\n\n'
+        '[[gates]]\nid = "check"\nregistries = ["runtime"]\n'
+        'kind = "test"\ncommand = ["tools/check.sh"]\n'
+        'dimensions = ["behavior"]\nevidence_class = "proof"\ntrust_bearing = true\n',
+        encoding="utf-8",
+    )
+    script = repo / "tools" / "check.sh"
+    script.parent.mkdir()
+    script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    head = _commit(repo, "split default and full proof floors")
+    default_plan = proof_plan(repo, head=head)
+    default_policy = resolve_gate_policy(repo, tree_ref=head)
+    default_checks = tuple(
+        {
+            "action_id": gate.id,
+            "command": list(gate_execution_identity(gate)),
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "verdict": "pass",
+            "evidence_class": gate.evidence_class,
+            "trust_bearing": gate.trust_bearing,
+            "diagnostics": [],
+        }
+        for gate in default_policy.gates
+    )
+    default_attestation = issue_proof_attestation(
+        repo,
+        {
+            "plan": default_plan,
+            "checks": default_checks,
+            "verdict": "pass",
+            "issuer": "agent:test:case:default-proof",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(repo, default_attestation)
+    plan = proof_plan(repo, head=head, full=True)
+    policy = resolve_gate_policy(repo, tree_ref=head, full=True)
+    checks = tuple(
+        {
+            "action_id": gate.id,
+            "command": list(gate_execution_identity(gate)),
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "verdict": "pass",
+            "evidence_class": gate.evidence_class,
+            "trust_bearing": gate.trust_bearing,
+            "diagnostics": [],
+        }
+        for gate in policy.gates
+    )
+    attestation = issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": checks,
+            "verdict": "pass",
+            "issuer": "agent:test:case:full-proof",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(repo, attestation)
+
+    assert default_attestation.plan_digest != attestation.plan_digest
+    assert proof_attestation(repo, head) == attestation
+    assert proof_gaps(repo, head) == []
+    assert proof_evidence_digest(repo, head)
+
+
+def test_self_consistent_arbitrary_proof_effect_fails_closed(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    plan = proof_plan(repo, head=head)
+    arbitrary_effect = {"operation": "arbitrary"}
+    forged_plan = TransitionPlan.compile(
+        inputs=plan.inputs.model_copy(update={"effect": canonical_json_digest(arbitrary_effect)}),
+        closure={
+            "commitment": plan.commitment,
+            "prior_attestations": plan.prior_attestations,
+            "policy": plan.policy,
+            "effect": arbitrary_effect,
+        },
+        permissions=plan.permissions,
+        facts=plan.facts,
+        nodes=plan.nodes,
+    )
+    forged = _forged_proof(valid, forged_plan)
+    _store_untrusted(repo, forged)
+
+    assert proof_gaps(repo, head) == ["proof_attestation_effect_digest_mismatch"]
+
+
+def test_self_consistent_nonexistent_git_tree_fails_closed(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _proof_attestation(repo, head)
+    plan = proof_plan(repo, head=head)
+    facts = Facts(
+        repository=str(plan.facts["repository"]),
+        head=head,
+        tree="0" * 40,
+        observed_at=datetime.now(UTC),
+        values=plan.facts["values"],
+        source_refs=tuple(plan.facts["source_refs"]),
+    )
+    effect_digest = proof_effect_digest(
+        commitment=plan.inputs.commitment,
+        facts=facts.digest(),
+        policy=plan.inputs.policy,
+        nodes=plan.nodes,
+    )
+    forged_plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=plan.inputs.commitment,
+            facts=facts.digest(),
+            policy=plan.inputs.policy,
+            effect=effect_digest,
+        ),
+        closure={
+            "commitment": plan.commitment,
+            "prior_attestations": plan.prior_attestations,
+            "policy": plan.policy,
+            "effect": proof_effect_projection(
+                commitment=plan.inputs.commitment,
+                facts=facts.digest(),
+                policy=plan.inputs.policy,
+                nodes=plan.nodes,
+            ),
+        },
+        permissions=plan.permissions,
+        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=plan.nodes,
+    )
+    forged = _forged_proof(
+        valid,
+        forged_plan,
+        statement={
+            "tree": facts.tree,
+            "freshness": valid.statement["freshness"] | {"tree": facts.tree},
+        },
+    )
+    _store_untrusted(repo, forged)
+
+    assert proof_gaps(repo, head) == ["proof_attestation_live_tree_mismatch"]
 
 
 def test_later_proof_conflict_blocks_instead_of_selecting_by_timestamp(
@@ -905,87 +1265,13 @@ def test_equivalent_proof_set_has_one_stable_evidence_digest(tmp_path: Path) -> 
     assert proof_evidence_digest(repo, head) == before
 
 
-def test_expected_plan_selects_its_operation_closure(tmp_path: Path) -> None:
-    repo, head = _adopted_repo(tmp_path / "repo")
-    change_proof = _proof_attestation(repo, head)
-    persist_proof_attestation(repo, change_proof)
-    repository_plan = proof_plan(repo, head=head)
-    facts = Facts.model_validate(
-        {
-            **repository_plan.facts,
-            "observed_at": datetime.now(UTC),
-            "values": repository_plan.facts["values"] | {"change_id": ""},
-        }
-    )
-    repository_plan = TransitionPlan.compile(
-        inputs=PlanInputs(
-            commitment=load_repository_commitment(repo, tree_ref=head).digest(),
-            facts=facts.digest(),
-            policy=repository_plan.inputs.policy,
-        ),
-        permissions=repository_plan.permissions,
-        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
-        nodes=repository_plan.nodes,
-        verdict=repository_plan.verdict,
-        required_gaps=repository_plan.required_gaps,
-    )
-    repository_proof = Attestation.issue(
-        change_proof.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
-        | {
-            "issued_at": change_proof.issued_at + timedelta(seconds=1),
-            "commitment_digest": repository_plan.inputs.commitment,
-            "facts_digest": repository_plan.inputs.facts,
-            "plan_digest": repository_plan.digest,
-            "statement": change_proof.statement
-            | {
-                "change_id": "",
-                "inputs": change_proof.statement["inputs"]
-                | {
-                    "commitment": repository_plan.inputs.commitment,
-                    "facts": repository_plan.inputs.facts,
-                    "plan": repository_plan.digest,
-                },
-                "plan": repository_plan.model_dump(mode="json"),
-            },
-        }
-    )
-    _store_untrusted(repo, repository_proof)
-
-    assert change_proof.plan_digest != repository_proof.plan_digest
-    assert proof_attestation(repo, head, expected_plan=repository_plan) == repository_proof
-    assert proof_gaps(repo, head, expected_plan=repository_plan) == []
-
-
-def test_expected_plan_still_blocks_binding_drift_inside_operation(tmp_path: Path) -> None:
-    repo, head = _adopted_repo(tmp_path / "repo")
-    plan = proof_plan(repo, head=head)
-    first = _proof_attestation(repo, head)
-    persist_proof_attestation(repo, first)
-    second = issue_proof_attestation(
-        repo,
-        {
-            "plan": plan,
-            "checks": tuple(
-                check | {"stdout": f"{check['stdout']} again"} for check in _proof_checks(repo)
-            ),
-            "verdict": "pass",
-            "issuer": first.verifier,
-            "issued_at": first.issued_at + timedelta(seconds=1),
-            "scope": "repository",
-            "boundary": "repository",
-        },
-    )
-    persist_proof_attestation(repo, second)
-
-    assert proof_attestation(repo, head, expected_plan=plan) is None
-    assert proof_gaps(repo, head, expected_plan=plan) == ["stale_binding"]
-
-
-def test_self_consistent_proofs_with_different_bindings_block(tmp_path: Path) -> None:
+def test_equivalent_proofs_with_different_artifacts_share_closure(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     first = _proof_attestation(repo, head)
     persist_proof_attestation(repo, first)
-    checks = tuple(check | {"stdout": f"{check['stdout']} again"} for check in _proof_checks(repo))
+    checks = tuple(
+        check | {"stdout": f"{check['stdout']} again"} for check in _proof_checks(repo, head=head)
+    )
     second = issue_proof_attestation(
         repo,
         {
@@ -1000,9 +1286,11 @@ def test_self_consistent_proofs_with_different_bindings_block(tmp_path: Path) ->
     )
     persist_proof_attestation(repo, second)
 
-    assert first.effect_digest != second.effect_digest
-    assert proof_attestation(repo, head) is None
-    assert proof_gaps(repo, head) == ["stale_binding"]
+    assert first.effect_digest == second.effect_digest
+    assert first.evidence_refs != second.evidence_refs
+    assert proof_attestation(repo, head) is not None
+    assert proof_gaps(repo, head) == []
+    assert proof_evidence_digest(repo, head)
 
 
 @pytest.mark.parametrize("novel", [False, True])
@@ -1090,43 +1378,49 @@ def test_proof_authority_policy_binding_drift_cannot_hide_behind_valid_peer(
 def test_proof_admission_rejects_self_consistent_but_noncanonical_policy(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     valid = _proof_attestation(repo, head)
-    closure = dict(valid.statement["plan"])
     plan = proof_plan(repo, head=head)
+    policy = dict(plan.policy)
+    policy["noncanonical"] = True
+    policy_digest = canonical_json_digest(policy)
+    effect = proof_effect_projection(
+        commitment=plan.inputs.commitment,
+        facts=plan.inputs.facts,
+        policy=policy_digest,
+        nodes=plan.nodes,
+    )
     forged_plan = TransitionPlan.compile(
         inputs=PlanInputs(
             commitment=plan.inputs.commitment,
             facts=plan.inputs.facts,
-            policy="0" * 64,
+            prior_attestations=plan.inputs.prior_attestations,
+            policy=policy_digest,
+            effect=canonical_json_digest(effect),
         ),
+        closure={
+            "commitment": plan.commitment,
+            "prior_attestations": plan.prior_attestations,
+            "policy": policy,
+            "effect": effect,
+        },
         permissions=plan.permissions,
         facts=plan.facts,
         nodes=plan.nodes,
         verdict=plan.verdict,
         required_gaps=plan.required_gaps,
     )
-    forged = Attestation.issue(
-        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
-        | {
-            "policy_digest": forged_plan.inputs.policy,
-            "plan_digest": forged_plan.digest,
-            "statement": valid.statement
-            | {
-                "inputs": valid.statement["inputs"]
-                | {"plan": forged_plan.digest, "policy": forged_plan.inputs.policy},
-                "freshness": valid.statement["freshness"] | {"policy": forged_plan.inputs.policy},
-                "plan": closure
-                | {
-                    "inputs": forged_plan.inputs.model_dump(mode="json"),
-                    "digest": forged_plan.digest,
-                },
-            },
-        }
+    forged = _forged_proof(
+        valid,
+        forged_plan,
+        statement={
+            "policy": policy,
+            "freshness": valid.statement["freshness"] | {"policy": forged_plan.inputs.policy},
+        },
     )
     store = attestation_store_dir(repo)
     (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
 
     assert proof_attestation(repo, head) is None
-    assert proof_gaps(repo, head) == ["proof_policy_digest_stale"]
+    assert proof_gaps(repo, head) == ["proof_attestation_repository_policy_mismatch"]
 
 
 def test_proof_artifact_descriptor_is_exact(tmp_path: Path) -> None:

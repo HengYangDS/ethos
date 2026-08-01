@@ -8,6 +8,7 @@ the linked-worktree-safe path resolution.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from datetime import UTC
@@ -15,7 +16,15 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+import pytest
+
 import ethos.adapters.admission.closeout_intent.marker as closeout_markers
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import compile_git_effect_plan
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,15 +34,62 @@ def _marker_path(repo: Path, nonce: str) -> Path:
     return closeout_markers.closeout_intent_dir(repo) / f"{nonce}.json"
 
 
+def _oid(label: str) -> str:
+    return hashlib.sha1(label.encode(), usedforsecurity=False).hexdigest()
+
+
+def _update(*, old: str, new: str) -> GitRefUpdate:
+    return GitRefUpdate(expected=_oid(old), desired=_oid(new))
+
+
+def _effect_plan(proof: Attestation, *, accepted_effect: Attestation | None = None):
+    old, new = _oid("old"), _oid("new")
+    effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
+    return compile_git_effect_plan(
+        Commitment(
+            id="commitment:test:closeout",
+            intent="Test exact closeout proof admission.",
+            subjects=("repository:test",),
+            permissions=("git.ref.compare-and-swap",),
+        ),
+        Facts(
+            repository="repository:test",
+            head=old,
+            tree=old,
+            observed_at=datetime(2026, 8, 1, tzinfo=UTC),
+            values={"refs": {"refs/heads/dev": old}, "assertions": {}},
+        ),
+        prior_attestations={
+            "proof": proof.model_dump(mode="json"),
+            "proof_set": "f" * 64,
+        }
+        | ({"accepted_effect": accepted_effect.model_dump(mode="json")} if accepted_effect else {}),
+        policy={"operation": "test.closeout"},
+        effect=effect,
+    )
+
+
+def _proof() -> Attestation:
+    issued = datetime(2026, 8, 1, tzinfo=UTC)
+    return Attestation.issue(
+        {
+            "predicate": "proof:execution",
+            "verifier": "agent:test:case:closeout",
+            "subject": f"git:commit:{_oid('new')}",
+            "issued_at": issued,
+            "valid_from": issued,
+            "verdict": "pass",
+            "statement": {},
+            "commitment_digest": "a" * 64,
+        }
+    )
+
+
 def _write(repo: Path, *, old: str = "old", new: str = "new") -> dict[str, object]:
     return closeout_markers.write_closeout_intent(
         root=repo,
-        transition=closeout_markers.CloseoutTransition(
-            ref_name="refs/heads/dev",
-            old_value=old,
-            new_value=new,
-            candidate_head=new,
-        ),
+        ref_name="refs/heads/dev",
+        update=_update(old=old, new=new),
         evidence_digest="digest",
     )
 
@@ -45,21 +101,61 @@ def test_write_persists_marker_bound_to_transition(tmp_path: Path) -> None:
     assert path.exists()
     stored = json.loads(path.read_text(encoding="utf-8"))
     assert stored["ref_name"] == "refs/heads/dev"
-    assert stored["old_value"] == "old"
-    assert stored["new_value"] == "new"
-    assert stored["candidate_head"] == "new"
+    assert stored["old_value"] == _oid("old")
+    assert stored["new_value"] == _oid("new")
+    assert "candidate_head" not in stored
     assert stored["evidence_digest"] == "digest"
     assert stored["schema_version"] == 1
+
+
+def test_execute_rejects_a_noncurrent_carried_proof_before_marker_or_cas(
+    tmp_path: Path, monkeypatch
+) -> None:
+    plan = _effect_plan(_proof())
+    monkeypatch.setattr(
+        closeout_markers,
+        "proof_plan_for_attestation",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("proof_not_proven")),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        closeout_markers,
+        "execute_git_effect",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("CAS attempted")),
+    )
+
+    with pytest.raises(ValueError, match="git_effect_prior_proof_invalid:proof_not_proven"):
+        closeout_markers.execute_closeout_effect(root=tmp_path, plan=plan)
+
+    assert not closeout_markers.closeout_intent_dir(tmp_path).exists()
+
+
+def test_execute_rejects_an_invalid_carried_accepted_effect_before_marker_or_cas(
+    tmp_path: Path, monkeypatch
+) -> None:
+    plan = _effect_plan(_proof(), accepted_effect=_proof())
+    monkeypatch.setattr(closeout_markers, "proof_plan_for_attestation", lambda *_args: object())
+    monkeypatch.setattr(closeout_markers, "proof_evidence_digest", lambda *_args: "f" * 64)
+    monkeypatch.setattr(
+        closeout_markers,
+        "execute_git_effect",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("CAS attempted")),
+    )
+
+    with pytest.raises(ValueError, match="git_effect_prior_accepted_effect_invalid"):
+        closeout_markers.execute_closeout_effect(root=tmp_path, plan=plan)
+
+    assert not closeout_markers.closeout_intent_dir(tmp_path).exists()
 
 
 def test_consume_matching_marker_is_one_shot(tmp_path: Path) -> None:
     _write(tmp_path)
 
     first = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
     second = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
 
     assert first == {"present": True, "gap": ""}
@@ -68,7 +164,7 @@ def test_consume_matching_marker_is_one_shot(tmp_path: Path) -> None:
 
 def test_consume_reports_no_intent_when_dir_absent(tmp_path: Path) -> None:
     result = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
 
     assert result == {"present": False, "gap": "accepted_ref_move_no_closeout_intent"}
@@ -78,7 +174,7 @@ def test_consume_reports_mismatch_on_different_old_new(tmp_path: Path) -> None:
     _write(tmp_path, old="other-old", new="new")
 
     result = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
 
     assert result == {"present": True, "gap": "closeout_intent_mismatch"}
@@ -89,7 +185,7 @@ def test_consume_reports_stale_and_deletes_expired_marker(tmp_path: Path) -> Non
     _expire(tmp_path, str(marker["nonce"]))
 
     result = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
 
     assert result == {"present": True, "gap": "closeout_intent_stale"}
@@ -100,12 +196,8 @@ def test_consume_skips_unrelated_ref_and_unreadable_markers(tmp_path: Path) -> N
     # A marker for a different ref must not satisfy this transition.
     closeout_markers.write_closeout_intent(
         root=tmp_path,
-        transition=closeout_markers.CloseoutTransition(
-            ref_name="refs/heads/release",
-            old_value="old",
-            new_value="new",
-            candidate_head="new",
-        ),
+        ref_name="refs/heads/release",
+        update=_update(old="old", new="new"),
         evidence_digest="d",
     )
     # A corrupt file in the marker dir must be skipped, not crash.
@@ -114,7 +206,7 @@ def test_consume_skips_unrelated_ref_and_unreadable_markers(tmp_path: Path) -> N
     )
 
     result = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
 
     assert result == {"present": False, "gap": "accepted_ref_move_no_closeout_intent"}
@@ -158,7 +250,7 @@ def test_expired_marker_with_unparseable_timestamp_is_expired(tmp_path: Path) ->
     path.write_text(json.dumps(stored), encoding="utf-8")
 
     result = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
 
     assert result == {"present": True, "gap": "closeout_intent_stale"}
@@ -172,7 +264,7 @@ def test_marker_missing_expires_at_is_treated_as_expired(tmp_path: Path) -> None
     path.write_text(json.dumps(stored), encoding="utf-8")
 
     result = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
 
     assert result == {"present": True, "gap": "closeout_intent_stale"}
@@ -192,7 +284,7 @@ def test_marker_with_naive_but_parseable_timestamp_is_expired_not_crash(tmp_path
     path.write_text(json.dumps(stored), encoding="utf-8")
 
     result = closeout_markers.consume_closeout_intent(
-        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+        root=tmp_path, ref_name="refs/heads/dev", old_value=_oid("old"), new_value=_oid("new")
     )
     assert result == {"present": True, "gap": "closeout_intent_stale"}
 
@@ -237,8 +329,8 @@ def test_consume_rejects_evidence_digest_mismatch(tmp_path: Path) -> None:
     result = closeout_markers.consume_closeout_intent(
         root=tmp_path,
         ref_name="refs/heads/dev",
-        old_value="o",
-        new_value="n",
+        old_value=_oid("o"),
+        new_value=_oid("n"),
         expect=closeout_markers.MarkerExpectation(evidence_digest="a-different-digest"),
     )
     assert result == {"present": True, "gap": "closeout_intent_evidence_digest_mismatch"}
@@ -248,17 +340,16 @@ def test_consume_rejects_gate_policy_digest_mismatch(tmp_path: Path) -> None:
     """A marker whose bound gate_policy_digest != the expected one is refused (finding A)."""
     closeout_markers.write_closeout_intent(
         root=tmp_path,
-        transition=closeout_markers.CloseoutTransition(
-            ref_name="refs/heads/dev", old_value="o", new_value="n", candidate_head="n"
-        ),
+        ref_name="refs/heads/dev",
+        update=_update(old="o", new="n"),
         evidence_digest="ed",
         gate_policy_digest="pd",
     )
     result = closeout_markers.consume_closeout_intent(
         root=tmp_path,
         ref_name="refs/heads/dev",
-        old_value="o",
-        new_value="n",
+        old_value=_oid("o"),
+        new_value=_oid("n"),
         expect=closeout_markers.MarkerExpectation(
             evidence_digest="ed", gate_policy_digest="a-different-policy-digest"
         ),

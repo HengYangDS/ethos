@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import shutil
 import subprocess
 import sys
@@ -16,6 +15,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.normalization.coercion import string_mapping
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
@@ -49,22 +49,25 @@ class ResolvedGatePolicy:
             PlanNode(
                 id=gate.id,
                 kind="check",
-                command=gate.command,
+                command=gate_execution_identity(gate),
                 depends_on=gate.depends_on,
             )
             for gate in self.gates
         )
 
     @property
-    def digest(self) -> str:
+    def projection(self) -> dict[str, object]:
+        """Return the exact policy projection bound by a transition plan."""
         sources = dict(self.sources)
-        payload = {
+        return {
             "owner": _owner_projection(self.declaration, self.profile),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode()).hexdigest()
+
+    @property
+    def digest(self) -> str:
+        return canonical_json_digest(self.projection)
 
     def conformance_gaps(self, runs: object) -> list[str]:
         if not isinstance(runs, list):

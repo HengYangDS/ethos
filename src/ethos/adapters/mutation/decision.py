@@ -9,8 +9,6 @@ from typing import cast
 
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import AdmissionDecision
@@ -59,15 +57,7 @@ def _closeout_candidate_gaps(
     gaps = openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
     if not require_proof:
         return gaps
-    try:
-        expected_plan = proof_plan(
-            candidate_path,
-            head=candidate_head,
-            binding_branch=str(candidate["branch"]),
-        )
-    except ValueError as error:
-        return [*gaps, str(error)]
-    return [*gaps, *proof_gaps(candidate_path, candidate_head, expected_plan=expected_plan)]
+    return [*gaps, *proof_gaps(candidate_path, candidate_head)]
 
 
 def _request_gaps(
@@ -120,19 +110,7 @@ def evaluate_mutation(
         )
     )
     if apply:
-        try:
-            expected_plan = proof_plan(
-                root,
-                head=current_head,
-                binding_branch=str(status["branch"]),
-                changed_paths=(
-                    change_scope_paths_from_status(root, status) if role == ROLE_WORK_LANE else ()
-                ),
-            )
-        except ValueError as error:
-            gaps.append(str(error))
-        else:
-            gaps.extend(proof_gaps(root, current_head, expected_plan=expected_plan))
+        gaps.extend(proof_gaps(root, current_head))
     required_gaps = tuple(dict.fromkeys(gaps))
     return MutationDecision(
         "block" if required_gaps else "pass",

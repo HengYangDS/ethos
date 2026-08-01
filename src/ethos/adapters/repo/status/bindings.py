@@ -260,6 +260,20 @@ def leases_by_branch(current_path: Path) -> dict[str, dict[str, object]]:
     return leases
 
 
+def lease_generation(lease: dict[str, object]) -> dict[str, object]:
+    """Project the exact current Lease generation bound by transient Facts."""
+    return {
+        "branch": str(lease.get("subject") or lease.get("lane_ref") or ""),
+        "lease_id": str(lease.get("lease_id") or lease.get("id") or ""),
+        "epoch": integer_value(lease.get("epoch")),
+        "holder_ref": str(lease.get("holder_ref") or lease.get("owner") or ""),
+        "expected_head": str(lease.get("expected_head") or ""),
+        "base_commitment_digest": str(lease.get("base_commitment_digest") or ""),
+        "expires_at": str(lease.get("expires_at") or ""),
+        "payload_sha256": str(lease.get("payload_sha256") or ""),
+    }
+
+
 def _lease_commitment_binding(root: Path, lease: dict[str, object]) -> str:
     state = str(lease.get("lease_state") or "missing")
     if state != "valid":

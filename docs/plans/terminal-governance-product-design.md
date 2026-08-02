@@ -61,6 +61,27 @@ status -> plan -> prove -> land -> publish
 `status` is the read-only entrypoint. `adopt` proposes an explicit binding to
 that loop; an absent optional carrier remains an observed profile fact.
 
+### Product Surfaces And Experience
+
+One typed application service projects the same kernel result to CLI, Python SDK,
+schemas/conformance fixtures, optional stateless MCP or A2A adapters, and native
+CI/forge carriers. A surface may adapt transport and presentation only; it cannot
+recompile policy, retain lifecycle state, or invent a second error taxonomy.
+
+The CLI defaults to concise human output and progressively reveals evidence;
+`--json` is stable automation output, not a separate behavior. Diagnostics carry
+one verdict, stable code, plain-language cause, exact evidence boundary, singular
+next action, and user-decision flag. Adoption is plan-first and idempotent. The
+installed product and contributor workflow both execute from an explicit
+project-local environment and lock. Recovery starts from Git, OpenSpec, fresh
+Facts, and Attestations rather than a surviving chat or proprietary agent state.
+
+The terminal acceptance is task-based rather than screenshot-based: a new human,
+an autonomous agent, and an SDK client can each inspect, adopt, prove, recover,
+and uninstall a Python, polyglot, or docs/infra repository without learning ETHOS
+internals, cloning this repository's layout, parsing prose, selecting among
+equivalent commands, or contacting a forge for local validation.
+
 ### Feedback Intent Preservation
 
 Convergence maps each accepted feedback item to an invariant, semantic owner,
@@ -83,6 +104,14 @@ historical wording is preserved merely to satisfy a text-shaped test.
    references are checked.
 5. **Prove across shapes.** Product, code, and documentation adopters demonstrate
    the same input-to-verdict relation while retaining their native carriers.
+6. **One obvious safe path.** Defaults select the least-powerful useful operation;
+   advanced controls appear only when current facts require the distinction.
+7. **Errors are continuations.** Every non-pass result preserves the diagnostic
+   code and evidence boundary and identifies exactly one safe next action or one
+   explicit user decision.
+8. **Surfaces stay projections.** CLI, SDK, MCP/A2A, CI, forge, and generated
+   scaffolds share contracts and conformance tests; none owns duplicate policy or
+   durable progress.
 
 ## Completion Boundary
 

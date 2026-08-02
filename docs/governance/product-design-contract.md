@@ -22,6 +22,12 @@ change. It compiles an explicit commitment and fresh observations into a bounded
 transition, rechecks its preconditions at effect time, and emits attestations of
 what was observed, decided, and effected.
 
+Its product promise is not “more governance.” It is the shortest trustworthy
+path from change intent to repository effect: preserve intent, expose the one
+current blocker or next action, reuse native repository capabilities, and make
+every completed claim independently verifiable and recoverable after an agent,
+session, host, or forge is lost.
+
 ETHOS is local-first and vendor-neutral. Git, forges, CI, OpenSpec, agent
 runtimes, and task systems remain native systems or adapters; none becomes an
 ETHOS-owned truth store merely by being connected to it. Local, GitLab, and
@@ -166,6 +172,27 @@ admissible action without minting truth. `adopt` binds an external repository to
 that lifecycle through an explicit, reviewable plan, initializes and verifies
 OpenSpec for mutation-capable use, and does not create a parallel lifecycle.
 Hidden lane and hook operations support admission only.
+
+The public product surface is deliberately small and capability-complete:
+
+| Surface | Role |
+| --- | --- |
+| CLI | Human-readable progressive disclosure and stable machine JSON over the same result. |
+| Python SDK | Typed in-process access to kernel compilation, observation, evaluation, and projection without shell parsing. |
+| Schemas and conformance kit | Language-neutral contracts, fixtures, and expected verdicts for independent clients. |
+| MCP or A2A adapter | Optional stateless protocol projection over the SDK; it owns no task, lifecycle, session, or repository truth. |
+| CI and forge projections | Native provider syntax that invokes the same declared proof capabilities and preserves proof-plane identity. |
+
+UX and DX are kernel properties, not documentation polish. A normal path asks
+only for facts that change the next action; advanced detail is available without
+hiding a gap. Every block names what happened, why it blocks, its evidence or
+missing fact, the one safe next action, and whether a human decision is required.
+Human and JSON views preserve the same verdict and semantic identifiers. Local
+operation is deterministic and offline after bootstrap; commands bind the current
+worktree, project `.venv`, lock, and source, never a global installation. Adoption
+is previewable, idempotent, minimally invasive, reversible before first governed
+effect, and cleanly uninstallable without leaving hooks, generated truth, or a
+second control plane.
 
 ## Feedback Intent Preservation
 

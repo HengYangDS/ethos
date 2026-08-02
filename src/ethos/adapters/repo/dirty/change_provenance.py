@@ -52,8 +52,12 @@ def working_overlay_sha256(root: Path) -> str:
 
 
 def _working_content_sha256(root: Path, *, baseline: str | None, drift_gap: str) -> str:
-    first = _working_content_parts(root, baseline=baseline)
-    if first != _working_content_parts(root, baseline=baseline):
+    first_patch, first_inventory = _working_content_snapshot(root, baseline=baseline)
+    first = _working_content_parts(root, first_patch, first_inventory)
+    second_patch, second_inventory = _working_content_snapshot(root, baseline=baseline)
+    if (first_patch, first_inventory) != (second_patch, second_inventory):
+        raise ValueError(drift_gap)
+    if first != _working_content_parts(root, second_patch, second_inventory):
         raise ValueError(drift_gap)
     digest = hashlib.sha256()
     for part in first:
@@ -62,7 +66,7 @@ def _working_content_sha256(root: Path, *, baseline: str | None, drift_gap: str)
     return digest.hexdigest()
 
 
-def _working_content_parts(root: Path, *, baseline: str | None) -> tuple[bytes, ...]:
+def _working_content_snapshot(root: Path, *, baseline: str | None) -> tuple[bytes, bytes]:
     diff_args = ("diff", "--binary", *((baseline,) if baseline else ()), "--")
     patch = run_git(root, *diff_args, text=False, observation=True).stdout
     inventory = run_git(
@@ -74,6 +78,10 @@ def _working_content_parts(root: Path, *, baseline: str | None) -> tuple[bytes, 
         text=False,
         observation=True,
     ).stdout
+    return patch, inventory
+
+
+def _working_content_parts(root: Path, patch: bytes, inventory: bytes) -> tuple[bytes, ...]:
     parts = [patch]
     for raw in (item for item in inventory.split(b"\0") if item):
         parts.extend((raw, _read_untracked(root, raw)))

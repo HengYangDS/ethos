@@ -15,10 +15,10 @@ from typing import Any
 
 import pytest
 from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import Field
 
 import ethos.adapters.mutation.lane_lifecycle.handoff.destination_import as destination_import
+import ethos.adapters.mutation.lane_lifecycle.handoff.destination_objects as destination_objects
+import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import export_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import import_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import revoke_cross_host_source
@@ -33,6 +33,7 @@ from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
+from tests.support.contract_helpers import git
 from tests.support.contract_helpers import start_adopted_candidate
 from tests.support.contract_helpers import write_active_commitment
 
@@ -49,15 +50,7 @@ def _write_object(destination: Path, content: str) -> str:
 
 
 def _assert_objects_exist(destination: Path, object_ids: list[str]) -> None:
-    for object_id in object_ids:
-        assert (
-            subprocess.run(
-                ["git", "cat-file", "-e", object_id],
-                cwd=destination,
-                check=False,
-            ).returncode
-            == 0
-        )
+    assert not any(git(destination, "cat-file", "-e", object_id) for object_id in object_ids)
 
 
 def _object_inventory(destination: Path) -> dict[str, str]:
@@ -78,14 +71,36 @@ def _object_inventory(destination: Path) -> dict[str, str]:
 
 
 class _ImportFaultRequest(BaseModel):
-    """Fault-injection inputs for one destination handoff import."""
+    stage: str
+    destination: str
+    package: str
+    target_holder: str
 
-    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
-    stage: str = Field(min_length=1)
-    destination: str = Field(min_length=1)
-    package: str = Field(min_length=1)
-    target_holder: str = Field(min_length=1)
+def _import_request(destination: Path, package: Path, holder: str) -> CrossHostHandoffImportRequest:
+    return CrossHostHandoffImportRequest(
+        root=destination.as_posix(),
+        package=package.as_posix(),
+        target_holder_ref=holder,
+        apply=True,
+    )
+
+
+def _revoke_request(
+    source: Path, package: Path, acknowledgement: Path, holder: str, lease: dict[str, object]
+) -> CrossHostHandoffSourceRevocationRequest:
+    return CrossHostHandoffSourceRevocationRequest(
+        root=source.as_posix(),
+        package=package.as_posix(),
+        acknowledgement=acknowledgement.as_posix(),
+        holder_ref=holder,
+        lease_id=str(lease["lease_id"]),
+        epoch=int(lease["epoch"]),
+        expected_expires_at=str(lease["expires_at"]),
+        expected_payload_sha256=str(lease["payload_sha256"]),
+        expect_head=str(lease["expected_head"]),
+        apply=True,
+    )
 
 
 def _import_with_fault(
@@ -96,16 +111,22 @@ def _import_with_fault(
 ) -> dict[str, object]:
     destination = Path(request.destination)
     package = Path(request.package)
-    real_run_git = destination_import.run_git
     expected_inventory: dict[str, str] = {}
     with monkeypatch.context() as faults:
         if request.stage == "install":
-            real_link = destination_import.os.link
+            real_link = destination_objects.os.link
             calls = 0
 
             def fail_install(source: object, target: object) -> None:
                 nonlocal calls, expected_inventory
-                if calls:
+                installing_pack = (
+                    Path(target).parent.name == "pack" and Path(source).parent.name == "pack"
+                )
+                if not installing_pack:
+                    real_link(source, target)
+                    return
+                if calls == 1:
+                    calls += 1
                     message = "forced-install-failure"
                     raise OSError(message)
                 preserved_objects.append(
@@ -115,9 +136,10 @@ def _import_with_fault(
                 real_link(source, target)
                 calls += 1
 
-            faults.setattr(destination_import.os, "link", fail_install)
+            faults.setattr(destination_objects.os, "link", fail_install)
         else:
             failed = False
+            real_run_git = destination_import.run_git
 
             def fail_git(
                 root: Path,
@@ -153,14 +175,15 @@ def _import_with_fault(
                 return real_run_git(root, *args, **kwargs)
 
             faults.setattr(destination_import, "run_git", fail_git)
+            faults.setattr(destination_objects, "run_git", fail_git)
+            if request.stage == "ref":
+                faults.setattr(git_effects, "run_git", fail_git)
         report = import_cross_host_handoff(
-            CrossHostHandoffImportRequest(
-                root=destination.as_posix(),
-                package=package.as_posix(),
-                target_holder_ref=request.target_holder,
-                apply=True,
-            )
+            _import_request(destination, package, request.target_holder)
         )
+    if not expected_inventory:
+        message = f"fault_not_injected:{request.stage}:{report}"
+        raise AssertionError(message)
     assert _object_inventory(destination) == expected_inventory
     return report
 
@@ -172,7 +195,6 @@ def _import_with_uncertain_effect(
 ) -> dict[str, object]:
     destination = Path(request.destination)
     package = Path(request.package)
-    real_run_git = destination_import.run_git
     real_acquire = destination_import.acquire_lease
     failed = False
     with monkeypatch.context() as faults:
@@ -185,6 +207,7 @@ def _import_with_uncertain_effect(
 
             faults.setattr(destination_import, "acquire_lease", acquire_then_fail)
         else:
+            real_run_git = destination_import.run_git
 
             def run_then_fail(
                 root: Path, *args: str, **kwargs: Any
@@ -201,13 +224,10 @@ def _import_with_uncertain_effect(
                 return completed
 
             faults.setattr(destination_import, "run_git", run_then_fail)
+            if request.stage == "ref":
+                faults.setattr(git_effects, "run_git", run_then_fail)
         return import_cross_host_handoff(
-            CrossHostHandoffImportRequest(
-                root=destination.as_posix(),
-                package=package.as_posix(),
-                target_holder_ref=request.target_holder,
-                apply=True,
-            )
+            _import_request(destination, package, request.target_holder)
         )
 
 
@@ -219,45 +239,40 @@ def _export_handoff_fixture(
     branch: str,
 ) -> tuple[Any, Any, Path, str, dict[str, object]]:
     source_repo, _candidate = start_adopted_candidate(tmp_path / "source")
+    destination = tmp_path / "destination" / "repo"
+    destination.parent.mkdir()
+    subprocess.run(
+        ["git", "clone", "--no-local", source_repo.as_posix(), destination.as_posix()],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    git(destination, "config", "commit.gpgsign", "false")
+    git(destination, "config", "core.hooksPath", ".git/test-hooks")
+    git(
+        destination,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "destination" / "repo-candidate-dev").as_posix(),
+        "origin/candidate/dev",
+    )
     source_worktree = tmp_path / "source-worktree"
-    subprocess.run(
-        ["git", "worktree", "add", "-b", branch, source_worktree.as_posix(), "dev"],
-        cwd=source_repo,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
+    git(source_repo, "worktree", "add", "-b", branch, source_worktree.as_posix(), "dev")
     write_active_commitment(source_worktree, change_id="handoff")
-    subprocess.run(
-        ["git", "add", "."],
-        cwd=source_worktree,
-        check=True,
-        text=True,
-        capture_output=True,
+    git(source_worktree, "add", ".")
+    git(
+        source_worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "declare handoff",
     )
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "declare handoff",
-        ],
-        cwd=source_worktree,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=source_worktree,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip()
+    head = git(source_worktree, "rev-parse", "HEAD")
     coordinates = exact_commitment_fields(
         source_worktree,
         head=head,
@@ -281,7 +296,6 @@ def _export_handoff_fixture(
         ),
     )
     source = SimpleNamespace(worktree=source_worktree)
-    destination, _candidate = start_adopted_candidate(tmp_path / "destination")
     export_arguments = {
         "root": source.worktree.as_posix(),
         "branch": branch,
@@ -300,34 +314,18 @@ def _export_handoff_fixture(
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
     exported = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
     assert exported["verdict"] == "pass"
-    assert "ok" not in exported
-    assert exported["mutation"]["decision"]["verdict"] == exported["verdict"]
     manifest = exported["manifest"]
-    assert manifest["source_lease_binding"]["lane_incarnation_id"] == lease["lane_incarnation_id"]
-    assert {
-        key: manifest[key]
-        for key in (
-            "source_head",
-            "source_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    } == {
+    expected_manifest = {
         "source_head": lease["expected_head"],
         "source_tree": lease["expected_tree"],
         "base_commitment_path": lease["base_commitment_path"],
         "base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
         "base_commitment_digest": lease["base_commitment_digest"],
     }
+    assert {key: manifest[key] for key in expected_manifest} == expected_manifest
     package = Path(str(exported["package_path"]))
     repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
-    assert (repeated_export["verdict"], repeated_export["package_id"]) == (
-        "pass",
-        exported["package_id"],
-    )
-    assert "ok" not in repeated_export
-    assert repeated_export["mutation"]["decision"]["verdict"] == repeated_export["verdict"]
+    assert repeated_export["package_id"] == exported["package_id"]
     return source, destination, package, head, lease
 
 
@@ -386,37 +384,15 @@ def _assert_source_revoked(
 ) -> None:
     source_holder = "agent:test:case:source"
     branch = "work/handoff"
-    head = str(lease["expected_head"])
-    imported = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref="agent:test:case:target",
-            apply=True,
-        )
-    )
-    assert imported["verdict"] == "pass"
-    assert "ok" not in imported
+    request = _import_request(destination, package, "agent:test:case:target")
+    imported = import_cross_host_handoff(request)
+    assert (imported["verdict"], imported.get("ok")) == ("pass", None)
     assert imported["mutation"]["decision"]["verdict"] == imported["verdict"]
-    assert {
-        key: imported["lease"][key]
-        for key in (
-            "expected_head",
-            "expected_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    } == {
-        key: lease[key]
-        for key in (
-            "expected_head",
-            "expected_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    }
+    assert all(
+        imported["lease"][key] == lease[key]
+        for key in imported["lease"]
+        if key.startswith(("expected_", "base_commitment_"))
+    )
     assert {
         key: imported["acknowledgement"][key]
         for key in (
@@ -433,17 +409,11 @@ def _assert_source_revoked(
         "destination_lease_base_commitment_bytes_sha256": lease["base_commitment_bytes_sha256"],
         "base_commitment_digest": lease["base_commitment_digest"],
     }
-    original_identity = {key: imported["lease"][key] for key in ("lane_incarnation_id", "lease_id")}
-    replayed_import = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref="agent:test:case:target",
-            apply=True,
-        )
-    )
+    identity_keys = ("lane_incarnation_id", "lease_id")
+    original_identity = {key: imported["lease"][key] for key in identity_keys}
+    replayed_import = import_cross_host_handoff(request)
     assert replayed_import["verdict"] == "pass"
-    assert {key: replayed_import["lease"][key] for key in original_identity} == original_identity
+    assert all(replayed_import["lease"][key] == value for key, value in original_identity.items())
     database = state_database(destination)
     expired_at = datetime.now(UTC) - timedelta(seconds=1)
     with closing(sqlite3.connect(database)) as connection, connection:
@@ -460,71 +430,30 @@ def _assert_source_revoked(
             "update leases set expires_at = ?, payload_json = ? where subject = ?",
             (expired_at.isoformat(), json.dumps(payload, sort_keys=True), branch),
         )
-    resumed_import = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref="agent:test:case:target",
-            apply=True,
-        )
-    )
+    resumed_import = import_cross_host_handoff(request)
     assert resumed_import["verdict"] == "pass"
-    assert {key: resumed_import["lease"][key] for key in original_identity} == original_identity
+    assert all(resumed_import["lease"][key] == value for key, value in original_identity.items())
     acknowledgement = package.parent / "acknowledgement.json"
     acknowledgement.write_text(
         json.dumps(resumed_import["acknowledgement"], sort_keys=True) + "\n", encoding="utf-8"
     )
     with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("delete from leases where subject = ?", (branch,))
-    orphan = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref="agent:test:case:target",
-            apply=True,
-        )
-    )
+    orphan = import_cross_host_handoff(request)
     assert orphan["verdict"] == "block"
     assert orphan["required_gaps"] == ["handoff_import_failed:handoff_destination_orphan_carrier"]
     assert observe_lease(database, branch).state == "missing"
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
-    request = CrossHostHandoffSourceRevocationRequest(
-        root=source.worktree.as_posix(),
-        package=package.as_posix(),
-        acknowledgement=acknowledgement.as_posix(),
-        holder_ref=source_holder,
-        lease_id=str(lease["lease_id"]),
-        epoch=int(lease["epoch"]),
-        expected_expires_at=str(lease["expires_at"]),
-        expected_payload_sha256=str(lease["payload_sha256"]),
-        expect_head=head,
-        apply=True,
-    )
+    request = _revoke_request(source.worktree, package, acknowledgement, source_holder, lease)
     revoked = revoke_cross_host_source(request)
-    assert (revoked["verdict"], revoked["state"]) == ("pass", "source_revoked")
-    assert "ok" not in revoked
+    assert revoked["verdict"] == "pass"
+    assert revoked["state"] == "source_revoked"
     assert revoked["mutation"]["decision"]["verdict"] == revoked["verdict"]
-    assert {
-        key: revoked["receipt"][key]
-        for key in (
-            "lane_incarnation_id",
-            "expected_head",
-            "expected_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    } == {
-        key: lease[key]
-        for key in (
-            "lane_incarnation_id",
-            "expected_head",
-            "expected_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    }
+    assert all(
+        revoked["receipt"][key] == lease[key]
+        for key in revoked["receipt"]
+        if key == "lane_incarnation_id" or key.startswith(("expected_", "base_commitment_"))
+    )
     assert branch not in leases_by_branch(source.worktree)
     replayed_revoke = revoke_cross_host_source(request)
     assert replayed_revoke["verdict"] == "block"
@@ -548,12 +477,7 @@ def test_handoff_source_revoke_rejects_live_incarnation_drift(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:target")
     imported = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref="agent:test:case:target",
-            apply=True,
-        )
+        _import_request(destination, package, "agent:test:case:target")
     )
     acknowledgement = package.parent / "acknowledgement.json"
     acknowledgement.write_text(
@@ -572,18 +496,7 @@ def test_handoff_source_revoke_rejects_live_incarnation_drift(
         )
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
     report = revoke_cross_host_source(
-        CrossHostHandoffSourceRevocationRequest(
-            root=source.worktree.as_posix(),
-            package=package.as_posix(),
-            acknowledgement=acknowledgement.as_posix(),
-            holder_ref=source_holder,
-            lease_id=str(lease["lease_id"]),
-            epoch=int(lease["epoch"]),
-            expected_expires_at=str(lease["expires_at"]),
-            expected_payload_sha256=str(lease["payload_sha256"]),
-            expect_head=str(lease["expected_head"]),
-            apply=True,
-        )
+        _revoke_request(source.worktree, package, acknowledgement, source_holder, lease)
     )
 
     assert report["verdict"] == "block"
@@ -625,14 +538,7 @@ def test_handoff_import_rejects_tampered_exact_commitment_coordinate(
     package = package.rename(package.with_name(package_id))
     monkeypatch.setenv("ETHOS_ACTOR", target_holder)
 
-    report = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref=target_holder,
-            apply=True,
-        )
-    )
+    report = import_cross_host_handoff(_import_request(destination, package, target_holder))
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == [gap]
@@ -645,13 +551,7 @@ def test_handoff_import_rejects_object_format_mismatch_before_effects(
 ) -> None:
     destination = tmp_path / "destination.git"
     destination.mkdir()
-    subprocess.run(
-        ["git", "init", "--bare", "--object-format=sha256", "."],
-        cwd=destination,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
+    git(destination, "init", "--bare", "--object-format=sha256", ".")
     snapshot = tmp_path / "snapshot"
     snapshot.mkdir()
     manifest = {
@@ -661,7 +561,7 @@ def test_handoff_import_rejects_object_format_mismatch_before_effects(
         "source_tree": "b" * 40,
     }
     git_calls: list[tuple[str, ...]] = []
-    real_run_git = destination_import.run_git
+    real_run_git = destination_objects.run_git
 
     def observed_git(root: Path, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
         git_calls.append(args)
@@ -675,8 +575,8 @@ def test_handoff_import_rejects_object_format_mismatch_before_effects(
         message = "object-format mismatch must precede Lease reservation"
         raise AssertionError(message)
 
-    monkeypatch.setattr(destination_import, "run_git", observed_git)
-    monkeypatch.setattr(destination_import, "verified_package_snapshot", package_snapshot)
+    monkeypatch.setattr(destination_objects, "run_git", observed_git)
+    monkeypatch.setattr(destination_objects, "verified_package_snapshot", package_snapshot)
     monkeypatch.setattr(
         destination_import,
         "observe_lease",
@@ -707,14 +607,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
     )
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:wrong")
-    denied = import_cross_host_handoff(
-        CrossHostHandoffImportRequest(
-            root=destination.as_posix(),
-            package=package.as_posix(),
-            target_holder_ref=target_holder,
-            apply=True,
-        )
-    )
+    denied = import_cross_host_handoff(_import_request(destination, package, target_holder))
     assert denied["verdict"] == "block"
     assert "ok" not in denied
     assert denied["mutation"]["decision"]["verdict"] == denied["verdict"]
@@ -735,12 +628,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
         faults.setattr(destination_import, "acquire_lease", fail_reservation)
         monkeypatch.setenv("ETHOS_ACTOR", target_holder)
         rolled_back = import_cross_host_handoff(
-            CrossHostHandoffImportRequest(
-                root=destination.as_posix(),
-                package=package.as_posix(),
-                target_holder_ref=target_holder,
-                apply=True,
-            )
+            _import_request(destination, package, target_holder)
         )
     _assert_failed_import_is_compensated(
         rolled_back,

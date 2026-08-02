@@ -145,9 +145,8 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
     branch = git(root, "branch", "--show-current")
     holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
     if holder:
-        actor = os.environ.get("ETHOS_ACTOR", "") or holder
         original = os.environ.get("ETHOS_ACTOR")
-        os.environ["ETHOS_ACTOR"] = actor
+        os.environ["ETHOS_ACTOR"] = holder
         try:
             report = work_lane_ref_transition_report(
                 root=root,
@@ -480,6 +479,10 @@ def write_role_policy(
 def adopt_and_commit(repo: Path) -> None:
     plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
+    hook = repo / ".githooks" / "reference-transaction"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    hook.chmod(0o755)
     (repo / ".ethos" / "workspace.toml").write_text(
         render_branch_policy(
             release_branch="main",

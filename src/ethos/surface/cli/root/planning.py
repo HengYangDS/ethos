@@ -134,7 +134,7 @@ def plan(
         else (
             "repair .ethos/rules.toml and rerun ethos plan --json"
             if rule_validation_gaps
-            else "repair the selected Commitment carrier",
+            else "repair the selected Commitment carrier"
         ),
         data={
             "changed_paths": list(paths),

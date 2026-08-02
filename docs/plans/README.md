@@ -27,10 +27,5 @@ decisions, or evidence prove the claim.
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
 - [ETHOS 0.1.0a2 Release Design](release-0-1-0a2-design-20260724.md)
 
-## Archived Plans
-
-- [Self-healing Closeout Intelligence](self-healing-closeout-intelligence/task_plan.md)
-
-Superseded and archived plan files remain retained context. Their front-matter
-state, not their physical directory, prevents them from acting as current work
-authority.
+Superseded execution detail is preserved by Git and accepted OpenSpec history,
+not as a second current plan corpus.

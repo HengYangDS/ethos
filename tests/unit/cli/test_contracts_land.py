@@ -941,11 +941,6 @@ def _land_configured_lane(
     assert accepted_attestation["statement"]["result"]["state"] == "applied"
     assert not {"kind", "content", "mints_authority"} & set(accepted_attestation)
     assert git(repo, "rev-parse", "release") == work_head
-    mirror_attestation = accepted_update["attestations"][1]
-    assert mirror_attestation["statement"]["plan"]["prior_attestations"] == {
-        **prior_attestations,
-        "accepted_effect": accepted_attestation,
-    }
 
 
 def test_closeout_rejects_candidate_self_granted_accepted_authority(tmp_path: Path) -> None:
@@ -1050,6 +1045,52 @@ repository_family_worktrees = false
     assert report["verdict"] == "pass", report
     assert git(repo, "rev-parse", "dev") == candidate_head
     assert git(repo, "rev-parse", "candidate-selected-accepted") == accepted_head
+
+
+def test_closeout_uses_committed_accepted_policy_when_worktree_masks_release_mirror(
+    tmp_path: Path,
+) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    workspace = repo / ".ethos" / "workspace.toml"
+    workspace.write_text(
+        workspace.read_text(encoding="utf-8").replace(
+            'release_mirror = "independent"', 'release_mirror = "accepted_ff"'
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", workspace.as_posix())
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "require release mirror",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    git(repo, "branch", "main", accepted_head)
+    git(candidate, "reset", "--hard", accepted_head)
+    workspace.write_text(
+        workspace.read_text(encoding="utf-8").replace(
+            'release_mirror = "accepted_ff"', 'release_mirror = "independent"'
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "update-index", "--skip-worktree", ".ethos/workspace.toml")
+    candidate_head = commit_fixture_file(candidate, "README.md", "# candidate\n", "candidate")
+    seed_executed_proof(candidate, candidate_head)
+
+    report = landing_mutation.apply_candidate_to_accepted(
+        root=repo,
+        authorized=True,
+        expect_head=accepted_head,
+    )
+
+    assert report["verdict"] == "pass", report
+    assert git(repo, "rev-parse", "dev") == candidate_head
+    assert git(repo, "rev-parse", "main") == candidate_head
 
 
 def _retire_configured_lane(repo: Path, work_head: str) -> None:

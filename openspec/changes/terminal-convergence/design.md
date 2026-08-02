@@ -67,7 +67,17 @@ new product ontology.
 10. **One quality owner per property.** Local and hosted execution consume the
     same declarations. Warnings, suppressions, unknown required facts, and
     projection drift fail closed. JSON receives schema validation and canonical
-    serialization from its declared owner, not an invented formatter. Matched
+    serialization from its declared owner, not an invented formatter. GitHub
+    `act` and the declared GitLab emulator exercise provider projections locally
+    but mint only local evidence. The Python product binds one reproducible
+    project-local execution closure: `pyproject.toml` declares project and tool
+    inputs, `uv.lock` selects the environment, the worktree `.venv` supplies every
+    Python executable, Nox owns reusable local/hosted sessions, and Hatchling owns
+    builds. Global commands, system site-packages, implicit `PATH` fallbacks, and
+    Nox-created duplicate virtual environments are rejected. Nox replaces the
+    shell orchestration it subsumes in the same cutover; Tox, Pixi, Pants, and
+    Dagger remain rejected until one replaces a retained owner with unique signal,
+    offline reproducibility, and further net deletion. Matched
     workflow evaluation uses task × treatment × repetition, control/candidate,
     Pass@k, Pass^k, pollution exclusion, and terminal outcome, cost, recovery,
     intent-loss, mutation, duplication, ELOC, and evidence metrics.
@@ -92,6 +102,34 @@ new product ontology.
     critical path; every phase has an observable exit condition, and elapsed
     activity without a terminal-state delta is not progress.
 
+13. **Semantic economy governs every carrier.** SSOT, DRY, MECE, SOLID, and
+    less-is-more are acceptance tests, not slogans: each retained entity has one
+    semantic owner, one reason to change, no overlapping authority, and the
+    smallest truthful public and physical surface. No line-count target may erase
+    required capability, and no size gate may be evaded through aggregation,
+    forwarding, aliases, wrappers, generated displacement, or carrier transfer.
+14. **Intent closure is open over the selected Commitment.** Historical IDs are
+    evidence for their bounded source only. They do not define the universe of
+    accepted feedback and cannot prove the current session complete. Each later
+    accepted obligation refines an existing open task, requirement, acceptance
+    condition, verifier, or explicit disposition before implementation proceeds;
+    no new ledger, plan, Change, or parallel task store is created. Campaign
+    closeout fails when any selected obligation lacks that current semantic route.
+15. **Portability follows positive value ownership.** Product literals and
+    dependencies are admitted by their reason to vary: product invariant, runtime
+    input, deployment policy, forge coordinate, publication-trust capability, or
+    extension declaration. Personal identities, private products/hosts, local
+    paths, keys, fingerprints, ports, provider inventories, and deployment names
+    never enter the portable core by default. Variation-axis tests replace an
+    unbounded blacklist and require ordinary environment, forge, author, install,
+    and provider changes without core edits.
+16. **Learning must change the earliest enforceable owner.** Repeated failure,
+    review, warning, or workaround is incomplete until it is promoted from incident
+    to the narrow rule, gate, schema/default, scaffold, or generator that makes the
+    correct path normal and the invalid path fail closed. Reflection text, memory,
+    or a skill alone is not prevention. Superseded lower carriers are removed after
+    proof so learning does not become another accumulation surface.
+
 ## Carrier Disposition
 
 This is the cutover inventory, not a new registry. Each row classifies one
@@ -110,7 +148,7 @@ the final explicit remainder; every tracked path resolves to exactly one row.
 | `docs/history/**` | Superseded documentation history | historical | Git history and current documentation routing | `5.6` | links resolve and current docs exclude historical authority |
 | `docs/governance/conversation-ledger.md` | Conversation-derived requirement ledger | deleted-after-proof | this design, delta specs, stable tasks, and the fact-boundary closure below | `0.4` | all feedback and independent fact boundaries map to one owner and verifier |
 | `docs/plans/terminal-governance-product-design.md` | Canonical terminal target design | absorbed | terminal target design under the Product Design Contract | `5.1`, `5.6` | design integrity preserves the target until its current semantics are absorbed |
-| `docs/decisions/**`, `docs/plans/**` | Decision records and plans | deleted-after-proof | flat DR metadata, Git history, and current OpenSpec tasks | `5.4`, `5.6` | DR grammar and absorptive retirement prove no parallel ledger |
+| Superseded plans and experimental research | Historical design carriers | deleted-after-proof | Git history plus current OpenSpec design/tasks | `5.4`, `5.6` | current design already absorbs lane, runtime, and tooling conclusions; stale carriers are removed rather than archived in parallel |
 | `.agents/**`, `.config/**`, `.github/**`, `.gitlab/**`, `.gitlab-ci.yml`, `.githooks/**`, `.pre-commit-config.yaml`, `rules/**` | Rules, skills, checks, forge, hook, and provider projections | absorbed | their declared native owners | `5.5`, `5.7` | route-owner, drift, and provider-homomorphism checks |
 | `.ethos/**`, `.gitignore`, `.gitleaks.toml`, `AGENTS.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`, `README.md`, `assets/**`, `distributions/**`, `docs/**`, `openspec/README.md`, `openspec/config.yaml`, `openspec/changes/*`, `package-lock.json`, `package.json`, `pyproject.toml`, `ruff.toml`, `src/**`, `tests/**`, `tools/**`, `uv.lock` excluding every earlier selector | Remaining tracked product, documentation, source, tests, tools, distributions, and root declarations | absorbed | the narrow owner selected by routing and module boundaries | `5.1`, `5.3`, `6.1`, `6.6` | tracked-path partition, import boundaries, repository audit, and full proof |
 | linked `work/*` resources outside the tracked tree | Auxiliary and superseded Work Lanes | deleted-after-proof | exact native lane lifecycle | `0.7`, `4.6`, `7.2` | semantic absorption first; holder authority and exact retirement receipt independently |
@@ -165,42 +203,56 @@ They close here rather than surviving as a second current document.
 | Backlog, execution runtimes, generators, and scaffolds require a proved consumer and net deletion | deferred | adapter admission; `6.9` | consumer, uninstall, and dependency gates |
 | Product behavior does not migrate into `tools/`; adopter `tools/agent` content is classified during adoption | absorbed | semantic module ownership and adopter classification; `5.3`, `6.7` | module-boundary and adopter report gates |
 | `.mailmap` and package-root re-exports remain absent | absorbed | repository hygiene; `6.6` | architecture scans |
+| SSOT, DRY, MECE, SOLID, less-is-more, high cohesion, and low coupling apply across every carrier | absorbed | semantic economy, native ownership, and terminal compression; `3.1` through `6.6` | owner partition, duplicate/dependency, module-boundary, and source-budget gates |
+| GitLab and GitHub are independent complete CI/CD and distribution planes over one portable semantic contract | absorbed | provider projection and proof separation; `5.7`, `7.3`, `7.4` | provider-homomorphism and independent hosted Attestations |
+| Local GitHub `act` and GitLab emulation prove local projection behavior only | absorbed | native quality owners and assurance-plane separation; `6.1`, `6.4`, `7.1` | locked local-emulator gates plus hosted non-substitution tests |
+| Tox, Nox, Pixi, Pants, and Dagger do not enter the product without unique signal, a real consumer, and proved net deletion | deferred | quality/tool admission; `6.1`, `6.5`, `6.9` | matched replacement prototype, offline lock proof, and uninstall/dependency gates |
 | Retired Subject/Contract/Transition/Inscription/Chronicle/Evolve vocabulary does not define the terminal kernel | superseded | Commitment, Facts, TransitionPlan, Attestation, and model promotion; `1.1` through `3.2` | kernel contract, authority, and lifecycle tests |
+
+This table and CL-001 through CL-025 close the retired ledger only. They are not a
+complete-session manifest. Later accepted feedback is authoritative through the
+selected Commitment and is absorbed directly into the current Decisions, task
+bodies, delta requirements, acceptance conditions, and verifiers. Any accepted
+obligation that cannot be routed there is a `model_gap` and blocks the affected
+task and campaign closeout rather than being silently omitted.
 
 ## Accepted Feedback Closure
 
 The superseded conversation ledger is reduced here into current semantic
 owners. `deferred` means a concrete consumer must first satisfy task `6.9`;
 `superseded` means a later explicit terminal decision replaced the old shape
-without dropping its underlying concern.
+without dropping its underlying concern. The retired source remains auditable at
+`5093e95db^:docs/governance/conversation-ledger.md`; it is evidence, not an owner.
+Later accepted rulings are preserved below in the independent-boundary and
+post-cutover refinement tables rather than appended to another ledger.
 
-| Feedback | Disposition | Current tasks | Current semantic owner or reason | Verifier |
-| --- | --- | --- | --- | --- |
-| CL-001 | superseded | `5.3` | one `src/ethos` distribution with narrow semantic modules replaces package-count design | module-boundary and import-linter gates |
-| CL-002 | absorbed | `5.5`, `6.7` | skill quality and adopter proof | skill portfolio and adopter gates |
-| CL-003 | absorbed | `5.5` | skill activation remains a repository registry, never provider metadata | skill schema and projection-drift gates |
-| CL-004 | absorbed | `F.7`, `5.5` | Superpowers remains an optional observable method pack | method-pack authority architecture test |
-| CL-005 | deferred | `4.4`, `6.9` | host capabilities are optional facts or adapters and never repository truth | profile/adopter conformance |
-| CL-006 | deferred | `6.9` | backlog intake requires a real adopter proving unique need and net deletion | adapter admission and uninstall proof |
-| CL-007 | absorbed | `6.7` | adoption classifies native tool surfaces without productizing adopter vocabulary | three-adopter adoption reports |
-| CL-008 | superseded | `F.9`, `4.1`, `6.10` | official OpenSpec owns the complete adopter Change lifecycle; ETHOS owns admission, proof, and effects | official strict validation and lifecycle tests |
-| CL-009 | absorbed | `5.5` | capability coverage, overlap, novelty, and retirement checks evolve the taxonomy | spec coverage and overlap gates |
-| CL-010 | superseded | `2.1`, `3.2`, `5.2` | open predicates, model promotion, and Attestations replace an evolution ledger runtime | model-gap and Attestation tests |
-| CL-011 | absorbed | `3.1`, `6.1` | one TransitionPlan compiler and declared gate owners | plan determinism and gate execution tests |
-| CL-012 | absorbed | `6.1`, `6.4` | native format, artifact, evidence, and projection owners | full quality proof |
-| CL-013 | absorbed | `6.7` | three profile-bound reference adopter shapes | adopter conformance suite |
-| CL-014 | absorbed | `6.7`, `6.8` | portable contracts and profiles keep domain semantics outside the product | profile isolation and schema conformance |
-| CL-015 | absorbed | `7.1`, `7.2`, `7.3`, `7.4` | local, protected-ref, hosted, and publication proof remain separate planes | terminal closeout receipts |
-| CL-016 | absorbed | `7.4` | each provider verifies its own hosted signature and release facts | GitLab and GitHub release observations |
-| CL-017 | absorbed | `6.6` | repository hygiene forbids `.mailmap` unless a future explicit design changes the owner | repository hygiene architecture test |
-| CL-018 | rejected | `6.9` | history rewrite is not a standing product mechanism; any migration requires a separately admitted consumer | product-boundary gate |
-| CL-019 | absorbed | `5.1`, `5.4` | canonical information architecture and flat DR grammar | docs registry, links, and DR grammar |
-| CL-020 | superseded | `6.7` | strict profiles bind native repositories without full-skeleton generation | profile round-trip and conflict tests |
-| CL-021 | absorbed | `6.7`, `7.4` | Node/polyglot adopter and dual-provider artifact proof own npm distribution quality | npm pack, install, and publication receipts |
-| CL-022 | absorbed | `F.5` | the six Cyclopts roots are the sole public command plane | live Cyclopts architecture test |
-| CL-023 | absorbed | `7.3`, `7.4` | hosted results enter as plane-bound Attestations, never a second truth store | independent provider Attestations |
-| CL-024 | absorbed | `6.1`, `6.9` | standards have one admitted owner, bounded evidence, exit strategy, and consumer | tool admission and dependency gates |
-| CL-025 | superseded | `0.4`, `0.5` | structural history and intent checks replace a permanent conversation ledger | intent-closure architecture test |
+| Feedback | Accepted obligation | Disposition | Current tasks | Current semantic owner or reason | Verifier |
+| --- | --- | --- | --- | --- | --- |
+| CL-001 | Keep orchestration thin and split code by narrow semantic ownership. | superseded | `5.3` | one `src/ethos` distribution with narrow semantic modules replaces package-count design | module-boundary and import-linter gates |
+| CL-002 | Skills must meet provider-quality expectations rather than remain placeholders. | absorbed | `5.5`, `6.7` | skill quality and adopter proof | skill portfolio and adopter gates |
+| CL-003 | `activation.toml` is an ETHOS registry, never provider metadata. | absorbed | `5.5` | skill activation remains a repository registry, never provider metadata | skill schema and projection-drift gates |
+| CL-004 | Superpowers remains optional execution method, not repository truth. | absorbed | `F.7`, `5.5` | Superpowers remains an optional observable method pack | method-pack authority architecture test |
+| CL-005 | Host memory, goals, subagents, modes, and diagnostics are capability facts only. | deferred | `4.4`, `6.9` | host capabilities are optional facts or adapters and never repository truth | profile/adopter conformance |
+| CL-006 | Backlog intake may be an adapter but cannot own proof or contract truth. | deferred | `6.9` | backlog intake requires a real adopter proving unique need and net deletion | adapter admission and uninstall proof |
+| CL-007 | Classify adopter agent tools explicitly as profile, projection, or residue. | absorbed | `6.7` | adoption classifies native tool surfaces without productizing adopter vocabulary | three-adopter adoption reports |
+| CL-008 | Use the official OpenSpec lifecycle for Change artifacts and archive. | superseded | `F.9`, `4.1`, `6.10` | official OpenSpec owns the complete adopter Change lifecycle; ETHOS owns admission, proof, and effects | official strict validation and lifecycle tests |
+| CL-009 | Keep spec capabilities MECE while allowing their taxonomy to evolve. | absorbed | `5.5` | capability coverage, overlap, novelty, and retirement checks evolve the taxonomy | spec coverage and overlap gates |
+| CL-010 | Turn hypotheses, experiments, feedback, and retirement into real evolution. | superseded | `2.1`, `3.2`, `5.2` | open predicates, model promotion, and Attestations replace an evolution ledger runtime | model-gap and Attestation tests |
+| CL-011 | One real compiler and runner plans, evaluates, executes, and evidences gates. | absorbed | `3.1`, `6.1` | one TransitionPlan compiler and declared gate owners | plan determinism and gate execution tests |
+| CL-012 | Govern formatting, generated artifacts, and evidence locations. | absorbed | `6.1`, `6.4` | native format, artifact, evidence, and projection owners | full quality proof |
+| CL-013 | Reference adopters stay profile-bound and cannot shape the core. | absorbed | `6.7` | three profile-bound reference adopter shapes | adopter conformance suite |
+| CL-014 | Domain contracts remain profile or adopter semantics. | absorbed | `6.7`, `6.8` | portable contracts and profiles keep domain semantics outside the product | profile isolation and schema conformance |
+| CL-015 | Keep local, protected-ref, hosted, break-glass, and publication proof distinct. | absorbed | `7.1`, `7.2`, `7.3`, `7.4` | local, protected-ref, hosted, and publication proof remain separate planes | terminal closeout receipts |
+| CL-016 | Verify commit signatures independently on each hosted provider. | absorbed | `7.4` | each provider verifies its own hosted signature and release facts | GitLab and GitHub release observations |
+| CL-017 | Do not restore repository-level `.mailmap` identity rewriting. | absorbed | `6.6` | repository hygiene forbids `.mailmap` unless a future explicit design changes the owner | repository hygiene architecture test |
+| CL-018 | Treat history rewriting only as an explicitly authorized migration. | rejected | `6.9` | history rewrite is not a standing product mechanism; any migration requires a separately admitted consumer | product-boundary gate |
+| CL-019 | Make documentation clear, faithful, elegant, navigable, and strongly organized. | absorbed | `5.1`, `5.4` | canonical information architecture and flat DR grammar | docs registry, links, and DR grammar |
+| CL-020 | Bind adopters through strict profiles without multiplying full skeletons. | superseded | `6.7` | strict profiles bind native repositories without full-skeleton generation | profile round-trip and conflict tests |
+| CL-021 | Make npm packaging, installation, and publication independently real. | absorbed | `6.7`, `7.4` | Node/polyglot adopter and dual-provider artifact proof own npm distribution quality | npm pack, install, and publication receipts |
+| CL-022 | Preserve one small ETHOS-first public command plane. | absorbed | `F.5` | the six Cyclopts roots are the sole public command plane | live Cyclopts architecture test |
+| CL-023 | Feed hosted parity into evidence without creating another truth store. | absorbed | `7.3`, `7.4` | hosted results enter as plane-bound Attestations, never a second truth store | independent provider Attestations |
+| CL-024 | Make every admitted standard executable, evidenced, and removable. | absorbed | `6.1`, `6.9` | standards have one admitted owner, bounded evidence, exit strategy, and consumer | tool admission and dependency gates |
+| CL-025 | Keep accepted feedback auditable so scope cannot silently narrow or vanish. | superseded | `0.4`, `0.5` | structural history and intent checks replace a permanent conversation ledger | intent-closure architecture test |
 
 ## Pre-cutover Task Closure
 
@@ -286,6 +338,15 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 | `3.1` | `db804e65e4475aa5863b1eb8602526bd3979ca9426e5cb90216cbf2758b4d9de` | `e4bbb661802e5ca57de3d93f350a424234497873693f01fa33548e39511a50f1` | clarified | Continuation is one pure projection from authoritative facts, not persisted lifecycle state. |
 | `5.5` | `ca758f3eca189fda18b6607775156f998eb4eb1ee67cf556d7a434ceae5d8b0d` | `3eb71b9c00f031cebdffcc52c08727cce3e38b7e0bfef7ff9707f8fc76d21356` | clarified | Workflow evaluation remains evidence for evolving skills and practices, never progress authority. |
 | `6.9` | `7144cc607c7c0f178601edc7eb7744565b695b7aede85d4b21733426b7405456` | `d2f2fccced730430a150670f75b1930e1d6d5ca6821e6244104044260c846db4` | clarified | COMET contributes benchmark and mechanism ideas only; semantic progress, retry convergence, and matched evaluation stay ETHOS-owned. |
+| `6.4` | `9f9ffa71983c85d75101047a86e67f941694690e1398961a0867f30be3f771a8` | `7d8645ac2f2d32cb79160381868fbf7e21c6c35ef39a34791f17918c8cfac280` | clarified | Local `act` and GitLab emulation exercise provider projections but mint only local evidence. |
+| `3.1` | `e4bbb661802e5ca57de3d93f350a424234497873693f01fa33548e39511a50f1` | `ea3f95a7ea26ec36f8d35e7e95fa17f07846adfde9321f871e19e11be460d3bc` | clarified | Terminal semantic deletion, not intermediate diff size or activity, measures the transaction cutover; bounded temporary growth cannot survive as a parallel path. |
+| `3.4` | `7f98df1ca887bc8186a1d6a6be4f130be68ac325d056009bde211252376d4f27` | `888f848059fd4aa6a877bd78fbc271cdc5596575e73b8e7a683d92aacf7ac851` | clarified | Positive ownership classifies portable values and variation axes instead of expanding a blacklist for every leaked environment literal. |
+| `3.5` | `7c6ffe539adeba2a9430fbc09bc21ff751382e2c7babcd3406caba7ed7932cd3` | `2dc2ff7f084ee85439e3bf4268f3d40c535d3a67798541674d7650e4c8449e0d` | clarified | Private-product and workstation coupling is absent from every product carrier, not only runtime source. |
+| `5.5` | `3eb71b9c00f031cebdffcc52c08727cce3e38b7e0bfef7ff9707f8fc76d21356` | `a302ac2efca054f87bae8e623fbc9497075cff154815ea3b1bd68e145dea4f4b` | clarified | Learning and repeated findings must change the earliest enforceable semantic owner and retire obsolete lower carriers. |
+| `5.7` | `829c0724aeed48520f0bd5d74e69ade7428f3bbfda562799b26f9b8d647b0d7e` | `92585ca2e28280f112e2447ea2feff76a041f31639824869411364f37355ecb7` | clarified | Provider homomorphism covers issue/review policy and the exact local-only and remotely publishable branch roles. |
+| `6.1` | `e27506e17c7d959264d3a94f0e5d92f49fc791ba414d9b42aeb7326143229001` | `ecaef0a7832fd54287f442a1e0d5fa6f0a97ea00ebe71c1cdd992ec32e3a47d6` | superseded | The later environment ruling combines hermetic fixtures with one worktree `.venv`, uv lock, Nox session owner, and Hatchling build owner while subsumed shell orchestration is deleted. |
+| `6.5` | `a0877a0bd062cd77cdf546c3f8fe11b220399626382832aa2bdbbdf93ae5213a` | `bd8bf1e582d525a982a8735cfd728a7fe2c07a69f72050bcb04d42095edbbcd5` | clarified | Duplicate and structural tool candidates are compared by unique signal and net deletion rather than accumulated by name. |
+| `6.7` | `9c76a47117bceb83cf2e0490d1d940cb75d4b4d4765f1504a8dd64f3b3517b5e` | `ff699ef143dde1907b3d01b7b6426e55dfcfcf0885bdae74e3a15725ee4bc946` | clarified | Adopter proof includes first-hour CLI, SDK, JSON, scaffold, diagnostic, and recovery UX without repository-shape cloning. |
 
 ## Alternatives Considered
 

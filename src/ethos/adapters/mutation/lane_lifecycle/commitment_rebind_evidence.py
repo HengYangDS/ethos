@@ -1,4 +1,4 @@
-"""Attestation persistence and exact recovery-intent observation for Commitment rebind."""
+"""Attestation persistence for one complete Commitment rebind."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
@@ -27,50 +26,7 @@ if TYPE_CHECKING:
 
     from ethos.contracts.coordination import CommitmentRebindRequest
     from ethos.contracts.plan import GitEffect
-    from ethos.contracts.plan import GitRefUpdate
     from ethos.contracts.plan import TransitionPlan
-
-
-def recovery_intent(
-    repo: Path,
-    request: CommitmentRebindRequest,
-    update: GitRefUpdate,
-    bindings: dict[str, str],
-    plan: TransitionPlan,
-    effect: GitEffect,
-) -> dict[str, object] | None:
-    """Return the sole committed intent matching the exact original transaction."""
-    observed_ref = ref_head(repo, request.branch)
-    expected_context = {
-        "retain_after_commit": True,
-        "old_lease_generation": lease_generation(old_generation(request)),
-        "old_commitment_digest": request.expected_commitment_digest,
-        "working_overlay_sha256": request.expected_working_overlay_sha256,
-        "facts_digest": plan.inputs.facts,
-        "plan_digest": plan.digest,
-        "policy_digest": plan.inputs.policy,
-        "effect_digest": effect.digest(),
-    }
-    intent = claim_ref_intent(
-        root=repo,
-        ref_name=f"refs/heads/{request.branch}",
-        update=update,
-        operation="commitment.rebind",
-        phase="retry" if observed_ref == request.expect_head else "recover",
-        bindings=bindings,
-        validate=lambda _bindings, context: (
-            "commitment_rebind_recovery_context_mismatch"
-            if canonical_json_digest(context) != canonical_json_digest(expected_context)
-            else ""
-        ),
-    )
-    if gap := str(intent["gap"] or ""):
-        if gap == "ref_intent_missing" and observed_ref == request.expect_head:
-            return None
-        raise ValueError(
-            "commitment_rebind_recovery_missing" if gap == "ref_intent_missing" else gap
-        )
-    return None if observed_ref == request.expect_head else intent
 
 
 def old_generation(request: CommitmentRebindRequest) -> dict[str, object]:

@@ -19,11 +19,11 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
-    from ethos.adapters.mutation.decision import MutationDecision
+    from ethos.contracts.admission import AdmissionDecision
     from ethos.contracts.verdict import Verdict
 
 
-def closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
+def closeout_audit_root(repo: Path, decision: AdmissionDecision) -> Path:
     """Resolve closeout audit root, preserving land.workspace_status patchability."""
     if decision.verdict != "pass":
         return repo
@@ -166,10 +166,10 @@ def closeout_next_action(
     verdict: Verdict,
     gaps: tuple[str, ...],
     current_head: str,
-    state: str = "",
+    candidate_current: bool = False,
 ) -> str:
     """Derive the recommended next command after accepted-root closeout."""
-    if verdict == "pass" and state == "current":
+    if verdict == "pass" and candidate_current:
         return "ethos publish"
     if verdict == "pass":
         return (
@@ -190,7 +190,7 @@ def closeout_next_action(
     return "ethos prove --json"
 
 
-def repository_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
+def repository_audit_after_admission(repo: Path, decision: AdmissionDecision) -> dict[str, object]:
     """Run the shape audit after admission, or skip when mutation was blocked."""
     if decision.verdict != "pass":
         return {

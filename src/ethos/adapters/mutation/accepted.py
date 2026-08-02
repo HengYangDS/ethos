@@ -8,7 +8,6 @@ from typing import cast
 
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import is_ancestor
@@ -82,20 +81,10 @@ def _apply_candidate_promotion(
             candidate_head=candidate_head,
         )
     sweep_stale_ref_intents(root)
-    evidence_digest = proof_evidence_digest(root, candidate_head)
-    if not evidence_digest:
-        return _accepted_block(
-            policy,
-            current_head,
-            ["accepted_proof_binding_invalid"],
-            candidate_head=candidate_head,
-            stderr="accepted_prior_proof_missing",
-        )
     try:
         authority = load_repository_commitment(root, tree_ref=current_head)
         prior_attestations = {
             "proof": proof.model_dump(mode="json"),
-            "proof_set": evidence_digest,
             **(
                 {"control_replacement_receipt": control_replacement_receipt}
                 if control_replacement_receipt

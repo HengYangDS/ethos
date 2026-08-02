@@ -15,10 +15,8 @@ from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof import proof_plan_for_attestation
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -1106,7 +1104,6 @@ def test_repository_admission_prefers_full_when_default_and_full_coexist(tmp_pat
     assert default_attestation.plan_digest != attestation.plan_digest
     assert proof_attestation(repo, head) == attestation
     assert proof_gaps(repo, head) == []
-    assert proof_evidence_digest(repo, head)
 
 
 def test_self_consistent_arbitrary_proof_effect_fails_closed(tmp_path: Path) -> None:
@@ -1237,34 +1234,6 @@ def test_equivalent_proofs_return_one_deterministic_representative(tmp_path: Pat
     assert selected.id == min(first.id, later.id)
 
 
-def test_any_equivalent_proof_remains_a_current_plan_member(tmp_path: Path) -> None:
-    repo, head = _adopted_repo(tmp_path / "repo")
-    first = _proof_attestation(repo, head)
-    persist_proof_attestation(repo, first)
-    later = Attestation.issue(
-        first.model_dump(exclude={"id", "schema_version", "statement_digest"})
-        | {"issued_at": first.issued_at + timedelta(seconds=1)}
-    )
-    persist_proof_attestation(repo, later)
-
-    assert proof_plan_for_attestation(repo, first) == proof_plan_for_attestation(repo, later)
-
-
-def test_equivalent_proof_set_has_one_stable_evidence_digest(tmp_path: Path) -> None:
-    repo, head = _adopted_repo(tmp_path / "repo")
-    first = _proof_attestation(repo, head)
-    persist_proof_attestation(repo, first)
-    before = proof_evidence_digest(repo, head)
-    later = Attestation.issue(
-        first.model_dump(exclude={"id", "schema_version", "statement_digest"})
-        | {"issued_at": first.issued_at + timedelta(seconds=1)}
-    )
-    persist_proof_attestation(repo, later)
-
-    assert before
-    assert proof_evidence_digest(repo, head) == before
-
-
 def test_equivalent_proofs_with_different_artifacts_share_closure(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     first = _proof_attestation(repo, head)
@@ -1290,7 +1259,6 @@ def test_equivalent_proofs_with_different_artifacts_share_closure(tmp_path: Path
     assert first.evidence_refs != second.evidence_refs
     assert proof_attestation(repo, head) is not None
     assert proof_gaps(repo, head) == []
-    assert proof_evidence_digest(repo, head)
 
 
 @pytest.mark.parametrize("novel", [False, True])

@@ -118,10 +118,7 @@ def _effect_plan(proof: Attestation):
             observed_at=datetime(2026, 8, 1, tzinfo=UTC),
             values={"refs": {"refs/heads/dev": old}, "assertions": {}},
         ),
-        prior_attestations={
-            "proof": proof.model_dump(mode="json"),
-            "proof_set": "f" * 64,
-        },
+        prior_attestations={"proof": proof.model_dump(mode="json")},
         policy={"operation": "candidate.accept"},
         effect=GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)}),
     )
@@ -371,21 +368,16 @@ def test_intent_path_is_linked_worktree_safe(tmp_path: Path) -> None:
     )
 
 
-def test_git_effect_rejects_noncurrent_proof_before_intent_or_cas(
+def test_git_effect_does_not_reread_proof_store_before_intent_or_cas(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
         ethos.adapters.repo.git_effects,
-        "proof_plan_for_attestation",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("proof_not_proven")),
-    )
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effects,
-        "run_git",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("CAS attempted")),
+        "current_tracked_head",
+        lambda _root: _oid("stale"),
     )
 
-    with pytest.raises(ValueError, match="git_effect_prior_proof_invalid:proof_not_proven"):
+    with pytest.raises(ValueError, match="git_effect_plan_prestate_stale"):
         execute_git_effect(tmp_path, _effect_plan(_proof()), issuer="agent:test:case:ref-effect")
 
     assert not ref_intent_dir(tmp_path).exists()

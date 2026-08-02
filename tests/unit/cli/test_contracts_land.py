@@ -16,7 +16,6 @@ import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -49,33 +48,6 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _expected_proof_readiness(
-    worktree: Path, head: str, *, state: str, required_gaps: tuple[str, ...]
-) -> dict[str, object]:
-    blocking = bool(required_gaps)
-    next_action = f"ethos prove --execute --expect-head {head} --json" if blocking else ""
-    return {
-        "kind": "proof_attestation_readiness",
-        "head": head,
-        "state": state,
-        "blocking": blocking,
-        "required_gaps": list(required_gaps),
-        "next_action": next_action,
-        "local_readiness": not blocking,
-        "evidence_class": "local_readiness",
-        "independent_verification": {
-            "verdict": "pass",
-            "state": "disabled",
-            "root": worktree.resolve().as_posix(),
-            "mode": "disabled",
-            "receipt": {},
-            "evidence_class": "local_readiness",
-            "mints_authority": False,
-            "required_gaps": [],
-        },
-    }
 
 
 def _archive_fixture_change(
@@ -225,9 +197,7 @@ def test_land_dry_run_requires_executed_proof_before_ready_state(
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["proof_not_proven"]
     assert payload["next_action"] == f"ethos prove --execute --expect-head {work_head} --json"
-    assert payload["data"]["proof_readiness"] == _expected_proof_readiness(
-        worktree, work_head, state="missing", required_gaps=("proof_not_proven",)
-    )
+    assert "proof_readiness" not in payload["data"]
 
 
 def test_land_blocks_active_change_even_when_exact_head_is_proven(tmp_path: Path) -> None:
@@ -242,7 +212,7 @@ def test_land_blocks_active_change_even_when_exact_head_is_proven(tmp_path: Path
         "openspec_active_change_unarchived:fixture-change:work_lane"
     ]
     assert payload["next_action"] == "openspec archive fixture-change --yes --json"
-    assert payload["data"]["proof_readiness"] == {}
+    assert "proof_readiness" not in payload["data"]
     mutation = payload["data"]["mutation"]
     assert mutation["request"] == {
         "command": "land",
@@ -313,10 +283,7 @@ def test_land_allows_officially_archived_work_lane_head(monkeypatch, tmp_path: P
     assert proof is not None
     assert payload["data"]["candidate_update"]["attestation"]["statement"]["plan"][
         "prior_attestations"
-    ] == {
-        "proof": proof.model_dump(mode="json"),
-        "proof_set": proof_evidence_digest(worktree, archived_head),
-    }
+    ] == {"proof": proof.model_dump(mode="json")}
     assert git(candidate, "rev-parse", "HEAD") == archived_head
 
 
@@ -905,10 +872,7 @@ def _land_configured_lane(
     assert not {"kind", "content", "mints_authority"} & set(candidate_attestation)
     proof = proof_attestation(worktree, work_head)
     assert proof is not None
-    prior_attestations = {
-        "proof": proof.model_dump(mode="json"),
-        "proof_set": proof_evidence_digest(worktree, work_head),
-    }
+    prior_attestations = {"proof": proof.model_dump(mode="json")}
     assert candidate_attestation["statement"]["plan"]["prior_attestations"] == prior_attestations
     assert git(candidate_path, "rev-parse", "HEAD") == work_head
     assert git(repo, "rev-parse", "integration") == accepted_head

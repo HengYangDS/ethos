@@ -12,7 +12,7 @@ from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
-from ethos.adapters.mutation.decision import MutationDecision
+from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_import import apply_handoff_import
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -24,6 +24,8 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.coordination import CrossHostHandoff
@@ -32,7 +34,6 @@ from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.coordination import MutationAdmissionRequest
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -112,9 +113,9 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
             + [gap for ok, gap in checks if not ok]
         )
     )
-    evaluation = _guarded(tuple(gaps), apply=request.apply)
-    report = _handoff_report(branch=request.branch, evaluation=evaluation)
-    if request.apply and evaluation.verdict == "pass":
+    required_gaps = _guarded(tuple(gaps))
+    report = _handoff_report(branch=request.branch, gaps=required_gaps, apply=request.apply)
+    if request.apply and not required_gaps:
         output_root = Path(request.output_root) if request.output_root else None
         _apply_report(
             report,
@@ -182,9 +183,9 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
         (status.get("role") == ROLE_ACCEPTED_ROOT, "handoff_import_requires_accepted_root"),
         (not bool(status.get("dirty")), "handoff_import_requires_clean_destination"),
     )
-    evaluation = _guarded(tuple(gaps), checks=checks, apply=request.apply)
-    report = _handoff_report(branch=branch, evaluation=evaluation)
-    if request.apply and evaluation.verdict == "pass":
+    required_gaps = _guarded(tuple(gaps), checks=checks)
+    report = _handoff_report(branch=branch, gaps=required_gaps, apply=request.apply)
+    if request.apply and not required_gaps:
         _apply_report(
             report,
             "handoff_import_failed",
@@ -378,9 +379,9 @@ def revoke_cross_host_source(
             else ()
         ),
     )
-    evaluation = _guarded(tuple(gaps), checks=checks, apply=request.apply)
-    report = _handoff_report(branch=branch, evaluation=evaluation)
-    if request.apply and evaluation.verdict == "pass":
+    required_gaps = _guarded(tuple(gaps), checks=checks)
+    report = _handoff_report(branch=branch, gaps=required_gaps, apply=request.apply)
+    if request.apply and not required_gaps:
         try:
             revoked = revoke_lease(
                 state_database(repo),
@@ -433,15 +434,9 @@ def _guarded(
     gaps: tuple[str, ...],
     *,
     checks: tuple[tuple[bool, str], ...] = (),
-    apply: bool,
-) -> MutationDecision:
-    """Reduce one handoff observation without a generic lifecycle owner."""
-    required = tuple(dict.fromkeys((*gaps, *(gap for ok, gap in checks if not ok))))
-    return MutationDecision(
-        verdict="block" if required else "pass",
-        state="blocked" if required else "applying" if apply else "planned",
-        gaps=required,
-    )
+) -> tuple[str, ...]:
+    """Return unique handoff gaps from current observations."""
+    return tuple(dict.fromkeys((*gaps, *(gap for ok, gap in checks if not ok))))
 
 
 def _lease_state_gap(branch: str, lease: dict[str, object]) -> str:
@@ -464,14 +459,14 @@ def _handoff_context(*, context_text: str, context_file: Path | None) -> tuple[s
     return context_text, "" if context_text.strip() else "handoff_context_required"
 
 
-def _handoff_report(*, branch: str, evaluation: Any) -> dict[str, object]:
+def _handoff_report(*, branch: str, gaps: tuple[str, ...], apply: bool) -> dict[str, object]:
     return {
-        "verdict": evaluation.verdict,
-        "state": evaluation.state,
+        "verdict": "block" if gaps else "pass",
+        "state": "blocked" if gaps else "applying" if apply else "planned",
         "branch": branch,
         **dict.fromkeys(("package_id", "package_path"), ""),
         **{key: {} for key in ("manifest", "lease", "acknowledgement", "receipt")},
-        "required_gaps": list(evaluation.gaps),
+        "required_gaps": list(gaps),
     }
 
 
@@ -499,24 +494,27 @@ def _finish_report(
 ) -> dict[str, object]:
     command, action, resource = envelope
     gaps = tuple(str(gap) for gap in cast("list[object]", report["required_gaps"]))
+    decision = admission_decision(
+        subject=MutationSubject(action=action, resource=resource, expected_state=expected_state),
+        verdict=cast("Any", report["verdict"]),
+        basis=DecisionBasis(
+            enforcement_boundary="local_package_and_git_ref_transition",
+            identity_basis="holder_ref_equality",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="content_addressed_git_and_context",
+            verifier_provenance="current_worktree_runner",
+            time_basis="evaluation_time",
+        ),
+        policy_ref=f"commitment:{command}-admission",
+        required_gaps=gaps,
+        why=(str(report["state"]),) if report["verdict"] == "pass" else (),
+    )
     report["mutation"] = mutation_envelope(
         command=command,
         apply=apply,
         authorized=False,
         expect_head=None,
-        admission=MutationAdmissionRequest(
-            action=action,
-            resource=resource,
-            expected_state=expected_state,
-            verdict=cast("Any", report["verdict"]),
-            required_gaps=gaps,
-            why=(str(report["state"]),) if report["verdict"] == "pass" else (),
-            state=str(report["state"]),
-            identity_basis="holder_ref_equality",
-            evidence_boundary="content_addressed_git_and_context",
-            enforcement_boundary="local_package_and_git_ref_transition",
-            verifier_provenance="current_worktree_runner",
-        ),
+        decision=decision,
     )
     return report
 

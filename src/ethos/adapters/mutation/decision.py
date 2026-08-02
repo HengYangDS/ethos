@@ -1,8 +1,7 @@
-"""Current-fact mutation admission and public decision envelopes."""
+"""Current-fact mutation admission and public decision projection."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -17,23 +16,32 @@ from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.verdict import Verdict
-from ethos.contracts.verdict import require_closed_verdict
 
 if TYPE_CHECKING:
-    from ethos.contracts.coordination import MutationAdmissionRequest
+    from ethos.contracts.verdict import Verdict
 
 
-@dataclass(frozen=True, slots=True)
-class MutationDecision:
-    """Transient verdict over one current mutation observation."""
-
-    verdict: Verdict
-    state: str
-    gaps: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        require_closed_verdict(self.verdict, self.gaps)
+def admission_decision(
+    *,
+    subject: MutationSubject,
+    verdict: Verdict,
+    basis: DecisionBasis,
+    policy_ref: str,
+    required_gaps: tuple[str, ...] = (),
+    why: tuple[str, ...] = (),
+    next_action: str = "",
+) -> AdmissionDecision:
+    """Return the sole exact-request mutation decision contract."""
+    return AdmissionDecision(
+        verdict=verdict,
+        subject=subject,
+        policy_refs=(policy_ref,),
+        evidence_refs=(f"evidence:{basis.evidence_boundary}",),
+        basis=basis,
+        why=why or required_gaps or ("request_admitted",),
+        next_action=next_action,
+        required_gaps=required_gaps,
+    )
 
 
 def _closeout_candidate_gaps(
@@ -55,9 +63,7 @@ def _closeout_candidate_gaps(
     if not is_ancestor(root, current_head, candidate_head):
         return ["candidate_diverged_from_accepted"]
     gaps = openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
-    if not require_proof:
-        return gaps
-    return [*gaps, *proof_gaps(candidate_path, candidate_head)]
+    return [*gaps, *proof_gaps(candidate_path, candidate_head)] if require_proof else gaps
 
 
 def _request_gaps(
@@ -82,10 +88,33 @@ def evaluate_mutation(
     root: Path,
     current_head: str,
     status: dict[str, object] | None = None,
-) -> MutationDecision:
-    """Admit land or publish from current facts without a lifecycle reducer."""
+) -> AdmissionDecision:
+    """Admit land or publish from current facts."""
+    action = "candidate.integrate" if command == "land" else "remote.publish"
+    base_state: dict[str, object] = {
+        "root": root.resolve().as_posix(),
+        "head": current_head,
+        "apply": apply,
+        "confirmation_present": authorized,
+        "expect_head": expect_head or "",
+    }
     if not apply and command != "land":
-        return MutationDecision(verdict="pass", state="dry_run")
+        return admission_decision(
+            subject=MutationSubject(
+                action=action, resource=root.resolve().as_posix(), expected_state=base_state
+            ),
+            verdict="pass",
+            basis=DecisionBasis(
+                enforcement_boundary="local_process_guard",
+                identity_basis="not_evaluated",
+                state_bindings=tuple(base_state),
+                evidence_boundary="current_local_observation",
+                verifier_provenance="current_runner",
+                time_basis="evaluation_time",
+            ),
+            policy_ref=f"commitment:{command}-admission",
+            why=("readiness_only",),
+        )
     status = status if status is not None else workspace_status(root)
     closeout = cast("dict[str, object]", status.get("closeout_support", {}))
     gaps = _request_gaps(
@@ -112,10 +141,22 @@ def evaluate_mutation(
     if apply:
         gaps.extend(proof_gaps(root, current_head))
     required_gaps = tuple(dict.fromkeys(gaps))
-    return MutationDecision(
-        "block" if required_gaps else "pass",
-        "blocked" if required_gaps else "work_lane_ready" if apply else "dry_run",
-        required_gaps,
+    expected_state = {**base_state, "role": role, "dirty": bool(status["dirty"])}
+    return admission_decision(
+        subject=MutationSubject(
+            action=action, resource=root.resolve().as_posix(), expected_state=expected_state
+        ),
+        verdict="block" if required_gaps else "pass",
+        basis=DecisionBasis(
+            enforcement_boundary="local_process_guard",
+            identity_basis="not_evaluated",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="current_local_observation",
+            verifier_provenance="current_runner",
+            time_basis="evaluation_time",
+        ),
+        required_gaps=required_gaps,
+        policy_ref=f"commitment:{command}-admission",
     )
 
 
@@ -126,10 +167,11 @@ def evaluate_closeout_mutation(
     expect_head: str | None,
     root: Path,
     current_head: str,
-) -> MutationDecision:
+) -> AdmissionDecision:
     """Admit accepted-root closeout from current candidate facts."""
     status = workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
+    candidate_head = str(candidate.get("head") or "")
     gaps = _request_gaps(
         apply=apply,
         authorized=authorized,
@@ -151,22 +193,38 @@ def evaluate_closeout_mutation(
                 root,
                 candidate,
                 current_head,
-                require_proof=apply and str(candidate.get("head") or "") != current_head,
+                require_proof=apply and candidate_head != current_head,
             ),
         )
     )
     required_gaps = tuple(dict.fromkeys(gaps))
-    current = str(candidate.get("head") or "") == current_head
-    return MutationDecision(
-        "block" if required_gaps else "pass",
-        "blocked"
-        if required_gaps
-        else "current"
-        if current
-        else "closeout_ready"
-        if apply
-        else "dry_run",
-        required_gaps,
+    expected_state = {
+        "root": root.resolve().as_posix(),
+        "head": current_head,
+        "candidate_head": candidate_head,
+        "role": role,
+        "dirty": bool(status["dirty"]),
+        "apply": apply,
+        "confirmation_present": authorized,
+        "expect_head": expect_head or "",
+    }
+    return admission_decision(
+        subject=MutationSubject(
+            action="accepted.advance",
+            resource=root.resolve().as_posix(),
+            expected_state=expected_state,
+        ),
+        verdict="block" if required_gaps else "pass",
+        basis=DecisionBasis(
+            enforcement_boundary="local_process_guard",
+            identity_basis="not_evaluated",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="current_local_observation",
+            verifier_provenance="current_runner",
+            time_basis="evaluation_time",
+        ),
+        required_gaps=required_gaps,
+        policy_ref="commitment:land-admission",
     )
 
 
@@ -176,35 +234,9 @@ def mutation_envelope(
     apply: bool,
     authorized: bool,
     expect_head: str | None,
-    admission: MutationAdmissionRequest,
+    decision: AdmissionDecision,
 ) -> dict[str, object]:
-    """Build one exact current-fact mutation envelope."""
-    decision = AdmissionDecision(
-        verdict=admission.verdict,
-        subject=MutationSubject(
-            action=admission.action,
-            resource=admission.resource,
-            expected_state=admission.expected_state,
-        ),
-        policy_refs=(f"commitment:{command}-admission",),
-        evidence_refs=(f"evidence:{admission.evidence_boundary}",),
-        basis=DecisionBasis(
-            enforcement_boundary=admission.enforcement_boundary,
-            identity_basis=admission.identity_basis,
-            state_bindings=tuple(admission.expected_state),
-            evidence_boundary=admission.evidence_boundary,
-            verifier_provenance=admission.verifier_provenance,
-            time_basis="evaluation_time",
-        ),
-        why=admission.why
-        or (
-            (admission.state or "request_admitted",)
-            if admission.verdict == "pass"
-            else admission.required_gaps
-        ),
-        next_action=admission.next_action,
-        required_gaps=admission.required_gaps,
-    )
+    """Project one exact AdmissionDecision with its invocation intent."""
     return {
         "request": {
             "command": command,

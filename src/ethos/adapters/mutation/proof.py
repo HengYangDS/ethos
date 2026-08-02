@@ -9,8 +9,6 @@ from datetime import datetime
 from pathlib import Path
 
 import ethos.adapters.mutation.proof_admission
-from ethos.adapters.admission.evidence.external import independent_verification_admission_report
-from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
@@ -369,44 +367,9 @@ def proof_attestation(root: Path, head: str) -> Attestation | None:
     return attestation if not gaps else None
 
 
-def proof_plan_for_attestation(root: Path, attestation: Attestation) -> TransitionPlan:
-    """Return the exact plan closure after immutable proof admission."""
-    return ethos.adapters.mutation.proof_admission.plan_for_attestation(
-        root, attestation, store=attestation_store_dir(root)
-    )
-
-
 def proof_gaps(root: Path, head: str) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
     _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
         root, head, store=attestation_store_dir(root)
     )
     return gaps
-
-
-def proof_evidence_digest(root: Path, head: str) -> str:
-    """Return the admitted proof set's stable semantic evidence identity."""
-    return ethos.adapters.mutation.proof_admission.evidence_digest(
-        root, head, store=attestation_store_dir(root)
-    )
-
-
-def proof_readiness_report(root: Path, head: str) -> dict[str, object]:
-    """Describe whether the exact HEAD has a valid generic proof Attestation."""
-    gaps = proof_gaps(root, head)
-    independent = independent_verification_admission_report(
-        root=root,
-        action="publish",
-        request=independent_verification_request(root=root, action="publish"),
-    )
-    return {
-        "kind": "proof_attestation_readiness",
-        "head": head,
-        "state": "proven" if not gaps else "missing",
-        "blocking": bool(gaps),
-        "local_readiness": not gaps,
-        "evidence_class": str(independent.get("evidence_class") or "local_readiness"),
-        "independent_verification": independent,
-        "required_gaps": gaps,
-        "next_action": "" if not gaps else f"ethos prove --execute --expect-head {head} --json",
-    }

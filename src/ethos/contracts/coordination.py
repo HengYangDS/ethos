@@ -22,9 +22,6 @@ from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos.contracts.value import FrozenTuple
-from ethos.contracts.value import JsonObject
-from ethos.contracts.verdict import Verdict
-from ethos.contracts.verdict import require_closed_verdict
 
 _HOLDER_REF_PART_COUNT = 4
 _LANE_LEASE_PAYLOAD_FIELDS_INVALID = "lane_lease_payload_fields_invalid"
@@ -351,30 +348,6 @@ class CrossHostHandoffSourceRevocationRequest(BaseModel):
     expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     apply: bool = False
-
-
-class MutationAdmissionRequest(BaseModel):
-    """Bound inputs used to project one mutation admission decision."""
-
-    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
-
-    action: str = Field(min_length=1)
-    resource: str = Field(min_length=1)
-    expected_state: JsonObject
-    verdict: Verdict
-    required_gaps: tuple[str, ...] = ()
-    why: tuple[str, ...] = ()
-    next_action: str = ""
-    state: str = ""
-    identity_basis: str = "not_evaluated"
-    evidence_boundary: str = "current_local_observation"
-    enforcement_boundary: str = "local_process_guard"
-    verifier_provenance: str = "current_runner"
-
-    @model_validator(mode="after")
-    def reject_false_pass(self) -> Self:
-        require_closed_verdict(self.verdict, self.required_gaps)
-        return self
 
 
 class LeaseOperationRequest(BaseModel):

@@ -144,7 +144,7 @@ changing intent cannot deadlock or mutate an existing Commitment.
   assess progress only by terminal semantic deletion and proved behavior, allowing
   bounded temporary ELOC growth inside the atomic slice but no permanent parallel
   implementation, wrapper, facade, or compatibility residue.
-- [ ] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
+- [x] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
   decision ledgers, lifecycle read models, and current Claim/Chronicle/proof
   authorization; retain required bytes only as non-authorizing history.
 - [ ] 3.3 Keep every Git effect idempotent and exact-CAS; replay exists only as

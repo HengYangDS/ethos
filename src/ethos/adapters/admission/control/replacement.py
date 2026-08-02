@@ -15,7 +15,6 @@ from ethos.adapters.admission.evidence.external import load_independent_verifica
 from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
 from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.contracts.rules import stable_digest
 from ethos.contracts.verdict import report_verdict
@@ -129,10 +128,9 @@ def _verification_subject(
     accepted_digest = _control_digest(root, accepted_head, control_paths)
     candidate_digest = _control_digest(root, candidate_head, control_paths)
     proof = proof_attestation(root, candidate_head)
-    proof_digest = proof_evidence_digest(root, candidate_head) if proof is not None else ""
     if not accepted_tree or not candidate_tree or not accepted_digest or not candidate_digest:
         return {}, {}, ["control_replacement_control_snapshot_unavailable"]
-    if not proof_digest:
+    if proof is None:
         return {}, {}, proof_gaps(root, candidate_head)
     subject = {
         "schema_version": 1,
@@ -146,7 +144,11 @@ def _verification_subject(
             "head": candidate_head,
             "tree": candidate_tree,
             "control_digest": candidate_digest,
-            "executed_proof_digest": proof_digest,
+            "proof": {
+                "attestation": proof.id,
+                "statement": proof.statement_digest,
+                "plan": proof.plan_digest,
+            },
         },
         "control_paths": list(control_paths),
     }
@@ -157,7 +159,7 @@ def _verification_subject(
         "action": "control-replacement",
         "proof_floor_id": "ethos:control-replacement:v1",
         "proof_floor_digest": stable_digest(subject),
-        "policy_digest": proof.policy_digest if proof is not None else "",
+        "policy_digest": proof.policy_digest,
         "implementation_digest": "",
     }
     return subject, request, []

@@ -488,3 +488,14 @@ Contradictions, stale projections, and model gaps SHALL promote the affected bou
 **Migration**: Their identical scenarios consolidate under one exact lifecycle-effect requirement.
 
 **Replacement**: Exact Work Lane Lifecycle Effects
+
+### Requirement: Land readiness is proof-grounded
+
+**Reason**: Proof remains a required current fact, but the dedicated
+`proof_readiness` lifecycle read model duplicates the command result's
+`verdict`, `required_gaps`, and `next_action`.
+
+**Migration**: Land consumes proof gaps directly and exposes them only through
+the bounded top-level command result.
+
+**Replacement**: Contextual Authority Resolution

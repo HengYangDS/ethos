@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import os
 from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
@@ -13,8 +13,6 @@ import ethos.adapters.repo.git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
-from ethos.adapters.mutation.proof import proof_evidence_digest
-from ethos.adapters.mutation.proof import proof_plan_for_attestation
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
@@ -26,8 +24,10 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import mutable_json
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import Attestation
 
 
 def execute_git_effect(
@@ -47,7 +47,6 @@ def execute_git_effect(
         )
         _clear_effect_intents(root, plan, effect)
         return attestation
-    _require_prior_proof(root, plan, effect)
     observed = observe_git_effect(root, effect, environment=environment)
     refs = cast("dict[str, str]", observed["refs"])
     expected = {name: update.expected for name, update in effect.updates.items()}
@@ -238,26 +237,6 @@ def _require_effect_permission(effect: GitEffect, permissions: tuple[str, ...]) 
     admitted = set(permissions)
     if "git.ref.compare-and-swap" not in admitted and not set(effect.permissions) <= admitted:
         message = "git_effect_permission_denied"
-        raise ValueError(message)
-
-
-def _require_prior_proof(root: Path, plan: TransitionPlan, effect: GitEffect) -> None:
-    proof_payload = plan.prior_attestations.get("proof")
-    proof_set = plan.prior_attestations.get("proof_set")
-    if proof_payload is None and proof_set is None:
-        return
-    try:
-        proof = Attestation.model_validate_json(json.dumps(mutable_json(proof_payload)))
-        proof_plan_for_attestation(root, proof)
-    except (TypeError, ValueError) as error:
-        message = f"git_effect_prior_proof_invalid:{error}"
-        raise ValueError(message) from error
-    proof_head = proof.subject.removeprefix("git:commit:")
-    if not isinstance(proof_set, str) or proof_evidence_digest(root, proof_head) != proof_set:
-        message = "git_effect_prior_proof_set_mismatch"
-        raise ValueError(message)
-    if {update.desired for update in effect.updates.values()} != {proof_head}:
-        message = "git_effect_prior_proof_head_mismatch"
         raise ValueError(message)
 
 

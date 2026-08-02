@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import ethos.domain.land.closeout as closeout
-from ethos.adapters.mutation.decision import MutationDecision
+from ethos.contracts.admission import AdmissionDecision
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import MutationSubject
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -12,10 +14,25 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_mutation_decision_authorizes_only_pass() -> None:
-    passed = MutationDecision(verdict="pass", state="ready")
-    blocked = MutationDecision(verdict="block", state="blocked", gaps=("gap",))
-    unknown = MutationDecision(verdict="unknown", state="unknown")
+def _decision(verdict, *gaps) -> AdmissionDecision:
+    return AdmissionDecision(
+        verdict=verdict,
+        subject=MutationSubject(action="test", resource="repository:test"),
+        basis=DecisionBasis(
+            enforcement_boundary="test",
+            identity_basis="test",
+            evidence_boundary="test",
+            verifier_provenance="test",
+            time_basis="test",
+        ),
+        required_gaps=gaps,
+    )
+
+
+def test_admission_decision_authorizes_only_pass() -> None:
+    passed = _decision("pass")
+    blocked = _decision("block", "gap")
+    unknown = _decision("unknown")
 
     assert passed.verdict == "pass"
     assert blocked.verdict == "block"
@@ -26,9 +43,9 @@ def test_mutation_decision_authorizes_only_pass() -> None:
 def test_closeout_helpers_authorize_only_pass(monkeypatch, tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     candidate = tmp_path / "candidate"
-    passed = MutationDecision(verdict="pass", state="ready")
-    blocked = MutationDecision(verdict="block", state="blocked", gaps=("gap",))
-    unknown = MutationDecision(verdict="unknown", state="unknown")
+    passed = _decision("pass")
+    blocked = _decision("block", "gap")
+    unknown = _decision("unknown")
     monkeypatch.setattr(
         closeout,
         "workspace_status",

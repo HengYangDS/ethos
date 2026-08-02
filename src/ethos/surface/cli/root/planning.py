@@ -72,7 +72,7 @@ def plan(
                 verdict="block",
                 state="gapped",
                 required_gaps=(gap,),
-                next_actions=("repair or select the Commitment carrier",),
+                next_action="repair or select the Commitment carrier",
             ),
             json_output=json_output,
             enforce=False,
@@ -129,7 +129,7 @@ def plan(
             "required_gate_count": len(required_gates),
         },
         required_gaps=required_gaps,
-        next_actions=("ethos prove --json",)
+        next_action="ethos prove --json"
         if ok
         else (
             "repair .ethos/rules.toml and rerun ethos plan --json"

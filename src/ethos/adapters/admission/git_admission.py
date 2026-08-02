@@ -444,7 +444,7 @@ def _prewrite_report(
         reason,
         gaps,
     )
-    blocked["next_actions"] = _prewrite_block_next_actions(admission)
+    blocked["next_action"] = _prewrite_block_next_action(admission)
     return blocked
 
 
@@ -472,22 +472,22 @@ def _relative(root: Path, path: Path) -> str:
         return resolved.as_posix()
 
 
-def _prewrite_block_next_actions(admission: dict[str, object]) -> list[str]:
+def _prewrite_block_next_action(admission: dict[str, object]) -> str:
     lease = admission.get("work_lane_lease")
     reason = str(lease.get("reason") or "") if isinstance(lease, dict) else ""
     if reason.startswith("lease_holder_mismatch:"):
         holder = str(lease.get("holder_ref") or "").strip() if isinstance(lease, dict) else ""
         return (
-            [
-                f"set ETHOS_ACTOR={holder} and rerun the blocked command, or obtain handoff",
-                "ethos lane prewrite <path>",
-            ]
+            f"set ETHOS_ACTOR={holder} and rerun the blocked command, or obtain handoff"
             if holder
-            else ["set ETHOS_ACTOR to the current holder_ref or obtain handoff"]
+            else "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
         )
     if reason.startswith("work_lane_missing_lease:"):
-        return ["ethos lane start <name> --holder-ref <holder-ref> --apply --json"]
-    return ["ethos lane prewrite <path>"]
+        return (
+            "ethos lane start <name> --source-root <source-work-lane> "
+            "--holder-ref <holder-ref> --apply --json"
+        )
+    return "ethos lane prewrite <path>"
 
 
 def _verdict(

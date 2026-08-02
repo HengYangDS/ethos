@@ -338,10 +338,7 @@ def _replay_work_lane(
             return blocked(
                 ["refresh_base_postcondition_failed"],
                 head=_ref_head(root, "HEAD"),
-                next_actions=[
-                    "inspect current Git ancestry and runner, signing, or hook diagnostics",
-                    "repair the replay environment and rerun ethos lane refresh-base",
-                ],
+                next_action="inspect current Git ancestry and runner, signing, or hook diagnostics",
                 stderr="candidate head is not an ancestor of refreshed work-lane head",
             )
         updated = run_git(

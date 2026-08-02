@@ -64,10 +64,13 @@ observe -> extract -> resolve -> compile -> evaluate -> CAS apply -> post-observ
 `project` may render CLI, SDK, CI, forge, documentation, or agent views. A
 projection never grants itself authority.
 
-`Continuation` is a pure, non-persistent projection from current authoritative
-facts. It reports exactly one of `continue`, `await-user`, `blocked`, or `done`,
-one next action, missing facts or evidence, and whether a user decision is
-required. It never becomes a second lifecycle state.
+`Continuation` is a pure, non-persistent projection from the schema-version-`2`
+result and current authoritative facts. The result preserves `state` and
+`required_gaps`, exposes singular `next_action` and `user_decision_required`,
+and derives `continuation` as exactly one of `continue`, `await-user`,
+`blocked`, or `done`. `missing_facts_or_evidence` derives from `required_gaps`
+only for an `unknown` verdict. Continuation never becomes a second lifecycle
+state.
 
 ### Model Promotion
 

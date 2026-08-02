@@ -37,7 +37,7 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
         state="gapped",
         summary={"required_gate_count": 1},
         required_gaps=("example_gap",),
-        next_actions=("repair example",),
+        next_action="repair example",
         data={"verbose": "x" * 40_000},
     )
 
@@ -46,7 +46,7 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
     assert len(bounded.to_json().encode()) <= 32 * 1024
     assert bounded.verdict == "block"
     assert bounded.required_gaps == result.required_gaps
-    assert bounded.next_actions == result.next_actions
+    assert bounded.next_action == result.next_action
     reference = bounded.data["artifact_reference"]
     artifact = tmp_path / reference["path"]
     assert artifact.is_file()

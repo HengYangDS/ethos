@@ -30,6 +30,7 @@ class _LandedOptions(AppliedLaneCommandOptions):
     command = "lane retire landed"
     branch: Annotated[str | None, Parameter(name="--branch")] = None
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    authorize: bool = False
 
 
 _DEFAULT_SUPERSEDED = _SupersededOptions()
@@ -69,7 +70,10 @@ def lane_retire_landed(
 ) -> None:
     """Retire a landed Work Lane after integration into accepted truth."""
     request = LinkedRetirementRequest(
-        branch=options.branch, expect_head=options.expect_head, apply=options.apply
+        branch=options.branch,
+        expect_head=options.expect_head,
+        authorize=options.authorize,
+        apply=options.apply,
     )
     report = retire_linked_work_lane(
         root=resolve_root(options.root),

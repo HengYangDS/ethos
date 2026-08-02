@@ -109,7 +109,7 @@ def _int_value(value: object, *, default: int = 0) -> int:
 
 
 def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
-    mutation_next_actions = land_core.closeout_next_actions(
+    mutation_next_action = land_core.closeout_next_action(
         verdict=payload.verdict,
         gaps=payload.gaps,
         current_head=git.current_head(payload.repo),
@@ -130,7 +130,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             else str(payload.update.get("state") or payload.command)
         ),
         required_gaps=payload.gaps,
-        next_actions=mutation_next_actions,
+        next_action=mutation_next_action,
         governance_context=repository_context(payload.audit_root),
         data={
             "repository_audit": payload.audit,
@@ -158,7 +158,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                         if payload.verdict == "pass" and payload.decision_state == "current"
                         else ()
                     ),
-                    next_actions=mutation_next_actions,
+                    next_action=mutation_next_action,
                     state=payload.decision_state,
                 ),
             ),
@@ -166,14 +166,11 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
     )
 
 
-def _publish_next_actions(*, verdict: Verdict, publication: dict[str, object]) -> tuple[str, ...]:
+def _publish_next_action(*, verdict: Verdict, publication: dict[str, object]) -> str:
     """Return top-level publish actions without hiding publication work."""
     if verdict != "pass":
-        return ("ethos land --json",)
-
-    actions = string_sequence(publication.get("next_actions"))
-    actions.append("ethos status")
-    return tuple(dict.fromkeys(actions))
+        return "ethos land --json"
+    return str(publication.get("next_action") or "")
 
 
 def _land_expected_state(
@@ -471,7 +468,7 @@ def _candidate_land_result(
         if verdict == "unknown"
         else str(update.get("state") or decision.state)
     )
-    mutation_next_actions = land_core.land_next_actions(
+    mutation_next_action = land_core.land_next_action(
         verdict=verdict, gaps=gaps, current_head=current_head
     )
     return EthosResult(
@@ -479,7 +476,7 @@ def _candidate_land_result(
         verdict=verdict,
         state=state,
         required_gaps=gaps,
-        next_actions=mutation_next_actions,
+        next_action=mutation_next_action,
         governance_context=governance,
         data={
             "repository_audit": audit,
@@ -503,7 +500,7 @@ def _candidate_land_result(
                     ),
                     verdict=verdict,
                     required_gaps=gaps,
-                    next_actions=mutation_next_actions,
+                    next_action=mutation_next_action,
                     state=state,
                 ),
             ),
@@ -669,9 +666,9 @@ def publish(
             independent_verification.get("evidence_class") or "local_readiness"
         ),
         "proposal_branch": str(publication.get("proposal_branch") or ""),
-        "next_publication_action": next(iter(string_sequence(publication.get("next_actions"))), ""),
+        "next_publication_action": str(publication.get("next_action") or ""),
     }
-    publish_next_actions = _publish_next_actions(verdict=local_verdict, publication=publication)
+    publish_next_action = _publish_next_action(verdict=local_verdict, publication=publication)
     # Read-only tracking synchronization observes an existing remote ref; it never
     # upgrades this no-push command into an executed publication transition.
     publication_verdict: Verdict = "block" if local_verdict == "block" else "unknown"
@@ -698,7 +695,7 @@ def publish(
         ),
         summary=publish_summary,
         required_gaps=gaps,
-        next_actions=publish_next_actions,
+        next_action=publish_next_action,
         governance_context=governance,
         data={
             "repository_audit": audit,
@@ -728,7 +725,7 @@ def publish(
                     verdict=publication_verdict,
                     required_gaps=gaps,
                     why=(str(publication.get("remote_state") or "remote_publication_deferred"),),
-                    next_actions=publish_next_actions,
+                    next_action=publish_next_action,
                     state=remote_state,
                     evidence_boundary="local_readiness_and_remote_availability",
                     enforcement_boundary="remote_ref_transition",

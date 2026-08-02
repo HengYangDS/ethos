@@ -6,7 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 from typing import Annotated
-from typing import cast
 
 from cyclopts import Group
 from cyclopts import Parameter
@@ -32,8 +31,8 @@ from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
-_LANE_PREWRITE_ACTION = ("ethos lane prewrite <path>",)
-_HEAD_BOUND_PROOF_ACTION = ("ethos prove --execute --expect-head <head>",)
+_LANE_PREWRITE_ACTION = "ethos lane prewrite <path>"
+_HEAD_BOUND_PROOF_ACTION = "ethos prove --execute --expect-head <head>"
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 _ADMISSION_OPTIONS = Group("Admission")
@@ -89,16 +88,18 @@ def _report_result(
     command: str,
     report: dict[str, object],
     summary: dict[str, object],
-    next_actions_for: Callable[[Verdict], tuple[str, ...]],
+    next_action_for: Callable[[Verdict], str],
 ) -> EthosResult:
     verdict = report_verdict(report)
+    required_gaps = tuple(string_sequence(report.get("required_gaps")))
+    next_action = next_action_for(verdict)
     return EthosResult(
         command=command,
         verdict=verdict,
         state=str(report["state"]),
         summary=summary,
-        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=next_actions_for(verdict),
+        required_gaps=required_gaps,
+        next_action=next_action,
         data=report,
     )
 
@@ -145,18 +146,15 @@ def admit(
             "role": report["role"],
             "decision": _decision_action(report),
         },
-        lambda verdict: _hook_admit_next_actions(report, verdict),
+        lambda verdict: _hook_admit_next_action(report, verdict),
     )
     emit(result, json_output=options.json_output, enforce=True)
 
 
-def _hook_admit_next_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+def _hook_admit_next_action(report: dict[str, object], verdict: Verdict) -> str:
     if verdict == "pass":
-        return ()
-    actions = report.get("next_actions")
-    if isinstance(actions, list):
-        return tuple(str(action) for action in cast("list[object]", actions))
-    return _LANE_PREWRITE_ACTION
+        return ""
+    return str(report.get("next_action") or _LANE_PREWRITE_ACTION)
 
 
 @hook_app.command
@@ -201,7 +199,7 @@ def pre_push(
             "remote": str(report.get("remote_name", options.remote)),
             "decision": _decision_action(report),
         },
-        lambda verdict: _HEAD_BOUND_PROOF_ACTION if verdict != "pass" else (),
+        lambda verdict: _HEAD_BOUND_PROOF_ACTION if verdict != "pass" else "",
     )
     emit(result, json_output=options.json_output, enforce=True)
 
@@ -251,7 +249,7 @@ def reconciliation_receipt_command(
         state="observed" if not gaps else "blocked",
         summary={"proposal_branch": proposal_branch, "source_head": source_head},
         required_gaps=gaps,
-        next_actions=(),
+        next_action="",
         data={"receipt": receipt, "path": str(target)},
     )
     emit(result, json_output=json_output, enforce=True)
@@ -317,7 +315,7 @@ def ref_transaction(
         "hook ref-transaction",
         report,
         {"branch": report["branch"], "decision": _decision_action(report)},
-        lambda verdict: ("ethos land --closeout",) if verdict != "pass" else (),
+        lambda verdict: "ethos land --closeout" if verdict != "pass" else "",
     )
     emit(result, json_output=json_output, enforce=True)
 
@@ -355,10 +353,10 @@ def install(
             "pack_refs_disabled": configured["gc.packRefs"],
         },
         required_gaps=tuple(gaps),
-        next_actions=(
-            ("git commit — the pre-commit + pre-push admission gates are now active",)
+        next_action=(
+            "git commit — the pre-commit + pre-push admission gates are now active"
             if not gaps
-            else ()
+            else ""
         ),
         data={
             "hooks_path": ".githooks",

@@ -94,51 +94,52 @@ _DEFAULT_REFRESH_BASE = _RefreshBase()
 
 
 Summary = Callable[[dict[str, object]], dict[str, object]]
-Actions = Callable[[dict[str, object], Verdict], tuple[str, ...]]
+Action = Callable[[dict[str, object], Verdict], str]
 
 
 def _fields(*names: str) -> Summary:
     return lambda report: {name: report.get(name, "") for name in names}
 
 
-def _actions(success: tuple[str, ...], blocked: tuple[str, ...] = ()) -> Actions:
+def _actions(success: str, blocked: str = "") -> Action:
     return lambda _report, verdict: success if verdict == "pass" else blocked
 
 
-def _status_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+def _status_action(report: dict[str, object], verdict: Verdict) -> str:
     gates = cast("dict[str, object]", report.get("stage_gates") or {})
-    commands = tuple(str(item) for item in cast("list[object]", gates.get("next_commands") or []))
+    action = str(gates.get("next_action") or "")
     if verdict != "pass":
-        return commands or (
-            ("ethos lane prewrite <path>",)
+        return action or (
+            "ethos lane prewrite <path>"
             if report.get("role") == "work_lane"
-            else ("ethos status --json",)
+            else "ethos status --json"
         )
-    return commands or (
-        ("ethos lane prewrite <path>",)
+    return action or (
+        "ethos lane prewrite <path>"
         if report.get("role") == "work_lane"
-        else ("ethos lane start <name> --path <path> --holder-ref <holder-ref> --apply --json",)
+        else (
+            "ethos lane start <name> --source-root <source-work-lane> "
+            "--holder-ref <holder-ref> --apply --json"
+        )
     )
 
 
-def _start_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
+def _start_action(report: dict[str, object], verdict: Verdict) -> str:
     if verdict != "pass":
-        return ()
+        return ""
     bootstrap = cast("dict[str, object]", report.get("runner_bootstrap") or {})
-    return tuple(
-        filter(None, (str(bootstrap.get("next_action") or ""), "ethos lane prewrite <path>"))
-    )
+    return str(bootstrap.get("next_action") or "ethos lane prewrite <path>")
 
 
-def _refresh_actions(report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
-    raw = report.get("next_actions")
-    if verdict == "pass" and isinstance(raw, list | tuple):
-        return tuple(str(item) for item in raw)
-    return ("ethos land --json",) if verdict == "pass" else ("ethos status --json",)
+def _refresh_action(report: dict[str, object], verdict: Verdict) -> str:
+    action = str(report.get("next_action") or "")
+    if verdict == "pass":
+        return action or "ethos land --json"
+    return action or "ethos status --json"
 
 
-def _retirement_actions(_report: dict[str, object], verdict: Verdict) -> tuple[str, ...]:
-    return ("ethos status",) if verdict == "pass" else ("ethos lane status",)
+def _retirement_action(_report: dict[str, object], verdict: Verdict) -> str:
+    return "ethos status" if verdict == "pass" else "ethos lane status"
 
 
 def _public_state(command: str, report: dict[str, object], verdict: Verdict) -> str:
@@ -163,14 +164,22 @@ _SUMMARIES: dict[str, Summary] = {
     "lane start": _fields("branch", "path"),
     "lane refresh-base": _fields("branch", "candidate_branch", "head", "candidate_head"),
 }
-_ACTIONS: dict[str, Actions] = {
-    "lane status": _status_actions,
-    "lane candidate": _actions(("ethos lane start <name>",), ("ethos status",)),
-    "lane prewrite": _actions((), ("ethos lane start <name>",)),
-    "lane start": _start_actions,
-    "lane refresh-base": _refresh_actions,
-    "lane retire superseded": _retirement_actions,
-    "lane retire landed": _retirement_actions,
+_ACTIONS: dict[str, Action] = {
+    "lane status": _status_action,
+    "lane candidate": _actions(
+        "ethos lane start <name> --source-root <source-work-lane> "
+        "--holder-ref <holder-ref> --apply --json",
+        "ethos status",
+    ),
+    "lane prewrite": _actions(
+        "",
+        "ethos lane start <name> --source-root <source-work-lane> "
+        "--holder-ref <holder-ref> --apply --json",
+    ),
+    "lane start": _start_action,
+    "lane refresh-base": _refresh_action,
+    "lane retire superseded": _retirement_action,
+    "lane retire landed": _retirement_action,
 }
 
 
@@ -180,25 +189,26 @@ def project_lane_result(
     *,
     summary: dict[str, object] | None = None,
     diagnostics: tuple[dict[str, object], ...] = (),
-    actions: tuple[str, ...] | Actions | None = None,
+    actions: str | Action | None = None,
     enforce: bool = False,
     json_output: bool,
 ) -> None:
     verdict = report_verdict(report)
     if actions is None:
-        next_actions = _ACTIONS.get(command, _actions(()))(report, verdict)
-    elif isinstance(actions, tuple):
-        next_actions = cast("tuple[str, ...]", actions)
+        next_action = _ACTIONS.get(command, _actions(""))(report, verdict)
+    elif isinstance(actions, str):
+        next_action = actions
     else:
-        next_actions = actions(report, verdict)
+        next_action = actions(report, verdict)
+    required_gaps = tuple(string_sequence(report.get("required_gaps")))
     result = EthosResult(
         command=command,
         verdict=verdict,
         state=_public_state(command, report, verdict),
         summary=summary or _SUMMARIES.get(command, lambda _report: {})(report),
         diagnostics=diagnostics,
-        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=next_actions,
+        required_gaps=required_gaps,
+        next_action=next_action,
         data=report,
     )
     emit(result, json_output=json_output, enforce=enforce)
@@ -258,9 +268,9 @@ def housekeeping(
         options.command,
         report,
         actions=lambda _report, verdict: (
-            ("ethos lane housekeeping --authorize --apply --json",)
+            "ethos lane housekeeping --authorize --apply --json"
             if verdict == "pass" and removable and not options.apply
-            else ()
+            else ""
         ),
         enforce=options.apply,
         json_output=options.json_output,

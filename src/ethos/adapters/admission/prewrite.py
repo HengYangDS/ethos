@@ -344,7 +344,7 @@ def _prewrite_decision(
             if verdict == "pass"
             else "required_fact_unverified",
         ),
-        next=(("repair_required_gap",) if verdict != "pass" else ()),
+        next_action="repair_required_gap" if verdict != "pass" else "",
         required_gaps=gaps,
     )
 

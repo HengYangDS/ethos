@@ -9,6 +9,7 @@ from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.admission import ethos_command_mutates
 from ethos.contracts.coordination import MutationAdmissionRequest
 
 
@@ -37,7 +38,7 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
         evidence_refs=("evidence:lease-observation",),
         basis=basis,
         why=("request_matches_current_holder_and_generation",),
-        next=(),
+        next_action="",
         required_gaps=(),
     )
 
@@ -45,9 +46,25 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
     assert payload["verdict"] == "pass"
     assert payload["subject"]["expected_state"]["epoch"] == 2
     assert payload["decision_basis"]["enforcement_boundary"] == "local_process_guard"
+    assert payload["next_action"] == ""
+    assert "next" not in payload
     assert payload["mints_authority"] is False
     assert payload["reusable_authorization"] is False
     assert payload["recheck_required"] is True
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ("ethos", "lane", "start", "feature", "--apply"),
+        ("ethos", "land", "--authorize=true"),
+        ("openspec", "archive", "example", "--yes", "--json"),
+    ],
+)
+def test_mutation_classifier_recognizes_owned_and_external_effects(
+    command: tuple[str, ...],
+) -> None:
+    assert ethos_command_mutates(command)
 
 
 def test_admission_models_reject_pass_with_required_gaps() -> None:

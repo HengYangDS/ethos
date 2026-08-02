@@ -8,9 +8,14 @@ Commitment and Attestation SHALL be the sole portable persistent semantic contra
 - **THEN** contract modules do not import Git, SQLite, subprocess, hosted CI,
   assistant runtime, or adopter-private implementation modules
 
-#### Scenario: a schema is regenerated
-- **WHEN** a contract schema is regenerated
-- **THEN** it derives from the single semantic model owner rather than a parallel carrier schema
+#### Scenario: a result crosses a public boundary
+- **WHEN** CLI, SDK, subprocess JSON, or an adapter projects a command result
+- **THEN** it serializes the schema-version-`2` result envelope from the single
+  semantic model owner
+- **AND** it preserves `state` and `required_gaps`, exposes singular `next_action`,
+  and derives `continuation`, `missing_facts_or_evidence`, and
+  `user_decision_required`
+- **AND** plural action fields and a parallel carrier schema are absent
 
 #### Scenario: semantic values cross a contract boundary
 - **WHEN** Commitment, Attestation, Facts, or TransitionPlan values are created,

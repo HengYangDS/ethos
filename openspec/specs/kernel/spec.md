@@ -61,12 +61,19 @@ warnings produce `block`. Only `pass` may authorize an effect.
 - **AND** the result has no top-level `ok` field
 
 ### Requirement: Kernel Result Contract
-ETHOS SHALL emit stable JSON result envelopes with `verdict`, `summary`,
-`diagnostics`, `required_gaps`, `next_actions`, and `data`.
+ETHOS SHALL emit schema-version-`2` JSON result envelopes with `verdict`,
+`state`, `summary`, `diagnostics`, `required_gaps`, singular `next_action`,
+`user_decision_required`, and `data`. `continuation` and
+`missing_facts_or_evidence` are derived fields, not lifecycle state.
 
 #### Scenario: Automation reads command output
 - **WHEN** an automation consumer requests JSON output from an ETHOS command
-- **THEN** the response is one parseable object with the stable result fields
+- **THEN** the response is one parseable schema-version-`2` object with the
+  stable result fields
+- **AND** it preserves `state` and `required_gaps`, has no plural action field,
+  and derives exactly one `continuation` value
+- **AND** `missing_facts_or_evidence` equals `required_gaps` only for an
+  `unknown` verdict
 
 ### Requirement: Deterministic TransitionPlan
 ETHOS SHALL serialize TransitionPlan deterministically, including validation gaps

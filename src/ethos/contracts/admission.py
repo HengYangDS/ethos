@@ -23,8 +23,15 @@ from ethos.contracts.verdict import require_closed_verdict
 
 _PATH_REQUIRED = "path-bound admission request fields require a filesystem path"
 READONLY_ROOT_COMMANDS = frozenset({"plan", "status"})
-MUTATING_ROOT_COMMANDS = frozenset({"adopt", "land", "publish"})
 MUTATING_COMMAND_FLAGS = frozenset({"--apply", "--authorize", "--execute"})
+_MUTATING_COMMANDS = frozenset(
+    {
+        ("ethos", "adopt"),
+        ("ethos", "land"),
+        ("ethos", "publish"),
+        ("openspec", "archive"),
+    }
+)
 
 
 def _mutation_flag_present(arguments: list[str] | tuple[str, ...]) -> bool:
@@ -60,10 +67,14 @@ def ethos_command_is_readonly(command: list[str] | tuple[str, ...]) -> bool:
 
 def ethos_command_mutates(command: list[str] | tuple[str, ...]) -> bool:
     """Return whether one argv vector explicitly requests an ETHOS effect."""
-    return _mutation_flag_present(command) or (
-        bool(command)
-        and command[0].rsplit("/", maxsplit=1)[-1] == "ethos"
-        and root_command(command[1:]) in MUTATING_ROOT_COMMANDS
+    executable = command[0].rsplit("/", maxsplit=1)[-1] if command else ""
+    return (
+        _mutation_flag_present(command)
+        or (
+            executable,
+            root_command(command[1:]),
+        )
+        in _MUTATING_COMMANDS
     )
 
 
@@ -127,7 +138,7 @@ class AdmissionDecision(BaseModel):
     evidence_refs: tuple[str, ...] = ()
     basis: DecisionBasis
     why: tuple[str, ...] = ()
-    next: tuple[str, ...] = ()
+    next_action: str = ""
     required_gaps: tuple[str, ...] = ()
 
     @model_validator(mode="after")
@@ -144,7 +155,7 @@ class AdmissionDecision(BaseModel):
             "evidence_refs": list(self.evidence_refs),
             "decision_basis": self.basis.model_dump(mode="json"),
             "why": list(self.why),
-            "next": list(self.next),
+            "next_action": self.next_action,
             "required_gaps": list(self.required_gaps),
             "mints_authority": False,
             "reusable_authorization": False,

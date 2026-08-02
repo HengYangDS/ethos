@@ -46,7 +46,7 @@ def _adoption_result(
         verdict="pass" if ok else "block",
         state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
         summary={"planned_file_count": len(object_sequence(plan_payload.get("planned_files")))},
-        next_actions=("ethos status",),
+        next_action="ethos status",
         required_gaps=required_gaps,
         data=plan_payload
         | {

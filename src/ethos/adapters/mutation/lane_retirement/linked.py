@@ -224,6 +224,7 @@ def _landed_gaps(
         for failed, gap in (
             (request.branch is not None and not lanes, "retire_branch_not_found"),
             (request.apply and not branch, "retire_branch_required"),
+            (request.apply and not request.authorize, "authorization_required"),
         )
         if failed
     ]

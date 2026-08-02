@@ -25,9 +25,20 @@ ETHOS SHALL keep the normal user workflow under six public commands:
 #### Scenario: Default payloads stay bounded
 - **WHEN** `ethos status --json` or `ethos plan --json` would exceed its declared
   default payload budget
-- **THEN** the command preserves verdict, summary, required gaps, and next actions
+- **THEN** the command preserves `verdict`, `state`, `summary`, `required_gaps`,
+  `next_action`, `continuation`, `missing_facts_or_evidence`, and
+  `user_decision_required`
 - **AND** oversized detail is replaced by a digest-bound artifact reference
 - **AND** no alternate reader command or truth source is introduced
+
+#### Scenario: a reader derives continuation
+- **WHEN** current authoritative facts are sufficient to select the next boundary
+- **THEN** the schema-version-`2` result preserves `state` and `required_gaps`,
+  exposes one `next_action`, and derives exactly one `continuation`: `continue`,
+  `await-user`, `blocked`, or `done`
+- **AND** `missing_facts_or_evidence` derives from `required_gaps` only when
+  `verdict=unknown`, while `user_decision_required` names required judgment
+- **AND** Continuation is recomputed rather than stored as lifecycle truth
 
 ### Requirement: Cyclopts And API Own Interface Semantics
 Concrete Cyclopts declarations and the in-process operation API SHALL own command

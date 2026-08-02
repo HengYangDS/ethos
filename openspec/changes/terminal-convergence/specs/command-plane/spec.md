@@ -18,7 +18,9 @@ Commands SHALL project one mechanism: observe, extract, resolve, compile, evalua
 #### Scenario: Default payloads stay bounded
 - **WHEN** `ethos status --json` or `ethos plan --json` would exceed its declared
   default payload budget
-- **THEN** the command preserves verdict, summary, required gaps, and next actions
+- **THEN** the command preserves `verdict`, `state`, `summary`, `required_gaps`,
+  `next_action`, `continuation`, `missing_facts_or_evidence`, and
+  `user_decision_required`
 - **AND** oversized detail is replaced by a digest-bound artifact reference
 - **AND** no alternate reader command or truth source is introduced
 
@@ -28,9 +30,12 @@ Commands SHALL project one mechanism: observe, extract, resolve, compile, evalua
 
 #### Scenario: a reader derives continuation
 - **WHEN** current authoritative facts are sufficient to select the next boundary
-- **THEN** the command projects exactly one of `continue`, `await-user`,
-  `blocked`, or `done` and exactly one next action
-- **AND** it names missing facts or evidence and whether user judgment is required
+- **THEN** the schema-version-`2` result preserves `state` and `required_gaps`
+  and exposes one `next_action`
+- **AND** it derives exactly one `continuation`: `continue`, `await-user`,
+  `blocked`, or `done`
+- **AND** it exposes `missing_facts_or_evidence` from `required_gaps` only when
+  `verdict=unknown`, and `user_decision_required` when judgment is required
 - **AND** Continuation is recomputed rather than stored as lifecycle truth
 
 #### Scenario: a complete adopter enters governed mutation

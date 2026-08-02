@@ -65,7 +65,7 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
         "run local-ci fallback when remote publication is unavailable"
         in publication["local_proposal_package"]["required_steps"]
     )
-    assert payload["next_actions"]
+    assert payload["next_action"]
 
 
 def test_publish_observes_gitlab_and_github_independently_without_push(
@@ -142,9 +142,9 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
             local_ci_fallback={"evidence_status": evidence_status},
         )
 
-        assert publication["next_actions"] == [
+        assert publication["next_action"] == (
             "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-        ]
+        )
 
 
 def test_publish_uses_configured_proposal_branch_role_policy(tmp_path: Path) -> None:
@@ -196,6 +196,9 @@ def test_local_proposal_package_uses_safe_fallback_and_reconciliation_only_when_
         )
         == proposal
     )
-    assert publication_with_remote_matrix(
-        proposal, {"state": "reconciliation_required"}, remote_available=True
-    )["next_actions"] == ["reconcile diverged remotes before creating a proposal branch"]
+    assert (
+        publication_with_remote_matrix(
+            proposal, {"state": "reconciliation_required"}, remote_available=True
+        )["next_action"]
+        == "reconcile diverged remotes before creating a proposal branch"
+    )

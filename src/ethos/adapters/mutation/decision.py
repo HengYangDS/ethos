@@ -202,7 +202,7 @@ def mutation_envelope(
             if admission.verdict == "pass"
             else admission.required_gaps
         ),
-        next=admission.next_actions,
+        next_action=admission.next_action,
         required_gaps=admission.required_gaps,
     )
     return {

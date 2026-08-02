@@ -489,11 +489,12 @@ not as a single `blocked` verdict:
   "accepted_closeout_allowed": false,
   "blocker": "baseline_parity_gapped",
   "blocker_owner": "work/parity-self-evidence-head",
-  "allowed_next_actions": [
+  "allowed_actions": [
     "continue lane-local design",
     "run focused tests",
     "prepare integration notes"
-  ]
+  ],
+  "next_action": "continue lane-local design"
 }
 ```
 
@@ -591,7 +592,7 @@ Goal: make current authority and next legal action visible before mutation.
 Candidate changes:
 
 - extend `ethos lane status --json` with `actor_role`, `allowed_actions`,
-  `forbidden_actions`, `next_commands`, `authoring_allowed`,
+  `forbidden_actions`, one deterministic `next_action`, `authoring_allowed`,
   `integration_allowed`, and `accepted_closeout_allowed`;
 - add a concise human rendering that names the current lane/root, capability,
   stage blockers, foreign lanes, and one recommended next command;

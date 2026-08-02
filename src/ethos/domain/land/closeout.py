@@ -136,61 +136,58 @@ def closeout_bootstrap_package(
     }
 
 
-def land_next_actions(
+def land_next_action(
     *,
     verdict: Verdict,
     gaps: tuple[str, ...],
     current_head: str,
-) -> tuple[str, ...]:
-    """Derive the recommended next commands after a land attempt."""
+) -> str:
+    """Derive the recommended next command after a land attempt."""
     if verdict == "pass":
-        return ("ethos publish",)
+        return "ethos publish"
     if "protected_root_mutation" in gaps:
-        return ("ethos land --closeout --json",)
+        return "ethos land --closeout --json"
     if "candidate_base_stale" in gaps:
-        return (f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json",)
+        return f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json"
     active_carriers = tuple(
         gap
         for gap in gaps
         if gap.startswith("openspec_active_change_unarchived:") and gap.endswith(":work_lane")
     )
     if active_carriers:
-        return tuple(
-            f"openspec archive {gap.split(':', 2)[1]} --yes --json" for gap in active_carriers
-        )
+        return f"openspec archive {active_carriers[0].split(':', 2)[1]} --yes --json"
     if "proof_not_proven" in gaps:
-        return (f"ethos prove --execute --expect-head {current_head} --json",)
-    return ("ethos prove --json",)
+        return f"ethos prove --execute --expect-head {current_head} --json"
+    return "ethos prove --json"
 
 
-def closeout_next_actions(
+def closeout_next_action(
     *,
     verdict: Verdict,
     gaps: tuple[str, ...],
     current_head: str,
     state: str = "",
-) -> tuple[str, ...]:
-    """Derive recommended next commands after accepted-root closeout."""
+) -> str:
+    """Derive the recommended next command after accepted-root closeout."""
     if verdict == "pass" and state == "current":
-        return ("ethos publish",)
+        return "ethos publish"
     if verdict == "pass":
-        return ("ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head>",)
+        return (
+            "ethos lane retire landed --branch <work-branch> "
+            "--expect-head <work-lane-head> --apply --authorize --json"
+        )
     if "candidate_diverged_from_accepted" in gaps:
         return (
-            (
-                "ethos lane candidate --refresh-from-accepted "
-                f"--apply --authorize --expect-head {current_head} --json"
-            ),
+            "ethos lane candidate --refresh-from-accepted "
+            f"--apply --authorize --expect-head {current_head} --json"
         )
     if "independent_verification_receipt_required" in gaps:
         return (
-            (
-                "obtain the signed receipt described by "
-                "data.control_replacement.verification_request, then rerun ethos land --closeout "
-                "--independent-verification-receipt <absolute-path> --json"
-            ),
+            "obtain the signed receipt described by "
+            "data.control_replacement.verification_request, then rerun ethos land --closeout "
+            "--independent-verification-receipt <absolute-path> --json"
         )
-    return ("ethos prove --json",)
+    return "ethos prove --json"
 
 
 def repository_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:

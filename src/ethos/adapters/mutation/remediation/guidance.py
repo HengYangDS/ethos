@@ -11,10 +11,7 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                 {
                     "gap": gap,
                     "kind": "dirty_state",
-                    "next_actions": [
-                        "inspect dirty_provenance in ethos status --json",
-                        "commit intentional changes or back up and reset generated residue",
-                    ],
+                    "next_action": "inspect dirty_provenance in ethos status --json",
                 }
             )
         elif gap == "candidate_base_stale":
@@ -22,10 +19,9 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                 {
                     "gap": gap,
                     "kind": "stale_base",
-                    "next_actions": [
-                        "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
-                        "rerun proof after the lane is replayed onto candidate/dev",
-                    ],
+                    "next_action": (
+                        "ethos lane refresh-base --apply --authorize --expect-head <head> --json"
+                    ),
                 }
             )
         elif gap == "accepted_advanced_concurrently":
@@ -33,11 +29,7 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                 {
                     "gap": gap,
                     "kind": "accepted_advanced_concurrently",
-                    "next_actions": [
-                        "a concurrent landing advanced accepted after this proof was bound",
-                        "re-read the accepted head and rebase candidate onto it",
-                        "rerun ethos land --closeout --expect-head <new-head> after re-proving",
-                    ],
+                    "next_action": "re-read the accepted head and rebase candidate onto it",
                 }
             )
         elif gap.startswith("coordination_gap:scope_overlap:"):
@@ -46,14 +38,10 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                 {
                     "gap": gap,
                     "kind": "lane_overlap",
-                    "next_actions": [
-                        "do not land a temporary overlapping lane directly",
-                        (
-                            "move or replay the verified head through "
-                            f"the legitimate leased lane {branch}"
-                        ),
-                        "remove the temporary lane after the legitimate lane is current",
-                    ],
+                    "next_action": (
+                        "move or replay the verified head through "
+                        f"the legitimate leased lane {branch}"
+                    ),
                 }
             )
     return hints

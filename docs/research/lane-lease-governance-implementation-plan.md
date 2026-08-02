@@ -112,7 +112,8 @@ Required behavior:
 - status reports `allowed_actions` and `forbidden_actions`;
 - status separately reports `authoring_allowed`, `integration_allowed`, and
   `accepted_closeout_allowed`;
-- status reports `recommended_next_command` and bounded `next_commands`;
+- status reports one deterministic `next_action` while retaining all gaps and
+  capabilities as facts;
 - status reports blocker stage, blocker owner, and whether the blocker is
   authoring, candidate integration, or accepted closeout;
 - foreign lanes render observe-only authority with disjoint/overlap state;

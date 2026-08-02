@@ -479,6 +479,9 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "epoch",
         "expected_head",
         "expected_tree",
+        "issued_at",
+        "renewed_at",
+        "path_scope",
         "expires_at",
         "payload_sha256",
         "base_commitment_path",
@@ -563,7 +566,7 @@ def test_result_contract_has_stable_top_level_fields() -> None:
         verdict="pass",
         state="ready",
         summary={"branch": "dev"},
-        next_actions=("ethos plan --changed",),
+        next_action="ethos plan --changed",
     ).to_dict()
     assert tuple(payload) == (
         "schema_version",
@@ -573,8 +576,11 @@ def test_result_contract_has_stable_top_level_fields() -> None:
         "summary",
         "diagnostics",
         "required_gaps",
-        "next_actions",
+        "next_action",
         "data",
+        "user_decision_required",
+        "continuation",
+        "missing_facts_or_evidence",
     )
     json.dumps(payload)
 

@@ -37,9 +37,12 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
-    assert payload["next_actions"] == [
-        "ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head>"
-    ]
+    assert (
+        payload["next_action"]
+        == "ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head> --apply --authorize --json"
+    )
+    assert payload["user_decision_required"] is True
+    assert payload["continuation"] == "await-user"
     accepted_update = payload["data"]["accepted_update"]
     assert accepted_update["verdict"] == "pass"
     assert accepted_update["state"] == "accepted_validated"
@@ -155,7 +158,7 @@ def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> N
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert "protected_root_mutation" in payload["required_gaps"]
-    assert payload["next_actions"] == ["ethos land --closeout --json"]
+    assert payload["next_action"] == "ethos land --closeout --json"
 
 
 def test_land_dry_run_blocks_candidate_root_without_closeout(tmp_path: Path) -> None:
@@ -167,7 +170,7 @@ def test_land_dry_run_blocks_candidate_root_without_closeout(tmp_path: Path) -> 
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert "protected_root_mutation" in payload["required_gaps"]
-    assert payload["next_actions"] == ["ethos land --closeout --json"]
+    assert payload["next_action"] == "ethos land --closeout --json"
 
 
 def test_land_closeout_dry_run_reports_expect_head_mismatch(tmp_path: Path) -> None:
@@ -219,7 +222,7 @@ def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_current"
     assert payload["required_gaps"] == []
-    assert payload["next_actions"] == ["ethos publish"]
+    assert payload["next_action"] == "ethos publish"
     mutation = payload["data"]["mutation"]
     assert mutation["request"] == {
         "command": "closeout",
@@ -260,7 +263,7 @@ def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_pro
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_current"
     assert payload["required_gaps"] == []
-    assert payload["next_actions"] == ["ethos publish"]
+    assert payload["next_action"] == "ethos publish"
     accepted_update = payload["data"]["accepted_update"]
     assert accepted_update["state"] == "accepted_current"
     assert accepted_update["head"] == accepted_head

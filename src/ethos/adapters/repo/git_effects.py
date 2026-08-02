@@ -21,6 +21,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.value import mutable_json
 
 _REPOSITORY_IDENTITY_MISMATCH = "git_effect_repository_identity_mismatch"
 _ZERO_OIDS = {"0" * 40, "0" * 64, ""}
@@ -169,7 +170,7 @@ def _require_live_lease(root: Path, plan: TransitionPlan) -> None:
         if (
             current.get("lease_state") != "valid"
             or current.get("commitment_binding") != "bound"
-            or dict(generation) != lease_generation(current)
+            or mutable_json(generation) != mutable_json(lease_generation(current))
         ):
             message = "git_effect_lease_generation_stale"
             raise ValueError(message)

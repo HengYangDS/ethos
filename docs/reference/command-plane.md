@@ -45,6 +45,16 @@ status -> plan -> prove -> land -> publish
 `adopt` binds an external repository to the same command semantics; it is not a
 parallel lifecycle.
 
+## Result Envelope
+
+Every JSON command result uses schema version `2`. `verdict` remains the only
+authorization decision; `state` remains the command-state projection; and
+`required_gaps` remains the complete blocker list. `next_action` is singular.
+`continuation` is derived as `continue`, `await-user`, `blocked`, or `done`;
+`missing_facts_or_evidence` derives from `required_gaps` only for
+`verdict=unknown`; `user_decision_required` marks the need for user judgment.
+These fields are projections, not another lifecycle store.
+
 ## Proof Depth
 
 Use a focused gate when one current owner is under review:

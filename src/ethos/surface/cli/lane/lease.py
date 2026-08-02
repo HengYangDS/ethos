@@ -96,7 +96,7 @@ def emit_lease_result(command: str, report: dict[str, object], *, json_output: b
                 if isinstance(item, dict)
             ),
             required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-            next_actions=("ethos lane status --json",) if report["verdict"] == "pass" else (),
+            next_action="ethos lane status --json" if report["verdict"] == "pass" else "",
             data=report,
         ),
         json_output=json_output,

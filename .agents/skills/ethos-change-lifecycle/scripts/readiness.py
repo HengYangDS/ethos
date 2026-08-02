@@ -64,9 +64,14 @@ def main(*, root: str = ".") -> int:
             all_pass = False
             for gap in gaps[:5]:
                 print(f"      - {gap}")
-            next_actions = payload.get("next_actions") or ()
-            for action in next_actions[:1]:
+            action = str(payload.get("next_action") or "")
+            if action:
                 print(f"      next: {action}")
+            continuation = str(payload.get("continuation") or "")
+            if continuation:
+                print(f"      continuation: {continuation}")
+            if payload.get("user_decision_required"):
+                print("      user decision required")
     print("READY" if all_pass else "NOT READY — resolve the gaps above before land/publish")
     return 0 if all_pass else 1
 

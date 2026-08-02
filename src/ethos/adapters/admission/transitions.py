@@ -52,7 +52,7 @@ def work_lane_ref_transition_report(
     observed_ref = ref_head(repo, branch)
     immediate_reason = (
         "lane_ref_noop"
-        if old_value == new_value and not (old_zero or new_zero)
+        if old_value == new_value and not (old_zero or new_zero) and phase != "committed"
         else "lane_ref_terminal_state_observed"
         if _committed_ref_effect_observed(
             phase=phase,

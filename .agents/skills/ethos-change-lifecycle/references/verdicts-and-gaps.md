@@ -6,14 +6,17 @@ and `system/evidence_boundaries.toml` remain authoritative if they disagree.
 
 ## Reading a verdict
 
-Every loop command emits the same envelope:
+Every loop command emits the same schema-version-`2` envelope:
 
 | field | meaning |
 | --- | --- |
 | `verdict` | closed state: `pass`, `block`, or `unknown`; only `pass` authorizes an effect |
 | `state` | one word: `ready` / `proven` / `blocked` / `dry_run` / `clean` / `gapped` |
 | `required_gaps` | the exact blockers; each names what to resolve |
-| `next_actions` | the next command to run |
+| `next_action` | the one next command or operator action |
+| `continuation` | derived control state: `continue`, `await-user`, `blocked`, or `done` |
+| `missing_facts_or_evidence` | `required_gaps` only when `verdict=unknown` |
+| `user_decision_required` | whether a user judgment is needed before progress |
 
 A mutation command (`land --apply`, `publish --apply`) with `verdict=block` or
 `verdict=unknown` exits NON-ZERO — the stop is enforced, not advisory. `status`, `plan`, and dry-run

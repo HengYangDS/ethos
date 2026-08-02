@@ -165,7 +165,6 @@ def _plan(
 def _proof_bound_plan(
     repo: Path,
     effect: GitEffect,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> TransitionPlan:
     proof = Attestation.issue(
         {
@@ -180,17 +179,11 @@ def _proof_bound_plan(
             "policy_digest": canonical_json_digest({"operation": "candidate.integrate"}),
         }
     )
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effects, "proof_plan_for_attestation", lambda *_: ()
-    )
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effects, "proof_evidence_digest", lambda *_: "f" * 64
-    )
     return _plan(
         repo,
         effect,
         policy={"operation": "candidate.integrate"},
-        prior_attestations={"proof": proof.model_dump(mode="json"), "proof_set": "f" * 64},
+        prior_attestations={"proof": proof.model_dump(mode="json")},
     )
 
 
@@ -357,7 +350,7 @@ def test_git_effect_recovers_attestation_when_desired_state_already_holds(
     repo, old, new, effect = _effect_fixture(tmp_path)
     (repo / "NEXT.md").write_text("next\n", encoding="utf-8")
     git(repo, "add", "NEXT.md")
-    plan = _proof_bound_plan(repo, effect, monkeypatch)
+    plan = _proof_bound_plan(repo, effect)
     write_ref_intent(
         root=repo,
         ref_name="refs/heads/dev",
@@ -384,7 +377,7 @@ def test_git_effect_does_not_attest_an_unowned_preexisting_ref_move(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, old, new, effect = _effect_fixture(tmp_path)
-    plan = _proof_bound_plan(repo, effect, monkeypatch)
+    plan = _proof_bound_plan(repo, effect)
     git(repo, "update-ref", "refs/heads/dev", new, old)
 
     with pytest.raises(ValueError, match="git_effect_recovery_intent_missing"):
@@ -785,7 +778,7 @@ def test_git_effect_owns_proof_bound_multiref_cas_attestation_and_intent_cleanup
             "refs/heads/dev": GitRefUpdate(expected=old, desired=new),
         }
     )
-    plan = _proof_bound_plan(repo, effect, monkeypatch)
+    plan = _proof_bound_plan(repo, effect)
     persisted: list[Attestation] = []
 
     monkeypatch.setattr(
@@ -841,7 +834,7 @@ def test_git_effect_recovers_after_attestation_persistence_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _old, new, effect = _effect_fixture(tmp_path)
-    plan = _proof_bound_plan(repo, effect, monkeypatch)
+    plan = _proof_bound_plan(repo, effect)
     persisted: list[Attestation] = []
     fail_once = True
 

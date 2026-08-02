@@ -205,31 +205,3 @@ def _candidate_evaluation(
         "",
     )
     return (floor, []) if floor else ("", ["proof_attestation_repository_policy_mismatch"])
-
-
-def plan_for_attestation(root: Path, attestation: Attestation, *, store: Path):
-    """Return the exact transient plan for any member of the current proof set."""
-    plan = plan_from_statement(attestation)
-    admitted, gaps = _admitted_proofs(
-        root,
-        attestation.subject.removeprefix("git:commit:"),
-        store=store,
-    )
-    if gaps or attestation.id not in {item.id for item in admitted}:
-        raise ValueError(gaps[0] if gaps else "proof_attestation_not_current")
-    return plan
-
-
-def evidence_digest(
-    root: Path,
-    head: str,
-    *,
-    store: Path,
-) -> str:
-    """Return the stable semantic identity of one admitted proof set."""
-    admitted, gaps = _admitted_proofs(root, head, store=store)
-    if gaps or not admitted:
-        return ""
-    return canonical_json_digest(
-        {"bindings": _bindings(admitted[0]), "assertion": _assertion_digest(admitted[0])}
-    )

@@ -9,11 +9,9 @@ from typing import cast
 
 import ethos.adapters.mutation.accepted as accepted
 import ethos.adapters.mutation.remediation.guidance as remediation
-from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
@@ -34,6 +32,7 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
+    from ethos.contracts.admission import AdmissionDecision
     from ethos.contracts.branch.roles import BranchRolePolicy
     from ethos.contracts.semantic import Commitment
 
@@ -43,7 +42,7 @@ def apply_land_to_candidate(
     root: Path,
     authorized: bool,
     expect_head: str | None,
-    admitted_decision: MutationDecision | None = None,
+    admitted_decision: AdmissionDecision | None = None,
 ) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
@@ -61,9 +60,8 @@ def apply_land_to_candidate(
     )
     if decision.verdict != "pass":
         return fail(
-            list(decision.gaps),
-            state=decision.state,
-            remediation=remediation.remediation_for_gaps(decision.gaps),
+            list(decision.required_gaps),
+            remediation=remediation.remediation_for_gaps(decision.required_gaps),
         )
     base_report = candidate_base_report(root=root)
     if report_verdict(base_report) != "pass":
@@ -102,10 +100,7 @@ def apply_land_to_candidate(
                 effect=effect,
                 head=current_head,
                 lease=lease,
-                prior_attestations={
-                    "proof": proof.model_dump(mode="json"),
-                    "proof_set": proof_evidence_digest(candidate_path, current_head),
-                },
+                prior_attestations={"proof": proof.model_dump(mode="json")},
                 policy=policy,
             )
             attestation = execute_git_effect(
@@ -153,7 +148,7 @@ def _candidate_transition_plan(
     prior_attestations: dict[str, object],
     policy: BranchRolePolicy,
 ) -> TransitionPlan:
-    if not prior_attestations.get("proof_set"):
+    if not prior_attestations.get("proof"):
         message = "candidate_prior_proof_missing"
         raise ValueError(message)
     return compile_observed_git_effect(
@@ -215,9 +210,9 @@ def apply_candidate_to_accepted(
     if decision.verdict != "pass":
         return {
             **accepted.accepted_payload(policy, current_head),
-            "state": decision.state,
-            "required_gaps": list(decision.gaps),
-            "remediation": remediation.remediation_for_gaps(decision.gaps),
+            "state": "blocked",
+            "required_gaps": list(decision.required_gaps),
+            "remediation": remediation.remediation_for_gaps(decision.required_gaps),
         }
     status = workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
@@ -233,7 +228,7 @@ def apply_candidate_to_accepted(
         }
     candidate_head = candidate_head or observed_candidate_head
     if (
-        decision.state == "current"
+        candidate_head == current_head
         and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF
         and not workspace_status(root)["dirty"]
     ):

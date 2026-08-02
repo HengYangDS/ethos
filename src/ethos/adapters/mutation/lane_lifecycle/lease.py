@@ -7,7 +7,7 @@ import sqlite3
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.mutation.decision import MutationDecision
+from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
@@ -16,9 +16,10 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import MutationSubject
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.coordination import MutationAdmissionRequest
 from ethos.contracts.coordination import lease_operation
 
 if TYPE_CHECKING:
@@ -40,11 +41,9 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
         contract_gaps = ()
 
     if operation is None:
-        evaluation = MutationDecision(
-            verdict="block",
-            state="blocked",
-            gaps=tuple(dict.fromkeys((*contract_gaps, *holder_gaps))),
-        )
+        verdict = "block"
+        state = "blocked"
+        gaps = tuple(dict.fromkeys((*contract_gaps, *holder_gaps)))
     else:
         effect_values = {
             "holder_ref": request.holder_ref,
@@ -97,19 +96,14 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
             ),
         )
         gaps = tuple(dict.fromkeys((*holder_gaps, *(gap for valid, gap in checks if not valid))))
-        evaluation = MutationDecision(
-            verdict=(
-                "unknown"
-                if any(gap.startswith("work_lane_lease_unknown:") for gap in gaps)
-                else "block"
-                if gaps
-                else "pass"
-            ),
-            state="blocked" if gaps else operation.applied_state if request.apply else "planned",
-            gaps=gaps,
+        verdict = (
+            "unknown"
+            if any(gap.startswith("work_lane_lease_unknown:") for gap in gaps)
+            else "block"
+            if gaps
+            else "pass"
         )
-
-    verdict, state, gaps = evaluation.verdict, evaluation.state, evaluation.gaps
+        state = "blocked" if gaps else operation.applied_state if request.apply else "planned"
     lease: dict[str, object] = {}
     handoff_offer: dict[str, object] = {}
     if request.apply and verdict == "pass" and operation is not None:
@@ -135,24 +129,31 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
         "handoff_offer": handoff_offer,
         "required_gaps": list(gaps),
     }
+    decision = admission_decision(
+        subject=MutationSubject(
+            action=f"lane.lease.{request.operation.replace('_', '.')}",
+            resource=f"refs/heads/{request.branch}",
+            expected_state=expected_state,
+        ),
+        verdict=verdict,
+        basis=DecisionBasis(
+            enforcement_boundary="local_sqlite_compare_and_swap",
+            identity_basis="declared_actor_ref_equality",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="current_git_and_local_lease_observation",
+            verifier_provenance="current_worktree_runner",
+            time_basis="evaluation_time",
+        ),
+        policy_ref=f"commitment:lane-{request.operation.replace('_', '-')}-admission",
+        required_gaps=gaps,
+        why=(state,) if verdict == "pass" else (),
+    )
     result["mutation"] = mutation_envelope(
         command=f"lane-{request.operation.replace('_', '-')}",
         apply=request.apply,
         authorized=request.holder_quiesced,
         expect_head=request.expect_head or None,
-        admission=MutationAdmissionRequest(
-            action=f"lane.lease.{request.operation.replace('_', '.')}",
-            resource=f"refs/heads/{request.branch}",
-            expected_state=expected_state,
-            verdict=verdict,
-            required_gaps=gaps,
-            why=(state,) if verdict == "pass" else (),
-            state=state,
-            identity_basis="declared_actor_ref_equality",
-            evidence_boundary="current_git_and_local_lease_observation",
-            enforcement_boundary="local_sqlite_compare_and_swap",
-            verifier_provenance="current_worktree_runner",
-        ),
+        decision=decision,
     )
     return result
 

@@ -10,7 +10,6 @@ from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.admission import ethos_command_mutates
-from ethos.contracts.coordination import MutationAdmissionRequest
 
 
 def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
@@ -83,14 +82,6 @@ def test_admission_models_reject_pass_with_required_gaps() -> None:
             subject=subject,
             basis=basis,
             required_gaps=("unknown_required_fact",),
-        )
-    with pytest.raises(ValidationError, match="pass_with_required_gaps"):
-        MutationAdmissionRequest(
-            action="candidate.integrate",
-            resource="refs/heads/candidate/dev",
-            expected_state={},
-            verdict="pass",
-            required_gaps=("warning:quality",),
         )
 
 

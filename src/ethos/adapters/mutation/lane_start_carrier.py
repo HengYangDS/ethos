@@ -16,12 +16,19 @@ if TYPE_CHECKING:
 
 import ethos.adapters.mutation.lane_start_rollback as rollback
 from ethos.adapters.repo.commitment import exact_commitment_fields
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import TransitionPlan
 
 
 class LaneStartContext(NamedTuple):
@@ -105,16 +112,19 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
                 failure_gap=str(exc),
             )
         )
-    created_ref = context.run(
-        context.repo,
-        "update-ref",
-        f"refs/heads/{context.branch}",
-        final_head,
-        "",
-        check=False,
-        env={"ETHOS_ACTOR": context.holder_ref},
-    )
-    if created_ref.returncode != 0 or ref_head(context.repo, context.branch) != final_head:
+    try:
+        execute_git_effect(
+            context.target,
+            lane_start_transition_plan(
+                context,
+                lease=lease,
+                base_head=candidate_head,
+                head=final_head,
+            ),
+            issuer=context.holder_ref,
+        )
+    except (OSError, ValueError) as error:
+        failed = failed_process(str(error))
         return rollback.rollback_lane_start(
             rollback.LaneStartRollback(
                 repo=context.repo,
@@ -123,9 +133,9 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
                 ownership=(
                     "detached",
                     candidate_head,
-                    final_head if created_ref.returncode == 0 else "",
+                    final_head if ref_head(context.repo, context.branch) == final_head else "",
                 ),
-                completed=created_ref,
+                completed=failed,
                 run=context.run,
                 lease=lease,
                 failure_gap="lane_start_ref_creation_failed",
@@ -171,6 +181,38 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
             )
         )
     return started_lane_report(context, base_head=candidate_head, head=final_head, lease=lease)
+
+
+def lane_start_transition_plan(
+    context: LaneStartContext,
+    *,
+    lease: dict[str, object],
+    base_head: str,
+    head: str,
+) -> TransitionPlan:
+    """Compile the one exact ref creation owned by a leased lane start."""
+    ref = f"refs/heads/{context.branch}"
+    effect = GitEffect(
+        updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)},
+        assertions={
+            f"refs/heads/{context.policy.candidate_branch}": base_head,
+            f"refs/heads/{context.source_branch}": context.source_head,
+        },
+    )
+    authority = load_lease_bound_commitment(context.target, lease=lease)
+    return compile_observed_git_effect(
+        context.target,
+        authority,
+        effect,
+        head=base_head,
+        prior_attestations={},
+        policy={
+            "operation": "lane.start",
+            "branch": context.branch,
+            "holder_ref": context.holder_ref,
+        },
+        values={"lease_generation": lease_generation(lease)},
+    )
 
 
 def prepare_lane_start_carrier(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC
 from datetime import datetime
 
@@ -7,6 +8,8 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.contracts.plan import EMPTY_ATTESTATION_SET_DIGEST
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
@@ -47,6 +50,44 @@ _INPUTS = {
     },
     "facts": _FACTS.model_dump(mode="json", exclude={"observed_at"}),
 }
+
+
+def test_git_effect_program_is_canonical_exact_and_immutable() -> None:
+    effect = GitEffect(
+        updates={
+            "refs/heads/变更": GitRefUpdate(expected="0" * 40, desired="1" * 40),
+            "refs/heads/a": GitRefUpdate(expected="2" * 40, desired="3" * 40),
+        },
+        assertions={"refs/heads/y": "4" * 40},
+    )
+    reordered = GitEffect(
+        updates=dict(reversed(tuple(effect.updates.items()))),
+        assertions=dict(reversed(tuple(effect.assertions.items()))),
+    )
+
+    assert effect.program() == reordered.program()
+    assert b"refs/heads/\xe5\x8f\x98\xe6\x9b\xb4" in effect.program()
+    assert effect.digest() == hashlib.sha256(effect.program()).hexdigest()
+    with pytest.raises(TypeError):
+        effect.assertions["refs/heads/y"] = "5" * 40
+
+
+@pytest.mark.parametrize(
+    ("ref", "assertions"),
+    [
+        ("refs/heads/dev", {"refs/heads/dev": "0" * 40}),
+        ("refs/heads/dev", {"refs/heads/candidate/dev": "invalid"}),
+        ("refs/heads/dev\nupdate refs/heads/main", {}),
+    ],
+)
+def test_git_effect_rejects_invalid_refs_and_assertions(
+    ref: str, assertions: dict[str, str]
+) -> None:
+    with pytest.raises(ValidationError, match="git_effect_permissions_invalid"):
+        GitEffect(
+            updates={ref: GitRefUpdate(expected="0" * 40, desired="1" * 40)},
+            assertions=assertions,
+        )
 
 
 def _plan(*, verdict: Verdict = "pass", required_gaps=(), nodes=()) -> TransitionPlan:

@@ -6,6 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 import ethos.adapters.mutation.lanes as lanes
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.openspec.profile import load_profile_commitment
@@ -270,14 +271,11 @@ def test_start_work_lane_revokes_final_lease_when_ref_creation_fails(
     repo, _candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
-    run_git = lanes.run_git
 
-    def fail_ref_creation(root: Path, *args: str, **kwargs: object):
-        if args[:2] == ("update-ref", "refs/heads/work/feature"):
-            return subprocess.CompletedProcess(args, 1, stdout="", stderr="injected ref failure")
-        return run_git(root, *args, **kwargs)
+    def fail_ref_creation(*args: object, **kwargs: object):
+        raise ValueError("injected ref failure")
 
-    monkeypatch.setattr(lanes, "run_git", fail_ref_creation)
+    monkeypatch.setattr(lane_start_carrier, "execute_git_effect", fail_ref_creation)
 
     report = start_work_lane(
         root=repo,
@@ -301,16 +299,13 @@ def test_start_work_lane_preserves_foreign_ref_created_during_failed_cas(
     repo, candidate = init_repo_with_candidate(tmp_path)
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
-    run_git = lanes.run_git
     foreign_head = git(candidate, "rev-parse", "HEAD")
 
-    def race_ref_creation(root: Path, *args: str, **kwargs: object):
-        if args[:2] == ("update-ref", "refs/heads/work/feature"):
-            git(repo, "update-ref", "refs/heads/work/feature", foreign_head)
-            return subprocess.CompletedProcess(args, 1, stdout="", stderr="injected ref race")
-        return run_git(root, *args, **kwargs)
+    def race_ref_creation(*args: object, **kwargs: object):
+        git(repo, "update-ref", "refs/heads/work/feature", foreign_head)
+        raise ValueError("injected ref race")
 
-    monkeypatch.setattr(lanes, "run_git", race_ref_creation)
+    monkeypatch.setattr(lane_start_carrier, "execute_git_effect", race_ref_creation)
 
     report = start_work_lane(
         root=repo,

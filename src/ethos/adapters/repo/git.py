@@ -12,9 +12,13 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 from typing import overload
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 _GIT = shutil.which("git") or "git"
 
@@ -24,7 +28,7 @@ def run_git(
     root: Path,
     *args: str,
     check: bool = True,
-    env: dict[str, str] | None = None,
+    env: Mapping[str, str] | None = None,
     stdin: str | None = None,
     text: Literal[True] = True,
     observation: bool = False,
@@ -36,7 +40,7 @@ def run_git(
     root: Path,
     *args: str,
     check: bool = True,
-    env: dict[str, str] | None = None,
+    env: Mapping[str, str] | None = None,
     stdin: bytes | None = None,
     text: Literal[False],
     observation: bool = False,
@@ -47,7 +51,7 @@ def run_git(
     root: Path,
     *args: str,
     check: bool = True,
-    env: dict[str, str] | None = None,
+    env: Mapping[str, str] | None = None,
     stdin: str | bytes | None = None,
     text: bool = True,
     observation: bool = False,
@@ -114,9 +118,35 @@ def current_tracked_head(root: Path) -> str:
     return "" if head == "untracked" else head
 
 
-def current_tree(root: Path, head: str = "HEAD") -> str:
+def ref_head(
+    root: Path,
+    ref: str,
+    expected: str = "",
+    *,
+    environment: Mapping[str, str] | None = None,
+) -> str:
+    """Resolve one ref, preserving the width of an expected null object ID."""
+    completed = run_git(root, "rev-parse", "--verify", ref, check=False, env=environment)
+    if completed.returncode == 0:
+        return completed.stdout.strip()
+    return expected if expected and not set(expected) - {"0"} else "0" * len(expected)
+
+
+def current_tree(
+    root: Path,
+    head: str = "HEAD",
+    *,
+    environment: Mapping[str, str] | None = None,
+) -> str:
     """Return the exact tree for a Git revision, or an empty string on failure."""
-    return git_stdout(root, "rev-parse", f"{head}^{{tree}}")
+    completed = run_git(
+        root,
+        "rev-parse",
+        f"{head}^{{tree}}",
+        check=False,
+        env=environment,
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
 def git_stdout_checked(root: Path, *args: str) -> str:
@@ -142,12 +172,25 @@ def committed_file_text(root: Path, ref: str, path: str) -> str:
     return git_stdout(root, "show", f"{ref}:{path}") if ref else ""
 
 
-def committed_file_bytes(root: Path, ref: str, path: str) -> bytes:
+def committed_file_bytes(
+    root: Path,
+    ref: str,
+    path: str,
+    *,
+    environment: dict[str, str] | None = None,
+) -> bytes:
     """Return exact tracked bytes from one committed tree, or ``b''`` on failure."""
     if not ref:
         return b""
     try:
-        completed = run_git(root, "show", f"{ref}:{path}", check=False, text=False)
+        completed = run_git(
+            root,
+            "show",
+            f"{ref}:{path}",
+            check=False,
+            env=environment,
+            text=False,
+        )
     except (FileNotFoundError, NotADirectoryError):
         return b""
     return completed.stdout if completed.returncode == 0 else b""

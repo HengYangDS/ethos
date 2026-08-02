@@ -7,9 +7,6 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.ref_intent import claim_ref_intent
-from ethos.adapters.admission.ref_intent import clear_ref_intent
-from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     issue_rebind_attestation,
 )
@@ -17,7 +14,6 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import ol
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     persist_rebind_attestation,
 )
-from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import recovery_intent
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     replayed_rebind_attestation,
 )
@@ -30,6 +26,7 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -44,13 +41,11 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import Facts
-from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Attestation
 
 
 def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -> dict[str, object]:
@@ -79,21 +74,7 @@ def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -
         )
         replayed = replayed_rebind_attestation(repo, request, effect, lease, replay_plan)
         if replayed is not None:
-            try:
-                intent = recovery_intent(
-                    repo,
-                    request,
-                    next(iter(effect.updates.values())),
-                    intent_bindings(request),
-                    replay_plan,
-                    effect,
-                )
-            except ValueError as error:
-                if str(error) != "commitment_rebind_recovery_missing":
-                    raise
-                intent = None
-            if intent is not None:
-                clear_ref_intent(repo, str(intent["nonce"]))
+            execute_git_effect(repo, replay_plan, issuer=request.holder_ref)
             return _report(request, lease, replayed, "replayed")
         if _is_target_generation(request, lease):
             return _attest_recovered(repo, request, effect, lease)
@@ -125,51 +106,8 @@ def _apply(
     target = _target_binding(repo, request, old_commitment.id, old_commitment.digest())
     old_overlay = working_overlay_sha256(repo)
     plan = _plan(repo, request, lease, effect, old_commitment.digest(), old_overlay)
-    update = next(iter(effect.updates.values()))
-    generation = lease_generation(lease)
-    bindings = intent_bindings(request)
-    intent = recovery_intent(repo, request, update, bindings, plan, effect)
-    recovering = intent is not None
-    if intent is None:
-        context = {
-            "retain_after_commit": True,
-            "old_lease_generation": generation,
-            "old_commitment_digest": old_commitment.digest(),
-            "working_overlay_sha256": old_overlay,
-            "facts_digest": plan.inputs.facts,
-            "plan_digest": plan.digest,
-            "policy_digest": plan.inputs.policy,
-            "effect_digest": effect.digest(),
-        }
-        intent = claim_ref_intent(
-            root=repo,
-            ref_name=f"refs/heads/{request.branch}",
-            update=update,
-            operation="commitment.rebind",
-            phase="issued",
-            bindings=bindings,
-            validate=lambda _bindings, stored: (
-                "commitment_rebind_intent_context_mismatch"
-                if canonical_json_digest(stored) != canonical_json_digest(context)
-                else ""
-            ),
-        )
-        if intent["gap"] == "ref_intent_missing":
-            intent = write_ref_intent(
-                root=repo,
-                ref_name=f"refs/heads/{request.branch}",
-                update=update,
-                operation="commitment.rebind",
-                bindings=bindings,
-                context=context,
-            )
-        elif intent["gap"]:
-            raise ValueError(str(intent["gap"]))
-    git_attestation = execute_git_effect(
-        repo,
-        plan,
-        issuer=request.holder_ref,
-    )
+    recovering = ref_head(repo, request.branch) == request.target_commit
+    git_attestation = execute_git_effect(repo, plan, issuer=request.holder_ref)
     updated = rebind_lease_commitment(
         state_database(repo),
         request=_lease_request(request),
@@ -189,8 +127,12 @@ def _apply(
         issued_at=datetime.now(UTC),
     )
     persist_rebind_attestation(repo, effect, attestation)
-    clear_ref_intent(repo, str(intent["nonce"]))
-    return _report(request, updated, attestation, "recovered" if recovering else "applied")
+    return _report(
+        request,
+        updated,
+        attestation,
+        "recovered" if recovering else "applied",
+    )
 
 
 def _admit(
@@ -366,29 +308,25 @@ def _plan(
     overlay_sha256: str,
 ):
     commitment = load_lease_bound_commitment(repo, lease=lease)
-    facts = Facts(
-        repository=load_repository_commitment(repo, tree_ref=request.expect_head).id,
-        head=request.expect_head,
-        tree=current_tree(repo, request.expect_head),
-        observed_at=datetime.now(UTC),
-        values={
-            "refs": {f"refs/heads/{request.branch}": request.expect_head},
-            "assertions": {},
-            "lease_generation": lease_generation(lease),
-            "index_tree": request.expect_index_tree,
-            "working_overlay_sha256": overlay_sha256,
-        },
-    )
-    return compile_git_effect_plan(
+    return compile_observed_git_effect(
+        repo,
         commitment,
-        facts,
+        effect,
+        head=request.expect_head,
         prior_attestations={},
         policy={
             "operation": "commitment.rebind",
             "old_commitment_digest": old_commitment_digest,
             "new_commitment_digest": request.new_commitment_digest,
         },
-        effect=effect,
+        values={
+            "lease_generation": lease_generation(lease),
+            "index_tree": request.expect_index_tree,
+            "working_overlay_sha256": overlay_sha256,
+            "new_commitment_path": request.new_commitment_path,
+            "new_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
+            "new_commitment_digest": request.new_commitment_digest,
+        },
     )
 
 
@@ -463,17 +401,7 @@ def _attest_recovered(
         request.expected_commitment_digest,
         request.expected_working_overlay_sha256,
     )
-    intent = recovery_intent(
-        repo,
-        request,
-        next(iter(effect.updates.values())),
-        intent_bindings(request),
-        plan,
-        effect,
-    )
-    if intent is None:
-        message = "commitment_rebind_recovery_missing"
-        raise ValueError(message)
+    git_attestation = execute_git_effect(repo, plan, issuer=request.holder_ref)
     if working_overlay_sha256(repo) != request.expected_working_overlay_sha256:
         message = "commitment_rebind_overlay_changed"
         raise ValueError(message)
@@ -483,25 +411,11 @@ def _attest_recovered(
         new_lease=lease,
         plan=plan,
         effect=effect,
-        git_state="recovered",
+        git_state=str(git_attestation.statement["result"]["state"]),
         issued_at=datetime.now(UTC),
     )
     persist_rebind_attestation(repo, effect, attestation)
-    clear_ref_intent(repo, str(intent["nonce"]))
     return _report(request, lease, attestation, "attested")
-
-
-def intent_bindings(request: CommitmentRebindRequest) -> dict[str, str]:
-    """Return exact hook bindings for one Commitment rebind transaction."""
-    return {
-        "lease_id": request.lease_id,
-        "lease_epoch": str(request.expected_epoch),
-        "lease_payload_sha256": request.expected_payload_sha256,
-        "index_tree": request.expect_index_tree,
-        "new_commitment_path": request.new_commitment_path,
-        "new_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
-        "new_commitment_digest": request.new_commitment_digest,
-    }
 
 
 def _report(

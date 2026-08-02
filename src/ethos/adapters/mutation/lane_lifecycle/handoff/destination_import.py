@@ -5,14 +5,11 @@ from __future__ import annotations
 import os
 import sqlite3
 import subprocess
-import tempfile
 import uuid
 from contextlib import closing
-from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -22,11 +19,16 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.destination_cleanup import (
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_cleanup import (
     import_worktree_record,
 )
+from ethos.adapters.mutation.lane_lifecycle.handoff.destination_objects import import_objects
+from ethos.adapters.mutation.lane_lifecycle.handoff.destination_objects import install_pack
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
+from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import validated_handoff_acknowledgement
-from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
@@ -36,9 +38,11 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from pathlib import Path
 
 
 def apply_handoff_import(
@@ -54,53 +58,55 @@ def apply_handoff_import(
     observed = observe_lease(state_database(destination), branch)
     lease = _recover_import_lease(observed, manifest, target_holder_ref)
     compensate_on_failure = observed.state == "missing"
-    with (
-        verified_package_snapshot(package=package, manifest=manifest, root=destination) as snapshot,
-        _verified_import_repository(snapshot, manifest, destination) as isolated,
-    ):
-        object_environment = _import_object_environment(destination, isolated)
-        with _prepared_import_pack(destination, isolated, head) as prepared_pack:
-            try:
-                lease, compensate_on_failure = _acquire_or_recover_lease(
-                    destination,
+    with import_objects(destination, package, manifest) as (object_environment, prepared_pack):
+        try:
+            lease, compensate_on_failure = _acquire_or_recover_lease(
+                destination,
+                manifest,
+                target_holder_ref,
+                worktree_path,
+            )
+            _ensure_import_ref(
+                destination,
+                branch,
+                head,
+                lease,
+                target_holder_ref,
+                object_environment,
+            )
+            _ensure_import_worktree(
+                destination,
+                worktree_path,
+                branch,
+                head,
+                object_environment,
+            )
+            acknowledgement = _validate_import(
+                destination,
+                worktree_path,
+                manifest,
+                lease,
+                object_environment=object_environment,
+            )
+            install_pack(destination, prepared_pack)
+        except (OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError, ValueError):
+            if compensate_on_failure:
+                lease = lease or _recover_import_lease(
+                    observe_lease(state_database(destination), branch),
                     manifest,
                     target_holder_ref,
-                    worktree_path,
                 )
-                _ensure_import_ref(destination, branch, head, object_environment)
-                _ensure_import_worktree(
-                    destination,
-                    worktree_path,
-                    branch,
-                    head,
-                    object_environment,
-                )
-                acknowledgement = _validate_import(
-                    destination,
-                    worktree_path,
-                    manifest,
-                    lease,
+            if lease and compensate_on_failure:
+                compensate_failed_import(
+                    destination=destination,
+                    manifest=manifest,
+                    worktree_path=worktree_path,
+                    lease=lease,
                     object_environment=object_environment,
+                    run_git=run_git,
+                    verify_destination_identity=_verify_destination_identity,
                 )
-                _install_pack(_object_directory(destination), prepared_pack)
-            except (OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError, ValueError):
-                if compensate_on_failure:
-                    lease = lease or _recover_import_lease(
-                        observe_lease(state_database(destination), branch),
-                        manifest,
-                        target_holder_ref,
-                    )
-                if lease and compensate_on_failure:
-                    compensate_failed_import(
-                        destination=destination,
-                        manifest=manifest,
-                        worktree_path=worktree_path,
-                        lease=lease,
-                        object_environment=object_environment,
-                        run_git=run_git,
-                        verify_destination_identity=_verify_destination_identity,
-                    )
-                raise
+            raise
     return {
         "state": "imported",
         "package_id": str(manifest["package_id"]),
@@ -108,174 +114,6 @@ def apply_handoff_import(
         "lease": lease,
         "acknowledgement": acknowledgement,
     }
-
-
-def _require(gap: str, *, holds: bool) -> None:
-    if not holds:
-        raise ValueError(gap)
-
-
-def _unbundle(destination: Path, bundle: Path, branch: str, head: str, tree: str) -> None:
-    heads = run_git(destination, "bundle", "list-heads", bundle.as_posix()).stdout.splitlines()
-    _require(
-        "handoff_bundle_identity_mismatch",
-        holds=heads == [f"{head} refs/heads/{branch}"],
-    )
-    run_git(destination, "bundle", "unbundle", bundle.as_posix())
-    actual = tuple(
-        run_git(destination, "rev-parse", f"{head}^{{{kind}}}").stdout.strip()
-        for kind in ("commit", "tree")
-    )
-    _require("handoff_bundle_identity_mismatch", holds=actual == (head, tree))
-
-
-@contextmanager
-def _verified_import_repository(
-    snapshot: Path, manifest: dict[str, Any], destination: Path
-) -> Iterator[Path]:
-    branch, head = str(manifest["source_lane_ref"]), str(manifest["source_head"])
-    object_format = run_git(destination, "rev-parse", "--show-object-format").stdout.strip()
-    expected_width = {"sha1": 40, "sha256": 64}.get(object_format)
-    _require("handoff_object_format_unsupported", holds=expected_width is not None)
-    _require("handoff_object_format_mismatch", holds=len(head) == expected_width)
-    with tempfile.TemporaryDirectory(
-        prefix="handoff-bare-", ignore_cleanup_errors=True
-    ) as temporary:
-        isolated = Path(temporary) / "repository.git"
-        isolated.mkdir()
-        run_git(isolated, "init", "--bare", f"--object-format={object_format}", ".")
-        _unbundle(
-            isolated,
-            snapshot / "repository.bundle",
-            branch,
-            head,
-            str(manifest["source_tree"]),
-        )
-        _verify_import_contract(isolated, manifest)
-        yield isolated
-
-
-def _object_directory(destination: Path) -> Path:
-    common = Path(
-        run_git(
-            destination, "rev-parse", "--path-format=absolute", "--git-common-dir"
-        ).stdout.strip()
-    )
-    objects = Path(
-        run_git(
-            destination, "rev-parse", "--path-format=absolute", "--git-path", "objects"
-        ).stdout.strip()
-    )
-    _require(
-        "handoff_destination_object_store_unsafe",
-        holds=objects == common / "objects"
-        and objects.is_dir()
-        and not objects.is_symlink()
-        and (objects / "pack").is_dir()
-        and not (objects / "pack").is_symlink(),
-    )
-    return objects
-
-
-def _import_object_environment(destination: Path, isolated: Path) -> dict[str, str]:
-    object_directory = _object_directory(destination)
-    alternates_file = object_directory / "info" / "alternates"
-    _require(
-        "handoff_destination_alternate_object_store_forbidden",
-        holds=not alternates_file.is_symlink(),
-    )
-    configured_alternates = (
-        alternates_file.read_text(encoding="utf-8").strip() if alternates_file.exists() else ""
-    )
-    _require(
-        "handoff_destination_alternate_object_store_forbidden",
-        holds=not configured_alternates,
-    )
-    return {
-        "GIT_OBJECT_DIRECTORY": str(object_directory),
-        "GIT_ALTERNATE_OBJECT_DIRECTORIES": str(isolated / "objects"),
-    }
-
-
-@contextmanager
-def _prepared_import_pack(destination: Path, isolated: Path, head: str) -> Iterator[list[Path]]:
-    object_directory = _object_directory(destination)
-    closure = run_git(
-        destination,
-        "rev-list",
-        "--objects",
-        "--missing=print",
-        head,
-        check=False,
-        env={"GIT_OBJECT_DIRECTORY": str(object_directory)},
-    )
-    _require("handoff_destination_object_store_invalid", holds=closure.returncode in {0, 128})
-    if closure.returncode == 0 and not any(
-        line.startswith("?") for line in closure.stdout.splitlines()
-    ):
-        yield []
-        return
-    packed = run_git(
-        isolated,
-        "pack-objects",
-        "--stdout",
-        "--revs",
-        "--no-thin",
-        stdin=f"{head}\n".encode(),
-        text=False,
-    ).stdout
-    _require("handoff_import_object_pack_empty", holds=bool(packed))
-    with tempfile.TemporaryDirectory(
-        prefix="handoff-import-",
-        dir=object_directory,
-        ignore_cleanup_errors=True,
-    ) as temporary:
-        quarantine = Path(temporary)
-        (quarantine / "pack").mkdir()
-        installed = run_git(
-            destination,
-            "index-pack",
-            "--stdin",
-            "--strict",
-            env={"GIT_OBJECT_DIRECTORY": str(quarantine)},
-            stdin=packed,
-            text=False,
-        )
-        pack_id = installed.stdout.decode().strip().removeprefix("pack\t")
-        candidates = sorted((quarantine / "pack").glob(f"pack-{pack_id}.*"))
-        suffixes = {path.suffix for path in candidates}
-        _require(
-            "handoff_import_object_install_failed",
-            holds=len(pack_id) == len(head)
-            and all(character in "0123456789abcdef" for character in pack_id)
-            and {".idx", ".pack"} <= suffixes <= {".idx", ".pack", ".rev"},
-        )
-        yield candidates
-
-
-def _install_pack(
-    object_directory: Path,
-    candidates: list[Path],
-) -> None:
-    if not candidates:
-        return
-    by_suffix = {path.suffix: path for path in candidates}
-    ordered = [by_suffix[".idx"], *([by_suffix[".rev"]] if ".rev" in by_suffix else [])]
-    installed: list[Path] = []
-    try:
-        for source in ordered:
-            target = object_directory / "pack" / source.name
-            os.link(source, target)
-            installed.append(target)
-        os.link(by_suffix[".pack"], object_directory / "pack" / by_suffix[".pack"].name)
-    except OSError:
-        try:
-            for path in reversed(installed):
-                path.unlink()
-        except OSError:
-            gap = "handoff_import_object_cleanup_failed"
-            raise ValueError(gap) from None
-        raise
 
 
 def _recover_import_lease(
@@ -294,7 +132,7 @@ def _recover_import_lease(
         "base_commitment_bytes_sha256": str(manifest["base_commitment_bytes_sha256"]),
         "base_commitment_digest": str(manifest["base_commitment_digest"]),
     }
-    _require(
+    require(
         (
             "handoff_import_lease_unknown"
             if observed.state == "unknown"
@@ -327,13 +165,13 @@ def _acquire_or_recover_lease(
         f"refs/heads/{branch}",
         check=False,
     )
-    _require("handoff_destination_carrier_state_unknown", holds=ref.returncode in {0, 1})
+    require("handoff_destination_carrier_state_unknown", holds=ref.returncode in {0, 1})
     try:
         worktree = import_worktree_record(destination, worktree_path, run_git=run_git)
     except ValueError:
         message = "handoff_destination_carrier_state_unknown"
         raise ValueError(message) from None
-    _require(
+    require(
         "handoff_destination_orphan_carrier",
         holds=ref.returncode == 1 and not os.path.lexists(worktree_path) and not worktree,
     )
@@ -393,22 +231,43 @@ def _ensure_import_ref(
     destination: Path,
     branch: str,
     head: str,
+    lease: dict[str, Any],
+    target_holder_ref: str,
     object_environment: dict[str, str],
 ) -> None:
     ref = f"refs/heads/{branch}"
     observed = run_git(
         destination, "rev-parse", "--verify", ref, check=False, env=object_environment
     )
-    _require("handoff_destination_ref_conflict", holds=observed.returncode in {0, 128})
+    require("handoff_destination_ref_conflict", holds=observed.returncode in {0, 128})
     if observed.returncode == 0:
-        _require("handoff_destination_ref_conflict", holds=observed.stdout.strip() == head)
+        require("handoff_destination_ref_conflict", holds=observed.stdout.strip() == head)
         return
-    run_git(
+    effect = GitEffect(updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)})
+    authority = load_lease_bound_commitment(
         destination,
-        "update-ref",
-        "--stdin",
-        env=object_environment,
-        stdin=f"create {ref} {head}\n",
+        lease=lease,
+        environment=object_environment,
+    )
+    plan = compile_observed_git_effect(
+        destination,
+        authority,
+        effect,
+        head=run_git(destination, "rev-parse", "HEAD").stdout.strip(),
+        prior_attestations={},
+        policy={
+            "operation": "lane.import",
+            "branch": branch,
+            "holder_ref": target_holder_ref,
+            "execution_branch": run_git(destination, "branch", "--show-current").stdout.strip(),
+        },
+        values={"lease_generation": lease_generation(lease)},
+    )
+    execute_git_effect(
+        destination,
+        plan,
+        issuer=target_holder_ref,
+        environment=object_environment,
     )
 
 
@@ -421,7 +280,7 @@ def _ensure_import_worktree(
 ) -> None:
     record = import_worktree_record(destination, path, run_git=run_git)
     if record:
-        _require(
+        require(
             "handoff_destination_worktree_conflict",
             holds=not path.is_symlink()
             and path.is_dir()
@@ -430,7 +289,7 @@ def _ensure_import_worktree(
             and not any(flag in record for flag in ("locked", "prunable")),
         )
         return
-    _require("handoff_destination_path_exists", holds=not os.path.lexists(path))
+    require("handoff_destination_path_exists", holds=not os.path.lexists(path))
     run_git(destination, "worktree", "add", path.as_posix(), branch, env=object_environment)
 
 
@@ -455,30 +314,10 @@ def _verify_destination_identity(
         str(lease.get("expected_head") or head),
         str(lease.get("expected_tree") or tree),
     )
-    _require(
+    require(
         "handoff_destination_identity_drift",
         holds=actual == (head, head, tree, head, tree),
     )
-
-
-def _verify_import_contract(destination: Path, manifest: dict[str, Any]) -> None:
-    try:
-        load_lease_bound_commitment(
-            destination,
-            lease=manifest
-            | {
-                "expected_head": manifest["source_head"],
-                "expected_tree": manifest["source_tree"],
-            },
-        )
-    except ValueError as error:
-        gap = {
-            "lease_expected_tree_mismatch": "handoff_base_commitment_tree_mismatch",
-            "lease_base_commitment_path_mismatch": "handoff_base_commitment_path_mismatch",
-            "lease_base_commitment_bytes_mismatch": "handoff_base_commitment_bytes_mismatch",
-            "lease_base_commitment_digest_mismatch": "handoff_base_commitment_digest_mismatch",
-        }.get(str(error), "handoff_base_commitment_invalid")
-        raise ValueError(gap) from None
 
 
 def _validate_import(

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC
-from datetime import datetime
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -16,23 +15,22 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.proof_bound_ref_effect import execute_proof_bound_ref_effect
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
-from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Facts
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
@@ -110,7 +108,11 @@ def apply_land_to_candidate(
                 },
                 policy=policy,
             )
-            attestation = execute_proof_bound_ref_effect(root=root, plan=plan)
+            attestation = execute_git_effect(
+                root,
+                plan,
+                issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+            )
     except (TypeError, ValueError) as error:
         failure = ("candidate_update_failed", str(error))
     if failure is not None or attestation is None:
@@ -154,33 +156,20 @@ def _candidate_transition_plan(
     if not prior_attestations.get("proof_set"):
         message = "candidate_prior_proof_missing"
         raise ValueError(message)
-    facts = Facts(
-        repository=load_repository_commitment(root, tree_ref=head).id,
-        head=head,
-        tree=current_tree(root, head),
-        observed_at=datetime.now(UTC),
-        values={
-            "operation": "candidate.integrate",
-            "refs": {ref: update.expected for ref, update in effect.updates.items()},
-            "assertions": effect.assertions,
-            "lease_generation": lease_generation(lease),
-        },
-        source_refs=(
-            "git:HEAD",
-            "git:HEAD^{tree}",
-            "lease:current-generation",
-            *(f"git:{ref}" for ref in (*effect.updates, *effect.assertions)),
-        ),
-    )
-    return compile_git_effect_plan(
+    return compile_observed_git_effect(
+        root,
         authority,
-        facts,
+        effect,
+        head=head,
         prior_attestations=prior_attestations,
         policy={
             "operation": "candidate.integrate",
             "candidate_branch": policy.candidate_branch,
         },
-        effect=effect,
+        values={
+            "operation": "candidate.integrate",
+            "lease_generation": lease_generation(lease),
+        },
     )
 
 
@@ -201,9 +190,21 @@ def apply_candidate_to_accepted(
     authorized: bool,
     expect_head: str | None,
     candidate_head: str | None = None,
+    control_replacement_receipt: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    try:
+        policy = strict_branch_role_policy_from_text(
+            committed_file_text(root, current_head, ".ethos/workspace.toml")
+        )
+    except (TypeError, ValueError):
+        return {
+            "verdict": "block",
+            "state": "blocked",
+            "branch": "",
+            "head": current_head,
+            "required_gaps": ["accepted_policy_unavailable"],
+        }
     decision = evaluate_closeout_mutation(
         apply=True,
         authorized=authorized,
@@ -231,7 +232,11 @@ def apply_candidate_to_accepted(
             "remediation": remediation.remediation_for_gaps(gaps),
         }
     candidate_head = candidate_head or observed_candidate_head
-    if decision.state == "current" and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF:
+    if (
+        decision.state == "current"
+        and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF
+        and not workspace_status(root)["dirty"]
+    ):
         return {
             **accepted.accepted_payload(policy, current_head),
             "verdict": "pass",
@@ -245,6 +250,7 @@ def apply_candidate_to_accepted(
         current_head=current_head,
         candidate_head=candidate_head,
         status=status,
+        control_replacement_receipt=control_replacement_receipt,
     )
 
 

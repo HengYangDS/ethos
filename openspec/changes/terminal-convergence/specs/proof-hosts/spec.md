@@ -18,6 +18,8 @@ plane rather than a mirror, fallback, or proxy for the other.
   receipts, hosted observations, and record verification cannot substitute for it
 - **AND** record verification proves immutable package integrity only, while a
   publication receipt proves only the exact remote effect it observed
+- **AND** local `act` or GitLab pipeline emulation remains local projection
+  evidence and cannot satisfy either hosted provider subject
 
 ### Requirement: Product Migration Closure Proof
 Terminal proof SHALL bind exact inputs, verifier, policy, and immutable tree

@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
     import subprocess
@@ -109,15 +116,9 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
         gap = "lane_start_ref_changed"
     ref_removed = not current_head if not gap else False
     if not gap and current_head:
-        deleted = context.run(
-            repo,
-            "update-ref",
-            "-d",
-            f"refs/heads/{branch}",
-            owned_ref_head,
-            check=False,
-        )
-        ref_removed = deleted.returncode == 0 and not ref_head(repo, branch)
+        with suppress(OSError, TypeError, ValueError):
+            delete_lane_start_ref(repo, branch, owned_ref_head, context.lease)
+            ref_removed = not ref_head(repo, branch)
     if not ref_removed:
         gap = gap or "lane_start_ref_cleanup_failed"
     try:
@@ -158,6 +159,35 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
         "lease_state": "revoked" if context.lease else "not_acquired",
         "required_gaps": [context.failure_gap],
     }
+
+
+def delete_lane_start_ref(
+    repo: Path,
+    branch: str,
+    head: str,
+    lease: dict[str, object] | None,
+) -> None:
+    """Delete only the exact ref owned by one failed leased lane start."""
+    if not lease:
+        message = "lane_start_ref_cleanup_lease_missing"
+        raise ValueError(message)
+    ref = f"refs/heads/{branch}"
+    effect = GitEffect(updates={ref: GitRefUpdate(expected=head, desired="0" * len(head))})
+    authority = load_lease_bound_commitment(repo, lease=lease)
+    plan = compile_observed_git_effect(
+        repo,
+        authority,
+        effect,
+        head=head,
+        prior_attestations={},
+        policy={
+            "operation": "lane.start.compensate",
+            "branch": branch,
+            "holder_ref": str(lease["holder_ref"]),
+        },
+        values={"lease_generation": lease_generation(lease)},
+    )
+    execute_git_effect(repo, plan, issuer=str(lease["holder_ref"]))
 
 
 def remove_lane_start_worktree(

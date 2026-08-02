@@ -40,7 +40,9 @@ Provider projections SHALL be symmetric derived views of one portable release co
 - **THEN** each projection preserves the same source identity, intent, required
   fields, branch roles, gates, and evidence bindings
 - **AND** provider-native syntax and capabilities may differ without requiring
-  byte-for-byte files, identical templates, or a lowest-common-denominator UI.
+  byte-for-byte files, identical templates, or a lowest-common-denominator UI
+- **AND** GitLab and GitHub each retain complete native issue, review, CI/CD,
+  release, update, and distribution behavior rather than a primary-plus-mirror split.
 
 ## ADDED Requirements
 

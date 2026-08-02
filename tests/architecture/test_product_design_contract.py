@@ -332,6 +332,8 @@ def test_terminal_execution_contract_is_self_profile_only_and_progress_is_irreve
 
     assert "phase-local ordered coordinates" in compact_tasks
     assert "block task-ID reuse, completion reset" in compact_tasks
+    assert "finite legacy-ID table proves only that legacy slice" in compact_tasks
+    assert "part of the selected Commitment" in compact_tasks
 
 
 def test_terminal_intent_closure_and_post_cutover_task_history_are_complete() -> None:
@@ -358,8 +360,19 @@ def test_terminal_intent_closure_and_post_cutover_task_history_are_complete() ->
 
 
 def assert_feedback_and_carrier_closure(design: str) -> None:
-    feedback = set(re.findall(r"^\| (CL-\d{3}) \|", design, re.MULTILINE))
-    assert feedback == {f"CL-{number:03d}" for number in range(1, 26)}
+    feedback = re.findall(
+        r"^\| (CL-\d{3}) \| ([^|]+) \| (?:absorbed|deferred|rejected|superseded) \|",
+        design,
+        re.MULTILINE,
+    )
+    assert {identifier for identifier, _obligation in feedback} == {
+        f"CL-{number:03d}" for number in range(1, 26)
+    }
+    assert all(len(obligation.split()) >= 6 for _identifier, obligation in feedback)
+    assert "5093e95db^:docs/governance/conversation-ledger.md" in design
+    assert "complete-session manifest" in design
+    assert "blocks the affected" in design
+    assert "task and campaign closeout" in design
     fact_boundaries = design.split("### Independent Fact-Boundary Closure", 1)[1].split(
         "## Accepted Feedback Closure", 1
     )[0]

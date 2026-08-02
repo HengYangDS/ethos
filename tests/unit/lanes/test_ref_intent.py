@@ -17,21 +17,19 @@ from typing import Literal
 
 import pytest
 
-import ethos.adapters.mutation.proof_bound_ref_effect
+import ethos.adapters.repo.git_effects
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.admission.ref_intent import write_ref_intent
-from ethos.adapters.mutation.proof_bound_ref_effect import execute_proof_bound_ref_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
-
-_BINDINGS = {"evidence_digest": "digest", "gate_policy_digest": "policy"}
 
 
 def _oid(label: str) -> str:
@@ -47,15 +45,14 @@ def _write(
     *,
     old: str = "old",
     new: str = "new",
-    context: dict[str, object] | None = None,
+    recoverable: bool = False,
 ) -> dict[str, object]:
     return write_ref_intent(
         root=root,
         ref_name="refs/heads/dev",
         update=_update(old=old, new=new),
         operation="candidate.accept",
-        bindings=_BINDINGS,
-        context=context,
+        recoverable=recoverable,
     )
 
 
@@ -65,7 +62,6 @@ def _claim(
     *,
     old: str = "old",
     new: str = "new",
-    bindings: dict[str, str] | None = _BINDINGS,
 ) -> dict[str, object]:
     return claim_ref_intent(
         root=root,
@@ -73,7 +69,6 @@ def _claim(
         update=_update(old=old, new=new),
         operation="candidate.accept",
         phase=phase,
-        bindings=bindings,
     )
 
 
@@ -107,7 +102,7 @@ def _proof() -> Attestation:
     )
 
 
-def _effect_plan(proof: Attestation, *, accepted_effect: Attestation | None = None):
+def _effect_plan(proof: Attestation):
     old, new = _oid("old"), _oid("new")
     return compile_git_effect_plan(
         Commitment(
@@ -126,14 +121,13 @@ def _effect_plan(proof: Attestation, *, accepted_effect: Attestation | None = No
         prior_attestations={
             "proof": proof.model_dump(mode="json"),
             "proof_set": "f" * 64,
-        }
-        | ({"accepted_effect": accepted_effect.model_dump(mode="json")} if accepted_effect else {}),
+        },
         policy={"operation": "candidate.accept"},
         effect=GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)}),
     )
 
 
-def test_intent_persists_exact_operation_transition_and_bindings(tmp_path: Path) -> None:
+def test_intent_persists_only_exact_operation_transition_and_recovery(tmp_path: Path) -> None:
     intent = _write(tmp_path)
 
     stored = json.loads(_path(tmp_path, intent["nonce"]).read_text(encoding="utf-8"))
@@ -144,8 +138,7 @@ def test_intent_persists_exact_operation_transition_and_bindings(tmp_path: Path)
         "ref_name": "refs/heads/dev",
         "old_value": _oid("old"),
         "new_value": _oid("new"),
-        "bindings": _BINDINGS,
-        "context": {},
+        "recoverable": False,
         "nonce": "",
         "phase": "issued",
         "created_at": "",
@@ -192,7 +185,7 @@ def test_nonretained_intent_is_one_shot_across_prepared_and_committed(tmp_path: 
 
 
 def test_retained_intent_supports_exact_crash_recovery(tmp_path: Path) -> None:
-    intent = _write(tmp_path, context={"retain_after_commit": True})
+    intent = _write(tmp_path, recoverable=True)
 
     assert _claim(tmp_path, "prepared")["gap"] == ""
     assert _claim(tmp_path, "committed")["gap"] == ""
@@ -206,7 +199,7 @@ def test_retained_intent_supports_exact_crash_recovery(tmp_path: Path) -> None:
 def test_retained_prepared_intent_recovers_when_committed_callback_is_lost(
     tmp_path: Path,
 ) -> None:
-    intent = _write(tmp_path, context={"retain_after_commit": True})
+    intent = _write(tmp_path, recoverable=True)
 
     assert _claim(tmp_path, "prepared")["gap"] == ""
     assert _claim(tmp_path, "recover")["gap"] == ""
@@ -217,7 +210,7 @@ def test_retained_prepared_intent_recovers_when_committed_callback_is_lost(
 def test_expired_retained_prepared_intent_recovers_after_observed_git_cas(
     tmp_path: Path,
 ) -> None:
-    intent = _write(tmp_path, context={"retain_after_commit": True})
+    intent = _write(tmp_path, recoverable=True)
     assert _claim(tmp_path, "prepared")["gap"] == ""
     _expire(
         tmp_path,
@@ -230,7 +223,7 @@ def test_expired_retained_prepared_intent_recovers_after_observed_git_cas(
 
 
 def test_expired_retained_prepared_intent_survives_stale_sweep(tmp_path: Path) -> None:
-    intent = _write(tmp_path, context={"retain_after_commit": True})
+    intent = _write(tmp_path, recoverable=True)
     assert _claim(tmp_path, "prepared")["gap"] == ""
     _expire(
         tmp_path,
@@ -248,7 +241,7 @@ def test_concurrent_committed_and_aborted_callbacks_preserve_committed_recovery(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    intent = _write(tmp_path, context={"retain_after_commit": True})
+    intent = _write(tmp_path, recoverable=True)
     assert _claim(tmp_path, "prepared")["gap"] == ""
     aborted_read = Event()
     committed = Event()
@@ -301,7 +294,7 @@ def test_aborted_intent_cleans_only_the_exact_prepared_transaction(tmp_path: Pat
 
 
 def test_aborted_callback_preserves_only_a_committed_recovery_intent(tmp_path: Path) -> None:
-    retained = _write(tmp_path, context={"retain_after_commit": True})
+    retained = _write(tmp_path, recoverable=True)
     ordinary = _write(tmp_path, old="ordinary-old", new="ordinary-new")
     assert _claim(tmp_path, "prepared")["gap"] == ""
     assert _claim(tmp_path, "committed")["gap"] == ""
@@ -329,7 +322,7 @@ def test_aborted_callback_preserves_only_a_committed_recovery_intent(tmp_path: P
     assert not _path(tmp_path, ordinary["nonce"]).exists()
 
 
-def test_intent_reports_absence_transition_operation_and_binding_mismatch(tmp_path: Path) -> None:
+def test_intent_reports_absence_transition_and_operation_mismatch(tmp_path: Path) -> None:
     assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_missing"
     _write(tmp_path, old="other-old")
     assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_mismatch"
@@ -342,12 +335,6 @@ def test_intent_reports_absence_transition_operation_and_binding_mismatch(tmp_pa
         operation="candidate.refresh",
     )
     assert _claim(root, "prepared")["gap"] == "ref_intent_operation_mismatch"
-
-    root = tmp_path / "bindings"
-    _write(root)
-    assert _claim(root, "prepared", bindings={"evidence_digest": "other"})["gap"] == (
-        "ref_intent_bindings_mismatch"
-    )
 
 
 @pytest.mark.parametrize("expires_at", [None, "not-a-timestamp", "2099-01-01T00:00:00"])
@@ -384,49 +371,21 @@ def test_intent_path_is_linked_worktree_safe(tmp_path: Path) -> None:
     )
 
 
-def test_proof_bound_effect_rejects_noncurrent_proof_before_intent_or_cas(
+def test_git_effect_rejects_noncurrent_proof_before_intent_or_cas(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        ethos.adapters.mutation.proof_bound_ref_effect,
+        ethos.adapters.repo.git_effects,
         "proof_plan_for_attestation",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("proof_not_proven")),
     )
     monkeypatch.setattr(
-        ethos.adapters.mutation.proof_bound_ref_effect,
-        "execute_git_effect",
+        ethos.adapters.repo.git_effects,
+        "run_git",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("CAS attempted")),
     )
 
     with pytest.raises(ValueError, match="git_effect_prior_proof_invalid:proof_not_proven"):
-        execute_proof_bound_ref_effect(root=tmp_path, plan=_effect_plan(_proof()))
-
-    assert not ref_intent_dir(tmp_path).exists()
-
-
-def test_proof_bound_effect_rejects_invalid_accepted_effect_before_intent_or_cas(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        ethos.adapters.mutation.proof_bound_ref_effect,
-        "proof_plan_for_attestation",
-        lambda *_args: object(),
-    )
-    monkeypatch.setattr(
-        ethos.adapters.mutation.proof_bound_ref_effect,
-        "proof_evidence_digest",
-        lambda *_args: "f" * 64,
-    )
-    monkeypatch.setattr(
-        ethos.adapters.mutation.proof_bound_ref_effect,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("CAS attempted")),
-    )
-
-    with pytest.raises(ValueError, match="git_effect_prior_accepted_effect_invalid"):
-        execute_proof_bound_ref_effect(
-            root=tmp_path,
-            plan=_effect_plan(_proof(), accepted_effect=_proof()),
-        )
+        execute_git_effect(tmp_path, _effect_plan(_proof()), issuer="agent:test:case:ref-effect")
 
     assert not ref_intent_dir(tmp_path).exists()

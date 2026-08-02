@@ -31,7 +31,6 @@ from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
@@ -112,10 +111,28 @@ def test_work_lane_ref_creation_requires_exact_lease_and_base(
         new_value=head,
     )
 
-    assert report["verdict"] == "pass"
-    assert "ok" not in report
-    assert report["decision"] == {"action": "allow", "reason": "lane_creation_saga_started"}
-    assert report["required_gaps"] == []
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["work_lane_ref_create_no_ref_intent"]
+    update = GitRefUpdate(expected="0" * 40, desired=head)
+    intent = write_ref_intent(
+        root=repo,
+        ref_name=f"refs/heads/{branch}",
+        update=update,
+        operation="lane.import",
+    )
+    admitted = work_lane_ref_transition_report(
+        root=repo,
+        phase="prepared",
+        ref_name=f"refs/heads/{branch}",
+        old_value=update.expected,
+        new_value=update.desired,
+    )
+
+    assert admitted["verdict"] == "pass"
+    assert "ok" not in admitted
+    assert admitted["decision"] == {"action": "allow", "reason": "lane_creation_saga_started"}
+    assert admitted["required_gaps"] == []
+    assert intent["nonce"]
 
 
 def test_work_lane_ref_deletion_requires_ref_intent(
@@ -676,7 +693,9 @@ def _record_complete_proof(root: Path, head: str, *, changed_paths: tuple[str, .
             os.environ["ETHOS_ACTOR"] = original
 
 
-def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
+def _accepted_boundary_repo(
+    tmp_path: Path, *, release_mirror: str = "independent"
+) -> tuple[Path, str]:
     """A repo on dev with a candidate/dev branch; return (root, base_head).
 
     Later commits are made on candidate/dev so the accepted branch (dev) can be
@@ -697,6 +716,7 @@ def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
         candidate_branch="candidate/dev",
         work_branch_prefix="work/",
         proposal_branch_prefix="proposal/",
+        release_mirror=release_mirror,
     )
     write_publication_topology(tmp_path)
     write_active_commitment(tmp_path)
@@ -739,6 +759,43 @@ tool_adapter = "repository-native"
     g("branch", "candidate/dev")
     g("checkout", "-q", "candidate/dev")
     return tmp_path, base
+
+
+@pytest.mark.parametrize(
+    ("accepted_policy", "candidate_policy", "main_revision"),
+    [
+        ("accepted_ff", "independent", "HEAD"),
+        ("independent", "accepted_ff", "HEAD~1"),
+    ],
+)
+def test_release_mirror_admission_uses_current_accepted_policy(
+    tmp_path: Path, accepted_policy: str, candidate_policy: str, main_revision: str
+) -> None:
+    repo, _base = _accepted_boundary_repo(tmp_path, release_mirror=accepted_policy)
+    git(repo, "branch", "main", git(repo, "rev-parse", main_revision))
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.write_text(
+        workspace.read_text(encoding="utf-8").replace(
+            f'release_mirror = "{accepted_policy}"', f'release_mirror = "{candidate_policy}"'
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", workspace.as_posix())
+    git(repo, "commit", "-m", "change release mirror policy")
+    candidate_head = git(repo, "rev-parse", "HEAD")
+    _record_complete_proof(repo, candidate_head)
+    if candidate_policy == "accepted_ff":
+        git(repo, "branch", "-f", "dev", candidate_head)
+
+    report = ref_move_admission_report(
+        root=repo,
+        ref_name="refs/heads/main",
+        old_value=git(repo, "rev-parse", "main"),
+        new_value=candidate_head,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["release_mirror_ref_move_no_ref_intent"]
 
 
 def _advance_candidate(repo: Path, name: str) -> str:
@@ -883,7 +940,6 @@ def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_pa
     )
 
     assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
 
 
 def test_ref_move_admission_blocks_rollback_to_old_proven_commit(tmp_path: Path) -> None:
@@ -920,8 +976,7 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
 
 
 def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
-    """Write the official marker bound to the proof set's semantic identity."""
-    attestation = proof_attestation(repo, new_value)
+    """Write the exact one-shot marker after proof admission succeeds independently."""
     write_ref_intent(
         root=repo,
         ref_name="refs/heads/dev",
@@ -934,10 +989,6 @@ def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> Non
             }
         ).updates["refs/heads/dev"],
         operation="candidate.accept",
-        bindings={
-            "evidence_digest": proof_evidence_digest(repo, new_value),
-            "gate_policy_digest": attestation.policy_digest if attestation is not None else "",
-        },
     )
 
 

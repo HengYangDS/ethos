@@ -10,14 +10,15 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
-from ethos.adapters.admission.ref_intent import clear_ref_intent
-from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -26,6 +27,7 @@ from ethos.adapters.store.state.lease.projection import observe_lease_from_conne
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
@@ -74,11 +76,8 @@ def apply_retirement(
                 effect = remove_linked_lane(
                     control_root,
                     lane,
-                    accepted_branch=policy.accepted_branch,
-                    accepted_head=accepted_head,
-                    authority_branch=str(authority_lane.get("branch") or ""),
-                    authority_head=str(authority_lane.get("head") or ""),
-                    authority_path=str(authority_lane.get("path") or ""),
+                    accepted=(policy.accepted_branch, accepted_head),
+                    authority=authority_lane,
                 )
                 result = effect
             if result or successor_authority:
@@ -129,53 +128,56 @@ def remove_linked_lane(
     control_root: Path,
     lane: dict[str, object],
     *,
-    accepted_branch: str,
-    accepted_head: str,
-    authority_branch: str,
-    authority_head: str,
-    authority_path: str,
+    accepted: tuple[str, str],
+    authority: dict[str, object],
 ) -> dict[str, object]:
+    accepted_branch, accepted_head = accepted
+    authority_branch = str(authority.get("branch") or "")
+    authority_head = str(authority.get("head") or "")
+    authority_path = str(authority.get("path") or "")
+    authority_lease = {
+        **cast("dict[str, object]", authority.get("lease") or {}),
+        "lane_ref": authority_branch,
+    }
     branch, path, expected = (str(lane.get(key) or "") for key in ("branch", "path", "head"))
     if gaps := reobservation_gaps(branch, path, expected):
         return blocked(gaps)
     removed = run_git(control_root, "worktree", "remove", path, check=False)
     if removed.returncode != 0:
         return blocked(["worktree_remove_failed"], removed.stderr)
-    authority_update = (
-        f"update refs/heads/{authority_branch} {authority_head} {authority_head}\n"
-        if authority_branch not in {accepted_branch, branch}
-        else ""
-    )
     transaction_root = (
         Path(authority_path)
         if authority_branch not in {accepted_branch, branch} and Path(authority_path).is_dir()
         else control_root
     )
-    intent: dict[str, object] = {}
+    execution_branch = authority_branch if transaction_root != control_root else accepted_branch
+    execution_head = authority_head if transaction_root != control_root else accepted_head
     try:
-        intent = write_ref_intent(
-            root=transaction_root,
-            ref_name=f"refs/heads/{branch}",
-            update=GitRefUpdate(
-                expected=expected,
-                desired="0" * len(expected),
-            ),
-            operation="lane.retire",
-        )
-        deleted = run_git(
+        updates = {
+            f"refs/heads/{branch}": GitRefUpdate(expected=expected, desired="0" * len(expected))
+        }
+        assertions = {f"refs/heads/{accepted_branch}": accepted_head}
+        if authority_branch not in {accepted_branch, branch}:
+            assertions[f"refs/heads/{authority_branch}"] = authority_head
+        effect = GitEffect(updates=updates, assertions=assertions)
+        commitment = load_lease_bound_commitment(transaction_root, lease=authority_lease)
+        execute_git_effect(
             transaction_root,
-            "update-ref",
-            "--stdin",
-            check=False,
-            stdin=(
-                f"start\nupdate refs/heads/{accepted_branch} {accepted_head} {accepted_head}\n"
-                f"{authority_update}"
-                f"delete refs/heads/{branch} {expected}\nprepare\ncommit\n"
+            compile_observed_git_effect(
+                transaction_root,
+                commitment,
+                effect,
+                head=execution_head,
+                prior_attestations={},
+                policy={
+                    "operation": "lane.retire",
+                    "execution_branch": execution_branch,
+                },
+                values={"lease_generation": lease_generation(authority_lease)},
             ),
+            issuer=actor_ref(),
         )
-        if deleted.returncode == 0:
-            return {}
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         return failed_ref_transition(
             control_root,
             lane=lane,
@@ -184,17 +186,8 @@ def remove_linked_lane(
             authority=(authority_branch, authority_head),
             stderr=str(exc),
         )
-    finally:
-        if intent:
-            clear_ref_intent(transaction_root, str(intent["nonce"]))
-    return failed_ref_transition(
-        control_root,
-        lane=lane,
-        target=(branch, expected),
-        accepted=(accepted_branch, accepted_head),
-        authority=(authority_branch, authority_head),
-        stderr=deleted.stderr,
-    )
+    else:
+        return {}
 
 
 def failed_ref_transition(

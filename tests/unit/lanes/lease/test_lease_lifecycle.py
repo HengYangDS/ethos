@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.lane_retirement.effects as retirement_effects
+import ethos.adapters.repo.git_effects as git_effects
 import ethos.adapters.store.state.lease.lifecycle.transitions as lease_transitions
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
@@ -465,7 +466,7 @@ def test_successor_retirement_restores_binding_after_ref_cas_failure(
         tmp_path / "ref-failure",
         monkeypatch,
     )
-    original = retirement_effects.run_git
+    original = git_effects.run_git
 
     def fail_ref_cas(
         root: Path,
@@ -476,7 +477,7 @@ def test_successor_retirement_restores_binding_after_ref_cas_failure(
             return subprocess.CompletedProcess(["git", *args], 1, "", "forced ref failure")
         return original(root, *args, **kwargs)
 
-    monkeypatch.setattr(retirement_effects, "run_git", fail_ref_cas)
+    monkeypatch.setattr(git_effects, "run_git", fail_ref_cas)
     report = retire_linked_work_lane(
         root=successor,
         mode="superseded",
@@ -500,14 +501,14 @@ def test_direct_retirement_ref_cas_failure_restores_exact_lease(
         tmp_path / "direct-ref-failure", holder_ref=holder_ref
     )
     before = _lease_snapshot(source, "work/superseded")
-    original = retirement_effects.run_git
+    original = git_effects.run_git
 
     def fail_ref_cas(root: Path, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         if args[:2] == ("update-ref", "--stdin"):
             return subprocess.CompletedProcess(["git", *args], 1, "", "forced ref failure")
         return original(root, *args, **kwargs)
 
-    monkeypatch.setattr(retirement_effects, "run_git", fail_ref_cas)
+    monkeypatch.setattr(git_effects, "run_git", fail_ref_cas)
     monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
     report = retire_linked_work_lane(
         root=repo,

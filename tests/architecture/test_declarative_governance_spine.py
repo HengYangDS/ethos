@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -84,6 +85,38 @@ def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() ->
     assert "ActionGraph" not in source
     assert not (CORE_SOURCE / "graph").exists()
     assert not (CORE_SOURCE / "action_graph").exists()
+
+
+def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
+    references: set[str] = set()
+    executions: list[str] = []
+    for path in CORE_SOURCE.rglob("*.py"):
+        relative = path.relative_to(CORE_SOURCE).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and "update-ref" in node.value
+            ):
+                references.add(relative)
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "run_git"
+                and any(
+                    isinstance(argument, ast.Constant) and argument.value == "update-ref"
+                    for argument in node.args
+                )
+            ):
+                executions.append(relative)
+
+    assert references == {
+        "adapters/repo/git_effect_attestation.py",
+        "adapters/repo/git_effects.py",
+        "contracts/plan.py",
+    }
+    assert executions == ["adapters/repo/git_effects.py"]
 
 
 def test_gate_dependencies_are_declared_without_runtime_product_injection() -> None:

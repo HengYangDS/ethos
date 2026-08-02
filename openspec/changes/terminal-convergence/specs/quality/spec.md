@@ -71,6 +71,26 @@ Quality SHALL preserve each carrier's native syntax and owner rather than mechan
   are checked by the declared native owner
 - **AND** the gate does not rewrite governed content during proof
 
+#### Scenario: a provider workflow is exercised locally
+- **WHEN** locked `act` or the declared GitLab emulator executes a provider projection
+- **THEN** it consumes the same owner scripts and portable gate declarations as hosted CI
+- **AND** its result is local evidence only and cannot substitute for a GitHub or GitLab hosted Attestation
+
+#### Scenario: an orchestration or environment tool is proposed
+- **WHEN** Tox, Nox, Pixi, Pants, Dagger, or another workflow substrate is proposed
+- **THEN** admission requires a real consumer, a distinct owned property, offline lock reproducibility, clean uninstall, and measured net deletion of current scripts, declarations, and dependencies
+- **AND** a second task runner, environment matrix, pipeline language, policy owner, or convenience wrapper is rejected
+
+#### Scenario: Python product or contributor execution starts
+- **WHEN** a local, CI, SDK, build, test, or ETHOS command requires Python
+- **THEN** it resolves the current worktree, matching `pyproject.toml`, `uv.lock`,
+  project `.venv`, and source before execution
+- **AND** Nox reuses that locked environment and owns reusable sessions while
+  Hatchling alone owns package builds
+- **AND** global executables, system site-packages, implicit PATH fallback, and a
+  second tool-created virtual environment fail closed
+- **AND** Nox replaces subsumed shell orchestration rather than wrapping it
+
 #### Scenario: a generated artifact drifts
 - **WHEN** a declared projection differs from its source binding
 - **THEN** the owning drift check blocks the stale artifact
@@ -142,3 +162,31 @@ accepted through self-reported speed or quality claims.
   and evidence completeness
 - **AND** evaluation results remain evidence and cannot directly mark tasks done,
   authorize land or publish, or become another progress store
+
+### Requirement: Product Experience Is A Kernel Projection
+CLI, Python SDK, language-neutral conformance assets, optional MCP/A2A adapters,
+and CI/forge integrations SHALL project one semantic result and SHALL NOT create
+parallel policy, lifecycle, error, or truth ownership.
+
+#### Scenario: a human or machine receives a non-pass result
+- **WHEN** current facts produce `block` or `unknown`
+- **THEN** every surface preserves the same stable diagnostic code, verdict,
+  evidence boundary, missing fact or blocker, singular safe next action, and
+  user-decision requirement
+- **AND** human output explains it concisely while JSON remains schema-stable
+- **AND** no surface hides the gap, substitutes generic advice, or offers several
+  semantically equivalent next commands
+
+#### Scenario: a repository is adopted or uninstalled
+- **WHEN** a user previews, applies, repeats, or removes adoption
+- **THEN** preview is side-effect free, apply is idempotent and minimally invasive,
+  and uninstall removes product-owned hooks and projections without deleting
+  native repository state
+- **AND** complete mutation adoption verifies OpenSpec while observation-only use
+  remains explicit and non-mutating
+
+#### Scenario: a product surface is implemented
+- **WHEN** CLI, SDK, MCP/A2A, CI, forge, or generated scaffold behavior is added
+- **THEN** it consumes the typed application service and shared conformance cases
+- **AND** transport-specific code contains no duplicate compiler, policy evaluator,
+  durable session state, task progress, or error taxonomy

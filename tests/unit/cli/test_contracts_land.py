@@ -193,9 +193,9 @@ def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["candidate_base_stale"]
-    assert payload["next_actions"] == [
+    assert payload["next_action"] == (
         f"ethos lane refresh-base --apply --authorize --expect-head {work_head} --json"
-    ]
+    )
     assert payload["data"]["candidate_update"] == {
         "verdict": "block",
         "state": "blocked",
@@ -208,10 +208,7 @@ def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
             {
                 "gap": "candidate_base_stale",
                 "kind": "stale_base",
-                "next_actions": [
-                    "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
-                    "rerun proof after the lane is replayed onto candidate/dev",
-                ],
+                "next_action": "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
             }
         ],
     }
@@ -227,7 +224,7 @@ def test_land_dry_run_requires_executed_proof_before_ready_state(
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["proof_not_proven"]
-    assert payload["next_actions"] == [f"ethos prove --execute --expect-head {work_head} --json"]
+    assert payload["next_action"] == f"ethos prove --execute --expect-head {work_head} --json"
     assert payload["data"]["proof_readiness"] == _expected_proof_readiness(
         worktree, work_head, state="missing", required_gaps=("proof_not_proven",)
     )
@@ -244,7 +241,7 @@ def test_land_blocks_active_change_even_when_exact_head_is_proven(tmp_path: Path
     assert payload["required_gaps"] == [
         "openspec_active_change_unarchived:fixture-change:work_lane"
     ]
-    assert payload["next_actions"] == ["openspec archive fixture-change --yes --json"]
+    assert payload["next_action"] == "openspec archive fixture-change --yes --json"
     assert payload["data"]["proof_readiness"] == {}
     mutation = payload["data"]["mutation"]
     assert mutation["request"] == {
@@ -289,7 +286,7 @@ def test_land_apply_refuses_active_change_without_updating_candidate(tmp_path: P
     assert payload["required_gaps"] == [
         "openspec_active_change_unarchived:fixture-change:work_lane"
     ]
-    assert payload["next_actions"] == ["openspec archive fixture-change --yes --json"]
+    assert payload["next_action"] == "openspec archive fixture-change --yes --json"
     assert payload["data"]["candidate_update"] == {}
     assert git(candidate, "rev-parse", "HEAD") == candidate_head
 
@@ -479,8 +476,12 @@ def test_land_rejects_proof_self_granted_candidate_authority(monkeypatch, tmp_pa
     assert valid is not None
     plan = TransitionPlan.model_validate(valid.model_dump(mode="json")["statement"]["plan"])
     commitment = dict(valid.statement["commitment"])
-    commitment["permissions"] = ["git.ref.compare-and-swap"]
+    commitment["permissions"] = [
+        *commitment["permissions"],
+        "git.ref.update:refs/heads/candidate/dev",
+    ]
     commitment_digest = Commitment.model_validate_json(json.dumps(commitment)).digest()
+    assert commitment_digest != valid.commitment_digest
     fact_values = dict(plan.facts["values"])
     fact_values["changed_paths"] = ()
     facts = Facts.model_validate(
@@ -516,7 +517,7 @@ def test_land_rejects_proof_self_granted_candidate_authority(monkeypatch, tmp_pa
                 "nodes": [node.model_dump(mode="json") for node in plan.nodes],
             },
         },
-        permissions=("git.ref.compare-and-swap",),
+        permissions=tuple(commitment["permissions"]),
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=plan.nodes,
     )
@@ -580,7 +581,7 @@ def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None
     assert payload["verdict"] == "pass"
     assert payload["state"] == "base_refreshed"
     assert payload["required_gaps"] == []
-    assert payload["next_actions"] == ["ethos land --json"]
+    assert payload["next_action"] == "ethos land --json"
     assert payload["data"]["branch"] == "work/feature"
     assert payload["data"]["previous_head"] == previous_head
     assert payload["data"]["head"] == refreshed_head
@@ -668,7 +669,7 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert mutation["decision"]["verdict"] == "unknown"
     assert mutation["decision"]["subject"]["action"] == "remote.publish"
     assert mutation["decision"]["required_gaps"] == []
-    assert mutation["decision"]["next"]
+    assert mutation["decision"]["next_action"]
     expected_state = mutation["decision"]["subject"]["expected_state"]
     assert expected_state["source_ref"] == "refs/heads/dev"
     assert expected_state["source_head"] == head
@@ -1052,6 +1053,22 @@ repository_family_worktrees = false
 
 
 def _retire_configured_lane(repo: Path, work_head: str) -> None:
+    blocked = run_ethos_blocked(
+        "lane",
+        "retire",
+        "landed",
+        "--branch",
+        "lane/configured",
+        "--expect-head",
+        work_head,
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+    assert blocked["required_gaps"] == ["authorization_required"]
+    assert git(repo, "rev-parse", "lane/configured") == work_head
     retire_payload = run_ethos(
         "lane",
         "retire",
@@ -1061,6 +1078,7 @@ def _retire_configured_lane(repo: Path, work_head: str) -> None:
         "--expect-head",
         work_head,
         "--apply",
+        "--authorize",
         "--root",
         repo.as_posix(),
         "--json",
@@ -1160,7 +1178,7 @@ def test_publish_reports_local_ci_fallback_evidence(
     assert evidence_status["evidence_head"] == evidence_head
     assert payload["summary"]["next_publication_action"] == expected_action
     if expected_actions is not None:
-        assert payload["next_actions"] == list(expected_actions)
+        assert payload["next_action"] == expected_actions[0]
 
 
 def test_publish_rejects_legacy_local_ci_ok_without_explicit_verdict(tmp_path: Path) -> None:
@@ -1252,7 +1270,7 @@ def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
     monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: rejected_plan)
     rejected = run_ethos_blocked("prove", "--json", cwd=repo)
     assert rejected["required_gaps"] == ["repository_subject_mismatch"]
-    assert rejected["next_actions"] == ["repair the Commitment or repository facts"]
+    assert rejected["next_action"] == "repair the Commitment or repository facts"
 
     monkeypatch.setattr(
         proof_cli,
@@ -1261,7 +1279,7 @@ def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
     )
     missing = run_ethos_blocked("prove", "--json", cwd=repo)
     assert missing["required_gaps"] == ["change_missing"]
-    assert missing["next_actions"] == ["ethos adopt"]
+    assert missing["next_action"] == "ethos adopt"
 
 
 def test_prove_empty_focused_plan_keeps_host_probe_separate_without_claiming_readiness(

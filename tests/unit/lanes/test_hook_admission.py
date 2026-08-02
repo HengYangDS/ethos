@@ -229,6 +229,10 @@ def test_pre_tool_hook_blocks_protected_or_unleased_mutation(
         assert report["admission"]["error"] == admission_error
     elif kind == "unleased-work":
         assert report["admission"]["work_lane_lease"]["verdict"] == "block"
+        assert report["next_action"] == (
+            "ethos lane start <name> --source-root <source-work-lane> "
+            "--holder-ref <holder-ref> --apply --json"
+        )
 
 
 @pytest.mark.parametrize(
@@ -278,10 +282,9 @@ def test_pre_tool_hook_evaluates_leased_work_lane_actor(
     assert lease["lease_id"].startswith("lease:")
     assert lease["expected_head"] == git(leased_worktree, "rev-parse", "HEAD")
     if state == "blocked":
-        assert report["next_actions"] == [
-            "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, or obtain handoff",
-            "ethos lane prewrite <path>",
-        ]
+        assert report["next_action"] == (
+            "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, or obtain handoff"
+        )
 
 
 def test_pre_tool_hook_handles_rebase_context(leased_worktree: Path) -> None:

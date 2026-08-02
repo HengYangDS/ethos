@@ -32,6 +32,7 @@ from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from ethos.contracts.value import mutable_json
 from ethos.repository.policy.gates import resolve_gate_policy
 
 _DEFAULT_ATTESTATION_DIR = Path(".ethos") / "state" / "attestations"
@@ -149,7 +150,9 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     lease = leases_by_branch(root).get(branch, {})
     work_lane = load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
     if work_lane:
-        if fact_values.get("lease_generation") != lease_generation(lease):
+        if mutable_json(fact_values.get("lease_generation")) != mutable_json(
+            lease_generation(lease)
+        ):
             msg = "proof_lease_generation_stale"
             raise ValueError(msg)
         if os.environ.get("ETHOS_ACTOR", "").strip() != str(lease.get("holder_ref") or ""):

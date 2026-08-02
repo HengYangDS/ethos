@@ -90,10 +90,8 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         },
         diagnostics=(validation,),
         required_gaps=gaps,
-        next_actions=tuple(
-            string_sequence(
-                cast("dict[str, object]", observed.get("stage_gates") or {}).get("next_commands")
-            )
+        next_action=str(
+            cast("dict[str, object]", observed.get("stage_gates") or {}).get("next_action") or ""
         ),
         governance_context=repository_context(repo),
         data=data,

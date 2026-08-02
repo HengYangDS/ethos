@@ -26,8 +26,11 @@ uv run ethos plan --changed --json
 uv run ethos prove --json
 ```
 
-Read `required_gaps` and `next_actions` before changing tracked files. A
-readiness result is not executed proof, landing, publication, or remote push.
+Read `required_gaps`, singular `next_action`, derived `continuation`,
+`missing_facts_or_evidence`, and `user_decision_required` before changing
+tracked files. The schema-version-`2` result preserves `state` and
+`required_gaps`. A readiness result is not executed proof, landing,
+publication, or remote push.
 
 ## Adopted Repository
 

@@ -225,7 +225,7 @@ def publication_readiness(
         "proposal_branch": proposal,
         "local_proposal_package": _proposal_package(branch, proposal, availability, fallback),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
-        "next_actions": [action] if local_ok else ["resolve local publish readiness gaps"],
+        "next_action": action if local_ok else "resolve local publish readiness gaps",
     }
 
 
@@ -279,7 +279,7 @@ def publication_with_remote_matrix(
     return (
         {
             **publication,
-            "next_actions": ["reconcile diverged remotes before creating a proposal branch"],
+            "next_action": "reconcile diverged remotes before creating a proposal branch",
         }
         if remote_available and matrix.get("state") == "reconciliation_required"
         else publication

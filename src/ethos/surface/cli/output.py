@@ -32,8 +32,8 @@ def emit(
             sys.stdout.write(f"{result.to_json()}\n")
         else:
             sys.stdout.write(f"{result.command}: {result.state}\n")
-            for action in result.next_actions:
-                sys.stdout.write(f"next: {action}\n")
+            if result.next_action:
+                sys.stdout.write(f"next: {result.next_action}\n")
     except (BrokenPipeError, BlockingIOError):
         return
     if enforce and result.verdict != "pass":
@@ -48,7 +48,7 @@ def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce:
             verdict="block",
             state="gapped",
             required_gaps=("repository_profile_invalid:.ethos/profile.toml",),
-            next_actions=("repair .ethos/profile.toml and rerun the command",),
+            next_action="repair .ethos/profile.toml and rerun the command",
             data={"error_boundary": "repository_profile_validation"},
         ),
         json_output=json_output,

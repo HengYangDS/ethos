@@ -145,18 +145,18 @@ def _check_summaries(checks: list[dict[str, object]]) -> list[dict[str, object]]
     ]
 
 
-def _proof_next_actions(
+def _proof_next_action(
     *,
     options: _ProofOptions,
     result_state: str,
-) -> tuple[str, ...]:
+) -> str:
     """Return the next public lifecycle command for one proof outcome."""
     if result_state == "proven":
         focused = bool(options.gate) or proof_scope_binding(options.scope)["scope"] != "repository"
-        return ("ethos prove --json",) if focused else ("ethos land",)
+        return "ethos prove --json" if focused else "ethos land"
     if result_state == "ready":
-        return ("ethos prove --execute",)
-    return ("ethos plan --changed --json",)
+        return "ethos prove --execute"
+    return "ethos plan --changed --json"
 
 
 @app.command
@@ -200,7 +200,7 @@ def prove(
                 verdict="block",
                 state="gapped",
                 required_gaps=(str(exc),),
-                next_actions=("ethos adopt",),
+                next_action="ethos adopt",
             ),
             json_output=json_output,
         )
@@ -213,7 +213,7 @@ def prove(
                 verdict=plan.verdict,
                 state="gapped",
                 required_gaps=plan_gaps or ("plan_not_admitted",),
-                next_actions=("repair the Commitment or repository facts",),
+                next_action="repair the Commitment or repository facts",
             ),
             json_output=json_output,
         )
@@ -227,7 +227,7 @@ def prove(
                 verdict="block",
                 state="gapped",
                 required_gaps=(str(exc),),
-                next_actions=("ethos plan --changed --json",),
+                next_action="ethos plan --changed --json",
             ),
             json_output=json_output,
         )
@@ -334,7 +334,7 @@ def prove(
         if verdict == "pass"
         else "gapped"
     )
-    next_actions = _proof_next_actions(
+    next_action = _proof_next_action(
         options=options,
         result_state=result_state,
     )
@@ -412,7 +412,7 @@ def prove(
             "gate_count": len(checks),
         },
         required_gaps=required_gaps,
-        next_actions=next_actions,
+        next_action=next_action,
         governance_context=cast("dict[str, object]", audit["governance_context"]),
         data=data,
     )

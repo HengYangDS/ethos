@@ -15,6 +15,7 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.value import mutable_json
 from ethos.repository.policy.gates import resolve_gate_policy
 
 if TYPE_CHECKING:
@@ -178,7 +179,7 @@ def _candidate_evaluation(
         if (
             current_lease.get("lease_state") != "valid"
             or current_lease.get("commitment_binding") != "bound"
-            or dict(generation) != lease_generation(current_lease)
+            or mutable_json(generation) != mutable_json(lease_generation(current_lease))
         ):
             gaps.append("proof_lease_generation_stale")
     if gaps:

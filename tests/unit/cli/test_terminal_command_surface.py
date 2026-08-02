@@ -108,9 +108,11 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
     assert "ok" not in payload
     assert "ok" not in payload["data"]
     assert payload["required_gaps"] == ["candidate_base_stale"]
-    assert payload["next_actions"] == expected
-    assert payload["next_actions"] == payload["data"]["authority"]["next_commands"]
-    assert "git status --short" not in payload["next_actions"]
+    assert payload["next_action"] == expected[-1]
+    assert payload["next_action"] == payload["data"]["authority"]["next_action"]
+    assert payload["user_decision_required"] is True
+    assert payload["continuation"] == "await-user"
+    assert "git status --short" not in payload["next_action"]
 
 
 def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_path) -> None:
@@ -136,4 +138,4 @@ def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_pat
         "closeout_residue_lanes",
     ):
         assert retired not in serialized
-    assert payload["next_actions"] == payload["data"]["stage_gates"]["next_commands"]
+    assert payload["next_action"] == payload["data"]["stage_gates"]["next_action"]

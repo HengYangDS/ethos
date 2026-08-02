@@ -1143,12 +1143,12 @@ status reader without treating them as transition-blocking required gaps.
   reports `verdict=pass` and `state=advisory` rather than `state=ready`
 - **AND** required gaps remain reserved for blocking transition failures
 
-#### Scenario: Status exposes advisory signal count, layer, and bounded next actions
+#### Scenario: Status exposes advisory signal count, layer, and one bounded next action
 
 - **WHEN** `ethos status --json` runs
 - **THEN** the summary includes `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals` lists non-blocking advisory gaps
-- **AND** `gap_layers.advisory_signals.next_actions` lists bounded inspection or explanation actions for known advisory signals
+- **AND** top-level `next_action` selects one deterministic read-only inspection or explanation action for known advisory signals
 - **AND** required gaps remain reserved for blocking transition failures
 
 #### Scenario: Status carries Work Lane coordination advisories
@@ -1156,9 +1156,7 @@ status reader without treating them as transition-blocking required gaps.
 - **WHEN** `ethos status --json` runs and workspace status contains Work Lane coordination advisory gaps
 - **THEN** the status summary includes those gaps in `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals.advisory_gaps` includes the Work Lane coordination advisories
-- **AND** `gap_layers.advisory_signals.next_actions` routes to read-only coordination inspection commands
-- **AND** top-level `next_actions` mirrors those advisory inspection commands when
-  no blocking gap is present
+- **AND** top-level `next_action` routes to one deterministic read-only coordination inspection command when no blocking gap is present
 - **AND** the advisories do not become status `required_gaps`
 
 #### Scenario: Status carries Work Lane coordination blockers

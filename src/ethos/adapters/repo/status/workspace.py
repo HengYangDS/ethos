@@ -235,15 +235,20 @@ def _stage_gates(
     stale = "candidate_base_stale" in landing_gaps
     integration = bool(closeout_support.get("supported")) and not stale
     followup = (
-        [str(landing_readiness.get("next_action") or "ethos lane refresh-base --json")]
+        str(landing_readiness.get("next_action") or "ethos lane refresh-base --json")
         if stale
-        else ["ethos land --json"]
+        else "ethos land --json"
         if integration
-        else []
+        else ""
     )
-    commands = (["ethos lane prewrite <path>"] if authoring else []) + followup or [
-        "ethos lane start <name>"
-    ]
+    next_action = followup or (
+        "ethos lane prewrite <path>"
+        if authoring
+        else (
+            "ethos lane start <name> --source-root <source-work-lane> "
+            "--holder-ref <holder-ref> --apply --json"
+        )
+    )
     if not authoring:
         blocked, owner = "authoring", branch if is_work_lane else ""
     elif not integration:
@@ -259,8 +264,7 @@ def _stage_gates(
         "accepted_closeout_allowed": False,
         "blocked_stage": blocked,
         "blocker_owner": owner,
-        "recommended_next_command": commands[-1],
-        "next_commands": commands,
+        "next_action": next_action,
     }
 
 

@@ -364,7 +364,7 @@ class MutationAdmissionRequest(BaseModel):
     verdict: Verdict
     required_gaps: tuple[str, ...] = ()
     why: tuple[str, ...] = ()
-    next_actions: tuple[str, ...] = ()
+    next_action: str = ""
     state: str = ""
     identity_basis: str = "not_evaluated"
     evidence_boundary: str = "current_local_observation"

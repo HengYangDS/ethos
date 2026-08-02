@@ -72,7 +72,8 @@ def test_pre_push_public_envelope_and_effect_gate_use_declared_verdict(
     result = emitted[-1]
     payload = result.to_dict()
     assert result.verdict == "unknown"
-    assert result.next_actions == ("ethos prove --execute --expect-head <head>",)
+    assert result.schema_version == 2
+    assert result.next_action == "ethos prove --execute --expect-head <head>"
     assert "ok" not in payload
     assert "ok" not in payload["data"]
 
@@ -121,7 +122,8 @@ repository_family_worktrees = false
 
     result = emitted[-1]
     assert result.verdict == "pass"
-    assert result.next_actions == ()
+    assert result.schema_version == 2
+    assert result.next_action == ""
     assert result.data["verdict"] == "pass"
     assert "ok" not in result.data
 

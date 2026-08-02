@@ -2144,7 +2144,7 @@ SHALL NOT authorize new material writes.
 ### Requirement: Accepted closeout remains candidate-first and non-self-approving
 
 Accepted advance SHALL fast-forward to live candidate with candidate proof and
-one-shot official closeout. Candidate-tree policy decides admission; accepted
+one-shot exact ref intent. Candidate-tree policy decides admission; accepted
 hooks and CAS enforce it. With `release_mirror = "accepted_ff"`, both protected
 refs advance atomically under that evaluator. A candidate replacement for the
 reference-transaction hook SHALL be clean, executable, and transaction-local;
@@ -2156,7 +2156,7 @@ hooks remain.
 - **GIVEN** the candidate checkout is clean and has a complete proof for its
   live head
 - **WHEN** a caller runs raw `git update-ref` to move the accepted branch to
-  that head without official closeout intent
+  that head without an exact official ref intent
 - **THEN** the accepted-ref hook SHALL reject the move
 - **AND** candidate-tree evaluation SHALL not make the marker optional.
 
@@ -2167,15 +2167,14 @@ hooks remain.
 - **AND** the incumbent accepted checkout cannot run its hook reducer
 - **WHEN** the armed reference-transaction hook prepares the transaction
 - **THEN** it evaluates both transitions through the clean candidate runner
-- **AND** it admits the transaction only when each exact closeout intent and
+- **AND** it admits the transaction only when each exact ref intent and
   substantive candidate/proof check passes
 - **AND** `dev` and `main` reach the same candidate head atomically.
 
 #### Scenario: Raw accepted or release-mirror move remains blocked
 
 - **GIVEN** an `accepted_ff` repository has a proven live candidate head
-- **WHEN** raw Git attempts to move `dev` or `main` without its exact
-  closeout-intent marker
+- **WHEN** raw Git attempts to move `dev` or `main` without its exact ref intent
 - **THEN** the armed hook blocks that transition
 - **AND** no protected ref advances.
 
@@ -2375,7 +2374,7 @@ raw-reference-move guard.
   tree
 - **AND** a profile absent from that resolvable candidate tree SHALL be treated
   as absent rather than inherited from the accepted-old working tree
-- **AND** raw accepted-root moves without a matching one-shot closeout intent
+- **AND** raw accepted-root moves without a matching one-shot ref intent
   SHALL remain blocked.
 
 #### Scenario: closeout-policy remediation does not lower the acceptance bar

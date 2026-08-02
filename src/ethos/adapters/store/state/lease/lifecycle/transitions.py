@@ -242,6 +242,42 @@ def advance_lease_ref(
     return result
 
 
+def rebind_lease_commitment(
+    db_path: Path,
+    *,
+    request: LeaseOperationRequest,
+    binding: dict[str, str],
+) -> dict[str, object]:
+    """CAS one old Lease generation to a new Commitment and the next epoch."""
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        initialize_state_connection(connection)
+        row, current = expected_current_lease(
+            connection,
+            request=request,
+            require_expired=False,
+        )
+        if current.handoff is not None:
+            message = f"lease_handoff_pending:{request.branch}"
+            raise ValueError(message)
+        result = replace_exact_lease_from_connection(
+            connection,
+            current=row,
+            replacement=_validated_reissue(
+                current,
+                holder_ref=current.holder_ref,
+                epoch=current.epoch + 1,
+                renewed_at=current.renewed_at,
+                expires_at=current.expires_at,
+                handoff=None,
+                binding=binding,
+            ),
+        )
+        connection.commit()
+    return result
+
+
 def expected_current_lease(
     connection: sqlite3.Connection,
     *,

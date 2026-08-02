@@ -10,13 +10,13 @@ from typing import cast
 
 import ethos.adapters.mutation.accepted as accepted
 import ethos.adapters.mutation.remediation.guidance as remediation
-from ethos.adapters.admission.closeout_intent.marker import execute_closeout_effect
 from ethos.adapters.mutation.decision import MutationDecision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_bound_ref_effect import execute_proof_bound_ref_effect
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
@@ -110,7 +110,7 @@ def apply_land_to_candidate(
                 },
                 policy=policy,
             )
-            attestation = execute_closeout_effect(root=root, plan=plan)
+            attestation = execute_proof_bound_ref_effect(root=root, plan=plan)
     except (TypeError, ValueError) as error:
         failure = ("candidate_update_failed", str(error))
     if failure is not None or attestation is None:

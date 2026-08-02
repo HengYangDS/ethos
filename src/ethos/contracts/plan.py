@@ -240,6 +240,7 @@ class TransitionPlan(_PlanModel):
         }:
             message = "transition_plan_closure_invalid"
             raise ValueError(message)
+        carried = {str(name): value for name, value in carried.items()}
         payload: dict[str, Any] = {
             "schema_version": 1,
             "inputs": inputs.model_dump(mode="json"),
@@ -265,11 +266,15 @@ class TransitionPlan(_PlanModel):
         if close_verdict(self.verdict, self.required_gaps) != self.verdict:
             message = "transition_plan_verdict_invalid"
             raise ValueError(message)
+        fact_values = mutable_json(self.facts)
+        if not isinstance(fact_values, dict):
+            message = "transition_plan_facts_invalid"
+            raise TypeError(message)
         try:
             commitment = Commitment.model_validate(mutable_json(self.commitment), strict=False)
             facts = Facts.model_validate(
                 {
-                    **mutable_json(self.facts),
+                    **{str(name): value for name, value in fact_values.items()},
                     "observed_at": datetime(1970, 1, 1, tzinfo=UTC),
                 },
                 strict=False,

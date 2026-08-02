@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
-from ethos.adapters.admission.closeout_intent.marker import clear_closeout_intent
-from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
+from ethos.adapters.admission.ref_intent import clear_ref_intent
+from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.git import is_ancestor
@@ -153,14 +153,14 @@ def remove_linked_lane(
     )
     intent: dict[str, object] = {}
     try:
-        intent = write_closeout_intent(
+        intent = write_ref_intent(
             root=transaction_root,
             ref_name=f"refs/heads/{branch}",
             update=GitRefUpdate(
                 expected=expected,
                 desired="0" * len(expected),
             ),
-            evidence_digest="",
+            operation="lane.retire",
         )
         deleted = run_git(
             transaction_root,
@@ -186,7 +186,7 @@ def remove_linked_lane(
         )
     finally:
         if intent:
-            clear_closeout_intent(transaction_root, str(intent["nonce"]))
+            clear_ref_intent(transaction_root, str(intent["nonce"]))
     return failed_ref_transition(
         control_root,
         lane=lane,

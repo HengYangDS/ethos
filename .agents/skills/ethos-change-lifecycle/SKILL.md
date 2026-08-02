@@ -51,6 +51,28 @@ promotion != absolute correctness (only: a bounded claim was admitted).
 - A tool yield is not a test timeout. Resume the same live process instead of
   duplicating it.
 
+### Learn While Delivering
+
+- Normalize each failure to a stable signature before fixing it. A renamed
+  symbol with several stale callers is one migration-closure failure, not many
+  unrelated import errors.
+- First occurrence: fix the root cause and add the smallest discriminating
+  regression. Second occurrence: stop local patching and remove the competing
+  owner or execution path. Third occurrence: the atomic task remains incomplete
+  until the lesson is encoded in the existing rule or skill and an executable
+  gate, test, schema, or scaffold makes recurrence observable or unreachable.
+- After a destructive move or rename, immediately prove the reference closure:
+  search the whole repository for the retired surface, then run focused import
+  collection and type analysis before adding more behavior. Do not postpone
+  closure to the final full suite.
+- At each atomic commit boundary record, in the existing authoritative task or
+  skill rather than a parallel diary: the acceptance gap closed, the duplicate
+  path deleted, the normalized failure signature, and the mechanism that now
+  prevents or detects recurrence.
+- Review and full-suite reruns do not count as learning. Learning is complete
+  only when future execution changes because the repository now carries the
+  lesson.
+
 ## Bundled Resources
 
 - `scripts/readiness.py` — deterministic read-only driver: runs status -> plan ->

@@ -100,11 +100,22 @@ repository_family_worktrees = false
 """
         ),
     )
+    monkeypatch.setattr(
+        hook_commands,
+        "ref_move_admission_report",
+        lambda **kwargs: {
+            "verdict": "pass",
+            "state": "admitted",
+            "branch": kwargs["ref_name"].removeprefix("refs/heads/"),
+            "decision": {"action": "allow", "reason": "ref_move_admitted"},
+            "required_gaps": [],
+        },
+    )
 
     hook_commands.ref_transaction(
         "refs/heads/dev",
-        "old",
-        "new",
+        "a" * 40,
+        "b" * 40,
         phase="committed",
     )
 

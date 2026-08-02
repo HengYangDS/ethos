@@ -39,8 +39,32 @@ class _UntrackedSnapshot:
 
 def dirty_content_sha256(root: Path) -> str:
     """Bind tracked and untracked working content without normalizing bytes."""
+    return _working_content_sha256(root, baseline="HEAD", drift_gap="dirty_content_snapshot_drift")
+
+
+def working_overlay_sha256(root: Path) -> str:
+    """Bind unstaged tracked bytes and untracked files independently of HEAD."""
+    return _working_content_sha256(
+        root,
+        baseline=None,
+        drift_gap="working_overlay_snapshot_drift",
+    )
+
+
+def _working_content_sha256(root: Path, *, baseline: str | None, drift_gap: str) -> str:
+    first = _working_content_parts(root, baseline=baseline)
+    if first != _working_content_parts(root, baseline=baseline):
+        raise ValueError(drift_gap)
     digest = hashlib.sha256()
-    patch = run_git(root, "diff", "--binary", "HEAD", "--", text=False, observation=True).stdout
+    for part in first:
+        digest.update(len(part).to_bytes(8, "big"))
+        digest.update(part)
+    return digest.hexdigest()
+
+
+def _working_content_parts(root: Path, *, baseline: str | None) -> tuple[bytes, ...]:
+    diff_args = ("diff", "--binary", *((baseline,) if baseline else ()), "--")
+    patch = run_git(root, *diff_args, text=False, observation=True).stdout
     inventory = run_git(
         root,
         "ls-files",
@@ -53,25 +77,7 @@ def dirty_content_sha256(root: Path) -> str:
     parts = [patch]
     for raw in (item for item in inventory.split(b"\0") if item):
         parts.extend((raw, _read_untracked(root, raw)))
-    current_patch = run_git(
-        root, "diff", "--binary", "HEAD", "--", text=False, observation=True
-    ).stdout
-    current_inventory = run_git(
-        root,
-        "ls-files",
-        "--others",
-        "--exclude-standard",
-        "-z",
-        text=False,
-        observation=True,
-    ).stdout
-    if patch != current_patch or inventory != current_inventory:
-        message = "dirty_content_snapshot_drift"
-        raise ValueError(message)
-    for part in parts:
-        digest.update(len(part).to_bytes(8, "big"))
-        digest.update(part)
-    return digest.hexdigest()
+    return tuple(parts)
 
 
 def _read_untracked(root: Path, raw: bytes) -> bytes:

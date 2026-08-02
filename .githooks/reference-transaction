@@ -10,7 +10,7 @@
 #
 # There is NO escape hatch: official `ethos land --closeout` earns admission through this
 # same reducer (it carries the executed proof to the target root and writes a one-shot
-# closeout-intent marker BEFORE its ref move, so the accepted advance verifies as a
+# ref-intent marker BEFORE its ref move, so the accepted advance verifies as a
 # legitimate admit). An earlier ETHOS_ALLOW_REF_MOVE=1 env bypass short-circuited this
 # hook and was itself a hole — any process could set it — so it was removed.
 #
@@ -24,7 +24,7 @@
 #     unarmed moat separately.
 phase="$1"
 case "$phase" in
-    prepared|committed) ;;
+    prepared|committed|aborted) ;;
     *) exit 0 ;;
 esac
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
@@ -166,7 +166,9 @@ while read -r old_value new_value ref_name; do
             --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
     fi
 
-    if [ "$phase" = "committed" ]; then
+    if [ "$phase" = "aborted" ]; then
+        continue
+    elif [ "$phase" = "committed" ]; then
         case "$verdict" in
             *'"state":"lease_ref_advanced"'* | *'"state":"admitted"'*) : ;;
             *)

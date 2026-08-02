@@ -156,6 +156,8 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
             "holder_ref",
             "expected_head",
             "expected_tree",
+            "issued_at",
+            "renewed_at",
             "base_commitment_bytes_sha256",
             "expires_at",
             "payload_sha256",
@@ -164,6 +166,10 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
     }
     result["base_commitment_path"] = (
         str(lease["base_commitment_path"]) if lease.get("base_commitment_path") else None
+    )
+    raw_scope = lease.get("path_scope")
+    result["path_scope"] = (
+        [str(path) for path in raw_scope] if isinstance(raw_scope, list | tuple) else []
     )
     result.update(epoch=integer_value(lease.get("epoch")), mints_authority=False)
     return result
@@ -271,11 +277,14 @@ def _unknown_unbound_ref() -> dict[str, object]:
             "head",
             "expected_head",
             "expected_tree",
+            "issued_at",
+            "renewed_at",
             "base_commitment_bytes_sha256",
             "base_commitment_digest",
         ),
         "",
     ) | {
+        "path_scope": [],
         "base_commitment_path": None,
         "commitment_binding": "missing",
         "lease_state": "missing",

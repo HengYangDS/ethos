@@ -23,10 +23,10 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.admission.transitions as transitions
-from ethos.adapters.admission.closeout_intent.marker import closeout_intent_dir
-from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
+from ethos.adapters.admission.ref_intent import ref_intent_dir
+from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
@@ -118,7 +118,7 @@ def test_work_lane_ref_creation_requires_exact_lease_and_base(
     assert report["required_gaps"] == []
 
 
-def test_work_lane_ref_deletion_requires_closeout_intent(
+def test_work_lane_ref_deletion_requires_ref_intent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -149,7 +149,7 @@ def test_work_lane_ref_deletion_requires_closeout_intent(
     )
 
     assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["work_lane_ref_delete_no_closeout_intent"]
+    assert report["required_gaps"] == ["work_lane_ref_delete_no_ref_intent"]
     assert git(repo, "rev-parse", branch) == head
     assert observe_lease(database, branch).state == "valid"
 
@@ -240,7 +240,7 @@ def test_work_lane_ref_transition_rejects_non_git_zero_width(tmp_path: Path, wid
     )
     assert report["verdict"] == "block"
     assert "ok" not in report
-    assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
+    assert report["required_gaps"] == ["work_lane_ref_oid_invalid"]
 
 
 def test_work_lane_ref_transition_rejects_an_empty_oid(tmp_path: Path) -> None:
@@ -256,7 +256,7 @@ def test_work_lane_ref_transition_rejects_an_empty_oid(tmp_path: Path) -> None:
 
     assert report["verdict"] == "block"
     assert "ok" not in report
-    assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
+    assert report["required_gaps"] == ["work_lane_ref_oid_invalid"]
 
 
 def test_work_lane_ref_transition_admits_noop_without_lease(tmp_path: Path) -> None:
@@ -851,7 +851,7 @@ def test_ref_move_admission_blocks_proven_candidate_move_without_land_intent(
     )
 
     assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["candidate_ref_move_no_land_intent"]
+    assert report["required_gaps"] == ["candidate_ref_move_no_ref_intent"]
 
 
 def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_path: Path) -> None:
@@ -862,7 +862,7 @@ def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_pa
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
 
-    write_closeout_intent(
+    write_ref_intent(
         root=repo,
         ref_name="refs/heads/candidate/dev",
         update=GitEffect(
@@ -873,7 +873,7 @@ def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_pa
                 )
             }
         ).updates["refs/heads/candidate/dev"],
-        evidence_digest="candidate-refresh-from-accepted",
+        operation="candidate.refresh",
     )
     report = ref_move_admission_report(
         root=repo,
@@ -922,7 +922,7 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
 def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
     """Write the official marker bound to the proof set's semantic identity."""
     attestation = proof_attestation(repo, new_value)
-    write_closeout_intent(
+    write_ref_intent(
         root=repo,
         ref_name="refs/heads/dev",
         update=GitEffect(
@@ -933,12 +933,15 @@ def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> Non
                 )
             }
         ).updates["refs/heads/dev"],
-        evidence_digest=proof_evidence_digest(repo, new_value),
-        gate_policy_digest=attestation.policy_digest if attestation is not None else "",
+        operation="candidate.accept",
+        bindings={
+            "evidence_digest": proof_evidence_digest(repo, new_value),
+            "gate_policy_digest": attestation.policy_digest if attestation is not None else "",
+        },
     )
 
 
-def test_equivalent_proof_cannot_invalidate_matching_closeout_intent(tmp_path: Path) -> None:
+def test_equivalent_proof_cannot_invalidate_matching_ref_intent(tmp_path: Path) -> None:
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
     _record_complete_proof(repo, candidate_head)
@@ -986,7 +989,7 @@ def test_ref_move_admission_admits_official_closeout_with_intent_marker(
     tmp_path: Path,
 ) -> None:
     """B7 happy path (self-harm guard): a fast-forward of dev to the live candidate head
-    carrying a complete executed proof AND a matching closeout-intent marker is exactly
+    carrying a complete executed proof AND a matching ref-intent marker is exactly
     what official closeout produces — it must be admitted with no boundary gaps, or the
     moat would deadlock the sanctioned path."""
     repo, base = _accepted_boundary_repo(tmp_path)
@@ -1002,10 +1005,10 @@ def test_ref_move_admission_admits_official_closeout_with_intent_marker(
     assert report["required_gaps"] == []
 
 
-def test_ref_move_admission_blocks_raw_move_without_closeout_intent(tmp_path: Path) -> None:
+def test_ref_move_admission_blocks_raw_move_without_ref_intent(tmp_path: Path) -> None:
     """B1 (the load-bearing nail): a raw `git update-ref refs/heads/dev <candidate_head>
     <old>` is byte-identical to official closeout's CAS — fast-forward, == live candidate
-    head, complete proof — yet carries NO closeout-intent marker. Without the marker it
+    head, complete proof — yet carries NO ref-intent marker. Without the marker it
     must block, or raw git could promote a proven candidate head bypassing closeout."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
@@ -1016,10 +1019,10 @@ def test_ref_move_admission_blocks_raw_move_without_closeout_intent(tmp_path: Pa
     )
 
     assert report["verdict"] == "block"
-    assert "accepted_ref_move_no_closeout_intent" in report["required_gaps"]
+    assert "accepted_ref_move_no_ref_intent" in report["required_gaps"]
 
 
-def test_ref_move_admission_blocks_reused_closeout_intent(tmp_path: Path) -> None:
+def test_ref_move_admission_blocks_reused_ref_intent(tmp_path: Path) -> None:
     """B6: the marker is one-shot. Once admission consumes it, a second identical move
     finds no marker and blocks — a nonce cannot authorize two promotions."""
     repo, base = _accepted_boundary_repo(tmp_path)
@@ -1030,16 +1033,24 @@ def test_ref_move_admission_blocks_reused_closeout_intent(tmp_path: Path) -> Non
     first = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
+    committed = ref_move_admission_report(
+        root=repo,
+        ref_name="refs/heads/dev",
+        old_value=base,
+        new_value=candidate_head,
+        phase="committed",
+    )
     second = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
 
     assert first["verdict"] == "pass"
+    assert committed["verdict"] == "pass"
     assert second["verdict"] == "block"
-    assert "accepted_ref_move_no_closeout_intent" in second["required_gaps"]
+    assert "accepted_ref_move_no_ref_intent" in second["required_gaps"]
 
 
-def test_ref_move_admission_blocks_mismatched_closeout_intent(tmp_path: Path) -> None:
+def test_ref_move_admission_blocks_mismatched_ref_intent(tmp_path: Path) -> None:
     """B4: a marker whose old/new binding does not match the actual ref move is refused
     (a marker minted for a different transition cannot authorize this one)."""
     repo, base = _accepted_boundary_repo(tmp_path)
@@ -1053,10 +1064,10 @@ def test_ref_move_admission_blocks_mismatched_closeout_intent(tmp_path: Path) ->
     )
 
     assert report["verdict"] == "block"
-    assert "closeout_intent_mismatch" in report["required_gaps"]
+    assert "ref_intent_mismatch" in report["required_gaps"]
 
 
-def test_ref_move_admission_blocks_stale_closeout_intent(tmp_path: Path) -> None:
+def test_ref_move_admission_blocks_stale_ref_intent(tmp_path: Path) -> None:
     """B5: an expired marker is refused (TTL bounds how long a written intent stays
     admissible, so a crashed closeout's residue cannot be reused later)."""
     repo, base = _accepted_boundary_repo(tmp_path)
@@ -1070,12 +1081,12 @@ def test_ref_move_admission_blocks_stale_closeout_intent(tmp_path: Path) -> None
     )
 
     assert report["verdict"] == "block"
-    assert "closeout_intent_stale" in report["required_gaps"]
+    assert "ref_intent_stale" in report["required_gaps"]
 
 
 def _backdate_markers(repo: Path) -> None:
-    """Expire every closeout-intent marker by rewriting expires_at into the past."""
-    marker_dir = closeout_intent_dir(repo)
+    """Expire every ref-intent marker by rewriting expires_at into the past."""
+    marker_dir = ref_intent_dir(repo)
     for path in marker_dir.glob("*.json"):
         marker = json.loads(path.read_text(encoding="utf-8"))
         marker["expires_at"] = "2000-01-01T00:00:00+00:00"

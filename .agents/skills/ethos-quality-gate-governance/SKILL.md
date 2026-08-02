@@ -32,7 +32,8 @@ provider projections.
 
 ## Evidence
 
-Use owner scripts and proof output:
+Apply the lifecycle skill's failure-escalation rule, then use owner scripts and
+proof output:
 
 ```bash
 tools/ci/scripts/run-python-lint.sh

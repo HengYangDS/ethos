@@ -44,6 +44,9 @@ def test_git_effect_lease_generation_binds_exact_carrier_coordinates() -> None:
         "base_commitment_path": "openspec/changes/example/commitment.toml",
         "base_commitment_bytes_sha256": "c" * 64,
         "base_commitment_digest": "d" * 64,
+        "issued_at": "2026-08-01T00:00:00+00:00",
+        "renewed_at": "2026-08-01T12:00:00+00:00",
+        "path_scope": ("src/**",),
         "expires_at": "2026-08-02T00:00:00+00:00",
         "payload_sha256": "e" * 64,
     }

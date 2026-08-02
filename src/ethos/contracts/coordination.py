@@ -396,3 +396,32 @@ class LeaseOperationRequest(BaseModel):
     offer_id: str = ""
     holder_quiesced: bool = False
     contrary_decision: bool = False
+
+
+class CommitmentRebindRequest(BaseModel):
+    """Exact old-generation request for one immutable Commitment replacement."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    branch: str = Field(min_length=1)
+    holder_ref: str = Field(min_length=1)
+    lease_id: str = Field(min_length=1)
+    expected_lane_incarnation_id: str = Field(min_length=1)
+    expected_epoch: int = Field(ge=1)
+    expected_issued_at: str = Field(min_length=1)
+    expected_renewed_at: str = Field(min_length=1)
+    expected_expires_at: str = Field(min_length=1)
+    expected_path_scope: FrozenTuple[str] = ()
+    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    expected_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    expected_commitment_path: RepositoryRelativePath
+    expected_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expected_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expect_index_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    expected_working_overlay_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    target_commit: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    new_commitment_path: RepositoryRelativePath
+    new_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    new_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    apply: bool = False

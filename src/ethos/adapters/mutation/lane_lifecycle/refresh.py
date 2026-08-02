@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.closeout_intent.marker import clear_closeout_intent
-from ethos.adapters.admission.closeout_intent.marker import write_closeout_intent
+from ethos.adapters.admission.ref_intent import clear_ref_intent
+from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.mutation.lanes import default_candidate_path
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import is_ancestor
@@ -208,19 +208,19 @@ def refresh_candidate_from_accepted(
     # accepted branch, so the reference-transaction hook's candidate admission admits it
     # without a fresh proof (see _contained_in_accepted); no ref-move escape is needed now
     # that the ETHOS_ALLOW_REF_MOVE bypass has been removed from the candidate train.
-    intent = write_closeout_intent(
+    intent = write_ref_intent(
         root=Path(candidate_path),
         ref_name=f"refs/heads/{policy.candidate_branch}",
         update=GitRefUpdate(
             expected=candidate_head,
             desired=current_head,
         ),
-        evidence_digest="candidate-refresh-from-accepted",
+        operation="candidate.refresh",
     )
     try:
         completed = run_git(Path(candidate_path), "reset", "--hard", current_head, check=False)
     finally:
-        clear_closeout_intent(Path(candidate_path), str(intent["nonce"]))
+        clear_ref_intent(Path(candidate_path), str(intent["nonce"]))
     if completed.returncode != 0:
         return report(
             verdict="block",

@@ -5,13 +5,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.closeout_intent.marker import MarkerExpectation
-from ethos.adapters.admission.closeout_intent.marker import consume_closeout_intent
 from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_attestation
@@ -25,6 +24,7 @@ from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
@@ -258,12 +258,34 @@ def accepted_advance_gaps(
     return gaps
 
 
+def _prepared_ref_intent_gaps(
+    *,
+    repo: Path,
+    ref_name: str,
+    update: GitRefUpdate,
+    operation: str,
+    bindings: dict[str, str],
+    missing_gap: str,
+) -> list[str]:
+    intent = claim_ref_intent(
+        root=repo,
+        ref_name=ref_name,
+        update=update,
+        operation=operation,
+        phase="prepared",
+        bindings=bindings,
+    )
+    gap = str(intent["gap"] or "")
+    return [missing_gap if gap == "ref_intent_missing" else gap] if gap else []
+
+
 def ref_move_admission_report(
     *,
     root: Path,
     ref_name: str,
     old_value: str,
     new_value: str,
+    phase: str = "prepared",
 ) -> dict[str, object]:
     """Admit a local ref move only through the protected candidate train."""
     repo = root.resolve()
@@ -288,7 +310,7 @@ def ref_move_admission_report(
     branch = ref_name.removeprefix("refs/heads/")
     base: dict[str, object] = {"verdict": "pass", "state": "admitted"}
     base.update(hook="reference-transaction", ref=ref_name, branch=branch)
-    base.update(old_value=old_value, new_value=new_value)
+    base.update(phase=phase, old_value=old_value, new_value=new_value)
     base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
     if new_value in _ZERO_OIDS or new_value == old_value:
         return base
@@ -299,6 +321,37 @@ def ref_move_admission_report(
         branch == candidate_policy.release_branch
         and candidate_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     )
+    operation = (
+        "release.mirror"
+        if mirror
+        else "candidate.accept"
+        if branch == policy.accepted_branch
+        else "candidate.refresh"
+        if branch == policy.candidate_branch
+        and commit_contained_in(repo, new_value, policy.accepted_branch)
+        else "candidate.integrate"
+        if branch == policy.candidate_branch
+        else ""
+    )
+    if phase in {"committed", "aborted"} and operation:
+        intent = claim_ref_intent(
+            root=repo,
+            ref_name=ref_name,
+            update=GitRefUpdate(expected=old_value, desired=new_value),
+            operation=operation,
+            phase=phase,
+        )
+        if gap := str(intent["gap"] or ""):
+            return _verdict(
+                base,
+                "block",
+                "repair_required" if phase == "committed" else "blocked",
+                "block",
+                f"ref_intent_{phase}_failed",
+                [gap],
+            )
+        base["decision"] = {"action": "allow", "reason": f"ref_intent_{phase}"}
+        return base
     if mirror or branch == policy.accepted_branch:
         move_policy = candidate_policy if mirror else policy
         proof = proof_attestation(repo, new_value)
@@ -306,22 +359,24 @@ def ref_move_admission_report(
             *accepted_advance_gaps(repo, move_policy, old_value=old_value, new_value=new_value),
             *proof_gaps(repo, new_value),
         ]
-        intent = consume_closeout_intent(
-            root=repo,
-            ref_name=ref_name,
-            old_value=old_value,
-            new_value=new_value,
-            expect=MarkerExpectation(
-                evidence_digest=(
-                    proof_evidence_digest(repo, new_value) if proof is not None else ""
-                ),
-                gate_policy_digest=proof.policy_digest if proof is not None else "",
-            ),
-        )
-        if intent["gap"]:
-            gap = str(intent["gap"])
-            gaps.append(
-                gap.replace("accepted_ref_move", "release_mirror_ref_move") if mirror else gap
+        bindings = {
+            "evidence_digest": proof_evidence_digest(repo, new_value) if proof is not None else "",
+            "gate_policy_digest": proof.policy_digest if proof is not None else "",
+        }
+        if not gaps:
+            gaps.extend(
+                _prepared_ref_intent_gaps(
+                    repo=repo,
+                    ref_name=ref_name,
+                    update=GitRefUpdate(expected=old_value, desired=new_value),
+                    operation=operation,
+                    bindings=bindings,
+                    missing_gap=(
+                        "release_mirror_ref_move_no_ref_intent"
+                        if mirror
+                        else "accepted_ref_move_no_ref_intent"
+                    ),
+                )
             )
         reason = (
             "release_mirror_ref_move_bypasses_accepted_closeout"
@@ -334,24 +389,26 @@ def ref_move_admission_report(
             gaps = []
         else:
             gaps = proof_gaps(repo, new_value)
-        intent = consume_closeout_intent(
-            root=repo,
-            ref_name=ref_name,
-            old_value=old_value,
-            new_value=new_value,
-            expect=MarkerExpectation(
-                evidence_digest=(
+        bindings = (
+            {}
+            if operation == "candidate.refresh"
+            else {
+                "evidence_digest": (
                     proof_evidence_digest(repo, new_value) if proof is not None else ""
                 ),
-                gate_policy_digest=proof.policy_digest if proof is not None else "",
-            ),
+                "gate_policy_digest": proof.policy_digest if proof is not None else "",
+            }
         )
-        if intent["gap"]:
-            gap = str(intent["gap"])
-            gaps.append(
-                "candidate_ref_move_no_land_intent"
-                if gap == "accepted_ref_move_no_closeout_intent"
-                else gap.replace("closeout_intent", "candidate_land_intent")
+        if not gaps:
+            gaps.extend(
+                _prepared_ref_intent_gaps(
+                    repo=repo,
+                    ref_name=ref_name,
+                    update=GitRefUpdate(expected=old_value, desired=new_value),
+                    operation=operation,
+                    bindings=bindings,
+                    missing_gap="candidate_ref_move_no_ref_intent",
+                )
             )
         reason = "protected_ref_move_not_proven"
     else:

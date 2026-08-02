@@ -67,6 +67,7 @@ commands = [
   "ethos lane start",
   "ethos lane prewrite",
   "ethos lane refresh-base",
+  "ethos lane rebind-commitment",
   "ethos land",
   "ethos land --closeout",
   "ethos lane retire landed",

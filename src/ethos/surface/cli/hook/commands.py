@@ -283,7 +283,7 @@ def ref_transaction(
             committed_file_text(repo, policy_ref, ".ethos/workspace.toml")
         )
     except (TypeError, ValueError):
-        report = {
+        report: dict[str, object] = {
             "verdict": "block",
             "state": "blocked",
             "phase": phase,
@@ -305,20 +305,12 @@ def ref_transaction(
                 new_value=new_value,
             )
             if policy.role_for_branch(branch) == "work_lane"
-            else {
-                "verdict": "pass",
-                "state": "admitted",
-                "phase": phase,
-                "ref": ref_name,
-                "branch": branch,
-                "old_value": old_value,
-                "new_value": new_value,
-                "decision": {"action": "allow", "reason": "ref_move_committed"},
-                "required_gaps": [],
-            }
-            if phase == "committed"
             else ref_move_admission_report(
-                root=repo, ref_name=ref_name, old_value=old_value, new_value=new_value
+                root=repo,
+                ref_name=ref_name,
+                old_value=old_value,
+                new_value=new_value,
+                phase=phase,
             )
         )
     result = _report_result(

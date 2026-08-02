@@ -360,7 +360,6 @@ def _write_active_change_carrier(
 ) -> None:
     """Write only one selected active OpenSpec Change carrier."""
     openspec = repo / "openspec"
-    candidate_branch = load_branch_role_policy(repo).candidate_branch
     carrier = openspec / "changes" / change_id
     carrier.mkdir(parents=True, exist_ok=True)
     (carrier / "proposal.md").write_text(
@@ -394,7 +393,7 @@ def _write_active_change_carrier(
         'intent = "Exercise the governed fixture lifecycle."\n'
         'subjects = ["repository:self"]\n'
         f"scope = {list(scope)!r}\n".replace("'", '"')
-        + f'permissions = ["git.ref.update:refs/heads/{candidate_branch}"]\n',
+        + 'permissions = ["git.ref.compare-and-swap"]\n',
         encoding="utf-8",
     )
     (carrier / "tasks.md").write_text("- [ ] Exercise fixture lifecycle\n", encoding="utf-8")

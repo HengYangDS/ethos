@@ -83,6 +83,11 @@ def test_repository_relative_path_pattern_is_the_schema_ssot() -> None:
     assert projected == [pattern] * len(projected)
     source_binding = package["properties"]["source_lease_binding"]
     assert "lane_incarnation_id" in source_binding["required"]
+    for projection in (
+        workspace["$defs"]["leaseSummary"],
+        workspace["$defs"]["unboundWorkLaneRef"],
+    ):
+        assert {"issued_at", "renewed_at", "path_scope"} <= set(projection["required"])
 
 
 def test_lane_lease_binds_local_incarnation_holder_generation_and_head(tmp_path: Path) -> None:

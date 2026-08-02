@@ -667,7 +667,7 @@ def test_successor_retirement_uses_the_installed_reference_transaction_hook(
     assert observe_lease(database, successor_branch).state == "valid"
 
 
-def test_raw_delete_of_valid_leased_work_lane_requires_closeout_intent(
+def test_raw_delete_of_valid_leased_work_lane_requires_ref_intent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

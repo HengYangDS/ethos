@@ -92,9 +92,10 @@ def branch_bindings(
     for binding in sorted(
         remaining, key=lambda item: (order.get(item["role"], len(order)), item["branch"])
     ):
-        if binding["branch"] not in seen:
+        branch = str(binding["branch"])
+        if branch not in seen:
             bindings.append(binding)
-            seen.add(binding["branch"])
+            seen.add(branch)
     return bindings
 
 
@@ -266,6 +267,8 @@ def leases_by_branch(current_path: Path) -> dict[str, dict[str, object]]:
 
 def lease_generation(lease: dict[str, object]) -> dict[str, object]:
     """Project the exact current Lease generation bound by transient Facts."""
+    raw_scope = lease.get("path_scope")
+    path_scope = [str(item) for item in raw_scope] if isinstance(raw_scope, list | tuple) else []
     return {
         "branch": str(lease.get("lane_ref") or ""),
         "lane_incarnation_id": str(lease.get("lane_incarnation_id") or ""),
@@ -277,6 +280,9 @@ def lease_generation(lease: dict[str, object]) -> dict[str, object]:
         "base_commitment_path": str(lease.get("base_commitment_path") or ""),
         "base_commitment_bytes_sha256": str(lease.get("base_commitment_bytes_sha256") or ""),
         "base_commitment_digest": str(lease.get("base_commitment_digest") or ""),
+        "issued_at": str(lease.get("issued_at") or ""),
+        "renewed_at": str(lease.get("renewed_at") or ""),
+        "path_scope": path_scope,
         "expires_at": str(lease.get("expires_at") or ""),
         "payload_sha256": str(lease.get("payload_sha256") or ""),
     }

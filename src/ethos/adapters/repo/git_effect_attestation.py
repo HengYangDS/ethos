@@ -33,7 +33,11 @@ def _statement(attestation: Attestation) -> dict[str, object]:
     if not isinstance(projected, dict):
         message = "git_effect_attestation_statement_invalid"
         raise TypeError(message)
-    return projected
+    return {str(name): value for name, value in projected.items()}
+
+
+def _object_mapping(value: object) -> dict[str, object]:
+    return {str(name): item for name, item in value.items()} if isinstance(value, Mapping) else {}
 
 
 def issue(
@@ -199,15 +203,15 @@ def validate(
     evidence: Evidence = (
         str(repository),
         str(state),
-        dict(before) if isinstance(before, Mapping) else {},
-        dict(after) if isinstance(after, Mapping) else {},
+        _object_mapping(before),
+        _object_mapping(after),
     )
     if not _matches(
         root,
         effect,
         evidence,
-        dict(statement["observed_at"]) if isinstance(statement["observed_at"], Mapping) else {},
-        dict(statement["freshness"]) if isinstance(statement["freshness"], Mapping) else {},
+        _object_mapping(statement["observed_at"]),
+        _object_mapping(statement["freshness"]),
     ):
         raise ValueError(_CONTENT_MISMATCH)
 

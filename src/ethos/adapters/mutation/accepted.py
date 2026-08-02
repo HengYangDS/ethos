@@ -7,11 +7,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.admission.closeout_intent.marker import execute_closeout_effect
-from ethos.adapters.admission.closeout_intent.marker import sweep_stale_closeout_intents
+from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_bound_ref_effect import execute_proof_bound_ref_effect
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_tree
@@ -65,7 +65,7 @@ def _apply_candidate_promotion(
     proof,
 ):
     worktrees = cast("list[dict[str, object]]", status.get("worktrees", []))
-    sweep_stale_closeout_intents(root)
+    sweep_stale_ref_intents(root)
     evidence_digest = proof_evidence_digest(root, candidate_head)
     if not evidence_digest:
         return _accepted_block(
@@ -346,7 +346,7 @@ def _attempt_closeout_effect(
     plan: TransitionPlan,
 ) -> Attestation | str:
     try:
-        return execute_closeout_effect(root=root, plan=plan)
+        return execute_proof_bound_ref_effect(root=root, plan=plan)
     except ValueError as error:
         return str(error)
 

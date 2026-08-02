@@ -13,15 +13,12 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
-from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
-from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitRefUpdate
@@ -264,7 +261,6 @@ def _prepared_ref_intent_gaps(
     ref_name: str,
     update: GitRefUpdate,
     operation: str,
-    bindings: dict[str, str],
     missing_gap: str,
 ) -> list[str]:
     intent = claim_ref_intent(
@@ -273,10 +269,27 @@ def _prepared_ref_intent_gaps(
         update=update,
         operation=operation,
         phase="prepared",
-        bindings=bindings,
     )
     gap = str(intent["gap"] or "")
     return [missing_gap if gap == "ref_intent_missing" else gap] if gap else []
+
+
+def _ref_move_policy(repo: Path, ref_name: str, old_value: str, new_value: str):
+    policy_ref = old_value if old_value not in _ZERO_OIDS else new_value
+    policy = strict_branch_role_policy_from_text(
+        committed_file_text(repo, policy_ref, ".ethos/workspace.toml")
+    )
+    branch = ref_name.removeprefix("refs/heads/")
+    accepted_head = git_stdout(repo, "rev-parse", policy.accepted_branch)
+    accepted_policy = strict_branch_role_policy_from_text(
+        committed_file_text(repo, accepted_head, ".ethos/workspace.toml")
+    )
+    return (
+        accepted_policy
+        if branch == accepted_policy.release_branch
+        and accepted_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
+        else policy
+    )
 
 
 def ref_move_admission_report(
@@ -289,11 +302,8 @@ def ref_move_admission_report(
 ) -> dict[str, object]:
     """Admit a local ref move only through the protected candidate train."""
     repo = root.resolve()
-    policy_ref = old_value if old_value not in _ZERO_OIDS else new_value
     try:
-        policy = strict_branch_role_policy_from_text(
-            committed_file_text(repo, policy_ref, ".ethos/workspace.toml")
-        )
+        policy = _ref_move_policy(repo, ref_name, old_value, new_value)
     except (ValueError, TypeError):
         branch = ref_name.removeprefix("refs/heads/")
         return {
@@ -312,15 +322,9 @@ def ref_move_admission_report(
     base.update(hook="reference-transaction", ref=ref_name, branch=branch)
     base.update(phase=phase, old_value=old_value, new_value=new_value)
     base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
-    if new_value in _ZERO_OIDS or new_value == old_value:
+    if new_value == old_value:
         return base
-    candidate_policy = branch_role_policy_from_text(
-        committed_file_text(repo, policy.candidate_branch, ".ethos/workspace.toml")
-    )
-    mirror = (
-        branch == candidate_policy.release_branch
-        and candidate_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
-    )
+    mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     operation = (
         "release.mirror"
         if mirror
@@ -331,6 +335,10 @@ def ref_move_admission_report(
         and commit_contained_in(repo, new_value, policy.accepted_branch)
         else "candidate.integrate"
         if branch == policy.candidate_branch
+        else "lane.retire"
+        if branch.startswith(policy.work_branch_prefix) and new_value in _ZERO_OIDS
+        else "lane.import"
+        if branch.startswith(policy.work_branch_prefix) and old_value in _ZERO_OIDS
         else ""
     )
     if phase in {"committed", "aborted"} and operation:
@@ -353,16 +361,10 @@ def ref_move_admission_report(
         base["decision"] = {"action": "allow", "reason": f"ref_intent_{phase}"}
         return base
     if mirror or branch == policy.accepted_branch:
-        move_policy = candidate_policy if mirror else policy
-        proof = proof_attestation(repo, new_value)
         gaps = [
-            *accepted_advance_gaps(repo, move_policy, old_value=old_value, new_value=new_value),
+            *accepted_advance_gaps(repo, policy, old_value=old_value, new_value=new_value),
             *proof_gaps(repo, new_value),
         ]
-        bindings = {
-            "evidence_digest": proof_evidence_digest(repo, new_value) if proof is not None else "",
-            "gate_policy_digest": proof.policy_digest if proof is not None else "",
-        }
         if not gaps:
             gaps.extend(
                 _prepared_ref_intent_gaps(
@@ -370,7 +372,6 @@ def ref_move_admission_report(
                     ref_name=ref_name,
                     update=GitRefUpdate(expected=old_value, desired=new_value),
                     operation=operation,
-                    bindings=bindings,
                     missing_gap=(
                         "release_mirror_ref_move_no_ref_intent"
                         if mirror
@@ -384,21 +385,10 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
-        proof = proof_attestation(repo, new_value)
         if commit_contained_in(repo, new_value, policy.accepted_branch):
             gaps = []
         else:
             gaps = proof_gaps(repo, new_value)
-        bindings = (
-            {}
-            if operation == "candidate.refresh"
-            else {
-                "evidence_digest": (
-                    proof_evidence_digest(repo, new_value) if proof is not None else ""
-                ),
-                "gate_policy_digest": proof.policy_digest if proof is not None else "",
-            }
-        )
         if not gaps:
             gaps.extend(
                 _prepared_ref_intent_gaps(
@@ -406,7 +396,6 @@ def ref_move_admission_report(
                     ref_name=ref_name,
                     update=GitRefUpdate(expected=old_value, desired=new_value),
                     operation=operation,
-                    bindings=bindings,
                     missing_gap="candidate_ref_move_no_ref_intent",
                 )
             )

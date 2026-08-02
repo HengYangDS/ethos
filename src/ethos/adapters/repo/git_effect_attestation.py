@@ -5,22 +5,20 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import ref_head
+from ethos.adapters.store.content_addressed import write_content_addressed
+from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from ethos.contracts.plan import GitEffect
 
 Evidence = tuple[str, str, dict[str, object], dict[str, object]]
 _CONTENT_MISMATCH = "git_effect_attestation_content_mismatch"
@@ -53,14 +51,15 @@ def issue(
     input_observation = {name: before[name] for name in ("head", "tree", "refs", "assertions")}
     output_observation = {name: after[name] for name in ("head", "tree", "refs")}
     result = _result(state, output_observation["refs"])
-    subject = f"git-effect:{effect.digest()}"
+    effect_digest = effect.digest()
+    subject = f"git-effect:{effect_digest}"
     inputs = {
         "commitment": plan.inputs.commitment,
         "facts": plan.inputs.facts,
         "prior_attestations": plan.inputs.prior_attestations,
         "plan": plan.digest,
         "policy": plan.inputs.policy,
-        "effect": effect.digest(),
+        "effect": effect_digest,
     }
     return Attestation.issue(
         {
@@ -74,12 +73,12 @@ def issue(
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
-            "effect_digest": effect.digest(),
+            "effect_digest": effect_digest,
             "statement": {
                 "claim": {"operation": "git.ref.compare-and-swap", "effect": subject},
                 "repository": repository,
                 "command": ("git", "update-ref", "--stdin", "-z"),
-                "program_sha256": effect.digest(),
+                "program_sha256": effect_digest,
                 "plan": plan.model_dump(mode="json"),
                 "effect": effect.model_dump(mode="json"),
                 "input": input_observation,
@@ -144,74 +143,39 @@ def validate(
     if attestation.verdict != "pass":
         message = f"git_effect_attestation_verdict_{attestation.verdict}"
         raise ValueError(message)
-    if statement.get("program_sha256") != effect.digest():
-        raise ValueError(_CONTENT_MISMATCH)
-    before, process, after = (
-        statement.get("input"),
-        statement.get("result"),
-        statement.get("output"),
-    )
-    state = process.get("state") if isinstance(process, Mapping) else None
-    inputs = {
-        "commitment": plan.inputs.commitment,
-        "facts": plan.inputs.facts,
-        "prior_attestations": plan.inputs.prior_attestations,
-        "plan": plan.digest,
-        "policy": plan.inputs.policy,
-        "effect": effect.digest(),
-    }
-    result = _result(state, after.get("refs") if isinstance(after, Mapping) else {})
-    repository = _repository_identity(root, before, after)
-    expected = {
-        "claim": {"operation": "git.ref.compare-and-swap", "effect": subject},
-        "repository": repository,
-        "command": ["git", "update-ref", "--stdin", "-z"],
-        "program_sha256": statement.get("program_sha256"),
-        "plan": plan.model_dump(mode="json"),
-        "effect": effect.model_dump(mode="json"),
-        "input": before,
-        "result": result,
-        "output": after,
-        "inputs": inputs,
-        "input_digest": canonical_json_digest({"input": before, "inputs": inputs}),
-        "output_digest": canonical_json_digest({"result": result, "output": after}),
-        "observed_at": statement.get("observed_at"),
-        "freshness": statement.get("freshness"),
-    }
-    observed_at = statement.get("observed_at")
+    before = _object_mapping(statement.get("input"))
+    process = _object_mapping(statement.get("result"))
+    after = _object_mapping(statement.get("output"))
+    observed_at = _object_mapping(statement.get("observed_at"))
+    state = str(process.get("state") or "")
     try:
-        observed_after = (
-            datetime.fromisoformat(str(observed_at.get("after")))
-            if isinstance(observed_at, Mapping)
-            else None
-        )
-    except ValueError:
-        observed_after = None
+        datetime.fromisoformat(str(observed_at["after"]))
+    except (KeyError, ValueError):
+        raise ValueError(_CONTENT_MISMATCH) from None
     now = datetime.now(UTC)
     if (attestation.valid_from and now < attestation.valid_from) or (
         attestation.valid_until and now > attestation.valid_until
     ):
         raise ValueError(_STALE)
+    repository = _repository_identity(root, before, after)
+    evidence = (
+        repository,
+        state,
+        before | {"observed_at": observed_at.get("before")},
+        after | {"observed_at": observed_at.get("after")},
+    )
+    expected = issue(effect, plan=plan, issuer=issuer, evidence=evidence)
     if (
         state not in {"applied", "recovered"}
-        or attestation.verifier != issuer
-        or attestation.issued_at != observed_after
-        or attestation.valid_from != observed_after
-        or any(statement.get(name) != value for name, value in expected.items())
+        or attestation.canonical_json() != expected.canonical_json()
     ):
         raise ValueError(_CONTENT_MISMATCH)
-    evidence: Evidence = (
-        str(repository),
-        str(state),
-        _object_mapping(before),
-        _object_mapping(after),
-    )
     if not _matches(
         root,
         effect,
         evidence,
-        _object_mapping(statement["observed_at"]),
-        _object_mapping(statement["freshness"]),
+        observed_at,
+        _object_mapping(statement.get("freshness")),
     ):
         raise ValueError(_CONTENT_MISMATCH)
 
@@ -227,6 +191,38 @@ def plan_from_attestation(attestation: Attestation) -> TransitionPlan:
         raise ValueError(message) from error
     else:
         return plan
+
+
+def records(
+    root: Path,
+    plan: TransitionPlan,
+    record: Attestation | None = None,
+) -> tuple[Attestation, ...]:
+    """Read or atomically persist the sole Attestation for one exact plan."""
+    effect = git_effect_from_plan(plan)
+    path = Path(git_common_dir(root), "ethos", "git-effects", f"{plan.digest}.json")
+    if record is None:
+        if not path.exists():
+            return ()
+        try:
+            return (Attestation.model_validate_json(path.read_text(encoding="utf-8")),)
+        except (OSError, ValueError) as error:
+            message = "git_effect_attestation_invalid"
+            raise ValueError(message) from error
+    plan_from_attestation(record)
+    validate(root, effect, record, issuer=record.verifier, plan=plan)
+    existing = records(root, plan)
+    if existing:
+        if existing[0].canonical_json() != record.canonical_json():
+            message = "git_effect_attestation_collision"
+            raise ValueError(message)
+        return existing
+    write_content_addressed(
+        path,
+        record.canonical_json().encode("utf-8"),
+        collision="git_effect_attestation_collision",
+    )
+    return (record,)
 
 
 def _result(state: object, refs: object) -> dict[str, object]:
@@ -259,7 +255,9 @@ def _matches(
     freshness: dict[str, object],
 ) -> bool:
     repository, state, before, after = evidence
-    current_refs = {ref: _ref(root, ref) for ref in effect.updates}
+    current_refs = {
+        name: ref_head(root, name, update.desired) for name, update in effect.updates.items()
+    }
     expected_before = {ref: update.expected for ref, update in effect.updates.items()}
     desired = {ref: update.desired for ref, update in effect.updates.items()}
     if state == "recovered":
@@ -301,7 +299,3 @@ def _matches(
             "refs": desired,
         }
     )
-
-
-def _ref(root: Path, ref: str) -> str:
-    return git_stdout(root, "rev-parse", "--verify", ref)

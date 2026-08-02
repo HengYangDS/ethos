@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
@@ -13,19 +12,14 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import relocated_commitment_fields
-from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
-from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -114,12 +108,24 @@ def work_lane_ref_transition_report(
             gaps.append(
                 "work_lane_ref_delete_no_ref_intent" if gap == "ref_intent_missing" else gap
             )
+    if phase == "prepared" and old_zero and not gaps:
+        intent = claim_ref_intent(
+            root=repo,
+            ref_name=ref_name,
+            update=update,
+            operation="lane.import",
+            phase="prepared",
+        )
+        if gap := str(intent["gap"] or ""):
+            gaps.append(
+                "work_lane_ref_create_no_ref_intent" if gap == "ref_intent_missing" else gap
+            )
     report = _commitment_rebind_report(
         repo=repo,
         phase=phase,
-        ref_name=ref_name,
         update=update,
         lease=lease,
+        target=target,
         gaps=gaps,
         terminal=old_zero or new_zero,
     )
@@ -239,14 +245,15 @@ def _commitment_rebind_report(
     *,
     repo: Path,
     phase: str,
-    ref_name: str,
     update: GitRefUpdate,
     lease: dict[str, object],
+    target: dict[str, str],
     gaps: list[str],
     terminal: bool,
 ) -> dict[str, object] | None:
     if terminal or not gaps or any(gap not in _COMMITMENT_REBIND_GAPS for gap in gaps):
         return None
+    ref_name = f"refs/heads/{lease.get('lane_ref') or ''}"
     intent = claim_ref_intent(
         root=repo,
         ref_name=ref_name,
@@ -256,19 +263,20 @@ def _commitment_rebind_report(
             "Literal['prepared', 'committed', 'aborted']",
             {"committed": "committed", "aborted": "aborted"}.get(phase, "prepared"),
         ),
-        validate=lambda bindings, context: _commitment_rebind_intent_gap(
-            repo,
-            lease,
-            old_value=update.expected,
-            new_value=update.desired,
-            bindings=bindings,
-            context=context,
-        ),
     )
     gap = str(intent["gap"] or "")
     if gap:
         if gap != "ref_intent_missing":
             gaps[:] = [gap]
+        return None
+    if gap := _commitment_rebind_gap(
+        repo,
+        lease,
+        target,
+        old_value=update.expected,
+        new_value=update.desired,
+    ):
+        gaps[:] = [gap]
         return None
     reason = {
         "committed": "commitment_rebind_pending",
@@ -282,112 +290,43 @@ def _commitment_rebind_report(
 
 _COMMITMENT_REBIND_GAPS = frozenset(
     {
-        "lease_base_commitment_path_mismatch",
         "lease_base_commitment_bytes_mismatch",
         "lease_base_commitment_digest_mismatch",
     }
 )
-_COMMITMENT_REBIND_BINDINGS = frozenset(
-    {
-        "lease_id",
-        "lease_epoch",
-        "lease_payload_sha256",
-        "index_tree",
-        "new_commitment_path",
-        "new_commitment_bytes_sha256",
-        "new_commitment_digest",
-    }
-)
 
 
-def _commitment_rebind_intent_gap(
+def _commitment_rebind_gap(
     root: Path,
     lease: dict[str, object],
+    target: dict[str, str],
     *,
     old_value: str,
     new_value: str,
-    bindings: Mapping[str, str],
-    context: Mapping[str, object],
 ) -> str:
     """Validate one semantic Work Lane ref move against live immutable facts."""
-    if set(bindings) != _COMMITMENT_REBIND_BINDINGS:
-        return "commitment_rebind_intent_bindings_invalid"
-    expected = {
-        "lease_id": str(lease.get("lease_id") or ""),
-        "lease_epoch": str(integer_value(lease.get("epoch"))),
-        "lease_payload_sha256": str(lease.get("payload_sha256") or ""),
-    }
-    if any(bindings[name] != value for name, value in expected.items()):
-        return "ref_intent_bindings_mismatch"
-    old_generation = context.get("old_lease_generation")
-    if not isinstance(old_generation, Mapping) or canonical_json_digest(
-        old_generation
-    ) != canonical_json_digest(lease_generation(lease)):
-        return "commitment_rebind_old_generation_mismatch"
     try:
         old_commitment = load_lease_bound_commitment(root, lease=lease)
-        target = exact_commitment_fields(
-            root,
-            head=new_value,
-            carrier=bindings["new_commitment_path"],
-        )
         new_commitment = load_commitment(
             root,
-            carrier=bindings["new_commitment_path"],
+            carrier=target["base_commitment_path"],
             tree_ref=new_value,
-            expected_digest=bindings["new_commitment_digest"],
+            expected_digest=target["base_commitment_digest"],
         )
         parents = run_git(root, "rev-list", "--parents", "-n", "1", new_value).stdout.split()
-        effect_digest = GitEffect(
-            updates={
-                f"refs/heads/{lease.get('lane_ref') or ''!s}": GitRefUpdate(
-                    expected=old_value,
-                    desired=new_value,
-                )
-            }
-        ).digest()
         checks = (
             (parents == [new_value, old_value], "commitment_rebind_target_parent_mismatch"),
             (
-                current_tree(root, new_value) == bindings["index_tree"],
-                "commitment_rebind_target_tree_mismatch",
-            ),
-            (
-                run_git(root, "write-tree").stdout.strip() == bindings["index_tree"],
+                run_git(root, "write-tree").stdout.strip() == target["expected_tree"],
                 "commitment_rebind_index_tree_mismatch",
-            ),
-            (
-                all(
-                    target[name]
-                    == bindings[f"new_commitment_{name.removeprefix('base_commitment_')}"]
-                    for name in (
-                        "base_commitment_path",
-                        "base_commitment_bytes_sha256",
-                        "base_commitment_digest",
-                    )
-                ),
-                "commitment_rebind_target_binding_mismatch",
             ),
             (new_commitment.id == old_commitment.id, "commitment_rebind_identity_mismatch"),
             (
                 new_commitment.digest() != old_commitment.digest(),
                 "commitment_rebind_semantics_unchanged",
             ),
-            (
-                context.get("old_commitment_digest") == old_commitment.digest(),
-                "commitment_rebind_old_commitment_mismatch",
-            ),
-            (
-                context.get("working_overlay_sha256") == working_overlay_sha256(root),
-                "commitment_rebind_overlay_changed",
-            ),
-            (
-                context.get("effect_digest") == effect_digest,
-                "commitment_rebind_effect_mismatch",
-            ),
-            (context.get("retain_after_commit") is True, "commitment_rebind_recovery_missing"),
         )
-    except ValueError as error:
+    except (KeyError, ValueError) as error:
         return str(error)
     return next((gap for valid, gap in checks if not valid), "")
 

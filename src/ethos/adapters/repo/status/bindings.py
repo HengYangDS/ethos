@@ -255,12 +255,20 @@ def worktree_binding(path: str, *, current_path: Path) -> str:
     return "linked" if resolved.exists() else "missing"
 
 
-def leases_by_branch(current_path: Path) -> dict[str, dict[str, object]]:
+def leases_by_branch(
+    current_path: Path,
+    *,
+    object_environment: dict[str, str] | None = None,
+) -> dict[str, dict[str, object]]:
     """Load strict Lease observations without collapsing unknown to missing."""
     leases: dict[str, dict[str, object]] = {}
     for observation in lease_observations(state_database(current_path)):
         record = observation.record()
-        record["commitment_binding"] = _lease_commitment_binding(current_path, record)
+        record["commitment_binding"] = _lease_commitment_binding(
+            current_path,
+            record,
+            object_environment=object_environment,
+        )
         leases[observation.subject] = record
     return leases
 
@@ -288,13 +296,22 @@ def lease_generation(lease: dict[str, object]) -> dict[str, object]:
     }
 
 
-def _lease_commitment_binding(root: Path, lease: dict[str, object]) -> str:
+def _lease_commitment_binding(
+    root: Path,
+    lease: dict[str, object],
+    *,
+    object_environment: dict[str, str] | None = None,
+) -> str:
     state = str(lease.get("lease_state") or "missing")
     if state != "valid":
         return state
     digest = str(lease.get("base_commitment_digest") or "")
     try:
-        selected = load_lease_bound_commitment(root, lease=lease).digest()
+        selected = load_lease_bound_commitment(
+            root,
+            lease=lease,
+            environment=object_environment,
+        ).digest()
     except ValueError:
         return "mismatch"
     return "bound" if digest and selected == digest else "mismatch"

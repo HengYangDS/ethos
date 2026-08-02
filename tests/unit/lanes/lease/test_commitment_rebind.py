@@ -7,9 +7,7 @@ import sqlite3
 import sys
 from contextlib import closing
 from copy import deepcopy
-from datetime import UTC
 from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -23,6 +21,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
+from ethos.contracts.semantic import Attestation
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.ethos_cli_runner import run_ethos
@@ -207,6 +206,7 @@ def test_commitment_rebind_preserves_overlay_binds_old_commitment_and_replays(
     execute = rebind.execute_git_effect
 
     def execute_and_capture(*args, **kwargs):
+        assert "intent" not in kwargs
         captured.append(args[1])
         return execute(*args, **kwargs)
 
@@ -255,55 +255,9 @@ def test_commitment_rebind_recovers_after_git_cas_before_lease_cas(
     assert interrupted["verdict"] == "block"
     assert git(worktree, "rev-parse", "HEAD") == case["target_commit"]
     assert leases_by_branch(worktree)[case["branch"]]["epoch"] == case["lease"]["epoch"]
-    stored = [json.loads(path.read_text()) for path in ref_intent_dir(worktree).glob("*.json")]
-    assert [item["phase"] for item in stored] == ["committed"]
+    assert not list(ref_intent_dir(worktree).glob("*.json"))
 
     monkeypatch.setattr(rebind, "rebind_lease_commitment", apply_lease)
-    recovered = execute_commitment_rebind(root=worktree, request=request)
-
-    assert recovered["state"] == "recovered"
-    _assert_terminal(case, recovered)
-
-
-def test_commitment_rebind_recovers_when_committed_hook_callback_is_lost(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    original_hooks = Path(git(worktree, "config", "core.hooksPath"))
-    original_hook = (original_hooks / "reference-transaction").read_text(encoding="utf-8")
-    injected_hooks = tmp_path / "lost-committed-hooks"
-    injected_hooks.mkdir()
-    hook = injected_hooks / "reference-transaction"
-    hook.write_text(
-        original_hook.replace(
-            "#!/bin/sh\n",
-            '#!/bin/sh\n[ "$1" = "committed" ] && exit 0\n',
-            1,
-        ),
-        encoding="utf-8",
-    )
-    hook.chmod(0o755)
-    git(worktree, "config", "core.hooksPath", injected_hooks.as_posix())
-    apply_lease = rebind.rebind_lease_commitment
-    monkeypatch.setattr(
-        rebind,
-        "rebind_lease_commitment",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("injected_after_git_cas")),
-    )
-
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
-
-    assert interrupted["required_gaps"] == ["injected_after_git_cas"]
-    stored = [json.loads(path.read_text()) for path in ref_intent_dir(worktree).glob("*.json")]
-    assert [item["phase"] for item in stored] == ["prepared"]
-    git(worktree, "config", "core.hooksPath", original_hooks.as_posix())
-    monkeypatch.setattr(rebind, "rebind_lease_commitment", apply_lease)
-
     recovered = execute_commitment_rebind(root=worktree, request=request)
 
     assert recovered["state"] == "recovered"
@@ -346,67 +300,8 @@ def test_commitment_rebind_retries_prepared_intent_when_git_cas_never_ran(
 
     assert interrupted["required_gaps"] == ["git_effect_cas_rejected"]
     assert git(worktree, "rev-parse", "HEAD") == request.expect_head
-    stored = [json.loads(path.read_text()) for path in ref_intent_dir(worktree).glob("*.json")]
-    assert [item["phase"] for item in stored] == ["prepared"]
+    assert not list(ref_intent_dir(worktree).glob("*.json"))
     git(worktree, "config", "core.hooksPath", original_hooks.as_posix())
-    monkeypatch.setattr(rebind, "execute_git_effect", execute)
-
-    applied = execute_commitment_rebind(root=worktree, request=request)
-
-    assert applied["state"] == "applied"
-    _assert_terminal(case, applied)
-
-
-def test_commitment_rebind_reuses_exact_issued_intent_after_pre_cas_crash(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    execute = rebind.execute_git_effect
-    monkeypatch.setattr(
-        rebind,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("injected_before_git_cas")),
-    )
-
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
-    stored = [json.loads(path.read_text()) for path in ref_intent_dir(worktree).glob("*.json")]
-    assert interrupted["required_gaps"] == ["injected_before_git_cas"]
-    assert git(worktree, "rev-parse", "HEAD") == request.expect_head
-    assert [item["phase"] for item in stored] == ["issued"]
-
-    monkeypatch.setattr(rebind, "execute_git_effect", execute)
-    applied = execute_commitment_rebind(root=worktree, request=request)
-
-    _assert_terminal(case, applied)
-    assert applied["state"] == "applied"
-
-
-def test_commitment_rebind_replaces_expired_issued_intent_in_one_retry(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    execute = rebind.execute_git_effect
-    monkeypatch.setattr(
-        rebind,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("injected_before_git_cas")),
-    )
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
-    assert interrupted["required_gaps"] == ["injected_before_git_cas"]
-    path = next(ref_intent_dir(worktree).glob("*.json"))
-    intent = json.loads(path.read_text(encoding="utf-8"))
-    intent["expires_at"] = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
-    path.write_text(json.dumps(intent), encoding="utf-8")
     monkeypatch.setattr(rebind, "execute_git_effect", execute)
 
     applied = execute_commitment_rebind(root=worktree, request=request)
@@ -436,8 +331,7 @@ def test_commitment_rebind_attests_after_lease_cas_without_reapplying_effects(
     assert interrupted["verdict"] == "block"
     assert git(worktree, "rev-parse", "HEAD") == case["target_commit"]
     assert leases_by_branch(worktree)[case["branch"]]["epoch"] == int(case["lease"]["epoch"]) + 1
-    stored = [json.loads(path.read_text()) for path in ref_intent_dir(worktree).glob("*.json")]
-    assert [item["phase"] for item in stored] == ["committed"]
+    assert not list(ref_intent_dir(worktree).glob("*.json"))
 
     monkeypatch.setattr(rebind, "persist_rebind_attestation", persist)
     attested = execute_commitment_rebind(root=worktree, request=request)
@@ -615,7 +509,7 @@ def test_commitment_rebind_replay_rejects_attestation_freshness_drift(
     payload["valid_from"] = datetime.fromisoformat(str(payload["valid_from"]))
     payload["advisories"] = tuple(payload["advisories"])
     payload["evidence_refs"] = tuple(payload["evidence_refs"])
-    tampered = rebind.Attestation.issue(
+    tampered = Attestation.issue(
         {
             name: value
             for name, value in payload.items()
@@ -628,66 +522,6 @@ def test_commitment_rebind_replay_rejects_attestation_freshness_drift(
 
     assert replayed["state"] == "repair_required"
     assert replayed["required_gaps"] == ["commitment_rebind_replay_mismatch"]
-
-
-def test_commitment_rebind_rejects_duplicate_issued_intents(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    execute = rebind.execute_git_effect
-    monkeypatch.setattr(
-        rebind,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("injected_before_git_cas")),
-    )
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
-    assert interrupted["required_gaps"] == ["injected_before_git_cas"]
-    original = next(ref_intent_dir(worktree).glob("*.json"))
-    duplicate = original.with_name(f"0{original.name}")
-    duplicate.write_bytes(original.read_bytes())
-    monkeypatch.setattr(rebind, "execute_git_effect", execute)
-
-    blocked = execute_commitment_rebind(root=worktree, request=request)
-
-    assert blocked["state"] == "blocked"
-    assert blocked["required_gaps"] == ["ref_intent_ambiguous"]
-    assert git(worktree, "rev-parse", "HEAD") == request.expect_head
-    assert leases_by_branch(worktree)[case["branch"]]["epoch"] == case["lease"]["epoch"]
-
-
-def test_commitment_rebind_replay_clears_committed_intent_after_post_attestation_crash(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    clear = rebind.clear_ref_intent
-    monkeypatch.setattr(
-        rebind,
-        "clear_ref_intent",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("injected_after_attestation")),
-    )
-
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
-
-    assert interrupted["state"] == "repair_required"
-    assert interrupted["required_gaps"] == ["injected_after_attestation"]
-    stored = [json.loads(path.read_text()) for path in ref_intent_dir(worktree).glob("*.json")]
-    assert [item["phase"] for item in stored] == ["committed"]
-    monkeypatch.setattr(rebind, "clear_ref_intent", clear)
-
-    replayed = execute_commitment_rebind(root=worktree, request=request)
-
-    assert replayed["state"] == "replayed"
-    assert not list(ref_intent_dir(worktree).glob("*.json"))
 
 
 def test_commitment_rebind_cli_projects_the_same_terminal_transaction(

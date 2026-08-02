@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -7,15 +8,20 @@ from typing import cast
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.mutation.lanes import default_candidate_path
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import TransitionPlan
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -204,10 +210,6 @@ def refresh_candidate_from_accepted(
         return report(verdict="pass", state="base_current", gaps=[])
     if not apply:
         return report(verdict="pass", state="ready_to_refresh_from_accepted", gaps=[])
-    # Rewind candidate/dev onto the accepted head. This target is already contained in the
-    # accepted branch, so the reference-transaction hook's candidate admission admits it
-    # without a fresh proof (see _contained_in_accepted); no ref-move escape is needed now
-    # that the ETHOS_ALLOW_REF_MOVE bypass has been removed from the candidate train.
     intent = write_ref_intent(
         root=Path(candidate_path),
         ref_name=f"refs/heads/{policy.candidate_branch}",
@@ -221,7 +223,7 @@ def refresh_candidate_from_accepted(
         completed = run_git(Path(candidate_path), "reset", "--hard", current_head, check=False)
     finally:
         clear_ref_intent(Path(candidate_path), str(intent["nonce"]))
-    if completed.returncode != 0:
+    if completed.returncode:
         return report(
             verdict="block",
             state="blocked",
@@ -341,15 +343,20 @@ def _replay_work_lane(
                 next_action="inspect current Git ancestry and runner, signing, or hook diagnostics",
                 stderr="candidate head is not an ancestor of refreshed work-lane head",
             )
-        updated = run_git(
-            root,
-            "update-ref",
-            f"refs/heads/{branch}",
-            rebased_head,
-            current_head,
-            check=False,
-        )
-        if updated.returncode != 0:
+        try:
+            execute_git_effect(
+                root,
+                _refresh_transition_plan(
+                    root=root,
+                    branch=branch,
+                    current_head=current_head,
+                    rebased_head=rebased_head,
+                    candidate_branch=candidate_branch,
+                    candidate_head=candidate_head,
+                ),
+                issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+            )
+        except ValueError as error:
             restored = run_git(root, "switch", branch, check=False)
             return blocked(
                 [
@@ -357,7 +364,7 @@ def _replay_work_lane(
                     *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
                 ],
                 head=_ref_head(root, "HEAD"),
-                stderr=updated.stderr.strip(),
+                stderr=str(error),
             )
         attached = run_git(root, "switch", branch, check=False)
         if attached.returncode != 0:
@@ -382,3 +389,32 @@ def _replay_work_lane(
         )
 
     return finish(_ref_head(root, "HEAD"))
+
+
+def _refresh_transition_plan(
+    *,
+    root: Path,
+    branch: str,
+    current_head: str,
+    rebased_head: str,
+    candidate_branch: str,
+    candidate_head: str,
+) -> TransitionPlan:
+    authority = load_repository_commitment(root, tree_ref=rebased_head)
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{branch}": GitRefUpdate(
+                expected=current_head,
+                desired=rebased_head,
+            )
+        },
+        assertions={f"refs/heads/{candidate_branch}": candidate_head},
+    )
+    return compile_observed_git_effect(
+        root,
+        authority,
+        effect,
+        head=rebased_head,
+        prior_attestations={},
+        policy={"operation": "lane.refresh"},
+    )

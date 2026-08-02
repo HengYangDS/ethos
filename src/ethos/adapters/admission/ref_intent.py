@@ -6,8 +6,6 @@ import hashlib
 import json
 import os
 import time
-from collections.abc import Callable
-from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -18,6 +16,8 @@ from typing import Literal
 from ethos.adapters.repo.git import git_stdout
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from ethos.contracts.plan import GitRefUpdate
 
 _INTENT_TTL = timedelta(minutes=1)
@@ -26,16 +26,7 @@ _SCHEMA_VERSION = 1
 _ATOMIC_READ_ATTEMPTS = 100
 _ATOMIC_READ_DELAY_SECONDS = 0.001
 _LOCK_ATTEMPTS = 1_000
-_OPERATIONS = frozenset(
-    {
-        "candidate.accept",
-        "candidate.integrate",
-        "candidate.refresh",
-        "commitment.rebind",
-        "lane.retire",
-        "release.mirror",
-    }
-)
+_OPERATION_PARTS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789.-")
 
 
 def _git_path(root: Path, relative: str) -> Path:
@@ -57,8 +48,7 @@ def write_ref_intent(
     ref_name: str,
     update: GitRefUpdate,
     operation: str,
-    bindings: Mapping[str, str] | None = None,
-    context: Mapping[str, object] | None = None,
+    recoverable: bool = False,
 ) -> dict[str, object]:
     """Write one exact issued intent immediately before its Git CAS."""
     _require_operation(operation)
@@ -67,8 +57,7 @@ def write_ref_intent(
         ref_name=ref_name,
         update=update,
         operation=operation,
-        bindings=bindings,
-        context=context,
+        recoverable=recoverable,
     )
     intent: dict[str, object] = {
         "schema_version": _SCHEMA_VERSION,
@@ -76,8 +65,7 @@ def write_ref_intent(
         "ref_name": ref_name,
         "old_value": update.expected,
         "new_value": update.desired,
-        "bindings": dict(bindings or {}),
-        "context": dict(context or {}),
+        "recoverable": recoverable,
         "nonce": nonce,
         "phase": "issued",
         "created_at": now.isoformat(),
@@ -138,8 +126,7 @@ def _intent_key(
     ref_name: str,
     update: GitRefUpdate,
     operation: str,
-    bindings: Mapping[str, str] | None,
-    context: Mapping[str, object] | None,
+    recoverable: bool,
 ) -> str:
     payload = {
         "schema_version": _SCHEMA_VERSION,
@@ -147,8 +134,7 @@ def _intent_key(
         "ref_name": ref_name,
         "old_value": update.expected,
         "new_value": update.desired,
-        "bindings": dict(bindings or {}),
-        "context": dict(context or {}),
+        "recoverable": recoverable,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
@@ -163,8 +149,7 @@ def _exact_identity(intent: Mapping[str, object]) -> dict[str, object]:
             "ref_name",
             "old_value",
             "new_value",
-            "bindings",
-            "context",
+            "recoverable",
             "nonce",
         )
     }
@@ -177,8 +162,6 @@ def claim_ref_intent(
     update: GitRefUpdate,
     operation: str,
     phase: Literal["issued", "prepared", "committed", "aborted", "recover", "retry"],
-    bindings: Mapping[str, str] | None = None,
-    validate: Callable[[Mapping[str, str], Mapping[str, object]], str] | None = None,
 ) -> dict[str, object]:
     """Advance, abort, or observe one exact intent transaction."""
     _require_operation(operation)
@@ -203,14 +186,8 @@ def claim_ref_intent(
             if stale is not None:
                 return stale
             continue
-        gap, _, _ = _normalize_payload(
-            intent,
-            bindings=bindings,
-            validate=validate,
-        )
-        if gap:
-            _discard_binding_mismatch(path, gap)
-            return _claim(present=True, gap=gap, intent=intent)
+        if not isinstance(intent.get("recoverable"), bool):
+            return _claim(present=True, gap="ref_intent_payload_invalid", intent=intent)
         if match is not None:
             return _claim(present=True, gap="ref_intent_ambiguous")
         match = path, intent, {}
@@ -222,16 +199,8 @@ def claim_ref_intent(
             phase=phase,
             update=update,
             operation=operation,
-            bindings=bindings,
-            validate=validate,
         )
     return _claim(present=bool(mismatch), gap=mismatch or "ref_intent_missing")
-
-
-def _discard_binding_mismatch(path: Path, gap: str) -> None:
-    if gap == "ref_intent_bindings_mismatch":
-        with _IntentLock(path.with_suffix(".lock")):
-            path.unlink(missing_ok=True)
 
 
 def _advance_locked(
@@ -241,8 +210,6 @@ def _advance_locked(
     phase: Literal["issued", "prepared", "committed", "aborted", "recover", "retry"],
     update: GitRefUpdate,
     operation: str,
-    bindings: Mapping[str, str] | None,
-    validate: Callable[[Mapping[str, str], Mapping[str, object]], str] | None,
 ) -> dict[str, object]:
     with _IntentLock(path.with_suffix(".lock")):
         current = _read(path)
@@ -252,18 +219,13 @@ def _advance_locked(
             return _claim(present=True, gap="ref_intent_changed", intent=current)
         if gap := _identity_gap(current, update=update, operation=operation):
             return _claim(present=True, gap=gap, intent=current)
-        gap, _, context = _normalize_payload(
-            current,
-            bindings=bindings,
-            validate=validate,
-        )
-        if gap:
-            return _claim(present=True, gap=gap, intent=current)
+        if not isinstance(current.get("recoverable"), bool):
+            return _claim(present=True, gap="ref_intent_payload_invalid", intent=current)
         gap = _advance_intent(
             path,
             current,
             phase=phase,
-            retain=context.get("retain_after_commit") is True,
+            retain=current["recoverable"] is True,
         )
         return _claim(present=True, gap=gap, intent=current)
 
@@ -297,42 +259,6 @@ def _identity_gap(
     return "ref_intent_operation_mismatch" if intent.get("operation") != operation else ""
 
 
-def _payload_gap(
-    stored_bindings: Mapping[str, str],
-    stored_context: Mapping[str, object],
-    *,
-    bindings: Mapping[str, str] | None,
-    validate: Callable[[Mapping[str, str], Mapping[str, object]], str] | None,
-) -> str:
-    if bindings is not None and stored_bindings != dict(bindings):
-        return "ref_intent_bindings_mismatch"
-    return validate(stored_bindings, stored_context) if validate is not None else ""
-
-
-def _normalize_payload(
-    intent: Mapping[str, object],
-    *,
-    bindings: Mapping[str, str] | None,
-    validate: Callable[[Mapping[str, str], Mapping[str, object]], str] | None,
-) -> tuple[str, dict[str, str], dict[str, object]]:
-    stored_bindings = intent.get("bindings")
-    stored_context = intent.get("context")
-    if not isinstance(stored_bindings, Mapping) or not isinstance(stored_context, Mapping):
-        return "ref_intent_payload_invalid", {}, {}
-    normalized_bindings = {str(name): str(value) for name, value in stored_bindings.items()}
-    normalized_context = dict(stored_context)
-    return (
-        _payload_gap(
-            normalized_bindings,
-            normalized_context,
-            bindings=bindings,
-            validate=validate,
-        ),
-        normalized_bindings,
-        normalized_context,
-    )
-
-
 def clear_ref_intent(root: Path, nonce: str) -> None:
     """Remove one exact local intent idempotently."""
     (ref_intent_dir(root) / f"{nonce}.json").unlink(missing_ok=True)
@@ -355,7 +281,14 @@ def sweep_stale_ref_intents(root: Path, *, now: datetime | None = None) -> list[
 
 
 def _require_operation(operation: str) -> None:
-    if operation not in _OPERATIONS:
+    if (
+        not operation
+        or operation != operation.strip()
+        or operation.startswith(".")
+        or operation.endswith(".")
+        or ".." in operation
+        or set(operation) - _OPERATION_PARTS
+    ):
         message = f"ref_intent_operation_unknown:{operation}"
         raise ValueError(message)
 
@@ -380,6 +313,8 @@ def _advance_intent(
             _store(path, intent)
         elif current != "committed":
             return "ref_intent_not_committed"
+    elif current == "committed" and retain:
+        return ""
     elif current != "prepared":
         return "ref_intent_not_prepared"
     elif retain:
@@ -420,8 +355,13 @@ def _advance_initial(
     *,
     phase: Literal["issued", "prepared"],
 ) -> str:
-    if intent.get("phase") != "issued":
-        return "ref_intent_not_issued" if phase == "issued" else "ref_intent_reused"
+    current = intent.get("phase")
+    if phase == "issued":
+        return "" if current == "issued" else "ref_intent_not_issued"
+    if current in {"prepared", "committed"}:
+        return ""
+    if current != "issued":
+        return "ref_intent_reused"
     if phase == "prepared":
         intent["phase"] = "prepared"
         _store(path, intent)
@@ -447,12 +387,7 @@ def _expired(intent: Mapping[str, object], *, now: datetime) -> bool:
 
 
 def _retained_prepared(intent: Mapping[str, object]) -> bool:
-    context = intent.get("context")
-    return (
-        intent.get("phase") == "prepared"
-        and isinstance(context, Mapping)
-        and context.get("retain_after_commit") is True
-    )
+    return intent.get("phase") == "prepared" and intent.get("recoverable") is True
 
 
 def _store(path: Path, intent: Mapping[str, object]) -> None:
@@ -471,13 +406,15 @@ def _claim(
     intent: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     payload = intent or {}
-    bindings = payload.get("bindings")
-    context = payload.get("context")
     return {
         "present": present,
         "gap": gap,
+        "schema_version": payload.get("schema_version"),
         "operation": str(payload.get("operation") or ""),
+        "ref_name": str(payload.get("ref_name") or ""),
+        "old_value": str(payload.get("old_value") or ""),
+        "new_value": str(payload.get("new_value") or ""),
         "nonce": str(payload.get("nonce") or ""),
-        "bindings": dict(bindings) if isinstance(bindings, Mapping) else {},
-        "context": dict(context) if isinstance(context, Mapping) else {},
+        "phase": str(payload.get("phase") or ""),
+        "recoverable": payload.get("recoverable") is True,
     }

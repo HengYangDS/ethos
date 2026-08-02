@@ -62,11 +62,12 @@ def _load(
     *,
     tree_ref: str | None = None,
     repository_id: str = "",
+    environment: dict[str, str] | None = None,
 ) -> Commitment:
     try:
         if tree_ref is None:
             return load_commitment_file(repo / relative, repository_id=repository_id)
-        raw = committed_file_bytes(repo, tree_ref, relative)
+        raw = committed_file_bytes(repo, tree_ref, relative, environment=environment)
         if not raw:
             raise FileNotFoundError(relative)
         text = raw.decode("utf-8")
@@ -82,10 +83,20 @@ def _load(
         raise ValueError(message) from exc
 
 
-def load_repository_commitment(repo: Path, *, tree_ref: str | None = None) -> Commitment:
+def load_repository_commitment(
+    repo: Path,
+    *,
+    tree_ref: str | None = None,
+    environment: dict[str, str] | None = None,
+) -> Commitment:
     """Load the stable repository identity Commitment."""
     try:
-        commitment = _load(repo, _REPOSITORY_COMMITMENT, tree_ref=tree_ref)
+        commitment = _load(
+            repo,
+            _REPOSITORY_COMMITMENT,
+            tree_ref=tree_ref,
+            environment=environment,
+        )
     except ValueError as exc:
         message = f"repository_commitment_missing:{_REPOSITORY_COMMITMENT}"
         raise ValueError(message) from exc
@@ -115,6 +126,7 @@ def load_commitment(
     change_id: str | None = None,
     tree_ref: str | None = None,
     expected_digest: str | None = None,
+    environment: dict[str, str] | None = None,
 ) -> Commitment:
     """Load one explicit or profile-selected Commitment carrier.
 
@@ -122,11 +134,21 @@ def load_commitment(
     directory discovery. Format-specific selectors belong to their adapters.
     """
     relative = _selected_carrier(repo, tree_ref=tree_ref, carrier=carrier)
-    repository = load_repository_commitment(repo, tree_ref=tree_ref)
+    repository = load_repository_commitment(
+        repo,
+        tree_ref=tree_ref,
+        environment=environment,
+    )
     commitment = (
         repository
         if relative == _REPOSITORY_COMMITMENT
-        else _load(repo, relative, tree_ref=tree_ref, repository_id=repository.id)
+        else _load(
+            repo,
+            relative,
+            tree_ref=tree_ref,
+            repository_id=repository.id,
+            environment=environment,
+        )
     )
     if change_id is not None and commitment.id != f"change:{change_id}":
         message = f"commitment_missing:{change_id}"
@@ -143,6 +165,7 @@ def exact_commitment_fields(
     head: str,
     carrier: str,
     change_id: str | None = None,
+    environment: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Describe one committed carrier by its exact Git and semantic coordinates."""
     try:
@@ -150,11 +173,11 @@ def exact_commitment_fields(
     except ValueError as exc:
         message = "commitment_carrier_path_invalid"
         raise ValueError(message) from exc
-    tree = current_tree(repo, head)
+    tree = current_tree(repo, head, environment=environment)
     if not tree:
         message = "commitment_head_unreadable"
         raise ValueError(message)
-    raw = committed_file_bytes(repo, tree, relative)
+    raw = committed_file_bytes(repo, tree, relative, environment=environment)
     if not raw:
         message = "commitment_carrier_missing"
         raise ValueError(message)
@@ -168,6 +191,7 @@ def exact_commitment_fields(
             carrier=relative,
             change_id=change_id,
             tree_ref=tree,
+            environment=environment,
         ).digest(),
     }
 
@@ -193,6 +217,7 @@ def load_lease_bound_commitment(
     *,
     lease: Mapping[str, object],
     change_id: str | None = None,
+    environment: dict[str, str] | None = None,
 ) -> Commitment:
     """Load one exact tree-bound carrier without discovery or working-tree reads."""
     expected = {
@@ -215,6 +240,7 @@ def load_lease_bound_commitment(
             head=expected["expected_head"],
             carrier=expected["base_commitment_path"],
             change_id=change_id,
+            environment=environment,
         )
     except ValueError as exc:
         mapped = {
@@ -242,6 +268,7 @@ def load_lease_bound_commitment(
             carrier=actual["base_commitment_path"],
             change_id=change_id,
             tree_ref=actual["expected_tree"],
+            environment=environment,
         )
     except ValueError as exc:
         message = "lease_base_commitment_digest_mismatch"

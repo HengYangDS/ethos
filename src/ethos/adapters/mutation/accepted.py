@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC
-from datetime import datetime
+import os
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -11,21 +10,19 @@ from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_evidence_digest
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.proof_bound_ref_effect import execute_proof_bound_ref_effect
 from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.git import committed_file_text
-from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_effects import sync_current_worktree
-from ethos.adapters.repo.git_effects import sync_linked_ref_worktree
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_ref_worktrees import ref_worktree_paths
+from ethos.adapters.repo.git_ref_worktrees import sync_linked_ref_worktree
+from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
+from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
-from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Facts
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -36,7 +33,15 @@ if TYPE_CHECKING:
     from ethos.contracts.value import JsonObject
 
 
-def promote_candidate(*, root, policy, current_head, candidate_head, status):
+def promote_candidate(
+    *,
+    root,
+    policy,
+    current_head,
+    candidate_head,
+    status,
+    control_replacement_receipt=None,
+):
     blocker, proof = _promotion_blocker(
         root=root,
         policy=policy,
@@ -52,6 +57,7 @@ def promote_candidate(*, root, policy, current_head, candidate_head, status):
         current_head=current_head,
         candidate_head=candidate_head,
         proof=cast("Attestation", proof),
+        control_replacement_receipt=control_replacement_receipt,
     )
 
 
@@ -63,15 +69,25 @@ def _apply_candidate_promotion(
     current_head,
     candidate_head,
     proof,
+    control_replacement_receipt,
 ):
     worktrees = cast("list[dict[str, object]]", status.get("worktrees", []))
+    candidate = cast("dict[str, object]", status.get("candidate", {}))
+    candidate_worktree_path = str(candidate.get("worktree_path") or "")
+    if not candidate_worktree_path:
+        return _accepted_block(
+            policy,
+            current_head,
+            ["candidate_worktree_binding_stale"],
+            candidate_head=candidate_head,
+        )
     sweep_stale_ref_intents(root)
     evidence_digest = proof_evidence_digest(root, candidate_head)
     if not evidence_digest:
         return _accepted_block(
             policy,
             current_head,
-            ["accepted_effect_binding_invalid"],
+            ["accepted_proof_binding_invalid"],
             candidate_head=candidate_head,
             stderr="accepted_prior_proof_missing",
         )
@@ -80,58 +96,122 @@ def _apply_candidate_promotion(
         prior_attestations = {
             "proof": proof.model_dump(mode="json"),
             "proof_set": evidence_digest,
+            **(
+                {"control_replacement_receipt": control_replacement_receipt}
+                if control_replacement_receipt
+                else {}
+            ),
         }
-        effect = GitEffect(
-            updates={
-                f"refs/heads/{policy.accepted_branch}": GitRefUpdate(
-                    expected=current_head,
-                    desired=candidate_head,
-                )
-            },
-            assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
-        )
+        effect, release_old = _promotion_effect(root, policy, current_head, candidate_head)
+        if gap := worktree_sync_gap(
+            root,
+            (root,),
+            policy.accepted_branch,
+            current_head,
+            current_head,
+            candidate_head,
+        ):
+            return _accepted_block(
+                policy,
+                current_head,
+                [f"accepted_{gap}"],
+                candidate_head=candidate_head,
+            )
+        if release_old is not None and (
+            gap := worktree_sync_gap(
+                root,
+                ref_worktree_paths(worktrees, policy.release_branch),
+                policy.release_branch,
+                release_old,
+                release_old,
+                candidate_head,
+            )
+        ):
+            return _accepted_block(
+                policy,
+                current_head,
+                [f"release_mirror_{gap}"],
+                candidate_head=candidate_head,
+            )
         plan = _accepted_transition_plan(
             root=root,
             role_policy=policy,
             authority=authority,
             effect=effect,
-            operation="candidate.accept",
             head=current_head,
+            candidate_worktree_path=candidate_worktree_path,
             prior_attestations=prior_attestations,
         )
-        attestation = _attempt_closeout_effect(root=root, plan=plan)
     except (TypeError, ValueError) as error:
         return _accepted_block(
             policy,
             current_head,
-            ["accepted_effect_binding_invalid"],
+            ["accepted_transition_invalid"],
             candidate_head=candidate_head,
             stderr=str(error),
         )
-    if isinstance(attestation, str):
+    try:
+        attestation = execute_git_effect(
+            root,
+            plan,
+            issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+        )
+    except ValueError as error:
         return _accepted_block(
             policy,
             current_head,
             ["accepted_atomic_update_rejected"],
             candidate_head=candidate_head,
-            stderr=attestation,
+            stderr=str(error),
         )
-    blocker = _accepted_sync_blocker(root, policy, current_head, candidate_head, attestation)
-    if blocker:
-        return blocker
-    next_policy = branch_role_policy_from_text(
-        committed_file_text(root, candidate_head, ".ethos/workspace.toml")
+    mirror_result = (
+        sync_linked_ref_worktree(
+            root,
+            worktrees,
+            policy.release_branch,
+            candidate_head,
+            release_old,
+        )
+        if release_old is not None
+        else {"mode": "independent", "worktree_sync": "not_enabled"}
     )
-    mirror_blocker, mirror_result, attestations = _release_mirror_result(
-        root=root,
-        policy=next_policy,
-        worktrees=worktrees,
-        candidate_head=candidate_head,
-        accepted_attestation=attestation,
-        prior_attestations=prior_attestations,
-    )
-    if mirror_blocker:
-        return mirror_blocker
+    accepted_sync = cast(
+        "list[dict[str, str]]",
+        sync_ref_worktrees(
+            root,
+            (root,),
+            policy.accepted_branch,
+            candidate_head,
+            current_head,
+        )["worktrees"],
+    )[0]
+    gaps = [
+        *(
+            ["release_mirror_worktree_sync_failed"]
+            if mirror_result.get("worktree_sync") == "failed"
+            else ["release_mirror_worktree_dirty_after_sync"]
+            if mirror_result.get("worktree_sync") == "dirty"
+            else []
+        ),
+        *(
+            ["accepted_worktree_sync_failed"]
+            if accepted_sync["state"] == "failed"
+            else ["accepted_worktree_dirty_after_sync"]
+            if accepted_sync["state"] == "dirty"
+            else []
+        ),
+    ]
+    if gaps:
+        return _accepted_block(
+            policy,
+            candidate_head,
+            gaps,
+            candidate_head=candidate_head,
+            accepted_advanced=True,
+            attestation=attestation.model_dump(mode="json"),
+            release_mirror=mirror_result,
+            accepted_worktree=accepted_sync,
+        )
     return {
         "verdict": "pass",
         "state": "accepted_validated",
@@ -140,7 +220,6 @@ def _apply_candidate_promotion(
         "head": candidate_head,
         "previous_head": current_head,
         "attestation": attestation.model_dump(mode="json"),
-        "attestations": [item.model_dump(mode="json") for item in attestations],
         "release_mirror": mirror_result,
         "required_gaps": [],
     }
@@ -152,158 +231,69 @@ def _accepted_transition_plan(
     role_policy: BranchRolePolicy,
     authority: Commitment,
     effect: GitEffect,
-    operation: str,
     head: str,
+    candidate_worktree_path: str,
     prior_attestations: JsonObject,
 ) -> TransitionPlan:
-    policy = {
-        "operation": operation,
-        "release_branch": role_policy.release_branch,
-        "accepted_branch": role_policy.accepted_branch,
-        "candidate_branch": role_policy.candidate_branch,
-        "release_mirror": role_policy.release_mirror,
-    }
-    facts = Facts(
-        repository=authority.id,
-        head=head,
-        tree=current_tree(root, head),
-        observed_at=datetime.now(UTC),
-        values={
-            "operation": operation,
-            "refs": {ref: update.expected for ref, update in effect.updates.items()},
-            "assertions": effect.assertions,
-        },
-        source_refs=(
-            "git:HEAD",
-            "git:HEAD^{tree}",
-            *(f"git:{ref}" for ref in (*effect.updates, *effect.assertions)),
-        ),
-    )
-    return compile_git_effect_plan(
+    return compile_observed_git_effect(
+        root,
         authority,
-        facts,
+        effect,
+        head=head,
         prior_attestations=prior_attestations,
-        policy=policy,
-        effect=effect,
+        policy={
+            "operation": "candidate.accept",
+            "release_branch": role_policy.release_branch,
+            "accepted_branch": role_policy.accepted_branch,
+            "candidate_branch": role_policy.candidate_branch,
+            "release_mirror": role_policy.release_mirror,
+        },
+        values={"candidate_worktree_path": candidate_worktree_path},
     )
 
 
-def _promotion_topology_gaps(root, current_head, candidate_head):
-    if not is_ancestor(root, current_head, candidate_head):
-        return ["candidate_diverged_from_accepted"]
-    return []
-
-
-def _release_mirror_result(
-    *, root, policy, worktrees, candidate_head, accepted_attestation, prior_attestations
-):
-    attestations = [accepted_attestation]
+def _promotion_effect(root, policy, current_head, candidate_head):
+    updates = {
+        f"refs/heads/{policy.accepted_branch}": GitRefUpdate(
+            expected=current_head,
+            desired=candidate_head,
+        )
+    }
+    if current_head == candidate_head:
+        updates.clear()
     if policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF:
-        return None, {"mode": "independent", "worktree_sync": "not_enabled"}, attestations
+        return GitEffect(
+            updates=updates,
+            assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
+        ), None
     release_old = run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
     if not release_old:
-        return (
-            _accepted_block(
-                policy,
-                candidate_head,
-                ["release_mirror_release_branch_missing"],
-                candidate_head=candidate_head,
-                accepted_advanced=True,
-                attestation=accepted_attestation.model_dump(mode="json"),
-            ),
-            {},
-            attestations,
-        )
+        message = "release_mirror_release_branch_missing"
+        raise ValueError(message)
     if not is_ancestor(root, release_old, candidate_head):
-        gap = (
-            "release_mirror_ahead_of_accepted"
-            if is_ancestor(root, candidate_head, release_old)
-            else "release_mirror_diverged"
-        )
-        return (
-            _accepted_block(
-                policy,
-                candidate_head,
-                [gap],
-                candidate_head=candidate_head,
-                accepted_advanced=True,
-                attestation=accepted_attestation.model_dump(mode="json"),
-            ),
-            {},
-            attestations,
-        )
-    effect = GitEffect(
-        updates={
-            f"refs/heads/{policy.release_branch}": GitRefUpdate(
-                expected=release_old,
-                desired=candidate_head,
-            )
-        },
-        assertions={
-            f"refs/heads/{policy.accepted_branch}": candidate_head,
-        },
+        message = "release_mirror_diverged"
+        raise ValueError(message)
+    updates[f"refs/heads/{policy.release_branch}"] = GitRefUpdate(
+        expected=release_old,
+        desired=candidate_head,
     )
-    try:
-        authority = load_repository_commitment(root, tree_ref=candidate_head)
-        plan = _accepted_transition_plan(
-            root=root,
-            role_policy=policy,
-            authority=authority,
-            effect=effect,
-            operation="release.mirror",
-            head=candidate_head,
-            prior_attestations=prior_attestations
-            | {"accepted_effect": accepted_attestation.model_dump(mode="json")},
-        )
-        mirror_attestation = _attempt_closeout_effect(root=root, plan=plan)
-    except (TypeError, ValueError) as error:
-        mirror_attestation = str(error)
-    if isinstance(mirror_attestation, str):
-        return (
-            _accepted_block(
-                policy,
-                candidate_head,
-                ["release_mirror_bootstrap_incomplete"],
-                candidate_head=candidate_head,
-                accepted_advanced=True,
-                stderr=mirror_attestation,
-                attestation=accepted_attestation.model_dump(mode="json"),
-            ),
-            {},
-            attestations,
-        )
-    attestations.append(mirror_attestation)
-    mirror_result = sync_linked_ref_worktree(
-        worktrees,
-        policy.release_branch,
-        candidate_head,
-        release_old,
-    )
-    return _mirror_sync_blocker(policy, candidate_head, mirror_result), mirror_result, attestations
-
-
-def _mirror_sync_blocker(policy, candidate_head, mirror_result):
-    if mirror_result.get("worktree_sync") not in {"failed", "dirty"}:
-        return None
-    gap = (
-        "release_mirror_worktree_sync_failed"
-        if mirror_result["worktree_sync"] == "failed"
-        else "release_mirror_worktree_dirty_after_sync"
-    )
-    return _accepted_block(
-        policy,
-        candidate_head,
-        [gap],
-        candidate_head=candidate_head,
-        release_mirror=mirror_result,
-    )
+    assertions = {
+        f"refs/heads/{
+            policy.accepted_branch if current_head == candidate_head else policy.candidate_branch
+        }": candidate_head
+    }
+    return GitEffect(updates=updates, assertions=assertions), release_old
 
 
 def _promotion_blocker(*, root, policy, current_head, candidate_head):
-    topology_gaps = _promotion_topology_gaps(root, current_head, candidate_head)
-    if topology_gaps:
+    if not is_ancestor(root, current_head, candidate_head):
         return (
-            _accepted_block(policy, current_head, topology_gaps, candidate_head=candidate_head),
+            _accepted_block(
+                policy,
+                current_head,
+                ["candidate_diverged_from_accepted"],
+                candidate_head=candidate_head,
+            ),
             None,
         )
     proof = proof_attestation(root, candidate_head)
@@ -317,38 +307,6 @@ def _promotion_blocker(*, root, policy, current_head, candidate_head):
             None,
         )
     return None, proof
-
-
-def _accepted_sync_blocker(root, policy, current_head, candidate_head, attestation):
-    synced = sync_current_worktree(root, candidate_head)
-    if synced["state"] == "synced":
-        return None
-    gap = (
-        "accepted_worktree_sync_failed"
-        if synced["state"] == "failed"
-        else "accepted_worktree_dirty_after_sync"
-    )
-    return _accepted_block(
-        policy,
-        current_head,
-        [gap],
-        candidate_head=candidate_head,
-        accepted_advanced=True,
-        status=synced.get("status", ""),
-        stderr=synced.get("stderr", ""),
-        attestation=attestation.model_dump(mode="json"),
-    )
-
-
-def _attempt_closeout_effect(
-    *,
-    root: Path,
-    plan: TransitionPlan,
-) -> Attestation | str:
-    try:
-        return execute_proof_bound_ref_effect(root=root, plan=plan)
-    except ValueError as error:
-        return str(error)
 
 
 def _accepted_block(policy, current, gaps, **extra):

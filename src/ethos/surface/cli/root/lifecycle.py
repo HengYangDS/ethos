@@ -366,6 +366,9 @@ def _closeout_land_result(
             authorized=authorize,
             expect_head=expect_head,
             candidate_head=audited_candidate_head,
+            control_replacement_receipt=string_mapping(
+                string_mapping(control_replacement.get("independent_verification")).get("receipt")
+            ),
         )
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)

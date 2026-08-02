@@ -5,9 +5,16 @@ carrier. They do not define a generic product task database or runtime. Checked
 items require current source plus a commit or verifier. Refinement preserves task
 obligation identity and evidence. Numeric labels are phase-local ordered
 coordinates, not durable semantic identities; a coordinate changes only through
-the explicit closure mapping and never to reset progress. The first unchecked
-item in section 0 is the critical path. Every phase closes only through its stated
-exit.
+the explicit closure mapping and never to reset progress. While section 0 has
+an unchecked item, the first unchecked item in section 0 is the critical path;
+after Exit 0, the first unchecked item in numeric task order is the sole critical
+path. Work outside it is admitted only when it removes an explicit blocker or is
+a named prerequisite of that item. Every phase closes only through its stated exit.
+Accepted session feedback is not a parallel task ledger, but it is part of the
+selected Commitment: each independent obligation must be present in a current task
+body, requirement, acceptance condition, verifier, or explicit disposition before
+the affected task or campaign may close. A finite legacy-ID table proves only that
+legacy slice; it cannot prove complete-session intent closure.
 
 ## Completed Foundations
 
@@ -128,11 +135,15 @@ changing intent cannot deadlock or mutate an existing Commitment.
 
 ## 3. Make One Transaction Mechanism
 
-- [ ] 3.1 Reduce generic runtime to observe → extract → resolve → compile →
+- [x] 3.1 Reduce generic runtime to observe → extract → resolve → compile →
   evaluate → exact-CAS apply → post-observe → attest → project. Derive one
   non-persistent Continuation from current authoritative facts as `continue |
   await-user | blocked | done`, with exactly one next action, missing
-  facts/evidence, and whether a user decision is required.
+  facts/evidence, and whether a user decision is required. Complete the cutover by
+  deleting duplicate orchestration and tests across every Git mutation path;
+  assess progress only by terminal semantic deletion and proved behavior, allowing
+  bounded temporary ELOC growth inside the atomic slice but no permanent parallel
+  implementation, wrapper, facade, or compatibility residue.
 - [ ] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
   decision ledgers, lifecycle read models, and current Claim/Chronicle/proof
   authorization; retain required bytes only as non-authorizing history.
@@ -140,11 +151,18 @@ changing intent cannot deadlock or mutate an existing Commitment.
   explicit analysis outside admission.
 - [ ] 3.4 Replace the coupling registry/runtime with positive native-owner
   declarations while preserving prewrite rejection of undeclared imports,
-  commands, executables, distributions, and references.
+  commands, executables, distributions, references, and value classes. Every
+  retained constant belongs to a declared product invariant, runtime input,
+  deployment policy, forge coordinate, publication-trust capability, or extension
+  declaration; normal variation of HOME, user, origin, forge, author, port,
+  installation root, and provider manifest requires no product-core edit.
 - [ ] 3.5 Remove active private-product coupling, product-specific ontology,
   schemas, policy exceptions, and undeclared references from the ETHOS surface;
   admitted generic tools and removable adapters remain positive declared owners,
-  not forbidden names.
+  not forbidden names. Product code, docs, tests, schemas, templates, fixtures,
+  examples, and generated projections contain no private-product vocabulary,
+  personal identity, private host, workstation path, fixed key/fingerprint, or
+  deployment-specific literal unless its positive owner explicitly declares it.
 - [ ] 3.6 Prove reducer, Lease, handoff, takeover, candidate CAS, retirement, and
   crash invariants with stateful property tests, selected mutation operators,
   and the smallest bounded formal model; each proof names its bounded state,
@@ -202,14 +220,22 @@ Attestations across Codex, JetBrains, Claude, or another host without intent los
   Superpowers remains an optional method pack, OpenSpec tasks remain the sole
   task SSOT, official OpenSpec Skills are generated projections without truth
   or lifecycle authority, and workflow-eval results remain evidence rather
-  than progress state.
+  than progress state. Incident and repeated-review findings must promote the
+  earliest enforceable owner through rule → gate → schema/default → scaffold or
+  generator, while obsolete lower carriers are removed; decorative prose alone
+  cannot count as prevention, learning, or completion.
 - [ ] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
   necessary history, then delete misleading or redundant residue without a
   generic archive truth root.
 - [ ] 5.7 Derive GitLab/GitHub issue, review, CI/CD, release, and provider
   projections from one portable semantic contract while preserving each
-  provider's native syntax and capabilities; block semantic drift, not
-  byte-for-byte or template-shape differences.
+  provider's native syntax and capabilities; both are independent complete
+  CI/CD and distribution planes, not a primary-plus-mirror pair. Block semantic
+  drift, not byte-for-byte or template-shape differences. Issue and review
+  templates, policy meaning, protected `dev`/default `main`, and release semantics
+  are homomorphic projections with explicit absence reasons; `candidate/dev` and
+  `work/*` remain local-only, while only `dev`, `main`, and `proposal/*` may exist
+  on either remote.
 
 **Exit 5:** every current statement has one owner, every projection has a source
 binding, and every stale or contradictory carrier is absorbed, historical, or deleted.
@@ -218,7 +244,16 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
 
 - [ ] 6.1 Declare exactly one owner for formatting, lint, type, test,
   architecture, docs, schema, dependency, security, SBOM, provenance, version,
-  release, and source measurement; local and hosted gates call those owners.
+  release, environment matrix, and source measurement; local and hosted gates
+  call those owners. Cut Python execution over to one project-local closure:
+  `pyproject.toml` declarations, `uv.lock`, the current worktree `.venv`, Nox
+  sessions shared by local/GitHub/GitLab execution, and Hatchling builds. Fail
+  closed on system/global Python packages, global `ethos`, implicit `PATH`
+  fallback, lock drift, or a second Nox-created environment; delete every shell
+  runner whose orchestration Nox subsumes rather than retaining wrappers. Admit
+  Tox, Pixi, Pants, or Dagger only when a real consumer proves unique signal,
+  further net deletion, offline reproducibility, and no second workflow or
+  policy owner.
   At each dependency refresh, every direct runtime, development, build, and
   tool dependency floor equals the latest stable version selected from its
   official registry on that date; transitive packages remain lock-owned rather
@@ -226,7 +261,11 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
   Actions, images, and downloaded tools use immutable commit, digest, or
   checksum identities.
   SPDX, DSSE, and SLSA labels state only the exact generated format or assurance
-  level actually proved and never imply broader conformance.
+  level actually proved and never imply broader conformance. Test repositories
+  and tool fixtures isolate system/global Git config, templates, hooks,
+  credential helpers, user identity, HOME, PATH, network, and provider state;
+  local listeners are loopback-only unless an explicit deployment owner proves a
+  broader bind. Exceptions name owner, scope, reason, expiry, and kill signal.
 - [ ] 6.2 Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
   coverage-ignore, and equivalent suppressions.
 - [ ] 6.3 Enforce Python ELOC ≤54,000, global owned-source ELOC ≤68,000, branch
@@ -237,18 +276,26 @@ binding, and every stale or contradictory carrier is absorbed, historical, or de
 - [ ] 6.4 Enforce native formatting and syntax for Python, TOML, YAML, JSON,
   Markdown, shell, schemas, CI, and forge files; canonical JSON serialization,
   consistent blank-line rules, internal and external links, and projection drift.
+  Exercise GitHub workflows locally with locked `act` and GitLab pipelines with
+  their declared local emulator as non-hosted evidence only.
 - [ ] 6.5 Admit duplicate/dead-definition, complexity, dependency, security, and
   structural tools only for distinct owned properties; delete overlapping
   wrappers, baselines, advisory-only tools, and unconsumed dependencies. One
   online refresh proposes the latest stable direct floors and lock update;
   normal local gates stay offline and verify declaration/lock/SBOM consistency.
+  Evaluate mature candidates such as SCC, find-dup-defs, PySCan, Slopo, Redup,
+  import/dependency analyzers, and native language tools by signal overlap,
+  false-positive cost, speed, lockability, and net deletion; do not admit a tool
+  merely because it finds another metric.
 - [ ] 6.6 Enforce Cyclopts-only CLI, no argparse, unnecessary `__all__`, import
   aliases, shims, wrappers, thin forwarding, re-exports, compatibility facades,
   coverage-only tests, or hard-coded policy/configuration.
 - [ ] 6.7 Prove Python, Node/polyglot, and docs/infra adopters through offline
   install, adopt/status/plan/prove/land/publish, handoff/recovery, profile
   isolation, native layout, complete pinned-OpenSpec lifecycle, and clean
-  uninstall without a mandatory forge provider.
+  uninstall without a mandatory forge provider. Prove first-hour UX and DX for
+  CLI, Python SDK, subprocess JSON, generated scaffolds/projections, diagnostics,
+  and recovery without cloning ETHOS's repository shape into adopters.
 - [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
   Python SDK, subprocess JSON, permissions, determinism, authority isolation,
   versioning, errors, offline behavior, and optional MCP/A2A-style adapters.

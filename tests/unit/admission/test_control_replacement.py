@@ -12,11 +12,9 @@ import pytest
 
 import ethos.adapters.admission.control.replacement as control_replacement
 import ethos.adapters.admission.evidence.external as external_evidence
-from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.rules import stable_digest
-from ethos.contracts.semantic import Attestation
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
@@ -126,7 +124,13 @@ def test_control_change_projects_signed_verification_subject(tmp_path: Path) -> 
     assert re.fullmatch(r"[0-9a-f]{64}", str(accepted["control_digest"]))
     assert re.fullmatch(r"[0-9a-f]{64}", str(candidate_subject["control_digest"]))
     assert accepted["control_digest"] != candidate_subject["control_digest"]
-    assert candidate_subject["executed_proof_digest"]
+    proof = proof_attestation(candidate, candidate_head)
+    assert proof is not None
+    assert candidate_subject["proof"] == {
+        "attestation": proof.id,
+        "statement": proof.statement_digest,
+        "plan": proof.plan_digest,
+    }
 
     request = cast("dict[str, object]", report["verification_request"])
     assert request["proof_floor_id"] == "ethos:control-replacement:v1"
@@ -135,32 +139,6 @@ def test_control_change_projects_signed_verification_subject(tmp_path: Path) -> 
     assert request["tree"] == candidate_subject["tree"]
     assert report["verdict"] == "unknown"
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
-
-
-def test_equivalent_proof_does_not_change_control_replacement_subject(tmp_path: Path) -> None:
-    _repo, candidate, accepted_head, candidate_head = _control_change(tmp_path)
-    seed_executed_proof(candidate, candidate_head)
-    before = control_replacement.control_replacement_report(
-        candidate_root=candidate,
-        accepted_head=accepted_head,
-        candidate_head=candidate_head,
-    )
-    first = proof_attestation(candidate, candidate_head)
-    assert first is not None
-    equivalent = Attestation.issue(
-        first.model_dump(exclude={"id", "schema_version", "statement_digest"})
-        | {"issued_at": first.issued_at + timedelta(seconds=1)}
-    )
-    persist_proof_attestation(candidate, equivalent)
-
-    after = control_replacement.control_replacement_report(
-        candidate_root=candidate,
-        accepted_head=accepted_head,
-        candidate_head=candidate_head,
-    )
-
-    assert after["subject"] == before["subject"]
-    assert after["verification_request"] == before["verification_request"]
 
 
 def test_control_replacement_accepts_only_the_existing_signed_receipt_contract(

@@ -15,6 +15,7 @@ import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
+from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
@@ -22,15 +23,14 @@ from ethos.adapters.mutation.landing import apply_candidate_to_accepted
 from ethos.adapters.mutation.landing import apply_land_to_candidate
 from ethos.adapters.mutation.landing import candidate_base_report
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.mutation.proof import proof_readiness_report
 from ethos.adapters.openspec.profile import active_change_names
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.coordination import MutationAdmissionRequest
 from ethos.contracts.verdict import Verdict
-from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
@@ -57,7 +57,7 @@ class _CloseoutPayload:
     apply: bool
     authorize: bool
     expect_head: str | None
-    decision_state: str
+    candidate_current: bool
     current_head: str
     audit_root: Path
     audit: dict[str, Any]
@@ -113,14 +113,39 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
         verdict=payload.verdict,
         gaps=payload.gaps,
         current_head=git.current_head(payload.repo),
-        state=payload.decision_state,
+        candidate_current=payload.candidate_current,
+    )
+    expected_state = _closeout_expected_state(payload)
+    decision = admission_decision(
+        subject=MutationSubject(
+            action="accepted.advance",
+            resource=f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}",
+            expected_state=expected_state,
+        ),
+        verdict=payload.verdict,
+        basis=DecisionBasis(
+            enforcement_boundary="local_process_guard",
+            identity_basis="not_evaluated",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="current_local_observation",
+            verifier_provenance="current_runner",
+            time_basis="evaluation_time",
+        ),
+        policy_ref=f"commitment:{payload.command}-admission",
+        required_gaps=payload.gaps,
+        why=(
+            ("candidate_already_current",)
+            if payload.verdict == "pass" and payload.candidate_current
+            else ()
+        ),
+        next_action=mutation_next_action,
     )
     return EthosResult(
         command="land",
         verdict=payload.verdict,
         state=(
             "accepted_current"
-            if payload.verdict == "pass" and payload.decision_state == "current"
+            if payload.verdict == "pass" and payload.candidate_current
             else "ready_to_closeout"
             if payload.verdict == "pass" and not payload.apply
             else "deferred"
@@ -145,22 +170,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                 apply=payload.apply,
                 authorized=payload.authorize,
                 expect_head=payload.expect_head,
-                admission=MutationAdmissionRequest(
-                    action="accepted.advance",
-                    resource=(
-                        f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}"
-                    ),
-                    expected_state=_closeout_expected_state(payload),
-                    verdict=payload.verdict,
-                    required_gaps=payload.gaps,
-                    why=(
-                        ("candidate_already_current",)
-                        if payload.verdict == "pass" and payload.decision_state == "current"
-                        else ()
-                    ),
-                    next_action=mutation_next_action,
-                    state=payload.decision_state,
-                ),
+                decision=decision,
             ),
         },
     )
@@ -320,7 +330,6 @@ def _closeout_land_result(
         root=repo,
         current_head=current_head,
     )
-    decision_state = decision.state
     audit_root = land_core.closeout_audit_root(repo, decision)
     audited_candidate_head = _observed_candidate_head(repo, current_head)
     audit = land_core.repository_audit_after_admission(audit_root, decision)
@@ -334,7 +343,7 @@ def _closeout_land_result(
     )
     gaps = (
         tuple(string_sequence(audit.get("required_gaps")))
-        + decision.gaps
+        + decision.required_gaps
         + tuple(string_sequence(lifecycle.get("required_gaps")))
         + control_gaps
     )
@@ -379,7 +388,7 @@ def _closeout_land_result(
             apply=apply,
             authorize=authorize,
             expect_head=expect_head,
-            decision_state=decision_state,
+            candidate_current=audited_candidate_head == current_head,
             audit_root=audit_root,
             audit=audit,
             lifecycle=lifecycle,
@@ -426,7 +435,7 @@ def _candidate_land_result(
     gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
-            + decision.gaps
+            + decision.required_gaps
             + closeout_gaps
             + tuple(string_sequence(lifecycle.get("required_gaps")))
             + archive_gaps
@@ -452,16 +461,10 @@ def _candidate_land_result(
         update = candidate_base_report(root=repo, status=status_payload)
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
-    proof_readiness: dict[str, object] = {}
     if verdict == "pass" and not apply:
-        proof_readiness = proof_readiness_report(repo, current_head)
-        proof_gaps = tuple(string_sequence(proof_readiness.get("required_gaps")))
-        gaps = tuple(dict.fromkeys((*gaps, *proof_gaps)))
-        verdict = reduce_verdicts(
-            verdict,
-            observation_verdict(ok=not bool(proof_readiness["blocking"]), required_gaps=proof_gaps),
-            required_gaps=gaps,
-        )
+        current_proof_gaps = tuple(proof_gaps(repo, current_head))
+        gaps = tuple(dict.fromkeys((*gaps, *current_proof_gaps)))
+        verdict = reduce_verdicts(verdict, required_gaps=gaps)
     state = (
         "ready_to_land"
         if verdict == "pass" and not apply
@@ -469,10 +472,36 @@ def _candidate_land_result(
         if verdict == "block"
         else "unknown"
         if verdict == "unknown"
-        else str(update.get("state") or decision.state)
+        else str(update.get("state") or "landed")
     )
     mutation_next_action = land_core.land_next_action(
         verdict=verdict, gaps=gaps, current_head=current_head
+    )
+    expected_state = _land_expected_state(
+        repo=repo,
+        current_head=current_head,
+        status_payload=status_payload,
+        closeout_support=closeout_support,
+    )
+    final_decision = admission_decision(
+        subject=MutationSubject(
+            action="candidate.integrate",
+            resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}",
+            expected_state=expected_state,
+        ),
+        verdict=verdict,
+        basis=DecisionBasis(
+            enforcement_boundary="local_process_guard",
+            identity_basis="not_evaluated",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="current_local_observation",
+            verifier_provenance="current_runner",
+            time_basis="evaluation_time",
+        ),
+        policy_ref=f"commitment:{command}-admission",
+        required_gaps=gaps,
+        why=(state,) if verdict == "pass" else (),
+        next_action=mutation_next_action,
     )
     return EthosResult(
         command="land",
@@ -486,26 +515,12 @@ def _candidate_land_result(
             "openspec_lifecycle": lifecycle,
             "candidate_update": update,
             "closeout_support": closeout_support,
-            "proof_readiness": proof_readiness,
             "mutation": mutation_envelope(
                 command=command,
                 apply=apply,
                 authorized=authorize,
                 expect_head=expect_head,
-                admission=MutationAdmissionRequest(
-                    action="candidate.integrate",
-                    resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}",
-                    expected_state=_land_expected_state(
-                        repo=repo,
-                        current_head=current_head,
-                        status_payload=status_payload,
-                        closeout_support=closeout_support,
-                    ),
-                    verdict=verdict,
-                    required_gaps=gaps,
-                    next_action=mutation_next_action,
-                    state=state,
-                ),
+                decision=final_decision,
             ),
         },
     )
@@ -587,7 +602,7 @@ def publish(
     gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
-            + decision.gaps
+            + decision.required_gaps
             + release_carrier_gaps
             + tuple(string_sequence(independent_verification.get("required_gaps")))
             + terminal_gaps
@@ -684,6 +699,26 @@ def publish(
         remote_observations=remote_observations,
         branch_admission=branch_admission,
     )
+    publish_decision = admission_decision(
+        subject=MutationSubject(
+            action="remote.publish",
+            resource=str(publish_expected_state["target_ref"]),
+            expected_state=publish_expected_state,
+        ),
+        verdict=publication_verdict,
+        basis=DecisionBasis(
+            enforcement_boundary="remote_ref_transition",
+            identity_basis="not_evaluated",
+            state_bindings=tuple(publish_expected_state),
+            evidence_boundary="local_readiness_and_remote_availability",
+            verifier_provenance="current_runner",
+            time_basis="evaluation_time",
+        ),
+        policy_ref="commitment:publish-admission",
+        required_gaps=gaps,
+        why=(str(publication.get("remote_state") or "remote_publication_deferred"),),
+        next_action=publish_next_action,
+    )
     result = EthosResult(
         command="publish",
         verdict=result_verdict,
@@ -721,18 +756,7 @@ def publish(
                 apply=options.apply,
                 authorized=options.authorize,
                 expect_head=options.expect_head,
-                admission=MutationAdmissionRequest(
-                    action="remote.publish",
-                    resource=str(publish_expected_state["target_ref"]),
-                    expected_state=publish_expected_state,
-                    verdict=publication_verdict,
-                    required_gaps=gaps,
-                    why=(str(publication.get("remote_state") or "remote_publication_deferred"),),
-                    next_action=publish_next_action,
-                    state=remote_state,
-                    evidence_boundary="local_readiness_and_remote_availability",
-                    enforcement_boundary="remote_ref_transition",
-                ),
+                decision=publish_decision,
             ),
         },
     )

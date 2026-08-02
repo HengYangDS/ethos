@@ -8,15 +8,17 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
+from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.coordination import MutationAdmissionRequest
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
@@ -114,48 +116,48 @@ def retire_linked_work_lane(
         required_holder = effects.holder_ref(authority)
         gaps = tuple(sorted(set(current_gaps)))
         current_verdict = _retirement_verdict(gaps)
+        expected_state = {
+            "ref": f"refs/heads/{branch}" if branch else "",
+            "head": (request.expect_head or "").strip(),
+            "invocation_holder_ref": effects.actor_ref(),
+            "required_holder_ref": required_holder,
+            "authority_branch": authority.get("branch", ""),
+            "authority_head": authority.get("head", ""),
+            "accepted_head": accepted_head,
+            "lease": authority.get("lease", {}),
+            "target_lease": lane.get("lease", {}),
+            **({"absorbed_by": absorbed_by, "reason": reason} if mode == "superseded" else {}),
+        }
+        enforcement_boundary = (
+            "sqlite_generation_lock_and_git_ref_transaction"
+            if required_holder
+            else "git_ref_and_worktree_transition"
+        )
+        decision = admission_decision(
+            subject=MutationSubject(
+                action=f"lane.retire.{mode}",
+                resource=f"refs/heads/{branch}" if branch else "work-lane",
+                expected_state=expected_state,
+            ),
+            verdict=current_verdict,
+            basis=DecisionBasis(
+                enforcement_boundary=enforcement_boundary,
+                identity_basis="exact_lease_generation" if required_holder else "not_evaluated",
+                state_bindings=tuple(expected_state),
+                evidence_boundary="current_git_lane_and_lease_observation",
+                verifier_provenance="current_runner",
+                time_basis="evaluation_time",
+            ),
+            policy_ref=f"commitment:lane-retire-{mode}-admission",
+            required_gaps=gaps,
+            why=("ready",) if current_verdict == "pass" else (),
+        )
         return mutation_envelope(
             command=f"lane-retire-{mode}",
             apply=request.apply,
             authorized=request.authorize,
             expect_head=request.expect_head,
-            admission=MutationAdmissionRequest(
-                action=f"lane.retire.{mode}",
-                resource=f"refs/heads/{branch}" if branch else "work-lane",
-                expected_state={
-                    "ref": f"refs/heads/{branch}" if branch else "",
-                    "head": (request.expect_head or "").strip(),
-                    "invocation_holder_ref": effects.actor_ref(),
-                    "required_holder_ref": required_holder,
-                    "authority_branch": authority.get("branch", ""),
-                    "authority_head": authority.get("head", ""),
-                    "accepted_head": accepted_head,
-                    "lease": authority.get("lease", {}),
-                    "target_lease": lane.get("lease", {}),
-                    **(
-                        {"absorbed_by": absorbed_by, "reason": reason}
-                        if mode == "superseded"
-                        else {}
-                    ),
-                },
-                verdict=current_verdict,
-                required_gaps=gaps,
-                state=(
-                    "ready"
-                    if current_verdict == "pass"
-                    else "unknown"
-                    if current_verdict == "unknown"
-                    else "blocked"
-                ),
-                identity_basis=("exact_lease_generation" if required_holder else "not_evaluated"),
-                evidence_boundary="current_git_lane_and_lease_observation",
-                enforcement_boundary=(
-                    "sqlite_generation_lock_and_git_ref_transaction"
-                    if required_holder
-                    else "git_ref_and_worktree_transition"
-                ),
-                verifier_provenance="current_runner",
-            ),
+            decision=decision,
         )
 
     report: dict[str, object] = {

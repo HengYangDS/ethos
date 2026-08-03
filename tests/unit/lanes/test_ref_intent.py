@@ -20,6 +20,7 @@ import pytest
 import ethos.adapters.repo.git_effects
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
+from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.admission.ref_intent import write_ref_intent
@@ -45,14 +46,14 @@ def _write(
     *,
     old: str = "old",
     new: str = "new",
-    recoverable: bool = False,
+    plan_digest: str | None = None,
 ) -> dict[str, object]:
     return write_ref_intent(
         root=root,
         ref_name="refs/heads/dev",
         update=_update(old=old, new=new),
         operation="candidate.accept",
-        recoverable=recoverable,
+        plan_digest=plan_digest or hashlib.sha256(b"plan", usedforsecurity=False).hexdigest(),
     )
 
 
@@ -62,6 +63,7 @@ def _claim(
     *,
     old: str = "old",
     new: str = "new",
+    plan_digest: str | None = None,
 ) -> dict[str, object]:
     return claim_ref_intent(
         root=root,
@@ -69,6 +71,7 @@ def _claim(
         update=_update(old=old, new=new),
         operation="candidate.accept",
         phase=phase,
+        plan_digest=plan_digest,
     )
 
 
@@ -130,12 +133,12 @@ def test_intent_persists_only_exact_operation_transition_and_recovery(tmp_path: 
     stored = json.loads(_path(tmp_path, intent["nonce"]).read_text(encoding="utf-8"))
 
     assert stored | {"created_at": "", "expires_at": "", "nonce": ""} == {
-        "schema_version": 1,
+        "schema_version": 2,
         "operation": "candidate.accept",
         "ref_name": "refs/heads/dev",
         "old_value": _oid("old"),
         "new_value": _oid("new"),
-        "recoverable": False,
+        "plan_digest": hashlib.sha256(b"plan", usedforsecurity=False).hexdigest(),
         "nonce": "",
         "phase": "issued",
         "created_at": "",
@@ -143,9 +146,8 @@ def test_intent_persists_only_exact_operation_transition_and_recovery(tmp_path: 
     }
 
 
-def test_identical_intent_write_is_atomic_and_reuses_one_file(tmp_path: Path) -> None:
-    first = _write(tmp_path)
-    second = _write(tmp_path)
+def test_identical_intent_write_reuses_one_file(tmp_path: Path) -> None:
+    first, second = _write(tmp_path), _write(tmp_path)
 
     assert first == second
     assert [path.name for path in ref_intent_dir(tmp_path).glob("*.json")] == [
@@ -172,17 +174,8 @@ def test_malformed_deterministic_intent_is_reclaimed_on_write(tmp_path: Path) ->
     assert json.loads(path.read_text(encoding="utf-8"))["phase"] == "issued"
 
 
-def test_nonretained_intent_is_one_shot_across_prepared_and_committed(tmp_path: Path) -> None:
+def test_committed_intent_supports_exact_crash_recovery(tmp_path: Path) -> None:
     intent = _write(tmp_path)
-
-    assert _claim(tmp_path, "prepared")["gap"] == ""
-    assert _claim(tmp_path, "committed")["gap"] == ""
-    assert not _path(tmp_path, intent["nonce"]).exists()
-    assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_missing"
-
-
-def test_retained_intent_supports_exact_crash_recovery(tmp_path: Path) -> None:
-    intent = _write(tmp_path, recoverable=True)
 
     assert _claim(tmp_path, "prepared")["gap"] == ""
     assert _claim(tmp_path, "committed")["gap"] == ""
@@ -193,21 +186,28 @@ def test_retained_intent_supports_exact_crash_recovery(tmp_path: Path) -> None:
     assert not _path(tmp_path, intent["nonce"]).exists()
 
 
-def test_retained_prepared_intent_recovers_when_committed_callback_is_lost(
+def test_committed_intent_carries_the_exact_plan_digest(tmp_path: Path) -> None:
+    plan_digest = hashlib.sha256(b"candidate-plan", usedforsecurity=False).hexdigest()
+    _write(tmp_path, plan_digest=plan_digest)
+    assert _claim(tmp_path, "prepared", plan_digest=plan_digest)["gap"] == ""
+    assert _claim(tmp_path, "committed", plan_digest=plan_digest)["gap"] == ""
+
+    recovered = committed_ref_intent(
+        root=tmp_path,
+        ref_name="refs/heads/dev",
+        operation="candidate.accept",
+        desired=_oid("new"),
+    )
+
+    assert recovered["gap"] == ""
+    assert recovered["plan_digest"] == plan_digest
+    assert recovered["old_value"] == _oid("old")
+
+
+def test_expired_prepared_intent_recovers_after_observed_git_cas(
     tmp_path: Path,
 ) -> None:
-    intent = _write(tmp_path, recoverable=True)
-
-    assert _claim(tmp_path, "prepared")["gap"] == ""
-    assert _claim(tmp_path, "recover")["gap"] == ""
-
-    assert json.loads(_path(tmp_path, intent["nonce"]).read_text())["phase"] == "committed"
-
-
-def test_expired_retained_prepared_intent_recovers_after_observed_git_cas(
-    tmp_path: Path,
-) -> None:
-    intent = _write(tmp_path, recoverable=True)
+    intent = _write(tmp_path)
     assert _claim(tmp_path, "prepared")["gap"] == ""
     _expire(
         tmp_path,
@@ -217,31 +217,15 @@ def test_expired_retained_prepared_intent_recovers_after_observed_git_cas(
 
     assert _claim(tmp_path, "recover")["gap"] == ""
     assert json.loads(_path(tmp_path, intent["nonce"]).read_text())["phase"] == "committed"
-
-
-def test_expired_retained_prepared_intent_survives_stale_sweep(tmp_path: Path) -> None:
-    intent = _write(tmp_path, recoverable=True)
-    assert _claim(tmp_path, "prepared")["gap"] == ""
-    _expire(
-        tmp_path,
-        intent["nonce"],
-        (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
-    )
-
-    swept = sweep_stale_ref_intents(tmp_path)
-
-    assert str(intent["nonce"]) not in swept
-    assert json.loads(_path(tmp_path, intent["nonce"]).read_text())["phase"] == "prepared"
 
 
 def test_concurrent_committed_and_aborted_callbacks_preserve_committed_recovery(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    intent = _write(tmp_path, recoverable=True)
+    intent = _write(tmp_path)
     assert _claim(tmp_path, "prepared")["gap"] == ""
-    aborted_read = Event()
-    committed = Event()
+    aborted_read, committed = Event(), Event()
     intent_path = _path(tmp_path, intent["nonce"])
     read_text = Path.read_text
     delayed = False
@@ -255,24 +239,26 @@ def test_concurrent_committed_and_aborted_callbacks_preserve_committed_recovery(
             assert committed.wait(timeout=5)
         return value
 
-    results: dict[str, dict[str, object]] = {}
+    results = {}
     monkeypatch.setattr(Path, "read_text", delayed_read)
-    aborted = Thread(
-        target=lambda: results.__setitem__("aborted", _claim(tmp_path, "aborted")),
-        name="intent-aborted",
-    )
-    committed_callback = Thread(
-        target=lambda: (
-            aborted_read.wait(timeout=5),
-            results.__setitem__("committed", _claim(tmp_path, "committed")),
-            committed.set(),
+    threads = (
+        Thread(
+            target=lambda: results.__setitem__("aborted", _claim(tmp_path, "aborted")),
+            name="intent-aborted",
         ),
-        name="intent-committed",
+        Thread(
+            target=lambda: (
+                aborted_read.wait(timeout=5),
+                results.__setitem__("committed", _claim(tmp_path, "committed")),
+                committed.set(),
+            ),
+            name="intent-committed",
+        ),
     )
-    aborted.start()
-    committed_callback.start()
-    aborted.join(timeout=5)
-    committed_callback.join(timeout=5)
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
 
     assert results["committed"]["gap"] == ""
     assert results["aborted"]["gap"] == ""
@@ -290,35 +276,6 @@ def test_aborted_intent_cleans_only_the_exact_prepared_transaction(tmp_path: Pat
     assert _path(tmp_path, other["nonce"]).exists()
 
 
-def test_aborted_callback_preserves_only_a_committed_recovery_intent(tmp_path: Path) -> None:
-    retained = _write(tmp_path, recoverable=True)
-    ordinary = _write(tmp_path, old="ordinary-old", new="ordinary-new")
-    assert _claim(tmp_path, "prepared")["gap"] == ""
-    assert _claim(tmp_path, "committed")["gap"] == ""
-    assert _claim(tmp_path, "aborted")["gap"] == ""
-    assert (
-        _claim(
-            tmp_path,
-            "prepared",
-            old="ordinary-old",
-            new="ordinary-new",
-        )["gap"]
-        == ""
-    )
-    assert (
-        _claim(
-            tmp_path,
-            "aborted",
-            old="ordinary-old",
-            new="ordinary-new",
-        )["gap"]
-        == ""
-    )
-
-    assert _path(tmp_path, retained["nonce"]).exists()
-    assert not _path(tmp_path, ordinary["nonce"]).exists()
-
-
 def test_intent_reports_absence_transition_and_operation_mismatch(tmp_path: Path) -> None:
     assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_missing"
     _write(tmp_path, old="other-old")
@@ -330,8 +287,19 @@ def test_intent_reports_absence_transition_and_operation_mismatch(tmp_path: Path
         ref_name="refs/heads/dev",
         update=_update(),
         operation="candidate.refresh",
+        plan_digest=hashlib.sha256(b"other-plan", usedforsecurity=False).hexdigest(),
     )
     assert _claim(root, "prepared")["gap"] == "ref_intent_operation_mismatch"
+    plan_root = tmp_path / "plan"
+    _write(plan_root)
+    assert (
+        _claim(
+            plan_root,
+            "prepared",
+            plan_digest=hashlib.sha256(b"other-plan", usedforsecurity=False).hexdigest(),
+        )["gap"]
+        == "ref_intent_plan_mismatch"
+    )
 
 
 @pytest.mark.parametrize("expires_at", [None, "not-a-timestamp", "2099-01-01T00:00:00"])
@@ -339,7 +307,7 @@ def test_invalid_expiry_is_stale_and_removed(tmp_path: Path, expires_at: str | N
     intent = _write(tmp_path)
     _expire(tmp_path, intent["nonce"], expires_at)
 
-    assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_stale"
+    assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_payload_invalid"
     assert not _path(tmp_path, intent["nonce"]).exists()
 
 

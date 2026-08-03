@@ -193,7 +193,7 @@ def _replace_lease_payload(worktree: Path, branch: str, **updates: object) -> No
         connection.commit()
 
 
-def test_commitment_rebind_preserves_overlay_binds_old_commitment_and_replays(
+def test_commitment_rebind_preserves_overlay_and_recognizes_the_terminal_attestation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -218,12 +218,12 @@ def test_commitment_rebind_preserves_overlay_binds_old_commitment_and_replays(
     )
 
     applied = execute_commitment_rebind(root=worktree, request=request)
-    replayed = execute_commitment_rebind(root=worktree, request=request)
+    recognized = execute_commitment_rebind(root=worktree, request=request)
 
     _assert_terminal(case, applied)
     assert applied["state"] == "applied"
-    assert replayed["state"] == "replayed"
-    assert applied["attestation"] == replayed["attestation"]
+    assert recognized["state"] == "recognized"
+    assert applied["attestation"] == recognized["attestation"]
     assert captured[0].inputs.commitment == case["lease"]["base_commitment_digest"]
     assert (
         git(worktree, "diff", "--binary"),
@@ -403,7 +403,7 @@ def test_commitment_rebind_recovery_rejects_complete_target_lease_drift(
     assert report["required_gaps"] == ["commitment_rebind_state_inconsistent"]
 
 
-def test_commitment_rebind_replay_rechecks_apply_actor_and_overlay(
+def test_commitment_rebind_recognition_rechecks_apply_actor_and_overlay(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -430,7 +430,7 @@ def test_commitment_rebind_replay_rechecks_apply_actor_and_overlay(
     assert drifted["required_gaps"] == ["commitment_rebind_overlay_changed"]
 
 
-def test_commitment_rebind_replay_rejects_ref_drift(
+def test_commitment_rebind_recognition_rejects_ref_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -444,10 +444,10 @@ def test_commitment_rebind_replay_rejects_ref_drift(
     git(worktree, "config", "--unset-all", "core.hooksPath")
     git(worktree, "update-ref", f"refs/heads/{request.branch}", request.expect_head)
 
-    replayed = execute_commitment_rebind(root=worktree, request=request)
+    recognized = execute_commitment_rebind(root=worktree, request=request)
 
-    assert replayed["state"] == "blocked"
-    assert replayed["required_gaps"] == ["commitment_rebind_replay_mismatch"]
+    assert recognized["state"] == "blocked"
+    assert recognized["required_gaps"] == ["commitment_rebind_terminal_mismatch"]
 
 
 @pytest.mark.parametrize(
@@ -464,7 +464,7 @@ def test_commitment_rebind_replay_rejects_ref_drift(
         ("result", "lease", "unchanged"),
     ],
 )
-def test_commitment_rebind_replay_rejects_attestation_freshness_drift(
+def test_commitment_rebind_recognition_rejects_attestation_freshness_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     location: str,
@@ -518,10 +518,10 @@ def test_commitment_rebind_replay_rejects_attestation_freshness_drift(
     )
     path.write_text(tampered.canonical_json(), encoding="utf-8")
 
-    replayed = execute_commitment_rebind(root=worktree, request=request)
+    recognized = execute_commitment_rebind(root=worktree, request=request)
 
-    assert replayed["state"] == "repair_required"
-    assert replayed["required_gaps"] == ["commitment_rebind_replay_mismatch"]
+    assert recognized["state"] == "repair_required"
+    assert recognized["required_gaps"] == ["commitment_rebind_terminal_mismatch"]
 
 
 def test_commitment_rebind_cli_projects_the_same_terminal_transaction(
@@ -547,11 +547,11 @@ def test_commitment_rebind_cli_projects_the_same_terminal_transaction(
     arguments.append("--json")
 
     applied = run_ethos(*arguments, cwd=worktree)
-    replayed = run_ethos(*arguments, cwd=worktree)
+    recognized = run_ethos(*arguments, cwd=worktree)
 
     assert applied["data"]["state"] == "applied"
-    assert replayed["data"]["state"] == "replayed"
-    assert applied["data"]["attestation"] == replayed["data"]["attestation"]
+    assert recognized["data"]["state"] == "recognized"
+    assert applied["data"]["attestation"] == recognized["data"]["attestation"]
 
 
 @pytest.mark.parametrize(

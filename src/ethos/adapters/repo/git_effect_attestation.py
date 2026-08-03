@@ -7,6 +7,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
+from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -50,7 +51,12 @@ def issue(
     issued = datetime.fromisoformat(str(after["observed_at"]))
     input_observation = {name: before[name] for name in ("head", "tree", "refs", "assertions")}
     output_observation = {name: after[name] for name in ("head", "tree", "refs")}
-    result = _result(state, output_observation["refs"])
+    result = {
+        "state": state,
+        "executed": state == "applied",
+        "exit_code": 0 if state == "applied" else None,
+        "refs": output_observation["refs"],
+    }
     effect_digest = effect.digest()
     subject = f"git-effect:{effect_digest}"
     inputs = {
@@ -193,6 +199,59 @@ def plan_from_attestation(attestation: Attestation) -> TransitionPlan:
         return plan
 
 
+def recover_plan(
+    root: Path,
+    *,
+    operation: str,
+    desired: str,
+    ref_name: str = "",
+    assertions: Mapping[str, str] | None = None,
+) -> TransitionPlan | None:
+    """Return the sole attested plan bound to one committed ref intent."""
+    intent = committed_ref_intent(
+        root=root,
+        operation=operation,
+        desired=desired,
+        ref_name=ref_name,
+    )
+    gap = str(intent["gap"] or "")
+    if gap == "ref_intent_missing":
+        return None
+    if gap:
+        raise ValueError(
+            "git_effect_recovery_ambiguous"
+            if gap == "ref_intent_ambiguous"
+            else "git_effect_recovery_unproven"
+        )
+    digest = str(intent["plan_digest"])
+    path = Path(git_common_dir(root), "ethos", "git-effects", f"{digest}.json")
+    try:
+        attestation = Attestation.model_validate_json(path.read_text(encoding="utf-8"))
+        plan = plan_from_attestation(attestation)
+        validate(
+            root,
+            git_effect_from_plan(plan),
+            attestation,
+            issuer=attestation.verifier,
+            plan=plan,
+        )
+        effect = git_effect_from_plan(plan)
+        update = effect.updates.get(str(intent["ref_name"]))
+    except (OSError, ValueError) as error:
+        raise ValueError("git_effect_recovery_unproven") from error
+    if (
+        plan.digest != digest
+        or attestation.plan_digest != digest
+        or plan.policy.get("operation") != operation
+        or update is None
+        or update.expected != intent["old_value"]
+        or update.desired != desired
+        or (assertions is not None and effect.assertions != assertions)
+    ):
+        raise ValueError("git_effect_recovery_unproven")
+    return plan
+
+
 def records(
     root: Path,
     plan: TransitionPlan,
@@ -223,15 +282,6 @@ def records(
         collision="git_effect_attestation_collision",
     )
     return (record,)
-
-
-def _result(state: object, refs: object) -> dict[str, object]:
-    return {
-        "state": state,
-        "executed": True if state == "applied" else False if state == "recovered" else None,
-        "exit_code": 0 if state == "applied" else None,
-        "refs": refs,
-    }
 
 
 def _repository_identity(root: Path, before: object, after: object) -> str:

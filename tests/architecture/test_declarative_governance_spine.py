@@ -90,6 +90,7 @@ def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() ->
 def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
     references: set[str] = set()
     executions: list[str] = []
+    intent_writers: list[str] = []
     for path in CORE_SOURCE.rglob("*.py"):
         relative = path.relative_to(CORE_SOURCE).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -110,13 +111,22 @@ def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
                 )
             ):
                 executions.append(relative)
-
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "write_ref_intent"
+            ):
+                intent_writers.append(relative)
     assert references == {
         "adapters/repo/git_effect_attestation.py",
         "adapters/repo/git_effects.py",
         "contracts/plan.py",
     }
     assert executions == ["adapters/repo/git_effects.py"]
+    assert intent_writers == ["adapters/repo/git_effects.py"]
+    assert not any(
+        "replay" in path.read_text(encoding="utf-8").lower() for path in CORE_SOURCE.rglob("*.py")
+    )
 
 
 def test_gate_dependencies_are_declared_without_runtime_product_injection() -> None:

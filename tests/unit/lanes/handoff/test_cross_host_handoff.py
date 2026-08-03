@@ -411,9 +411,9 @@ def _assert_source_revoked(
     }
     identity_keys = ("lane_incarnation_id", "lease_id")
     original_identity = {key: imported["lease"][key] for key in identity_keys}
-    replayed_import = import_cross_host_handoff(request)
-    assert replayed_import["verdict"] == "pass"
-    assert all(replayed_import["lease"][key] == value for key, value in original_identity.items())
+    repeated_import = import_cross_host_handoff(request)
+    assert repeated_import["verdict"] == "pass"
+    assert all(repeated_import["lease"][key] == value for key, value in original_identity.items())
     database = state_database(destination)
     expired_at = datetime.now(UTC) - timedelta(seconds=1)
     with closing(sqlite3.connect(database)) as connection, connection:
@@ -455,10 +455,10 @@ def _assert_source_revoked(
         if key == "lane_incarnation_id" or key.startswith(("expected_", "base_commitment_"))
     )
     assert branch not in leases_by_branch(source.worktree)
-    replayed_revoke = revoke_cross_host_source(request)
-    assert replayed_revoke["verdict"] == "block"
-    assert replayed_revoke["required_gaps"] == ["handoff_source_lease_missing"]
-    assert replayed_revoke["receipt"] == {}
+    repeated_revoke = revoke_cross_host_source(request)
+    assert repeated_revoke["verdict"] == "block"
+    assert repeated_revoke["required_gaps"] == ["handoff_source_lease_missing"]
+    assert repeated_revoke["receipt"] == {}
     mismatched = revoke_cross_host_source(request.model_copy(update={"lease_id": "lease:other"}))
     assert mismatched["verdict"] == "block"
     assert "handoff_source_lease_mismatch" in mismatched["required_gaps"]

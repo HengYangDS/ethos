@@ -1,4 +1,4 @@
-"""Validate self-contained proof Attestation closure without historical replay."""
+"""Validate self-contained proof Attestation closure from current bindings."""
 
 from __future__ import annotations
 

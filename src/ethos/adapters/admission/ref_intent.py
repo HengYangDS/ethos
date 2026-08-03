@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import os
 import time
 from datetime import UTC
@@ -11,22 +9,48 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Annotated
 from typing import Literal
 
+from pydantic import AwareDatetime
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import model_validator
+
 from ethos.adapters.repo.git import git_stdout
+from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from ethos.contracts.plan import GitRefUpdate
 
 _INTENT_TTL = timedelta(minutes=1)
 _INTENT_SUBDIR = Path("ethos") / "ref-intent"
-_SCHEMA_VERSION = 1
-_ATOMIC_READ_ATTEMPTS = 100
-_ATOMIC_READ_DELAY_SECONDS = 0.001
 _LOCK_ATTEMPTS = 1_000
-_OPERATION_PARTS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789.-")
+_LOCK_DELAY_SECONDS = 0.001
+Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+Oid = Annotated[str, Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")]
+
+
+class _RefIntent(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    schema_version: Literal[2] = 2
+    operation: str = Field(pattern=r"^[a-z0-9-]+(?:\.[a-z0-9-]+)*$")
+    ref_name: str = Field(pattern=r"^refs/[^\s]+$")
+    old_value: Oid
+    new_value: Oid
+    plan_digest: Digest
+    nonce: Digest
+    phase: Literal["issued", "prepared", "committed"]
+    created_at: AwareDatetime
+    expires_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def validate_nonce(self) -> _RefIntent:
+        if self.nonce != _intent_key(self):
+            raise ValueError("ref_intent_nonce_invalid")
+        return self
 
 
 def _git_path(root: Path, relative: str) -> Path:
@@ -48,43 +72,37 @@ def write_ref_intent(
     ref_name: str,
     update: GitRefUpdate,
     operation: str,
-    recoverable: bool = False,
+    plan_digest: str,
 ) -> dict[str, object]:
-    """Write one exact issued intent immediately before its Git CAS."""
-    _require_operation(operation)
+    """Write one exact plan-bound intent immediately before its Git CAS."""
     now = datetime.now(UTC)
-    nonce = _intent_key(
-        ref_name=ref_name,
-        update=update,
-        operation=operation,
-        recoverable=recoverable,
-    )
-    intent: dict[str, object] = {
-        "schema_version": _SCHEMA_VERSION,
+    identity = {
+        "schema_version": 2,
         "operation": operation,
         "ref_name": ref_name,
         "old_value": update.expected,
         "new_value": update.desired,
-        "recoverable": recoverable,
-        "nonce": nonce,
-        "phase": "issued",
-        "created_at": now.isoformat(),
-        "expires_at": (now + _INTENT_TTL).isoformat(),
+        "plan_digest": plan_digest,
     }
+    intent = _RefIntent(
+        **identity,
+        nonce=canonical_json_digest(identity),
+        phase="issued",
+        created_at=now,
+        expires_at=now + _INTENT_TTL,
+    )
     directory = ref_intent_dir(root)
     directory.mkdir(parents=True, exist_ok=True)
-    lock = directory / f"{nonce}.lock"
-    with _IntentLock(lock):
-        path = directory / f"{nonce}.json"
-        existing = _read_atomic(path) if path.exists() else None
-        if existing is not None:
-            if _exact_identity(existing) == _exact_identity(intent):
-                return existing
-            message = "ref_intent_collision"
-            raise ValueError(message)
+    path = directory / f"{intent.nonce}.json"
+    with _IntentLock(path.with_suffix(".lock")):
+        existing = _read(path)
+        if existing:
+            if existing.nonce == intent.nonce:
+                return existing.model_dump(mode="json")
+            raise ValueError("ref_intent_collision")
         path.unlink(missing_ok=True)
         _store(path, intent)
-        return intent
+    return intent.model_dump(mode="json")
 
 
 class _IntentLock:
@@ -101,58 +119,15 @@ class _IntentLock:
                     0o600,
                 )
             except FileExistsError:
-                time.sleep(_ATOMIC_READ_DELAY_SECONDS)
-            else:
-                return self
-        message = "ref_intent_lock_timeout"
-        raise ValueError(message)
+                time.sleep(_LOCK_DELAY_SECONDS)
+                continue
+            return self
+        raise ValueError("ref_intent_lock_timeout")
 
     def __exit__(self, *_args: object) -> None:
         if self.descriptor >= 0:
             os.close(self.descriptor)
         self.path.unlink(missing_ok=True)
-
-
-def _read_atomic(path: Path) -> dict[str, object] | None:
-    for _ in range(_ATOMIC_READ_ATTEMPTS):
-        if intent := _read(path):
-            return intent
-        time.sleep(_ATOMIC_READ_DELAY_SECONDS)
-    return None
-
-
-def _intent_key(
-    *,
-    ref_name: str,
-    update: GitRefUpdate,
-    operation: str,
-    recoverable: bool,
-) -> str:
-    payload = {
-        "schema_version": _SCHEMA_VERSION,
-        "operation": operation,
-        "ref_name": ref_name,
-        "old_value": update.expected,
-        "new_value": update.desired,
-        "recoverable": recoverable,
-    }
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _exact_identity(intent: Mapping[str, object]) -> dict[str, object]:
-    return {
-        name: intent.get(name)
-        for name in (
-            "schema_version",
-            "operation",
-            "ref_name",
-            "old_value",
-            "new_value",
-            "recoverable",
-            "nonce",
-        )
-    }
 
 
 def claim_ref_intent(
@@ -161,102 +136,120 @@ def claim_ref_intent(
     ref_name: str,
     update: GitRefUpdate,
     operation: str,
-    phase: Literal["issued", "prepared", "committed", "aborted", "recover", "retry"],
+    phase: Literal["prepared", "committed", "aborted", "recover"],
+    plan_digest: str | None = None,
 ) -> dict[str, object]:
     """Advance, abort, or observe one exact intent transaction."""
-    _require_operation(operation)
     directory = ref_intent_dir(root)
     if not directory.is_dir():
         return _claim(present=False, gap="ref_intent_missing")
-    mismatch = ""
-    match: tuple[Path, dict[str, object], dict[str, object]] | None = None
-    now = datetime.now(UTC)
-    for path in sorted(directory.glob("*.json")):
-        intent = _read(path)
-        if intent is None or intent.get("ref_name") != ref_name:
-            continue
-        intent = dict(intent or {})
-        if gap := _identity_gap(intent, update=update, operation=operation):
-            mismatch = gap
-            continue
-        retrying = phase == "retry" and intent.get("phase") == "issued"
-        recovering = phase in {"recover", "retry"} and _retained_prepared(intent)
-        if _expired(intent, now=now) and not (retrying or recovering):
-            stale = _reclaim_expired(path, intent, requested_phase=phase)
-            if stale is not None:
-                return stale
-            continue
-        if not isinstance(intent.get("recoverable"), bool):
-            return _claim(present=True, gap="ref_intent_payload_invalid", intent=intent)
-        if match is not None:
-            return _claim(present=True, gap="ref_intent_ambiguous")
-        match = path, intent, {}
-    if match:
-        path, intent, _ = match
-        return _advance_locked(
-            path,
-            intent,
-            phase=phase,
-            update=update,
-            operation=operation,
-        )
-    return _claim(present=bool(mismatch), gap=mismatch or "ref_intent_missing")
-
-
-def _advance_locked(
-    path: Path,
-    observed: dict[str, object],
-    *,
-    phase: Literal["issued", "prepared", "committed", "aborted", "recover", "retry"],
-    update: GitRefUpdate,
-    operation: str,
-) -> dict[str, object]:
+    match, mismatch, terminal = _select_intent(
+        directory,
+        ref_name=ref_name,
+        update=update,
+        operation=operation,
+        phase=phase,
+        plan_digest=plan_digest,
+    )
+    if terminal or not match:
+        return terminal or _claim(present=bool(mismatch), gap=mismatch or "ref_intent_missing")
+    path, intent = match
     with _IntentLock(path.with_suffix(".lock")):
         current = _read(path)
         if current is None:
             return _claim(present=False, gap="ref_intent_missing")
-        if _exact_identity(current) != _exact_identity(observed):
+        if current.nonce != intent.nonce:
             return _claim(present=True, gap="ref_intent_changed", intent=current)
-        if gap := _identity_gap(current, update=update, operation=operation):
-            return _claim(present=True, gap=gap, intent=current)
-        if not isinstance(current.get("recoverable"), bool):
-            return _claim(present=True, gap="ref_intent_payload_invalid", intent=current)
-        gap = _advance_intent(
-            path,
+        if gap := _identity_gap(
             current,
-            phase=phase,
-            retain=current["recoverable"] is True,
-        )
-        return _claim(present=True, gap=gap, intent=current)
+            update=update,
+            operation=operation,
+            plan_digest=plan_digest,
+        ):
+            return _claim(present=True, gap=gap, intent=current)
+        gap, result = _advance(path, current, phase)
+        return _claim(present=True, gap=gap, intent=result)
 
 
-def _reclaim_expired(
-    path: Path,
-    intent: Mapping[str, object],
+def _select_intent(
+    directory: Path,
     *,
-    requested_phase: str,
-) -> dict[str, object] | None:
-    with _IntentLock(path.with_suffix(".lock")):
-        current = _read(path)
-        if current != intent:
-            return _claim(present=True, gap="ref_intent_changed", intent=current)
-        path.unlink(missing_ok=True)
-    return (
-        None
-        if intent.get("phase") == "issued" and requested_phase == "issued"
-        else _claim(present=True, gap="ref_intent_stale", intent=intent)
-    )
+    ref_name: str,
+    update: GitRefUpdate,
+    operation: str,
+    phase: str,
+    plan_digest: str | None,
+) -> tuple[tuple[Path, _RefIntent] | None, str, dict[str, object] | None]:
+    match = None
+    mismatch = ""
+    now = datetime.now(UTC)
+    for path in sorted(directory.glob("*.json")):
+        intent = _read(path)
+        if intent is None:
+            _remove_invalid(path)
+            return match, mismatch, _claim(present=True, gap="ref_intent_payload_invalid")
+        if intent.ref_name != ref_name:
+            continue
+        if gap := _identity_gap(
+            intent, update=update, operation=operation, plan_digest=plan_digest
+        ):
+            mismatch = gap
+            continue
+        if now >= intent.expires_at and not (
+            phase == "recover" and intent.phase in {"prepared", "committed"}
+        ):
+            return match, mismatch, _reclaim_expired(path, intent)
+        if match:
+            return match, mismatch, _claim(present=True, gap="ref_intent_ambiguous")
+        match = path, intent
+    return match, mismatch, None
 
 
 def _identity_gap(
-    intent: Mapping[str, object],
+    intent: _RefIntent,
     *,
     update: GitRefUpdate,
     operation: str,
+    plan_digest: str | None,
 ) -> str:
-    if intent.get("old_value") != update.expected or intent.get("new_value") != update.desired:
-        return "ref_intent_mismatch"
-    return "ref_intent_operation_mismatch" if intent.get("operation") != operation else ""
+    checks = (
+        (
+            intent.old_value != update.expected or intent.new_value != update.desired,
+            "ref_intent_mismatch",
+        ),
+        (intent.operation != operation, "ref_intent_operation_mismatch"),
+        (bool(plan_digest and intent.plan_digest != plan_digest), "ref_intent_plan_mismatch"),
+    )
+    return next((gap for failed, gap in checks if failed), "")
+
+
+def committed_ref_intent(
+    *,
+    root: Path,
+    operation: str,
+    desired: str,
+    ref_name: str = "",
+) -> dict[str, object]:
+    """Return the sole committed plan-bound intent for one desired ref state."""
+    matches = []
+    for path in sorted(ref_intent_dir(root).glob("*.json")):
+        intent = _read(path)
+        if intent is None:
+            _remove_invalid(path)
+        elif (
+            (not ref_name or intent.ref_name == ref_name)
+            and intent.operation == operation
+            and intent.new_value == desired
+            and intent.phase == "committed"
+        ):
+            matches.append(intent)
+    return (
+        _claim(present=True, gap="", intent=matches[0])
+        if len(matches) == 1
+        else _claim(
+            present=bool(matches), gap="ref_intent_ambiguous" if matches else "ref_intent_missing"
+        )
+    )
 
 
 def clear_ref_intent(root: Path, nonce: str) -> None:
@@ -270,130 +263,81 @@ def sweep_stale_ref_intents(root: Path, *, now: datetime | None = None) -> list[
     if not directory.is_dir():
         return []
     moment = now or datetime.now(UTC)
-    swept: list[str] = []
+    swept = []
     for path in sorted(directory.glob("*.json")):
         with _IntentLock(path.with_suffix(".lock")):
             intent = _read(path)
-            if intent is None or (_expired(intent, now=moment) and not _retained_prepared(intent)):
+            if intent is None or (moment >= intent.expires_at and intent.phase == "issued"):
                 path.unlink(missing_ok=True)
                 swept.append(path.stem)
     return swept
 
 
-def _require_operation(operation: str) -> None:
-    if (
-        not operation
-        or operation != operation.strip()
-        or operation.startswith(".")
-        or operation.endswith(".")
-        or ".." in operation
-        or set(operation) - _OPERATION_PARTS
-    ):
-        message = f"ref_intent_operation_unknown:{operation}"
-        raise ValueError(message)
-
-
-def _advance_intent(
+def _advance(
     path: Path,
-    intent: dict[str, object],
-    *,
-    phase: Literal["issued", "prepared", "committed", "aborted", "recover", "retry"],
-    retain: bool,
-) -> str:
-    current = intent.get("phase")
-    if phase in {"issued", "prepared"}:
-        return _advance_initial(path, intent, phase=phase)
-    if phase == "retry":
-        return _retry_intent(path, intent)
-    if phase == "aborted":
-        return _abort_intent(path, current=current, retain=retain)
-    if phase == "recover":
-        if current == "prepared" and retain:
-            intent["phase"] = "committed"
-            _store(path, intent)
-        elif current != "committed":
-            return "ref_intent_not_committed"
-    elif current == "committed" and retain:
-        return ""
-    elif current != "prepared":
-        return "ref_intent_not_prepared"
-    elif retain:
-        intent["phase"] = "committed"
-        _store(path, intent)
-    else:
-        path.unlink(missing_ok=True)
-    return ""
-
-
-def _abort_intent(path: Path, *, current: object, retain: bool) -> str:
-    if current == "committed":
-        return "" if retain else "ref_intent_not_prepared"
-    if current not in {"issued", "prepared"}:
-        return "ref_intent_not_prepared"
-    path.unlink(missing_ok=True)
-    return ""
-
-
-def _retry_intent(path: Path, intent: dict[str, object]) -> str:
-    if intent.get("phase") == "issued":
-        return ""
-    if not _retained_prepared(intent):
-        return "ref_intent_not_prepared"
-    now = datetime.now(UTC)
-    intent.update(
-        phase="issued",
-        created_at=now.isoformat(),
-        expires_at=(now + _INTENT_TTL).isoformat(),
-    )
-    _store(path, intent)
-    return ""
-
-
-def _advance_initial(
-    path: Path,
-    intent: dict[str, object],
-    *,
-    phase: Literal["issued", "prepared"],
-) -> str:
-    current = intent.get("phase")
-    if phase == "issued":
-        return "" if current == "issued" else "ref_intent_not_issued"
-    if current in {"prepared", "committed"}:
-        return ""
-    if current != "issued":
-        return "ref_intent_reused"
+    intent: _RefIntent,
+    phase: Literal["prepared", "committed", "aborted", "recover"],
+) -> tuple[str, _RefIntent]:
+    if phase in {"committed", "recover"}:
+        return _set_phase(path, intent, source="prepared", target="committed")
     if phase == "prepared":
-        intent["phase"] = "prepared"
-        _store(path, intent)
-    return ""
+        return _set_phase(path, intent, source="issued", target="prepared")
+    if intent.phase == "committed":
+        return "", intent
+    if intent.phase not in {"issued", "prepared"}:
+        return "ref_intent_not_prepared", intent
+    path.unlink(missing_ok=True)
+    return "", intent
 
 
-def _read(path: Path) -> dict[str, object] | None:
+def _set_phase(
+    path: Path,
+    intent: _RefIntent,
+    *,
+    source: Literal["issued", "prepared"],
+    target: Literal["prepared", "committed"],
+) -> tuple[str, _RefIntent]:
+    if intent.phase == target:
+        return "", intent
+    if intent.phase != source:
+        return ("ref_intent_reused" if target == "prepared" else "ref_intent_not_prepared"), intent
+    updated = intent.model_copy(update={"phase": target})
+    _store(path, updated)
+    return "", updated
+
+
+def _reclaim_expired(path: Path, intent: _RefIntent) -> dict[str, object]:
+    with _IntentLock(path.with_suffix(".lock")):
+        current = _read(path)
+        if current is None or current.nonce != intent.nonce:
+            return _claim(present=True, gap="ref_intent_changed", intent=current)
+        path.unlink(missing_ok=True)
+    return _claim(present=True, gap="ref_intent_stale", intent=intent)
+
+
+def _remove_invalid(path: Path) -> None:
+    with _IntentLock(path.with_suffix(".lock")):
+        if _read(path) is None:
+            path.unlink(missing_ok=True)
+
+
+def _read(path: Path) -> _RefIntent | None:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+        return _RefIntent.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return None
-    return payload if isinstance(payload, dict) else None
 
 
-def _expired(intent: Mapping[str, object], *, now: datetime) -> bool:
-    if intent.get("phase") == "committed":
-        return False
-    try:
-        expires = datetime.fromisoformat(str(intent["expires_at"]))
-    except (KeyError, TypeError, ValueError):
-        return True
-    return expires.tzinfo is None or now >= expires
+def _intent_key(intent: _RefIntent) -> str:
+    return canonical_json_digest(
+        intent.model_dump(mode="json", exclude={"nonce", "phase", "created_at", "expires_at"})
+    )
 
 
-def _retained_prepared(intent: Mapping[str, object]) -> bool:
-    return intent.get("phase") == "prepared" and intent.get("recoverable") is True
-
-
-def _store(path: Path, intent: Mapping[str, object]) -> None:
+def _store(path: Path, intent: _RefIntent) -> None:
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{time.monotonic_ns()}.tmp")
     with temporary.open("x", encoding="utf-8") as stream:
-        json.dump(intent, stream, sort_keys=True, separators=(",", ":"))
+        stream.write(intent.model_dump_json())
         stream.flush()
         os.fsync(stream.fileno())
     temporary.replace(path)
@@ -403,18 +347,7 @@ def _claim(
     *,
     present: bool,
     gap: str,
-    intent: Mapping[str, object] | None = None,
+    intent: _RefIntent | None = None,
 ) -> dict[str, object]:
-    payload = intent or {}
-    return {
-        "present": present,
-        "gap": gap,
-        "schema_version": payload.get("schema_version"),
-        "operation": str(payload.get("operation") or ""),
-        "ref_name": str(payload.get("ref_name") or ""),
-        "old_value": str(payload.get("old_value") or ""),
-        "new_value": str(payload.get("new_value") or ""),
-        "nonce": str(payload.get("nonce") or ""),
-        "phase": str(payload.get("phase") or ""),
-        "recoverable": payload.get("recoverable") is True,
-    }
+    empty = dict.fromkeys(_RefIntent.model_fields, "")
+    return {"present": present, "gap": gap, **(intent.model_dump(mode="json") if intent else empty)}

@@ -170,7 +170,7 @@ class AdmissionDecision(BaseModel):
         blocked_actions: tuple[str, ...],
         why: tuple[str, ...],
     ) -> dict[str, object]:
-        """Return a reader-only preview that cannot be replayed as admission."""
+        """Return a reader-only preview that cannot authorize admission."""
         if not action or not resource:
             msg = "action preview requires action and resource"
             raise ValueError(msg)

@@ -18,6 +18,34 @@ def ref_worktree_paths(worktrees: list[dict[str, object]], branch: str) -> tuple
     )
 
 
+def _worktree_content_gap(path: Path, previous: str) -> str:
+    indexed_diff = run_git(path, "diff-index", "--cached", "--quiet", previous, "--", check=False)
+    worktree_diff = run_git(
+        path,
+        "diff-files",
+        "--quiet",
+        "--ignore-submodules",
+        "--",
+        check=False,
+    )
+    untracked = run_git(
+        path,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
+        check=False,
+        text=False,
+    )
+    if any(command.returncode not in {0, 1} for command in (indexed_diff, worktree_diff)) or (
+        untracked.returncode
+    ):
+        return "worktree_status_unreadable"
+    if indexed_diff.returncode:
+        return "worktree_index_mismatch"
+    return "worktree_dirty" if worktree_diff.returncode or untracked.stdout else ""
+
+
 def worktree_sync_gap(
     root: Path,
     paths: tuple[Path, ...],
@@ -52,23 +80,8 @@ def worktree_sync_gap(
             or current_tracked_head(path) != ref_head
         ):
             return "worktree_binding_stale"
-        commands = (
-            run_git(path, "diff-index", "--cached", "--quiet", previous, "--", check=False),
-            run_git(path, "diff-files", "--quiet", "--ignore-submodules", "--", check=False),
-            run_git(
-                path,
-                "ls-files",
-                "--others",
-                "--exclude-standard",
-                "-z",
-                check=False,
-                text=False,
-            ),
-        )
-        if any(command.returncode for command in commands):
-            return "worktree_status_unreadable"
-        if commands[2].stdout:
-            return "worktree_dirty"
+        if content_gap := _worktree_content_gap(path, previous):
+            return content_gap
         indexed = run_git(path, "ls-files", "-v", "-z", check=False, text=False)
         ignored = run_git(
             path,
@@ -106,26 +119,23 @@ def sync_ref_worktrees(
     previous: str,
 ) -> dict[str, object]:
     """Synchronize every pre-admitted clean worktree after one ref CAS."""
-    outcomes: list[dict[str, str]] = []
+    outcomes = []
     for path in paths:
         gap = worktree_sync_gap(root, (path,), branch, head, previous, head)
         update = (
             run_git(path, "read-tree", "-u", "-m", previous, head, check=False) if not gap else None
         )
         post_gap = worktree_sync_gap(root, (path,), branch, head, head, head) if update else gap
-        state = "failed" if update is None or update.returncode or post_gap else "synced"
         outcomes.append(
             {
                 "path": path.as_posix(),
-                "state": state,
+                "state": "failed" if update is None or update.returncode or post_gap else "synced",
                 "status": post_gap,
                 "stderr": gap or (update.stderr.strip() if update else ""),
             }
         )
     return {
-        "worktree_sync": "failed"
-        if any(item["state"] == "failed" for item in outcomes)
-        else "synced",
+        "worktree_sync": "failed" if any(x["state"] == "failed" for x in outcomes) else "synced",
         "worktrees": outcomes,
     }
 

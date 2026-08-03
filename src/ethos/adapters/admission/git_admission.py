@@ -330,6 +330,8 @@ def ref_move_admission_report(
         if mirror
         else "candidate.accept"
         if branch == policy.accepted_branch
+        else "candidate.bootstrap"
+        if branch == policy.candidate_branch and old_value in _ZERO_OIDS
         else "candidate.refresh"
         if branch == policy.candidate_branch
         and commit_contained_in(repo, new_value, policy.accepted_branch)

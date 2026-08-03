@@ -147,7 +147,7 @@ changing intent cannot deadlock or mutate an existing Commitment.
 - [x] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
   decision ledgers, lifecycle read models, and current Claim/Chronicle/proof
   authorization; retain required bytes only as non-authorizing history.
-- [ ] 3.3 Keep every Git effect idempotent and exact-CAS; replay exists only as
+- [x] 3.3 Keep every Git effect idempotent and exact-CAS; replay exists only as
   explicit analysis outside admission.
 - [ ] 3.4 Replace the coupling registry/runtime with positive native-owner
   declarations while preserving prewrite rejection of undeclared imports,

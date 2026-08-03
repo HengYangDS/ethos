@@ -39,8 +39,7 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                     "gap": gap,
                     "kind": "lane_overlap",
                     "next_action": (
-                        "move or replay the verified head through "
-                        f"the legitimate leased lane {branch}"
+                        f"move the verified head through the legitimate leased lane {branch}"
                     ),
                 }
             )

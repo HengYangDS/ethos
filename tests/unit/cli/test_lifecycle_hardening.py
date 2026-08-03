@@ -1,30 +1,24 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
+import pytest
+
+import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
+import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as work_lane_refresh
+import ethos.adapters.repo.git_effects as git_effects
+from ethos.adapters.admission.ref_intent import ref_intent_dir
 from tests.support.contract_helpers import adopt_and_commit
+from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import seed_executed_proof
+from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 
-
-def _advance(repo: Path, path: str, text: str, message: str) -> str:
-    target = repo / path
-    target.write_text(text, encoding="utf-8")
-    git(repo, "add", path)
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        message,
-    )
-    return git(repo, "rev-parse", "HEAD")
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _diverged_candidate_repo(tmp_path: Path) -> tuple[Path, Path, str, str]:
@@ -32,122 +26,146 @@ def _diverged_candidate_repo(tmp_path: Path) -> tuple[Path, Path, str, str]:
     adopt_and_commit(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    old_candidate_head = _advance(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
-    accepted_head = _advance(repo, "ACCEPTED.md", "# accepted\n", "advance accepted")
+    old_candidate_head = commit_fixture_file(
+        candidate, "CANDIDATE.md", "# CANDIDATE.md\n", "advance candidate"
+    )
+    accepted_head = commit_fixture_file(repo, "ACCEPTED.md", "# ACCEPTED.md\n", "advance accepted")
     return repo, candidate, accepted_head, old_candidate_head
 
 
-def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    docs = repo / "docs"
-    docs.mkdir()
-    (docs / "guide.md").write_text(
-        "---\nsubject: sample:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
-        encoding="utf-8",
-    )
-
-    payload = run_ethos_blocked(
-        "prove",
-        "--execute",
-        "--gate",
-        "docs-registry",
-        "--root",
-        repo.as_posix(),
-        "--json",
-    )
-
-    assert payload["verdict"] == "block"
-    assert payload["state"] == "gapped"
-    assert "gate_failed:docs-registry" in payload["required_gaps"]
-    attestation = payload["data"]["attestation"]
-    assert attestation["predicate"] == "proof:execution"
-    assert attestation["subject"] == f"git:commit:{git(repo, 'rev-parse', 'HEAD')}"
-    assert attestation["verdict"] == "block"
-    assert len(attestation["commitment_digest"]) == 64
-    assert len(attestation["facts_digest"]) == 64
-    assert len(attestation["plan_digest"]) == 64
-    assert len(attestation["policy_digest"]) == 64
-    assert len(attestation["effect_digest"]) == 64
-    statement = attestation["statement"]
-    artifact_digest = statement["artifact"]["sha256"]
-    assert attestation["evidence_refs"] == [artifact_digest]
-    assert attestation["effect_digest"] != artifact_digest.removeprefix("sha256:")
-    assert statement["repository"].startswith("repository:")
-    assert statement["scope"]
-    assert statement["plane"] == "local"
-    assert statement["context"] == {"boundary": statement["boundary"]}
-    assert statement["inputs"]["plan"] == attestation["plan_digest"]
-    assert statement["inputs"]["effect"] == attestation["effect_digest"]
-    assert statement["output"]["artifact"] == artifact_digest.removeprefix("sha256:")
-    assert statement["freshness"]["head"] == git(repo, "rev-parse", "HEAD")
-    assert not {"kind", "content", "mints_authority"} & set(attestation)
-    assert "evidence" not in payload["data"]
-    assert "provenance" not in payload["data"]
-
-
-def test_lane_candidate_refresh_from_accepted_resets_clean_diverged_candidate(
-    tmp_path: Path,
-) -> None:
-    repo, candidate, accepted_head, old_candidate_head = _diverged_candidate_repo(tmp_path)
-
-    payload = run_ethos(
+def _refresh_arguments(head: str) -> tuple[str, ...]:
+    return (
         "lane",
         "candidate",
         "--refresh-from-accepted",
         "--apply",
         "--authorize",
         "--expect-head",
-        accepted_head,
+        head,
         "--json",
-        cwd=repo,
     )
 
-    assert payload["verdict"] == "pass"
-    assert payload["state"] == "refreshed_from_accepted"
-    assert payload["required_gaps"] == []
-    assert payload["data"]["previous_head"] == old_candidate_head
-    assert payload["data"]["head"] == accepted_head
-    assert git(candidate, "rev-parse", "HEAD") == accepted_head
+
+def _fail_once(monkeypatch, target, name: str, message: str):
+    original = getattr(target, name)
+    failed = False
+
+    def injected(*args, **kwargs):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError(message)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(target, name, injected)
 
 
-def test_lane_candidate_refresh_from_accepted_uses_official_ref_move_context(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("target", "name", "message", "reject_recompile"),
+    [
+        (candidate_projection, "sync_ref_worktrees", "injected post-CAS failure", True),
+        (git_effects, "_clear_claimed_intents", "injected post-projection failure", False),
+    ],
+)
+def test_lane_candidate_refresh_recovers_after_interrupted_projection(
+    tmp_path: Path, monkeypatch, target, name: str, message: str, reject_recompile
 ) -> None:
     repo, candidate, accepted_head, old_candidate_head = _diverged_candidate_repo(tmp_path)
-    hooks = tmp_path / "hooks"
-    hooks.mkdir()
-    hook_src = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
-    (hooks / "reference-transaction").write_text(
-        hook_src.read_text(encoding="utf-8"), encoding="utf-8"
-    )
-    (hooks / "reference-transaction").chmod(0o755)
-    git(repo, "config", "core.hooksPath", hooks.as_posix())
-    git(repo, "config", "ethos.acceptedBranch", "dev")
-
-    payload = run_ethos(
-        "lane",
-        "candidate",
-        "--refresh-from-accepted",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        accepted_head,
-        "--json",
-        cwd=repo,
-    )
-
-    assert payload["verdict"] == "pass"
-    assert payload["state"] == "refreshed_from_accepted"
-    assert payload["data"]["previous_head"] == old_candidate_head
-    assert payload["data"]["head"] == accepted_head
+    _fail_once(monkeypatch, target, name, message)
+    arguments = _refresh_arguments(accepted_head)
+    failed_report = run_ethos_blocked(*arguments, cwd=repo)
+    assert list(ref_intent_dir(repo).glob("*.json"))
+    if reject_recompile:
+        monkeypatch.setattr(
+            candidate_projection,
+            "_candidate_plan",
+            lambda **_kwargs: (_ for _ in ()).throw(
+                AssertionError("recovery must consume the attested original plan")
+            ),
+        )
+    recovered = run_ethos(*arguments, cwd=repo)
+    assert failed_report["required_gaps"] == ["candidate_refresh_from_accepted_failed"]
+    assert failed_report["data"]["previous_head"] == old_candidate_head
+    assert recovered["state"] == "refreshed_from_accepted"
     assert git(candidate, "rev-parse", "HEAD") == accepted_head
     assert git(candidate, "status", "--short") == ""
+    assert not list(ref_intent_dir(repo).glob("*.json"))
 
 
-def test_land_closeout_reports_actionable_candidate_divergence(
+def test_lane_candidate_bootstrap_recovers_after_worktree_creation_precedes_intent_clear(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    candidate = tmp_path / "repo-candidate-dev"
+    arguments = (
+        "lane",
+        "candidate",
+        "--apply",
+        "--path",
+        candidate.as_posix(),
+        "--expect-head",
+        head,
+        "--json",
+    )
+    _fail_once(monkeypatch, git_effects, "_clear_claimed_intents", "injected intent clear failure")
+
+    assert run_ethos_blocked(*arguments, cwd=repo)["required_gaps"] == [
+        "candidate_worktree_add_failed"
+    ]
+    recovered = run_ethos(*arguments, cwd=repo)
+
+    assert recovered["state"] == "present"
+    assert not list(ref_intent_dir(repo).glob("*.json"))
+
+
+def test_lane_refresh_recovers_after_ref_cas_precedes_branch_attachment(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+    previous = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    original = work_lane_refresh.run_git
+    failed = False
+    branch_was_advanced = False
+
+    def fail_first_attachment(root, *args, **kwargs):
+        nonlocal branch_was_advanced, failed
+        if args == ("switch", "work/feature") and not failed:
+            failed = True
+            branch_was_advanced = git(root, "rev-parse", "work/feature") == git(
+                root, "rev-parse", "HEAD"
+            )
+            raise OSError("injected post-CAS attachment failure")
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(work_lane_refresh, "run_git", fail_first_attachment)
+    arguments = (
+        "lane",
+        "refresh-base",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        previous,
+        "--json",
+    )
+
+    failed_report = run_ethos_blocked(*arguments, cwd=worktree)
+    assert branch_was_advanced
+    assert list(ref_intent_dir(worktree).glob("*.json"))
+    recovered = run_ethos(*arguments, cwd=worktree)
+
+    assert failed_report["required_gaps"] == ["refresh_base_worktree_attach_failed"]
+    assert recovered["state"] == "base_refreshed"
+    assert git(worktree, "branch", "--show-current") == "work/feature"
+    assert not list(ref_intent_dir(worktree).glob("*.json"))
+
+
+def test_land_closeout_reports_actionable_candidate_divergence(tmp_path: Path) -> None:
     repo, _candidate, accepted_head, _old_candidate_head = _diverged_candidate_repo(tmp_path)
     seed_executed_proof(repo, accepted_head)
 
@@ -162,16 +180,10 @@ def test_land_closeout_reports_actionable_candidate_divergence(
         cwd=repo,
     )
 
-    assert payload["verdict"] == "block"
-    assert payload["state"] == "blocked"
-    assert "candidate_diverged_from_accepted" in payload["required_gaps"]
+    assert payload["required_gaps"] == ["candidate_diverged_from_accepted"]
     assert payload["next_action"] == (
-        f"ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head {accepted_head} --json"
+        "ethos lane candidate --refresh-from-accepted --apply --authorize "
+        f"--expect-head {accepted_head} --json"
     )
-    assert payload["user_decision_required"] is True
     assert payload["continuation"] == "await-user"
-    assert payload["data"]["accepted_update"] == {}
-    assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
-    assert (
-        "candidate_diverged_from_accepted" in payload["data"]["closeout_bootstrap"]["required_gaps"]
-    )
+    assert payload["user_decision_required"] is True

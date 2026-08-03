@@ -180,7 +180,7 @@ def persist_rebind_attestation(repo: Path, effect: GitEffect, attestation: Attes
     )
 
 
-def replayed_rebind_attestation(
+def recognized_rebind_attestation(
     repo: Path,
     request: CommitmentRebindRequest,
     effect: GitEffect,
@@ -202,11 +202,11 @@ def replayed_rebind_attestation(
         {"git": "applied", "lease": "epoch_advanced"},
         {"git": "recovered", "lease": "epoch_advanced"},
     ):
-        message = "commitment_rebind_replay_mismatch"
+        message = "commitment_rebind_terminal_mismatch"
         raise ValueError(message)
     git_state = result.get("git")
     if not isinstance(git_state, str):
-        message = "commitment_rebind_replay_mismatch"
+        message = "commitment_rebind_terminal_mismatch"
         raise TypeError(message)
     try:
         expected = issue_rebind_attestation(
@@ -219,10 +219,10 @@ def replayed_rebind_attestation(
             issued_at=attestation.issued_at,
         )
     except ValueError as error:
-        message = "commitment_rebind_replay_mismatch"
+        message = "commitment_rebind_terminal_mismatch"
         raise ValueError(message) from error
     if ref_head(repo, request.branch) != request.target_commit or attestation != expected:
-        message = "commitment_rebind_replay_mismatch"
+        message = "commitment_rebind_terminal_mismatch"
         raise ValueError(message)
     return attestation
 

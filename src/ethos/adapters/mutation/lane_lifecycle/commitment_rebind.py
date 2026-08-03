@@ -15,7 +15,7 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     persist_rebind_attestation,
 )
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
-    replayed_rebind_attestation,
+    recognized_rebind_attestation,
 )
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
@@ -41,6 +41,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 
 
 def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -> dict[str, object]:
-    """Apply, recover, or replay one exact Commitment/Lease transition."""
+    """Apply, recover, or recognize one exact Commitment/Lease transition."""
     repo = repository_root(root)
     effect = GitEffect(
         updates={
@@ -64,7 +65,7 @@ def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -
         _admit_request(repo, request)
         if integer_value(lease.get("epoch")) == request.expected_epoch:
             _admit_old_generation(request, lease)
-        replay_plan = _plan(
+        terminal_plan = _plan(
             repo,
             request,
             old_generation(request),
@@ -72,10 +73,10 @@ def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -
             request.expected_commitment_digest,
             request.expected_working_overlay_sha256,
         )
-        replayed = replayed_rebind_attestation(repo, request, effect, lease, replay_plan)
-        if replayed is not None:
-            execute_git_effect(repo, replay_plan, issuer=request.holder_ref)
-            return _report(request, lease, replayed, "replayed")
+        recognized = recognized_rebind_attestation(repo, request, effect, lease, terminal_plan)
+        if recognized is not None:
+            execute_git_effect(repo, terminal_plan, issuer=request.holder_ref)
+            return _report(request, lease, recognized, "recognized")
         if _is_target_generation(request, lease):
             return _attest_recovered(repo, request, effect, lease)
         _require_not_partial_target(request, lease)
@@ -321,6 +322,7 @@ def _plan(
         },
         values={
             "lease_generation": lease_generation(lease),
+            "lease_successor": _target_generation(request),
             "index_tree": request.expect_index_tree,
             "working_overlay_sha256": overlay_sha256,
             "new_commitment_path": request.new_commitment_path,
@@ -328,6 +330,20 @@ def _plan(
             "new_commitment_digest": request.new_commitment_digest,
         },
     )
+
+
+def _target_generation(request: CommitmentRebindRequest) -> dict[str, object]:
+    target = old_generation(request) | {
+        "epoch": request.expected_epoch + 1,
+        "expected_head": request.target_commit,
+        "expected_tree": request.expect_index_tree,
+        "base_commitment_path": request.new_commitment_path,
+        "base_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
+        "base_commitment_digest": request.new_commitment_digest,
+    }
+    generation = lease_generation(target)
+    generation.pop("payload_sha256")
+    return mutable_json(generation)
 
 
 def _lease_request(request: CommitmentRebindRequest) -> LeaseOperationRequest:
@@ -353,25 +369,10 @@ def _is_target_generation(
         return False
     if any(lease.get(name) != payload.get(name) for name in LaneLease.model_fields):
         return False
-    try:
-        generation = old_generation(request)
-        old_lease = LaneLease.from_payload(
-            {name: generation[name] for name in LaneLease.model_fields}
-        )
-    except (TypeError, ValueError):
-        return False
-    target = old_lease.model_copy(
-        update={
-            "epoch": request.expected_epoch + 1,
-            "expected_head": request.target_commit,
-            "expected_tree": request.expect_index_tree,
-            "base_commitment_path": request.new_commitment_path,
-            "base_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
-            "base_commitment_digest": request.new_commitment_digest,
-            "handoff": None,
-        }
+    target = _target_generation(request)
+    return lease.get("lease_state") == "valid" and all(
+        lease_generation(lease).get(name) == value for name, value in target.items()
     )
-    return lease.get("lease_state") == "valid" and payload == target.to_payload()
 
 
 def _require_not_partial_target(

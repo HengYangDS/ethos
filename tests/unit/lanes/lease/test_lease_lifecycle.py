@@ -1020,7 +1020,7 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
         target_holder,
         int(offer["epoch"]) + 1,
     )
-    replay = execute_lease_operation(
+    repeated = execute_lease_operation(
         root=fixture.worktree,
         request=_lease_request(
             operation="handoff_accept",
@@ -1033,10 +1033,10 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
             holder_quiesced=True,
         ),
     )
-    assert replay["verdict"] == "block"
-    assert "ok" not in replay
-    assert replay["mutation"]["decision"]["verdict"] == replay["verdict"]
-    assert any("lease_holder_mismatch" in gap for gap in replay["required_gaps"])
+    assert repeated["verdict"] == "block"
+    assert "ok" not in repeated
+    assert repeated["mutation"]["decision"]["verdict"] == repeated["verdict"]
+    assert any("lease_holder_mismatch" in gap for gap in repeated["required_gaps"])
 
 
 def test_lease_effect_rejects_unknown_and_non_applying_requests_without_mutation(

@@ -332,6 +332,15 @@ Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashbo
 - **AND** ETHOS does not claim cross-store atomicity or silently choose among
   duplicate legacy leases.
 
+#### Scenario: candidate ref and worktree projection fail between boundaries
+
+- **WHEN** candidate bootstrap or refresh completes its exact ref CAS but the
+  linked worktree creation or synchronization is interrupted
+- **THEN** the next identical authorized invocation recognizes the attested CAS
+  and completes only the missing Git worktree projection
+- **AND** an unproven dirty candidate worktree remains blocked and is never
+  overwritten as recovery.
+
 #### Scenario: legacy adoption and cleanup resist replay
 
 - **GIVEN** a legacy or recreated lane lacks trusted normalized state

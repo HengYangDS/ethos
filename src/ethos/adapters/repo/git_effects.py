@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -36,6 +37,8 @@ def execute_git_effect(
     *,
     issuer: str,
     environment: Mapping[str, str] | None = None,
+    projection: Callable[[], None] | None = None,
+    detached_branch: str = "",
 ) -> Attestation:
     """Recognize, execute, or recover one exact Git ref transaction."""
     effect = git_effect_from_plan(plan)
@@ -45,7 +48,17 @@ def execute_git_effect(
         ethos.adapters.repo.git_effect_attestation.validate(
             root, effect, attestation, issuer=issuer, plan=plan
         )
-        _clear_effect_intents(root, plan, effect)
+        _require_live_lease(
+            root,
+            plan,
+            environment=environment,
+            detached_branch=detached_branch,
+            recovering=True,
+        )
+        intents = _claim_effect_intents(
+            root, plan, effect, phase="recover", missing_ok=projection is None
+        )
+        _project_and_clear(root, intents, projection)
         return attestation
     observed = observe_git_effect(root, effect, environment=environment)
     refs = cast("dict[str, str]", observed["refs"])
@@ -55,14 +68,26 @@ def execute_git_effect(
     if observed["assertions"] != effect.assertions:
         raise ValueError("git_effect_cas_mismatch")
     if recovering:
-        _require_live_lease(root, plan, environment=environment)
+        _require_live_lease(
+            root,
+            plan,
+            environment=environment,
+            detached_branch=detached_branch,
+            recovering=True,
+        )
     intents: list[dict[str, object]] = []
     applied = False
     try:
         if recovering:
             intents = _claim_effect_intents(root, plan, effect, phase="recover")
         else:
-            _require_plan_prestate(root, plan, effect, environment=environment)
+            _require_plan_prestate(
+                root,
+                plan,
+                effect,
+                environment=environment,
+                detached_branch=detached_branch,
+            )
             repository = resolve_git_effect_repository(
                 root, effect, observed, environment=environment
             )
@@ -98,8 +123,7 @@ def execute_git_effect(
             ),
         )
         ethos.adapters.repo.git_effect_attestation.records(root, plan, attestation)
-        for claimed in intents:
-            clear_ref_intent(root, str(claimed["nonce"]))
+        _project_and_clear(root, intents, projection)
         return attestation
     finally:
         if not applied and not recovering:
@@ -125,7 +149,7 @@ def _claim_effect_intents(
                         ref_name=ref_name,
                         update=update,
                         operation=operation,
-                        recoverable=True,
+                        plan_digest=plan.digest,
                     )
                 )
             current = claim_ref_intent(
@@ -134,6 +158,7 @@ def _claim_effect_intents(
                 update=update,
                 operation=operation,
                 phase=phase,
+                plan_digest=plan.digest,
             )
             if missing_ok and current["gap"] == "ref_intent_missing":
                 continue
@@ -149,15 +174,17 @@ def _claim_effect_intents(
     return claimed
 
 
-def _clear_effect_intents(root: Path, plan: TransitionPlan, effect: GitEffect) -> None:
-    for intent in _claim_effect_intents(
-        root,
-        plan,
-        effect,
-        phase="recover",
-        missing_ok=True,
-    ):
+def _clear_claimed_intents(root: Path, intents: list[dict[str, object]]) -> None:
+    for intent in intents:
         clear_ref_intent(root, str(intent["nonce"]))
+
+
+def _project_and_clear(
+    root: Path, intents: list[dict[str, object]], projection: Callable[[], None] | None
+) -> None:
+    if projection:
+        projection()
+    _clear_claimed_intents(root, intents)
 
 
 def _raise_intent_gap(
@@ -246,6 +273,7 @@ def _require_plan_prestate(
     effect: GitEffect,
     *,
     environment: Mapping[str, str] | None = None,
+    detached_branch: str = "",
 ) -> None:
     """Reject a carried plan whose exact mutation facts have gone stale."""
     values = plan.facts.get("values")
@@ -254,7 +282,12 @@ def _require_plan_prestate(
     if facts.get("refs") != expected_refs or facts.get("assertions") != effect.assertions:
         message = "git_effect_plan_prestate_mismatch"
         raise ValueError(message)
-    _require_live_lease(root, plan, environment=environment)
+    _require_live_lease(
+        root,
+        plan,
+        environment=environment,
+        detached_branch=detached_branch,
+    )
     head = str(plan.facts.get("head") or "")
     tree = str(plan.facts.get("tree") or "")
     current = current_tracked_head(root)
@@ -276,6 +309,8 @@ def _require_live_lease(
     plan: TransitionPlan,
     *,
     environment: Mapping[str, str] | None = None,
+    detached_branch: str = "",
+    recovering: bool = False,
 ) -> None:
     values = plan.facts.get("values")
     facts = values if isinstance(values, Mapping) else {}
@@ -286,10 +321,29 @@ def _require_live_lease(
             root,
             object_environment=dict(environment or {}),
         ).get(branch, {})
+        live = lease_generation(current)
+        stable = ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
+        recovery_match = recovering and all(generation.get(key) == live.get(key) for key in stable)
+        successor = facts.get("lease_successor")
+        if isinstance(successor, Mapping):
+            recovery_match = (
+                recovery_match
+                and set(successor) == set(live) - {"payload_sha256"}
+                and all(
+                    mutable_json(live.get(key)) == mutable_json(value)
+                    for key, value in successor.items()
+                )
+            )
+        else:
+            recovery_match = recovery_match and (
+                generation.get("epoch") == live.get("epoch")
+                and live.get("expected_head")
+                in {generation.get("expected_head"), plan.facts.get("head")}
+            )
         if (
             current.get("lease_state") != "valid"
             or current.get("commitment_binding") != "bound"
-            or mutable_json(generation) != mutable_json(lease_generation(current))
+            or not (mutable_json(generation) == mutable_json(live) or recovery_match)
         ):
             message = "git_effect_lease_generation_stale"
             raise ValueError(message)
@@ -306,8 +360,13 @@ def _require_live_lease(
             if run_git(root, "branch", "--show-current").stdout.strip():
                 message = "git_effect_lease_branch_mismatch"
                 raise ValueError(message)
-        elif operation != "lane.start.compensate" and run_git(
-            root, "branch", "--show-current"
-        ).stdout.strip() != str(plan.policy.get("execution_branch") or branch):
-            message = "git_effect_lease_branch_mismatch"
-            raise ValueError(message)
+        elif operation != "lane.start.compensate":
+            execution_branch = str(plan.policy.get("execution_branch") or branch)
+            attached_branch = run_git(root, "branch", "--show-current").stdout.strip()
+            if attached_branch != execution_branch and not (
+                detached_branch == execution_branch
+                and not attached_branch
+                and current_tracked_head(root) == str(plan.facts.get("head") or "")
+            ):
+                message = "git_effect_lease_branch_mismatch"
+                raise ValueError(message)

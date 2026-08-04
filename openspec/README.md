@@ -5,11 +5,12 @@ official OpenSpec workspace model with repository guardrails for proposal
 intent, Commitment binding, active-carrier observation, and self-profile
 authoring.
 
-OpenSpec is the selected native carrier for the ETHOS self profile, but it is
-neither mandatory for adopters nor a second ETHOS public command plane. The
-official OpenSpec CLI owns workspace authoring, validation, and archival;
-ETHOS consumes official active-carrier observations in `status`, `plan`,
-`prove`, and `land` without re-exposing or predicting those operations.
+OpenSpec is the selected native carrier for the ETHOS self profile and every
+mutation-capable adopter, but it is not part of the vendor-neutral semantic
+kernel or a second ETHOS public command plane. Observation-only repositories may
+omit it. The official OpenSpec CLI owns workspace authoring, validation, and
+archival; ETHOS consumes official active-carrier observations in `status`,
+`plan`, `prove`, and `land` without re-exposing or predicting those operations.
 
 ## Product Protocol
 
@@ -34,6 +35,13 @@ case = Commitment + proposal + design + tasks + spec deltas
 Every non-trivial self-profile governance mutation should have one selected
 active Change. A completed Change remains active and blocks integration until
 the owner-native archive operation removes it from official active state.
+
+A Campaign is reconstructed from a dependency graph of Changes; it has no
+parallel task or progress carrier. Each Change owns one independently landable
+semantic outcome and one short Work Lane. `Commitment.dependencies` names its
+accepted prerequisites. Create a successor only when those prerequisites are
+accepted; do not keep unrelated outcomes open in one Change or pre-create a
+forest of speculative carriers.
 
 ## Proof
 

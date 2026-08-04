@@ -198,12 +198,12 @@ def test_product_references_use_positive_native_owner_closure() -> None:
     assert repository_product_reference_gaps(ROOT) == []
 
 
-def test_declared_surface_carriers_and_active_openspec_are_scanned() -> None:
+def test_declared_surface_carriers_include_active_openspec_and_exclude_history() -> None:
     roots = set(declared_product_surface_roots(ROOT))
-    assert {"src/ethos", ".agents/skills", "distributions"} <= roots
+    assert {"src/ethos", ".agents/skills", "distributions", "openspec/changes"} <= roots
     assert not {"sdks/typescript", "scaffolds", "extensions"} & roots
     scanned = {path.relative_to(ROOT).as_posix() for path in declared_product_surface_files(ROOT)}
-    assert any(path.startswith("openspec/changes/terminal-convergence/") for path in scanned)
+    assert not any(path.startswith("openspec/changes/archive/") for path in scanned)
 
 
 def test_attestation_carrier_is_current_and_legacy_evidence_is_historical() -> None:

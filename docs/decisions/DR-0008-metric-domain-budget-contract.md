@@ -11,7 +11,7 @@ relations:
 
 Status: superseded by the terminal owned-source contract in
 [Terminal Governance Product Design](../plans/terminal-governance-product-design.md)
-and `openspec/changes/terminal-convergence/specs/quality/spec.md`.
+and the accepted quality capability specification.
 
 Purpose: rule that repository budgets use versioned measures inside their native
 carrier and scope domains, retain ELOC for individual-file readability, and do

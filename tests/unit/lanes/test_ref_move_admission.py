@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.admission.git_admission as git_admission
 import ethos.adapters.admission.transitions as transitions
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
@@ -760,6 +761,47 @@ def test_ref_move_admission_blocks_proven_candidate_move_without_land_intent(
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["candidate_ref_move_no_ref_intent"]
+
+
+@pytest.mark.parametrize("branch", ["candidate/dev", "dev", "main"])
+def test_ref_move_policy_bootstraps_from_promoted_strict_control(
+    branch: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old, new, accepted = "a" * 40, "b" * 40, "c" * 40
+    policy = render_branch_policy(
+        release_branch="main",
+        accepted_branch="dev",
+        candidate_branch="candidate/dev",
+        work_branch_prefix="work/",
+        proposal_branch_prefix="proposal/",
+        release_mirror="accepted_ff",
+    )
+    legacy = policy.replace(
+        'proposal_branch_prefix = "proposal/"',
+        'submit_branch_prefix = "submit/"',
+    )
+    monkeypatch.setattr(
+        git_admission,
+        "committed_file_text",
+        lambda _repo, revision, _path: {old: legacy, new: policy, accepted: legacy}.get(
+            revision, ""
+        ),
+    )
+    monkeypatch.setattr(
+        git_admission,
+        "git_stdout",
+        lambda _repo, *_args: accepted,
+    )
+
+    resolved = git_admission.resolve_ref_move_policy(
+        Path(),
+        ref_name=f"refs/heads/{branch}",
+        old_value=old,
+        new_value=new,
+    )
+
+    assert resolved.proposal_branch_prefix == "proposal/"
 
 
 def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_path: Path) -> None:

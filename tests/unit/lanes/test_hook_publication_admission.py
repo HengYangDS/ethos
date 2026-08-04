@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import ethos.surface.cli.hook.commands as hook_commands
+from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -85,22 +86,7 @@ def test_committed_ref_move_report_declares_verdict_without_top_level_ok(
     emitted: list[object] = []
     monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
-    monkeypatch.setattr(
-        hook_commands,
-        "committed_file_text",
-        lambda *_args: (
-            """
-[branch_roles]
-release_branch = "main"
-accepted_branch = "dev"
-candidate_branch = "candidate/dev"
-work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-release_mirror = "independent"
-repository_family_worktrees = false
-"""
-        ),
-    )
+    monkeypatch.setattr(hook_commands, "resolve_ref_move_policy", lambda *_args: BranchRolePolicy())
     monkeypatch.setattr(
         hook_commands,
         "ref_move_admission_report",
@@ -135,7 +121,11 @@ def test_ref_move_policy_unavailable_preserves_the_ref_transaction_shape(
     emitted: list[object] = []
     monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
-    monkeypatch.setattr(hook_commands, "committed_file_text", lambda *_args: "")
+
+    def unavailable(*_args: object) -> BranchRolePolicy:
+        raise ValueError("ref_move_policy_unavailable")
+
+    monkeypatch.setattr(hook_commands, "resolve_ref_move_policy", unavailable)
 
     hook_commands.ref_transaction(
         "refs/heads/work/example",

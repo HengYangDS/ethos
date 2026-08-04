@@ -100,11 +100,16 @@ branch coverage, architecture tests, property tests, and declared concurrency or
 CAS tests. Coverage policy SHALL come only from
 `.config/checks/coverage/policy.toml`.
 
-#### Scenario: Coverage is evaluated
+#### Scenario: Change proof executes the complete test surface
 
 - **WHEN** the unit-architecture gate completes
-- **THEN** it uses the configured hard coverage floor and current hard floor to
-  evaluate measured branch coverage
+- **THEN** it runs the complete declared test surface with warnings as errors and
+  emits branch-coverage evidence bound to the exact HEAD
+- **AND** pre-existing repository-wide coverage debt does not prevent an
+  independently valid Change from landing
+- **AND** the Campaign full proof runs the dependent coverage-floor gate against
+  that same evidence and enforces the configured hard coverage floor represented
+  by the policy's current hard floor
 - **AND** authority, CAS, and reducer owners may declare stricter local floors
 - **AND** a test that only reaches a branch without asserting behavior is not a
   substitute for capability proof

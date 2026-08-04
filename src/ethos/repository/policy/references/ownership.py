@@ -163,11 +163,9 @@ def _string_items(value: object) -> tuple[str, ...]:
 def _table_items(value: object) -> tuple[dict[str, object], ...]:
     if not isinstance(value, list):
         return ()
-    tables: list[dict[str, object]] = []
-    for item in value:
-        if isinstance(item, dict):
-            tables.append({str(key): entry for key, entry in item.items()})
-    return tuple(tables)
+    return tuple(
+        {str(key): entry for key, entry in item.items()} for item in value if isinstance(item, dict)
+    )
 
 
 def _repository_files(root: Path) -> dict[str, str]:

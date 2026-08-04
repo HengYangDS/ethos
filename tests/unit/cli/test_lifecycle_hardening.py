@@ -140,7 +140,8 @@ def test_lane_refresh_recovers_after_ref_cas_precedes_branch_attachment(
             branch_was_advanced = git(root, "rev-parse", "work/feature") == git(
                 root, "rev-parse", "HEAD"
             )
-            raise OSError("injected post-CAS attachment failure")
+            msg = "injected post-CAS attachment failure"
+            raise OSError(msg)
         return original(root, *args, **kwargs)
 
     monkeypatch.setattr(work_lane_refresh, "run_git", fail_first_attachment)

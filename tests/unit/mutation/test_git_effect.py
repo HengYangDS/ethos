@@ -328,7 +328,7 @@ def test_git_effect_blocks_foreign_expected_ref_identity(tmp_path: Path) -> None
 
 
 def test_git_effect_recovers_attestation_when_desired_state_already_holds(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     repo, old, new, effect = _effect_fixture(tmp_path)
     (repo / "NEXT.md").write_text("next\n", encoding="utf-8")
@@ -358,7 +358,7 @@ def test_git_effect_recovers_attestation_when_desired_state_already_holds(
 
 
 def test_git_effect_does_not_attest_an_unowned_preexisting_ref_move(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     repo, old, new, effect = _effect_fixture(tmp_path)
     plan = _proof_bound_plan(repo, effect)
@@ -718,7 +718,8 @@ def test_git_effect_recovers_after_attestation_persistence_failure(
         nonlocal fail_once
         if record is not None and fail_once:
             fail_once = False
-            raise OSError("storage unavailable")
+            msg = "storage unavailable"
+            raise OSError(msg)
         if record is not None:
             persisted.append(record)
         return tuple(persisted)
@@ -735,7 +736,7 @@ def test_git_effect_recovers_after_attestation_persistence_failure(
 
 
 def test_git_effect_recognition_retries_projection_before_clearing_intent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     repo, _old, _new, effect = _effect_fixture(tmp_path)
     plan = _proof_bound_plan(repo, effect)
@@ -746,7 +747,8 @@ def test_git_effect_recognition_retries_projection_before_clearing_intent(
         nonlocal fail_once
         if fail_once:
             fail_once = False
-            raise OSError("projection unavailable")
+            msg = "projection unavailable"
+            raise OSError(msg)
         projected.append("complete")
 
     with pytest.raises(OSError, match="projection unavailable"):

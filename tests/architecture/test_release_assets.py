@@ -469,14 +469,29 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert "tools/ci/scripts/run-product-boundary.sh" in precommit
 
 
-def test_python_test_gate_enforces_coverage_floor() -> None:
+def test_python_test_gate_separates_change_execution_from_terminal_coverage() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    gates = {gate["id"]: gate for gate in declaration["gates"]}
     runner = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/coverage/policy.toml").read_text(encoding="utf-8")
 
+    assert "unit-architecture" in declaration["proof_sets"]["default"]
+    assert "coverage-floor" not in declaration["proof_sets"]["default"]
+    assert "coverage-floor" in declaration["proof_sets"]["full"]
+    assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
+    assert gates["coverage-floor"]["command"] == [
+        "tools/ci/scripts/run-python-tests.sh",
+        "--enforce-coverage-floor",
+    ]
     assert "--cov=ethos" in runner
     assert "coverage_hard_floor=" in runner
-    assert "--cov-fail-under=${coverage_hard_floor}" in runner
+    assert "--enforce-coverage-floor" in runner
+    assert "--cov-fail-under=0" in runner
+    assert '"${ethos_python}" -m coverage report' in runner
+    assert '--fail-under="${coverage_hard_floor}"' in runner
+    assert 'coverage_head_path="${coverage_evidence_dir}/head.txt"' in runner
+    assert '"$(cat "${coverage_head_path}")" != "${ethos_python_test_head}"' in runner
     assert "--cov-fail-under=100" not in runner
     assert "-W error" in runner
     assert 'COVERAGE_FILE="${coverage_evidence_dir}/.coverage"' in runner
@@ -496,6 +511,21 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "current_hard_floor = 95" in policy
     assert "aspirational_floor = 95" in policy
     assert 'source = "tools/ci/scripts/run-python-tests.sh"' in policy
+
+
+def test_python_lint_gate_keeps_the_debt_ratchet_in_change_proof() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    runner = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
+
+    assert "ruff" in declaration["proof_sets"]["default"]
+    assert "run-ruff-ratchet.sh" in runner
+
+
+def test_change_proof_does_not_own_terminal_size_debt() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+
+    assert "python-size" not in declaration["proof_sets"]["default"]
+    assert "python-size" in declaration["proof_sets"]["full"]
 
 
 def test_quality_openspec_uses_current_coverage_floor_language() -> None:

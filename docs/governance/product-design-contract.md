@@ -202,6 +202,30 @@ absence reason. A refinement may change a carrier only after its invariant,
 owner, acceptance, and verifier remain traceable. This preserves intent while
 allowing deletion of redundant prose and mechanisms.
 
+## Campaign And Change Granularity
+
+A Campaign is a projection over a dependency graph of OpenSpec Changes. It has
+no task list, progress store, lifecycle state, or durable carrier of its own.
+Each Change owns one independently useful semantic outcome and closes through
+one short Work Lane that can be validated, archived, landed, reverted, and
+retired without waiting for unrelated outcomes. `Commitment.dependencies`
+connect the graph; accepted Changes, Git facts, and Attestations reconstruct its
+state.
+
+A Change is too large when a completed subset could be truthfully landed while
+another independent acceptance obligation remains open. Split at that boundary
+before further mutation. When an oversized Change already exists, freeze new
+implementation, land the proved subset, and preserve every remaining obligation
+through a unique successor outcome and dependency before archiving the source.
+Migration closes only the source carrier; it never claims the successor outcome
+was implemented.
+
+Only Changes whose dependencies are accepted and whose scopes do not conflict
+may run concurrently. Capacity, risk, overlap, and proof cost select concurrency;
+there is no fixed global WIP number. Integration remains a short exact-CAS
+boundary, and a Campaign publishes remotely only after all of its projected
+Changes have closed locally.
+
 ## Projection Homomorphism
 
 A projection is homomorphic only when it preserves the source assertion's

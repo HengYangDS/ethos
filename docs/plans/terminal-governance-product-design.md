@@ -14,7 +14,8 @@ Status: canonical terminal plan.
 Purpose: project the product contract into the shortest convergence order for
 implementation, proof, deletion, adoption, and publication.
 
-See also: [Product Design Contract](../governance/product-design-contract.md), [OpenSpec Terminal Change](../../openspec/changes/terminal-convergence/), and [Decision Records](../decisions/README.md).
+See also: [Product Design Contract](../governance/product-design-contract.md) and
+[Decision Records](../decisions/README.md).
 
 ## Role
 
@@ -89,6 +90,38 @@ acceptance, and proof—or records its explicit absence reason. Deletion is
 preferred when that mapping shows a carrier duplicates another owner. No
 historical wording is preserved merely to satisfy a text-shaped test.
 
+### Campaign Projection And Convergence Route
+
+The terminal Campaign is reconstructed from accepted OpenSpec Changes and their
+`Commitment.dependencies`; it is not another tracked entity. The retired
+`terminal-convergence` Change supplies the historical source-to-successor
+mapping. Successors are created from accepted `dev` only when their dependencies
+are satisfied, so the repository never carries a speculative forest of active
+Changes.
+
+| Change outcome | Depends on | Independent acceptance |
+| --- | --- | --- |
+| `accepted-spec-reconciliation` | terminal slice accepted | Stable specs describe implemented behavior and no archived carrier remains current authority. |
+| `portable-reference-boundary` | `accepted-spec-reconciliation` | Product references and variable values have positive native owners across every product surface. |
+| `transition-invariant-proof` | `accepted-spec-reconciliation` | Reducers and Git/Lease effects have bounded property, mutation, and model evidence. |
+| `openspec-17-cutover` | `accepted-spec-reconciliation` | One exact OpenSpec 1.7 executable owns complete-adopter lifecycle semantics; the 1.6 reader and predictions are absent. |
+| `coordination-reconstruction` | `accepted-spec-reconciliation` | Lane, Lease, handoff, takeover, inbox, family, and record behavior reconstructs from Git, Facts, Commitment, and Attestations. |
+| `integration-throughput-housekeeping` | `coordination-reconstruction` | Adaptive admission and short candidate CAS preserve throughput; every authorized residue has one absorption or retirement result. |
+| `repository-knowledge-grammar` | `accepted-spec-reconciliation`, `portable-reference-boundary` | Docs, flat DRs, rules, schemas, skills, and specs have narrow owners, strong grammar, and no ambiguous catch-all. |
+| `knowledge-evolution` | `repository-knowledge-grammar` | Novelty, contradiction, overlap, learning, absorption, and retirement change the earliest enforceable owner. |
+| `hermetic-quality-toolchain` | `accepted-spec-reconciliation` | Project `.venv`, uv, Nox, Hatchling, native formatters, and zero-warning checks are the sole local/hosted execution owners. |
+| `forge-projection-homomorphism` | `repository-knowledge-grammar`, `hermetic-quality-toolchain` | GitLab and GitHub are independent complete projections of one portable contract. |
+| `terminal-compression` | `portable-reference-boundary`, `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Repository-wide architecture, duplication, coverage, and ELOC constraints pass with no suppressions or compatibility residue. |
+| `adopter-product-surfaces` | `openspec-17-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Three adopter shapes and CLI, SDK, JSON, schema, MCP/A2A projections prove the same kernel and first-hour UX. |
+| `workflow-method-evaluation` | `adopter-product-surfaces`, `hermetic-quality-toolchain` | Matched evaluation admits only methods or tools that improve completion, time, token, recovery, and terminal size without a second owner. |
+| `terminal-local-closeout` | all preceding local outcomes | One immutable HEAD passes full local proof, advances candidate and `dev`, and retires every owned lane. |
+| `dual-provider-publication` | `terminal-local-closeout` | One `proposal/*` sequence proves and publishes the same signed artifacts independently on GitLab and GitHub. |
+
+Each row becomes an OpenSpec Change only at its admission boundary. A Change that
+cannot close one row independently must split before implementation; unrelated
+rows may collaborate concurrently only when their dependency and scope facts
+admit it.
+
 ## Convergence Rules
 
 1. **Promote before compatibility.** Replace a missing model boundary before
@@ -112,6 +145,9 @@ historical wording is preserved merely to satisfy a text-shaped test.
 8. **Surfaces stay projections.** CLI, SDK, MCP/A2A, CI, forge, and generated
    scaffolds share contracts and conformance tests; none owns duplicate policy or
    durable progress.
+9. **Land semantic increments.** One Change and one Work Lane carry one
+   independently landable outcome. A second independent outcome is a successor,
+   not more tasks in the same lane.
 
 ## Completion Boundary
 

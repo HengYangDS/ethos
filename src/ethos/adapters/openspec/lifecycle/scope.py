@@ -47,7 +47,9 @@ def material_change_scope_report(
         report["state"] = "not_applicable"
         return report
     patterns = profile.declaration.openspec.material_paths
-    material = tuple(path for path in paths if any(_matches(path, glob) for glob in patterns))
+    material = tuple(
+        path for path in paths if any(path_matches_scope(path, glob) for glob in patterns)
+    )
     report.update(material_patterns=list(patterns), material_paths=list(material))
     names = _active_change_names(root, active_change_names)
     changes = [commitment_report(root, name) for name in names]
@@ -69,7 +71,10 @@ def material_change_scope_report(
                 str(change.get("name", ""))
                 for change in changes
                 if change.get("verdict") == "pass"
-                and any(_matches(path, pattern) for pattern in string_sequence(change.get("scope")))
+                and any(
+                    path_matches_scope(path, pattern)
+                    for pattern in string_sequence(change.get("scope"))
+                )
             ],
         }
         for path in material
@@ -123,7 +128,8 @@ def commitment_report(root: Path, name: str) -> dict[str, object]:
     }
 
 
-def _matches(path: str, pattern: str) -> bool:
+def path_matches_scope(path: str, pattern: str) -> bool:
+    """Return whether one repository path is covered by a Commitment pattern."""
     if pattern == "**":
         return True
     if pattern.endswith("/**"):

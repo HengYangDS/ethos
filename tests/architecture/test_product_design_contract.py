@@ -14,7 +14,7 @@ from ethos.surface.cli.application import load_command_groups
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_OWNER = "docs/governance/product-design-contract.md"
 PLAN = "docs/plans/terminal-governance-product-design.md"
-SOURCE_CHANGE = "openspec/changes/terminal-convergence"
+SOURCE_CHANGE = "openspec/changes/archive/2026-08-04-terminal-convergence"
 AXIOMS = "system/axioms.md"
 PROJECTIONS = {
     "README.md",

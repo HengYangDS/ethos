@@ -217,14 +217,17 @@ def _recover_work_lane(
         assertions={f"refs/heads/{candidate_branch}": candidate_head},
     )
     if plan is None:
-        raise ValueError("git_effect_recovery_ambiguous")
+        msg = "git_effect_recovery_ambiguous"
+        raise ValueError(msg)
     effect = git_effect_from_plan(plan)
     if len(effect.updates) != 1:
-        raise ValueError("git_effect_recovery_unproven")
+        msg = "git_effect_recovery_unproven"
+        raise ValueError(msg)
     ref_name, update = next(iter(effect.updates.items()))
     branch = ref_name.removeprefix("refs/heads/")
     if not branch.startswith("work/") or plan.policy.get("execution_branch") != branch:
-        raise ValueError("git_effect_recovery_unproven")
+        msg = "git_effect_recovery_unproven"
+        raise ValueError(msg)
     execute_git_effect(
         root,
         plan,

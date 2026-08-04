@@ -272,8 +272,9 @@ def test_start_work_lane_revokes_final_lease_when_ref_creation_fails(
     source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
     target = tmp_path / "repo-work-feature"
 
-    def fail_ref_creation(*args: object, **kwargs: object):
-        raise ValueError("injected ref failure")
+    def fail_ref_creation(*_args: object, **_kwargs: object):
+        msg = "injected ref failure"
+        raise ValueError(msg)
 
     monkeypatch.setattr(lane_start_carrier, "execute_git_effect", fail_ref_creation)
 
@@ -301,9 +302,10 @@ def test_start_work_lane_preserves_foreign_ref_created_during_failed_cas(
     target = tmp_path / "repo-work-feature"
     foreign_head = git(candidate, "rev-parse", "HEAD")
 
-    def race_ref_creation(*args: object, **kwargs: object):
+    def race_ref_creation(*_args: object, **_kwargs: object):
         git(repo, "update-ref", "refs/heads/work/feature", foreign_head)
-        raise ValueError("injected ref race")
+        msg = "injected ref race"
+        raise ValueError(msg)
 
     monkeypatch.setattr(lane_start_carrier, "execute_git_effect", race_ref_creation)
 

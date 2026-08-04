@@ -106,6 +106,7 @@ def bootstrap_candidate(
         return _report(policy.candidate_branch, head, "blocked", [gap], **details)
     candidate = cast("dict[str, object]", status["candidate"])
     if candidate["exists"] and candidate["worktree_exists"]:
+        gaps: list[str] = []
         try:
             plan = _recovery_plan(
                 repo, policy.accepted_branch, policy.candidate_branch, head, "candidate.bootstrap"
@@ -113,21 +114,22 @@ def bootstrap_candidate(
             if plan is not None:
                 execute_git_effect(repo, plan, issuer=issuer)
         except ValueError as error:
-            return _report(
-                policy.candidate_branch,
-                head,
-                "blocked",
-                [str(error)],
-                path=str(candidate["worktree_path"]),
-            )
+            gaps.append(str(error))
         return _report(
-            policy.candidate_branch, head, "present", [], path=str(candidate["worktree_path"])
+            policy.candidate_branch,
+            head,
+            "blocked" if gaps else "present",
+            gaps,
+            path=str(candidate["worktree_path"]),
         )
-    if not apply:
-        return _report(policy.candidate_branch, head, "planned", [], **details)
-    if target.exists():
+    if not apply or target.exists():
+        gaps = [] if not apply else ["candidate_worktree_path_exists"]
         return _report(
-            policy.candidate_branch, head, "blocked", ["candidate_worktree_path_exists"], **details
+            policy.candidate_branch,
+            head,
+            "blocked" if gaps else "planned",
+            gaps,
+            **details,
         )
     operation = "candidate.bootstrap"
     try:
@@ -221,26 +223,25 @@ def refresh_candidate_from_accepted(
         )
         if present
     ]
-    if gaps:
-        return _report(policy.candidate_branch, head, "blocked", gaps, **details)
     plan = None
-    if apply and previous == head:
+    if not gaps and apply and previous == head:
         try:
             plan = _recovery_plan(
                 repo, policy.accepted_branch, policy.candidate_branch, head, "candidate.refresh"
             )
         except ValueError as error:
-            return _report(policy.candidate_branch, head, "blocked", [str(error)], **details)
-    current_gap = worktree_sync_gap(
-        repo, (path,), policy.candidate_branch, previous, previous, previous
-    )
-    if current_gap and plan is None:
-        gap = (
-            "git_effect_recovery_unproven"
-            if apply and previous == head and current_gap == "worktree_index_mismatch"
-            else "candidate_worktree_dirty"
+            gaps.append(str(error))
+    if not gaps:
+        current_gap = worktree_sync_gap(
+            repo, (path,), policy.candidate_branch, previous, previous, previous
         )
-        gaps.append(gap)
+        if current_gap and plan is None:
+            gap = (
+                "git_effect_recovery_unproven"
+                if apply and previous == head and current_gap == "worktree_index_mismatch"
+                else "candidate_worktree_dirty"
+            )
+            gaps.append(gap)
     if gaps:
         return _report(policy.candidate_branch, head, "blocked", gaps, **details)
     if previous == head and plan is None:

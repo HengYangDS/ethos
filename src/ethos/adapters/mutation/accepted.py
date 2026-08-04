@@ -92,34 +92,35 @@ def _apply_candidate_promotion(
             ),
         }
         effect, release_old = _promotion_effect(root, policy, current_head, candidate_head)
-        if gap := worktree_sync_gap(
+        preflight_gap = worktree_sync_gap(
             root,
             (root,),
             policy.accepted_branch,
             current_head,
             current_head,
             candidate_head,
+        )
+        preflight_gap = f"accepted_{preflight_gap}" if preflight_gap else ""
+        if (
+            not preflight_gap
+            and release_old is not None
+            and (
+                gap := worktree_sync_gap(
+                    root,
+                    ref_worktree_paths(worktrees, policy.release_branch),
+                    policy.release_branch,
+                    release_old,
+                    release_old,
+                    candidate_head,
+                )
+            )
         ):
+            preflight_gap = f"release_mirror_{gap}"
+        if preflight_gap:
             return _accepted_block(
                 policy,
                 current_head,
-                [f"accepted_{gap}"],
-                candidate_head=candidate_head,
-            )
-        if release_old is not None and (
-            gap := worktree_sync_gap(
-                root,
-                ref_worktree_paths(worktrees, policy.release_branch),
-                policy.release_branch,
-                release_old,
-                release_old,
-                candidate_head,
-            )
-        ):
-            return _accepted_block(
-                policy,
-                current_head,
-                [f"release_mirror_{gap}"],
+                [preflight_gap],
                 candidate_head=candidate_head,
             )
         plan = _accepted_transition_plan(

@@ -66,7 +66,8 @@ def execute_git_effect(
     desired = {name: update.desired for name, update in effect.updates.items()}
     recovering = refs == desired
     if observed["assertions"] != effect.assertions:
-        raise ValueError("git_effect_cas_mismatch")
+        msg = "git_effect_cas_mismatch"
+        raise ValueError(msg)
     if recovering:
         _require_live_lease(
             root,
@@ -92,7 +93,8 @@ def execute_git_effect(
                 root, effect, observed, environment=environment
             )
             if refs != expected:
-                raise ValueError("git_effect_cas_mismatch")
+                msg = "git_effect_cas_mismatch"
+                raise ValueError(msg)
             intents = _claim_effect_intents(root, plan, effect, phase="prepared")
             completed = run_git(
                 root,
@@ -105,12 +107,14 @@ def execute_git_effect(
                 text=False,
             )
             if completed.returncode:
-                raise ValueError("git_effect_cas_rejected")
+                msg = "git_effect_cas_rejected"
+                raise ValueError(msg)
             applied = True
             _claim_effect_intents(root, plan, effect, phase="committed")
         after = observe_git_effect(root, effect, environment=environment)
         if cast("dict[str, str]", after["refs"]) != desired:
-            raise ValueError("git_effect_postcondition_failed")
+            msg = "git_effect_postcondition_failed"
+            raise ValueError(msg)
         attestation = ethos.adapters.repo.git_effect_attestation.issue(
             effect,
             plan=plan,

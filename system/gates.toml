@@ -3,8 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "python-size", "config-quality", "shell-lint"]
-full = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
+default = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
+full = ["repository-audit", "evidence-freshness", "docs-registry", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "python-size", "source-budget"]
 
 [[gates]]
 id = "repository-audit"
@@ -166,6 +166,25 @@ execution_mode = "adapter"
 evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "pytest"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "coverage-floor"
+registries = ["runtime", "quality"]
+kind = "test"
+command = ["tools/ci/scripts/run-python-tests.sh", "--enforce-coverage-floor"]
+depends_on = ["unit-architecture"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["python-code"]
+dimensions = ["coverage"]
+execution_mode = "adapter"
+evidence_class = "proof"
+trust_bearing = true
+tool_adapter = "coverage.py"
 writes_files = false
 network_policy = "offline"
 version_source = "locked-toolchain"

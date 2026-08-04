@@ -72,10 +72,10 @@ def worktree_sync_gap(
     changed_paths = set(changed.stdout.split(b"\0")) - {b""}
     common_dir = git_common_dir(root)
     for path in paths:
-        if path.is_symlink() or not path.is_dir():
-            return "worktree_binding_stale"
         if (
-            git_common_dir(path) != common_dir
+            path.is_symlink()
+            or not path.is_dir()
+            or git_common_dir(path) != common_dir
             or run_git(path, "branch", "--show-current", observation=True).stdout.strip() != branch
             or current_tracked_head(path) != ref_head
         ):
@@ -95,11 +95,11 @@ def worktree_sync_gap(
         )
         if indexed.returncode or ignored.returncode:
             return "worktree_status_unreadable"
-        masked = {
-            record[2:]
-            for record in indexed.stdout.split(b"\0")
-            if len(record) > 2 and (record.startswith(b"S ") or record[:1].islower())
-        }
+        masked = set()
+        for record in indexed.stdout.split(b"\0"):
+            marker, separator, indexed_path = record.partition(b" ")
+            if separator and indexed_path and (marker == b"S" or marker.islower()):
+                masked.add(indexed_path)
         ignored_paths = set(ignored.stdout.split(b"\0")) - {b""}
         if changed_paths & masked or any(
             changed_path == ignored_path

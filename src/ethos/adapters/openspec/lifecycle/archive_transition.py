@@ -99,10 +99,15 @@ def _archive_binding(
 ) -> tuple[str, str, str] | None:
     carrier = str(lease.get("base_commitment_path") or "")
     if _valid_archive_carrier(carrier, change):
-        parents = run_git(root, "rev-list", "--parents", "-n", "1", head).stdout.split()
         source = f"openspec/changes/{change}/commitment.toml"
-        if len(parents) == 2 and exact_rename_target(root, parents[1], head, source) == carrier:
-            return "post_archive_closeout", current_tree(root, head), carrier
+        revisions = git_stdout(root, "rev-list", head, "--", source, carrier).splitlines()
+        for revision in revisions:
+            parents = run_git(root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
+            if (
+                len(parents) == 2
+                and exact_rename_target(root, parents[1], revision, source) == carrier
+            ):
+                return "post_archive_closeout", current_tree(root, head), carrier
         return None
     try:
         index_tree = run_git(root, "write-tree").stdout.strip()

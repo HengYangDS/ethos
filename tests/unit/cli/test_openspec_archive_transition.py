@@ -8,6 +8,7 @@ import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.openspec.governance import openspec_governance_report
+from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import start_adopted_work_lane
 
@@ -32,6 +33,39 @@ def test_governance_allows_lease_bound_post_archive_closeout(
         new_value=archived_head,
     )
     assert transition["state"] == "lease_ref_advanced"
+    _stub_official_archive_state(monkeypatch)
+
+    report = openspec_governance_report(worktree, lifecycle=True)
+
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["change"] == "fixture-change"
+    assert report["lifecycle"]["scope_binding"]["state"] == "post_archive_closeout"
+
+
+def test_governance_allows_post_archive_closeout_descendant(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    completed_head = git(worktree, "rev-parse", "HEAD")
+    _stage_archive(worktree)
+    git(worktree, "commit", "-m", "archive fixture change")
+    archived_head = git(worktree, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=archived_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    commit_fixture_file(
+        worktree,
+        "README.md",
+        "# Fixture\n\nPost-archive closeout repair.\n",
+        "repair post-archive closeout",
+    )
     _stub_official_archive_state(monkeypatch)
 
     report = openspec_governance_report(worktree, lifecycle=True)

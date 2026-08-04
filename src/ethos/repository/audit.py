@@ -15,7 +15,7 @@ from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.repository.openspec.audit import openspec_shape_report
-from ethos.repository.policy.coupling.audit import coupling_audit_report
+from ethos.repository.policy.references.ownership import repository_product_reference_gaps
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 
@@ -168,7 +168,11 @@ def repository_audit(
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
     schema_report = schema_validation_report(root)
-    coupling = coupling_audit_report(root)
+    reference_gaps = repository_product_reference_gaps(root)
+    reference_ownership = {
+        "verdict": observation_verdict(ok=not reference_gaps),
+        "required_gaps": reference_gaps,
+    }
     design_integrity = design_integrity_report(root)
     if openspec_mode == "shape":
         openspec = openspec_shape_report(root)
@@ -177,7 +181,6 @@ def repository_audit(
     else:
         openspec = openspec_reporter(root)
     schema_gaps = [str(gap) for gap in cast("list[str]", schema_report["required_gaps"])]
-    coupling_gaps = [str(gap) for gap in coupling["required_gaps"]]
     design_integrity_gaps = [
         str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
     ]
@@ -225,7 +228,7 @@ def repository_audit(
         + [f"playbook_projection_missing:{path}" for path in playbooks_missing]
         + [f"openspec_capability_missing:{path}" for path in openspec_capability_missing]
         + schema_gaps
-        + coupling_gaps
+        + reference_gaps
         + design_integrity_gaps
         + openspec_gaps
         + playbook_gaps
@@ -239,7 +242,7 @@ def repository_audit(
             report_verdict(release_files),
             report_verdict(playbooks),
             report_verdict(openspec_capabilities),
-            report_verdict(coupling),
+            report_verdict(reference_ownership),
             report_verdict(design_integrity),
             report_verdict(openspec),
             report_verdict(system_contracts),
@@ -252,7 +255,7 @@ def repository_audit(
         "release_files": release_files,
         "playbooks": playbooks,
         "openspec_capabilities": openspec_capabilities,
-        "coupling": coupling,
+        "reference_ownership": reference_ownership,
         "design_integrity": design_integrity,
         "openspec": openspec,
         "system_contracts": system_contracts,

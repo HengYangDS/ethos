@@ -40,16 +40,12 @@ the raw workspace-status payload so existing consumers can continue to read
 `data.role_policy`, `data.candidate`, `data.branch_bindings`, and
 `data.closeout_support` directly.
 
-Coupling audit output is governed by
-`system/schemas/kernel/coupling-audit.schema.json`. It exposes `binding_registry` as
-the product classification vocabulary for hard bindings, mandatory
-dependencies, native protocols, product-toolchain tools, adapters, historical evidence,
-and fixtures. The branch role entry carries its configuration source, config
-keys, default-policy state, semantic role order, and configured patterns. The
-Work Lane lifecycle entry carries the standard ETHOS lifecycle commands and
-the raw-worktree bypass state that is not admitted as standard ETHOS workflow.
-Registry entries cannot carry host navigation, action, or label fields; those
-are adapter projections, not coupling contract state.
+Reference admission has no universal schema or coupling registry. Dependencies
+are owned by package manifests, commands by the Cyclopts command tree, tools by
+the tool and gate declarations, runtime inputs by the surface contract, and
+forge coordinates by release and provider projection configuration. Prewrite
+compiles that positive closure from the baseline tree and compares it with the
+patch postimage; a patch cannot declare and consume a new reference in one step.
 
 Skills V2 adds three provider-neutral schemas:
 

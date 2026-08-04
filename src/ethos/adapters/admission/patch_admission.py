@@ -8,13 +8,13 @@ import tomllib
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_stdout
-from ethos.contracts.registry.declarations import CouplingDeclaration
-from ethos.repository.policy.coupling.closure import declared_product_references
-from ethos.repository.policy.coupling.closure import product_reference_gaps
-from ethos.repository.policy.coupling.closure import product_references_from_files
+from ethos.repository.policy.references.ownership import native_owned_references_from_files
+from ethos.repository.policy.references.ownership import product_reference_gaps
+from ethos.repository.policy.references.ownership import product_references_from_files
 
 _UNIFIED_DIFF_HEADER_PART_COUNT = 4
-_REFERENCE_KINDS = ("import", "distribution", "executable", "reference", "command")
+_REFERENCE_KINDS = ("import", "distribution", "executable", "reference", "command", "value")
+_OWNER_SUFFIXES = (".json", ".py", ".toml")
 
 
 def patch_admission(
@@ -97,12 +97,13 @@ def _patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> b
 
 
 def _baseline_product_references(root: Path, head: str) -> dict[str, frozenset[str]]:
-    text = git_stdout(root, "show", f"{head}:system/coupling.toml")
-    try:
-        declaration = CouplingDeclaration.model_validate(tomllib.loads(text))
-    except (tomllib.TOMLDecodeError, ValueError):
-        return {kind: frozenset() for kind in _REFERENCE_KINDS}
-    return declared_product_references(declaration)
+    paths = git_stdout(root, "ls-tree", "-r", "--name-only", head).splitlines()
+    files = {
+        path: git_stdout(root, "show", f"{head}:{path}")
+        for path in paths
+        if path.endswith(_OWNER_SUFFIXES)
+    }
+    return native_owned_references_from_files(files)
 
 
 def _unified_patch_changes(patch: str) -> tuple[list[dict[str, object]], str]:
@@ -221,4 +222,5 @@ def _patch_references(
             files,
             root=root,
             declared_commands=declared_commands,
+            include_declarations=False,
         )

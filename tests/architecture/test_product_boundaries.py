@@ -18,7 +18,7 @@ from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.boundary.product import (
     product_surface_files as declared_product_surface_files,
 )
-from ethos.repository.policy.coupling.closure import repository_product_reference_gaps
+from ethos.repository.policy.references.ownership import repository_product_reference_gaps
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {"wt", "proof", "mission", "skill-evolution", "agent-surface-contract"}
@@ -193,10 +193,8 @@ def test_active_product_surfaces_have_no_named_private_reference_dependency() ->
     assert not (ROOT / ".ethos" / "quality-regime-decision.md").exists()
 
 
-def test_product_references_use_positive_declared_closure() -> None:
-    declaration = tomllib.loads((ROOT / "system/coupling.toml").read_text(encoding="utf-8"))
-    assert "product_vendor_terms" not in declaration
-    assert "product_host_projection_terms" not in declaration
+def test_product_references_use_positive_native_owner_closure() -> None:
+    assert not (ROOT / "system/coupling.toml").exists()
     assert repository_product_reference_gaps(ROOT) == []
 
 

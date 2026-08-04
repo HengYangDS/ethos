@@ -57,9 +57,7 @@ def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, str], set[st
     payload = _toml(files.get(".config/checks/deptry/policy.toml", ""))
     mappings: dict[str, str] = {}
     first_party = set()
-    for package in payload.get("package", []) if isinstance(payload, dict) else []:
-        if not isinstance(package, dict):
-            continue
+    for package in _table_items(payload.get("package")):
         first_party.update(_string_items(package.get("known_first_party")))
         for item in _string_items(package.get("package_module_name_map")):
             distribution, separator, module = item.partition("=")
@@ -83,17 +81,14 @@ def _declared_gates(
     owned: dict[str, set[str]],
 ) -> None:
     payload = _toml(files.get("system/gates.toml", ""))
-    for gate in payload.get("gates", []) if isinstance(payload, dict) else []:
-        if isinstance(gate, dict):
-            command = tuple(_string_items(gate.get("command")))
-            owned["executable"].update(command_references.command_executables(command, npm_scripts))
+    for gate in _table_items(payload.get("gates")):
+        command = tuple(_string_items(gate.get("command")))
+        owned["executable"].update(command_references.command_executables(command, npm_scripts))
 
 
 def _declared_tools(files: dict[str, str], owned: dict[str, set[str]]) -> None:
     payload = _toml(files.get("system/tools.toml", ""))
-    for tool in payload.get("tool", []) if isinstance(payload, dict) else []:
-        if not isinstance(tool, dict):
-            continue
+    for tool in _table_items(payload.get("tool")):
         for field, kind in (
             ("executables", "executable"),
             ("references", "reference"),
@@ -143,9 +138,7 @@ def _declared_release_references(files: dict[str, str], owned: dict[str, set[str
 def _declared_provider_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
     templates = _toml(files.get(".config/checks/ci/templates.toml", ""))
     for section in ("projection", "forge_surface"):
-        for entry in templates.get(section, []) if isinstance(templates, dict) else []:
-            if not isinstance(entry, dict):
-                continue
+        for entry in _table_items(templates.get(section)):
             if isinstance(provider := entry.get("provider"), str):
                 owned["reference"].add(provider)
             if isinstance(tool := entry.get("emulator_tool"), str):
@@ -165,6 +158,16 @@ def _toml(text: str) -> dict[str, object]:
 
 def _string_items(value: object) -> tuple[str, ...]:
     return tuple(item for item in value if isinstance(item, str)) if isinstance(value, list) else ()
+
+
+def _table_items(value: object) -> tuple[dict[str, object], ...]:
+    if not isinstance(value, list):
+        return ()
+    tables: list[dict[str, object]] = []
+    for item in value:
+        if isinstance(item, dict):
+            tables.append({str(key): entry for key, entry in item.items()})
+    return tuple(tables)
 
 
 def _repository_files(root: Path) -> dict[str, str]:

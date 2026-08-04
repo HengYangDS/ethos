@@ -1,6 +1,6 @@
 schema_version = 1
 id = "change:terminal-convergence"
-intent = "Converge ETHOS to the smallest truthful vendor-neutral repository change compiler."
+intent = "Close the oversized source Change without losing proved capability or unimplemented intent."
 subjects = ["repository:self"]
 scope = [
   ".agents/**",
@@ -33,25 +33,23 @@ scope = [
   "uv.lock",
 ]
 invariants = [
-  "two_persistent_semantic_entities",
-  "one_binding_key_and_verdict_algebra",
-  "no_parallel_truth_or_compatibility_residue",
-  "unknown_signals_preserved",
-  "terminal_capability_preserved_with_net_deletion",
+  "proved_source_slice_preserved",
+  "source_task_identity_and_history_monotonic",
+  "unimplemented_obligation_migrates_exactly_once",
+  "campaign_reconstructs_from_change_dependencies",
+  "speculative_delta_never_becomes_accepted_behavior",
 ]
 acceptance = [
-  "contract_attestation_plan_and_effect_chain_proven",
-  "campaign_lane_records_docs_skills_and_ci_are_derived",
-  "three_adopter_profiles_conform",
-  "warnings_and_suppressions_zero",
-  "terminal_source_budget_met",
-  "local_gitlab_and_github_planes_independently_attested",
+  "kernel_authority_continuation_lease_and_git_transaction_slice_proven",
+  "thirty_remaining_source_obligations_uniquely_mapped_to_acyclic_successors",
+  "official_openspec_archive_skips_speculative_spec_application",
+  "source_change_lands_locally_and_work_lane_retires",
 ]
 risks = [
-  "breaking_cutover",
-  "capability_loss_hidden_by_deletion",
-  "foreign_lane_overlap",
-  "provider_unavailability",
+  "obligation_loss_during_fission",
+  "migration_completion_confused_with_implementation_completion",
+  "speculative_delta_promotion",
+  "archive_commitment_relocation",
 ]
 authority_refs = [
   "user_instruction",
@@ -63,11 +61,10 @@ permissions = [
   "work-lane.write",
   "git.ref.compare-and-swap",
   "local-proof.execute",
-  "terminal-publication.execute",
 ]
 hypotheses = [
-  "all_governance_semantics_reduce_to_contract_and_attestation",
-  "derived_projections_can_replace_parallel_ledgers_without_capability_loss",
-  "destructive_cutover_is_shorter_and_safer_than_compatibility_migration",
+  "atomic_successor_changes_reduce_time_to_accepted_increment",
+  "change_dependency_graph_reconstructs_campaign_without_parallel_ledger",
+  "destructive_fission_is_shorter_and_safer_than_finishing_the_oversized_change",
 ]
 dependencies = []

@@ -129,6 +129,12 @@ new product ontology.
     correct path normal and the invalid path fail closed. Reflection text, memory,
     or a skill alone is not prevention. Superseded lower carriers are removed after
     proof so learning does not become another accumulation surface.
+17. **Campaigns project atomic Changes.** A Campaign has no carrier, tasks, or
+    lifecycle state of its own. It is reconstructed from accepted OpenSpec
+    Changes and `Commitment.dependencies`. One Change and one short Work Lane own
+    one independently useful result. If a proved subset can land while another
+    acceptance obligation remains open, the latter is a successor rather than
+    more scope in the same lane.
 
 ## Carrier Disposition
 
@@ -348,6 +354,49 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 | `6.5` | `a0877a0bd062cd77cdf546c3f8fe11b220399626382832aa2bdbbdf93ae5213a` | `bd8bf1e582d525a982a8735cfd728a7fe2c07a69f72050bcb04d42095edbbcd5` | clarified | Duplicate and structural tool candidates are compared by unique signal and net deletion rather than accumulated by name. |
 | `6.7` | `9c76a47117bceb83cf2e0490d1d940cb75d4b4d4765f1504a8dd64f3b3517b5e` | `ff699ef143dde1907b3d01b7b6426e55dfcfcf0885bdae74e3a15725ee4bc946` | clarified | Adopter proof includes first-hour CLI, SDK, JSON, scaffold, diagnostic, and recovery UX without repository-shape cloning. |
 
+## Campaign Fission Closure
+
+The current Change accumulated 107 commits over more than eight days and mixed
+independent acceptance boundaries. That is a granularity defect, not a reason to
+weaken land or archive semantics. New implementation is frozen at
+`7cda1c1c00a907beebe61f21e471fa6c66133fe0`. This archive lands the proved
+kernel, authority, Continuation, Lease, Git transaction, and positive native-owner
+slice. Every other obligation below is migrated, not implemented.
+
+The mapping is the immutable handoff from this historical source checklist. It
+does not store successor progress: each named outcome becomes an OpenSpec Change
+only after its dependencies are accepted, and its own `tasks.md` then becomes the
+sole progress owner. A source task appears exactly once; a successor owns one
+independently landable result.
+
+| Successor outcome | Source tasks | Dependencies | Independent acceptance / verifier |
+| --- | --- | --- | --- |
+| `accepted-spec-reconciliation` | archive-created reconciliation prerequisite | this source Change accepted | Stable specs state only implemented behavior; source deltas and archive history have no current authority; official strict validation and architecture tests pass. |
+| `portable-reference-boundary` | `3.4`, `3.5` | `accepted-spec-reconciliation` | Positive native ownership covers references and variation classes across code, tests, docs, schemas, templates, fixtures, and projections; product/private/workstation scans pass. |
+| `transition-invariant-proof` | `3.6` | `accepted-spec-reconciliation` | Bounded property, mutation, and formal evidence names state space, budget, kill criterion, and unsupported claims for reducers and Git/Lease effects. |
+| `openspec-17-cutover` | `4.1`; `6.10` characterization and lifecycle edge cases | `accepted-spec-reconciliation` | One exact `@fission-ai/openspec@1.7.0` executable owns complete-adopter lifecycle semantics; no cache, PATH, global, 1.6, defaultStore, parsing, or prediction fallback remains. |
+| `coordination-reconstruction` | `4.2`, `4.3`, `4.4` | `accepted-spec-reconciliation` | Worktree Family, lane, Lease, handoff, takeover, inbox, records, collaboration, and competition reconstruct from Commitment, Git, fresh Facts, and Attestations with vendor-neutral actor identity. |
+| `integration-throughput-housekeeping` | `4.5`, `4.6` | `coordination-reconstruction` | Adaptive admission, parallel proof scheduling, and short candidate CAS preserve stable `dev` throughput; each authorized campaign/budget lane has one absorbed or retired receipt. |
+| `repository-knowledge-grammar` | `5.1`, `5.3`, `5.4` | `accepted-spec-reconciliation`, `portable-reference-boundary` | Canonical docs, flat newest-first DRs, rules, skills, specs, schemas, records, tests, and modules have strong grammar, narrow semantic names, and no ambiguous catch-all or physical/logic mismatch. |
+| `knowledge-evolution` | `5.2`, `5.5`, `5.6` | `repository-knowledge-grammar` | Contradiction, novelty, overlap, taxonomy gaps, incidents, and repeated review findings update the earliest enforceable owner; valuable meaning is absorbed and stale residue retired. |
+| `hermetic-quality-toolchain` | `6.1`, `6.2`, `6.4` | `accepted-spec-reconciliation` | One project `.venv`, uv lock, Nox session plane, Hatchling build, native formatters, schema/link checks, hermetic fixtures, and zero-warning/suppression policy own local and hosted quality execution. |
+| `forge-projection-homomorphism` | `5.7` | `repository-knowledge-grammar`, `hermetic-quality-toolchain` | GitLab and GitHub preserve one portable policy while retaining native syntax, complete independent CI/CD, issue/review, protected-ref, and distribution behavior. |
+| `terminal-compression` | `6.3`, `6.5`, `6.6` | `portable-reference-boundary`, `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Python/global ELOC, branch coverage, architecture, duplication, dependencies, security, Cyclopts-only CLI, and no shim/wrapper/re-export/alias/compatibility residue pass repository-wide. |
+| `adopter-product-surfaces` | `6.7`, `6.8` | `openspec-17-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Python, Node/polyglot, and docs/infra adopters prove offline lifecycle, recovery, install/uninstall, CLI, SDK, subprocess JSON, schemas/conformance, and optional stateless MCP/A2A projections. |
+| `workflow-method-evaluation` | `6.9` | `adopter-product-surfaces`, `hermetic-quality-toolchain` | Matched task × treatment × repetition evidence admits only methods, generators, frameworks, or tools that improve completion, token, time, recovery, intent retention, evidence, and terminal ELOC without a second owner. |
+| `terminal-local-closeout` | `7.1`, `7.2` | every preceding local outcome | One immutable local HEAD passes complete proof, advances local candidate and protected `dev` by exact CAS, verifies records, and retires all owned lanes. |
+| `dual-provider-publication` | `7.3`, `7.4` | `terminal-local-closeout` | Exactly one `proposal/*` sequence proves and publishes the same commit, version, signed tag, SBOM, provenance, and artifact digests independently on GitLab and GitHub. |
+
+Task `3.4` is split truthfully: `7cda1c1c` proves deletion of the coupling and
+standards registries plus native-owner derivation for current declared
+references; its unproved cross-surface variation-axis remainder migrates to
+`portable-reference-boundary`. No other
+unchecked source task has an implementation claim in this archive.
+
+The graph is acyclic by construction: every dependency names this accepted
+source or an earlier outcome in the table. The canonical terminal plan retains
+the live graph after archive; this table remains historical evidence only.
+
 ## Alternatives Considered
 
 | Alternative | Decision | Reason |
@@ -361,6 +410,9 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 | Delete all history | Rejected | Immutable bytes may be needed for recovery and audit, but not as current truth. |
 | Replace tasks wholesale after redesign | Rejected | It destroys progress identity, hides dropped obligations, and permits old decisions to reappear. |
 | Preserve every conversation sentence as a repository ledger | Rejected | Raw dialogue is context; accepted independent obligations belong in their semantic owners and verifiable tasks. |
+| Finish phases 3 through 7 in this Change | Rejected | It repeats the eight-day non-landing failure and couples independent acceptance boundaries. |
+| Add a Campaign manifest or task ledger | Rejected | The Change dependency graph already reconstructs the Campaign; another carrier would duplicate lifecycle and progress truth. |
+| Pre-create all successor Changes | Rejected | It creates lane and carrier explosion before dependencies and scopes are admitted. |
 
 ## Migration Risks
 
@@ -388,11 +440,11 @@ backward, and an unobserved or unregistered row fails the architecture gate.
    semantics; delete amendment and closed-kind paths.
 3. Replace authority rank/currentness/legacy replay with contextual resolver,
    five-role extraction, model-gap handling, and byte/tree-bound lease cutover.
-4. Move fixed lifecycle and OpenSpec-only assumptions into the ETHOS self
-   profile; reduce coordination to resource facts plus attested effects.
-5. Reclassify and absorb docs, DRs, rules, skills, schemas, CI, records,
-   evidence, and OpenSpec material; delete only after semantic proof.
-6. Collapse quality/supply-chain tooling, remove warnings/suppressions, prove
-   three adopter shapes and portable interfaces, archive as the final source
-   mutation, then run one local and one dual-provider campaign closeout on that
-   immutable HEAD.
+4. Freeze this oversized source Change, migrate every independent remainder to
+   the successor graph, archive without applying speculative deltas, land its
+   proved slice, and retire its Work Lane.
+5. From accepted `dev`, admit one dependency-ready successor Change and one short
+   Work Lane per independently landable outcome; close each locally before the
+   next dependent outcome.
+6. After every local outcome closes, run one terminal local closeout and one
+   dual-provider publication sequence on the resulting immutable HEAD.

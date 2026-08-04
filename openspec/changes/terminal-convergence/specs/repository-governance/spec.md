@@ -168,6 +168,31 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
 
 ## REMOVED Requirements
 
+### Requirement: Coupling Binding Registry
+
+**Reason**: A universal coupling registry duplicates the native owners of
+dependencies, commands, tools, runtime inputs, forge coordinates, and extension
+declarations, and its packaged fallback can admit references absent from the
+audited repository.
+
+**Migration**: Prewrite compiles a typed positive closure from the baseline
+tree's package manifests, Cyclopts command declarations, gate and tool catalogs,
+surface runtime inputs, release policy, and provider projection configuration.
+Consumer scanning remains independent and cannot promote an observed reference
+into the admitted closure.
+
+**Replacement**: Positive Native Reference Ownership
+
+### Requirement: Standards Adapter Lifecycle
+
+**Reason**: The unused standards registry is a second catalog without a runtime
+consumer or unique authority.
+
+**Migration**: Each retained adapter declares its lifecycle and boundary in its
+actual profile, gate, package manifest, or OpenSpec requirement.
+
+**Replacement**: Optional tool adapters remain replaceable
+
 ### Requirement: Productized OpenSpec carrier governance
 **Reason**: lifecycle ownership moves to `adapters / Official OpenSpec Lifecycle
 Adapter`; repository governance owns only self-profile selection and exact
@@ -188,6 +213,27 @@ remain downstream consumers.
 requirement or historical parser.
 
 ## MODIFIED Requirements
+
+### Requirement: Positive Native Reference Ownership
+Imports, distributions, executables, commands, external references, and runtime
+inputs SHALL be admitted only by their narrow native declaration. The positive
+closure SHALL be compiled from the baseline tree independently of consumer
+observation; no universal registry, packaged fallback, blacklist, or patch-local
+declaration may expand baseline authority.
+
+#### Scenario: prewrite checks a patch postimage
+- **WHEN** a patch consumes an import, distribution, executable, command,
+  external reference, or runtime input
+- **THEN** prewrite compares it with the independently compiled baseline closure
+- **AND** an undeclared identity blocks with a typed stable gap
+- **AND** declaring and consuming the identity in the same patch remains blocked.
+
+#### Scenario: an ordinary environment or provider coordinate changes
+- **WHEN** HOME, user, origin, forge, author, port, installation root, or provider
+  manifest varies
+- **THEN** the value is supplied by runtime, deployment, release, publication
+  trust, or extension configuration
+- **AND** the portable product core requires no edit.
 
 ### Requirement: Contextual Authority Resolution
 Authority and currentness SHALL resolve contextually by subject, predicate,

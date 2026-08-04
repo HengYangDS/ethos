@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import tomllib
@@ -28,7 +29,6 @@ _SYSTEM_PROVIDER_CONFIGS = (
     Path("/Library/Application Support/ETHOS/independent-verification.toml"),
     Path("/etc/ethos/independent-verification.toml"),
 )
-_SSH_KEYGEN = Path("/usr/bin/ssh-keygen")
 _SHA256_LENGTH = 64
 
 
@@ -148,7 +148,8 @@ def verify_independent_receipt_signature(
     provider: IndependentVerificationProvider,
 ) -> bool:
     """Verify the receipt's SSH signature against the protected provider anchor."""
-    if not _SSH_KEYGEN.is_file() or not os.access(_SSH_KEYGEN, os.X_OK):
+    ssh_keygen = shutil.which("ssh-keygen")
+    if not ssh_keygen:
         return False
     payload = receipt.model_dump(mode="json", exclude={"signature", "payload_digest"})
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -158,7 +159,7 @@ def verify_independent_receipt_signature(
             signature_file.flush()
             completed = subprocess.run(
                 [
-                    _SSH_KEYGEN.as_posix(),
+                    ssh_keygen,
                     "-Y",
                     "verify",
                     "-f",

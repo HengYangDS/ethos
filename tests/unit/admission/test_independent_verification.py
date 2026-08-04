@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from datetime import UTC
 from datetime import datetime
@@ -262,12 +263,14 @@ def test_required_provider_rejects_receipt_outside_the_read_only_store(
 
 
 def test_provider_verifies_a_signature_from_its_protected_anchor(tmp_path, monkeypatch) -> None:
+    ssh_keygen = shutil.which("ssh-keygen")
+    assert ssh_keygen is not None
     store = tmp_path / "store"
     store.mkdir()
     private_key = tmp_path / "signing-key"
     subprocess.run(
         [
-            "/usr/bin/ssh-keygen",
+            ssh_keygen,
             "-q",
             "-t",
             "ed25519",
@@ -327,7 +330,7 @@ def test_provider_verifies_a_signature_from_its_protected_anchor(tmp_path, monke
     )
     subprocess.run(
         [
-            "/usr/bin/ssh-keygen",
+            ssh_keygen,
             "-Y",
             "sign",
             "-f",
@@ -457,9 +460,9 @@ def test_receipt_negative_paths_remain_local_readiness(tmp_path, monkeypatch) ->
         namespace="ethos-independent-verification",
         implementation_digest="e" * 64,
     )
-    monkeypatch.setattr(external, "_SSH_KEYGEN", tmp_path / "missing-keygen")
+    monkeypatch.setattr(external.shutil, "which", lambda _name: None)
     assert external.verify_independent_receipt_signature(receipt, provider) is False
-    monkeypatch.setattr(external, "_SSH_KEYGEN", external.Path("/usr/bin/true"))
+    monkeypatch.setattr(external.shutil, "which", lambda _name: "true")
 
     def raise_os_error(*_args, **_kwargs):
         raise OSError

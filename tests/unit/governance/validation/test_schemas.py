@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from ethos.repository.audit import REQUIRED_SCHEMAS
-from ethos.repository.policy.coupling.audit import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
@@ -188,26 +186,6 @@ def test_gate_schema_accepts_quality_descriptor_fields() -> None:
     validation = validate_schema_instance("gate.schema.json", payload)
 
     assert validation["verdict"] == "pass"
-
-
-def test_coupling_audit_payload_validates_binding_registry_contract() -> None:
-    validation = validate_schema_instance(
-        "coupling-audit.schema.json",
-        coupling_audit_report(Path.cwd()),
-    )
-
-    assert validation["verdict"] == "pass"
-    json.dumps(validation)
-
-
-def test_coupling_audit_schema_rejects_ui_projection_fields() -> None:
-    payload = coupling_audit_report(Path.cwd())
-    payload["binding_registry"][0]["open_label"] = "Open Worktree"
-
-    validation = validate_schema_instance("coupling-audit.schema.json", payload)
-
-    assert validation["verdict"] == "block"
-    assert validation["required_gaps"]
 
 
 def test_schema_validation_uses_product_schemas_for_adopter_without_local_schemas(

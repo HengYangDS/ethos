@@ -24,11 +24,8 @@ def test_removed_retirement_commands_have_no_forwarding_surface(command: str) ->
     assert completed.returncode != 0
 
 
-def test_unbound_retirement_implementation_and_coupling_are_removed() -> None:
+def test_unbound_retirement_implementation_is_removed() -> None:
     root = Path(__file__).resolve().parents[4]
     unbound_root = root / "src/ethos/adapters/mutation/lane_retirement/unbound"
 
     assert not tuple(unbound_root.rglob("*.py"))
-    assert "ethos lane retire unbound" not in (root / "system/coupling.toml").read_text(
-        encoding="utf-8"
-    )

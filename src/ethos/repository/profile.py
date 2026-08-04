@@ -36,7 +36,7 @@ DEFAULT_ROOTS = {
 PATH_TYPE_ERROR = "repository path must be a string"
 PATH_VALUE_ERROR = "repository path must be relative POSIX without dot segments"
 INVALID_PROFILE_ERROR = "repository_profile_invalid:.ethos/profile.toml"
-_GIT = shutil.which("git") or "/usr/bin/git"
+_GIT = shutil.which("git") or "git"
 
 
 def _repository_path(value: object) -> str:

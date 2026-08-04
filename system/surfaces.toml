@@ -5,6 +5,20 @@
 
 schema = "system/schemas/contracts/surfaces.schema.json"
 
+[runtime]
+inputs = [
+  "DOCKER_HOST",
+  "ETHOS_ACTOR",
+  "ETHOS_HOUSEKEEPING_ROOTS",
+  "ETHOS_INDEPENDENT_VERIFICATION_RECEIPT",
+  "ETHOS_NPX_CACHE_DIR",
+  "ETHOS_OPENSPEC_BIN",
+  "ETHOS_TEST_ATTESTATION_STATE_DIR",
+  "PATH",
+  "PYTEST_CURRENT_TEST",
+  "PYTEST_XDIST_WORKER",
+]
+
 [[surface]]
 name = "cli"
 purpose = "Human and script workflow."

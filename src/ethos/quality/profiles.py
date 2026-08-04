@@ -6,6 +6,18 @@ from pathlib import Path
 from ethos._resources import resolve_declaration_path
 
 _TOOL_CATALOG_ARRAY_REQUIRED = "system/tools.toml must declare a tool array"
+_PROFILE_FIELDS = (
+    "adapter_only",
+    "artifacts",
+    "checksums",
+    "concern",
+    "config",
+    "gate",
+    "history",
+    "optional",
+    "profile",
+    "tool",
+)
 
 
 def _system_path(root: Path, name: str) -> Path:
@@ -69,7 +81,11 @@ def tool_profiles(root: Path) -> dict[str, object]:
     return {
         "schema_version": 1,
         "tool_adapters": [
-            dict(entry, id=entry["concern"], standard=entry["tool"])
+            {
+                "id": entry["concern"],
+                "standard": entry["tool"],
+                **{field: entry[field] for field in _PROFILE_FIELDS if field in entry},
+            }
             for entry in entries
             if isinstance(entry, dict)
         ],

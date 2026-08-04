@@ -123,7 +123,8 @@ def test_ref_move_policy_unavailable_preserves_the_ref_transaction_shape(
     monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
 
     def unavailable(*_args: object) -> BranchRolePolicy:
-        raise ValueError("ref_move_policy_unavailable")
+        message = "ref_move_policy_unavailable"
+        raise ValueError(message)
 
     monkeypatch.setattr(hook_commands, "resolve_ref_move_policy", unavailable)
 

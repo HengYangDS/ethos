@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from functools import lru_cache
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
 from ethos.adapters.openspec.lifecycle.report import OpenSpecReportContext
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
@@ -20,12 +18,12 @@ from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.lifecycle.report import selection_gaps
-from ethos.adapters.openspec.workspace.signature import openspec_workspace_signature
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import protected_branch_active_change_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from typing import Any
 
 
@@ -82,14 +80,10 @@ def openspec_governance_report(
             request=request,
             base_command=None,
         )
-    signature = openspec_workspace_signature(root)
-    return deepcopy(
-        _cached_openspec_governance_report(
-            root.resolve().as_posix(),
-            request,
-            base_command,
-            signature,
-        )
+    return _openspec_governance_report(
+        root,
+        request=request,
+        base_command=base_command,
     )
 
 
@@ -122,20 +116,6 @@ def _active_identifier_rejected_report(
         },
         "commands": {"doctor": {}, "list": {}, "status": {}, "validate": {}},
     }
-
-
-@lru_cache(maxsize=32)
-def _cached_openspec_governance_report(
-    root_posix: str,
-    request: OpenSpecRequest,
-    base_command: tuple[str, ...],
-    _signature: tuple[tuple[str, int, int], ...],
-) -> dict[str, Any]:
-    return _openspec_governance_report(
-        Path(root_posix),
-        request=request,
-        base_command=base_command,
-    )
 
 
 def _openspec_governance_report(
@@ -212,8 +192,23 @@ def _openspec_governance_report(
         )
     list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
     rows = official_change_rows(list_result["json"])
-    selected = selected_change(rows, request.change) if rows is not None else None
-    status = openspec_status_result(root, base_command, selected, openspec_cli.run_json)
+    official_selected = selected_change(rows, request.change) if rows is not None else None
+    archive_scope = (
+        lease_bound_archive_scope_report(
+            root,
+            changed_paths=request.changed_paths,
+            requested_change=request.change,
+        )
+        if rows == [] and official_selected is None
+        else None
+    )
+    archived_change = (
+        str(archive_scope["changes"][0]["name"])
+        if archive_scope and archive_scope.get("changes")
+        else None
+    )
+    selected = official_selected or archived_change
+    status = openspec_status_result(root, base_command, official_selected, openspec_cli.run_json)
     validate = openspec_cli.run_json(
         root,
         base_command,
@@ -226,20 +221,28 @@ def _openspec_governance_report(
             list_result=list_result,
             status=status,
             validate=validate,
-            selected=selected,
+            selected=official_selected,
         )
     )
-    required_gaps.extend(
-        ["openspec_list_unreadable"] if rows is None else selection_gaps(rows, request.change)
-    )
+    if archive_scope is None:
+        required_gaps.extend(
+            ["openspec_list_unreadable"] if rows is None else selection_gaps(rows, request.change)
+        )
     lifecycle_payload = (
-        lifecycle_report(
+        {
+            "required_gaps": archive_scope["required_gaps"],
+            "changes": [],
+            "scope_binding": archive_scope,
+            "protected_branch_residue": protected_branch_residue,
+        }
+        if archive_scope is not None
+        else lifecycle_report(
             root,
             request=request,
             list_payload=list_result["json"],
             protected_branch_residue=protected_branch_residue,
         )
-        if selected is not None or not request.lifecycle
+        if official_selected is not None or not request.lifecycle
         else lifecycle_report(
             root,
             request=request._replace(lifecycle=False),

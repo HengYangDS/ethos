@@ -528,8 +528,11 @@ def test_land_rejects_proof_self_granted_candidate_authority(monkeypatch, tmp_pa
     assert git(candidate, "rev-parse", "HEAD") == candidate_head
 
 
-def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None:
+def test_lane_refresh_base_apply_rebases_stale_work_lane(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     previous_head = git(worktree, "rev-parse", "HEAD")

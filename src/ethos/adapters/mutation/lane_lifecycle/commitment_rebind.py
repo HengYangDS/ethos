@@ -41,7 +41,6 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -343,7 +342,7 @@ def _target_generation(request: CommitmentRebindRequest) -> dict[str, object]:
     }
     generation = lease_generation(target)
     generation.pop("payload_sha256")
-    return mutable_json(generation)
+    return generation
 
 
 def _lease_request(request: CommitmentRebindRequest) -> LeaseOperationRequest:

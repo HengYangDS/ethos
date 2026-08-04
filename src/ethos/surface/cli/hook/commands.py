@@ -14,13 +14,12 @@ import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
+from ethos.adapters.admission.git_admission import resolve_ref_move_policy
 from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.repo.git import committed_file_text
 from ethos.contracts.admission import HookAdmissionRequest
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -33,8 +32,6 @@ from ethos.surface.cli.root_binding import resolve_root
 
 _LANE_PREWRITE_ACTION = "ethos lane prewrite <path>"
 _HEAD_BOUND_PROOF_ACTION = "ethos prove --execute --expect-head <head>"
-_ZERO_OIDS = {"0" * 40, "0" * 64}
-
 _ADMISSION_OPTIONS = Group("Admission")
 _RECONCILIATION_OPTIONS = Group("Reconciliation")
 
@@ -275,11 +272,8 @@ def ref_transaction(
     """
     repo = resolve_root(root)
     branch = ref_name.removeprefix("refs/heads/")
-    policy_ref = new_value if old_value in _ZERO_OIDS else old_value
     try:
-        policy = strict_branch_role_policy_from_text(
-            committed_file_text(repo, policy_ref, ".ethos/workspace.toml")
-        )
+        policy = resolve_ref_move_policy(repo, ref_name, old_value, new_value)
     except (TypeError, ValueError):
         report: dict[str, object] = {
             "verdict": "block",

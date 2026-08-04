@@ -274,22 +274,41 @@ def _prepared_ref_intent_gaps(
     return [missing_gap if gap == "ref_intent_missing" else gap] if gap else []
 
 
-def _ref_move_policy(repo: Path, ref_name: str, old_value: str, new_value: str):
-    policy_ref = old_value if old_value not in _ZERO_OIDS else new_value
-    policy = strict_branch_role_policy_from_text(
-        committed_file_text(repo, policy_ref, ".ethos/workspace.toml")
-    )
+def resolve_ref_move_policy(
+    repo: Path, ref_name: str, old_value: str, new_value: str
+) -> BranchRolePolicy:
+    """Resolve the strict policy that governs one ref transition.
+
+    The incumbent strict policy remains authoritative. When it predates the
+    current schema, the promoted strict policy performs the one-control
+    bootstrap. No legacy policy parser participates in admission.
+    """
     branch = ref_name.removeprefix("refs/heads/")
+    policy = _strict_ref_policy(repo, old_value)
+    if policy is None:
+        policy = _strict_ref_policy(repo, new_value)
+    if policy is None:
+        raise ValueError("ref_move_policy_unavailable")
+    if branch != policy.release_branch:
+        return policy
     accepted_head = git_stdout(repo, "rev-parse", policy.accepted_branch)
-    accepted_policy = strict_branch_role_policy_from_text(
-        committed_file_text(repo, accepted_head, ".ethos/workspace.toml")
-    )
+    accepted_policy = _strict_ref_policy(repo, accepted_head)
+    if accepted_policy is None:
+        return policy
     return (
-        accepted_policy
-        if branch == accepted_policy.release_branch
-        and accepted_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
-        else policy
+        accepted_policy if accepted_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF else policy
     )
+
+
+def _strict_ref_policy(repo: Path, revision: str) -> BranchRolePolicy | None:
+    if revision in _ZERO_OIDS:
+        return None
+    try:
+        return strict_branch_role_policy_from_text(
+            committed_file_text(repo, revision, ".ethos/workspace.toml")
+        )
+    except (TypeError, ValueError):
+        return None
 
 
 def ref_move_admission_report(
@@ -303,7 +322,7 @@ def ref_move_admission_report(
     """Admit a local ref move only through the protected candidate train."""
     repo = root.resolve()
     try:
-        policy = _ref_move_policy(repo, ref_name, old_value, new_value)
+        policy = resolve_ref_move_policy(repo, ref_name, old_value, new_value)
     except (ValueError, TypeError):
         branch = ref_name.removeprefix("refs/heads/")
         return {

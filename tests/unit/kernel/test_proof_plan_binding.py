@@ -305,6 +305,70 @@ def test_gate_policy_uses_one_dependency_closure_for_nodes_and_digest(tmp_path: 
     assert resolve_gate_policy(repo, tree_ref=second_head).digest != first_digest
 
 
+def test_proof_admission_uses_canonical_gate_dependency_order(tmp_path: Path) -> None:
+    repo, _head = _adopted_repo(tmp_path / "repo")
+    profile = repo / ".ethos" / "profile.toml"
+    profile.write_text(
+        'profile_id = "repo"\n'
+        'commitment = ".ethos/commitment.toml"\n\n'
+        "[openspec]\n"
+        'material_paths = ["openspec/**"]\n\n'
+        "[proof]\n"
+        'gate_registry = "system/gates.toml"\n',
+        encoding="utf-8",
+    )
+    registry = repo / "system" / "gates.toml"
+    registry.parent.mkdir()
+    registry.write_text(
+        'schema_version = 1\nid = "policy-test"\n\n'
+        '[proof_sets]\ndefault = ["publish"]\nfull = ["publish"]\n\n'
+        '[[gates]]\nid = "publish"\nregistries = ["runtime"]\n'
+        'kind = "release"\ncommand = ["publish"]\n'
+        'depends_on = ["static", "behavior"]\n\n'
+        '[[gates]]\nid = "behavior"\nregistries = ["runtime"]\n'
+        'kind = "test"\ncommand = ["test"]\n'
+        'evidence_class = "proof"\ntrust_bearing = true\n\n'
+        '[[gates]]\nid = "static"\nregistries = ["runtime"]\n'
+        'kind = "typing"\ncommand = ["typecheck"]\n',
+        encoding="utf-8",
+    )
+    head = _commit(repo, "declare noncanonical dependency order")
+    policy = resolve_gate_policy(repo, tree_ref=head)
+    plan = proof_plan(repo, head=head)
+    checks = tuple(
+        {
+            "action_id": gate.id,
+            "command": list(gate_execution_identity(gate)),
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "verdict": "pass",
+            "evidence_class": gate.evidence_class,
+            "trust_bearing": gate.trust_bearing,
+            "diagnostics": [],
+        }
+        for gate in policy.gates
+    )
+    attestation = issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": checks,
+            "verdict": "pass",
+            "issuer": "agent:test:case:canonical-gate-order",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(repo, attestation)
+
+    assert policy.gates[-1].depends_on == ("static", "behavior")
+    assert policy.nodes[-1].depends_on == ("behavior", "static")
+    assert plan.nodes == policy.nodes
+    assert proof_gaps(repo, head) == []
+    assert proof_attestation(repo, head) == attestation
+
+
 def test_committed_gate_policy_never_reads_missing_source_from_worktree(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     _write_script_gate_policy(repo)

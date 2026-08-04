@@ -171,7 +171,8 @@ def install_pack(destination: Path, candidates: list[Path]) -> None:
             for path in reversed(installed):
                 path.unlink()
         except OSError:
-            raise ValueError("handoff_import_object_cleanup_failed") from None
+            msg = "handoff_import_object_cleanup_failed"
+            raise ValueError(msg) from None
         raise
 
 

@@ -238,7 +238,8 @@ def recover_plan(
         effect = git_effect_from_plan(plan)
         update = effect.updates.get(str(intent["ref_name"]))
     except (OSError, ValueError) as error:
-        raise ValueError("git_effect_recovery_unproven") from error
+        msg = "git_effect_recovery_unproven"
+        raise ValueError(msg) from error
     if (
         plan.digest != digest
         or attestation.plan_digest != digest
@@ -248,7 +249,8 @@ def recover_plan(
         or update.desired != desired
         or (assertions is not None and effect.assertions != assertions)
     ):
-        raise ValueError("git_effect_recovery_unproven")
+        msg = "git_effect_recovery_unproven"
+        raise ValueError(msg)
     return plan
 
 

@@ -38,13 +38,7 @@ _ACTIVE_COMMITMENT = re.compile(
 )
 
 
-def lease_bound_archive_scope_report(
-    root: Path,
-    *,
-    changed_paths: tuple[str, ...] = (),
-    requested_change: str | None = None,
-) -> dict[str, Any] | None:
-    """Project the sole archive edge authorized by the current Work Lane Lease."""
+def _archive_context(root: Path) -> tuple[str, dict[str, object], Commitment] | None:
     branch = git_stdout(root, "branch", "--show-current")
     if load_branch_role_policy(root).role_for_branch(branch) != ROLE_WORK_LANE:
         return None
@@ -57,9 +51,22 @@ def lease_bound_archive_scope_report(
     ):
         return None
     try:
-        source = load_lease_bound_commitment(root, lease=lease)
+        return head, lease, load_lease_bound_commitment(root, lease=lease)
     except ValueError:
         return None
+
+
+def lease_bound_archive_scope_report(
+    root: Path,
+    *,
+    changed_paths: tuple[str, ...] = (),
+    requested_change: str | None = None,
+) -> dict[str, Any] | None:
+    """Project the sole archive edge authorized by the current Work Lane Lease."""
+    context = _archive_context(root)
+    if context is None:
+        return None
+    head, lease, source = context
     change = source.id.removeprefix("change:")
     if source.id == change or requested_change not in {None, change}:
         return None
@@ -103,10 +110,11 @@ def _archive_binding(
         revisions = git_stdout(root, "rev-list", head, "--", source, carrier).splitlines()
         for revision in revisions:
             parents = run_git(root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
-            if (
-                len(parents) == 2
-                and exact_rename_target(root, parents[1], revision, source) == carrier
-            ):
+            try:
+                _commit, parent = parents
+            except ValueError:
+                continue
+            if exact_rename_target(root, parent, revision, source) == carrier:
                 return "post_archive_closeout", current_tree(root, head), carrier
         return None
     try:

@@ -49,7 +49,8 @@ class _RefIntent(BaseModel):
     @model_validator(mode="after")
     def validate_nonce(self) -> _RefIntent:
         if self.nonce != _intent_key(self):
-            raise ValueError("ref_intent_nonce_invalid")
+            msg = "ref_intent_nonce_invalid"
+            raise ValueError(msg)
         return self
 
 
@@ -99,7 +100,8 @@ def write_ref_intent(
         if existing:
             if existing.nonce == intent.nonce:
                 return existing.model_dump(mode="json")
-            raise ValueError("ref_intent_collision")
+            msg = "ref_intent_collision"
+            raise ValueError(msg)
         path.unlink(missing_ok=True)
         _store(path, intent)
     return intent.model_dump(mode="json")
@@ -122,7 +124,8 @@ class _IntentLock:
                 time.sleep(_LOCK_DELAY_SECONDS)
                 continue
             return self
-        raise ValueError("ref_intent_lock_timeout")
+        msg = "ref_intent_lock_timeout"
+        raise ValueError(msg)
 
     def __exit__(self, *_args: object) -> None:
         if self.descriptor >= 0:

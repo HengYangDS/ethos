@@ -6,6 +6,14 @@ import re
 import shlex
 
 
+def normalize_command(command: str) -> str:
+    """Return one whitespace-normalized command identity without dropping options."""
+    try:
+        return shlex.join(shlex.split(command))
+    except ValueError:
+        return command.strip()
+
+
 def shell_executables(text: str, npm_scripts: dict[str, set[str]]) -> set[str]:
     """Extract executable identities from shell command lines."""
     functions = {
@@ -244,25 +252,35 @@ def shebang_executable(line: str) -> str:
     return tokens[1] if executable == "env" and len(tokens) > 1 else executable
 
 
-def shell_commands(text: str, known_commands: set[str]) -> set[str]:
+def shell_commands(
+    text: str,
+    known_commands: set[str],
+    *,
+    require_declared: bool = False,
+) -> set[str]:
     """Extract known command identities from shell command lines."""
     return {
         command
         for line in _shell_candidate_lines(text)
         for tokens in _shell_command_segments(line)
-        if (command := command_identity(tokens, known_commands))
+        if (command := command_identity(tokens, known_commands, require_declared=require_declared))
     }
 
 
-def command_identity(tokens: tuple[str, ...], known_commands: set[str]) -> str:
-    """Resolve a token sequence to the longest known command identity."""
+def command_identity(
+    tokens: tuple[str, ...],
+    known_commands: set[str],
+    *,
+    require_declared: bool = False,
+) -> str:
+    """Resolve a token sequence to a declared or unowned command identity."""
     command = _command_tokens(tokens)
     if not command:
         return ""
     executable = _executable_identity(command[0])
     child = _wrapped_command_tokens(command, executable)
     if child:
-        return command_identity(child, known_commands)
+        return command_identity(child, known_commands, require_declared=require_declared)
     candidates = []
     for known in known_commands:
         try:
@@ -273,6 +291,18 @@ def command_identity(tokens: tuple[str, ...], known_commands: set[str]) -> str:
             candidates.append((len(known_tokens), known))
     if candidates:
         return max(candidates)[1]
+    roots = {known.partition(" ")[0] for known in known_commands}
+    if not require_declared or executable not in roots:
+        return ""
+    path = tuple(
+        argument
+        for argument in command
+        if not argument.startswith("-")
+        and re.fullmatch(r"[A-Za-z0-9_.+-]+", argument)
+        and re.search(r"[A-Za-z0-9]", argument)
+    )
+    if len(path) > 1:
+        return shlex.join(path)
     return ""
 
 

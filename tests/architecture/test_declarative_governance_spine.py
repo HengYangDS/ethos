@@ -24,8 +24,6 @@ CORE_SOURCE = ROOT / "src/ethos"
 WHEEL_PROJECTIONS = (
     ("system/gates.toml", "gates.toml"),
     ("system/invalid_states.toml", "invalid_states.toml"),
-    ("system/coupling.toml", "coupling.toml"),
-    ("system/standards.toml", "standards.toml"),
     ("system/policies/evidence-layout.toml", "evidence_layout.toml"),
     (
         "system/policies/generated-artifact-topology.toml",
@@ -345,6 +343,7 @@ def test_terminal_gate_owners_are_singular_and_hosted_logic_stays_in_tools() -> 
     concerns = {tool["concern"] for tool in tools}
     assert "compatibility_residue" not in concerns
     assert "governance_kernel" not in concerns
+    assert "repository_host_execution" not in concerns
     assert "product_boundary" in concerns
     assert "hosted_provider_observation" in concerns
 

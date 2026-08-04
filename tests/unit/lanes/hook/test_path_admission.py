@@ -239,43 +239,22 @@ def _product_baseline(
     executables: tuple[str, ...] = (),
 ) -> None:
     (repo / "system").mkdir()
-    (repo / "system" / "coupling.toml").write_text(
-        f"""id = "test-product-bindings"
-schema_version = 1
-layers = {{ profile_or_adapter_binding = "Admitted external adapters." }}
-ui_projection_fields = []
-product_semantic_docs = []
-git_native_terms = []
-native_protocol_formats = []
-product_repository_gates = []
+    dependencies = [root.replace("_", "-") for root in import_roots]
+    (repo / "pyproject.toml").write_text(
+        f'[project]\nname = "test-product"\nversion = "1"\ndependencies = {dependencies!r}\n'.replace(
+            "'", '"'
+        ),
+        encoding="utf-8",
+    )
+    (repo / "system" / "tools.toml").write_text(
+        f"""schema = "system/schemas/contracts/tools.schema.json"
 
-[openspec_governance]
-required = true
-layer = "profile_or_adapter_binding"
-capability = "test governance"
-execution_surface = "profile_or_adapter_binding"
-not_a_second_command_plane = true
-
-[native_protocols]
-layer = "profile_or_adapter_binding"
-formats = []
-provider_optional = false
-
-[[binding]]
-id = "test_adapter"
-layer = "profile_or_adapter_binding"
-required = false
-owns_product_semantics = false
-adapter_replaceable = true
-required_for = ["test reference admission"]
-replaceability = "replaceable-adapter"
-degradation_state = "nonblocking:test_adapter_absent"
-proof_gate = "tests"
-import_roots = {list(import_roots)!r}
+[[tool]]
+concern = "test_execution"
+tool = "test tools"
+config = "system/tools.toml"
+profile = "product"
 executables = {list(executables)!r}
-admission.authority_ref = "test"
-admission.truth_boundary = "profile_or_adapter"
-admission.decision_state = "admitted"
 """.replace("'", '"'),
         encoding="utf-8",
     )
@@ -428,16 +407,17 @@ def test_patch_cannot_declare_and_consume_reference_in_same_change(
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     declaration_patch = (
-        "diff --git a/system/coupling.toml b/system/coupling.toml\n"
-        "--- a/system/coupling.toml\n+++ b/system/coupling.toml\n"
-        '@@ -1,2 +1,3 @@\n id = "test-product-bindings"\n'
-        '+import_roots = ["external_sdk"]\n schema_version = 1\n'
+        "diff --git a/system/tools.toml b/system/tools.toml\n"
+        "--- a/system/tools.toml\n+++ b/system/tools.toml\n"
+        '@@ -5,4 +5,4 @@ concern = "test_execution"\n'
+        ' tool = "test tools"\n config = "system/tools.toml"\n profile = "product"\n'
+        '-executables = []\n+executables = ["external-runner"]\n'
     )
-    consumption_patch = _patch("module.py", "VALUE = 1", "import external_sdk")
+    consumption_patch = _patch("module.py", "VALUE = 1", 'COMMAND = ["external-runner"]')
 
     report = admission_prewrite.prewrite_guard(
         root=lane,
-        paths=[lane / "system" / "coupling.toml", lane / "module.py"],
+        paths=[lane / "system" / "tools.toml", lane / "module.py"],
         editor_root=lane,
         require_editor_root=True,
         patch=declaration_patch + consumption_patch,
@@ -445,26 +425,29 @@ def test_patch_cannot_declare_and_consume_reference_in_same_change(
 
     assert report["verdict"] == "block"
     assert "ok" not in report
-    assert report["error"] == ("product_reference_not_admitted_at_baseline:import:external_sdk")
+    assert report["error"] == (
+        "product_reference_not_admitted_at_baseline:executable:external-runner"
+    )
 
 
 def test_patch_prewrite_allows_declaration_only_change(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    _product_baseline(repo, scope=("system/coupling.toml",))
+    _product_baseline(repo, scope=("system/tools.toml",))
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     patch = (
-        "diff --git a/system/coupling.toml b/system/coupling.toml\n"
-        "--- a/system/coupling.toml\n+++ b/system/coupling.toml\n"
-        '@@ -1,2 +1,3 @@\n id = "test-product-bindings"\n'
-        '+import_roots = ["external_sdk"]\n schema_version = 1\n'
+        "diff --git a/system/tools.toml b/system/tools.toml\n"
+        "--- a/system/tools.toml\n+++ b/system/tools.toml\n"
+        '@@ -5,4 +5,4 @@ concern = "test_execution"\n'
+        ' tool = "test tools"\n config = "system/tools.toml"\n profile = "product"\n'
+        '-executables = []\n+executables = ["external-runner"]\n'
     )
 
     report = admission_prewrite.prewrite_guard(
         root=lane,
-        paths=[lane / "system" / "coupling.toml"],
+        paths=[lane / "system" / "tools.toml"],
         editor_root=lane,
         require_editor_root=True,
         patch=patch,

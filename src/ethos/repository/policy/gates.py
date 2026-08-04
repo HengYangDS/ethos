@@ -22,7 +22,7 @@ from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import load_repository_profile
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
-_GIT = shutil.which("git") or "/usr/bin/git"
+_GIT = shutil.which("git") or "git"
 
 
 @dataclass(frozen=True, slots=True)

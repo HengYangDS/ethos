@@ -1,4 +1,4 @@
-"""Python syntax references for product-binding closure extraction."""
+"""Imports, executables, commands, and runtime inputs from Python syntax."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import ast
 import re
 import shlex
 
-from ethos.contracts.registry.declarations import normalize_binding_command
-from ethos.repository.policy.coupling.command_references import command_executables
+from ethos.repository.policy.references.commands import command_executables
+from ethos.repository.policy.references.commands import normalize_command
 
 _SUBPROCESS_CALLS = {"run", "Popen", "check_call", "check_output"}
 
@@ -38,6 +38,40 @@ def import_roots(tree: ast.AST) -> set[str]:
         elif isinstance(node, ast.ImportFrom) and node.module:
             roots.add(node.module.split(".")[0])
     return roots
+
+
+def runtime_inputs(tree: ast.AST) -> set[str]:
+    """Return explicitly read environment inputs."""
+    inputs = set()
+    constants = {
+        target.id: value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance((target := node.targets[0]), ast.Name)
+        and (value := _string(node.value))
+    }
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        owner = node.func.value if isinstance(node.func, ast.Attribute) else None
+        name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
+        value = _string(node.args[0]) or (
+            constants.get(node.args[0].id, "") if isinstance(node.args[0], ast.Name) else ""
+        )
+        if _is_environment_read(owner, name):
+            inputs.add(value)
+    return inputs - {""}
+
+
+def _is_environment_read(owner: ast.AST | None, name: str) -> bool:
+    return (isinstance(owner, ast.Name) and owner.id == "os" and name == "getenv") or (
+        isinstance(owner, ast.Attribute)
+        and isinstance(owner.value, ast.Name)
+        and owner.value.id == "os"
+        and owner.attr == "environ"
+        and name == "get"
+    )
 
 
 def python_executables(tree: ast.AST, npm_scripts: dict[str, set[str]]) -> set[str]:
@@ -228,7 +262,7 @@ def cyclopts_commands(path: str, tree: ast.AST, prefixes: dict[tuple[str, str], 
                 candidates = {value for (_, name), value in prefixes.items() if name == owner}
                 prefix = candidates.pop() if len(candidates) == 1 else ""
             commands.update(
-                normalize_binding_command(" ".join(part for part in (prefix, name) if part))
+                normalize_command(" ".join(part for part in (prefix, name) if part))
                 for name in names
             )
     return commands

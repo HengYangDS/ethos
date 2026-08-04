@@ -14,6 +14,7 @@ schema = "system/schemas/contracts/tools.schema.json"
 concern = "python_format_lint"
 tool = "ruff"
 config = "ruff.toml + .config/checks/ruff/ratchet.toml"
+executables = ["ruff"]
 profile = "minimal"
 gate = "tools/ci/scripts/run-python-lint.sh"
 
@@ -21,6 +22,7 @@ gate = "tools/ci/scripts/run-python-lint.sh"
 concern = "tests"
 tool = "pytest + pytest-xdist + pytest-timeout"
 config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
+executables = ["pytest"]
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
 gate = "tools/ci/scripts/run-python-tests.sh"
@@ -44,6 +46,7 @@ gate = "ethos prove --gate python-types --json"
 concern = "import_boundaries"
 tool = "import-linter"
 config = ".config/checks/import-linter/"
+executables = ["lint-imports"]
 profile = "product"
 gate = "tools/ci/scripts/run-import-linter.sh"
 
@@ -58,6 +61,7 @@ gate = "tools/ci/scripts/run-python-lint.sh"
 concern = "links"
 tool = "lychee"
 config = ".config/checks/lychee/"
+executables = ["lychee"]
 profile = "product"
 gate = "ethos prove --gate markdown-links; hosted: ethos prove --gate external-links"
 
@@ -102,6 +106,7 @@ gate = "tools/ci/scripts/run-product-boundary.sh"
 concern = "repository_hygiene"
 tool = "python stdlib + git ls-files"
 config = ".config/checks/repository-hygiene/policy.toml"
+executables = ["git"]
 profile = "minimal"
 gate = "tools/ci/scripts/run-repository-hygiene.sh"
 
@@ -109,6 +114,7 @@ gate = "tools/ci/scripts/run-repository-hygiene.sh"
 concern = "toml"
 tool = "taplo"
 config = ".config/checks/taplo/taplo.toml"
+executables = ["taplo"]
 profile = "minimal"
 gate = "tools/ci/scripts/run-config-lint.sh"
 
@@ -151,6 +157,7 @@ gate = "tools/ci/scripts/run-json-schema-check.sh"
 concern = "hook_config"
 tool = "pre-commit validate-config"
 config = ".pre-commit-config.yaml"
+executables = ["pre-commit"]
 profile = "minimal"
 gate = "tools/ci/scripts/run-config-lint.sh"
 
@@ -159,6 +166,23 @@ concern = "ci_tool_supply"
 tool = "curl + cached CI artifact installers"
 config = "tools/ci/scripts/download-file.sh"
 checksums = "pinned installer SHA-256 values"
+executables = [
+  "apt-get",
+  "cp",
+  "curl",
+  "grep",
+  "gunzip",
+  "gzip",
+  "install",
+  "ln",
+  "mkdir",
+  "mv",
+  "rm",
+  "sha256sum",
+  "sleep",
+  "tar",
+  "xz",
+]
 artifacts = "build/runtime/tool-cache/ci-tools/"
 profile = "product"
 gate = "tools/ci/scripts/install-gitleaks.sh and tools/ci/scripts/install-node.sh"
@@ -167,6 +191,7 @@ gate = "tools/ci/scripts/install-gitleaks.sh and tools/ci/scripts/install-node.s
 concern = "node_runtime_compatibility"
 tool = "node + npm"
 config = ".config/checks/node/runtime.toml"
+executables = ["node", "npm", "npx"]
 profile = "distribution"
 gate = "tools/ci/scripts/run-node-compatibility.sh"
 
@@ -174,6 +199,24 @@ gate = "tools/ci/scripts/run-node-compatibility.sh"
 concern = "local_ci_fallback"
 tool = "ETHOS local-ci owner gate bundle"
 config = "tools/ci/scripts/run-local-ci.sh + tools/ci/scripts/require-stable-head.sh"
+executables = [
+  "bash",
+  "cat",
+  "chmod",
+  "chown",
+  "dirname",
+  "find",
+  "kill",
+  "ps",
+  "python",
+  "python3",
+  "rmdir",
+  "sed",
+  "setpriv",
+  "tail",
+  "tr",
+  "uv",
+]
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
 gate = "tools/ci/scripts/run-local-ci.sh"
@@ -190,6 +233,7 @@ gate = "tools/ci/scripts/run-local-install-smoke.sh"
 concern = "shell"
 tool = "shellcheck"
 config = ".config/checks/shell/.shellcheckrc"
+executables = ["shellcheck"]
 profile = "product"
 gate = "tools/ci/scripts/run-shell-lint.sh"
 
@@ -197,6 +241,7 @@ gate = "tools/ci/scripts/run-shell-lint.sh"
 concern = "secrets"
 tool = "gitleaks"
 config = ".gitleaks.toml"
+executables = ["gitleaks"]
 history = true
 profile = "product"
 gate = "tools/ci/scripts/run-secrets-scan.sh"
@@ -229,6 +274,7 @@ profile = "release"
 concern = "ci_template_consistency"
 tool = "ethos-ci-template-sync"
 config = ".config/ci/templates/hosted/ + .config/checks/ci/templates.toml"
+references = ["docker", "github", "gitlab"]
 gate = "tools/ci/scripts/run-ci-template-check.sh"
 profile = "provider"
 
@@ -236,6 +282,7 @@ profile = "provider"
 concern = "github_workflow_syntax"
 tool = "actionlint"
 config = ".config/checks/github/actionlint.toml"
+executables = ["actionlint"]
 gate = "tools/ci/scripts/run-actionlint.sh"
 profile = "provider"
 

@@ -288,7 +288,8 @@ def resolve_ref_move_policy(
     if policy is None:
         policy = _strict_ref_policy(repo, new_value)
     if policy is None:
-        raise ValueError("ref_move_policy_unavailable")
+        message = "ref_move_policy_unavailable"
+        raise ValueError(message)
     if branch != policy.release_branch:
         return policy
     accepted_head = git_stdout(repo, "rev-parse", policy.accepted_branch)

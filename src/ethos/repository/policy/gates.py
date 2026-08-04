@@ -15,6 +15,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.normalization.coercion import string_mapping
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -45,14 +46,16 @@ class ResolvedGatePolicy:
 
     @property
     def nodes(self) -> tuple[PlanNode, ...]:
-        return tuple(
-            PlanNode(
-                id=gate.id,
-                kind="check",
-                command=gate_execution_identity(gate),
-                depends_on=gate.depends_on,
+        return TransitionPlan.closure(
+            tuple(
+                PlanNode(
+                    id=gate.id,
+                    kind="check",
+                    command=gate_execution_identity(gate),
+                    depends_on=gate.depends_on,
+                )
+                for gate in self.gates
             )
-            for gate in self.gates
         )
 
     @property

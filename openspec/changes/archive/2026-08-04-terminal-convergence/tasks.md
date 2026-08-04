@@ -310,7 +310,7 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   operator whose untrusted output requires ETHOS verification, never a
   Native/Classic runtime, adapter, hook, state, archive, dashboard, Bundle, or
   marketplace owner.
-- [ ] 6.10 Close this oversized source Change through the official owner-native OpenSpec action
+- [x] 6.10 Close this oversized source Change through the official owner-native OpenSpec action
   at verified version `1.7.0` as the final tracked source mutation. Bind the
   effective tool version, returned archive path, warnings, no-op state, and
   resulting HEAD. Prove nested-spec archive, valid `skip_specs`,

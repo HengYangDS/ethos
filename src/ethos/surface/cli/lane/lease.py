@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
 from typing import ClassVar
+from typing import Literal
 from typing import cast
 
 from cyclopts import Parameter
@@ -12,9 +14,12 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
+from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_takeover
 from ethos.adapters.mutation.lane_lifecycle.lease_recovery import recover_legacy_lease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import LeaseRecoveryRequest
+from ethos.contracts.coordination import LeaseTakeoverRequest
+from ethos.contracts.semantic import Attestation
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
@@ -24,6 +29,9 @@ from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class LeaseCommandOptions(BaseModel):
@@ -81,6 +89,20 @@ class _RecoverOptions(LeaseProofOptions):
     branch: Annotated[str, Parameter(name="--branch")]
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
     change_id: Annotated[str, Parameter(name="--change")]
+    ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
+
+
+class _TakeoverOptions(LeaseProofOptions):
+    """Exact accepted authorization for one exceptional holder change."""
+
+    branch: Annotated[str, Parameter(name="--branch")]
+    source_holder_ref: Annotated[str, Parameter(name="--source-holder-ref")]
+    target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
+    expected_lane_incarnation_id: Annotated[str, Parameter(name="--lane-incarnation-id")]
+    expected_tree: Annotated[str, Parameter(name="--expect-tree")]
+    expected_dirty_content_sha256: Annotated[str, Parameter(name="--dirty-content-sha256")]
+    source_state: Annotated[Literal["quiesced", "source_lost"], Parameter(name="--source-state")]
+    authorization: Annotated[Path, Parameter(name="--authorization")]
     ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
 
 
@@ -156,3 +178,31 @@ def lane_lease_recover(options: Annotated[_RecoverOptions, Parameter(name="*")])
         ),
     )
     emit_lease_result("lane lease recover", report, json_output=options.json_output)
+
+
+@lane_lease_app.command(name="takeover")
+def lane_lease_takeover(options: Annotated[_TakeoverOptions, Parameter(name="*")]) -> None:
+    """Apply one accepted exact-CAS Lease takeover without transcript authority."""
+    report = execute_lease_takeover(
+        root=resolve_root(options.root),
+        request=LeaseTakeoverRequest(
+            branch=options.branch,
+            source_holder_ref=options.source_holder_ref,
+            target_holder_ref=options.target_holder_ref,
+            lease_id=options.lease_id,
+            expected_lane_incarnation_id=options.expected_lane_incarnation_id,
+            expected_epoch=options.epoch,
+            expect_head=options.expect_head,
+            expected_tree=options.expected_tree,
+            expected_expires_at=options.expected_expires_at,
+            expected_payload_sha256=options.expected_payload_sha256,
+            expected_dirty_content_sha256=options.expected_dirty_content_sha256,
+            source_state=options.source_state,
+            authorization=Attestation.model_validate_json(
+                options.authorization.read_text(encoding="utf-8")
+            ),
+            ttl_seconds=options.ttl_seconds,
+            apply=options.apply,
+        ),
+    )
+    emit_lease_result("lane lease takeover", report, json_output=options.json_output)

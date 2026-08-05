@@ -4,23 +4,37 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.proof import attestation_store_dir
+from ethos.adapters.mutation.proof import persist_attestation
+from ethos.adapters.mutation.proof_artifacts import scan_attestations
+from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
+from ethos.adapters.repo.git import current_head
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
+from ethos.adapters.store.state.lease.lifecycle.transitions import takeover_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.coordination import lease_operation
+from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -156,6 +170,204 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
         decision=decision,
     )
     return result
+
+
+def execute_lease_takeover(*, root: Path, request: LeaseTakeoverRequest) -> dict[str, object]:
+    """Execute one accepted, exact, transcript-free Lease takeover."""
+    repo = repository_root(root)
+    observed = leases_by_branch(repo).get(request.branch, {})
+    expected = _takeover_expected_state(repo, request, observed)
+    gaps = _takeover_gaps(repo, request, expected)
+    recovered = _takeover_already_applied(request, expected)
+    if recovered:
+        gaps = _takeover_authorization_gaps(repo, request, expected)
+    verdict = (
+        "unknown" if any(gap.endswith("_unknown") for gap in gaps) else "block" if gaps else "pass"
+    )
+    lease: dict[str, object] = {}
+    attestation: Attestation | None = None
+    if request.apply and verdict == "pass":
+        before = _takeover_authorized_state(request)
+        try:
+            lease = (
+                observed
+                if recovered
+                else takeover_lease(
+                    state_database(repo),
+                    request=request,
+                    observe_repository=lambda: (
+                        current_head(repo),
+                        current_tree(repo),
+                        dirty_content_sha256(repo),
+                    ),
+                )
+            )
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            verdict, gaps = "block", (str(exc),)
+        else:
+            repository = load_repository_commitment(repo)
+            effect = NativeEffect(
+                predicate="lane-resolution:takeover",
+                operation="takeover",
+                command=("ethos", "lane", "lease", "takeover"),
+                subject={"branch": request.branch, "head": request.expect_head},
+                before=before,
+                after={
+                    "branch": request.branch,
+                    "head": request.expect_head,
+                    "tree": request.expected_tree,
+                    "dirty_content_sha256": request.expected_dirty_content_sha256,
+                    "holder_ref": request.target_holder_ref,
+                    "epoch": lease["epoch"],
+                    "source_state": request.source_state,
+                },
+            )
+            candidate = issue_native_effect(
+                repo,
+                effect=effect,
+                state="applied",
+                commitment_digest=str(observed.get("base_commitment_digest") or ""),
+                repository_id=repository.id,
+            )
+            attestations, store_gaps = scan_attestations(attestation_store_dir(repo))
+            if store_gaps:
+                raise ValueError(store_gaps[0])
+            attestation = next(
+                (item for item in attestations if item.effect_digest == candidate.effect_digest),
+                candidate,
+            )
+            persist_attestation(repo, attestation)
+    state = (
+        "taken_over"
+        if verdict == "pass" and request.apply
+        else "planned"
+        if verdict == "pass"
+        else "blocked"
+    )
+    return {
+        "verdict": verdict,
+        "state": state,
+        "branch": request.branch,
+        "source_state": request.source_state,
+        "lease": lease,
+        "attestation": attestation.model_dump(mode="json") if attestation else {},
+        "required_gaps": list(gaps),
+    }
+
+
+def _takeover_expected_state(
+    repo: Path, request: LeaseTakeoverRequest, observed: dict[str, object]
+) -> dict[str, object]:
+    return {
+        "branch": request.branch,
+        "head": current_head(repo),
+        "tree": current_tree(repo),
+        "dirty_content_sha256": dirty_content_sha256(repo),
+        "lane_incarnation_id": str(observed.get("lane_incarnation_id") or ""),
+        "lease_id": str(observed.get("lease_id") or ""),
+        "lease_epoch": integer_value(observed.get("epoch")),
+        "lease_payload_sha256": str(observed.get("payload_sha256") or ""),
+        "base_commitment_digest": str(observed.get("base_commitment_digest") or ""),
+        "source_holder_ref": str(observed.get("holder_ref") or ""),
+        "target_holder_ref": request.target_holder_ref,
+        "source_state": request.source_state,
+        "actor_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
+        "lease_state": str(observed.get("lease_state") or "missing"),
+    }
+
+
+def _takeover_gaps(
+    repo: Path, request: LeaseTakeoverRequest, observed: dict[str, object]
+) -> tuple[str, ...]:
+    expected = _takeover_authorized_state(request)
+    coordinate_gaps = {
+        "head": "head_drift",
+        "tree": "tree_drift",
+        "dirty_content_sha256": "dirty_content_drift",
+        "lane_incarnation_id": "incarnation_drift",
+        "lease_id": "lease_id_drift",
+        "lease_epoch": "epoch_drift",
+        "lease_payload_sha256": "payload_drift",
+        "source_holder_ref": "source_holder_drift",
+    }
+    checks = [
+        (observed["lease_state"] in {"valid", "expired"}, "lease_unknown"),
+        (observed["actor_ref"] == request.target_holder_ref, "actor_mismatch"),
+        *((observed[key] == expected[key], gap) for key, gap in coordinate_gaps.items()),
+    ]
+    return (
+        *(f"lease_takeover_{gap}" for valid, gap in checks if not valid),
+        *_takeover_authorization_gaps(repo, request, observed),
+    )
+
+
+def _takeover_authorized_state(request: LeaseTakeoverRequest) -> dict[str, object]:
+    return {
+        "branch": request.branch,
+        "head": request.expect_head,
+        "tree": request.expected_tree,
+        "dirty_content_sha256": request.expected_dirty_content_sha256,
+        "lane_incarnation_id": request.expected_lane_incarnation_id,
+        "lease_id": request.lease_id,
+        "lease_epoch": request.expected_epoch,
+        "lease_payload_sha256": request.expected_payload_sha256,
+        "source_holder_ref": request.source_holder_ref,
+        "target_holder_ref": request.target_holder_ref,
+        "source_state": request.source_state,
+    }
+
+
+def _takeover_authorization_gaps(
+    repo: Path, request: LeaseTakeoverRequest, observed: dict[str, object]
+) -> tuple[str, ...]:
+    authorization = request.authorization
+    path = attestation_store_dir(repo) / f"{authorization.id}.json"
+    try:
+        accepted = Attestation.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        accepted = None
+    now = datetime.now(UTC)
+    checks = (
+        (accepted == authorization, "lease_takeover_authorization_unaccepted"),
+        (
+            authorization.predicate == "lane-resolution:takeover",
+            "lease_takeover_authorization_kind",
+        ),
+        (authorization.verdict == "pass", "lease_takeover_authorization_blocked"),
+        (
+            authorization.subject == f"git:branch:{request.branch}",
+            "lease_takeover_authorization_subject_drift",
+        ),
+        (
+            authorization.commitment_digest == str(observed.get("base_commitment_digest") or ""),
+            "lease_takeover_authorization_commitment_drift",
+        ),
+        (
+            (authorization.valid_from or authorization.issued_at) <= now
+            and (authorization.valid_until is None or now <= authorization.valid_until),
+            "lease_takeover_authorization_stale",
+        ),
+        (
+            authorization.statement.get("authorization") == _takeover_authorized_state(request),
+            "lease_takeover_authorization_drift",
+        ),
+    )
+    return tuple(gap for valid, gap in checks if not valid)
+
+
+def _takeover_already_applied(request: LeaseTakeoverRequest, observed: dict[str, object]) -> bool:
+    return all(
+        (
+            observed["head"] == request.expect_head,
+            observed["tree"] == request.expected_tree,
+            observed["dirty_content_sha256"] == request.expected_dirty_content_sha256,
+            observed["lane_incarnation_id"] == request.expected_lane_incarnation_id,
+            observed["lease_id"] == request.lease_id,
+            observed["lease_epoch"] == request.expected_epoch + 1,
+            observed["source_holder_ref"] == request.target_holder_ref,
+            observed["actor_ref"] == request.target_holder_ref,
+        )
+    )
 
 
 def _lease_effect_request(

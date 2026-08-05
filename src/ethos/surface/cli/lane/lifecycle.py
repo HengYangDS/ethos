@@ -23,7 +23,10 @@ from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import execute_commitment_rebind
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.mutation.proof import attestation_store_dir
+from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
+from ethos.adapters.repo.coordination import shared_inbox_projection
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.coordination import CommitmentRebindRequest
 from ethos.contracts.verdict import Verdict
@@ -229,19 +232,60 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
     """Inspect Work Lane topology and foreign lanes."""
     repo = resolve_root(root)
     report = workspace_status(repo)
+    foreign = cast("list[dict[str, object]]", report.get("foreign_work_lanes") or [])
+    unbound = cast("list[dict[str, object]]", report.get("unbound_work_lane_refs") or [])
+    coordination_gaps = string_sequence(report.get("coordination_gaps"))
+    attestations, attestation_gaps = scan_attestations(attestation_store_dir(repo))
+    inbox_inputs: list[dict[str, object]] = [
+        {
+            "kind": "coordination-gap",
+            "subject": str(lane.get("branch") or "repository"),
+            "claim": gap,
+            "source_refs": [
+                str(lane.get("head") or ""),
+                str(lane.get("base_commitment_digest") or ""),
+                str(cast("dict[str, object]", lane.get("lease") or {}).get("lease_id") or ""),
+            ],
+            "next_action": str(lane.get("next_action") or "observe and resolve exact facts"),
+        }
+        for gap in coordination_gaps
+        for lane in foreign
+        if gap == "foreign_work_lane_present" or str(lane.get("branch") or "") in gap
+    ]
+    inbox_inputs.extend(
+        {
+            "kind": "orphan-observation",
+            "subject": str(item.get("branch") or ""),
+            "claim": f"unbound_work_lane_ref:{item.get('lease_state') or 'unknown'}",
+            "source_refs": [
+                str(item.get("head") or ""),
+                str(item.get("base_commitment_digest") or ""),
+                str(item.get("lease_id") or ""),
+            ],
+            "next_action": str(item.get("next_action") or "preserve and resolve exact ownership"),
+        }
+        for item in unbound
+    )
+    inbox_inputs.extend(
+        {
+            "kind": "attestation-gap",
+            "subject": "repository",
+            "claim": gap,
+            "source_refs": [],
+            "next_action": "repair the content-addressed Attestation store",
+        }
+        for gap in attestation_gaps
+    )
+    report["shared_inbox"] = shared_inbox_projection(inbox_inputs, attestations=attestations)
     validation = prove_domain.workspace_status_validation(repo, report)
     gaps = (
         *string_sequence(report.get("required_gaps")),
         *prove_domain.workspace_status_validation_gaps(validation),
     )
-    report = {
-        **report,
-        "verdict": reduce_verdicts(report_verdict(report), report_verdict(validation)),
-        "required_gaps": gaps,
-    }
-    foreign = cast("list[dict[str, object]]", report.get("foreign_work_lanes") or [])
-    unbound = cast("list[dict[str, object]]", report.get("unbound_work_lane_refs") or [])
-    coordination_gaps = string_sequence(report.get("coordination_gaps"))
+    report.update(
+        verdict=reduce_verdicts(report_verdict(report), report_verdict(validation)),
+        required_gaps=gaps,
+    )
     stage_gates = cast("dict[str, object]", report.get("stage_gates") or {})
     summary = {
         "branch": report["branch"],

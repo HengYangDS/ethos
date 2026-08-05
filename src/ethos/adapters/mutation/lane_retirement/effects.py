@@ -11,7 +11,6 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -327,7 +326,8 @@ def lane(
         "branch": branch,
         "path": path.as_posix(),
         "head": head,
-        "lease": lease_summary(lease),
+        "lease": {key: value for key, value in lease_generation(lease).items() if key != "branch"}
+        | {"mints_authority": False},
         "lease_state": lease_state,
         "retire_ready": not gaps,
         "required_gaps": gaps,

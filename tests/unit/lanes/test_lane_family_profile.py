@@ -13,10 +13,9 @@ from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
-from ethos.adapters.repo.coordination import coordination_package
 from ethos.adapters.repo.coordination import foreign_work_lane
-from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.status.bindings import closeout_support
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -57,7 +56,7 @@ def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:
         "commitment_binding": "mismatch",
     }
 
-    summary = lease_summary(lease)
+    summary = lease_generation(lease)
     support = closeout_support(
         branch="work/example",
         role=ROLE_WORK_LANE,
@@ -357,33 +356,6 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
         ),
     )
 
-    coordination = coordination_package(
-        [lane],
-        required_gaps=[],
-        advisory_gaps=[],
-        unbound_work_lane_refs=[
-            {
-                "branch": "work/unbound",
-                "head": "a" * 40,
-                "lane_incarnation_id": "",
-                "lease_id": "",
-                "holder_ref": "",
-                "epoch": 0,
-                "expected_head": "",
-                "expected_tree": "",
-                "expires_at": "",
-                "payload_sha256": "",
-                "base_commitment_path": None,
-                "base_commitment_bytes_sha256": "",
-                "base_commitment_digest": "",
-                "commitment_binding": "missing",
-                "lease_state": "missing",
-                "relation_to_accepted": "unknown",
-                "next_action": "ignored",
-            }
-        ],
-    )
-
     assert lane["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
     lease = leases_by_branch(repo)[branch]
     assert {
@@ -400,10 +372,6 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
         "mints_authority": False,
         "recheck_required": True,
     }
-    assert coordination["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
-    unbound = coordination["unbound_work_lane_refs"]
-    assert isinstance(unbound, list)
-    assert unbound[0]["next_action"] == FOREIGN_WORK_LANE_NEXT_ACTION
 
 
 def test_unbound_work_lane_ref_preserves_exact_lease_coordinates(tmp_path: Path) -> None:
@@ -419,7 +387,8 @@ def test_unbound_work_lane_ref_preserves_exact_lease_coordinates(tmp_path: Path)
 
     status = workspace_status(repo, include_foreign_path_scope=False)
     binding = next(item for item in status["branch_bindings"] if item["branch"] == "work/unbound")
-    unbound = status["coordination"]["unbound_work_lane_refs"]
+    assert "coordination" not in status
+    unbound = status["unbound_work_lane_refs"]
 
     assert {
         "expected_head",

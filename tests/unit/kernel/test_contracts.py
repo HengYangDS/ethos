@@ -216,6 +216,21 @@ def test_only_commitment_and_attestation_have_production_persistence_owners() ->
     assert "transient" in (TransitionPlan.__doc__ or "")
 
 
+def test_coordination_persists_only_the_current_lease_resource() -> None:
+    schema = Path("src/ethos/adapters/store/state/schema.py").read_text(encoding="utf-8")
+    production = "\n".join(
+        path.read_text(encoding="utf-8") for path in Path("src/ethos").rglob("*.py")
+    )
+
+    assert re.findall(r"create table if not exists ([a-z_]+)", schema, re.IGNORECASE) == ["leases"]
+    assert not re.search(
+        r"create table if not exists (?:inbox|handoff|candidate|family|record)s?\b",
+        production,
+        re.IGNORECASE,
+    )
+    assert "coordination_package" not in production
+
+
 def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
     commitment = _contract(risks=("cutover",), hypotheses=("compiler",), dependencies=("git",))
 
@@ -499,6 +514,11 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "lease_state",
     }
     unbound = workspace_schema["$defs"]["unboundWorkLaneRef"]
+    assert "coordination" not in workspace_schema["properties"]
+    assert workspace_schema["properties"]["unbound_work_lane_refs"] == {
+        "items": {"$ref": "#/$defs/unboundWorkLaneRef"},
+        "type": "array",
+    }
     assert exact_coordinates <= set(unbound["properties"])
     assert set(unbound["required"]) == {
         "branch",

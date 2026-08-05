@@ -54,8 +54,10 @@ Existing linked worktrees report `worktree_binding = "linked"` as product
 state; host-specific navigation labels are adapter projections, not workspace
 semantics. Adapters derive presentation from `worktree_binding`; they do not
 own branch role, lane, or mutation semantics.
-Foreign Work Lanes appear in `foreign_work_lanes` and in the `coordination`
-package. Presence is advisory when scopes are disjoint or the current checkout
+Foreign Work Lanes appear once in `foreign_work_lanes`; unbound refs appear in
+`unbound_work_lane_refs`, and derived contention appears in `coordination_gaps`.
+No coordination package persists duplicate counts or lifecycle state. Presence
+is advisory when scopes are disjoint or the current checkout
 is observe-only. Candidate integration from a Work Lane is blocked by required
 coordination gaps for the current lane, such as unknown current scope. Foreign
 unknown scope and same-file/ancestor-scope overlap are surfaced as advisory

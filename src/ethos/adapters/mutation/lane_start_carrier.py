@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 import ethos.adapters.mutation.lane_start_rollback as rollback
+from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -196,7 +198,11 @@ def lane_start_transition_plan(
         updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)},
         assertions={
             f"refs/heads/{context.policy.candidate_branch}": base_head,
-            f"refs/heads/{context.source_branch}": context.source_head,
+            **(
+                {f"refs/heads/{context.source_branch}": context.source_head}
+                if context.source_branch
+                else {}
+            ),
         },
     )
     authority = load_lease_bound_commitment(context.target, lease=lease)
@@ -254,12 +260,16 @@ def initialize_lane_carrier(
 ) -> tuple[subprocess.CompletedProcess[str] | None, str]:
     """Materialize and validate one deterministic initialization HEAD."""
     candidate_head = str(context.candidate["head"])
-    failure, tree = materialize_source_carrier(
-        target=context.target,
-        source_root=context.source_root,
-        source_head=context.source_head,
-        carrier=context.source_commitment_path,
-        run=context.run,
+    failure, tree = (
+        materialize_source_carrier(
+            target=context.target,
+            source_root=context.source_root,
+            source_head=context.source_head,
+            carrier=context.source_commitment_path,
+            run=context.run,
+        )
+        if context.source_head
+        else materialize_fresh_carrier(context)
     )
     if failure is None:
         gap = lane_start_drift_gap(
@@ -272,7 +282,11 @@ def initialize_lane_carrier(
         )
         failure = failed_process(gap) if gap else None
     metadata = (
-        commit_metadata(context.repo, context.source_head, run=context.run)
+        commit_metadata(
+            context.repo,
+            context.source_head or candidate_head,
+            run=context.run,
+        )
         if failure is None
         else None
     )
@@ -336,6 +350,46 @@ def materialize_source_carrier(
     return None, target_tree.stdout.strip()
 
 
+def materialize_fresh_carrier(
+    context: LaneStartContext,
+) -> tuple[subprocess.CompletedProcess[str] | None, str]:
+    """Create one official OpenSpec carrier from an explicit Commitment file."""
+    command = openspec_base_command()
+    if command is None:
+        return failed_process("openspec_official_cli_missing"), ""
+    created = run_json(
+        context.target,
+        command,
+        ("new", "change", context.source_change_id, "--schema", "spec-driven", "--json"),
+    )
+    if created["exit_code"] or created["parse_error"]:
+        return failed_process("openspec_change_creation_failed"), ""
+    target = context.target / context.source_commitment_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(context.source_root.read_bytes())
+    added = context.run(
+        context.target,
+        "add",
+        str(PurePosixPath(context.source_commitment_path).parent),
+        check=False,
+    )
+    if added.returncode:
+        return added, ""
+    status = run_json(
+        context.target,
+        command,
+        ("status", "--change", context.source_change_id, "--json"),
+    )
+    if (
+        status["exit_code"]
+        or status["parse_error"]
+        or status["json"].get("changeName") != context.source_change_id
+    ):
+        return failed_process("openspec_change_validation_failed"), ""
+    tree = context.run(context.target, "write-tree", check=False)
+    return (tree if tree.returncode else None), tree.stdout.strip()
+
+
 def lane_start_drift_gap(
     *,
     repo: Path,
@@ -353,6 +407,8 @@ def lane_start_drift_gap(
     candidate_path = Path(str(candidate["worktree_path"]))
     if run(candidate_path, "rev-parse", "HEAD", check=False).stdout.strip() != candidate_head:
         return "candidate_worktree_head_changed_during_lane_start"
+    if not source_head:
+        return ""
     if ref_head(source_root, source_branch) != source_head:
         return "source_head_changed_during_lane_start"
     if run(source_root, "rev-parse", "HEAD", check=False).stdout.strip() != source_head:
@@ -435,7 +491,7 @@ def started_lane_report(
         "base_head": base_head,
         "head": head,
         "path": context.target.as_posix(),
-        "source_root": context.source_root.resolve().as_posix(),
+        "source_root": context.source_root.resolve().as_posix() if context.source_head else "",
         "source_head": context.source_head,
         "source_change_id": context.source_change_id,
         "source_commitment_digest": context.base_commitment_digest,

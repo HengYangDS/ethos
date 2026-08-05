@@ -503,7 +503,7 @@ def _prewrite_block_next_action(admission: dict[str, object]) -> str:
         )
     if reason.startswith("work_lane_missing_lease:"):
         return (
-            "ethos lane start <name> --source-root <source-work-lane> "
+            "ethos lane start <name> --commitment <commitment.toml> "
             "--holder-ref <holder-ref> --apply --json"
         )
     return "ethos lane prewrite <path>"

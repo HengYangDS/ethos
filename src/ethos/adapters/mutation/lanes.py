@@ -13,6 +13,7 @@ from ethos.adapters.mutation.lane_start_carrier import LaneStartContext
 from ethos.adapters.mutation.lane_start_carrier import create_lane_start_carrier
 from ethos.adapters.mutation.lane_start_carrier import runner_bootstrap
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
@@ -28,6 +29,7 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import HolderRef
+from ethos.contracts.semantic import load_commitment_file
 
 
 def slug(name: str) -> str:
@@ -61,6 +63,7 @@ def start_work_lane(
     root: Path,
     name: str,
     source_root: Path | None = None,
+    commitment_path: Path | None = None,
     path: Path | None = None,
     holder_ref: str,
     apply: bool = False,
@@ -86,7 +89,12 @@ def start_work_lane(
     if admission_block:
         return admission_block
     source, commitment_block = lane_start_commitment(
-        repo, branch=branch, target=target, source_root=source_root
+        repo,
+        name=name,
+        branch=branch,
+        target=target,
+        source_root=source_root,
+        commitment_path=commitment_path,
     )
     if commitment_block:
         return commitment_block
@@ -200,24 +208,85 @@ def lane_start_target(
 def lane_start_commitment(
     repo: Path,
     *,
+    name: str,
     branch: str,
     target: Path,
     source_root: Path | None,
+    commitment_path: Path | None,
 ) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object] | None]:
     """Bind lane start to one exact active Commitment in a source Work Lane."""
+    if source_root is not None and commitment_path is not None:
+        return blocked_commitment(branch, target, "lane_start_intent_ambiguous")
+    if commitment_path is not None:
+        return fresh_lane_start_commitment(
+            repo,
+            name=name,
+            branch=branch,
+            target=target,
+            commitment_path=commitment_path,
+        )
+    if source_root is None:
+        return blocked_commitment(branch, target, "lane_start_commitment_required")
+    return source_lane_start_commitment(
+        repo,
+        branch=branch,
+        target=target,
+        source_root=source_root,
+    )
+
+
+def fresh_lane_start_commitment(
+    repo: Path,
+    *,
+    name: str,
+    branch: str,
+    target: Path,
+    commitment_path: Path,
+) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object] | None]:
+    """Validate one explicit Commitment for a fresh atomic Change."""
+    change_id = slug(name)
+    try:
+        commitment = load_commitment_file(
+            commitment_path,
+            repository_id=load_repository_commitment(repo).id,
+        )
+    except (OSError, ValueError):
+        return blocked_commitment(branch, target, "lane_start_commitment_invalid")
+    if commitment.id != f"change:{change_id}":
+        return blocked_commitment(branch, target, "lane_start_commitment_identity_mismatch")
+    return (
+        (
+            commitment_path.resolve(),
+            change_id,
+            f"openspec/changes/{change_id}/commitment.toml",
+            commitment.digest(),
+            "",
+            "",
+        ),
+        None,
+    )
+
+
+def source_lane_start_commitment(
+    repo: Path,
+    *,
+    branch: str,
+    target: Path,
+    source_root: Path,
+) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object] | None]:
+    """Read one exact active Commitment from a live source Work Lane."""
     source = Path()
     source_branch = ""
     source_head = ""
     change_id = ""
     carrier = ""
     commitment_digest = ""
-    gap = "source_root_required" if source_root is None else ""
-    if not gap and source_root is not None:
-        try:
-            source = repository_root(source_root)
-        except (OSError, subprocess.CalledProcessError):
-            gap = "source_work_lane_invalid"
-    if not gap and (source.resolve() == repo.resolve() or not same_git_repository(repo, source)):
+    try:
+        source = repository_root(source_root)
+    except (OSError, subprocess.CalledProcessError):
+        return blocked_commitment(branch, target, "source_work_lane_invalid")
+    gap = ""
+    if source.resolve() == repo.resolve() or not same_git_repository(repo, source):
         gap = "source_work_lane_invalid"
     if not gap:
         source_branch = run_git(
@@ -260,6 +329,13 @@ def lane_start_commitment(
         if gap
         else (source_commitment, None)
     )
+
+
+def blocked_commitment(
+    branch: str, target: Path, gap: str
+) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object]]:
+    """Return one pre-effect lane-start Commitment rejection."""
+    return (Path(), "", "", "", "", ""), blocked_lane_start(branch, target, gap)
 
 
 def lane_start_carrier_gap(repo: Path, *, target: Path, branch: str) -> str:

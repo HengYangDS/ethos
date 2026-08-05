@@ -537,6 +537,8 @@ def test_lane_refresh_base_apply_rebases_stale_work_lane(
     commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     previous_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
+    git(worktree, "config", "commit.gpgsign", "true")
+    git(worktree, "config", "user.signingkey", "missing-test-signing-key")
     payload = run_ethos(
         "lane",
         "refresh-base",

@@ -137,7 +137,15 @@ def _refresh_work_lane(
     if snapshot_gaps:
         return _report(context, current_head, "blocked", snapshot_gaps)
     completed = run_git(
-        root, "-c", "rebase.updateRefs=false", "rebase", candidate_head, current_head, check=False
+        root,
+        "-c",
+        "rebase.updateRefs=false",
+        "-c",
+        "commit.gpgSign=false",
+        "rebase",
+        candidate_head,
+        current_head,
+        check=False,
     )
     if completed.returncode != 0:
         run_git(root, "rebase", "--abort", check=False)

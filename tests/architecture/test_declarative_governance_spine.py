@@ -127,6 +127,175 @@ def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
     )
 
 
+def test_git_worktree_mutation_has_one_declared_execution_owner() -> None:
+    owner = "adapters/repo/worktree_effects.py"
+    executions: set[str] = set()
+    for path in CORE_SOURCE.rglob("*.py"):
+        relative = path.relative_to(CORE_SOURCE).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = node.func.id if isinstance(node.func, ast.Name) else ""
+            if function not in {"run", "run_git"}:
+                continue
+            literals = {
+                descendant.value
+                for argument in node.args
+                for descendant in ast.walk(argument)
+                if isinstance(descendant, ast.Constant) and isinstance(descendant.value, str)
+            }
+            if "worktree" in literals and literals & {"add", "remove"}:
+                executions.add(relative)
+
+    source = _read(f"src/ethos/{owner}")
+    assert executions == set()
+    assert '("worktree", "add"' in source
+    assert '("worktree", "remove"' in source
+
+
+def test_git_worktree_index_mutation_has_one_declared_execution_owner() -> None:
+    executions: set[str] = set()
+    for path in CORE_SOURCE.rglob("*.py"):
+        relative = path.relative_to(CORE_SOURCE).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = node.func.id if isinstance(node.func, ast.Name) else ""
+            if function not in {"run", "run_git", "runner"}:
+                continue
+            literals = {
+                descendant.value
+                for argument in node.args
+                for descendant in ast.walk(argument)
+                if isinstance(descendant, ast.Constant) and isinstance(descendant.value, str)
+            }
+            if "read-tree" in literals:
+                executions.add(relative)
+
+    assert executions == {"adapters/repo/worktree_effects.py"}
+
+
+def test_git_worktree_cleanup_has_no_parallel_reset_or_clean_owner() -> None:
+    executions: set[tuple[str, str]] = set()
+    for path in CORE_SOURCE.rglob("*.py"):
+        relative = path.relative_to(CORE_SOURCE).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = node.func.id if isinstance(node.func, ast.Name) else ""
+            if function not in {"run", "run_git", "runner"}:
+                continue
+            literals = {
+                descendant.value
+                for argument in node.args
+                for descendant in ast.walk(argument)
+                if isinstance(descendant, ast.Constant) and isinstance(descendant.value, str)
+            }
+            for command in literals & {"reset", "clean"}:
+                executions.add((relative, command))
+
+    assert executions == set()
+
+
+def test_git_switch_mutation_has_one_declared_execution_owner() -> None:
+    executions: set[str] = set()
+    for path in CORE_SOURCE.rglob("*.py"):
+        relative = path.relative_to(CORE_SOURCE).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = node.func.id if isinstance(node.func, ast.Name) else ""
+            if function not in {"run", "run_git", "runner"}:
+                continue
+            literals = {
+                descendant.value
+                for argument in node.args
+                for descendant in ast.walk(argument)
+                if isinstance(descendant, ast.Constant) and isinstance(descendant.value, str)
+            }
+            if "switch" in literals:
+                executions.add(relative)
+
+    assert executions == {"adapters/repo/worktree_effects.py"}
+
+
+def test_git_rebase_mutation_has_one_declared_execution_owner() -> None:
+    executions: set[str] = set()
+    for path in CORE_SOURCE.rglob("*.py"):
+        relative = path.relative_to(CORE_SOURCE).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = node.func.id if isinstance(node.func, ast.Name) else ""
+            if function not in {"run", "run_git", "runner"}:
+                continue
+            literals = {
+                descendant.value
+                for argument in node.args
+                for descendant in ast.walk(argument)
+                if isinstance(descendant, ast.Constant) and isinstance(descendant.value, str)
+            }
+            if "rebase" in literals:
+                executions.add(relative)
+
+    assert executions == {"adapters/mutation/lane_lifecycle/work_lane_refresh.py"}
+
+
+def test_remaining_git_mutation_commands_have_one_declared_owner_each() -> None:
+    owners = {
+        "checkout": {"adapters/mutation/lane_start_carrier.py"},
+        "index-add": {"adapters/mutation/lane_start_carrier.py"},
+        "commit-tree": {"adapters/mutation/lane_start_carrier.py"},
+        "config-write": {"adapters/repo/config_effects.py"},
+        "init": {"adapters/mutation/lane_lifecycle/handoff/destination_objects.py"},
+        "bundle-create": {"adapters/mutation/lane_lifecycle/handoff/package.py"},
+        "bundle-unbundle": {
+            "adapters/mutation/lane_lifecycle/handoff/destination_objects.py"
+        },
+    }
+    observed = {effect: set() for effect in owners}
+    for path in CORE_SOURCE.rglob("*.py"):
+        relative = path.relative_to(CORE_SOURCE).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = (
+                node.func.id
+                if isinstance(node.func, ast.Name)
+                else node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else ""
+            )
+            if function not in {"run", "run_git", "runner"}:
+                continue
+            literals = {
+                descendant.value
+                for argument in node.args
+                for descendant in ast.walk(argument)
+                if isinstance(descendant, ast.Constant) and isinstance(descendant.value, str)
+            }
+            effects = {
+                "checkout": "checkout" in literals,
+                "index-add": "add" in literals and "worktree" not in literals,
+                "commit-tree": "commit-tree" in literals,
+                "config-write": "config" in literals and "--get" not in literals,
+                "init": "init" in literals,
+                "bundle-create": {"bundle", "create"} <= literals,
+                "bundle-unbundle": {"bundle", "unbundle"} <= literals,
+            }
+            for effect, present in effects.items():
+                if present:
+                    observed[effect].add(relative)
+
+    assert observed == owners
+
+
 def test_gate_dependencies_are_declared_without_runtime_product_injection() -> None:
     registry = tomllib.loads(_read("system/gates.toml"))
     gates = {gate["id"]: gate for gate in registry["gates"]}

@@ -14,15 +14,22 @@ from typing import NamedTuple
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from ethos.contracts.semantic import Attestation
+
 import ethos.adapters.mutation.lane_start_rollback as rollback
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import ref_head
+from ethos.adapters.repo.worktree_effects import add_worktree
+from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -55,7 +62,7 @@ class LaneStartContext(NamedTuple):
 def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
     """Initialize detached content, acquire its Lease, then bind the lane ref."""
     candidate_head = str(context.candidate["head"])
-    prepared, final_head = prepare_lane_start_carrier(context)
+    prepared, final_head, carrier_attestation = prepare_lane_start_carrier(context)
     if prepared is not None:
         failure_gap = (
             "worktree_add_failed"
@@ -143,21 +150,22 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
                 failure_gap="lane_start_ref_creation_failed",
             )
         )
-    attached = context.run(
-        context.target,
-        "symbolic-ref",
-        "HEAD",
-        f"refs/heads/{context.branch}",
-        check=False,
-    )
-    if attached.returncode != 0:
+    try:
+        attachment_attestation = attach_worktree(
+            context.repo,
+            context.target,
+            branch=context.branch,
+            head=final_head,
+            runner=context.run,
+        )
+    except ValueError as error:
         return rollback.rollback_lane_start(
             rollback.LaneStartRollback(
                 repo=context.repo,
                 target=context.target,
                 branch=context.branch,
                 ownership=("detached", candidate_head, final_head),
-                completed=attached,
+                completed=failed_process(str(error)),
                 run=context.run,
                 lease=lease,
                 failure_gap="lane_start_worktree_binding_failed",
@@ -182,7 +190,14 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
                 failure_gap="lane_start_worktree_binding_mismatch",
             )
         )
-    return started_lane_report(context, base_head=candidate_head, head=final_head, lease=lease)
+    return started_lane_report(
+        context,
+        base_head=candidate_head,
+        head=final_head,
+        lease=lease,
+        carrier_attestation=carrier_attestation,
+        attachment_attestation=attachment_attestation,
+    )
 
 
 def lane_start_transition_plan(
@@ -223,7 +238,7 @@ def lane_start_transition_plan(
 
 def prepare_lane_start_carrier(
     context: LaneStartContext,
-) -> tuple[subprocess.CompletedProcess[str] | None, str]:
+) -> tuple[subprocess.CompletedProcess[str] | None, str, Attestation | None]:
     """Create and initialize the detached carrier without minting a lane ref."""
     candidate_head = str(context.candidate["head"])
     if gap := lane_start_drift_gap(
@@ -234,25 +249,46 @@ def prepare_lane_start_carrier(
         source_head=context.source_head,
         run=context.run,
     ):
-        return failed_process(gap), candidate_head
-    completed = context.run(
-        context.repo,
-        "worktree",
-        "add",
-        "--detach",
-        context.target.as_posix(),
-        candidate_head,
-        check=False,
+        return failed_process(gap), candidate_head, None
+    try:
+        add_worktree(
+            context.repo,
+            context.target,
+            branch="detached",
+            head=candidate_head,
+            runner=context.run,
+        )
+    except ValueError as error:
+        return failed_process(str(error)), candidate_head, None
+    failure, final_head = initialize_lane_carrier(context)
+    if failure is not None:
+        return failure, final_head, None
+    coordinates = exact_commitment_fields(
+        context.target,
+        head=final_head,
+        carrier=context.source_commitment_path,
+        change_id=context.source_change_id,
     )
-    if completed.returncode != 0 or not rollback.exact_worktree(
-        context.repo,
-        target=context.target,
-        branch="detached",
-        head=candidate_head,
-        run=context.run,
-    ):
-        return completed, candidate_head
-    return initialize_lane_carrier(context)
+    commitment = load_lease_bound_commitment(context.target, lease=coordinates)
+    repository = load_repository_commitment(context.target, tree_ref=final_head)
+    attestation = issue_native_effect(
+        context.target,
+        effect=NativeEffect(
+            predicate="effect:git-carrier-materialization",
+            operation="git.carrier.materialize",
+            command=("git", "checkout/add", "write-tree", "commit-tree"),
+            subject={
+                "change_id": context.source_change_id,
+                "carrier": context.source_commitment_path,
+            },
+            before={"head": candidate_head},
+            after={"head": final_head},
+        ),
+        state="applied",
+        commitment_digest=commitment.digest(),
+        repository_id=repository.id,
+    )
+    return None, final_head, attestation
 
 
 def initialize_lane_carrier(
@@ -481,6 +517,8 @@ def started_lane_report(
     base_head: str,
     head: str,
     lease: dict[str, object],
+    carrier_attestation: Attestation | None,
+    attachment_attestation: Attestation,
 ) -> dict[str, object]:
     """Build the receipt for an exact, leased, linked Work Lane."""
     return {
@@ -499,6 +537,10 @@ def started_lane_report(
         "holder_ref": context.holder_ref,
         "base_commitment_digest": context.base_commitment_digest,
         "lease": lease,
+        "carrier_attestation": (
+            carrier_attestation.model_dump(mode="json") if carrier_attestation else {}
+        ),
+        "attachment_attestation": attachment_attestation.model_dump(mode="json"),
         "runner_bootstrap": runner_bootstrap(context.target),
         "required_gaps": [],
     }

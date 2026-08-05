@@ -13,6 +13,8 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -153,10 +155,31 @@ def _prepared_pack(destination: Path, isolated: Path, head: str) -> Iterator[lis
         yield candidates
 
 
-def install_pack(destination: Path, candidates: list[Path]) -> None:
+def install_pack(
+    destination: Path,
+    candidates: list[Path],
+    *,
+    commitment_digest: str,
+    head: str,
+    repository_id: str,
+) -> dict[str, object]:
     """Atomically link one verified pack into the destination object store."""
+    names = tuple(path.name for path in candidates)
     if not candidates:
-        return
+        return issue_native_effect(
+            destination,
+            effect=NativeEffect(
+                predicate="effect:git-object-install",
+                operation="filesystem.link-object-pack",
+                command=("link",),
+                subject={"head": head, "pack_files": names},
+                before={"installed": names},
+                after={"installed": names},
+            ),
+            state="recognized",
+            commitment_digest=commitment_digest,
+            repository_id=repository_id,
+        ).model_dump(mode="json")
     target = object_directory(destination) / "pack"
     by_suffix = {path.suffix: path for path in candidates}
     ordered = [by_suffix[".idx"], *([by_suffix[".rev"]] if ".rev" in by_suffix else [])]
@@ -174,6 +197,20 @@ def install_pack(destination: Path, candidates: list[Path]) -> None:
             msg = "handoff_import_object_cleanup_failed"
             raise ValueError(msg) from None
         raise
+    return issue_native_effect(
+        destination,
+        effect=NativeEffect(
+            predicate="effect:git-object-install",
+            operation="filesystem.link-object-pack",
+            command=("link",),
+            subject={"head": head, "pack_files": names},
+            before={"installed": ()},
+            after={"installed": names},
+        ),
+        state="applied",
+        commitment_digest=commitment_digest,
+        repository_id=repository_id,
+    ).model_dump(mode="json")
 
 
 def _verify_import_contract(repository: Path, manifest: dict[str, Any]) -> None:

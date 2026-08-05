@@ -10,7 +10,6 @@ from typing import Annotated
 from cyclopts import Group
 from cyclopts import Parameter
 
-import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
@@ -19,6 +18,8 @@ from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.repo.config_effects import set_local_config
+from ethos.adapters.repo.git import git_stdout
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
@@ -217,7 +218,7 @@ def reconciliation_receipt_command(
         error = "reconciliation receipt must be outside the repository root"
         raise ValueError(error)
     refs = {
-        remote: git_adapter.git_stdout(repo, "rev-parse", "--verify", remote)
+        remote: git_stdout(repo, "rev-parse", "--verify", remote)
         for remote in ("origin/dev", "origin/main", "github/dev", "github/main")
     }
     gaps = tuple(
@@ -330,13 +331,15 @@ def install(
     gaps: list[str] = [
         f"hook_script_missing:{path}" for path in scripts if not (repo / path).exists()
     ]
-    wired = git_adapter.set_hooks_path(repo, ".githooks") if not gaps else False
-    if not gaps and not wired:
-        gaps.append("hooks_path_wire_failed")
-    configured = {"gc.packRefs": wired and git_adapter.set_config(repo, "gc.packRefs", "false")}
-    for key, ok in configured.items():
-        if wired and not ok:
-            gaps.append(f"hook_config_write_failed:{key}")
+    attestation = None
+    if not gaps:
+        try:
+            attestation = set_local_config(
+                repo, {"core.hooksPath": ".githooks", "gc.packRefs": "false"}
+            )
+        except ValueError as error:
+            gaps.append(f"hook_config_write_failed:{error}")
+    wired = attestation is not None
     result = EthosResult(
         command="hook install",
         verdict="block" if gaps else "pass",
@@ -344,7 +347,7 @@ def install(
         summary={
             "hooks_path": ".githooks",
             "wired": wired,
-            "pack_refs_disabled": configured["gc.packRefs"],
+            "pack_refs_disabled": wired,
         },
         required_gaps=tuple(gaps),
         next_action=(
@@ -356,7 +359,8 @@ def install(
             "hooks_path": ".githooks",
             "hook_scripts": list(scripts[:2]),
             "wired": wired,
-            "pack_refs_disabled": configured["gc.packRefs"],
+            "pack_refs_disabled": wired,
+            "attestation": attestation.model_dump(mode="json") if attestation else {},
         },
     )
     emit(result, json_output=json_output, enforce=True)

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.contracts.verdict import close_verdict
 
 
@@ -35,10 +36,18 @@ def housekeeping_worktrees(
             or current["head"] != planned["head"]
         ):
             gaps.append(f"housekeeping_candidate_stale:{path}")
-        elif run_git(repo, "worktree", "remove", str(path), check=False).returncode:
-            gaps.append(f"housekeeping_remove_failed:{path}")
         else:
-            removed.append(str(path))
+            try:
+                remove_worktree(
+                    repo,
+                    path,
+                    branch="detached",
+                    head=str(planned["head"]),
+                )
+            except ValueError:
+                gaps.append(f"housekeeping_remove_failed:{path}")
+            else:
+                removed.append(str(path))
     return _report(entries, roots, removed, gaps, apply=apply)
 
 

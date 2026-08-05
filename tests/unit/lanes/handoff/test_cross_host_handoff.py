@@ -314,6 +314,7 @@ def _export_handoff_fixture(
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
     exported = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
     assert exported["verdict"] == "pass"
+    assert exported["attestation"]["statement"]["result"]["state"] == "applied"
     manifest = exported["manifest"]
     expected_manifest = {
         "source_head": lease["expected_head"],
@@ -326,6 +327,7 @@ def _export_handoff_fixture(
     package = Path(str(exported["package_path"]))
     repeated_export = export_cross_host_handoff(CrossHostHandoffExportRequest(**export_arguments))
     assert repeated_export["package_id"] == exported["package_id"]
+    assert repeated_export["attestation"]["statement"]["result"]["state"] == "recognized"
     return source, destination, package, head, lease
 
 
@@ -387,6 +389,7 @@ def _assert_source_revoked(
     request = _import_request(destination, package, "agent:test:case:target")
     imported = import_cross_host_handoff(request)
     assert (imported["verdict"], imported.get("ok")) == ("pass", None)
+    assert imported["object_attestation"]["statement"]["result"]["state"] == "applied"
     assert imported["mutation"]["decision"]["verdict"] == imported["verdict"]
     assert all(
         imported["lease"][key] == lease[key]
@@ -413,6 +416,7 @@ def _assert_source_revoked(
     original_identity = {key: imported["lease"][key] for key in identity_keys}
     repeated_import = import_cross_host_handoff(request)
     assert repeated_import["verdict"] == "pass"
+    assert repeated_import["object_attestation"]["statement"]["result"]["state"] == "recognized"
     assert all(repeated_import["lease"][key] == value for key, value in original_identity.items())
     database = state_database(destination)
     expired_at = datetime.now(UTC) - timedelta(seconds=1)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -149,6 +150,95 @@ def test_repository_locked_openspec_17_resolves_project_schema_and_guidance(
     assert intent["json"]["rules"] == ["state explicit non-goals"]
     assert apply["json"]["missingArtifacts"] == ["verification"]
     assert apply["json"]["operationGuidance"] == ["prefer deletion over compatibility"]
+
+
+def test_openspec_17_generated_codex_skill_follows_resolved_schema_contract(
+    tmp_path: Path,
+) -> None:
+    command = openspec_cli.openspec_base_command()
+    assert command is not None
+    repo = tmp_path / "projection"
+    templates = repo / "openspec" / "schemas" / "intent-to-proof" / "templates"
+    templates.mkdir(parents=True)
+    (repo / "openspec" / "config.yaml").write_text(
+        "schema: intent-to-proof\n",
+        encoding="utf-8",
+    )
+    (templates.parent / "schema.yaml").write_text(
+        "name: intent-to-proof\n"
+        "version: 1\n"
+        "artifacts:\n"
+        "  - id: intent\n"
+        "    generates: intent.md\n"
+        "    description: bounded intent\n"
+        "    template: intent.md\n"
+        "    requires: []\n"
+        "  - id: verification\n"
+        "    generates: verification.md\n"
+        "    description: exact evidence\n"
+        "    template: verification.md\n"
+        "    requires: [intent]\n"
+        "apply:\n"
+        "  requires: [verification]\n"
+        "  tracks: null\n",
+        encoding="utf-8",
+    )
+    (templates / "intent.md").write_text("# Intent\n", encoding="utf-8")
+    (templates / "verification.md").write_text("# Verification\n", encoding="utf-8")
+    home = tmp_path / "home"
+    codex_home = tmp_path / "codex"
+    config_home = tmp_path / "config"
+    (config_home / "openspec").mkdir(parents=True)
+    (config_home / "openspec" / "config.json").write_text(
+        json.dumps(
+            {
+                "profile": "custom",
+                "delivery": "skills",
+                "workflows": ["apply"],
+                "telemetry": {"enabled": False},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    completed = subprocess.run(
+        [
+            *command,
+            "init",
+            repo.as_posix(),
+            "--tools",
+            "codex",
+            "--profile",
+            "custom",
+            "--force",
+            "--no-animation",
+        ],
+        cwd=repo,
+        env=os.environ
+        | {
+            "HOME": home.as_posix(),
+            "CODEX_HOME": codex_home.as_posix(),
+            "XDG_CONFIG_HOME": config_home.as_posix(),
+            "OPENSPEC_TELEMETRY": "0",
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=openspec_cli.OPENSPEC_COMMAND_TIMEOUT_SECONDS,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert (repo / "openspec" / "config.yaml").read_text(encoding="utf-8") == (
+        "schema: intent-to-proof\n"
+    )
+    apply_skill = (repo / ".codex" / "skills" / "openspec-apply-change" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert 'openspec status --change "<name>" --json' in apply_skill
+    assert 'openspec instructions apply --change "<name>" --json' in apply_skill
+    assert "Other schemas: follow the contextFiles from CLI output" in apply_skill
+    assert "Use contextFiles from CLI output, don't assume specific file names" in apply_skill
+    assert not (codex_home / "prompts").exists()
 
 
 def test_openspec_17_instructions_contract_covers_apply_and_archive() -> None:

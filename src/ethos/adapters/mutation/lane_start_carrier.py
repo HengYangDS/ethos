@@ -396,7 +396,7 @@ def materialize_fresh_carrier(
     created = run_json(
         context.target,
         command,
-        ("new", "change", context.source_change_id, "--schema", "spec-driven", "--json"),
+        ("new", "change", context.source_change_id, "--json"),
     )
     if created["exit_code"] or created["parse_error"]:
         return failed_process("openspec_change_creation_failed"), ""

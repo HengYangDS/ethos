@@ -49,6 +49,17 @@ new product ontology.
    while every mutation-capable adopter pins verified OpenSpec as the sole
    Change, design, spec, task-progress, dependency, and archive carrier.
    Observation-only repositories may omit it but cannot enter governed mutation.
+   “OpenSpec” means its resolved project workflow, not the built-in
+   `spec-driven` artifact names: the official schema resolver, project-local
+   schemas, artifact DAG, templates, context, per-artifact rules, and
+   apply/archive guidance remain authoritative. ETHOS consumes official JSON
+   projections without fixing proposal/design/task filenames or duplicating
+   schema validation. A project-local ETHOS schema is admitted only when its
+   additional artifact proves lower ambiguity or drift and replaces more code
+   than it adds; community schemas are evidence and reusable bundles, never
+   silently trusted enforcement. OpenSpec Stores remain outside complete
+   adoption because they move the planning root away from the governed
+   repository, while generated Skills and slash commands remain projections.
 7. **Coordination is derived.** Worktrees, refs, leases, families, inboxes,
    handoffs, candidate queues, records, dashboards, and taxonomies are resource
    facts or projections. They never preserve intent alone. Capacity and
@@ -436,6 +447,8 @@ completion, create lifecycle authority, or substitute for checked tasks.
 | --- | --- | --- |
 | Rename legacy concepts in place | Rejected | Labels do not remove parallel authority or historical re-evaluation. |
 | Shape the semantic kernel with OpenSpec types | Rejected | The kernel remains vendor-neutral while complete mutation-capable adoption deliberately standardizes on OpenSpec. |
+| Force every adopter onto built-in `spec-driven` | Rejected | OpenSpec 1.7 natively resolves project-local schemas and arbitrary artifact DAGs; fixing four artifact names discards official capability and blocks valid community workflows. |
+| Vendor a large community workflow unchanged | Rejected | Community schemas demonstrate useful patterns, but prompt-only gates, external skill dependencies, persistent duplicate artifacts, and ignored extension keys require independent verification and selective absorption. |
 | Keep a global authority order | Rejected | Different subjects and planes require simultaneous local authorities. |
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |

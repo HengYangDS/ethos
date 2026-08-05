@@ -55,22 +55,9 @@ def official_config_report(root: Path) -> dict[str, object]:
     if not payload:
         gaps.append("openspec_config_not_mapping")
         payload = {}
-    if payload.get("schema") != "spec-driven":
+    if not isinstance(payload.get("schema"), str) or not str(payload["schema"]).strip():
         gaps.append("openspec_config_schema_missing")
     gaps += ["openspec_config_default_store_forbidden"] * ("defaultStore" in payload)
-    context = payload.get("context")
-    if not isinstance(context, str) or not context.strip():
-        gaps.append("openspec_config_context_missing")
-    rules = payload.get("rules")
-    if not isinstance(rules, dict):
-        gaps.append("openspec_config_rules_missing")
-        rules = {}
-    for artifact in ("proposal", "specs", "tasks", "design"):
-        values = rules.get(artifact)
-        if not isinstance(values, list) or not all(
-            isinstance(item, str) and item.strip() for item in values
-        ):
-            gaps.append(f"openspec_config_rule_missing:{artifact}")
     gaps.extend(
         f"openspec_config_legacy_key:{key}"
         for key in sorted(key for key in ("project", "version") if key in payload)

@@ -3,15 +3,15 @@ subject: ethos:decisions
 role: index
 state: canonical
 relations:
-  canonical_for: decision records
+  canonical_for: decision record boundary and grammar
 ---
 
 # Decision Records
 
 Status: canonical.
 
-Purpose: hold durable ETHOS product rulings that later agents must respect
-before reopening architecture, governance, tooling, or process choices.
+Purpose: define what qualifies as a durable ETHOS ruling and route concrete
+records through the one Decision Index.
 
 ## Choose
 

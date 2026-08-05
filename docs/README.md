@@ -3,17 +3,15 @@ subject: docs:root
 role: index
 state: canonical
 relations:
-  canonical_for: documentation navigation
+  canonical_for: ethos documentation physical shape
 ---
 
 # ETHOS Documentation Root
 
 Status: canonical.
 
-Purpose: route ETHOS product documentation through the minimal governed docs
-kernel: durable decisions, dated evidence, stable references, and history, with
-product extensions for architecture, governance, concepts, plans, research, and
-start guides.
+Purpose: define ETHOS's own physical documentation shape without turning that
+shape into an adopter contract or a second navigation index.
 
 See also: [Product Index](index.md), [Docs Registry](governance/docs-registry.md),
 [Decision Records](decisions/README.md), [Evidence Docs](evidence/README.md), and

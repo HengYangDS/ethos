@@ -11,6 +11,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.semantic import Commitment
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
@@ -18,8 +19,10 @@ from ethos.repository.profile import render_repository_profile
 
 PROFILE_PATH = ".ethos/profile.toml"
 COMMITMENT_PATH = ".ethos/commitment.toml"
+OPENSPEC_CONFIG_PATH = "openspec/config.yaml"
+OPENSPEC_SPECS_PATH = "openspec/specs/README.md"
 APPLY_CRITERIA = (
-    "planned_files contains only the adopter profile and repository Commitment bindings",
+    "planned_files contains only the adopter profile, Commitment, and OpenSpec bindings",
     "existing nonempty binding content is not replaced",
     "rollback path is understood before apply",
 )
@@ -36,8 +39,13 @@ def adoption_plan(
     current_profile = _current_binding(root, root / PROFILE_PATH)
     current_commitment = _current_binding(root, root / COMMITMENT_PATH)
     repository_id = _repository_id(current_commitment) or repository_id
-    profile = render_repository_profile(RepositoryProfileDeclaration.bootstrap(root.resolve().name))
+    profile = render_repository_profile(
+        RepositoryProfileDeclaration.bootstrap(root.resolve().name).model_copy(
+            update={"openspec": OpenSpecPolicy(material_paths=("**",))}
+        )
+    )
     commitment = _repository_commitment(repository_id)
+    openspec = _openspec_config(root.resolve().name)
     contents: dict[str, str] = {
         PROFILE_PATH: current_profile[0]
         if isinstance(current_profile[0], str) and _existing_profile_is_valid(root, current_profile)
@@ -46,10 +54,17 @@ def adoption_plan(
         if isinstance(current_commitment[0], str)
         and _existing_commitment_is_valid(current_commitment)
         else commitment,
+        OPENSPEC_CONFIG_PATH: _current_binding(root, root / OPENSPEC_CONFIG_PATH)[0] or openspec,
+        OPENSPEC_SPECS_PATH: _current_binding(root, root / OPENSPEC_SPECS_PATH)[0]
+        or "# Specifications\n",
     }
+    current_openspec = _current_binding(root, root / OPENSPEC_CONFIG_PATH)
+    current_specs = _current_binding(root, root / OPENSPEC_SPECS_PATH)
     bindings = {
         PROFILE_PATH: (*current_profile, contents[PROFILE_PATH]),
         COMMITMENT_PATH: (*current_commitment, contents[COMMITMENT_PATH]),
+        OPENSPEC_CONFIG_PATH: (*current_openspec, contents[OPENSPEC_CONFIG_PATH]),
+        OPENSPEC_SPECS_PATH: (*current_specs, contents[OPENSPEC_SPECS_PATH]),
     }
     conflicts = [
         path
@@ -133,6 +148,18 @@ def _repository_commitment(repository_id: str) -> str:
         'scope = ["**"]\n'
         'authority_refs = [".ethos/profile.toml"]\n'
         'permissions = ["repository.read", "git.ref.compare-and-swap"]\n'
+    )
+
+
+def _openspec_config(repository: str) -> str:
+    return (
+        "schema: spec-driven\n"
+        f"context: Govern {repository} changes through ETHOS.\n"
+        "rules:\n"
+        "  proposal: [state intent and scope]\n"
+        "  specs: [state behavioral requirements]\n"
+        "  design: [state architecture and tradeoffs]\n"
+        "  tasks: [track implementation and verification]\n"
     )
 
 

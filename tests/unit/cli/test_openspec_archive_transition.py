@@ -171,7 +171,7 @@ def test_governance_allows_current_lease_staged_archive_transition(
 
 @pytest.mark.parametrize(
     "defect",
-    ["missing_lease", "stale_head", "wrong_identity", "incomplete_tasks", "digest_drift"],
+    ["missing_lease", "stale_head", "wrong_identity", "digest_drift"],
 )
 def test_governance_rejects_unbound_archive_transition(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, defect: str
@@ -180,7 +180,7 @@ def test_governance_rejects_unbound_archive_transition(
     _stage_archive(
         worktree,
         archive_change="other-change" if defect == "wrong_identity" else "fixture-change",
-        complete=defect != "incomplete_tasks",
+        complete=True,
         drift=defect == "digest_drift",
     )
     if defect == "stale_head":

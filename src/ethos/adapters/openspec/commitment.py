@@ -6,7 +6,6 @@ from pathlib import Path
 
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.git import git_stdout
-from ethos.repository.openspec.audit import tasks_complete
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -39,21 +38,6 @@ def _paths(repo: Path, tree_ref: str | None) -> tuple[str, ...]:
     )
 
 
-def _text(repo: Path, relative: str, tree_ref: str | None) -> str:
-    if tree_ref is None:
-        try:
-            return (repo / relative).read_text(encoding="utf-8")
-        except (OSError, UnicodeError):
-            return ""
-    return git_stdout(repo, "show", f"{tree_ref}:{relative}")
-
-
-def _active(repo: Path, relative: str, tree_ref: str | None) -> bool:
-    tasks = relative.removesuffix("commitment.toml") + "tasks.md"
-    text = _text(repo, tasks, tree_ref)
-    return not text or not tasks_complete(text)
-
-
 def resolve_openspec_commitment_carrier(
     repo: Path,
     *,
@@ -70,15 +54,9 @@ def resolve_openspec_commitment_carrier(
     selected = tuple(
         path
         for path in _paths(repo, tree_ref)
-        if _active(repo, path, tree_ref)
-        and (change_id is None or Path(path).parent.name == change_id)
+        if change_id is None or Path(path).parent.name == change_id
     )
     if not selected:
-        if change_id is not None:
-            candidate = f"{_CHANGES}/{change_id}/commitment.toml"
-            if candidate in _paths(repo, tree_ref) and not _active(repo, candidate, tree_ref):
-                message = f"commitment_complete:{change_id}"
-                raise ValueError(message)
         suffix = f":{change_id}" if change_id else ""
         message = f"commitment_missing{suffix}"
         raise ValueError(message)

@@ -99,6 +99,140 @@ def test_openspec_17_instructions_contract_covers_apply_and_archive() -> None:
     assert openspec_cli.instructions_contract_gaps("archive", archive) == []
 
 
+def test_openspec_17_rejects_default_store_and_accepts_archive_no_op() -> None:
+    result = {
+        "archive": {
+            "change": "example",
+            "archivedAs": "2026-08-05-example",
+            "path": "/tmp/repository/openspec/changes/archive/2026-08-05-example",
+            "specsUpdated": False,
+            "totals": {"added": 0, "modified": 0, "removed": 0, "renamed": 0},
+            "warnings": [],
+        },
+        "root": {"path": "/tmp/repository", "source": "nearest"},
+    }
+
+    assert openspec_cli.config_contract_gaps({"defaultStore": "private"}) == [
+        "openspec_default_store_forbidden"
+    ]
+    archive = result["archive"]
+    assert archive["path"].endswith("/openspec/changes/archive/2026-08-05-example")
+    assert archive["specsUpdated"] is False
+    assert archive["warnings"] == []
+
+
+def test_repository_locked_openspec_17_characterizes_skip_specs_and_nested_archive(
+    tmp_path: Path,
+) -> None:
+    command = openspec_cli.openspec_base_command()
+    assert command is not None
+
+    skip = init_git_repo(tmp_path / "skip")
+    _write_characterization_workspace(skip, "skip-only", skip_specs=True)
+    skip_status = openspec_cli.run_json(
+        skip, command, ("status", "--change", "skip-only", "--json")
+    )
+    skip_apply = openspec_cli.run_json(
+        skip,
+        command,
+        ("instructions", "apply", "--change", "skip-only", "--json"),
+    )
+    skip_archive = openspec_cli.run_json(skip, command, ("archive", "skip-only", "--yes", "--json"))
+
+    assert (
+        next(
+            artifact for artifact in skip_status["json"]["artifacts"] if artifact["id"] == "specs"
+        )["status"]
+        == "skipped"
+    )
+    assert skip_apply["json"]["state"] == "all_done"
+    assert skip_archive["json"]["archive"]["path"].endswith("/2026-08-05-skip-only")
+    assert skip_archive["json"]["archive"].get("warnings", []) == []
+    assert skip_archive["json"]["archive"]["specsUpdated"] is False
+
+    nested = init_git_repo(tmp_path / "nested")
+    _write_characterization_workspace(nested, "nested-change", capability="platform/contracts")
+    nested_status = openspec_cli.run_json(
+        nested, command, ("status", "--change", "nested-change", "--json")
+    )
+    nested_archive = openspec_cli.run_json(
+        nested, command, ("archive", "nested-change", "--yes", "--json")
+    )
+
+    assert nested_status["json"]["artifactPaths"]["specs"]["existingOutputPaths"][0].endswith(
+        "/specs/platform/contracts/spec.md"
+    )
+    assert nested_archive["json"]["archive"]["specsUpdated"] is True
+    assert (nested / "openspec/specs/platform/contracts/spec.md").is_file()
+
+
+def test_lifecycle_projects_official_artifacts_and_task_progress(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo, "docs/governance/**")
+    write_active_commitment(repo, change_id="material-change", scope=("docs/governance/**",))
+
+    lifecycle = lifecycle_report(
+        repo,
+        request=OpenSpecRequest(
+            change="material-change",
+            lifecycle=True,
+            changed_paths=("docs/governance/policy.md",),
+        ),
+        list_payload={
+            "changes": [
+                {
+                    "name": "material-change",
+                    "completedTasks": 1,
+                    "totalTasks": 2,
+                    "status": "in-progress",
+                }
+            ]
+        },
+        status_payload={
+            "changeName": "material-change",
+            "schemaName": "spec-driven",
+            "isComplete": True,
+            "artifactPaths": {
+                "proposal": {"existingOutputPaths": [str(repo / "proposal.md")]},
+                "specs": {
+                    "existingOutputPaths": [
+                        str(
+                            repo
+                            / "openspec/changes/material-change/specs/platform/contracts/spec.md"
+                        )
+                    ]
+                },
+            },
+            "artifacts": [
+                {"id": "proposal", "status": "done", "requires": []},
+                {"id": "specs", "status": "done", "requires": ["proposal"]},
+            ],
+            "root": {"path": str(repo), "source": "nearest"},
+        },
+        apply_payload={
+            "changeName": "material-change",
+            "state": "ready",
+            "progress": {"total": 2, "complete": 1, "remaining": 1},
+            "tasks": [
+                {"id": "1", "description": "Done", "done": True},
+                {"id": "2", "description": "Pending", "done": False},
+            ],
+            "instruction": "Continue.",
+            "root": {"path": str(repo), "source": "nearest"},
+        },
+    )
+
+    change = lifecycle["changes"][0]
+    assert change["artifacts"] == [
+        {"id": "proposal", "status": "done", "requires": []},
+        {"id": "specs", "status": "done", "requires": ["proposal"]},
+    ]
+    assert change["capabilities"] == ["platform/contracts"]
+    assert change["progress"] == {"total": 2, "complete": 1, "remaining": 1}
+    assert lifecycle["scope_binding"]["state"] == "covered"
+
+
 def test_selected_change_requires_an_explicit_request_to_exist() -> None:
     rows = official_change_rows(
         {
@@ -308,6 +442,40 @@ def _write_valid_accepted_specs(repo: Path) -> None:
     )
 
 
+def _write_characterization_workspace(
+    repo: Path,
+    change: str,
+    *,
+    skip_specs: bool = False,
+    capability: str = "",
+) -> None:
+    _write_valid_accepted_specs(repo)
+    root = repo / "openspec" / "changes" / change
+    root.mkdir(parents=True)
+    (root / ".openspec.yaml").write_text(
+        "schema: spec-driven\n" + ("skip_specs: true\n" if skip_specs else ""),
+        encoding="utf-8",
+    )
+    (root / "proposal.md").write_text(
+        "## Why\n\nCharacterize OpenSpec.\n\n## What Changes\n\n- Verify official behavior.\n",
+        encoding="utf-8",
+    )
+    (root / "design.md").write_text("## Context\n\nCharacterization.\n", encoding="utf-8")
+    (root / "tasks.md").write_text("- [x] Characterize\n", encoding="utf-8")
+    if capability:
+        spec = root / "specs" / capability / "spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text(
+            "## ADDED Requirements\n\n"
+            "### Requirement: Nested capability\n\n"
+            "The system SHALL discover a nested capability.\n\n"
+            "#### Scenario: Nested capability is archived\n\n"
+            "- **WHEN** the change is archived\n"
+            "- **THEN** the accepted nested capability is created\n",
+            encoding="utf-8",
+        )
+
+
 def _enable_openspec(repo: Path, *material_paths: str) -> None:
     profile = RepositoryProfileDeclaration.bootstrap(repo.name).model_copy(
         update={"openspec": OpenSpecPolicy(material_paths=material_paths or ("openspec/**",))}
@@ -318,9 +486,57 @@ def _enable_openspec(repo: Path, *material_paths: str) -> None:
     )
 
 
+def _official_change_views(
+    repo: Path,
+    name: str,
+    *,
+    completed: int,
+    total: int,
+    capabilities: tuple[str, ...] = (),
+) -> tuple[dict[str, object], dict[str, object]]:
+    artifacts = [
+        {"id": "proposal", "status": "done", "requires": []},
+        {"id": "specs", "status": "done", "requires": ["proposal"]},
+        {"id": "design", "status": "done", "requires": ["proposal"]},
+        {"id": "tasks", "status": "done", "requires": ["specs", "design"]},
+    ]
+    return (
+        {
+            "changeName": name,
+            "schemaName": "spec-driven",
+            "changeRoot": str(repo / "openspec" / "changes" / name),
+            "isComplete": True,
+            "artifactPaths": {
+                "specs": {
+                    "existingOutputPaths": [
+                        str(repo / "openspec" / "changes" / name / "specs" / capability / "spec.md")
+                        for capability in capabilities
+                    ]
+                }
+            },
+            "artifacts": artifacts,
+            "root": {"path": str(repo), "source": "nearest"},
+        },
+        {
+            "changeName": name,
+            "state": "all_done" if completed == total else "ready",
+            "progress": {"total": total, "complete": completed, "remaining": total - completed},
+            "tasks": [
+                {
+                    "id": str(index + 1),
+                    "description": f"Task {index + 1}",
+                    "done": index < completed,
+                }
+                for index in range(total)
+            ],
+            "instruction": "Continue.",
+            "root": {"path": str(repo), "source": "nearest"},
+        },
+    )
+
+
 def test_official_config_report_uses_closed_verdicts(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
-    adoption_plan(repo, apply=True)
 
     missing = official_config_report(repo)
     assert missing["verdict"] == "block"
@@ -330,6 +546,14 @@ def test_official_config_report_uses_closed_verdicts(tmp_path: Path) -> None:
     valid = official_config_report(repo)
     assert valid["verdict"] == "pass"
     assert "ok" not in valid
+
+    config = repo / "openspec" / "config.yaml"
+    config.write_text(
+        config.read_text(encoding="utf-8") + "defaultStore: private\n", encoding="utf-8"
+    )
+    assert official_config_report(repo)["required_gaps"] == [
+        "openspec_config_default_store_forbidden"
+    ]
 
 
 def test_protected_branch_report_preserves_unknown_git_observation(
@@ -463,13 +687,11 @@ def test_fresh_adopter_without_material_change_does_not_require_openspec_workspa
 
     report = openspec_governance_report(repo, lifecycle=True, require_workspace=False)
 
-    assert report["verdict"] == "pass"
-    assert report["state"] == "not_applicable"
-    assert report["required_gaps"] == []
-    assert report["lifecycle"]["scope_binding"]["state"] == "not_applicable"
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["openspec_active_change_missing"]
 
 
-def test_fresh_adopter_material_change_does_not_require_openspec_workspace(tmp_path: Path) -> None:
+def test_fresh_adopter_material_change_requires_explicit_openspec_change(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
 
@@ -480,9 +702,8 @@ def test_fresh_adopter_material_change_does_not_require_openspec_workspace(tmp_p
         require_workspace=False,
     )
 
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
-    assert report["lifecycle"]["scope_binding"]["state"] == "not_applicable"
+    assert report["verdict"] == "block"
+    assert "openspec_active_change_missing" in report["required_gaps"]
 
 
 @pytest.mark.parametrize(
@@ -546,13 +767,12 @@ def test_commitment_scope_is_the_only_active_material_coverage(tmp_path: Path) -
         require_workspace=False,
     )
 
-    assert report["lifecycle"]["changes"][0]["carriers"] == {
-        "proposal": True,
-        "design": True,
-        "tasks": True,
-        "delta_specs": True,
-        "commitment": True,
-    }
+    assert [artifact["id"] for artifact in report["lifecycle"]["changes"][0]["artifacts"]] == [
+        "proposal",
+        "specs",
+        "design",
+        "tasks",
+    ]
     assert report["lifecycle"]["scope_binding"]["state"] == "covered"
     assert report["lifecycle"]["scope_binding"]["covered_paths"] == [
         {"path": "docs/governance/policy.md", "changes": ["material-change"]}
@@ -583,6 +803,9 @@ def test_lifecycle_uses_delta_spec_directories_as_capability_truth(tmp_path: Pat
         encoding="utf-8",
     )
 
+    status, apply = _official_change_views(
+        repo, "plain-proposal", completed=0, total=1, capabilities=("contracts",)
+    )
     lifecycle = lifecycle_report(
         repo,
         request=OpenSpecRequest(change="plain-proposal", lifecycle=True),
@@ -596,6 +819,8 @@ def test_lifecycle_uses_delta_spec_directories_as_capability_truth(tmp_path: Pat
                 }
             ]
         },
+        status_payload=status,
+        apply_payload=apply,
     )
 
     assert lifecycle["required_gaps"] == []
@@ -611,6 +836,7 @@ def test_invalid_commitment_is_a_gap_without_material_paths(tmp_path: Path) -> N
     carrier.mkdir(parents=True)
     (carrier / "commitment.toml").write_text("not = [valid\n", encoding="utf-8")
 
+    status, apply = _official_change_views(repo, "invalid-contract", completed=0, total=1)
     lifecycle = lifecycle_report(
         repo,
         request=OpenSpecRequest(change=None, lifecycle=True),
@@ -624,6 +850,8 @@ def test_invalid_commitment_is_a_gap_without_material_paths(tmp_path: Path) -> N
                 }
             ]
         },
+        status_payload=status,
+        apply_payload=apply,
     )
 
     assert "commitment_invalid:invalid-contract" in lifecycle["required_gaps"]
@@ -645,6 +873,7 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
     )
     (carrier / "tasks.md").write_text("- [x] Historical work complete\n", encoding="utf-8")
 
+    status, apply = _official_change_views(repo, "completed-change", completed=1, total=1)
     lifecycle = lifecycle_report(
         repo,
         request=OpenSpecRequest(
@@ -663,6 +892,8 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
                 }
             ]
         },
+        status_payload=status,
+        apply_payload=apply,
     )
 
     assert [change["name"] for change in lifecycle["changes"]] == ["completed-change"]
@@ -690,6 +921,8 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
                 }
             ]
         },
+        status_payload=status,
+        apply_payload=apply,
     )
 
     assert explicitly_selected["scope_binding"]["state"] == "uncovered"
@@ -720,7 +953,14 @@ def test_lifecycle_observes_official_state_without_predictive_archive(
                 ]
             }
         elif args[0] == "status":
-            payload = {"schemaName": "spec-driven", "isComplete": True}
+            payload, _ = _official_change_views(repo, "active", completed=0, total=1)
+        elif args[:2] == ("instructions", "apply"):
+            _, payload = _official_change_views(repo, "active", completed=0, total=1)
+        elif args[:2] == ("instructions", "archive"):
+            payload = {
+                "changeName": "active",
+                "root": {"path": str(repo), "source": "nearest"},
+            }
         else:
             payload = {"items": [], "summary": {}}
         return {
@@ -739,7 +979,15 @@ def test_lifecycle_observes_official_state_without_predictive_archive(
 
     assert report["required_gaps"] == []
     assert "archive_preflight" not in report["lifecycle"]["changes"][0]
-    assert [command[0] for command in commands] == ["doctor", "list", "status", "validate"]
+    assert [command[:2] for command in commands] == [
+        ("config", "list"),
+        ("doctor", "--json"),
+        ("list", "--json"),
+        ("status", "--change"),
+        ("instructions", "apply"),
+        ("instructions", "archive"),
+        ("validate", "--all"),
+    ]
 
 
 def test_completed_active_report_does_not_revalidate_historical_archives(
@@ -819,25 +1067,28 @@ def test_shape_report_does_not_use_historical_archive_identity_as_current_verdic
     assert not any(gap.startswith("openspec_archive_") for gap in report["required_gaps"])
 
 
-def test_generic_adopter_plan_does_not_call_openspec(monkeypatch, tmp_path: Path) -> None:
+def test_complete_adopter_plan_calls_openspec(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt generic profile")
     monkeypatch.setattr(
         "ethos.surface.cli.root.planning.openspec_governance_report",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("OpenSpec called")),
+        lambda *_args, **_kwargs: {
+            "verdict": "block",
+            "required_gaps": ["openspec_active_change_missing"],
+        },
     )
     plan = run_ethos("plan", "--root", repo.as_posix(), "--json")
 
     assert plan["verdict"] == "block"
-    assert plan["required_gaps"] == ["proof_floor_empty"]
+    assert "openspec_active_change_missing" in plan["required_gaps"]
     assert plan["data"]["commitment"]["id"].startswith("repository:")
     assert plan["data"]["transition_plan"]["verdict"] == "block"
-    assert "profile_adapter" not in plan["data"]
+    assert plan["data"]["profile_adapter"]["verdict"] == "block"
 
 
-def test_plan_uses_profile_selected_commitment_without_openspec(tmp_path: Path) -> None:
+def test_plan_rejects_profile_selected_change_without_openspec_carrier(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
     selected = repo / "governance"
@@ -890,7 +1141,7 @@ def test_plan_uses_explicit_openspec_profile_commitment(tmp_path: Path) -> None:
     assert payload["data"]["profile_adapter"]["change"] == "selected"
 
 
-def test_generic_adopter_commands_do_not_require_product_layout(tmp_path: Path) -> None:
+def test_complete_adopter_commands_require_openspec_layout(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "adopter")
     adoption_plan(repo, apply=True)
     git(repo, "add", ".")
@@ -902,7 +1153,7 @@ def test_generic_adopter_commands_do_not_require_product_layout(tmp_path: Path) 
     ]
     payloads = [json.loads(result.stdout) for result in completed]
 
-    assert not (repo / "openspec").exists()
+    assert (repo / "openspec/config.yaml").is_file()
     assert not (repo / "system").exists()
     assert not (repo / "pyproject.toml").exists()
     assert not (repo / "src" / "ethos").exists()
@@ -910,11 +1161,12 @@ def test_generic_adopter_commands_do_not_require_product_layout(tmp_path: Path) 
     assert all(result.stdout and not result.stderr for result in completed)
     assert all(
         not any(
-            gap.startswith(("openspec_", "repository_doc_missing:", "schema_missing:"))
+            gap.startswith(("repository_doc_missing:", "schema_missing:"))
             for gap in payload["required_gaps"]
         )
         for payload in payloads
     )
+    assert any("openspec_active_change_missing" in payload["required_gaps"] for payload in payloads)
 
 
 def test_plan_surfaces_transition_plan_block_as_top_level_block(tmp_path: Path) -> None:

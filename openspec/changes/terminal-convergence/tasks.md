@@ -206,8 +206,17 @@ invariants are implemented and proved without parallel mutation owners.
   `spec-driven` default, so no new ETHOS schema or compatibility layer was added.
 - [x] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
   candidate train to scoped resource Facts, projections, and attested effects.
-- [ ] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and
-  competition without fixed WIP or competitor cardinality.
+- [x] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and
+  competition without fixed WIP or competitor cardinality. `ethos plan`
+  resolves current and foreign path scopes, classifies exact shared-Commitment
+  overlap as alternative realizations, computes each realization's required
+  proof-node closure from the existing rule/gate owners, and consumes only an
+  explicitly observed proof-node capacity. Unknown scope/cost/capacity remains
+  `await_facts`; conflicting overlap or insufficient capacity collaborates;
+  competition requires an actual alternative, declared risk, and capacity for
+  the combined proof closure. The result is a transient command projection;
+  no scheduler, WIP setting, competitor limit, registry, or stored coordination
+  state was added.
 - [ ] 4.4 Complete vendor-neutral actor identity, shared-inbox reconstruction,
   optional Git-lock handoff, transcript-free takeover, lost-session unknown
   state, dirty-content preservation, and orphan resolution. Exact takeover binds

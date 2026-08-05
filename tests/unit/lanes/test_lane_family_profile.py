@@ -13,6 +13,7 @@ from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
+from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.status.bindings import closeout_support
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -34,6 +35,82 @@ if TYPE_CHECKING:
 
 
 _HOLDER = "agent:test:case:agent-test"
+
+
+def test_collaboration_competition_projection_derives_only_from_facts() -> None:
+    alternative = {
+        "branch": "work/alternative",
+        "coordination_state": "overlap",
+        "base_commitment_digest": "a" * 64,
+        "proof_cost": 3,
+    }
+    conflict = alternative | {
+        "branch": "work/conflict",
+        "base_commitment_digest": "b" * 64,
+    }
+
+    assert collaboration_competition_projection(
+        [alternative],
+        commitment_digest="a" * 64,
+        risks=("uncertain cutover",),
+        proof_cost=2,
+        proof_capacity=5,
+    ) == {
+        "state": "compete",
+        "reason": "alternative_realizations_admitted",
+        "proof_capacity": 5,
+        "proof_cost": 5,
+        "risk_count": 1,
+        "peer_count": 1,
+        "alternative_count": 1,
+        "conflict_count": 0,
+        "unknown_count": 0,
+        "branches": ["work/alternative"],
+    }
+    insufficient = collaboration_competition_projection(
+        [alternative],
+        commitment_digest="a" * 64,
+        risks=("uncertain cutover",),
+        proof_cost=2,
+        proof_capacity=4,
+    )
+    assert {key: insufficient[key] for key in ("state", "reason")} == {
+        "state": "collaborate",
+        "reason": "proof_capacity_below_alternative_cost",
+    }
+    overlapping = collaboration_competition_projection(
+        [conflict],
+        commitment_digest="a" * 64,
+        risks=("uncertain cutover",),
+        proof_cost=2,
+        proof_capacity=20,
+    )
+    assert {key: overlapping[key] for key in ("state", "reason")} == {
+        "state": "collaborate",
+        "reason": "overlapping_intents_require_coordination",
+    }
+    deterministic = collaboration_competition_projection(
+        [alternative],
+        commitment_digest="a" * 64,
+        risks=(),
+        proof_cost=2,
+        proof_capacity=20,
+    )
+    assert {key: deterministic[key] for key in ("state", "reason")} == {
+        "state": "collaborate",
+        "reason": "competition_has_no_declared_risk_basis",
+    }
+    unknown = collaboration_competition_projection(
+        [alternative | {"proof_cost": None}],
+        commitment_digest="a" * 64,
+        risks=("uncertain cutover",),
+        proof_cost=2,
+        proof_capacity=None,
+    )
+    assert {key: unknown[key] for key in ("state", "reason")} == {
+        "state": "await_facts",
+        "reason": "proof_capacity_or_cost_missing",
+    }
 
 
 def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:

@@ -4,12 +4,18 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from typing import TYPE_CHECKING
+from typing import Annotated
+from typing import cast
+
+from cyclopts import Parameter
 
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -27,18 +33,42 @@ from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _non_negative(_type: type[int], value: int) -> None:
+    if value < 0:
+        msg = "proof node capacity must be non-negative"
+        raise ValueError(msg)
+
+
+def _peer_proof_cost(repo: Path, lane: dict[str, object]) -> int | None:
+    paths = tuple(string_sequence(lane.get("path_scope")))
+    if lane.get("scope_state") != "bounded" or not paths:
+        return None
+    _rules, gates, gaps = matching_rule_gates(repo, paths)
+    if gaps:
+        return None
+    gate_ids = tuple(str(gate.get("id") or "") for gate in gates)
+    return len(resolve_gate_policy(repo, gate_ids=gate_ids).nodes)
+
 
 @app.command
 def plan(
     *,
     changed: bool = False,
     change: str | None = None,
+    proof_node_capacity: Annotated[
+        int | None,
+        Parameter(name="--proof-node-capacity", validator=_non_negative),
+    ] = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Compile deterministic TransitionPlan."""
     repo = resolve_root(root)
-    status_payload = workspace_status(repo, include_foreign_path_scope=False)
+    status_payload = workspace_status(repo)
     paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     try:
         support = status_payload.get("closeout_support")
@@ -107,6 +137,15 @@ def plan(
     gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
     policy = resolve_gate_policy(repo, gate_ids=gate_ids)
     nodes = policy.nodes
+    foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])
+    peers = [lane | {"proof_cost": _peer_proof_cost(repo, lane)} for lane in foreign]
+    strategy = collaboration_competition_projection(
+        peers,
+        commitment_digest=commitment.digest(),
+        risks=commitment.risks,
+        proof_cost=len(nodes),
+        proof_capacity=proof_node_capacity,
+    )
     plan = compile_plan(
         commitment,
         facts,
@@ -144,6 +183,7 @@ def plan(
             "commitment": commitment.model_dump(mode="json"),
             "facts_digest": facts.digest(),
             "transition_plan": plan.model_dump(mode="json"),
+            "coordination_strategy": strategy,
             **({"profile_adapter": profile_adapter} if profile_adapter else {}),
         },
     )

@@ -1455,6 +1455,20 @@ def test_plan_projects_explicit_proof_capacity_without_fixed_worker_count(
         "conflict_count": 0,
         "unknown_count": 0,
         "branches": ["work/alternative"],
+        "admission_order": ["work/alternative"],
+        "queue_age_seconds": {"work/alternative": 0},
+        "backpressure": "open",
+        "candidate_progress": {
+            "observation": "git_reflog",
+            "ref": "candidate/dev",
+            "advance_count": 0,
+            "interval_seconds": None,
+            "latest_interval_seconds": None,
+            "latest_advance_age_seconds": None,
+            "advances_per_hour": None,
+            "behind_accepted": 0,
+        },
+        "proof_capacity_available": 7,
     }
     assert "worker_count" not in payload["data"]["coordination_strategy"]
     assert "competitor_limit" not in payload["data"]["coordination_strategy"]

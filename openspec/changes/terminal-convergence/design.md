@@ -54,10 +54,17 @@ new product ontology.
    schemas, artifact DAG, templates, context, per-artifact rules, and
    apply/archive guidance remain authoritative. ETHOS consumes official JSON
    projections without fixing proposal/design/task filenames or duplicating
-   schema validation. A project-local ETHOS schema is admitted only when its
-   additional artifact proves lower ambiguity or drift and replaces more code
-   than it adds; community schemas are evidence and reusable bundles, never
-   silently trusted enforcement. OpenSpec Stores remain outside complete
+   schema validation. Schema selection is a repository-local method portfolio,
+   not one maximal workflow: minimalist, intent/BDD, event/AsyncAPI, ADR,
+   SRS/TDD, release, research, and runbook shapes may compile different artifact
+   DAGs for different Changes. Community schemas are candidate source material,
+   not installed authorities: native `requires`, generated paths, and `apply`
+   prerequisites are enforceable; template prose, evaluator roles, companion
+   Skills, gates, and runner state are not unless one existing ETHOS verifier
+   owns them. Admit a repository-local schema or selected borrowed pattern only
+   when matched workload evidence proves lower ambiguity, time/token cost,
+   intent loss, or terminal ELOC without a second task, plan, lifecycle, or
+   execution owner. OpenSpec Stores remain outside complete
    adoption because they move the planning root away from the governed
    repository, while generated Skills and slash commands remain projections.
 7. **Coordination is derived.** Worktrees, refs, leases, families, inboxes,

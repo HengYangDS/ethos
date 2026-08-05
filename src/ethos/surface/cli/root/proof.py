@@ -15,6 +15,7 @@ import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.adapters.gates.runner import run_gate_waves
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
@@ -88,7 +89,11 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
 
 
 def run_plan_checks(
-    *, repo: Path, plan: TransitionPlan, execute: bool
+    *,
+    repo: Path,
+    plan: TransitionPlan,
+    execute: bool,
+    capacity: int | None = None,
 ) -> tuple[list[dict[str, object]], bool]:
     """Run or project the admitted TransitionPlan gate sequence."""
     plan_head = plan.facts.get("head")
@@ -101,8 +106,12 @@ def run_plan_checks(
         gate_ids=tuple(node.id for node in plan.nodes),
     ).registry
     runner = LocalGateRunner() if execute else DryRunRunner()
+    node_capacity = capacity or max(1, os.cpu_count() or 1)
+    results = run_gate_waves(
+        runner, plan.nodes, gates_by_id, root=repo, capacity=node_capacity, parallel=execute
+    )
     checks: list[dict[str, object]] = []
-    for run_result in (runner.run(node, gates_by_id[node.id], root=repo) for node in plan.nodes):
+    for run_result in results:
         gate = gates_by_id[run_result.action_id]
         checks.append(
             {

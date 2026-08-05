@@ -35,6 +35,7 @@ from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
     from ethos.contracts.admission import AdmissionDecision
+    from ethos.contracts.semantic import Attestation
     from ethos.contracts.semantic import Commitment
 
 
@@ -77,49 +78,40 @@ def apply_land_to_candidate(
             proof_gaps(candidate_path, current_head),
             path=candidate_path.as_posix(),
         )
-    authority_gap = "proof_attestation_authority_binding_mismatch"
     failure: tuple[str, str] | None = None
-    attestation = None
+    attestation: Attestation | None = None
+    observed_candidate_head = ""
+    cas_attempts = 1
     try:
         lease = leases_by_branch(root).get(branch, {})
         authority = load_lease_bound_commitment(root, lease=lease)
         if proof.commitment_digest != authority.digest():
-            failure = (authority_gap, "")
+            failure = ("proof_attestation_authority_binding_mismatch", "")
         else:
-            effect = GitEffect(
-                updates={
-                    f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
-                        expected=candidate_head,
-                        desired=current_head,
-                    )
-                },
-                assertions={f"refs/heads/{branch}": current_head},
-            )
-            plan = _candidate_transition_plan(
+            attestation, failure, observed_candidate_head, cas_attempts = _candidate_cas(
                 root=root,
                 authority=authority,
-                effect=effect,
-                head=current_head,
-                lease=lease,
-                prior_attestations={"proof": proof.model_dump(mode="json")},
                 policy=policy,
-            )
-            attestation = execute_git_effect(
-                root,
-                plan,
-                issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+                refs=(branch, current_head, candidate_head),
+                candidate_path=candidate_path,
+                lease=lease,
+                proof=proof,
             )
     except (TypeError, ValueError) as error:
         failure = ("candidate_update_failed", str(error))
     if failure is not None or attestation is None:
         gap, stderr = failure or ("candidate_update_failed", "candidate attestation missing")
         extra = {"stderr": stderr} if stderr else {}
+        if gap.startswith("candidate_cas_"):
+            extra["candidate_head"] = observed_candidate_head
+            extra["cas_attempts"] = cas_attempts
         return fail(
             [gap],
             path=candidate_path.as_posix(),
             remediation=remediation.remediation_for_gaps([gap]),
             **extra,
         )
+    assert attestation is not None
     try:
         worktree_attestation = sync_worktree(
             root,
@@ -143,8 +135,69 @@ def apply_land_to_candidate(
         "path": candidate_path.as_posix(),
         "attestation": attestation.model_dump(mode="json"),
         "worktree_attestation": worktree_attestation.model_dump(mode="json"),
+        "cas_attempts": cas_attempts,
         "required_gaps": [],
     }
+
+
+def _candidate_cas(
+    *,
+    root: Path,
+    authority: Commitment,
+    policy: BranchRolePolicy,
+    refs: tuple[str, str, str],
+    candidate_path: Path,
+    lease: dict[str, object],
+    proof: Attestation,
+) -> tuple[Attestation | None, tuple[str, str] | None, str, int]:
+    branch, current_head, candidate_head = refs
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
+                expected=candidate_head, desired=current_head
+            )
+        },
+        assertions={f"refs/heads/{branch}": current_head},
+    )
+    plan = _candidate_transition_plan(
+        root=root,
+        authority=authority,
+        effect=effect,
+        head=current_head,
+        lease=lease,
+        prior_attestations={"proof": proof.model_dump(mode="json")},
+        policy=policy,
+    )
+    issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    try:
+        return execute_git_effect(root, plan, issuer=issuer), None, "", 1
+    except ValueError as error:
+        if str(error) not in {"git_effect_cas_mismatch", "git_effect_cas_rejected"}:
+            raise
+        observed = run_git(root, "rev-parse", policy.candidate_branch, check=False).stdout.strip()
+        if observed != candidate_head:
+            return None, ("candidate_cas_stale", str(error)), observed, 1
+        current_proof = proof_attestation(candidate_path, current_head)
+        if current_proof is None:
+            return None, ("candidate_retry_proof_stale", str(error)), observed, 1
+        retry = _candidate_transition_plan(
+            root=root,
+            authority=authority,
+            effect=effect,
+            head=current_head,
+            lease=lease,
+            prior_attestations={"proof": current_proof.model_dump(mode="json")},
+            policy=policy,
+        )
+        try:
+            return execute_git_effect(root, retry, issuer=issuer), None, observed, 2
+        except ValueError as retry_error:
+            if str(retry_error) in {"git_effect_cas_mismatch", "git_effect_cas_rejected"}:
+                current = run_git(
+                    root, "rev-parse", policy.candidate_branch, check=False
+                ).stdout.strip()
+                return None, ("candidate_cas_retry_exhausted", str(retry_error)), current, 2
+            raise
 
 
 def _candidate_transition_plan(

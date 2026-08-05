@@ -90,7 +90,11 @@ def execute_git_effect(
                 detached_branch=detached_branch,
             )
             repository = resolve_git_effect_repository(
-                root, effect, observed, environment=environment
+                root,
+                effect,
+                observed,
+                environment=environment,
+                allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
             )
             if refs != expected:
                 msg = "git_effect_cas_mismatch"

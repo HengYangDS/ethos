@@ -163,7 +163,12 @@ def validate(
         attestation.valid_until and now > attestation.valid_until
     ):
         raise ValueError(_STALE)
-    repository = _repository_identity(root, before, after)
+    repository = _repository_identity(
+        root,
+        before,
+        after,
+        allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
+    )
     evidence = (
         repository,
         state,
@@ -182,6 +187,7 @@ def validate(
         evidence,
         observed_at,
         _object_mapping(statement.get("freshness")),
+        allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
     ):
         raise ValueError(_CONTENT_MISMATCH)
 
@@ -286,14 +292,25 @@ def records(
     return (record,)
 
 
-def _repository_identity(root: Path, before: object, after: object) -> str:
+def _repository_identity(
+    root: Path,
+    before: object,
+    after: object,
+    *,
+    allow_missing_prestate: bool = False,
+) -> str:
     if not isinstance(before, Mapping) or not isinstance(after, Mapping):
         return ""
     try:
-        identities = {
-            load_repository_commitment(root, tree_ref=str(observation.get("head") or "")).id
-            for observation in (before, after)
-        }
+        identities = set()
+        for index, observation in enumerate((before, after)):
+            try:
+                identities.add(
+                    load_repository_commitment(root, tree_ref=str(observation.get("head") or "")).id
+                )
+            except ValueError:
+                if not (allow_missing_prestate and index == 0):
+                    raise
     except ValueError:
         return ""
     return identities.pop() if len(identities) == 1 else ""
@@ -305,6 +322,8 @@ def _matches(
     evidence: Evidence,
     observed_at: dict[str, object],
     freshness: dict[str, object],
+    *,
+    allow_missing_prestate: bool = False,
 ) -> bool:
     repository, state, before, after = evidence
     current_refs = {
@@ -327,7 +346,8 @@ def _matches(
         return False
     current_head = current_tracked_head(root)
     return bool(
-        repository == _repository_identity(root, before, after)
+        repository
+        == _repository_identity(root, before, after, allow_missing_prestate=allow_missing_prestate)
         and current_refs == desired
         and before.get("refs") == expected_before
         and before.get("assertions") == effect.assertions

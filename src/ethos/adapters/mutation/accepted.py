@@ -10,6 +10,7 @@ from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -82,7 +83,12 @@ def _apply_candidate_promotion(
         )
     sweep_stale_ref_intents(root)
     try:
-        authority = load_repository_commitment(root, tree_ref=current_head)
+        try:
+            authority = load_repository_commitment(root, tree_ref=current_head)
+        except ValueError as error:
+            if not str(error).startswith("repository_commitment_missing:"):
+                raise
+            authority = load_repository_commitment(root, tree_ref=candidate_head)
         prior_attestations = {
             "proof": proof.model_dump(mode="json"),
             **(
@@ -237,6 +243,9 @@ def _accepted_transition_plan(
             "accepted_branch": role_policy.accepted_branch,
             "candidate_branch": role_policy.candidate_branch,
             "release_mirror": role_policy.release_mirror,
+            "repository_commitment_bootstrap": not committed_file_bytes(
+                root, head, ".ethos/commitment.toml"
+            ),
         },
         values={"candidate_worktree_path": candidate_worktree_path},
     )

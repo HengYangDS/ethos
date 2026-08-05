@@ -61,6 +61,7 @@ def lease_bound_archive_scope_report(
     changed_paths: tuple[str, ...] = (),
     requested_change: str | None = None,
     official_change_complete: bool = False,
+    completion_artifacts: tuple[str, ...] = (),
 ) -> dict[str, Any] | None:
     """Project the sole archive edge authorized by the current Work Lane Lease."""
     context = _archive_context(root)
@@ -86,10 +87,9 @@ def lease_bound_archive_scope_report(
         return None
     active = _active_commitments(root, tree)
     expected_active = (carrier,) if state == "completion_transition" else ()
-    tasks_path = carrier.removesuffix("commitment.toml") + "tasks.md"
+    changed = tuple(dict.fromkeys(filter(None, changed_paths)))
     completion_invalid = state == "completion_transition" and (
-        not official_change_complete
-        or tuple(dict.fromkeys(filter(None, changed_paths))) != (tasks_path,)
+        not official_change_complete or len(changed) != 1 or changed[0] not in completion_artifacts
     )
     if archived.digest() != source.digest() or active != expected_active or completion_invalid:
         return None

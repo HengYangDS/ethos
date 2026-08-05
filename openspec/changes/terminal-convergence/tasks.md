@@ -169,7 +169,7 @@ invariants are implemented and proved without parallel mutation owners.
 
 ## 4. Separate Product Profiles From Coordination
 
-- [ ] 4.1 Keep the semantic kernel vendor-neutral while requiring verified
+- [x] 4.1 Keep the semantic kernel vendor-neutral while requiring verified
   OpenSpec for every mutation-capable adopter as the sole Change/SDD carrier;
   observation-only repositories may omit it but cannot govern mutation. Pin
   and verify the effective CLI as
@@ -186,7 +186,17 @@ invariants are implemented and proved without parallel mutation owners.
   extension keys, and admit only a minimal ETHOS schema or borrowed pattern that
   proves net deletion and no second owner. This task was reopened after current
   code was found to force `--schema spec-driven` and fixed four rule IDs despite
-  OpenSpec 1.7's valid custom-schema contract.
+  OpenSpec 1.7's valid custom-schema contract. Characterization covered official
+  project-schema resolution, arbitrary DAGs, templates, context/rules,
+  apply/archive guidance, generated Codex Skills, and preservation of an
+  adopter-owned custom config. Community sampling covered Superpowers bridges,
+  intent/event/BDD/ADR, SRS/TDD, human-gate, and full-cycle SDLC variants: DAG,
+  templates, `requires`, and `apply` are native; prose instructions are advisory,
+  companion skills are external dependencies, unknown extension keys may pass
+  structural validation without runtime enforcement, and bundles outside
+  `openspec/schemas/<name>` are not project-resolved until explicitly installed.
+  No borrowed schema proved a net deletion over the current greenfield
+  `spec-driven` default, so no new ETHOS schema or compatibility layer was added.
 - [x] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
   candidate train to scoped resource Facts, projections, and attested effects.
 - [ ] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and

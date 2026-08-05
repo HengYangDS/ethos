@@ -1,6 +1,5 @@
 """Transient, deterministic TransitionPlan compiled from repository declarations."""
 
-import fnmatch
 import hashlib
 from datetime import UTC
 from datetime import datetime
@@ -27,6 +26,7 @@ from ethos.contracts.value import JsonObject
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
+from ethos.normalization.coercion import repository_path_matches
 
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 EMPTY_ATTESTATION_SET_DIGEST = canonical_json_digest({})
@@ -392,7 +392,7 @@ def compile_plan(
         ):
             gaps.append("changed_paths_invalid")
         elif any(
-            not any(_path_matches(path, pattern) for pattern in commitment.scope)
+            not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
             for path in changed_paths
             if isinstance(path, str)
         ):
@@ -472,15 +472,6 @@ def terminal_schema_documents() -> dict[str, dict[str, Any]]:
         schema["title"] = f"ETHOS {model.__name__.removesuffix('Document')}"
         schemas[name] = schema
     return schemas
-
-
-def _path_matches(path: str, pattern: str) -> bool:
-    if pattern == "**":
-        return True
-    prefix = pattern.removesuffix("/**")
-    if pattern.endswith("/**"):
-        return path == prefix or path.startswith(f"{prefix}/")
-    return fnmatch.fnmatchcase(path, pattern)
 
 
 def _valid_relative_path(path: object) -> bool:

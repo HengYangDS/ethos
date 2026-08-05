@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import fnmatch
+
 
 def string_list(value: object, *, drop_empty: bool = False) -> list[str]:
     """Return stringified list values, or an empty list for a non-list value."""
@@ -36,3 +38,13 @@ def string_mapping(value: object) -> dict[str, object]:
 def integer(value: object, *, default: int = 0) -> int:
     """Return an integer value without accepting booleans or arbitrary scalars."""
     return value if isinstance(value, int) and not isinstance(value, bool) else default
+
+
+def repository_path_matches(path: str, pattern: str) -> bool:
+    """Match one repository-relative path against a recursive glob."""
+    if pattern == "**":
+        return True
+    if pattern.endswith("/**"):
+        prefix = pattern[:-3]
+        return fnmatch.fnmatchcase(path, prefix) or fnmatch.fnmatchcase(path, f"{prefix}/*")
+    return fnmatch.fnmatchcase(path, pattern)

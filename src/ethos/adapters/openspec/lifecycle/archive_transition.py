@@ -7,7 +7,6 @@ from datetime import date
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.openspec.lifecycle.scope import path_matches_scope
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -21,6 +20,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.openspec.audit import tasks_complete
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -207,12 +207,12 @@ def _scope_report(
     patterns = profile.declaration.openspec.material_paths
     paths = tuple(dict.fromkeys(filter(None, changed_paths)))
     material = tuple(
-        path for path in paths if any(path_matches_scope(path, glob) for glob in patterns)
+        path for path in paths if any(repository_path_matches(path, glob) for glob in patterns)
     )
     uncovered = [
         path
         for path in material
-        if not any(path_matches_scope(path, pattern) for pattern in commitment.scope)
+        if not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
     ]
     covered = [{"path": path, "changes": [change]} for path in material if path not in uncovered]
     gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]

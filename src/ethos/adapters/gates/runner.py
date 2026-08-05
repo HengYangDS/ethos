@@ -5,6 +5,7 @@ import inspect
 import json
 import subprocess
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
@@ -147,6 +148,53 @@ class LocalGateRunner:
             stderr=completed.stderr,
             diagnostics=diagnostics,
         )
+
+
+def proof_waves(
+    nodes: tuple[PlanNode, ...], gates: Mapping[str, Gate], *, capacity: int
+) -> tuple[tuple[PlanNode, ...], ...]:
+    """Partition one admitted DAG into deterministic safe execution waves."""
+    if capacity < 1:
+        message = "proof_node_capacity_invalid"
+        raise ValueError(message)
+    remaining = list(nodes)
+    completed: set[str] = set()
+    waves: list[tuple[PlanNode, ...]] = []
+    while remaining:
+        ready = [node for node in remaining if set(node.depends_on) <= completed]
+        if not ready:
+            message = "proof_plan_dependencies_unresolved"
+            raise ValueError(message)
+        write_ready = next((node for node in ready if gates[node.id].writes_files), None)
+        read_only = [node for node in ready if not gates[node.id].writes_files]
+        wave = (write_ready,) if write_ready is not None else tuple(read_only[:capacity])
+        waves.append(wave)
+        completed.update(node.id for node in wave)
+        selected = {node.id for node in wave}
+        remaining = [node for node in remaining if node.id not in selected]
+    return tuple(waves)
+
+
+def run_gate_waves(
+    runner: DryRunRunner | LocalGateRunner,
+    nodes: tuple[PlanNode, ...],
+    gates: Mapping[str, Gate],
+    *,
+    root: Path,
+    capacity: int,
+    parallel: bool,
+) -> tuple[ActionRunResult, ...]:
+    """Execute safe proof waves while preserving canonical result order."""
+    results: list[ActionRunResult] = []
+    for wave in proof_waves(nodes, gates, capacity=capacity):
+        if parallel and len(wave) > 1:
+            with ThreadPoolExecutor(max_workers=len(wave)) as executor:
+                results.extend(
+                    executor.map(lambda node: runner.run(node, gates[node.id], root=root), wave)
+                )
+        else:
+            results.extend(runner.run(node, gates[node.id], root=root) for node in wave)
+    return tuple(results)
 
 
 def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:

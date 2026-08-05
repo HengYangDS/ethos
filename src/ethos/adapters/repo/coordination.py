@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -201,6 +202,8 @@ def collaboration_competition_projection(
     risks: tuple[str, ...],
     proof_cost: int,
     proof_capacity: int | None,
+    observed_at: datetime,
+    candidate: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Derive collaboration or competition from current resource facts."""
     branches = [str(lane.get("branch") or "") for lane in foreign_work_lanes]
@@ -218,6 +221,31 @@ def collaboration_competition_projection(
     conflicts = [lane for lane in overlap if lane not in alternatives]
     costs = [lane.get("proof_cost") for lane in alternatives]
     total_cost = proof_cost + sum(cost for cost in costs if isinstance(cost, int))
+    now = observed_at
+    queue_age = {
+        branch: _queue_age_seconds(lane, now)
+        for lane in foreign_work_lanes
+        if (branch := str(lane.get("branch") or ""))
+    }
+    admission_order = sorted(branches, key=lambda branch: (-queue_age.get(branch, 0), branch))
+    progress = candidate or {}
+    candidate_behind_accepted = progress.get("behind_accepted", 0)
+    latest_age = progress.get("latest_advance_age_seconds")
+    latest_interval = progress.get("latest_interval_seconds")
+    stalled = (
+        isinstance(latest_age, int)
+        and isinstance(latest_interval, int)
+        and latest_interval > 0
+        and latest_age > latest_interval
+    )
+    backpressure = (
+        "candidate_behind_accepted"
+        if isinstance(candidate_behind_accepted, int) and candidate_behind_accepted > 0
+        else "candidate_stalled"
+        if stalled
+        else "open"
+    )
+    available_capacity = None if proof_capacity is None else max(0, proof_capacity - proof_cost)
     if not foreign_work_lanes:
         state, reason = "independent", "no_peer_work_lanes"
     elif unknown:
@@ -245,7 +273,26 @@ def collaboration_competition_projection(
         "conflict_count": len(conflicts),
         "unknown_count": len(unknown),
         "branches": branches,
+        "admission_order": admission_order,
+        "queue_age_seconds": queue_age,
+        "backpressure": backpressure,
+        "candidate_progress": progress,
+        "proof_capacity_available": available_capacity,
     }
+
+
+def _queue_age_seconds(lane: dict[str, object], observed_at: datetime) -> int:
+    lease = lane.get("lease")
+    if not isinstance(lease, dict):
+        return 0
+    issued = str(lease.get("issued_at") or "")
+    try:
+        instant = datetime.fromisoformat(issued)
+    except ValueError:
+        return 0
+    if instant.tzinfo is None:
+        return 0
+    return max(0, int((observed_at - instant).total_seconds()))
 
 
 def shared_inbox_projection(

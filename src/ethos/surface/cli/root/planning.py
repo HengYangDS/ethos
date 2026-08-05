@@ -18,6 +18,7 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import compile_plan
@@ -37,8 +38,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _non_negative(_type: type[int], value: int) -> None:
-    if value < 0:
+def _non_negative(_type: type[int], value: int | None) -> None:
+    if value is not None and value < 0:
         msg = "proof node capacity must be non-negative"
         raise ValueError(msg)
 
@@ -139,12 +140,17 @@ def plan(
     nodes = policy.nodes
     foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])
     peers = [lane | {"proof_cost": _peer_proof_cost(repo, lane)} for lane in foreign]
+    candidate = cast("dict[str, object]", status_payload.get("candidate") or {})
+    candidate_branch = str(candidate.get("branch") or "candidate/dev")
     strategy = collaboration_competition_projection(
         peers,
         commitment_digest=commitment.digest(),
         risks=commitment.risks,
         proof_cost=len(nodes),
         proof_capacity=proof_node_capacity,
+        observed_at=facts.observed_at,
+        candidate=ref_progress(repo, candidate_branch, observed_at=facts.observed_at)
+        | {"behind_accepted": candidate.get("behind_accepted", 0)},
     )
     plan = compile_plan(
         commitment,

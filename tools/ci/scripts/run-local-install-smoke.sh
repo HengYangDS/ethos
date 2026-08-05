@@ -73,6 +73,39 @@ fi
 "${venv_dir}/bin/ethos" --help > "${scratch_root}/ethos-help.txt"
 version="$("${venv_dir}/bin/ethos" --version)"
 printf '%s\n' "${version}" > "${scratch_root}/ethos-version.txt"
+adopter_dir="${scratch_root}/adopter"
+git init --quiet --initial-branch=dev "${adopter_dir}"
+git -C "${adopter_dir}" config user.name "ETHOS Install Smoke"
+git -C "${adopter_dir}" config user.email "ethos-install-smoke@example.invalid"
+mkdir -p "${adopter_dir}/.ethos" "${adopter_dir}/openspec/changes/smoke-change"
+cp "${repo_root}/.ethos/profile.toml" "${adopter_dir}/.ethos/profile.toml"
+cp "${repo_root}/openspec/config.yaml" "${adopter_dir}/openspec/config.yaml"
+cat > "${adopter_dir}/openspec/changes/smoke-change/commitment.toml" <<'EOF'
+schema_version = 1
+id = "change:smoke-change"
+intent = "Exercise installed CLI repository binding."
+subjects = ["repository:self"]
+scope = ["README.md"]
+permissions = ["repository.read", "work-lane.write", "git.ref.compare-and-swap"]
+EOF
+printf '# installed CLI adopter\n' > "${adopter_dir}/README.md"
+git -C "${adopter_dir}" add .
+git -C "${adopter_dir}" commit --quiet -m "initialize installed CLI adopter"
+adopter_head="$(git -C "${adopter_dir}" rev-parse HEAD)"
+"${venv_dir}/bin/ethos" status --root "${adopter_dir}" --json > "${scratch_root}/adopter-status.json"
+"${venv_dir}/bin/ethos" plan --changed --root "${adopter_dir}" --json > "${scratch_root}/adopter-plan.json" || true
+"${venv_dir}/bin/ethos" lane archive-change \
+  --change smoke-change --expect-head "${adopter_head}" --root "${adopter_dir}" --json \
+  > "${scratch_root}/adopter-archive-change.json" || true
+"${smoke_python}" - <<'PY'
+from ethos.adapters.openspec.cli import openspec_base_command, verify_official_cli
+
+command = openspec_base_command()
+assert command is not None, "installed wheel has no pinned OpenSpec executable"
+report = verify_official_cli(command)
+assert report["verdict"] == "pass", report
+assert report["package"] == "@fission-ai/openspec@1.7.0", report
+PY
 uv pip check --python "${source_python}" >&2
 
 ETHOS_LOCAL_INSTALL_ROOT="${repo_root}" \
@@ -118,6 +151,10 @@ payload = {
     "cli_checks": [
         "ethos --help",
         "ethos --version",
+        "installed ethos status in an adopter repository",
+        "installed ethos plan dry-run in an adopter repository",
+        "installed ethos archive-change dry-run in an adopter repository",
+        "@fission-ai/openspec@1.7.0",
         "declared wheel resources match their canonical sources",
     ],
     "wheel_resources": sorted(wheel_resources),

@@ -487,6 +487,16 @@ def test_runner_source_root_ignores_inherited_git_dir(
     assert runner_source_root(module) == repo.resolve()
 
 
+def test_runner_source_root_treats_an_installed_distribution_as_external(
+    tmp_path: Path,
+) -> None:
+    module = tmp_path / "venv" / "lib" / "python3.12" / "site-packages" / "ethos" / "__init__.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("", encoding="utf-8")
+
+    assert runner_source_root(module) == module.parent
+
+
 @pytest.mark.parametrize(
     ("kind", "role", "reason"),
     [

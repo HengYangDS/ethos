@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import ethos
@@ -12,7 +13,7 @@ def runner_source_root(module_path: Path) -> Path:
     """Resolve the Git checkout that supplied a source runner, when present."""
     try:
         candidate = repository_root(module_path.parent)
-    except (FileNotFoundError, RuntimeError):
+    except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError):
         candidate = module_path.parent
     if candidate != module_path.parent:
         try:

@@ -28,7 +28,7 @@ class NativeEffect(NamedTuple):
 
 
 def issue_native_effect(
-    root: Path,
+    _root: Path,
     *,
     effect: NativeEffect,
     state: str,

@@ -261,6 +261,7 @@ def _stage_gates(
 
 
 def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
+    del defer_details
     policy = load_branch_role_policy(root)
     candidate: dict[str, object] = {
         "branch": policy.candidate_branch,

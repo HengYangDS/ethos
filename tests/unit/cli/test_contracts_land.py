@@ -1570,7 +1570,8 @@ def test_land_reobserves_and_retries_one_transient_candidate_cas_failure(
         nonlocal attempts
         attempts += 1
         if attempts == 1:
-            raise ValueError("git_effect_cas_rejected")
+            message = "git_effect_cas_rejected"
+            raise ValueError(message)
         return original(*args, **kwargs)
 
     monkeypatch.setattr(landing_mutation, "execute_git_effect", fail_once)
@@ -1604,7 +1605,8 @@ def test_land_bounds_repeated_candidate_cas_failure_to_two_attempts(
     def always_fail(*_args, **_kwargs):
         nonlocal attempts
         attempts += 1
-        raise ValueError("git_effect_cas_rejected")
+        message = "git_effect_cas_rejected"
+        raise ValueError(message)
 
     monkeypatch.setattr(landing_mutation, "execute_git_effect", always_fail)
     payload = run_ethos_blocked(
@@ -1637,7 +1639,8 @@ def test_land_reports_stale_candidate_without_overwriting_new_progress(
         attempts += 1
         if attempts == 1:
             commit_fixture_file(candidate, "PEER.md", "# peer\n", "peer progress")
-            raise ValueError("git_effect_cas_rejected")
+            message = "git_effect_cas_rejected"
+            raise ValueError(message)
         return original(*args, **kwargs)
 
     monkeypatch.setattr(landing_mutation, "execute_git_effect", advance_candidate_then_fail)

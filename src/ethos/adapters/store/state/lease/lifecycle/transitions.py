@@ -78,7 +78,8 @@ def takeover_lease(
 ) -> dict[str, object]:
     """Change one exact holder generation while repository observations stay fixed."""
     if not request.apply:
-        raise ValueError("lease_apply_required:takeover")
+        message = "lease_apply_required:takeover"
+        raise ValueError(message)
     lease_request = LeaseOperationRequest(
         operation="handoff_accept",
         branch=request.branch,
@@ -100,16 +101,19 @@ def takeover_lease(
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         if observe_repository() != expected_observation:
-            raise ValueError("lease_takeover_repository_drift")
+            message = "lease_takeover_repository_drift"
+            raise ValueError(message)
         row, current = expected_current_lease(
             connection,
             request=lease_request,
             require_expired=None,
         )
         if current.lane_incarnation_id != request.expected_lane_incarnation_id:
-            raise ValueError("lease_takeover_incarnation_drift")
+            message = "lease_takeover_incarnation_drift"
+            raise ValueError(message)
         if current.expected_tree != request.expected_tree:
-            raise ValueError("lease_takeover_tree_drift")
+            message = "lease_takeover_tree_drift"
+            raise ValueError(message)
         now = datetime.now(UTC)
         result = replace_exact_lease_from_connection(
             connection,
@@ -124,7 +128,8 @@ def takeover_lease(
             ),
         )
         if observe_repository() != expected_observation:
-            raise ValueError("lease_takeover_repository_drift")
+            message = "lease_takeover_repository_drift"
+            raise ValueError(message)
         connection.commit()
     return result
 

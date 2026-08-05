@@ -218,23 +218,28 @@ def _refresh_work_lane(
             stderr=str(error),
         )
     refreshed_head = current_tracked_head(root)
-    if refreshed_head != rebased_head:
+    post_gaps = [
+        gap
+        for invalid, gap in (
+            (refreshed_head != rebased_head, "refresh_base_snapshot_stale:work_lane"),
+            (attachment_attestation is None, "refresh_base_worktree_attach_failed"),
+        )
+        if invalid
+    ]
+    if post_gaps:
         return _report(
             context,
             refreshed_head,
             "blocked",
-            ["refresh_base_snapshot_stale:work_lane"],
+            post_gaps,
             previous_head=current_head,
-            stderr="work-lane branch advanced after refresh compare-and-swap",
+            stderr=(
+                "work-lane branch advanced after refresh compare-and-swap"
+                if refreshed_head != rebased_head
+                else ""
+            ),
         )
-    if attachment_attestation is None:
-        return _report(
-            context,
-            refreshed_head,
-            "blocked",
-            ["refresh_base_worktree_attach_failed"],
-            previous_head=current_head,
-        )
+    attachment = cast("Attestation", attachment_attestation)
     return _report(
         context,
         refreshed_head,
@@ -243,7 +248,7 @@ def _refresh_work_lane(
         previous_head=current_head,
         rebase_attestation=rebase_attestation.model_dump(mode="json"),
         ref_attestation=ref_attestation.model_dump(mode="json"),
-        attachment_attestation=attachment_attestation.model_dump(mode="json"),
+        attachment_attestation=attachment.model_dump(mode="json"),
     )
 
 

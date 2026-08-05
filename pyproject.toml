@@ -45,6 +45,7 @@ packages = ["src/ethos"]
 "system/invalid_states.toml" = "ethos/data/invalid_states.toml"
 "system/policies/evidence-layout.toml" = "ethos/data/evidence_layout.toml"
 "system/policies/generated-artifact-topology.toml" = "ethos/data/generated_artifact_topology.toml"
+"system/openspec/package.json" = "ethos/data/openspec/package.json"
 
 [tool.hatch.build.targets.sdist]
 include = [

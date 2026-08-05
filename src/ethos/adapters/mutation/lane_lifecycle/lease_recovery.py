@@ -68,9 +68,8 @@ def recover_legacy_lease(
     if gaps:
         return _report(branch, "block", "blocked", gaps, row, payload)
 
-    assert row is not None
-    assert issued_at is not None
-    assert renewed_at is not None
+    if row is None or issued_at is None or renewed_at is None:
+        return _report(branch, "block", "blocked", ["lease_recovery_facts_missing"], row, payload)
     replacement = _replacement(
         request,
         row=row,

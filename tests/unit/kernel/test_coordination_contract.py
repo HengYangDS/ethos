@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import warnings
 from contextlib import closing
 from datetime import UTC
 from datetime import datetime
@@ -12,10 +13,14 @@ import pytest
 from pydantic import TypeAdapter
 from pydantic import ValidationError
 
+from ethos.adapters.repo.coordination import shared_inbox_projection
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import RepositoryRelativePath
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import canonical_json_digest
+from ethos.repository.policy.references.python_syntax import python_trees
 
 
 def test_holder_ref_is_provider_neutral_and_carries_no_privilege() -> None:
@@ -240,8 +245,6 @@ def test_takeover_bounded_model_requires_every_exact_authorization_coordinate() 
 
 
 def test_shared_inbox_deduplicates_rebuilds_and_preserves_conflicts() -> None:
-    from ethos.adapters.repo.coordination import shared_inbox_projection
-
     item = {
         "kind": "gap",
         "subject": "work/example",
@@ -269,13 +272,6 @@ def test_shared_inbox_deduplicates_rebuilds_and_preserves_conflicts() -> None:
 
 
 def test_shared_inbox_acknowledgement_does_not_consume_and_effect_does() -> None:
-    from datetime import UTC
-    from datetime import datetime
-
-    from ethos.adapters.repo.coordination import shared_inbox_projection
-    from ethos.contracts.semantic import Attestation
-    from ethos.contracts.semantic import canonical_json_digest
-
     item = {
         "kind": "handoff",
         "subject": "work/example",
@@ -327,10 +323,6 @@ def test_shared_inbox_acknowledgement_does_not_consume_and_effect_does() -> None
 
 
 def test_python_reference_parser_never_emits_invalid_escape_warnings() -> None:
-    import warnings
-
-    from ethos.repository.policy.references.python_syntax import python_trees
-
     with warnings.catch_warnings(record=True) as captured:
         warnings.simplefilter("always")
         python_trees('pattern = "[^\\s]+"')

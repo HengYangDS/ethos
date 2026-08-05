@@ -44,6 +44,7 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert '"${venv_dir}/bin/ethos" status --root "${adopter_dir}" --json' in owner
     assert '"${venv_dir}/bin/ethos" plan --changed --root "${adopter_dir}" --json' in owner
     assert '"${venv_dir}/bin/ethos" lane archive-change' in owner
+    assert '--rebuild-from "${adopter_head}"' in owner
     assert '"${adopter_dir}"' in owner
     assert "/Users/" not in owner
     assert "openspec_base_command" in owner

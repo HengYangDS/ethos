@@ -3,29 +3,41 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from typing import NamedTuple
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
 from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import exact_rename_target
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import compensate_git_worktree
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import stage_git_worktree
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.semantic import Attestation
 
 
 class _ArchiveTransition(NamedTuple):
@@ -41,6 +53,7 @@ def archive_change(
     root: Path,
     change: str,
     expect_head: str,
+    rebuild_from: str = "",
     apply: bool = False,
 ) -> dict[str, object]:
     """Run official OpenSpec archive and commit its exact Lease-bound delta."""
@@ -48,6 +61,28 @@ def archive_change(
     head = current_tracked_head(repo)
     branch = git_stdout(repo, "branch", "--show-current")
     lease = leases_by_branch(repo).get(branch, {})
+    if rebuild_from:
+        gaps = _rebuild_preflight(repo, branch, head, expect_head, rebuild_from, lease, change)
+        if gaps or not apply:
+            return _report(
+                branch,
+                head,
+                "blocked" if gaps else "ready_to_rebuild",
+                gaps,
+                change=change,
+                rebuild_from=rebuild_from,
+            )
+        try:
+            return _rebuild_archive(repo, branch, head, rebuild_from, change, lease)
+        except (OSError, TypeError, ValueError) as error:
+            return _report(
+                branch,
+                current_tracked_head(repo),
+                "repair_required",
+                [str(error)],
+                change=change,
+                rebuild_from=rebuild_from,
+            )
     gaps = _archive_preflight(repo, branch, head, expect_head, lease, change)
     if gaps or not apply:
         return _report(
@@ -58,6 +93,164 @@ def archive_change(
             change=change,
         )
     return _apply_archive(repo, branch, head, change)
+
+
+def _rebuild_preflight(
+    root: Path,
+    branch: str,
+    head: str,
+    expect_head: str,
+    rebuild_from: str,
+    lease: dict[str, object],
+    change: str,
+) -> list[str]:
+    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    role = load_branch_role_policy(root).role_for_branch(branch)
+    archive_carrier = str(lease.get("base_commitment_path") or "")
+    active_carrier = f"openspec/changes/{change}/commitment.toml"
+    parents = run_git(root, "rev-list", "--parents", "-n", "1", head).stdout.split()
+    checks = (
+        (role == ROLE_WORK_LANE, "archive_requires_work_lane"),
+        (head == expect_head, "expect_head_mismatch"),
+        (not git_stdout(root, "status", "--short"), "work_lane_dirty"),
+        (lease.get("lease_state") == "valid", f"work_lane_lease_invalid:{branch}"),
+        (lease.get("holder_ref") == actor, "lease_actor_mismatch"),
+        (lease.get("expected_head") == head, "lease_head_stale"),
+        (lease.get("expected_tree") == current_tree(root, head), "lease_tree_stale"),
+        (parents == [head, rebuild_from], "openspec_archive_rebuild_parent_mismatch"),
+        (
+            exact_rename_target(root, rebuild_from, head, active_carrier) == archive_carrier,
+            "openspec_archive_rebuild_transition_mismatch",
+        ),
+        (
+            _archive_rebuild_paths(root, rebuild_from, head, change, archive_carrier),
+            "openspec_archive_rebuild_scope_mismatch",
+        ),
+        (
+            not _governed_archive_exists(root, head, change),
+            "openspec_archive_rebuild_already_governed",
+        ),
+    )
+    gaps = [gap for valid, gap in checks if not valid]
+    if gaps:
+        return list(dict.fromkeys(gaps))
+    try:
+        archived = load_lease_bound_commitment(root, change_id=change, lease=lease)
+        active = load_commitment(
+            root,
+            carrier=active_carrier,
+            change_id=change,
+            tree_ref=rebuild_from,
+        )
+        if archived.digest() != active.digest():
+            gaps.append("openspec_archive_rebuild_commitment_mismatch")
+    except ValueError as error:
+        gaps.append(str(error))
+    if not gaps:
+        gaps.extend(proof_gaps(root, head))
+    return list(dict.fromkeys(gaps))
+
+
+def _governed_archive_exists(root: Path, head: str, change: str) -> bool:
+    for path in attestation_store_dir(root).glob("*.json"):
+        try:
+            attestation = Attestation.model_validate_json(path.read_bytes())
+            output = attestation.statement.get("output")
+        except (OSError, ValueError):
+            continue
+        if (
+            attestation.predicate == "effect:openspec-archive"
+            and isinstance(output, Mapping)
+            and output.get("head") == head
+            and attestation.statement.get("freshness", {}).get("change") == change
+        ):
+            return True
+    return False
+
+
+def _archive_rebuild_paths(
+    root: Path,
+    previous: str,
+    head: str,
+    change: str,
+    archive_carrier: str,
+) -> bool:
+    archive_root = archive_carrier.removesuffix("/commitment.toml") + "/"
+    active_root = f"openspec/changes/{change}/"
+    changed = run_git(
+        root,
+        "diff",
+        "--name-only",
+        "--diff-filter=ACMRTD",
+        previous,
+        head,
+        check=False,
+    )
+    return (
+        changed.returncode == 0
+        and bool(changed.stdout.splitlines())
+        and all(
+            path.startswith((active_root, archive_root, "openspec/specs/"))
+            for path in changed.stdout.splitlines()
+        )
+    )
+
+
+def _rebuild_archive(
+    root: Path,
+    branch: str,
+    archived_head: str,
+    previous_head: str,
+    change: str,
+    lease: dict[str, object],
+) -> dict[str, object]:
+    authority = load_lease_bound_commitment(root, change_id=change, lease=lease)
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{branch}": GitRefUpdate(
+                expected=archived_head,
+                desired=previous_head,
+            )
+        }
+    )
+    plan = compile_observed_git_effect(
+        root,
+        authority,
+        effect,
+        head=archived_head,
+        policy={"operation": "openspec.archive.rebuild", "execution_branch": branch},
+        prior_attestations={},
+        values={"lease_generation": lease_generation(lease), "change": change},
+    )
+
+    def synchronize() -> None:
+        sync_worktree(
+            root,
+            root,
+            branch=branch,
+            previous=archived_head,
+            head=previous_head,
+        )
+
+    execute_git_effect(
+        root,
+        plan,
+        issuer=str(lease["holder_ref"]),
+        projection=synchronize,
+    )
+    transition = work_lane_ref_transition_report(
+        root=root,
+        phase="committed",
+        ref_name=f"refs/heads/{branch}",
+        old_value=archived_head,
+        new_value=previous_head,
+    )
+    if transition.get("verdict") != "pass":
+        message = "openspec_archive_rebuild_lease_transition_failed"
+        raise ValueError(message)
+    rebuilt = _apply_archive(root, branch, previous_head, change)
+    rebuilt["replaced_head"] = archived_head
+    return rebuilt
 
 
 def _archive_preflight(

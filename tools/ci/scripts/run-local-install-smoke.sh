@@ -97,6 +97,10 @@ adopter_head="$(git -C "${adopter_dir}" rev-parse HEAD)"
 "${venv_dir}/bin/ethos" lane archive-change \
   --change smoke-change --expect-head "${adopter_head}" --root "${adopter_dir}" --json \
   > "${scratch_root}/adopter-archive-change.json" || true
+"${venv_dir}/bin/ethos" lane archive-change \
+  --change smoke-change --expect-head "${adopter_head}" --rebuild-from "${adopter_head}" \
+  --root "${adopter_dir}" --json \
+  > "${scratch_root}/adopter-archive-rebuild.json" || true
 "${smoke_python}" - <<'PY'
 from ethos.adapters.openspec.cli import openspec_base_command, verify_official_cli
 
@@ -154,6 +158,7 @@ payload = {
         "installed ethos status in an adopter repository",
         "installed ethos plan dry-run in an adopter repository",
         "installed ethos archive-change dry-run in an adopter repository",
+        "installed ethos archive-change rebuild dry-run in an adopter repository",
         "@fission-ai/openspec@1.7.0",
         "declared wheel resources match their canonical sources",
     ],

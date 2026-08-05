@@ -363,6 +363,31 @@ def test_compile_plan_binds_commitment_subject_and_scope_to_current_facts() -> N
     ).required_gaps == ("repository_subject_mismatch", "change_scope_exceeded")
 
 
+def test_compile_plan_matches_recursive_glob_with_wildcard_directory() -> None:
+    plan = compile_plan(
+        commitment=Commitment(
+            id="change:test",
+            intent="govern one archived change",
+            subjects=("repository:test",),
+            scope=("openspec/changes/archive/*-fixture-change/**",),
+        ),
+        facts=Facts(
+            repository="repository:test",
+            head="a" * 40,
+            tree="b" * 40,
+            observed_at=datetime(2026, 8, 5, tzinfo=UTC),
+            values={
+                "changed_paths": ("openspec/changes/archive/2026-08-05-fixture-change/tasks.md",)
+            },
+        ),
+        nodes=(),
+        policy={"digest": "c" * 64},
+    )
+
+    assert plan.verdict == "pass"
+    assert plan.required_gaps == ()
+
+
 def test_repository_wide_scope_matches_root_and_nested_paths() -> None:
     commitment = Commitment(
         id="repository:test",

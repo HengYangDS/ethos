@@ -373,7 +373,11 @@ def _write_active_change_carrier(
         "## Context\n\nTest-only governed fixture.\n\n"
         "## Design\n\nUse the real OpenSpec carrier shape.\n\n"
         "## Alternatives\n\nNo compatibility fallback.\n\n"
-        "## Proof Strategy\n\nRun focused lifecycle tests.\n",
+        "## Proof Strategy\n\nRun focused lifecycle tests.\n\n"
+        "## Requirement To Task To Proof\n\n"
+        "| Requirement | Task | Proof |\n"
+        "| --- | --- | --- |\n"
+        "| `contracts:Fixture change` | `1.1` | `unit-contracts` |\n",
         encoding="utf-8",
     )
     (carrier / "specs" / "contracts").mkdir(parents=True, exist_ok=True)
@@ -395,7 +399,10 @@ def _write_active_change_carrier(
         + 'permissions = ["git.ref.compare-and-swap"]\n',
         encoding="utf-8",
     )
-    (carrier / "tasks.md").write_text("- [ ] Exercise fixture lifecycle\n", encoding="utf-8")
+    (carrier / "tasks.md").write_text(
+        "## 1. Fixture\n\n- [ ] 1.1 Exercise fixture lifecycle\n",
+        encoding="utf-8",
+    )
 
 
 def commit_active_commitment(

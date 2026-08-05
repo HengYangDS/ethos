@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.openspec.cli as openspec_cli
+from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
+from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.lifecycle.report import OpenSpecReportContext
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
@@ -292,6 +294,21 @@ def _openspec_governance_report(
         )
     )
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
+    intent_context: dict[str, object] = {}
+    if official_selected:
+        try:
+            contract = load_openspec_commitment(root, change_id=official_selected)
+        except ValueError:
+            required_gaps.append(f"commitment_invalid:{official_selected}")
+        else:
+            intent_context, intent_gaps = compile_intent_context(
+                root,
+                commitment=contract,
+                config=official_config,
+                status=status["json"],
+                apply=apply["json"],
+            )
+            required_gaps.extend(intent_gaps)
 
     return {
         "verdict": "block" if required_gaps else "pass",
@@ -308,6 +325,7 @@ def _openspec_governance_report(
         },
         "required_gaps": required_gaps,
         "advisory_gaps": advisory_gaps,
+        "intent_context": intent_context,
         "lifecycle": {
             "enabled": request.lifecycle,
             "changes": lifecycle_payload["changes"],

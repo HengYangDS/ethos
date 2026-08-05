@@ -65,6 +65,8 @@ def official_config_report(root: Path) -> dict[str, object]:
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "path": path.as_posix(),
+        "context": payload.get("context", ""),
+        "rules": payload.get("rules", {}),
         "required_gaps": gaps,
     }
 

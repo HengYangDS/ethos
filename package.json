@@ -9,5 +9,8 @@
   "scripts": {
     "ethos": "node distributions/npm/bin/ethos.mjs",
     "test:npm": "npm pack --dry-run --workspace @agentic-workflow/ethos"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "1.7.0"
   }
 }

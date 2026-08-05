@@ -99,9 +99,6 @@ def _adopted_repo(path: Path) -> tuple[Path, str]:
     profile.write_text(
         profile.read_text(encoding="utf-8")
         + """
-[openspec]
-material_paths = ["openspec/**"]
-
 [proof]
 code_correctness_gates = ["sample-tests", "sample-static"]
 
@@ -472,7 +469,9 @@ def test_proof_plan_requires_a_change_selector_when_multiple_active_commitments_
     assert selected.facts["values"]["change_id"] == "proof-binding"
 
 
-def test_proof_plan_ignores_complete_commitment_at_committed_head(tmp_path: Path) -> None:
+def test_proof_plan_requires_explicit_change_when_unarchived_changes_are_ambiguous(
+    tmp_path: Path,
+) -> None:
     repo, _head = _adopted_repo(tmp_path / "repo")
     active_tasks = repo / "openspec" / "changes" / "proof-binding" / "tasks.md"
     active_tasks.write_text("- [ ] Prove\n", encoding="utf-8")
@@ -486,12 +485,17 @@ def test_proof_plan_ignores_complete_commitment_at_committed_head(tmp_path: Path
     (complete / "tasks.md").write_text("- [x] Done\n", encoding="utf-8")
     head = _commit(repo, "add complete historical change")
 
-    assert proof_plan(repo, head=head).facts["values"]["change_id"] == "proof-binding"
-    with pytest.raises(ValueError, match="commitment_complete:complete"):
-        proof_plan(repo, head=head, change_id="complete")
+    with pytest.raises(ValueError, match="commitment_ambiguous"):
+        proof_plan(repo, head=head)
+    assert proof_plan(repo, head=head, change_id="proof-binding").facts["values"]["change_id"] == (
+        "proof-binding"
+    )
+    assert (
+        proof_plan(repo, head=head, change_id="complete").facts["values"]["change_id"] == "complete"
+    )
 
 
-def test_proof_plan_uses_repository_commitment_when_no_active_commitment_exists(
+def test_proof_plan_uses_unarchived_change_until_official_archive(
     tmp_path: Path,
 ) -> None:
     repo, _head = _adopted_repo(tmp_path / "repo")
@@ -501,8 +505,8 @@ def test_proof_plan_uses_repository_commitment_when_no_active_commitment_exists(
 
     plan = proof_plan(repo, head=head)
 
-    assert plan.inputs.commitment == load_repository_commitment(repo, tree_ref=head).digest()
-    assert plan.facts["values"]["change_id"] == ""
+    assert plan.inputs.commitment != load_repository_commitment(repo, tree_ref=head).digest()
+    assert plan.facts["values"]["change_id"] == "proof-binding"
 
 
 def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path) -> None:

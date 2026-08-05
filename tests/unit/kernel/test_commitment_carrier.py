@@ -108,7 +108,7 @@ subjects = ["repository:self"]
     assert load_commitment(tmp_path).id == "repository:test"
 
 
-def test_native_commitment_selection_excludes_completed_history(
+def test_native_commitment_selection_treats_unarchived_changes_as_active(
     tmp_path: Path,
 ) -> None:
     (tmp_path / ".ethos").mkdir()
@@ -128,9 +128,9 @@ def test_native_commitment_selection_excludes_completed_history(
         )
         (carrier / "tasks.md").write_text(task, encoding="utf-8")
 
-    assert load_openspec_commitment(tmp_path).id == "change:active"
-    with pytest.raises(ValueError, match="commitment_complete:complete"):
-        load_openspec_commitment(tmp_path, change_id="complete")
+    with pytest.raises(ValueError, match="commitment_ambiguous"):
+        load_openspec_commitment(tmp_path)
+    assert load_openspec_commitment(tmp_path, change_id="complete").id == "change:complete"
 
 
 def test_exact_lease_binding_does_not_follow_a_carrier_move(tmp_path: Path) -> None:

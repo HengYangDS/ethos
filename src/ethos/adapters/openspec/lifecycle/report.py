@@ -1,19 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Any
 from typing import NamedTuple
 
-from ethos.normalization.coercion import object_sequence
-from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.openspec.audit import change_tasks_complete
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 from . import scope
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _ACTIVE_STATUSES = frozenset({"in-progress", "no-tasks"})
 _COMPLETED_STATUSES = frozenset({"complete"})
@@ -224,50 +218,42 @@ def status_incomplete(status: dict[str, Any], selected: str | None) -> bool:
     )
 
 
-def _lifecycle_names(
-    root: Path, payload: object, requested: str | None
-) -> tuple[list[str], tuple[str, ...]]:
-    if requested:
-        return [requested], () if change_tasks_complete(root, requested) else (requested,)
-    items = [
-        string_mapping(item)
-        for item in object_sequence(payload)
-        if isinstance(item, dict) and item.get("name")
-    ]
-    names = [str(item["name"]) for item in items]
-    active = tuple(
-        str(item["name"]) for item in items if not change_tasks_complete(root, str(item["name"]))
-    )
-    return names, active
+def _capabilities(root: Path, status: dict[str, Any]) -> list[str]:
+    paths = status.get("artifactPaths", {}).get("specs", {}).get("existingOutputPaths", [])
+    prefix = (root / "openspec" / "changes" / str(status.get("changeName")) / "specs").resolve()
+    capabilities: list[str] = []
+    for value in paths if isinstance(paths, list) else ():
+        try:
+            relative = Path(str(value)).resolve().relative_to(prefix)
+        except ValueError:
+            continue
+        if relative.name == "spec.md" and relative.parent.parts:
+            capabilities.append(relative.parent.as_posix())
+    return sorted(set(capabilities))
 
 
-def _change_report(root: Path, name: str) -> tuple[dict[str, object], list[str]]:
-    change_root = root / "openspec" / "changes" / name
-    carriers = {
-        "proposal": (change_root / "proposal.md").exists(),
-        "design": (change_root / "design.md").exists(),
-        "tasks": (change_root / "tasks.md").exists(),
-        "delta_specs": (change_root / "specs").exists()
-        and any((change_root / "specs").glob("**/*.md")),
-        "commitment": (change_root / "commitment.toml").is_file(),
-    }
+def _change_report(
+    root: Path,
+    name: str,
+    status: dict[str, Any],
+    apply: dict[str, Any],
+) -> tuple[dict[str, object], list[str]]:
+    artifacts = status.get("artifacts", [])
     gaps = [
-        f"openspec_{artifact}_missing:{name}"
-        for artifact, present in carriers.items()
-        if not present
+        f"openspec_artifact_incomplete:{name}:{item.get('id')}"
+        for item in artifacts
+        if isinstance(item, dict) and item.get("status") not in {"done", "skipped"}
     ]
     contract = scope.commitment_report(root, name)
     gaps.extend(string_sequence(contract.get("required_gaps")))
     if logical_change_identifier_issue(name):
         gaps.append(f"openspec_active_change_identifier_invalid:{name}")
-    capabilities = sorted(
-        path.parent.name for path in (change_root / "specs").glob("*/spec.md") if path.is_file()
-    )
     return {
         "name": name,
-        "path": change_root.relative_to(root).as_posix(),
-        "carriers": carriers,
-        "capabilities": capabilities,
+        "path": str(status.get("changeRoot") or f"openspec/changes/{name}"),
+        "artifacts": artifacts,
+        "capabilities": _capabilities(root, status),
+        "progress": apply.get("progress", {}),
         "required_gaps": gaps,
     }, gaps
 
@@ -277,6 +263,8 @@ def lifecycle_report(
     *,
     request: OpenSpecRequest,
     list_payload: dict[str, Any],
+    status_payload: dict[str, Any] | None = None,
+    apply_payload: dict[str, Any] | None = None,
     protected_branch_residue: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     residue = protected_branch_residue or {
@@ -290,10 +278,20 @@ def lifecycle_report(
         lifecycle = empty_lifecycle(root, request, residue)
         lifecycle.pop("enabled")
         return {"required_gaps": [], **lifecycle}
-    names, active_names = _lifecycle_names(root, list_payload.get("changes", []), request.change)
+    rows = official_change_rows(list_payload) or []
+    names = [request.change] if request.change else [item["name"] for item in rows]
+    active_names = tuple(item["name"] for item in rows if item["status"] in _ACTIVE_STATUSES)
     changes, required_gaps = [], []
     for name in names:
-        change, gaps = _change_report(root, name)
+        status = status_payload or {}
+        apply = apply_payload or {}
+        if status.get("changeName") != name:
+            required_gaps.append(f"openspec_status_change_mismatch:{name}")
+            continue
+        if apply.get("changeName") != name:
+            required_gaps.append(f"openspec_apply_change_mismatch:{name}")
+            continue
+        change, gaps = _change_report(root, name, status, apply)
         changes.append(change)
         required_gaps.extend(gaps)
     binding = scope.material_change_scope_report(

@@ -20,23 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
-OPENSPEC_TASK_PATTERN = re.compile(r"- \[( |x|X)\]")
 _OPEN_SPEC_CHANGE_PATH_MIN_PARTS = 4
-
-
-def tasks_complete(text: str) -> bool:
-    """Return whether one OpenSpec task checklist is non-empty and complete."""
-    boxes = OPENSPEC_TASK_PATTERN.findall(text)
-    return bool(boxes) and all(box.lower() == "x" for box in boxes)
-
-
-def change_tasks_complete(root: Path, change: str) -> bool:
-    """Return whether one working-tree Change has completed its task checklist."""
-    try:
-        text = (root / "openspec" / "changes" / change / "tasks.md").read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return False
-    return tasks_complete(text)
 
 
 def _load_official_config(path: Path) -> dict[str, object]:
@@ -73,6 +57,7 @@ def official_config_report(root: Path) -> dict[str, object]:
         payload = {}
     if payload.get("schema") != "spec-driven":
         gaps.append("openspec_config_schema_missing")
+    gaps += ["openspec_config_default_store_forbidden"] * ("defaultStore" in payload)
     context = payload.get("context")
     if not isinstance(context, str) or not context.strip():
         gaps.append("openspec_config_context_missing")

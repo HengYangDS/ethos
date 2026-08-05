@@ -21,6 +21,8 @@ from typing import cast
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
@@ -46,6 +48,17 @@ def write_handoff_package(
     base = (output_root or repo / "build" / "artifacts" / "handoff").resolve()
     base.mkdir(parents=True, exist_ok=True)
     _verify_export_snapshot(repo=repo, handoff=handoff)
+    commitment = load_lease_bound_commitment(
+        repo,
+        lease={
+            "expected_head": handoff.source_head,
+            "expected_tree": handoff.source_tree,
+            "base_commitment_path": handoff.base_commitment_path,
+            "base_commitment_bytes_sha256": handoff.base_commitment_bytes_sha256,
+            "base_commitment_digest": handoff.base_commitment_digest,
+        },
+    )
+    recognized = False
     with tempfile.TemporaryDirectory(prefix="handoff-", dir=base) as temporary:
         staging = Path(temporary)
         bundle = staging / "repository.bundle"
@@ -82,12 +95,27 @@ def write_handoff_package(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
         _verify_export_snapshot(repo=repo, handoff=handoff)
+        recognized = package_dir.exists()
         _publish_package(staging=staging, package_dir=package_dir, manifest=manifest, root=repo)
     return {
         "state": "exported",
         "package_id": package_id,
         "package_path": package_dir.as_posix(),
         "manifest": manifest,
+        "attestation": issue_native_effect(
+            repo,
+            effect=NativeEffect(
+                predicate="effect:handoff-package",
+                operation="filesystem.publish-no-replace",
+                command=("rename-no-replace",),
+                subject={"package_id": package_id, "path": package_dir.as_posix()},
+                before={"present": recognized, "manifest": manifest if recognized else {}},
+                after={"present": True, "manifest": manifest},
+            ),
+            state="recognized" if recognized else "applied",
+            commitment_digest=commitment.digest(),
+            repository_id=commitment.subjects[0],
+        ).model_dump(mode="json"),
     }
 
 

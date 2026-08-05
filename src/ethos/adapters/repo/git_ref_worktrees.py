@@ -7,6 +7,7 @@ from pathlib import Path
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.worktree_effects import sync_worktree
 
 
 def ref_worktree_paths(worktrees: list[dict[str, object]], branch: str) -> tuple[Path, ...]:
@@ -122,16 +123,30 @@ def sync_ref_worktrees(
     outcomes = []
     for path in paths:
         gap = worktree_sync_gap(root, (path,), branch, head, previous, head)
-        update = (
-            run_git(path, "read-tree", "-u", "-m", previous, head, check=False) if not gap else None
+        terminal_gap = worktree_sync_gap(root, (path,), branch, head, head, head) if gap else ""
+        attestation = None
+        error = ""
+        if not gap or not terminal_gap:
+            try:
+                attestation = sync_worktree(
+                    root,
+                    path,
+                    branch=branch,
+                    previous=previous,
+                    head=head,
+                )
+            except ValueError as exc:
+                error = str(exc)
+        post_gap = (
+            worktree_sync_gap(root, (path,), branch, head, head, head) if attestation else gap
         )
-        post_gap = worktree_sync_gap(root, (path,), branch, head, head, head) if update else gap
         outcomes.append(
             {
                 "path": path.as_posix(),
-                "state": "failed" if update is None or update.returncode or post_gap else "synced",
+                "state": "failed" if attestation is None or post_gap else "synced",
                 "status": post_gap,
-                "stderr": gap or (update.stderr.strip() if update else ""),
+                "stderr": error or (terminal_gap if gap else ""),
+                "attestation": attestation.model_dump(mode="json") if attestation else {},
             }
         )
     return {

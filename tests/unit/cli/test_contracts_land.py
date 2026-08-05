@@ -557,6 +557,8 @@ def test_lane_refresh_base_apply_rebases_stale_work_lane(
     assert payload["data"]["head"] == refreshed_head
     assert payload["data"]["candidate_head"] == candidate_head
     assert refreshed_head != previous_head
+    assert payload["data"]["rebase_attestation"]["predicate"] == "effect:git-rebase"
+    assert payload["data"]["attachment_attestation"]["predicate"] == "effect:git-worktree"
 
 
 def test_lane_refresh_base_conflict_returns_block_instead_of_type_error(tmp_path: Path) -> None:

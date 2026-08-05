@@ -16,6 +16,7 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
@@ -76,9 +77,8 @@ def _recovery_plan(root: Path, accepted: str, candidate: str, desired: str, oper
 
 
 def _add_candidate_worktree(root: Path, path: Path, branch: str) -> None:
-    completed = run_git(root, "worktree", "add", path.as_posix(), branch, check=False)
-    if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "candidate_worktree_add_failed")
+    head = run_git(root, "rev-parse", branch).stdout.strip()
+    add_worktree(root, path, branch=branch, head=head)
 
 
 def bootstrap_candidate(

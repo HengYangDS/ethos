@@ -11,6 +11,7 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import ref_head
+from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
@@ -199,17 +200,18 @@ def remove_lane_start_worktree(
     run: Callable[..., subprocess.CompletedProcess[str]],
 ) -> bool:
     """Remove only the exact detached or bound carrier created by lane start."""
-    if os.path.lexists(target):
-        restored = run(target, "reset", "--hard", head, check=False)
-        cleaned = run(target, "clean", "-fd", check=False)
-        if restored.returncode != 0 or cleaned.returncode != 0:
-            return False
-    removed = run(repo, "worktree", "remove", "--force", target.as_posix(), check=False)
-    return (
-        removed.returncode == 0
-        and not os.path.lexists(target)
-        and not exact_worktree(repo, target=target, branch=branch, head=head, run=run)
-    )
+    try:
+        remove_worktree(
+            repo,
+            target,
+            branch=branch,
+            head=head,
+            force=True,
+            runner=run,
+        )
+    except ValueError:
+        return False
+    return True
 
 
 def retained_lane_start_report(

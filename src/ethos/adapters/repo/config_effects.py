@@ -26,7 +26,8 @@ def set_local_config(root: Path, values: dict[str, str]) -> Attestation:
                 raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
     after = {key: _value(root, key) for key in values}
     if after != values:
-        raise ValueError("git_config_effect_postcondition_failed")
+        message = "git_config_effect_postcondition_failed"
+        raise ValueError(message)
     repository = load_repository_commitment(root)
     return issue_native_effect(
         root,

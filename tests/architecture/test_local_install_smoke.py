@@ -41,6 +41,17 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "ETHOS_LOCAL_INSTALL_UV_CACHE_DIR" not in owner
     assert '"${venv_dir}/bin/ethos" --help' in owner
     assert '"${venv_dir}/bin/ethos" --version' in owner
+    assert '"${venv_dir}/bin/ethos" status --root "${adopter_dir}" --json' in owner
+    assert '"${venv_dir}/bin/ethos" plan --changed --root "${adopter_dir}" --json' in owner
+    assert '"${venv_dir}/bin/ethos" lane archive-change' in owner
+    assert '"${adopter_dir}"' in owner
+    assert "/Users/" not in owner
+    assert "openspec_base_command" in owner
+    assert "verify_official_cli" in owner
+    assert '"@fission-ai/openspec@1.7.0"' in owner
+    assert '"system/openspec/package.json" = "ethos/data/openspec/package.json"' in (
+        ROOT / "pyproject.toml"
+    ).read_text(encoding="utf-8")
     assert owner.count("require-stable-head.sh") == 2
     assert " capture)" in owner
     assert ' verify "${head}" "$0"' in owner

@@ -439,14 +439,22 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
         (
             "tools/ci/scripts/bootstrap-python.sh",
             (
-                'npx --yes @fission-ai/openspec@1.6.0 "$@"',
+                'ln -sf "${repo_root}/node_modules/.bin/openspec"',
+                "npm ci --ignore-scripts",
+                "openspec --version",
                 '"${bootstrap_python}" -m venv',
                 "uv sync --group dev",
                 'bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"',
                 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"',
                 "'uv==0.11.29'",
             ),
-            ("build/runtime/bootstrap", "python -m pip install", "pip install uv"),
+            (
+                "@fission-ai/openspec@1.6.0",
+                "npx --yes",
+                "build/runtime/bootstrap",
+                "python -m pip install",
+                "pip install uv",
+            ),
         ),
         (
             ".github/workflows/ci.yml",

@@ -20,6 +20,10 @@ if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
 
 
+def _fail(message: str) -> None:
+    raise ValueError(message)
+
+
 def add_worktree(
     root: Path,
     path: Path,
@@ -37,9 +41,9 @@ def add_worktree(
         effect = _effect("add", target, branch, head)
         return _attestation(root, "recognized", effect, record, record, environment)
     if os.path.lexists(target):
-        raise ValueError("worktree_effect_path_collision")
+        _fail("worktree_effect_path_collision")
     if branch != "detached" and ref_head(root, branch, environment=environment) != head:
-        raise ValueError("worktree_effect_ref_stale")
+        _fail("worktree_effect_ref_stale")
     arguments = (
         ("worktree", "add", "--detach", target.as_posix(), head)
         if branch == "detached"
@@ -70,7 +74,7 @@ def remove_worktree(
     record = worktree_record(root, target, environment=environment, runner=runner)
     if not record:
         if os.path.lexists(target):
-            raise ValueError("worktree_effect_path_ownership_unknown")
+            _fail("worktree_effect_path_ownership_unknown")
         effect = _effect("remove", target, branch, head)
         return _attestation(root, "recognized", effect, {}, {}, environment)
     _require_binding(record, target=target, branch=branch, head=head)
@@ -85,7 +89,7 @@ def remove_worktree(
     if worktree_record(root, target, environment=environment, runner=runner) or os.path.lexists(
         target
     ):
-        raise ValueError("worktree_effect_postcondition_failed")
+        _fail("worktree_effect_postcondition_failed")
     effect = _effect("remove", target, branch, head)
     return _attestation(root, "applied", effect, record, {}, environment)
 
@@ -107,7 +111,7 @@ def sync_worktree(
         effect = _effect("read-tree", target, branch, head)
         return _attestation(root, "recognized", effect, before, before, environment)
     if before["head"] != head or before["tree"] != _commit_tree(root, previous, environment):
-        raise ValueError("worktree_effect_binding_stale")
+        _fail("worktree_effect_binding_stale")
     completed = runner(
         target,
         "read-tree",
@@ -122,7 +126,7 @@ def sync_worktree(
         raise ValueError(completed.stderr.strip() or "worktree_effect_sync_failed")
     after = _sync_observation(root, target, branch, environment=environment, runner=runner)
     if after["head"] != head or after["tree"] != _commit_tree(root, head, environment):
-        raise ValueError("worktree_effect_postcondition_failed")
+        _fail("worktree_effect_postcondition_failed")
     effect = _effect("read-tree", target, branch, head)
     return _attestation(root, "applied", effect, before, after, environment)
 
@@ -140,7 +144,7 @@ def attach_worktree(
     target = path.resolve()
     record = worktree_record(root, target, environment=environment, runner=runner)
     if ref_head(root, branch, environment=environment) != head:
-        raise ValueError("worktree_effect_binding_stale")
+        _fail("worktree_effect_binding_stale")
     effect = _effect("switch", target, branch, head)
     observed_branch = record.get("branch", "").removeprefix("refs/heads/")
     if observed_branch == branch:
@@ -154,7 +158,7 @@ def attach_worktree(
         or indexed.stdout.strip() != _commit_tree(root, head, environment)
         or dirty.returncode
     ):
-        raise ValueError("worktree_effect_binding_stale")
+        _fail("worktree_effect_binding_stale")
     completed = runner(target, "switch", branch, check=False, env=environment)
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "worktree_effect_attach_failed")
@@ -173,7 +177,7 @@ def worktree_record(
     """Return the sole raw Git record for one exact worktree path."""
     completed = runner(root, "worktree", "list", "--porcelain", check=False, env=environment)
     if completed.returncode:
-        raise ValueError("worktree_effect_observation_failed")
+        _fail("worktree_effect_observation_failed")
     target = path.resolve()
     matches = [
         record
@@ -183,7 +187,7 @@ def worktree_record(
         if record.get("worktree") and Path(record["worktree"]).resolve() == target
     ]
     if len(matches) > 1:
-        raise ValueError("worktree_effect_observation_ambiguous")
+        _fail("worktree_effect_observation_ambiguous")
     return matches[0] if matches else {}
 
 
@@ -213,7 +217,7 @@ def _require_binding(record: dict[str, str], *, target: Path, branch: str, head:
         or target.is_symlink()
         or not target.is_dir()
     ):
-        raise ValueError("worktree_effect_binding_stale")
+        _fail("worktree_effect_binding_stale")
 
 
 def _sync_observation(
@@ -234,7 +238,7 @@ def _sync_observation(
         or target.is_symlink()
         or not target.is_dir()
     ):
-        raise ValueError("worktree_effect_binding_stale")
+        _fail("worktree_effect_binding_stale")
     return {
         "path": target.as_posix(),
         "branch": observed_branch,

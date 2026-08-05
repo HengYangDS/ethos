@@ -22,8 +22,9 @@ if ! command -v npx >/dev/null 2>&1; then
   "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-node.sh"
 fi
 openspec_shim="${bootstrap_venv}/bin/openspec"
-printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' > "${openspec_shim}"
-chmod +x "${openspec_shim}"
+ln -sf "${repo_root}/node_modules/.bin/openspec" "${openspec_shim}"
 if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "${bootstrap_venv}/bin" >> "${GITHUB_PATH}"; fi
 uv --version
+if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-scripts; fi
+openspec --version
 uv sync --group dev

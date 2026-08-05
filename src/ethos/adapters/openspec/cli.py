@@ -3,27 +3,33 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+from importlib import resources
 from pathlib import Path
 from typing import Any
+
+from ethos.adapters.repo.git import run_command
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OFFICIAL_VERSION = "1.7.0"
 OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
+_SOURCE_COMMAND_LENGTH = 2
 
-_ROOT = Path(__file__).resolve().parents[4]
-_PACKAGE = _ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
+_SOURCE_ROOT = Path(__file__).resolve().parents[4]
+_PACKAGE = _SOURCE_ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
 _ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
-_LOCK = _ROOT / "package-lock.json"
-_NODE = shutil.which("node")
+_LOCK = _SOURCE_ROOT / "package-lock.json"
+_SOURCE_NODE = shutil.which("node")
+_GIT = shutil.which("git") or "/usr/bin/git"
 
 
 def current_branch(root: Path) -> str:
-    completed = subprocess.run(
-        ["git", "branch", "--show-current"],
-        cwd=root,
+    completed = run_command(
+        root,
+        (_GIT, "branch", "--show-current"),
         text=True,
         capture_output=True,
         check=False,
@@ -32,42 +38,60 @@ def current_branch(root: Path) -> str:
 
 
 def openspec_base_command() -> tuple[str, ...] | None:
-    """Return only the repository-locked OpenSpec entry, never a fallback."""
-    command = (_NODE, _ENTRY.as_posix()) if _NODE and _ENTRY.is_file() else None
+    """Return only the source-locked or installed exact OpenSpec command."""
+    source = (_SOURCE_NODE, _ENTRY.as_posix()) if _SOURCE_NODE and _ENTRY.is_file() else None
+    if source and verify_official_cli(source)["verdict"] == "pass":
+        return source
+    installed = shutil.which("openspec")
+    command = (installed,) if installed else None
     return command if command and verify_official_cli(command)["verdict"] == "pass" else None
 
 
 def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
     """Verify package, lock, executable, and reported version as one identity."""
     gaps: list[str] = []
-    package = _json_object(_PACKAGE)
-    lock = _json_object(_LOCK)
-    root = lock.get("packages", {}).get("", {}) if isinstance(lock.get("packages"), dict) else {}
-    locked = (
-        lock.get("packages", {}).get("node_modules/@fission-ai/openspec", {})
-        if isinstance(lock.get("packages"), dict)
-        else {}
-    )
-    checks = (
-        (package.get("name") == OFFICIAL_PACKAGE, "openspec_package_identity_mismatch"),
-        (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
-        (
-            isinstance(root, dict)
-            and root.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
-            "openspec_root_pin_mismatch",
-        ),
-        (
-            isinstance(locked, dict) and locked.get("version") == OFFICIAL_VERSION,
-            "openspec_lock_version_mismatch",
-        ),
-        (len(command) == 2 and Path(command[1]).resolve() == _ENTRY, "openspec_entry_mismatch"),
-    )
+    source_entry = len(command) == _SOURCE_COMMAND_LENGTH and Path(command[1]).resolve() == _ENTRY
+    if source_entry:
+        package = _json_object(_PACKAGE)
+        lock = _json_object(_LOCK)
+        packages = lock.get("packages")
+        packages = packages if isinstance(packages, dict) else {}
+        root = packages.get("", {})
+        locked = packages.get("node_modules/@fission-ai/openspec", {})
+        checks = (
+            (package.get("name") == OFFICIAL_PACKAGE, "openspec_package_identity_mismatch"),
+            (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
+            (
+                isinstance(root, dict)
+                and root.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+                "openspec_root_pin_mismatch",
+            ),
+            (
+                isinstance(locked, dict) and locked.get("version") == OFFICIAL_VERSION,
+                "openspec_lock_version_mismatch",
+            ),
+        )
+    else:
+        declaration = _json_object(
+            Path(str(resources.files("ethos").joinpath("data", "openspec", "package.json")))
+        )
+        executable = Path(command[0]).resolve() if len(command) == 1 else Path()
+        package = _nearest_package(executable)
+        checks = (
+            (len(command) == 1, "openspec_entry_mismatch"),
+            (package.get("name") == OFFICIAL_PACKAGE, "openspec_package_identity_mismatch"),
+            (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
+            (
+                declaration.get("dependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+                "openspec_distribution_pin_mismatch",
+            ),
+        )
     gaps.extend(gap for valid, gap in checks if not valid)
     version = ""
     if not gaps:
-        completed = subprocess.run(
-            [*command, "--version"],
-            cwd=_ROOT,
+        completed = run_command(
+            _SOURCE_ROOT if source_entry else Path.cwd(),
+            (*command, "--version"),
             text=True,
             capture_output=True,
             check=False,
@@ -127,13 +151,14 @@ def run_json(
 ) -> dict[str, Any]:
     command = (*base_command, *args)
     try:
-        completed = subprocess.run(
+        completed = run_command(
+            root,
             command,
-            cwd=root,
             text=True,
             capture_output=True,
             check=False,
             timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
+            env={"PATH": os.environ.get("PATH", os.defpath)},
         )
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""
@@ -174,3 +199,11 @@ def _json_object(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _nearest_package(executable: Path) -> dict[str, Any]:
+    for parent in executable.parents:
+        package = _json_object(parent / "package.json")
+        if package.get("name") == OFFICIAL_PACKAGE:
+            return package
+    return {}

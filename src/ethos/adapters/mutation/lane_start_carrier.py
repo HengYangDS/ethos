@@ -24,6 +24,7 @@ from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_effects import stage_git_paths
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -403,14 +404,14 @@ def materialize_fresh_carrier(
     target = context.target / context.source_commitment_path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(context.source_root.read_bytes())
-    added = context.run(
-        context.target,
-        "add",
-        str(PurePosixPath(context.source_commitment_path).parent),
-        check=False,
-    )
-    if added.returncode:
-        return added, ""
+    try:
+        stage_git_paths(
+            context.target,
+            (str(PurePosixPath(context.source_commitment_path).parent),),
+            runner=context.run,
+        )
+    except ValueError as error:
+        return failed_process(str(error)), ""
     status = run_json(
         context.target,
         command,

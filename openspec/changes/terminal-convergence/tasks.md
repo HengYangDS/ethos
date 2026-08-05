@@ -250,7 +250,7 @@ throughput, and lane housekeeping are implemented and proved.
   Repository-family records use only `evidence/` or `recovery/`, contain
   `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS`, and pass
   admit → verify → index without rewriting history.
-- [ ] 5.2 Promote contradictions and taxonomy/model gaps at the earliest
+- [x] 5.2 Promote contradictions and taxonomy/model gaps at the earliest
   admission point; recompile dependents before retiring stale carriers. Before
   implementation, derive explicit ambiguities, assumptions, negative scope,
   conflicts, and uncovered edge cases from the selected Commitment and OpenSpec

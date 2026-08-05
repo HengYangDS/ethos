@@ -1065,6 +1065,64 @@ repository_family_worktrees = false
     assert git(repo, "rev-parse", "candidate-selected-accepted") == accepted_head
 
 
+def test_closeout_uses_default_policy_when_profile_has_no_workspace(tmp_path: Path) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    git(repo, "rm", ".ethos/workspace.toml")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "use default branch roles",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", accepted_head)
+    assert (repo / ".ethos/profile.toml").is_file()
+    assert not (repo / ".ethos/workspace.toml").exists()
+    candidate_head = commit_fixture_file(candidate, "README.md", "# candidate\n", "candidate")
+    seed_executed_proof(candidate, candidate_head)
+
+    report = landing_mutation.apply_candidate_to_accepted(
+        root=repo,
+        authorized=True,
+        expect_head=accepted_head,
+    )
+
+    assert report["verdict"] == "pass", report
+    assert git(repo, "rev-parse", "dev") == candidate_head
+
+
+def test_closeout_rejects_an_explicit_incomplete_workspace(tmp_path: Path) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.write_text('[branch_roles]\naccepted_branch = "dev"\n', encoding="utf-8")
+    git(repo, "add", workspace.as_posix())
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "record incomplete branch roles",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", accepted_head)
+
+    report = landing_mutation.apply_candidate_to_accepted(
+        root=repo,
+        authorized=True,
+        expect_head=accepted_head,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["accepted_policy_unavailable"]
+
+
 def test_closeout_bootstraps_from_preproposal_accepted_policy(tmp_path: Path) -> None:
     repo, candidate = start_adopted_candidate(tmp_path)
     accepted_workspace = repo / ".ethos" / "workspace.toml"

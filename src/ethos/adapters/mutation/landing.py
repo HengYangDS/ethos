@@ -189,8 +189,11 @@ def apply_candidate_to_accepted(
 ) -> dict[str, object]:
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     try:
-        policy = _accepted_transition_policy(
-            committed_file_text(root, current_head, ".ethos/workspace.toml")
+        workspace = committed_file_text(root, current_head, ".ethos/workspace.toml")
+        policy = (
+            _accepted_transition_policy(workspace)
+            if workspace
+            else _default_accepted_transition_policy(root, current_head)
         )
     except (TypeError, ValueError):
         return {
@@ -285,6 +288,23 @@ def _accepted_transition_policy(text: str) -> BranchRolePolicy:
         release_mirror=raw["release_mirror"],
         repository_family_worktrees=raw["repository_family_worktrees"],
     )
+
+
+def _default_accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:
+    """Use defaults only when the accepted tree contains no workspace carrier."""
+    present = run_git(
+        root,
+        "ls-tree",
+        "--name-only",
+        head,
+        "--",
+        ".ethos/workspace.toml",
+        check=False,
+    )
+    if present.returncode or present.stdout.strip():
+        message = "accepted transition policy is unreadable"
+        raise ValueError(message)
+    return BranchRolePolicy()
 
 
 def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:

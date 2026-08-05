@@ -9,16 +9,25 @@ PRODUCT_SURFACES = (
     "CONTRIBUTING.md",
     "LICENSE",
     "package.json",
+    "package-lock.json",
     "pyproject.toml",
+    "ruff.toml",
+    "uv.lock",
     ".config",
+    ".githooks",
     ".github",
+    ".gitignore",
     ".gitlab",
     ".gitlab-ci.yml",
+    ".gitleaks.toml",
+    ".pre-commit-config.yaml",
+    "assets",
     "packages",
     "distributions",
     ".ethos",
     ".agents/skills",
     "docs/README.md",
+    "docs/index.md",
     "docs/_meta",
     "docs/architecture",
     "docs/concepts",
@@ -29,11 +38,14 @@ PRODUCT_SURFACES = (
     "docs/plans",
     "docs/start",
     "evidence/attestations",
+    "evidence/README.md",
+    "openspec/README.md",
+    "openspec/config.yaml",
     "openspec/specs",
     "rules",
     "system",
-    "tests/architecture",
-    "tools/ci/scripts",
+    "tests",
+    "tools",
 )
 HISTORICAL_SURFACE_PREFIXES = (
     "evidence/claims/",
@@ -54,7 +66,30 @@ SKIPPED_PRODUCT_DIR_PARTS = {
     "build",
     "node_modules",
 }
-TEXT_SUFFIXES = {".md", ".toml", ".yaml", ".yml", ".json", ".py", ".sh", ".mjs", ".txt"}
+TEXT_SUFFIXES = {
+    ".c4",
+    ".ini",
+    ".json",
+    ".lock",
+    ".md",
+    ".mjs",
+    ".mmd",
+    ".py",
+    ".sh",
+    ".svg",
+    ".toml",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
+TEXT_FILENAMES = {
+    ".gitignore",
+    ".shellcheckrc",
+    "LICENSE",
+    "pre-commit",
+    "pre-push",
+    "reference-transaction",
+}
 PERSONAL_PATTERNS = (
     # Product surfaces may use placeholders, reserved example domains, or
     # organization/team identities, but must not bake a real private mailbox
@@ -82,6 +117,11 @@ PRIVATE_INFRA_PATTERNS = (
         r"\bssh://git@(?:localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(?::\d+)?[^\s`'\")\]]*",
         re.IGNORECASE,
     ),
+)
+FIXED_KEY_PATTERNS = (
+    re.compile(r"\bid_(?:rsa|dsa|ecdsa|ed25519)\b", re.IGNORECASE),
+    re.compile(r"\bSHA256:[A-Za-z0-9+/]{20,}={0,2}\b"),
+    re.compile(r"\bssh-(?:rsa|ed25519)\s+[A-Za-z0-9+/]{32,}={0,3}\b", re.IGNORECASE),
 )
 ADOPTER_LITERAL_PATTERNS = (
     re.compile(
@@ -184,13 +224,10 @@ PACKAGE_METADATA_FILES = (
     "package.json",
     "distributions/npm/package.json",
     "pyproject.toml",
-    "pyproject.toml",
-    "pyproject.toml",
 )
 DISTRIBUTION_MANIFEST_FILES = (
     "package.json",
     "distributions/npm/package.json",
-    "pyproject.toml",
     "pyproject.toml",
 )
 DISTRIBUTION_ALLOWED_FILE_ENTRIES = {

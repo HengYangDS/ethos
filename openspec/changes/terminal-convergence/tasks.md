@@ -152,7 +152,7 @@ changing intent cannot deadlock or mutate an existing Commitment.
   deployment policy, forge coordinate, publication-trust capability, or extension
   declaration; normal variation of HOME, user, origin, forge, author, port,
   installation root, and provider manifest requires no product-core edit.
-- [ ] 3.5 Remove active private-product coupling, product-specific ontology,
+- [x] 3.5 Remove active private-product coupling, product-specific ontology,
   schemas, policy exceptions, and undeclared references from the ETHOS surface;
   admitted generic tools and removable adapters remain positive declared owners,
   not forbidden names. Product code, docs, tests, schemas, templates, fixtures,

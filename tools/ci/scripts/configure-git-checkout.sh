@@ -72,12 +72,9 @@ if [ -n "${signing_required}" ]; then
   # signing key. Test execution deliberately hides global Git configuration, so
   # the checkout must own a current job-local key to remain self-consistent.
   if [ "${format}" = "ssh" ]; then
-    key_dir="${TMPDIR:-/tmp}/ethos-ci-signing"
-    mkdir -p "${key_dir}"
-    key_path="${key_dir}/id_ed25519"
-    if [ ! -f "${key_path}" ]; then
-      ssh-keygen -t ed25519 -f "${key_path}" -N "" -C "ethos-ci@${CI_PROJECT_PATH:-local}" -q
-    fi
+    key_dir="$(mktemp -d "${TMPDIR:-/tmp}/ethos-ci-signing.XXXXXX")"
+    key_path="${key_dir}/signing-key"
+    ssh-keygen -t ed25519 -f "${key_path}" -N "" -C "ethos-ci@${CI_PROJECT_PATH:-local}" -q
     git config --local user.signingkey "${key_path}.pub"
   fi
   echo "commit signing: gpgsign=$(git config --local --get commit.gpgsign) format=$(git config --local --get gpg.format)"

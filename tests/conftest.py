@@ -62,9 +62,9 @@ def _hermetic_git_identity(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     git_template = tmp_path / "empty-git-template"
     git_template.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("GIT_AUTHOR_NAME", "ETHOS Test")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "test@ethos.local")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "test@example.invalid")
     monkeypatch.setenv("GIT_COMMITTER_NAME", "ETHOS Test")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@ethos.local")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@example.invalid")
     # The repository checkout stays authoritative for CLI contract reads.  Do
     # not override the checkout's signing or hook configuration: the in-process
     # CLI must observe the same governed checkout that CI configured.  Temporary

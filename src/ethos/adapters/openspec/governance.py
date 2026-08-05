@@ -199,7 +199,9 @@ def _openspec_governance_report(
             changed_paths=request.changed_paths,
             requested_change=request.change,
         )
-        if rows == [] and official_selected is None
+        if official_selected is None
+        and rows is not None
+        and (not rows or (len(rows) == 1 and rows[0]["status"] == "complete"))
         else None
     )
     archived_change = (

@@ -371,6 +371,23 @@ class LeaseOperationRequest(BaseModel):
     contrary_decision: bool = False
 
 
+class LeaseRecoveryRequest(BaseModel):
+    """Exact raw-row observation for destructive Lease normalization."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    branch: str = Field(min_length=1)
+    holder_ref: str = Field(min_length=1)
+    lease_id: str = Field(min_length=1)
+    expected_epoch: int = Field(ge=1)
+    expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    expected_expires_at: str = Field(min_length=1)
+    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    change_id: str = Field(min_length=1)
+    ttl_seconds: int = Field(gt=0)
+    apply: bool = False
+
+
 class CommitmentRebindRequest(BaseModel):
     """Exact old-generation request for one immutable Commitment replacement."""
 

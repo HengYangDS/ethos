@@ -501,6 +501,26 @@ completion, create lifecycle authority, or substitute for checked tasks.
 | Embed COMET Native or Classic | Rejected | It duplicates OpenSpec lifecycle, hook, state, archive, and task authority; only measured external treatment or verified operator output is admissible. |
 | Add OpenSpec MCP as a semantic owner | Rejected | OpenSpec 1.7 ships CLI, artifact graph, schemas, and generated Skills but no merged official MCP server; an optional stateless ETHOS MCP may project the same command JSON later without owning files or lifecycle. |
 | Add Spec Kit, LID, AIM, ANSS, or another SDD runtime | Rejected | Each would introduce overlapping spec, task, constitution, binding, or workflow authority. ETHOS instead evaluates and may absorb their ambiguity audit, EARS-like patterns, typed derived edges, realization-drift checks, negative scope, and cross-artifact analysis into OpenSpec-compatible owners. |
+
+## Authorized Lane Disposition
+
+Task `4.6` treats lane retirement as semantic garbage collection, not history
+merging. Exact Git refs, worktrees, and legacy Lease rows are deleted only after
+their independent meaning has a current owner or has been rejected as a lower
+implementation of a terminal decision.
+
+| Lane family | Disposition | Terminal owner / reason |
+| --- | --- | --- |
+| `budget-contract-v2-changed-scope-source-admission-successor-{2..6}` | retired | Direct repository-wide measurement, `domain/source_budget`, tasks `F.1`, `F.10`, `F.12`, and DR-0008 replace the old multi-package changed-scope control plane. Replaying it would restore duplicate package, archive, evidence, and admission owners. |
+| `lifecycle-mutation-cli`, its `codex/*` fork, and `campaign-publication-default` | retired | Their committed heads are already ancestors of terminal convergence; no independent bytes or semantics remain. |
+| `pytest-cov-subprocess` work/fork refs | retired | `patch = subprocess` and its architecture assertion were independently absorbed by `aeca4514d`; the historical two-line branch adds no owner. |
+| `native-lane-resolution-authority-successor-2` committed history | retired | All fifty commits are patch-equivalent to current history; exact Git/Lease/worktree effects now belong to the task `3.3` adapter boundary. |
+| `native-lane-resolution-authority-successor-2` uncommitted execution-alias interpreter | rejected after exact preservation | The 200408-byte patch (`sha256:4bb504647f3cad60ef4a3b3a88e4b47526ed4543abd018328a32bd9874322095`) revives the deleted `coupling` runtime under the retired `packages/ethos` tree, duplicates positive native reference ownership, and adds a large replay/state interpreter. Its Git-payload safety intent is already owned by isolated Git adapters and exact effect tests; its ownerless-preservation carrier is historical. The exact patch is retained outside repository truth only until this retirement completes. |
+
+The resulting live topology is intentionally minimal: accepted `dev`, local
+`candidate/dev`, and the current terminal-convergence Work Lane. Historical
+branch names, compatibility readers, preservation runtimes, or a parallel lane
+ledger are not retained.
 | Replace OpenSpec with SpecD | Rejected for the current product | SpecD's compiled context, spec/code impact graph, mandatory conformance pass, and multi-workspace model are strong mechanisms, but its young lifecycle, schema, hooks, skills, plugins, archive, and future MCP would replace the selected SDD owner rather than complement it. Re-evaluate only as a measured destructive migration, never a second runtime. |
 | Embed Spec Kit, AI-DLC, Agent OS, BMAD, or Kiro workflows | Rejected | Their constitutions, phases, plans, tasks, roles, hooks, or agent state overlap OpenSpec and ETHOS. Absorb only bounded mechanisms such as clarification, cross-artifact analysis, requirement checklists, adaptive depth, explicit decision context, and pre-implementation verification questions. |
 | Treat generated Skills or slash commands as task authority | Rejected | Official OpenSpec templates generate host projections from one workflow; they remain replaceable instructions whose drift is checked against the pinned CLI and schema. |

@@ -261,17 +261,21 @@ def _accepted_transition_policy(text: str) -> BranchRolePolicy:
         "repository_family_worktrees",
     }
     if type(raw) is not dict or not required <= set(raw):
-        raise ValueError("accepted transition policy is incomplete")
+        message = "accepted transition policy is incomplete"
+        raise ValueError(message)
     text_fields = required - {"repository_family_worktrees"}
     if any(
         type(raw[field]) is not str or not raw[field] or raw[field] != raw[field].strip()
         for field in text_fields
     ):
-        raise ValueError("accepted transition policy text is invalid")
+        message = "accepted transition policy text is invalid"
+        raise ValueError(message)
     if raw["release_mirror"] not in {"independent", RELEASE_MIRROR_ACCEPTED_FF}:
-        raise ValueError("accepted transition release mirror is invalid")
+        message = "accepted transition release mirror is invalid"
+        raise ValueError(message)
     if type(raw["repository_family_worktrees"]) is not bool:
-        raise ValueError("accepted transition family policy is invalid")
+        message = "accepted transition family policy is invalid"
+        raise ValueError(message)
     return BranchRolePolicy(
         release_branch=raw["release_branch"],
         accepted_branch=raw["accepted_branch"],

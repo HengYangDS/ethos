@@ -169,7 +169,7 @@ invariants are implemented and proved without parallel mutation owners.
 
 ## 4. Separate Product Profiles From Coordination
 
-- [ ] 4.1 Keep the semantic kernel vendor-neutral while requiring verified
+- [x] 4.1 Keep the semantic kernel vendor-neutral while requiring verified
   OpenSpec for every mutation-capable adopter as the sole Change/SDD carrier;
   observation-only repositories may omit it but cannot govern mutation. Pin
   and verify the effective CLI as

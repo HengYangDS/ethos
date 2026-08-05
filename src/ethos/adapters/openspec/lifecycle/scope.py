@@ -8,7 +8,6 @@ from typing import Any
 from ethos.contracts.semantic import load_commitment_file
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.openspec.audit import change_tasks_complete
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
@@ -20,7 +19,7 @@ def material_change_scope_report(
     root: Path,
     *,
     changed_paths: tuple[str, ...] = (),
-    active_change_names: tuple[str, ...] | None = None,
+    active_change_names: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Report material paths covered by active Commitment declarations."""
     paths = tuple(dict.fromkeys(filter(None, changed_paths)))
@@ -51,8 +50,7 @@ def material_change_scope_report(
         path for path in paths if any(repository_path_matches(path, glob) for glob in patterns)
     )
     report.update(material_patterns=list(patterns), material_paths=list(material))
-    names = _active_change_names(root, active_change_names)
-    changes = [commitment_report(root, name) for name in names]
+    changes = [commitment_report(root, name) for name in active_change_names]
     invalid_gaps = [
         gap for change in changes for gap in string_sequence(change.get("required_gaps"))
     ]
@@ -92,17 +90,6 @@ def material_change_scope_report(
         ],
     )
     return report
-
-
-def _active_change_names(root: Path, names: tuple[str, ...] | None) -> tuple[str, ...]:
-    if names is not None:
-        return names
-    changes = root / "openspec" / "changes"
-    return tuple(
-        path.parent.name
-        for path in sorted(changes.glob("*/commitment.toml"))
-        if path.parent.name != "archive" and not change_tasks_complete(root, path.parent.name)
-    )
 
 
 def commitment_report(root: Path, name: str) -> dict[str, object]:

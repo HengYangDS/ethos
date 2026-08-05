@@ -20,18 +20,25 @@ def test_adopt_apply_writes_profile_and_repository_commitment(tmp_path: Path) ->
 
     profile = load_repository_profile(tmp_path)
     assert result["applied"] is True
-    assert result["planned_files"] == [".ethos/profile.toml", ".ethos/commitment.toml"]
+    assert result["planned_files"] == [
+        ".ethos/profile.toml",
+        ".ethos/commitment.toml",
+        "openspec/config.yaml",
+        "openspec/specs/README.md",
+    ]
     assert profile.exists
     assert profile.state == "valid"
     assert profile.declaration is not None
     assert profile.declaration.profile_id == tmp_path.name
     assert profile.declaration.commitment == ".ethos/commitment.toml"
-    assert profile.declaration.openspec is None
+    assert profile.declaration.openspec.material_paths == ("**",)
     assert resolve_gate_policy(tmp_path).gate_ids == ()
     assert resolve_gate_policy(tmp_path).registry == {}
     assert sorted(path.as_posix() for path in tmp_path.rglob("*") if path.is_file()) == [
         (tmp_path / ".ethos/commitment.toml").as_posix(),
         (tmp_path / ".ethos/profile.toml").as_posix(),
+        (tmp_path / "openspec/config.yaml").as_posix(),
+        (tmp_path / "openspec/specs/README.md").as_posix(),
     ]
     assert 'id = "repository:' in (tmp_path / ".ethos/commitment.toml").read_text()
 

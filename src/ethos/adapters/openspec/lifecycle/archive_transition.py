@@ -11,7 +11,6 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import relocated_commitment_fields
-from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import exact_rename_target
@@ -21,7 +20,6 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import repository_path_matches
-from ethos.repository.openspec.audit import tasks_complete
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
@@ -62,6 +60,7 @@ def lease_bound_archive_scope_report(
     *,
     changed_paths: tuple[str, ...] = (),
     requested_change: str | None = None,
+    official_change_complete: bool = False,
 ) -> dict[str, Any] | None:
     """Project the sole archive edge authorized by the current Work Lane Lease."""
     context = _archive_context(root)
@@ -85,19 +84,14 @@ def lease_bound_archive_scope_report(
         )
     except ValueError:
         return None
-    tasks_path = carrier.removesuffix("commitment.toml") + "tasks.md"
     active = _active_commitments(root, tree)
     expected_active = (carrier,) if state == "completion_transition" else ()
+    tasks_path = carrier.removesuffix("commitment.toml") + "tasks.md"
     completion_invalid = state == "completion_transition" and (
-        tasks_complete(committed_file_text(root, current_tree(root, head), tasks_path))
+        not official_change_complete
         or tuple(dict.fromkeys(filter(None, changed_paths))) != (tasks_path,)
     )
-    if (
-        archived.digest() != source.digest()
-        or not tasks_complete(committed_file_text(root, tree, tasks_path))
-        or active != expected_active
-        or completion_invalid
-    ):
+    if archived.digest() != source.digest() or active != expected_active or completion_invalid:
         return None
     return _scope_report(
         root,

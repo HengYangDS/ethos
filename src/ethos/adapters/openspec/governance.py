@@ -181,6 +181,9 @@ def _openspec_governance_report(
         required_gaps.append("openspec_official_cli_missing")
         return openspec_unavailable_report(root, context)
 
+    config = openspec_cli.run_json(root, base_command, ("config", "list", "--json"))
+    required_gaps.extend(["openspec_config_json_parse_failed"] if config["parse_error"] else [])
+    required_gaps.extend(openspec_cli.config_contract_gaps(config["json"]))
     doctor = openspec_cli.run_json(root, base_command, ("doctor", "--json"))
     if doctor["parse_error"] == "openspec_command_timeout":
         required_gaps.extend(["openspec_doctor_unhealthy", "openspec_doctor_json_parse_failed"])
@@ -198,6 +201,7 @@ def _openspec_governance_report(
             root,
             changed_paths=request.changed_paths,
             requested_change=request.change,
+            official_change_complete=bool(len(rows) == 1 and rows[0]["status"] == "complete"),
         )
         if official_selected is None
         and rows is not None
@@ -211,6 +215,24 @@ def _openspec_governance_report(
     )
     selected = official_selected or archived_change
     status = openspec_status_result(root, base_command, official_selected, openspec_cli.run_json)
+    apply = (
+        openspec_cli.run_json(
+            root,
+            base_command,
+            ("instructions", "apply", "--change", official_selected, "--json"),
+        )
+        if official_selected
+        else {}
+    )
+    archive = (
+        openspec_cli.run_json(
+            root,
+            base_command,
+            ("instructions", "archive", "--change", official_selected, "--json"),
+        )
+        if official_selected
+        else {}
+    )
     validate = openspec_cli.run_json(
         root,
         base_command,
@@ -226,6 +248,10 @@ def _openspec_governance_report(
             selected=official_selected,
         )
     )
+    if official_selected:
+        required_gaps.extend(openspec_cli.status_contract_gaps(status["json"]))
+        required_gaps.extend(openspec_cli.instructions_contract_gaps("apply", apply["json"]))
+        required_gaps.extend(openspec_cli.instructions_contract_gaps("archive", archive["json"]))
     if archive_scope is None:
         required_gaps.extend(
             ["openspec_list_unreadable"] if rows is None else selection_gaps(rows, request.change)
@@ -242,6 +268,8 @@ def _openspec_governance_report(
             root,
             request=request,
             list_payload=list_result["json"],
+            status_payload=status["json"],
+            apply_payload=apply["json"],
             protected_branch_residue=protected_branch_residue,
         )
         if official_selected is not None or not request.lifecycle
@@ -276,9 +304,12 @@ def _openspec_governance_report(
             "protected_branch_residue": lifecycle_payload["protected_branch_residue"],
         },
         "commands": {
+            "config": config,
             "doctor": doctor,
             "list": list_result,
             "status": status,
+            "apply": apply,
+            "archive": archive,
             "validate": validate,
         },
     }

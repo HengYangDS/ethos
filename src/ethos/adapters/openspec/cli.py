@@ -107,12 +107,17 @@ def instructions_contract_gaps(operation: str, payload: dict[str, Any]) -> list[
         return [] if common else ["openspec_archive_instructions_invalid"]
     apply = (
         common
-        and payload.get("state") in {"blocked", "ready", "complete"}
+        and payload.get("state") in {"blocked", "ready", "all_done"}
         and isinstance(payload.get("progress"), dict)
         and isinstance(payload.get("tasks"), list)
         and isinstance(payload.get("instruction"), str)
     )
     return [] if apply else ["openspec_apply_instructions_invalid"]
+
+
+def config_contract_gaps(payload: dict[str, Any]) -> list[str]:
+    """Reject machine-global root selection that can escape the repository."""
+    return ["openspec_default_store_forbidden"] if payload.get("defaultStore") else []
 
 
 def run_json(

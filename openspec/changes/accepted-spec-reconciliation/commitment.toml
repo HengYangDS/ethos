@@ -10,6 +10,7 @@ scope = [
   "src/ethos/adapters/admission/git_admission.py",
   "src/ethos/adapters/openspec/governance.py",
   "src/ethos/adapters/openspec/lifecycle/archive_transition.py",
+  "src/ethos/adapters/openspec/lifecycle/scope.py",
   "tests/unit/cli/test_openspec_archive_transition.py",
   "src/ethos/adapters/mutation/**",
   "src/ethos/adapters/repo/status/workspace.py",

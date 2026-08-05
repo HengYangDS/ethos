@@ -335,16 +335,15 @@ Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashbo
 - **AND** full `lane status` and mutation admission retain exact foreign path
   scope computation before making any coordination decision.
 
-#### Scenario: projection preserves observed coordination detail state
+#### Scenario: coordination is reconstructed without a parallel package
 
-- **WHEN** bounded status or orientation projects a coordination observation
-- **THEN** its summary and coordination payload SHALL both expose
-  `detail_state=deferred`
-- **AND** counts requiring foreign-path inspection SHALL remain `null` even when
-  no foreign Work Lane row is visible
-- **AND** a full coordination inventory MAY expose `detail_state=exact` and
-  integer detail counts only after computing that full inventory
-- **AND** neither state grants foreign Work Lane mutation authority.
+- **WHEN** bounded status projects Work Lane coordination
+- **THEN** linked lanes, unbound refs, and coordination gaps appear once in
+  `foreign_work_lanes`, `unbound_work_lane_refs`, and `coordination_gaps`
+- **AND** CLI summaries derive counts and presentation directly from those facts
+  without persisting a second coordination payload, next action, or lifecycle state
+- **AND** deferred foreign scopes remain explicit on each affected lane
+- **AND** no projection grants foreign Work Lane mutation authority.
 
 #### Scenario: normalized lease has one concrete current holder
 

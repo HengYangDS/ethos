@@ -239,22 +239,21 @@ def lane_status(*, root: RootOption | None = None, json_output: JsonFlag = False
         "verdict": reduce_verdicts(report_verdict(report), report_verdict(validation)),
         "required_gaps": gaps,
     }
-    coordination = cast("dict[str, object]", report.get("coordination") or {})
     foreign = cast("list[dict[str, object]]", report.get("foreign_work_lanes") or [])
+    unbound = cast("list[dict[str, object]]", report.get("unbound_work_lane_refs") or [])
+    coordination_gaps = string_sequence(report.get("coordination_gaps"))
+    stage_gates = cast("dict[str, object]", report.get("stage_gates") or {})
     summary = {
         "branch": report["branch"],
         "role": report["role"],
-        "coordination_detail_state": coordination.get("detail_state", "exact"),
-        "foreign_work_lane_count": (
-            integer(coordination.get("foreign_work_lane_count")) or len(foreign)
-        ),
-        "unbound_work_lane_count": integer(coordination.get("unbound_work_lane_count")),
-        "missing_lease_count": integer(coordination.get("missing_lease_count")),
-        "dirty_foreign_work_lane_count": integer(coordination.get("dirty_foreign_work_lane_count"))
-        or sum(lane.get("dirty") is True for lane in foreign),
-        "coordination_advisory_count": len(string_sequence(coordination.get("advisory_gaps"))),
-        "coordination_blocking": bool(coordination.get("blocking")),
-        "coordination_next_action": str(coordination.get("next_action") or ""),
+        "coordination_detail_state": "exact",
+        "foreign_work_lane_count": len(foreign),
+        "unbound_work_lane_count": len(unbound),
+        "missing_lease_count": sum(lane.get("lease_state") == "missing" for lane in foreign),
+        "dirty_foreign_work_lane_count": sum(lane.get("dirty") is True for lane in foreign),
+        "coordination_advisory_count": len(coordination_gaps),
+        "coordination_blocking": any(gap.startswith("coordination_gap:") for gap in gaps),
+        "coordination_next_action": str(stage_gates.get("next_action") or ""),
     }
     project_lane_result(
         "lane status",

@@ -285,7 +285,9 @@ def lease_generation(lease: dict[str, object]) -> dict[str, object]:
         "holder_ref": str(lease.get("holder_ref") or ""),
         "expected_head": str(lease.get("expected_head") or ""),
         "expected_tree": str(lease.get("expected_tree") or ""),
-        "base_commitment_path": str(lease.get("base_commitment_path") or ""),
+        "base_commitment_path": (
+            str(lease["base_commitment_path"]) if lease.get("base_commitment_path") else None
+        ),
         "base_commitment_bytes_sha256": str(lease.get("base_commitment_bytes_sha256") or ""),
         "base_commitment_digest": str(lease.get("base_commitment_digest") or ""),
         "issued_at": str(lease.get("issued_at") or ""),

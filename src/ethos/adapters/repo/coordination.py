@@ -5,10 +5,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.state.invalid import invalid_state_projection
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -125,7 +124,8 @@ def _foreign_lane_payload(
     base_digest = str(lease.get("base_commitment_digest") or "")
     return {
         **{name: worktree[name] for name in ("path", "head", "branch", "role", "worktree_binding")},
-        "lease": lease_summary(lease),
+        "lease": {key: value for key, value in lease_generation(lease).items() if key != "branch"}
+        | {"mints_authority": False},
         "lease_state": lease_state,
         "base_commitment_digest": base_digest if lease_state in {"valid", "expired"} else "",
         "commitment_binding": str(lease.get("commitment_binding") or lease_state),
@@ -144,35 +144,6 @@ def _foreign_lane_payload(
         ),
         "handoff_required": FOREIGN_WORK_LANE_HANDOFF_REQUIRED,
     }
-
-
-def lease_summary(lease: dict[str, object]) -> dict[str, object]:
-    """Project non-secret local coordination fields without minting authority."""
-    result: dict[str, object] = {
-        name: str(lease.get(name) or "")
-        for name in (
-            "lane_incarnation_id",
-            "lease_id",
-            "holder_ref",
-            "expected_head",
-            "expected_tree",
-            "issued_at",
-            "renewed_at",
-            "base_commitment_bytes_sha256",
-            "expires_at",
-            "payload_sha256",
-            "base_commitment_digest",
-        )
-    }
-    result["base_commitment_path"] = (
-        str(lease["base_commitment_path"]) if lease.get("base_commitment_path") else None
-    )
-    raw_scope = lease.get("path_scope")
-    result["path_scope"] = (
-        [str(path) for path in raw_scope] if isinstance(raw_scope, list | tuple) else []
-    )
-    result.update(epoch=integer_value(lease.get("epoch")), mints_authority=False)
-    return result
 
 
 def _combined_scope_state(committed_state: str, path_scope: tuple[str, ...]) -> str:
@@ -213,112 +184,6 @@ def coordination_gaps(
         elif state == "overlap":
             advisory.append(f"coordination_gap:scope_overlap:{branch}")
     return required, advisory
-
-
-def coordination_package(
-    foreign_work_lanes: list[dict[str, object]],
-    *,
-    required_gaps: list[str],
-    advisory_gaps: list[str],
-    defer_details: bool = False,
-    unbound_work_lane_refs: list[dict[str, object]] | None = None,
-    unbound_work_lane_count: int = 0,
-) -> dict[str, object]:
-    detail_state = "deferred" if defer_details else "exact"
-    unbound_refs = [
-        {**ref, "next_action": FOREIGN_WORK_LANE_NEXT_ACTION}
-        for ref in unbound_work_lane_refs or ()
-    ]
-    if not unbound_refs and unbound_work_lane_count:
-        unbound_refs = [_unknown_unbound_ref() for _ in range(unbound_work_lane_count)]
-    counts: dict[str, int] = {
-        "missing_lease_count": sum(lane["lease_state"] == "missing" for lane in foreign_work_lanes),
-        "overlap_count": sum(
-            lane.get("coordination_state") == "overlap" for lane in foreign_work_lanes
-        ),
-        "unknown_scope_count": sum(
-            lane.get("coordination_state") == "unknown" for lane in foreign_work_lanes
-        ),
-        "dirty_foreign_work_lane_count": sum(
-            bool(lane.get("dirty")) for lane in foreign_work_lanes
-        ),
-    }
-    projected_counts = {
-        name: value if detail_state == "exact" or name == "missing_lease_count" else None
-        for name, value in counts.items()
-    }
-    return {
-        "kind": "work_lane_coordination",
-        "detail_state": detail_state,
-        "blocking": bool(required_gaps),
-        "required_gaps": list(required_gaps),
-        "advisory_gaps": list(advisory_gaps),
-        "invalid_states": invalid_state_projection([*required_gaps, *advisory_gaps]),
-        "foreign_work_lane_count": len(foreign_work_lanes),
-        **projected_counts,
-        "unbound_work_lane_count": len(unbound_refs),
-        "unbound_work_lane_refs": unbound_refs,
-        "next_action": coordination_next_action(
-            required_gaps=required_gaps,
-            foreign_work_lane_count=len(foreign_work_lanes),
-            unbound_work_lane_count=len(unbound_refs),
-            **{
-                name: counts[name]
-                for name in ("overlap_count", "unknown_scope_count", "missing_lease_count")
-            },
-        ),
-    }
-
-
-def _unknown_unbound_ref() -> dict[str, object]:
-    return dict.fromkeys(
-        (
-            "branch",
-            "head",
-            "expected_head",
-            "expected_tree",
-            "issued_at",
-            "renewed_at",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        ),
-        "",
-    ) | {
-        "path_scope": [],
-        "base_commitment_path": None,
-        "commitment_binding": "missing",
-        "lease_state": "missing",
-        "relation_to_accepted": "unknown",
-        "next_action": FOREIGN_WORK_LANE_NEXT_ACTION,
-    }
-
-
-def coordination_next_action(
-    *,
-    required_gaps: list[str],
-    overlap_count: int,
-    unknown_scope_count: int,
-    missing_lease_count: int,
-    foreign_work_lane_count: int,
-    unbound_work_lane_count: int,
-) -> str:
-    choices = (
-        (
-            required_gaps,
-            "resolve required current Work Lane coordination gaps before candidate integration",
-        ),
-        (
-            foreign_work_lane_count or unbound_work_lane_count,
-            FOREIGN_WORK_LANE_NEXT_ACTION,
-        ),
-        (unknown_scope_count, "inspect unknown Work Lane scope before candidate integration"),
-        (overlap_count, "review overlapping Work Lane scope before candidate integration"),
-        (missing_lease_count, "bind or inspect Work Lane leases before candidate integration"),
-    )
-    return next(
-        (action for active, action in choices if active),
-        "no Work Lane coordination action required",
-    )
 
 
 def scopes_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:

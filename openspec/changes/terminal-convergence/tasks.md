@@ -178,7 +178,7 @@ invariants are implemented and proved without parallel mutation owners.
   apply/archive instructions, warnings, paths, and no-op JSON, resolve Change-ID
   syntax differences, reject `defaultStore`, retain no 1.6 or carrier fallback,
   and delete local predictive/parsing replicas after characterization and parity.
-- [ ] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
+- [x] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
   candidate train to scoped resource Facts, projections, and attested effects.
 - [ ] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and
   competition without fixed WIP or competitor cardinality.
@@ -204,7 +204,14 @@ throughput, and lane housekeeping are implemented and proved.
   `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS`, and pass
   admit → verify → index without rewriting history.
 - [ ] 5.2 Promote contradictions and taxonomy/model gaps at the earliest
-  admission point; recompile dependents before retiring stale carriers.
+  admission point; recompile dependents before retiring stale carriers. Before
+  implementation, derive explicit ambiguities, assumptions, negative scope,
+  conflicts, and uncovered edge cases from the selected Commitment and OpenSpec
+  artifacts; compile one transient intent context from official status,
+  instructions, artifact dependencies, project context/rules, completed
+  artifacts, affected capabilities, and requirement → task → proof edges.
+  Unresolved material findings are `model_gap`, not agent discretion; the
+  compiled context is a projection and cannot become another intent store.
 - [ ] 5.3 Split, rename, absorb, or delete ambiguous `core/common/shared/utils`
   and other catch-alls by actual semantic axes across source, tests, tools,
   configuration, and documentation; no size-only split or facade.
@@ -216,7 +223,10 @@ throughput, and lane housekeeping are implemented and proved.
   Superpowers remains an optional method pack, OpenSpec tasks remain the sole
   task SSOT, official OpenSpec Skills are generated projections without truth
   or lifecycle authority, and workflow-eval results remain evidence rather
-  than progress state. Incident and repeated-review findings must promote the
+  than progress state. Generated Skills and slash-command projections must be
+  produced from the official workflow templates for each admitted host and pass
+  projection-drift checks; they do not copy or fork OpenSpec artifact semantics.
+  Incident and repeated-review findings must promote the
   earliest enforceable owner through rule → gate → schema/default → scaffold or
   generator, while obsolete lower carriers are removed; decorative prose alone
   cannot count as prevention, learning, or completion.
@@ -307,7 +317,21 @@ are proved homomorphic projections of one portable policy.
   Kit does not enter the core; COMET is benchmark-only or an optional external
   operator whose untrusted output requires ETHOS verification, never a
   Native/Classic runtime, adapter, hook, state, archive, dashboard, Bundle, or
-  marketplace owner.
+  marketplace owner. Evaluate but do not import Spec Kit's clarify/analyze/
+  checklist and constitution mechanisms, EARS-style requirement patterns,
+  AIM-style derived typed intent graphs and realization bindings, LID-style
+  cross-segment ambiguity/coherence audits, or ANSS-style explicit invariants
+  and negative scope; admit only a minimal OpenSpec-compatible rule, schema,
+  verifier, or projection that proves lower ambiguity or drift and net deletion
+  without introducing another spec language, annotation regime, intent store,
+  lifecycle, or task owner. Also evaluate SpecD's compiled context, spec/code
+  impact graph, conformance loop, and multi-workspace routing; AI-DLC's adaptive
+  depth and verification questions; BMAD's explicit decision carry-forward;
+  Agent OS and Kiro's lightweight agent context. Reject their runtimes, roles,
+  hooks, lifecycle, and task stores unless a matched destructive replacement
+  proves a strictly better sole owner. OpenSpec MCP remains unadmitted while no
+  official merged server exists; an optional ETHOS MCP must be stateless,
+  demand-loaded, schema-conformant, and behaviorally identical to CLI/SDK JSON.
 - [ ] 6.10 Close this Change through the official owner-native OpenSpec action
   at verified version `1.7.0` as the final tracked source mutation. Bind the
   effective tool version, returned archive path, warnings, no-op state, and

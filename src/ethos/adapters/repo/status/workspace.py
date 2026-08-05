@@ -9,7 +9,6 @@ from typing import cast
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import branch_path_scope
 from ethos.adapters.repo.coordination import coordination_gaps
-from ethos.adapters.repo.coordination import coordination_package
 from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.coordination import foreign_work_lane_deferred
 from ethos.adapters.repo.coordination import workspace_required_gaps
@@ -51,7 +50,7 @@ class _StatusPayload:
     foreign: list[dict[str, object]]
     required: list[str]
     advisory: list[str]
-    coordination: dict[str, object]
+    unbound: list[dict[str, object]]
     workspace_gaps: list[str]
 
 
@@ -141,13 +140,6 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
     unbound_refs = unbound_work_lane_refs(repo, bindings, policy=policy, lease_by_branch=leases)
     if unbound_refs:
         advisory.append("unbound_work_lane_ref_present")
-    coordination = coordination_package(
-        foreign,
-        required_gaps=required,
-        advisory_gaps=advisory,
-        defer_details=not include_foreign_path_scope,
-        unbound_work_lane_refs=unbound_refs,
-    )
     support = closeout_support(
         branch=branch,
         role=role,
@@ -181,7 +173,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
             foreign=foreign,
             required=required,
             advisory=advisory,
-            coordination=coordination,
+            unbound=unbound_refs,
             workspace_gaps=workspace_gaps,
         )
     )
@@ -205,7 +197,7 @@ def _status_payload(payload: _StatusPayload) -> dict[str, object]:
             "branch_bindings": payload.bindings,
             "foreign_work_lanes": payload.foreign,
             "coordination_gaps": [*payload.required, *payload.advisory],
-            "coordination": payload.coordination,
+            "unbound_work_lane_refs": payload.unbound,
             "closeout_support": payload.support,
             "stage_gates": _stage_gates(
                 branch=payload.branch,
@@ -317,9 +309,6 @@ def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
     }
     worktrees: list[dict[str, str]] = []
     bindings = branch_bindings(root, worktrees, candidate, policy=policy, lease_by_branch={})
-    coordination = coordination_package(
-        [], required_gaps=[], advisory_gaps=[], defer_details=defer_details
-    )
     return _status_payload(
         _StatusPayload(
             root=root,
@@ -338,7 +327,7 @@ def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
             foreign=[],
             required=[],
             advisory=[],
-            coordination=coordination,
+            unbound=[],
             workspace_gaps=["git_repository_missing", "candidate_branch_missing"],
         )
     )

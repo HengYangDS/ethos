@@ -222,7 +222,7 @@ def test_product_boundary_rejects_fixed_key_and_fingerprint_literals(tmp_path: P
     source = tmp_path / "tests"
     source.mkdir(parents=True)
     source.joinpath("identity.py").write_text(
-        'key = "id_' + 'ed25519"\nfingerprint = "SHA' + '256:' + 'A' * 32 + '"\n',
+        'key = "id_' + 'ed25519"\nfingerprint = "SHA' + "256:" + "A" * 32 + '"\n',
         encoding="utf-8",
     )
 

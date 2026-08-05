@@ -267,7 +267,7 @@ def test_openspec_workspace_owns_atomic_change_lifecycle() -> None:
     assert "terminal-convergence Campaign deliberately remains one active Change" in workspace
 
 
-def test_terminal_change_keeps_every_remaining_obligation_open_once() -> None:
+def test_terminal_change_keeps_every_remaining_obligation_once() -> None:
     design = section(read(f"{SOURCE_CHANGE}/design.md"), "Campaign Dependency Graph")
     tasks = read(f"{SOURCE_CHANGE}/tasks.md")
     rows = re.findall(r"^\| `([^`]+)` \| (.+?) \| (.+?) \| (.+?) \|$", design, re.MULTILINE)
@@ -290,7 +290,9 @@ def test_terminal_change_keeps_every_remaining_obligation_open_once() -> None:
     assert sorted(mapped) == sorted(expected)
     assert len(mapped) == len(set(mapped))
     assert "Migrated without implementation" not in tasks
-    assert all(f"- [ ] {task} " in tasks for task in expected)
+    assert all(
+        re.search(rf"^- \[[ x]\] {re.escape(task)} ", tasks, re.MULTILINE) for task in expected
+    )
 
 
 def test_terminal_commitment_claims_complete_campaign_closeout() -> None:

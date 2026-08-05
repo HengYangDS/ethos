@@ -422,6 +422,61 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 | `6.5` | `a0877a0bd062cd77cdf546c3f8fe11b220399626382832aa2bdbbdf93ae5213a` | `bd8bf1e582d525a982a8735cfd728a7fe2c07a69f72050bcb04d42095edbbcd5` | clarified | Duplicate and structural tool candidates are compared by unique signal and net deletion rather than accumulated by name. |
 | `6.7` | `9c76a47117bceb83cf2e0490d1d940cb75d4b4d4765f1504a8dd64f3b3517b5e` | `ff699ef143dde1907b3d01b7b6426e55dfcfcf0885bdae74e3a15725ee4bc946` | clarified | Adopter proof includes first-hour CLI, SDK, JSON, scaffold, diagnostic, and recovery UX without repository-shape cloning. |
 
+## Requirement To Task To Proof
+
+This table is the explicit lossless edge set consumed by `ethos plan`. It does
+not own progress: requirement text remains in delta specs, task state remains in
+`tasks.md`, and each proof name resolves to an existing gate or acceptance
+boundary. A missing or stale edge is `model_gap`.
+
+| Requirement | Task | Proof |
+| --- | --- | --- |
+| `adapters:Exact-request Mutation Admission` | `3.1` | `unit-admission` |
+| `adapters:Bounded External Evidence Adapters` | `3.6` | `unit-evidence` |
+| `adapters:Official OpenSpec Lifecycle Adapter` | `4.1` | `openspec` |
+| `adapters:Optional tool adapters remain replaceable` | `6.9` | `product-boundary` |
+| `assistant-projections:Projection Boundary` | `4.3` | `unit-projections` |
+| `assistant-projections:Terminal assistant projections are derived, not root configuration` | `5.5` | `playbooks-v2` |
+| `command-plane:Public Command Plane` | `F.5` | `unit-cli` |
+| `command-plane:Proof Command State Semantics` | `7.1` | `full-proof` |
+| `command-plane:Self OpenSpec Lifecycle Mode` | `4.1` | `openspec` |
+| `command-plane:ETHOS OpenSpec adapter remains under one command plane` | `4.1` | `openspec` |
+| `contracts:Provider-neutral Contracts` | `6.8` | `schemas` |
+| `contracts:Governed Repository Context Contract` | `6.7` | `adopter-conformance` |
+| `contracts:TransitionPlan Boundary Semantics` | `3.1` | `unit-plan` |
+| `contracts:Portable Conformance Surface` | `6.8` | `schemas` |
+| `distribution:Published Distribution Boundary` | `7.4` | `release-proof` |
+| `distribution:Release configuration advertises only active policy` | `5.7` | `release-config` |
+| `distribution:Single Terminal Campaign Publication` | `7.4` | `release-proof` |
+| `kernel:Closed Verdict Reduction` | `1.4` | `unit-verdict` |
+| `kernel:Minimal Semantic Kernel` | `1.1` | `unit-kernel` |
+| `kernel:Semantic attestation is receipt-bound and non-authorizing` | `1.2` | `unit-attestation` |
+| `kernel:Root Interpretation Boundary` | `2.1` | `unit-kernel` |
+| `proof-hosts:Proof Separation` | `7.1` | `full-proof` |
+| `proof-hosts:Product Migration Closure Proof` | `6.7` | `adopter-conformance` |
+| `quality:One Owner Per Property` | `6.1` | `quality-profile` |
+| `quality:Warning And Suppression Zero` | `6.2` | `zero-warning` |
+| `quality:Native Carrier Quality` | `6.4` | `format-quality` |
+| `quality:Terminal Compression And Test Floor` | `6.3` | `source-budget` |
+| `quality:Matched Workflow Evaluation` | `6.9` | `workflow-eval` |
+| `quality:Product Experience Is A Kernel Projection` | `6.7` | `adopter-conformance` |
+| `repository-governance:Lossless Campaign Intent Closure` | `5.2` | `unit-governance` |
+| `repository-governance:Exact Work Lane Lifecycle Effects` | `3.1` | `unit-lanes` |
+| `repository-governance:Coupling Binding Registry` | `3.4` | `product-boundary` |
+| `repository-governance:Standards Adapter Lifecycle` | `3.4` | `product-boundary` |
+| `repository-governance:Productized OpenSpec carrier governance` | `4.1` | `openspec` |
+| `repository-governance:Productized OpenSpec Substrate` | `4.1` | `openspec` |
+| `repository-governance:OpenSpec customization stays official-compatible` | `4.1` | `openspec` |
+| `repository-governance:Official OpenSpec goal metadata is lifecycle-compatible` | `4.1` | `openspec` |
+| `repository-governance:Positive Native Reference Ownership` | `3.5` | `product-boundary` |
+| `repository-governance:Contextual Authority Resolution` | `2.2` | `unit-authority` |
+| `repository-governance:Work Lane Coordination Read Model` | `4.2` | `unit-coordination` |
+| `repository-governance:Cohort-bound full Work Lane convergence` | `4.5` | `candidate-throughput` |
+| `repository-governance:External Retirement Readiness` | `4.6` | `lane-retirement` |
+| `repository-governance:Evolution Governance` | `5.5` | `knowledge-evolution` |
+| `repository-governance:Work Lane Lifecycle Resolution` | `3.1` | `unit-lanes` |
+| `repository-governance:Land readiness is proof-grounded` | `7.1` | `full-proof` |
+
 ## Campaign Dependency Graph
 
 The current Change accumulated independent acceptance boundaries. They remain

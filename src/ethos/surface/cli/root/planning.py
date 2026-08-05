@@ -111,6 +111,24 @@ def plan(
         return
     head = str(status_payload.get("head") or "")
     repository = load_repository_commitment(repo)
+    matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
+    profile_adapter: dict[str, object] = {}
+    intent_context: dict[str, object] = {}
+    intent_gaps: tuple[str, ...] = ()
+    if openspec_profile_enabled(repo):
+        profile_adapter = openspec_governance_report(
+            repo,
+            change=change,
+            lifecycle=True,
+            changed_paths=paths,
+            require_workspace=False,
+        )
+        intent_context = cast("dict[str, object]", profile_adapter.get("intent_context") or {})
+        intent_gaps = tuple(
+            gap
+            for gap in string_sequence(profile_adapter.get("required_gaps"))
+            if gap == "model_gap"
+        )
     facts = Facts(
         repository=repository.id,
         head=head,
@@ -121,20 +139,12 @@ def plan(
             "role": status_payload.get("role", ""),
             "dirty": status_payload.get("dirty", False),
             "changed_paths": paths,
+            "intent_context": intent_context,
         },
         source_refs=("git:HEAD", "git:HEAD^{tree}", "ethos:status"),
     )
-    matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
-    profile_adapter: dict[str, object] = {}
-    if openspec_profile_enabled(repo):
-        profile_adapter = openspec_governance_report(
-            repo,
-            change=change,
-            lifecycle=True,
-            changed_paths=paths,
-            require_workspace=False,
-        )
     adapter_gaps = tuple(string_sequence(profile_adapter.get("required_gaps")))
+    profile_projection = {key: value for key, value in profile_adapter.items() if key != "commands"}
     gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
     policy = resolve_gate_policy(repo, gate_ids=gate_ids)
     nodes = policy.nodes
@@ -157,7 +167,7 @@ def plan(
         facts,
         nodes,
         policy=policy.projection,
-        required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps))),
+        required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps, *intent_gaps))),
     )
     required_gaps = tuple(
         dict.fromkeys((*plan.required_gaps, *adapter_gaps, *rule_validation_gaps))
@@ -188,9 +198,10 @@ def plan(
             "rule_validation_gaps": rule_validation_gaps,
             "commitment": commitment.model_dump(mode="json"),
             "facts_digest": facts.digest(),
+            "intent_context": intent_context,
             "transition_plan": plan.model_dump(mode="json"),
             "coordination_strategy": strategy,
-            **({"profile_adapter": profile_adapter} if profile_adapter else {}),
+            **({"profile_adapter": profile_projection} if profile_projection else {}),
         },
     )
     emit(result, json_output=json_output, enforce=False, artifact_root=repo)

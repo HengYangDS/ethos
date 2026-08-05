@@ -12,6 +12,7 @@ import ethos.repository.openspec.audit as openspec_audit
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
@@ -20,6 +21,7 @@ from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.semantic import Commitment
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import active_change_names_in_ref
 from ethos.repository.openspec.audit import official_config_report
@@ -80,6 +82,106 @@ def test_openspec_17_status_contract_exposes_artifact_graph() -> None:
     assert openspec_cli.status_contract_gaps(payload | {"artifacts": []}) == [
         "openspec_status_artifact_graph_missing"
     ]
+
+
+def test_intent_context_projects_explicit_requirement_task_proof_edges(tmp_path: Path) -> None:
+    change = tmp_path / "openspec" / "changes" / "example"
+    specs = change / "specs" / "contracts"
+    specs.mkdir(parents=True)
+    (specs / "spec.md").write_text(
+        "## ADDED Requirements\n\n### Requirement: Portable result\n\n"
+        "#### Scenario: Exact result\n",
+        encoding="utf-8",
+    )
+    (change / "design.md").write_text(
+        "## Requirement To Task To Proof\n\n"
+        "| Requirement | Task | Proof |\n| --- | --- | --- |\n"
+        "| `contracts:Portable result` | `1.1` | `unit-contracts` |\n",
+        encoding="utf-8",
+    )
+
+    context, gaps = compile_intent_context(
+        tmp_path,
+        commitment=Commitment(
+            id="change:example",
+            intent="Prove portable results.",
+            subjects=("repository:example",),
+        ),
+        config={"context": "governed repository", "rules": {"intent": ["state non-goals"]}},
+        status={
+            "changeName": "example",
+            "schemaName": "spec-driven",
+            "artifacts": [
+                {"id": "specs", "status": "done", "requires": ["proposal"]},
+                {"id": "tasks", "status": "done", "requires": ["specs"]},
+            ],
+        },
+        apply={
+            "context": "governed repository",
+            "instruction": "Implement remaining tasks.",
+            "contextFiles": {
+                "behavior-contracts": [str(specs / "spec.md")],
+                "verification-map": [str(change / "design.md")],
+            },
+            "tasks": [{"id": "1", "description": "1.1 Implement result", "done": False}],
+        },
+    )
+
+    assert gaps == ()
+    assert context["requirement_edges"] == [
+        {
+            "requirement": "contracts:Portable result",
+            "task": "1.1",
+            "proof": "unit-contracts",
+        }
+    ]
+    assert context["artifact_dependencies"] == {"specs": ["proposal"], "tasks": ["specs"]}
+    assert context["completed_artifacts"] == ["specs", "tasks"]
+    assert context["edge_cases"] == ["contracts:Portable result:Exact result"]
+    assert context["project_rules"] == {"intent": ["state non-goals"]}
+
+
+def test_intent_context_rejects_unmapped_requirements_as_model_gap(tmp_path: Path) -> None:
+    change = tmp_path / "openspec" / "changes" / "example"
+    specs = change / "specs" / "contracts"
+    specs.mkdir(parents=True)
+    (specs / "spec.md").write_text(
+        "## ADDED Requirements\n\n### Requirement: Portable result\n",
+        encoding="utf-8",
+    )
+
+    _context, gaps = compile_intent_context(
+        tmp_path,
+        commitment=Commitment(
+            id="change:example",
+            intent="Prove portable results.",
+            subjects=("repository:example",),
+        ),
+        config={},
+        status={"changeName": "example", "schemaName": "spec-driven", "artifacts": []},
+        apply={"contextFiles": {"behavior-contracts": [str(specs / "spec.md")]}, "tasks": []},
+    )
+
+    assert gaps == ("model_gap",)
+
+
+def test_governance_report_blocks_unmapped_requirement_before_mutation(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    _enable_openspec(repo)
+    write_active_commitment(repo, change_id="selected")
+    design = repo / "openspec" / "changes" / "selected" / "design.md"
+    design.write_text("## Context\n\nNo requirement mapping.\n", encoding="utf-8")
+
+    report = openspec_governance_report(
+        repo,
+        change="selected",
+        lifecycle=True,
+        changed_paths=("README.md",),
+        require_workspace=False,
+    )
+
+    assert "model_gap" in report["required_gaps"]
 
 
 def test_repository_locked_openspec_17_resolves_project_schema_and_guidance(
@@ -731,6 +833,8 @@ def test_official_config_report_accepts_project_local_schema_artifacts(tmp_path:
     assert official_config_report(repo) == {
         "verdict": "pass",
         "path": config.as_posix(),
+        "context": "",
+        "rules": {},
         "required_gaps": [],
     }
 

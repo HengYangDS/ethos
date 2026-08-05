@@ -110,7 +110,7 @@ architecture; these rules make the claim honest and checkable.
 1. **Direction (import-linter, enforced):** the pure kernel never imports the
    product. `ethos` and `ethos_contracts` are pure leaves — they import NO
    other ethos package. Every other package may import only DOWNWARD
-   (surface → domain → adapters → repository/quality/assistants → contracts/core).
+   (surface → domain → adapters → repository/quality/assistants → contracts).
    The wrong direction is a hard CI failure. Contracts in
    `.config/checks/import-linter/contracts.ini`.
 2. **Absolute only (ruff TID):** no relative imports (`from .x import y`). Every

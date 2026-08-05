@@ -51,13 +51,13 @@ governance lifecycles.
   carrier state
 
 ### Requirement: Reference Adopter Boundary Fixtures
-ETHOS SHALL test adopter parity through generic profiles instead of core
-package adopter terminology.
+ETHOS SHALL test adopter parity through generic profiles instead of product-package
+adopter terminology.
 
 #### Scenario: Reference adopter fixture is validated
 - **WHEN** tests validate a reference adopter profile fixture
 - **THEN** adopter-specific terms remain in the fixture or evidence
-- **AND** core product packages remain provider-neutral
+- **AND** product runtime packages remain provider-neutral
 
 ### Requirement: Skills V2 Conformance Fixtures
 

@@ -1,1 +1,1 @@
-"""Planning test support helpers."""
+"""Planning test support package."""

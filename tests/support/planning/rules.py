@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.support.contract_helpers import init_git_repo
+from tests.support.governed_repository import init_git_repo
 
 ROOT = Path(__file__).resolve().parents[3]
 

@@ -9,9 +9,9 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.normalization.coercion import repository_path_matches
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import start_adopted_work_lane
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_work_lane
 
 if TYPE_CHECKING:
     from pathlib import Path

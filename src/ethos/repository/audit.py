@@ -15,7 +15,7 @@ from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.repository.openspec.audit import openspec_shape_report
-from ethos.repository.policy.references.ownership import repository_product_reference_gaps
+from ethos.repository.policy.references.closure import repository_product_reference_gaps
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 

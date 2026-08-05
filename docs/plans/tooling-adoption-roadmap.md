@@ -240,7 +240,7 @@ Primary-source anchors: [Aqua](https://aquaproj.github.io/),
 | `git fsck --strict` or git-sizer | Object integrity or repository-history growth becomes an observed risk | Native/diagnostic repository health is separate from source correctness and must not become a parallel readiness authority. |
 | LikeC4, CUE, TLA+, or Apalache | Model/query or state-space scale proves current declarations and Hypothesis insufficient | A second modeling or proof language needs a bounded invariant and deletion payoff. |
 | Copier or Cruft | Multiple adopters share an updateable scaffold contract | Scaffolding cannot become a parallel source of repository truth. |
-| Nox, Pixi, Pants | An adopter profile proves a bounded need | Optional adapters, never ETHOS core runtime. |
+| Nox, Pixi, Pants | An adopter profile proves a bounded need | Optional adapters, never the ETHOS kernel runtime. |
 
 ### Rejected defaults
 
@@ -252,7 +252,7 @@ Primary-source anchors: [Aqua](https://aquaproj.github.io/),
   MegaLinter, Super-Linter, and Trunk create hosted or heavyweight parallel
   control planes.
 - Mise, Devbox, Nix/devenv, and Pixi task/environment ownership are too broad for
-  the core supply problem; Aqua is admissible only as the narrow CI binary adapter.
+  the product supply problem; Aqua is admissible only as the narrow CI binary adapter.
 - Allure, pytest-rerunfailures, generic snapshot-approval plugins, pyperf beside
   pytest-benchmark, icontract/deal beside Pydantic/Hypothesis, and Schemathesis
   without an API schema add overlapping semantics or hide invalid states.

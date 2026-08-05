@@ -38,7 +38,7 @@ not_for = "Universal policy language."
 
 [carriers.rego]
 use = "Optional organization policy gate through subprocess or extension."
-not_for = "In-process core engine."
+not_for = "In-process policy engine."
 
 # Format-by-lifecycle assignment (from .ethos/rules.toml [formats]).
 [assignment]

@@ -141,9 +141,9 @@ new product ontology.
     input, deployment policy, forge coordinate, publication-trust capability, or
     extension declaration. Personal identities, private products/hosts, local
     paths, keys, fingerprints, ports, provider inventories, and deployment names
-    never enter the portable core by default. Variation-axis tests replace an
+    never enter the portable runtime by default. Variation-axis tests replace an
     unbounded blacklist and require ordinary environment, forge, author, install,
-    and provider changes without core edits.
+    and provider changes without product-runtime edits.
 16. **Learning must change the earliest enforceable owner.** Repeated failure,
     review, warning, or workaround is incomplete until it is promoted from incident
     to the narrow rule, gate, schema/default, scaffold, or generator that makes the
@@ -217,7 +217,7 @@ adopter. ETHOS owns admission, Work Lanes and Leases, proof and Attestation,
 Git CAS, land, and publish. Official Skills are projections only. Another SDD
 runtime may be an external method/operator only when a real consumer proves net
 deletion, no second SSOT, clean recovery, and measurable time/token benefit;
-Spec Kit is not a core dependency and COMET remains only such a candidate.
+Spec Kit is not a kernel dependency and COMET remains only such a candidate.
 
 OpenSpec customization is a governed product surface, not a compatibility
 escape hatch. Its native layers are project context/rules/operation guidance,
@@ -314,7 +314,7 @@ post-cutover refinement tables rather than appended to another ledger.
 | CL-010 | Turn hypotheses, experiments, feedback, and retirement into real evolution. | superseded | `2.1`, `3.2`, `5.2` | open predicates, model promotion, and Attestations replace an evolution ledger runtime | model-gap and Attestation tests |
 | CL-011 | One real compiler and runner plans, evaluates, executes, and evidences gates. | absorbed | `3.1`, `6.1` | one TransitionPlan compiler and declared gate owners | plan determinism and gate execution tests |
 | CL-012 | Govern formatting, generated artifacts, and evidence locations. | absorbed | `6.1`, `6.4` | native format, artifact, evidence, and projection owners | full quality proof |
-| CL-013 | Reference adopters stay profile-bound and cannot shape the core. | absorbed | `6.7` | three profile-bound reference adopter shapes | adopter conformance suite |
+| CL-013 | Reference adopters stay profile-bound and cannot shape the product runtime. | absorbed | `6.7` | three profile-bound reference adopter shapes | adopter conformance suite |
 | CL-014 | Domain contracts remain profile or adopter semantics. | absorbed | `6.7`, `6.8` | portable contracts and profiles keep domain semantics outside the product | profile isolation and schema conformance |
 | CL-015 | Keep local, protected-ref, hosted, break-glass, and publication proof distinct. | absorbed | `7.1`, `7.2`, `7.3`, `7.4` | local, protected-ref, hosted, and publication proof remain separate planes | terminal closeout receipts |
 | CL-016 | Verify commit signatures independently on each hosted provider. | absorbed | `7.4` | each provider verifies its own hosted signature and release facts | GitLab and GitHub release observations |
@@ -406,7 +406,7 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 | `6.1` | `d1af42bbc127276837574e07e7119acf7abe0f5d01f3bfd3c6b36d0be1e2cc0d` | `e27506e17c7d959264d3a94f0e5d92f49fc791ba414d9b42aeb7326143229001` | clarified | Direct dependency floors, immutable non-Python identities, and lock ownership became explicit supply-chain obligations. |
 | `6.5` | `69b7dbe3409998637d2c193c19cc5830fdd774829d2ad35340963baeab2a39a0` | `a0877a0bd062cd77cdf546c3f8fe11b220399626382832aa2bdbbdf93ae5213a` | clarified | One online refresh owns latest-stable proposals while normal proof remains offline and lock-bound. |
 | `6.7` | `6176a543b092c496d3f098e539fc0e4afb287c77bd507abeaa4295f3fa7192f6` | `9c76a47117bceb83cf2e0490d1d940cb75d4b4d4765f1504a8dd64f3b3517b5e` | superseded | The later adoption ruling limits no-OpenSpec operation to observation-only repositories and requires the full OpenSpec lifecycle for governed mutation. |
-| `6.9` | `a17de7104426643874350289628855d3c8b771467669b7ec5b3f6ee155c0034a` | `7144cc607c7c0f178601edc7eb7744565b695b7aede85d4b21733426b7405456` | clarified | Spec Kit is excluded from the core and COMET remains only an external candidate under the existing consumer and net-deletion bar. |
+| `6.9` | `a17de7104426643874350289628855d3c8b771467669b7ec5b3f6ee155c0034a` | `7144cc607c7c0f178601edc7eb7744565b695b7aede85d4b21733426b7405456` | clarified | Spec Kit is excluded from the kernel and COMET remains only an external candidate under the existing consumer and net-deletion bar. |
 | `6.10` | `6dfc3d418c1b630624d1281111cf564cc6dc1f605b80ed511fe184c70a8c8905` | `4f126e51c7c545b72e4bb02c17847ef5faa25e5b590a7af2389045c392ae72bd` | clarified | The archive receipt must bind the exact effective OpenSpec 1.7 executable and tool version. |
 | `1.2` | `3da810636aace7bd592059ee706ac023fed52f9e5eaa8e5e0eaa00eea8106a4b` | `cd8f47c9dc73f89cb647a9bba976c02f61efa5000fb0ec3a16653d63b84e69e4` | clarified | Typed evidence and freshness extend the existing open Attestation envelope without adding a receipt entity. |
 | `3.1` | `db804e65e4475aa5863b1eb8602526bd3979ca9426e5cb90216cbf2758b4d9de` | `e4bbb661802e5ca57de3d93f350a424234497873693f01fa33548e39511a50f1` | clarified | Continuation is one pure projection from authoritative facts, not persisted lifecycle state. |

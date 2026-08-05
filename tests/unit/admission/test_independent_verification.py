@@ -17,7 +17,7 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.admission.evidence.external import load_independent_verification_provider
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.repository.profile import IndependentVerificationPolicy
-from tests.support.contract_helpers import write_test_profile
+from tests.support.governed_repository import write_test_profile
 
 
 def _receipt_payload() -> dict[str, object]:

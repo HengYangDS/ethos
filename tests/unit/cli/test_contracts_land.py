@@ -11,8 +11,8 @@ import pytest
 import ethos.adapters.mutation.accepted as accepted_mutation
 import ethos.adapters.mutation.landing as landing_mutation
 import ethos.adapters.openspec.cli as openspec_cli
-import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.proof as proof_cli
+import ethos.surface.cli.root.publish as publish_cli
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -32,19 +32,19 @@ from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
-from tests.support.contract_helpers import adopt_and_commit
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
-from tests.support.contract_helpers import init_repo_with_candidate
-from tests.support.contract_helpers import lane_start_arguments
-from tests.support.contract_helpers import seed_executed_proof
-from tests.support.contract_helpers import start_adopted_candidate
-from tests.support.contract_helpers import start_adopted_work_lane
-from tests.support.contract_helpers import write_role_policy
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.governed_repository import lane_start_arguments
+from tests.support.governed_repository import seed_executed_proof
+from tests.support.governed_repository import start_adopted_candidate
+from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import write_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -665,9 +665,9 @@ def test_publish_blocks_exact_head_proof_gap_without_parallel_quality_verdict(
     head = git(repo, "rev-parse", "HEAD")
     seed_executed_proof(repo, head)
     gap = "proof_attestation_stale:quality-policy"
-    monkeypatch.setattr(lifecycle_cli, "repository_context", lambda _repo: {"profile": "test"})
+    monkeypatch.setattr(publish_cli, "repository_context", lambda _repo: {"profile": "test"})
     monkeypatch.setattr(
-        lifecycle_cli,
+        publish_cli,
         "proof_gaps",
         lambda _repo, _head, **_kwargs: [gap],
     )

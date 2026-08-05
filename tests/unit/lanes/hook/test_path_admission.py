@@ -9,16 +9,16 @@ from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import has_path_whitespace
 from ethos.contracts.admission import HookAdmissionRequest
-from tests.support.contract_helpers import write_active_commitment
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.lane_helpers import git
-from tests.support.lane_helpers import init_repo
-from tests.support.lane_helpers import leased_worktree
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
+from tests.support.lane_scenarios import leased_worktree
 
 
 @pytest.fixture
 def worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     write_active_commitment(repo)
     git(repo, "add", ".")
     git(
@@ -289,7 +289,7 @@ def _patch(path: str, before: str, added: str, *, new: bool = False) -> str:
 def test_patch_prewrite_rejects_reference_not_declared_at_baseline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _product_baseline(repo)
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
@@ -321,7 +321,7 @@ def test_patch_prewrite_rejects_each_undeclared_machine_reference(
     kind: str,
     reference: str,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _product_baseline(repo)
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
@@ -340,7 +340,7 @@ def test_patch_prewrite_rejects_each_undeclared_machine_reference(
 def test_patch_prewrite_admits_reference_declared_at_baseline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _product_baseline(repo, import_roots=("external_sdk",))
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
@@ -361,7 +361,7 @@ def test_patch_prewrite_admits_reference_declared_at_baseline(
 def test_patch_prewrite_requires_exact_baseline_scope_for_new_entity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _product_baseline(repo, scope=("src/**",))
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
@@ -382,7 +382,7 @@ def test_patch_prewrite_requires_exact_baseline_scope_for_new_entity(
 def test_patch_prewrite_admits_exactly_declared_new_entity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _product_baseline(repo, scope=("src/external_adapter.py",))
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
@@ -402,7 +402,7 @@ def test_patch_prewrite_admits_exactly_declared_new_entity(
 def test_patch_cannot_declare_and_consume_reference_in_same_change(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _product_baseline(repo)
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
@@ -433,7 +433,7 @@ def test_patch_cannot_declare_and_consume_reference_in_same_change(
 def test_patch_prewrite_allows_declaration_only_change(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _product_baseline(repo, scope=("system/tools.toml",))
     lane = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")

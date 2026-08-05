@@ -50,12 +50,12 @@ def test_docs_health_rejects_deleted_quality_provenance_command(tmp_path: Path) 
 
 def test_docs_health_rejects_unregistered_nested_command(tmp_path: Path) -> None:
     """A nested example must resolve through the live Cyclopts command tree."""
-    write_active_doc(tmp_path, "ethos lane lease takeover --json")
+    write_active_doc(tmp_path, "ethos lane lease migrate --json")
 
     report = docs_registry_report(tmp_path)
 
     assert report["invalid_command_examples"] == [
-        "unknown_ethos_command_example:docs/reference/example.md:17:ethos lane lease takeover"
+        "unknown_ethos_command_example:docs/reference/example.md:17:ethos lane lease migrate"
     ]
 
 

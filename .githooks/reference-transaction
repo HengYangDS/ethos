@@ -144,12 +144,15 @@ while read -r old_value new_value ref_name; do
                 exit 1
             }
             candidate_root="$candidate_runner"
-            candidate_runtime_runner="$candidate_root/tools/ci/scripts/with-python-runtime.sh"
+            candidate_python="$candidate_root/build/runtime/venv/bin/python"
+            [ -x "$candidate_python" ] || {
+                echo "ethos: blocked ref move on $ref_name — candidate project environment is unavailable." >&2
+                exit 1
+            }
             verdict="$(
                 cd "$candidate_root" || exit 1
                 unset PYTHONPATH
-                "${candidate_runtime_runner}" -- uv run --project "$candidate_root" --locked --offline \
-                    --isolated --all-packages --group dev python -m ethos.cli hook ref-transaction \
+                "${candidate_python}" -P -m ethos.cli hook ref-transaction \
                     "$ref_name" "$old_value" "$new_value" --phase "$phase" \
                     --root "$repo_root" --json 2>/dev/null | tr -d ' \n'
             )"

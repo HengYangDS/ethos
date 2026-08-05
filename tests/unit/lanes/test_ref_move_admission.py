@@ -1164,6 +1164,15 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     assert completed.returncode != 0
 
 
+def test_reference_transaction_hook_uses_the_candidate_project_environment() -> None:
+    hook = Path(__file__).resolve().parents[3] / ".githooks/reference-transaction"
+    text = hook.read_text(encoding="utf-8")
+
+    assert 'candidate_python="$candidate_root/build/runtime/venv/bin/python"' in text
+    assert '"${candidate_python}" -P -m ethos.cli hook ref-transaction' in text
+    assert "--isolated" not in text
+
+
 # ── H2: the push plane enforces the SAME candidate-train topology as the ref-move plane ──
 def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
     """A push of a proven commit that candidate never validated must block — the same

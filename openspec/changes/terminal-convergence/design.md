@@ -449,6 +449,7 @@ completion, create lifecycle authority, or substitute for checked tasks.
 | Shape the semantic kernel with OpenSpec types | Rejected | The kernel remains vendor-neutral while complete mutation-capable adoption deliberately standardizes on OpenSpec. |
 | Force every adopter onto built-in `spec-driven` | Rejected | OpenSpec 1.7 natively resolves project-local schemas and arbitrary artifact DAGs; fixing four artifact names discards official capability and blocks valid community workflows. |
 | Vendor a large community workflow unchanged | Rejected | Community schemas demonstrate useful patterns, but prompt-only gates, external skill dependencies, persistent duplicate artifacts, and ignored extension keys require independent verification and selective absorption. |
+| Replace the greenfield default before a deletion proof | Rejected | Current community sampling validates customization breadth but does not show that an ETHOS-specific schema deletes more code than it adds. Existing custom config is preserved; `spec-driven` remains only the bootstrap default, not a runtime assumption. |
 | Keep a global authority order | Rejected | Different subjects and planes require simultaneous local authorities. |
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |

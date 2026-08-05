@@ -170,6 +170,30 @@ def test_existing_repository_surfaces_are_outside_bootstrap_scope(tmp_path: Path
     assert provider.read_text(encoding="utf-8") == "stages: [test]\n"
 
 
+def test_adopt_preserves_existing_custom_openspec_config(tmp_path: Path) -> None:
+    config = tmp_path / "openspec" / "config.yaml"
+    config.parent.mkdir()
+    custom = (
+        "schema: intent-to-proof\n"
+        "context: preserve the adopter workflow\n"
+        "rules:\n"
+        "  verification: [bind exact evidence]\n"
+    )
+    config.write_text(custom, encoding="utf-8")
+
+    result = adoption_plan(tmp_path, apply=True)
+
+    assert result["applied"] is True
+    assert result["required_gaps"] == []
+    assert config.read_text(encoding="utf-8") == custom
+    assert (
+        next(item for item in result["write_plan"] if item["path"] == "openspec/config.yaml")[
+            "action"
+        ]
+        == "keep_existing"
+    )
+
+
 def test_adopt_rejects_profile_symlink_without_touching_its_target(tmp_path: Path) -> None:
     external = tmp_path / "external.toml"
     external.write_text("", encoding="utf-8")

@@ -1,9 +1,4 @@
-"""Shared fixtures for the CLI contract test suites.
-
-The contract coverage lives across sibling `test_contracts*.py` modules split by
-command family; these helpers (git plumbing, sample-repo scaffolding, adopt/proof
-seeding) are the cross-cutting setup every split imports.
-"""
+"""Construct governed Git repositories for product contract tests."""
 
 from __future__ import annotations
 

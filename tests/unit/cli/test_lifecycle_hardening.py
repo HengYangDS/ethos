@@ -8,14 +8,14 @@ import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as work_lane_refresh
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.admission.ref_intent import ref_intent_dir
-from tests.support.contract_helpers import adopt_and_commit
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
-from tests.support.contract_helpers import seed_executed_proof
-from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import seed_executed_proof
+from tests.support.governed_repository import start_adopted_work_lane
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -13,8 +13,8 @@ from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path

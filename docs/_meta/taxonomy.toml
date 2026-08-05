@@ -32,7 +32,7 @@ allowed = [
 # Extension roots map a product/adopter docs root to the document roles it may
 # hold. Kernel roots (decisions/, evidence/, history/, reference/) are bound by
 # the ETHOS contract; these are ETHOS's OWN product extensions. An adopter
-# declares its own roots here without editing ETHOS core.
+# declares its own roots here without editing the ETHOS product runtime.
 [extension_roots]
 "docs/architecture" = ["explanation", "reference", "index"]
 "docs/governance" = ["policy", "explanation", "ledger", "index"]

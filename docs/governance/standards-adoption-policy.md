@@ -18,7 +18,7 @@ Adoption levels:
 - Artifact metadata adapter: the framework projects package or SBOM facts.
 - Event interchange adapter: the framework exports Chronicle or gate events.
 - Advanced compiler: the framework generates ETHOS-native config or schemas.
-- Service runtime adapter: the framework runs long-lived workflows outside CLI core.
+- Service runtime adapter: the framework runs long-lived workflows outside the CLI command plane.
 - Agent projection: the framework exposes ETHOS context to agent hosts.
 
 Every adapter must declare lifecycle, boundary, input contract, output contract,

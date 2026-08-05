@@ -30,12 +30,12 @@ from ethos.repository.openspec.audit import protected_branch_active_change_repor
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
-from tests.support.contract_helpers import write_active_commitment
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path

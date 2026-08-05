@@ -21,4 +21,4 @@ guarded tools only through an admitted adapter contract.
 
 No MCP implementation or smoke gate is currently admitted. A future adapter
 must bring its own consumer, permissions, conformance tests, and uninstall proof;
-the core lifecycle remains complete without it.
+the kernel lifecycle remains complete without it.

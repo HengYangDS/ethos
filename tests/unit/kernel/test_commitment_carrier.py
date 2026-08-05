@@ -9,8 +9,8 @@ from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path

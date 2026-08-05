@@ -21,12 +21,12 @@ from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.repository.policy.gates import resolve_gate_policy
-from tests.support.contract_helpers import adopt_and_commit
-from tests.support.contract_helpers import conformant_proof_check
-from tests.support.contract_helpers import write_publication_topology
-from tests.support.lane_helpers import git
-from tests.support.lane_helpers import init_repo
-from tests.support.lane_helpers import leased_worktree as create_leased_worktree
+from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import conformant_proof_check
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_publication_topology
+from tests.support.lane_scenarios import leased_worktree as create_leased_worktree
 
 
 def _assert_fields(actual: dict[str, object], **expected: object) -> None:
@@ -38,7 +38,7 @@ def _hook(root: Path, layer: str, **values: object) -> dict[str, object]:
 
 
 def _identity_repo(path: Path) -> Path:
-    repo = init_repo(path)
+    repo = init_git_repo(path)
     write_publication_topology(repo)
     for key, value in (
         ("user.name", "Canonical User"),
@@ -101,7 +101,9 @@ def _clear_attestation_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    worktree = create_leased_worktree(init_repo(tmp_path / "repo"), tmp_path / "repo-work-feature")
+    worktree = create_leased_worktree(
+        init_git_repo(tmp_path / "repo"), tmp_path / "repo-work-feature"
+    )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     return worktree
 
@@ -127,7 +129,7 @@ def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def test_push_admission_rejects_invalid_targets_before_or_without_proof(
     tmp_path: Path, target_ref: str, remote_name: str, gap: str, proof_check: str
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     write_publication_topology(repo)
     report = push_admission_report(
         root=repo,
@@ -143,7 +145,7 @@ def test_push_admission_rejects_invalid_targets_before_or_without_proof(
 
 
 def test_push_admission_rejects_legacy_topology_without_enforcement_bypass(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "release.toml").write_text(
         '[publication]\nremotes = ["origin", "github"]\n', encoding="utf-8"
@@ -161,7 +163,7 @@ def test_push_admission_rejects_legacy_topology_without_enforcement_bypass(tmp_p
 
 
 def test_context_hook_rejects_stale_target_root(tmp_path: Path) -> None:
-    repo, other = init_repo(tmp_path / "repo"), init_repo(tmp_path / "other")
+    repo, other = init_git_repo(tmp_path / "repo"), init_git_repo(tmp_path / "other")
     report = _hook(repo, "context", expected_root=other)
     _assert_fields(
         report,
@@ -175,7 +177,7 @@ def test_context_hook_rejects_stale_target_root(tmp_path: Path) -> None:
 
 
 def test_unknown_hook_layer_blocks_without_pretool_fallback(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
 
     report = _hook(repo, "unknown-layer")
 
@@ -207,7 +209,7 @@ def test_unknown_hook_layer_blocks_without_pretool_fallback(tmp_path: Path) -> N
 def test_pre_tool_hook_blocks_protected_or_unleased_mutation(
     tmp_path: Path, kind: str, expected_role: str, reason: str, admission_error: str
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     root = repo
     values: dict[str, object] = {"editor_root": repo, "require_editor_root": True}
     if kind == "protected-path":
@@ -333,7 +335,7 @@ def test_pre_tool_hook_handles_rebase_context(leased_worktree: Path) -> None:
 
 
 def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     git(repo, "checkout", "--detach")
     rebase_dir = Path(git(repo, "rev-parse", "--absolute-git-dir")) / "rebase-merge"
     rebase_dir.mkdir()
@@ -367,7 +369,7 @@ def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(tmp_path: P
 def test_pre_run_hook_blocks_mutation_risk_without_target_paths(
     tmp_path: Path, command: str
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     report = _hook(repo, "pre-run", command=command, editor_root=repo, require_editor_root=True)
     _assert_fields(
         report,
@@ -434,7 +436,7 @@ def test_shell_admission_routes_effect_capable_commands_to_path_admission(comman
 def test_pre_run_hook_blocks_unclassifiable_shell_even_with_target_paths(
     tmp_path: Path, command: str
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     report = _hook(
         repo,
         "pre-run",
@@ -475,7 +477,7 @@ def test_git_stash_policy_is_operation_exact(command: str, expected: dict[str, o
 def test_runner_source_root_ignores_inherited_git_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     module = repo / "src/ethos/__init__.py"
     module.parent.mkdir(parents=True)
     module.write_text("", encoding="utf-8")
@@ -495,7 +497,7 @@ def test_runner_source_root_ignores_inherited_git_dir(
 def test_post_write_hook_fuses_dirty_state(
     tmp_path: Path, kind: str, role: str, reason: str
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     root = repo
     values: dict[str, object] = {"editor_root": repo, "require_editor_root": True}
     if kind == "work":
@@ -520,7 +522,7 @@ def test_post_write_hook_fuses_dirty_state(
 
 
 def test_push_admission_blocks_unproven_protected_and_work_lane_pushes(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     write_publication_topology(repo)
     head = git(repo, "rev-parse", "HEAD")
     for ref, gap in (
@@ -614,7 +616,7 @@ def test_new_proposal_push_validates_origin_accepted_baseline(
 
 
 def test_push_identity_helpers_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
     assert set(push_identity_policy_report(repo, "missing-head")["required_gaps"]) >= {
@@ -647,7 +649,7 @@ def test_attestation_store_defaults_and_worker_override(
 ) -> None:
     _clear_attestation_env(monkeypatch)
     assert attestation_store_dir(tmp_path) == tmp_path / ".ethos" / "state" / "attestations"
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
     store = tmp_path / ".ethos" / "state" / "attestations-gw1"
@@ -664,7 +666,7 @@ def test_proof_attestation_ignores_legacy_forgery_and_requires_complete_floor(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _clear_attestation_env(monkeypatch)
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
     legacy = repo / ".ethos" / "state" / "proof" / f"{head}.json"

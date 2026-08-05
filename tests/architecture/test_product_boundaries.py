@@ -20,7 +20,7 @@ from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.boundary.product import (
     product_surface_files as declared_product_surface_files,
 )
-from ethos.repository.policy.references.ownership import repository_product_reference_gaps
+from ethos.repository.policy.references.closure import repository_product_reference_gaps
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {"wt", "proof", "mission", "skill-evolution", "agent-surface-contract"}

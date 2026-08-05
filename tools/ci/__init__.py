@@ -1,1 +1,1 @@
-"""CI projection and runner helpers."""
+"""CI projection and runner package."""

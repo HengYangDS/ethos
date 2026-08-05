@@ -11,7 +11,7 @@ from ethos.cli import main
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
-from tests.support.contract_helpers import init_repo_with_candidate
+from tests.support.governed_repository import init_repo_with_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path

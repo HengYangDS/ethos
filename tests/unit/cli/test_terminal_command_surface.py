@@ -12,10 +12,10 @@ from ethos.adapters.mutation.proof import persist_attestation
 from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import start_adopted_work_lane
 
 PUBLIC_ROOT_COMMANDS = ("status", "plan", "prove", "land", "publish", "adopt")
 RETIRED_ROOT_COMMANDS = (

@@ -259,7 +259,7 @@ throughput, and lane housekeeping are implemented and proved.
   artifacts, affected capabilities, and requirement → task → proof edges.
   Unresolved material findings are `model_gap`, not agent discretion; the
   compiled context is a projection and cannot become another intent store.
-- [ ] 5.3 Split, rename, absorb, or delete ambiguous `core/common/shared/utils`
+- [x] 5.3 Split, rename, absorb, or delete ambiguous `core/common/shared/utils`
   and other catch-alls by actual semantic axes across source, tests, tools,
   configuration, and documentation; no size-only split or facade.
 - [ ] 5.4 Make DRs flat, newest-current first, strongly structured, and concise;

@@ -314,23 +314,23 @@ than by `current`/`future` directory names.
 
 ### Requirement: Fleet Inspection
 ETHOS SHALL inspect an external repository as an adopter through repository
-surfaces rather than product-core hardcoded names.
+surfaces rather than product-runtime hardcoded names.
 
 #### Scenario: An adopter is inspected
 - **WHEN** `ethos fleet inspect --target <repo> --json` runs
 - **THEN** ETHOS reports adopter governance surfaces and required gaps without
-  embedding adopter-specific package names into the core
+  embedding adopter-specific package names into the product runtime
 
 ### Requirement: External Retirement Readiness
 ETHOS SHALL determine whether an adopted repository can retire its embedded
 ETHOS backend through generic repository profile, product-boundary, parity,
-shadow, and lifecycle checks rather than product-core adopter directories.
+shadow, and lifecycle checks rather than product-runtime adopter directories.
 
 #### Scenario: Retirement readiness is inspected
 - **WHEN** `ethos fleet retirement-readiness --target <repo> --json` runs
 - **THEN** ETHOS reads the target repository's `.ethos/profile.toml`
 - **AND** validates declared binding roots such as `.config/`
-- **AND** rejects profile-declared forbidden product-core adopter roots in the
+- **AND** rejects profile-declared forbidden product-runtime adopter roots in the
   ETHOS product repository
 - **AND** includes parity and shadow false-negative evidence in the verdict
 - **AND** reports external-default, embedded-freeze, rollback-window evidence,
@@ -548,7 +548,7 @@ authority before archive or closeout can be trusted.
 
 ### Requirement: Reference Adopter Parity Closure
 ETHOS SHALL prove reference adopter parity through generic profile and shadow
-evidence mechanisms rather than product-core adopter terms.
+evidence mechanisms rather than product-runtime adopter terms.
 
 #### Scenario: Reference adopter parity is closed
 - **GIVEN** tracked parity evidence for a reference adopter reports `verdict=pass`
@@ -556,7 +556,7 @@ evidence mechanisms rather than product-core adopter terms.
   lifecycle, proof evidence, and profile boundaries
 - **WHEN** ETHOS reports parity gaps for that adopter
 - **THEN** no covered capability gap is emitted for that adopter
-- **AND** product-core packages remain free of adopter-private terminology
+- **AND** product runtime packages remain free of adopter-private terminology
 
 ### Requirement: Contextual Authority Resolution
 ETHOS SHALL resolve authority and currentness for the exact subject, predicate,
@@ -1930,7 +1930,7 @@ upgrade an undeclared shape at runtime.
 ETHOS SHALL package canonical system declarations without making a wheel build
 depend on paths outside its source distribution.
 
-#### Scenario: The core wheel is built from its source distribution
+#### Scenario: The Python wheel is built from its source distribution
 
 - **WHEN** the `ethos` source distribution is unpacked for a wheel build
 - **THEN** each packaged declaration is read from the sdist-local

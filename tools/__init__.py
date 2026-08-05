@@ -1,1 +1,1 @@
-"""Repository-local tooling helpers."""
+"""Repository-local tooling command package."""

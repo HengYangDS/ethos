@@ -31,8 +31,8 @@ from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.gates import resolve_gate_policy
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path

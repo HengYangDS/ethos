@@ -22,11 +22,11 @@ from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.repository.policy.schema import validate_schema_instance
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import create_change_source_lane
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_repo_with_candidate
-from tests.support.lane_helpers import init_repo
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import create_change_source_lane
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import init_repo_with_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -274,7 +274,7 @@ def _enable(repo: Path) -> None:
 def test_family_profile_uses_date_bound_identity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _enable(repo)
     monkeypatch.setattr(lanes, "utc_now", lambda: datetime(2026, 7, 22, tzinfo=UTC))
     report = start_work_lane(
@@ -289,7 +289,7 @@ def test_family_profile_uses_date_bound_identity(
 
 
 def test_family_profile_rejects_noncanonical_path(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     _enable(repo)
     report = start_work_lane(
         root=repo,
@@ -304,7 +304,7 @@ def test_family_profile_rejects_noncanonical_path(tmp_path: Path) -> None:
 
 
 def test_family_profile_requires_the_canonical_work_branch_prefix(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos/workspace.toml").write_text(
         '[branch_roles]\nrepository_family_worktrees = true\nwork_branch_prefix = "lane/"\n',
         encoding="utf-8",

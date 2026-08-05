@@ -1,21 +1,15 @@
-"""Shared fixtures for the Work Lane test suites.
-
-The lane coverage is split across sibling `test_lanes*.py` modules by theme
-(status, lifecycle, lease projection); these helpers — git plumbing, sample-repo
-and candidate-worktree scaffolding, branch-role policy authoring, and the
-no-UI-projection assertion — are the setup every split imports.
-"""
+"""Construct Work Lane lifecycle scenarios for contract tests."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
-from tests.support.contract_helpers import commit_active_commitment
-from tests.support.contract_helpers import exact_lease
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo as init_repo
-from tests.support.contract_helpers import write_role_policy
+from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import exact_lease
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -69,7 +63,7 @@ def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
 
 def orphan_work_lane(tmp_path: Path) -> tuple[Path, Path]:
     """Create an unleased Work Lane for exceptional-resolution tests."""
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     lane = tmp_path / "repo-work-orphan"
     git(repo, "worktree", "add", "-b", "work/orphan", lane.as_posix(), "dev")
     return repo, lane
@@ -82,7 +76,7 @@ def superseded_work_lane(
     holder_ref: str = "agent:test:case:agent-a",
 ) -> tuple[Path, Path, str, str, Path]:
     """Create an owned obsolete lane and optionally absorb its change on dev."""
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     write_role_policy(
         repo,
         candidate_branch="candidate/dev",

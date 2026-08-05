@@ -8,8 +8,8 @@ import pytest
 
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
-from tests.support.lane_helpers import git
-from tests.support.lane_helpers import init_repo
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -103,8 +103,8 @@ def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
 def test_topology_report_blocks_tracked_untracked_lifecycle_home(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
-    foreign = init_repo(tmp_path / "foreign")
+    repo = init_git_repo(tmp_path / "repo")
+    foreign = init_git_repo(tmp_path / "foreign")
     path = repo / "build/evidence/proof.json"
     path.parent.mkdir(parents=True)
     path.write_text("{}\n", encoding="utf-8")

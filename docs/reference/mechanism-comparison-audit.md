@@ -75,14 +75,14 @@ ETHOS is strongest where repository mutation must be legible and enforceable:
 
 ETHOS is deliberately or temporarily lighter in these areas:
 
-1. no universal environment-runner matrix in core;
-1. no task-ledger product dependency in core;
+1. no universal environment-runner matrix in the product runtime;
+1. no task-ledger product dependency in the product runtime;
 1. less full-stack local CI emulator handoff and runtime matrix breadth;
 1. less prose/metadata breadth until owner surfaces exist;
 1. less multi-scanner vulnerability breadth until OSV and image/package scanners
    are admitted through pinned tool supply and owner surfaces;
 1. less MCP assembly/runtime breadth by design;
-1. no domain runtime mechanics in product core;
+1. no domain runtime mechanics in the product runtime;
 1. no external signing upload, hosted CI observation capture, image scan, or
    release publication adapter as current truth.
 

@@ -44,18 +44,18 @@ from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import resolve_gate_policy
-from tests.support.contract_helpers import commit_active_commitment
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import conformant_proof_check
-from tests.support.contract_helpers import exact_lease
-from tests.support.contract_helpers import render_branch_policy
-from tests.support.contract_helpers import seed_executed_proof
-from tests.support.contract_helpers import start_adopted_work_lane
-from tests.support.contract_helpers import write_active_commitment
-from tests.support.contract_helpers import write_publication_topology
-from tests.support.contract_helpers import write_role_policy
-from tests.support.lane_helpers import git
-from tests.support.lane_helpers import init_repo
+from tests.support.governed_repository import commit_active_commitment
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import conformant_proof_check
+from tests.support.governed_repository import exact_lease
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import render_branch_policy
+from tests.support.governed_repository import seed_executed_proof
+from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.governed_repository import write_active_commitment
+from tests.support.governed_repository import write_publication_topology
+from tests.support.governed_repository import write_role_policy
 
 _FIXTURE_COMMITMENT_CARRIER = "openspec/changes/fixture-change/commitment.toml"
 _HOLDER = "agent:codex:thread:first"
@@ -75,7 +75,7 @@ def _acquire_fixture_lease(repo: Path, branch: str, head: str, holder: str):
 
 
 def _leased_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     commit_active_commitment(repo)
     candidate = tmp_path / "repo-candidate"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
@@ -109,7 +109,7 @@ def _poison_lease(database: Path, branch: str, lease: dict[str, object]) -> str:
 def test_work_lane_ref_transition_rejects_zero_oid_without_lease(
     tmp_path: Path, old_value: str, new_value: str
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     report = work_lane_ref_transition_report(
         root=repo,
         phase="prepared",
@@ -127,7 +127,7 @@ def test_lane_start_uses_the_work_lane_creation_intent_operation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     commit_active_commitment(repo)
     branch = "work/zero-bound"
     head = git(repo, "rev-parse", "HEAD")
@@ -169,7 +169,7 @@ def test_work_lane_ref_deletion_requires_ref_intent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     commit_active_commitment(repo)
     branch = "work/zero-bound"
     head = git(repo, "rev-parse", "HEAD")
@@ -197,7 +197,7 @@ def test_work_lane_ref_transition_committed_accepts_observed_zero_oid_terminal_s
     tmp_path: Path,
     case: str,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     branch = "work/terminal"
     if case == "create":
@@ -221,7 +221,7 @@ def test_work_lane_ref_transition_committed_accepts_observed_zero_oid_terminal_s
 def test_work_lane_zero_oid_unknown_lease_is_observe_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     commit_active_commitment(repo)
     branch = "work/unknown-create"
     head = git(repo, "rev-parse", "HEAD")
@@ -249,7 +249,7 @@ def test_work_lane_zero_oid_unknown_lease_is_observe_only(
 
 @pytest.mark.parametrize("width", [0, 1, 39, 41, 63, 65])
 def test_work_lane_ref_transition_rejects_invalid_oid(tmp_path: Path, width: int) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     report = work_lane_ref_transition_report(
         root=repo,
         phase="prepared",
@@ -265,7 +265,7 @@ def test_work_lane_ref_transition_admits_noop_without_lease(tmp_path: Path) -> N
     """A worktree setup can reassert a just-created lane ref at its existing HEAD before
     the lane lease is recorded.  This is no state transition and must not be blocked by
     the lease guard."""
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     git(repo, "branch", "work/starting", "dev")
     head = git(repo, "rev-parse", "work/starting")
 
@@ -720,7 +720,7 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path: Path) -> None:
 
 
 def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     write_role_policy(
         repo,
         candidate_branch="candidate/dev",
@@ -1156,7 +1156,7 @@ def test_reference_transaction_hook_fails_closed_on_governed_branches(tmp_path: 
 def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict(
     tmp_path: Path,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo")
     candidate = tmp_path / "candidate"
     git(repo, "branch", "main")
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")

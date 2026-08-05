@@ -26,12 +26,24 @@ if TYPE_CHECKING:
 
 
 def _control_change(
-    tmp_path: Path, relative_path: str = "system/gates.toml"
+    tmp_path: Path,
+    relative_path: str = "system/gates.toml",
+    *,
+    verification_mode: str = "required",
 ) -> tuple[Path, Path, str, str]:
     repo, candidate = start_adopted_candidate(tmp_path)
     accepted_head = git(repo, "rev-parse", "HEAD")
+    _set_verification_mode(candidate, verification_mode)
     candidate_head = commit_fixture_file(candidate, relative_path, "candidate control\n", "control")
     return repo, candidate, accepted_head, candidate_head
+
+
+def _set_verification_mode(root: Path, mode: str) -> None:
+    profile = root / ".ethos" / "profile.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8") + f'\n[independent_verification]\nmode = "{mode}"\n',
+        encoding="utf-8",
+    )
 
 
 def _trusted_receipt(
@@ -139,6 +151,24 @@ def test_control_change_projects_signed_verification_subject(tmp_path: Path) -> 
     assert request["tree"] == candidate_subject["tree"]
     assert report["verdict"] == "unknown"
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
+
+
+def test_control_change_uses_default_disabled_verification_policy(tmp_path: Path) -> None:
+    _repo, candidate, accepted_head, candidate_head = _control_change(
+        tmp_path, verification_mode="disabled"
+    )
+    seed_executed_proof(candidate, candidate_head)
+
+    report = control_replacement.control_replacement_report(
+        candidate_root=candidate,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+    )
+
+    assert report["required"] is True
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["independent_verification"]["state"] == "disabled"
 
 
 def test_control_replacement_accepts_only_the_existing_signed_receipt_contract(
@@ -274,6 +304,7 @@ def test_control_change_digest_binds_git_mode(tmp_path: Path) -> None:
     commit_fixture_file(repo, "system/gates.toml", "version = 1\n", "control")
     accepted_head = git(repo, "rev-parse", "HEAD")
     git(candidate, "reset", "--hard", accepted_head)
+    _set_verification_mode(candidate, "required")
     control = candidate / "system" / "gates.toml"
     control.chmod(0o755)
     git(candidate, "add", ".")
@@ -290,7 +321,7 @@ def test_control_change_digest_binds_git_mode(tmp_path: Path) -> None:
     subject = cast("dict[str, object]", report["subject"])
     accepted = cast("dict[str, object]", subject["accepted"])
     candidate_subject = cast("dict[str, object]", subject["candidate"])
-    assert report["control_paths"] == ["system/gates.toml"]
+    assert set(report["control_paths"]) == {".ethos/profile.toml", "system/gates.toml"}
     assert accepted["control_digest"] != candidate_subject["control_digest"]
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 

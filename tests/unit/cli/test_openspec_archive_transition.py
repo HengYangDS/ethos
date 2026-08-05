@@ -8,12 +8,20 @@ import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.scope import path_matches_scope
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import start_adopted_work_lane
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_scope_glob_matches_archive_directory_descendants() -> None:
+    assert path_matches_scope(
+        "openspec/changes/archive/2026-08-05-fixture-change/tasks.md",
+        "openspec/changes/archive/*-fixture-change/**",
+    )
 
 
 def test_governance_allows_lease_bound_post_archive_closeout(

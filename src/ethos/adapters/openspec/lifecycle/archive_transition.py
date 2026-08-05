@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.openspec.lifecycle.scope import path_matches_scope
+from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import relocated_commitment_fields
@@ -85,10 +86,17 @@ def lease_bound_archive_scope_report(
     except ValueError:
         return None
     tasks_path = carrier.removesuffix("commitment.toml") + "tasks.md"
+    active = _active_commitments(root, tree)
+    expected_active = (carrier,) if state == "completion_transition" else ()
+    completion_invalid = state == "completion_transition" and (
+        tasks_complete(committed_file_text(root, current_tree(root, head), tasks_path))
+        or tuple(dict.fromkeys(filter(None, changed_paths))) != (tasks_path,)
+    )
     if (
         archived.digest() != source.digest()
         or not tasks_complete(committed_file_text(root, tree, tasks_path))
-        or _active_commitments(root, tree)
+        or active != expected_active
+        or completion_invalid
     ):
         return None
     return _scope_report(
@@ -119,6 +127,20 @@ def _archive_binding(
         return None
     try:
         index_tree = run_git(root, "write-tree").stdout.strip()
+        active_carrier = f"openspec/changes/{change}/commitment.toml"
+        if carrier == active_carrier and carrier in _active_commitments(root, index_tree):
+            target = exact_commitment_fields(
+                root,
+                head=index_tree,
+                carrier=carrier,
+                change_id=change,
+            )
+            expected = {
+                name: str(lease.get(name) or "")
+                for name in ("base_commitment_bytes_sha256", "base_commitment_digest")
+            }
+            if all(target[name] == value for name, value in expected.items()):
+                return "completion_transition", target["expected_tree"], carrier
         target = relocated_commitment_fields(
             root,
             old_head=head,

@@ -230,7 +230,7 @@ def test_pre_tool_hook_blocks_protected_or_unleased_mutation(
     elif kind == "unleased-work":
         assert report["admission"]["work_lane_lease"]["verdict"] == "block"
         assert report["next_action"] == (
-            "ethos lane start <name> --source-root <source-work-lane> "
+            "ethos lane start <name> --commitment <commitment.toml> "
             "--holder-ref <holder-ref> --apply --json"
         )
 

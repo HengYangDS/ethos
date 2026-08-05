@@ -428,6 +428,17 @@ def test_openspec_specs_are_mece_product_families() -> None:
     assert {path.parent.name for path in (ROOT / "openspec/specs").glob("*/spec.md")} == expected
 
 
+def test_active_reconciliation_retires_mandatory_history_replay() -> None:
+    delta = (
+        ROOT / "openspec/changes/accepted-spec-reconciliation/specs/repository-governance/spec.md"
+    ).read_text(encoding="utf-8")
+
+    assert "Historical Work Lane semantic convergence" in delta
+    assert "without replaying obsolete code" in delta
+    assert "no-fast-forward merge with the candidate base" not in delta
+    assert "a further owned successor MUST start" not in delta
+
+
 def test_active_openspec_change_deltas_use_target_product_families() -> None:
     expected = {
         "adapters",

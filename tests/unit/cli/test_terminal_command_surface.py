@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC
+from datetime import datetime
 
 import pytest
 
+from ethos.adapters.mutation.proof import persist_attestation
+from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 from tests.support.contract_helpers import commit_fixture_file
@@ -46,6 +50,34 @@ def test_bare_help_loads_the_terminal_root_surface() -> None:
     assert completed.returncode == 0, completed.stderr
     for command in PUBLIC_ROOT_COMMANDS:
         assert command in completed.stdout
+
+
+def test_takeover_is_a_public_generation_bound_lease_command() -> None:
+    completed = run_ethos_raw("lane", "lease", "takeover", "--help")
+
+    assert completed.returncode == 0, completed.stderr
+    for option in (
+        "--authorization",
+        "--source-state",
+        "--dirty-content-sha256",
+        "--lane-incarnation-id",
+        "--expect-tree",
+    ):
+        assert option in completed.stdout
+
+
+def test_lane_status_shared_inbox_is_schema_validated(tmp_path) -> None:
+    fixture = start_adopted_work_lane(
+        tmp_path / "shared-inbox-status",
+        name="shared-inbox-status",
+        holder_ref="agent:test:case:owner",
+    )
+
+    payload = run_ethos("lane", "status", "--json", cwd=fixture.worktree)
+    inbox = payload["data"]["shared_inbox"]
+    assert inbox["state"] == "open"
+    assert inbox["item_count"] == len(inbox["items"])
+    assert all("workspace_status_schema" not in gap for gap in payload["required_gaps"])
 
 
 @pytest.mark.parametrize("command", RETIRED_ROOT_COMMANDS)
@@ -139,3 +171,35 @@ def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_pat
     ):
         assert retired not in serialized
     assert payload["next_action"] == payload["data"]["stage_gates"]["next_action"]
+
+
+def test_lane_status_rebuilds_shared_inbox_from_facts_and_attestations(tmp_path) -> None:
+    fixture = start_adopted_work_lane(tmp_path)
+    first = run_ethos(
+        "lane", "status", "--root", fixture.repository.as_posix(), "--json", cwd=fixture.repository
+    )
+    inbox = first["data"]["shared_inbox"]
+    item = next(item for item in inbox["items"] if item["claim"] == "foreign_work_lane_present")
+    digest = str(item["digest"])
+    issued = datetime.now(UTC)
+    persist_attestation(
+        fixture.repository,
+        Attestation.issue(
+            {
+                "predicate": "inbox:acknowledged",
+                "verifier": "agent:test:case:reader",
+                "subject": f"inbox:item:{digest}",
+                "issued_at": issued,
+                "verdict": "pass",
+                "evidence_refs": (f"inbox:item:{digest}",),
+                "statement": {"actor": "agent:test:case:reader", "item_digest": digest},
+            }
+        ),
+    )
+
+    rebuilt = run_ethos(
+        "lane", "status", "--root", fixture.repository.as_posix(), "--json", cwd=fixture.repository
+    )["data"]["shared_inbox"]
+    observed = next(item for item in rebuilt["items"] if item["digest"] == digest)
+    assert observed["acknowledged_by"] == ["agent:test:case:reader"]
+    assert observed["consumed_by"] == []

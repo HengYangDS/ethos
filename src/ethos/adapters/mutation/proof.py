@@ -286,6 +286,11 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> Path:
     ]
     if structural_gaps:
         raise ValueError(structural_gaps[0])
+    return persist_attestation(root, attestation)
+
+
+def persist_attestation(root: Path, attestation: Attestation) -> Path:
+    """Persist one validated Attestation by its content-addressed identity."""
     payload = attestation.canonical_json().encode("utf-8")
     Attestation.model_validate_json(payload)
     return write_content_addressed(

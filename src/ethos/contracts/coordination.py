@@ -21,6 +21,7 @@ from pydantic import ValidationError
 from pydantic import field_validator
 from pydantic import model_validator
 
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import FrozenTuple
 
 _HOLDER_REF_PART_COUNT = 4
@@ -386,6 +387,33 @@ class LeaseRecoveryRequest(BaseModel):
     change_id: str = Field(min_length=1)
     ttl_seconds: int = Field(gt=0)
     apply: bool = False
+
+
+class LeaseTakeoverRequest(BaseModel):
+    """Exact accepted authorization for one exceptional Lease holder change."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    branch: str = Field(min_length=1)
+    source_holder_ref: str = Field(min_length=1)
+    target_holder_ref: str = Field(min_length=1)
+    lease_id: str = Field(min_length=1)
+    expected_lane_incarnation_id: str = Field(min_length=1)
+    expected_epoch: int = Field(ge=1)
+    expect_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    expected_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    expected_expires_at: str = Field(min_length=1)
+    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expected_dirty_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_state: Literal["quiesced", "source_lost"]
+    authorization: Attestation
+    ttl_seconds: int = Field(gt=0, default=86_400)
+    apply: bool = False
+
+    @field_validator("source_holder_ref", "target_holder_ref")
+    @classmethod
+    def validate_holder_ref(cls, value: str) -> str:
+        return HolderRef.parse(value).serialize()
 
 
 class CommitmentRebindRequest(BaseModel):

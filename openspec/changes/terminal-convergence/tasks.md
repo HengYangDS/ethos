@@ -245,7 +245,7 @@ throughput, and lane housekeeping are implemented and proved.
 
 ## 5. Rebuild The Repository Knowledge System
 
-- [ ] 5.1 Rebuild canonical docs, flat DRs, rules, skills, OpenSpec, schemas,
+- [x] 5.1 Rebuild canonical docs, flat DRs, rules, skills, OpenSpec, schemas,
   CI/forge files, evidence, records, and indexes around one native owner each.
   Repository-family records use only `evidence/` or `recovery/`, contain
   `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS`, and pass

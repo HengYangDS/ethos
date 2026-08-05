@@ -245,7 +245,7 @@ def _stage_gates(
         "ethos lane prewrite <path>"
         if authoring
         else (
-            "ethos lane start <name> --source-root <source-work-lane> "
+            "ethos lane start <name> --commitment <commitment.toml> "
             "--holder-ref <holder-ref> --apply --json"
         )
     )

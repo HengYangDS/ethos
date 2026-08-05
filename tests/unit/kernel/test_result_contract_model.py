@@ -105,7 +105,7 @@ def test_ethos_result_requires_user_decision_for_authority_bearing_action() -> N
 @pytest.mark.parametrize(
     "next_action",
     [
-        "ethos lane start feature --source-root <path> --holder-ref <holder-ref> --apply --json",
+        "ethos lane start feature --commitment <path> --holder-ref <holder-ref> --apply --json",
         "ethos land --apply=true --authorize=true --json",
     ],
 )

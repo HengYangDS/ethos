@@ -77,10 +77,12 @@ second proof-carry receipt. The projection exposes
 flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
 closeout can prove the candidate head without requiring a redundant runner pass.
 The standard Work Lane lifecycle is command-bound: `ethos lane start` consumes
-the source Work Lane's exact Lease-bound Commitment, creates the lane, and binds
-the new Lease to the resulting HEAD, tree, carrier path, carrier-byte SHA-256,
-and semantic digest. Missing or mismatched Lease coordinates block before any
-ref, worktree, or SQLite effect. `ethos lane
+an explicit Commitment for a fresh Change, or a source Work Lane's exact
+Lease-bound Commitment only when continuation is explicitly requested. It
+creates the lane and binds the new Lease to the resulting HEAD, tree, carrier
+path, carrier-byte SHA-256, and semantic digest. Missing, ambiguous, or
+mismatched Commitment coordinates block before any ref, worktree, or SQLite
+effect. `ethos lane
 refresh-base` replays a stale lane onto the configured candidate branch, `ethos
 land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work

@@ -62,6 +62,14 @@ class _RefreshBase(AppliedLaneCommandOptions):
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
 
 
+class _Start(AppliedLaneCommandOptions):
+    command = "lane start"
+    source_root: Annotated[str | None, Parameter(name="--source-root")] = None
+    commitment: Annotated[str | None, Parameter(name="--commitment")] = None
+    path: Annotated[str | None, Parameter(name="--path")] = None
+    holder_ref: Annotated[str, Parameter(name="--holder-ref")]
+
+
 class _CommitmentRebind(AppliedLaneCommandOptions):
     command = "lane rebind-commitment"
     branch: Annotated[str, Parameter(name="--branch")]
@@ -120,7 +128,7 @@ def _status_action(report: dict[str, object], verdict: Verdict) -> str:
         "ethos lane prewrite <path>"
         if report.get("role") == "work_lane"
         else (
-            "ethos lane start <name> --source-root <source-work-lane> "
+            "ethos lane start <name> --commitment <commitment.toml> "
             "--holder-ref <holder-ref> --apply --json"
         )
     )
@@ -169,13 +177,13 @@ _SUMMARIES: dict[str, Summary] = {
 _ACTIONS: dict[str, Action] = {
     "lane status": _status_action,
     "lane candidate": _actions(
-        "ethos lane start <name> --source-root <source-work-lane> "
+        "ethos lane start <name> --commitment <commitment.toml> "
         "--holder-ref <holder-ref> --apply --json",
         "ethos status",
     ),
     "lane prewrite": _actions(
         "",
-        "ethos lane start <name> --source-root <source-work-lane> "
+        "ethos lane start <name> --commitment <commitment.toml> "
         "--holder-ref <holder-ref> --apply --json",
     ),
     "lane start": _start_action,
@@ -352,24 +360,24 @@ def prewrite(
 @lane_app.command
 def start(
     name: str,
-    *,
-    source_root: Annotated[str | None, Parameter(name="--source-root")] = None,
-    path: Annotated[str | None, Parameter(name="--path")] = None,
-    holder_ref: Annotated[str, Parameter(name="--holder-ref")],
-    apply: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
+    options: Annotated[_Start, Parameter(name="*")],
 ) -> None:
     """Start an owned Work Lane and acquire a local lease."""
     report = start_work_lane(
-        root=resolve_root(root),
+        root=resolve_root(options.root),
         name=name,
-        source_root=Path(source_root) if source_root is not None else None,
-        path=Path(path) if path is not None else None,
-        holder_ref=holder_ref,
-        apply=apply,
+        source_root=Path(options.source_root) if options.source_root is not None else None,
+        commitment_path=Path(options.commitment) if options.commitment is not None else None,
+        path=Path(options.path) if options.path is not None else None,
+        holder_ref=options.holder_ref,
+        apply=options.apply,
     )
-    project_lane_result("lane start", report, enforce=apply, json_output=json_output)
+    project_lane_result(
+        options.command,
+        report,
+        enforce=options.apply,
+        json_output=options.json_output,
+    )
 
 
 @lane_app.command(name="refresh-base")

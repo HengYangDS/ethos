@@ -134,5 +134,5 @@ def path_matches_scope(path: str, pattern: str) -> bool:
         return True
     if pattern.endswith("/**"):
         prefix = pattern[:-3]
-        return path == prefix or path.startswith(f"{prefix}/")
+        return fnmatch.fnmatchcase(path, prefix) or fnmatch.fnmatchcase(path, f"{prefix}/*")
     return fnmatch.fnmatchcase(path, pattern)

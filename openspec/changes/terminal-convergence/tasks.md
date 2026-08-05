@@ -145,7 +145,7 @@ changing intent cannot deadlock or mutate an existing Commitment.
   filesystem effects use their strongest native atomic primitive and fail closed
   on drift rather than being mislabeled as CAS. Replay exists only as explicit
   analysis outside admission.
-- [ ] 3.4 Replace the coupling registry/runtime with positive native-owner
+- [x] 3.4 Replace the coupling registry/runtime with positive native-owner
   declarations while preserving prewrite rejection of undeclared imports,
   commands, executables, distributions, references, and value classes. Every
   retained constant belongs to a declared product invariant, runtime input,

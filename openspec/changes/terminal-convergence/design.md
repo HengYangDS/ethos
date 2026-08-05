@@ -263,6 +263,16 @@ Facts recompile the Phase 7 effects, whose completion is stated only by HEAD-bou
 Attestations and receipts. Archived history is neither authority nor a progress
 store.
 
+The reachable edge is `ethos lane archive-change`, a semantically namespaced
+transaction rather than a seventh public root. It verifies the current
+same-holder Lease, exact HEAD/tree, completed official status, strict validation,
+and pre-archive proof; invokes only the pinned OpenSpec `1.7.0`; validates the
+exact rename and canonical-spec delta; commits through normal hooks; advances
+the Lease to the archived Commitment; and emits a typed Attestation. This removes
+the former split ownership among an external mutation, later Git commit, and
+separate Lease repair. Post-archive plan/proof/land consume the archived
+Commitment only as the exact lane intent binding, never as current spec authority.
+
 ### Independent Fact-Boundary Closure
 
 The superseded ledger also contained constraints outside CL-001 through CL-025.

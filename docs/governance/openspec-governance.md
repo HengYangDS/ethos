@@ -30,6 +30,23 @@ ETHOS does not reproduce those operations as public roots. `ethos plan --changed
 --json`, `ethos prove --full --json`, and `ethos land --json` consume the current
 OpenSpec facts when the selected Commitment requires them.
 
+The archive write boundary is owned by a semantically namespaced Work Lane
+command, not by a seventh root command:
+
+```bash
+ethos lane archive-change \
+  --change <id> \
+  --expect-head "$(git rev-parse HEAD)" \
+  --apply --json
+```
+
+It invokes the pinned official OpenSpec executable, validates the exact archive
+delta, commits through normal hooks, relocates the current Lease to the archived
+Commitment, and records a typed Attestation. A stale HEAD/tree or proof, foreign
+holder, modified official output, repeated invocation, or reference drift is
+blocked. The archived Commitment remains only the exact intent binding for final
+proof and land; it does not become current specification authority.
+
 An OpenSpec archive is valid only when the official command completes its
 required validation and updates the accepted specification surface. ETHOS
 records no parallel lifecycle log and does not infer archive success from a

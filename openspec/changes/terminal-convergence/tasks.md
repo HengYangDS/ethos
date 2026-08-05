@@ -389,7 +389,12 @@ are proved homomorphic projections of one portable policy.
 - [ ] 6.10 Close this Change through the official owner-native OpenSpec action
   at verified version `1.7.0` as the final tracked source mutation. Bind the
   effective tool version, returned archive path, warnings, no-op state, and
-  resulting HEAD. Prove nested-spec archive, valid `skip_specs`,
+  resulting HEAD. The public `ethos lane archive-change` transition must bind
+  the same-holder Lease, exact pre-archive HEAD/tree and proof, official delta,
+  normal-hook commit, archived Commitment relocation, post-archive plan/proof/
+  land continuity, replay protection, and typed Attestation; stale, foreign,
+  tampered, or drifting input fails closed without partial state. Prove
+  nested-spec archive, valid `skip_specs`,
   metadata/spec-file conflict rejection, and already-synced delta no-op without
   spec mutation. In JSON mode, first preserve the expected
   `archive_tasks_incomplete` preflight, then use the official `--yes`

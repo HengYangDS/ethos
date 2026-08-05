@@ -222,6 +222,16 @@ def _openspec_governance_report(
         and (not rows or (len(rows) == 1 and rows[0]["status"] == "complete"))
         else None
     )
+    post_archive_scope = (
+        lease_bound_archive_scope_report(
+            root,
+            changed_paths=request.changed_paths,
+            requested_change=request.change,
+        )
+        if archive_scope is None and rows == []
+        else None
+    )
+    archive_scope = post_archive_scope or archive_scope
     archived_change = (
         str(archive_scope["changes"][0]["name"])
         if archive_scope and archive_scope.get("changes")

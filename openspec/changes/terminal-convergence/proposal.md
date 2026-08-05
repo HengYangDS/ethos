@@ -7,11 +7,11 @@ still creates contradictory truth even when its label changes. The result is
 slow change, lost intent across lanes, stale projections, false confidence, and
 an implementation burden disproportionate to the product.
 
-This Change began as the entire terminal Campaign and thereby became too large
-to land safely. It now closes only the independently proved semantic-kernel and
-Git-transaction slice. The remaining Campaign is a projection over the
-dependency-linked successor outcomes recorded in the design; migration preserves
-their intent without claiming implementation.
+This single terminal-convergence Campaign reconstructs the product from the
+smallest common generator: two durable semantic roots, fresh observations, a
+transient transition compiler, exact effects, and proof-carrying projections.
+Its phases remain independently verifiable, but this Change and its `tasks.md`
+retain the sole task-progress authority until terminal closeout.
 
 ## What Changes
 
@@ -56,9 +56,8 @@ their intent without claiming implementation.
 - Publish language-neutral contracts and a conformance kit for CLI, Python SDK,
   subprocess, and optional MCP/A2A-style adapters without making any protocol,
   agent host, or runtime mandatory.
-- Archive, land, and retire this oversized source Change after every unfinished
-  obligation has one successor outcome; later Changes close locally before one
-  final independent GitLab and GitHub publication/release attempt.
+- Finish local closeout at one terminal HEAD, then make exactly one independent
+  GitLab and GitHub publication/release attempt.
 
 ## Capabilities
 
@@ -100,10 +99,6 @@ contract, never evidence substitutes for one another.
 No foreign lane is mutated without its holder's handoff or an exact authorized
 lease takeover. Local proof, GitLab proof, GitHub proof, and publication are
 separate attestable facts.
-
-This source Change does not claim the terminal ELOC, coverage, warning,
-adopter, hosted, or publication predicates. Those obligations remain open only
-through their unique successor outcomes.
 
 ## Out of Scope
 

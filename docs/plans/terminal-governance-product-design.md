@@ -92,14 +92,12 @@ historical wording is preserved merely to satisfy a text-shaped test.
 
 ### Campaign Projection And Convergence Route
 
-The terminal Campaign is reconstructed from accepted OpenSpec Changes and their
-`Commitment.dependencies`; it is not another tracked entity. The retired
-`terminal-convergence` Change supplies the historical source-to-successor
-mapping. Successors are created from accepted `dev` only when their dependencies
-are satisfied, so the repository never carries a speculative forest of active
-Changes.
+The terminal Campaign is carried by the sole active `terminal-convergence`
+OpenSpec Change and its `tasks.md`. The dependency graph below orders atomic
+phase outcomes and their evidence without creating successor Changes, another
+task store, or a speculative forest of lanes.
 
-| Change outcome | Depends on | Independent acceptance |
+| Phase outcome | Depends on | Independent acceptance |
 | --- | --- | --- |
 | `accepted-spec-reconciliation` | terminal slice accepted | Stable specs describe implemented behavior and no archived carrier remains current authority. |
 | `portable-reference-boundary` | `accepted-spec-reconciliation` | Product references and variable values have positive native owners across every product surface. |
@@ -117,10 +115,9 @@ Changes.
 | `terminal-local-closeout` | all preceding local outcomes | One immutable HEAD passes full local proof, advances candidate and `dev`, and retires every owned lane. |
 | `dual-provider-publication` | `terminal-local-closeout` | One `proposal/*` sequence proves and publishes the same signed artifacts independently on GitLab and GitHub. |
 
-Each row becomes an OpenSpec Change only at its admission boundary. A Change that
-cannot close one row independently must split before implementation; unrelated
-rows may collaborate concurrently only when their dependency and scope facts
-admit it.
+Each row remains an independently provable phase outcome in the current Change.
+Rows may collaborate concurrently only when their dependency and scope facts
+admit it; completion remains owned solely by the corresponding tasks.
 
 ## Convergence Rules
 
@@ -145,9 +142,9 @@ admit it.
 8. **Surfaces stay projections.** CLI, SDK, MCP/A2A, CI, forge, and generated
    scaffolds share contracts and conformance tests; none owns duplicate policy or
    durable progress.
-9. **Land semantic increments.** One Change and one Work Lane carry one
-   independently landable outcome. A second independent outcome is a successor,
-   not more tasks in the same lane.
+9. **Close semantic increments.** Each phase produces an independently
+   reviewable and provable terminal-state delta. Carrier topology follows intent
+   cohesion and progress ownership rather than imposing one Change per outcome.
 
 ## Completion Boundary
 

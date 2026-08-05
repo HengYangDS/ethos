@@ -1,15 +1,12 @@
 ## Execution Contract
 
-For the ETHOS self-profile only, these tasks are the historical execution
-carrier of an oversized source Change. Checked items retain their implementation
-evidence. Previously unchecked items close only as migrated obligations: each
-source coordinate maps exactly once to a dependency-linked successor outcome in
-`design.md`, and the check mark means this source carrier no longer owns that
-work—not that the successor result exists. Numeric labels remain historical
-phase-local coordinates and are never reused to reset progress. The source Change
-is scope-frozen at `7cda1c1c00a907beebe61f21e471fa6c66133fe0`; no new terminal
-implementation is admitted here. A finite legacy-ID table proves only that legacy
-slice, while the Campaign fission table preserves the complete unfinished intent.
+These tasks are the sole progress SSOT for the terminal-convergence Campaign.
+A checked task means its complete product obligation is implemented, obsolete
+paths are removed, and current acceptance evidence covers the stated scope.
+Migration, deferral, design, partial implementation, or a narrow green test never
+counts as completion. Numeric labels remain stable and completion is monotonic:
+when audit disproves a prior completion claim, the task is reopened with the
+contradicting evidence rather than hidden behind a successor ledger.
 
 ## Completed Foundations
 
@@ -142,34 +139,37 @@ changing intent cannot deadlock or mutate an existing Commitment.
 - [x] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
   decision ledgers, lifecycle read models, and current Claim/Chronicle/proof
   authorization; retain required bytes only as non-authorizing history.
-- [x] 3.3 Keep every Git effect idempotent and exact-CAS; replay exists only as
-  explicit analysis outside admission.
-- [x] 3.4 Migrated without implementation to the unique successor mapping; source obligation: Replace the coupling registry/runtime with positive native-owner
+- [ ] 3.3 Give every Git effect one declared execution owner, exact pre/post
+  observations, idempotent terminal recognition, crash recovery, and typed
+  Attestation. Ref and Lease effects use native exact-CAS; worktree, index, and
+  filesystem effects use their strongest native atomic primitive and fail closed
+  on drift rather than being mislabeled as CAS. Replay exists only as explicit
+  analysis outside admission.
+- [ ] 3.4 Replace the coupling registry/runtime with positive native-owner
   declarations while preserving prewrite rejection of undeclared imports,
   commands, executables, distributions, references, and value classes. Every
   retained constant belongs to a declared product invariant, runtime input,
   deployment policy, forge coordinate, publication-trust capability, or extension
   declaration; normal variation of HOME, user, origin, forge, author, port,
   installation root, and provider manifest requires no product-core edit.
-- [x] 3.5 Migrated without implementation to the unique successor mapping; source obligation: Remove active private-product coupling, product-specific ontology,
+- [ ] 3.5 Remove active private-product coupling, product-specific ontology,
   schemas, policy exceptions, and undeclared references from the ETHOS surface;
   admitted generic tools and removable adapters remain positive declared owners,
   not forbidden names. Product code, docs, tests, schemas, templates, fixtures,
   examples, and generated projections contain no private-product vocabulary,
   personal identity, private host, workstation path, fixed key/fingerprint, or
   deployment-specific literal unless its positive owner explicitly declares it.
-- [x] 3.6 Migrated without implementation to the unique successor mapping; source obligation: Prove reducer, Lease, handoff, takeover, candidate CAS, retirement, and
+- [ ] 3.6 Prove reducer, Lease, handoff, takeover, candidate CAS, retirement, and
   crash invariants with stateful property tests, selected mutation operators,
   and the smallest bounded formal model; each proof names its bounded state,
   mutation budget, kill criterion, and unsupported claims.
 
-**Exit 3:** implemented transaction work remains proved; unfinished portability and
-invariant proof are uniquely migrated to `portable-reference-boundary` and
-`transition-invariant-proof`.
+**Exit 3:** the transaction mechanism, portable-reference boundary, and bounded
+invariants are implemented and proved without parallel mutation owners.
 
 ## 4. Separate Product Profiles From Coordination
 
-- [x] 4.1 Migrated without implementation to the unique successor mapping; source obligation: Keep the semantic kernel vendor-neutral while requiring verified
+- [ ] 4.1 Keep the semantic kernel vendor-neutral while requiring verified
   OpenSpec for every mutation-capable adopter as the sole Change/SDD carrier;
   observation-only repositories may omit it but cannot govern mutation. Pin
   and verify the effective CLI as
@@ -178,41 +178,40 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   apply/archive instructions, warnings, paths, and no-op JSON, resolve Change-ID
   syntax differences, reject `defaultStore`, retain no 1.6 or carrier fallback,
   and delete local predictive/parsing replicas after characterization and parity.
-- [x] 4.2 Migrated without implementation to the unique successor mapping; source obligation: Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
+- [ ] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
   candidate train to scoped resource Facts, projections, and attested effects.
-- [x] 4.3 Migrated without implementation to the unique successor mapping; source obligation: Implement capacity/risk/conflict/proof-cost collaboration and
+- [ ] 4.3 Implement capacity/risk/conflict/proof-cost collaboration and
   competition without fixed WIP or competitor cardinality.
-- [x] 4.4 Migrated without implementation to the unique successor mapping; source obligation: Complete vendor-neutral actor identity, shared-inbox reconstruction,
+- [ ] 4.4 Complete vendor-neutral actor identity, shared-inbox reconstruction,
   optional Git-lock handoff, transcript-free takeover, lost-session unknown
   state, dirty-content preservation, and orphan resolution. Exact takeover binds
   branch, HEAD, lease generation, dirty digest, target actor, source quiescence
   or loss, and epoch CAS; drift has zero effect.
-- [x] 4.5 Migrated without implementation to the unique successor mapping; source obligation: Implement adaptive backpressure, parallel proof scheduling, queue age
+- [ ] 4.5 Implement adaptive backpressure, parallel proof scheduling, queue age
   policy, and a short serialized candidate CAS that preserves stable `dev` throughput.
-- [x] 4.6 Migrated without implementation to the unique successor mapping; source obligation: Absorb or retire every authorized campaign and budget-v2 family; block
+- [ ] 4.6 Absorb or retire every authorized campaign and budget-v2 family; block
   lane explosion by requiring one owner, bounded scope, current Lease, and an
   explicit absorption or retirement destination.
 
-**Exit 4:** every coordination obligation is uniquely migrated to
-`openspec-17-cutover`, `coordination-reconstruction`, or
-`integration-throughput-housekeeping`.
+**Exit 4:** OpenSpec ownership, coordination reconstruction, integration
+throughput, and lane housekeeping are implemented and proved.
 
 ## 5. Rebuild The Repository Knowledge System
 
-- [x] 5.1 Migrated without implementation to the unique successor mapping; source obligation: Rebuild canonical docs, flat DRs, rules, skills, OpenSpec, schemas,
+- [ ] 5.1 Rebuild canonical docs, flat DRs, rules, skills, OpenSpec, schemas,
   CI/forge files, evidence, records, and indexes around one native owner each.
   Repository-family records use only `evidence/` or `recovery/`, contain
   `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS`, and pass
   admit → verify → index without rewriting history.
-- [x] 5.2 Migrated without implementation to the unique successor mapping; source obligation: Promote contradictions and taxonomy/model gaps at the earliest
+- [ ] 5.2 Promote contradictions and taxonomy/model gaps at the earliest
   admission point; recompile dependents before retiring stale carriers.
-- [x] 5.3 Migrated without implementation to the unique successor mapping; source obligation: Split, rename, absorb, or delete ambiguous `core/common/shared/utils`
+- [ ] 5.3 Split, rename, absorb, or delete ambiguous `core/common/shared/utils`
   and other catch-alls by actual semantic axes across source, tests, tools,
   configuration, and documentation; no size-only split or facade.
-- [x] 5.4 Migrated without implementation to the unique successor mapping; source obligation: Make DRs flat, newest-current first, strongly structured, and concise;
+- [ ] 5.4 Make DRs flat, newest-current first, strongly structured, and concise;
   alternatives use comparable decision tables with pros, cons, rationale,
   consequences, revisit triggers, and evidence.
-- [x] 5.5 Migrated without implementation to the unique successor mapping; source obligation: Make specs, rules, and skills evolve through coverage, overlap,
+- [ ] 5.5 Make specs, rules, and skills evolve through coverage, overlap,
   novelty, route-owner, quality, retirement, and matched evaluation checks;
   Superpowers remains an optional method pack, OpenSpec tasks remain the sole
   task SSOT, official OpenSpec Skills are generated projections without truth
@@ -221,10 +220,10 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   earliest enforceable owner through rule → gate → schema/default → scaffold or
   generator, while obsolete lower carriers are removed; decorative prose alone
   cannot count as prevention, learning, or completion.
-- [x] 5.6 Migrated without implementation to the unique successor mapping; source obligation: Absorb valuable meaning from obsolete docs and lanes, preserve only
+- [ ] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
   necessary history, then delete misleading or redundant residue without a
   generic archive truth root.
-- [x] 5.7 Migrated without implementation to the unique successor mapping; source obligation: Derive GitLab/GitHub issue, review, CI/CD, release, and provider
+- [ ] 5.7 Derive GitLab/GitHub issue, review, CI/CD, release, and provider
   projections from one portable semantic contract while preserving each
   provider's native syntax and capabilities; both are independent complete
   CI/CD and distribution planes, not a primary-plus-mirror pair. Block semantic
@@ -234,13 +233,12 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   `work/*` remain local-only, while only `dev`, `main`, and `proposal/*` may exist
   on either remote.
 
-**Exit 5:** every repository-knowledge obligation is uniquely migrated to
-`repository-knowledge-grammar`, `knowledge-evolution`, or
-`forge-projection-homomorphism`.
+**Exit 5:** repository knowledge has one evolving grammar and both forge planes
+are proved homomorphic projections of one portable policy.
 
 ## 6. Complete Quality, Product, And Ecosystem Proof
 
-- [x] 6.1 Migrated without implementation to the unique successor mapping; source obligation: Declare exactly one owner for formatting, lint, type, test,
+- [ ] 6.1 Declare exactly one owner for formatting, lint, type, test,
   architecture, docs, schema, dependency, security, SBOM, provenance, version,
   release, environment matrix, and source measurement; local and hosted gates
   call those owners. Cut Python execution over to one project-local closure:
@@ -264,19 +262,19 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   credential helpers, user identity, HOME, PATH, network, and provider state;
   local listeners are loopback-only unless an explicit deployment owner proves a
   broader bind. Exceptions name owner, scope, reason, expiry, and kill signal.
-- [x] 6.2 Migrated without implementation to the unique successor mapping; source obligation: Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
+- [ ] 6.2 Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
   coverage-ignore, and equivalent suppressions.
-- [x] 6.3 Migrated without implementation to the unique successor mapping; source obligation: Enforce Python ELOC ≤54,000, global owned-source ELOC ≤68,000, branch
+- [ ] 6.3 Enforce Python ELOC ≤54,000, global owned-source ELOC ≤68,000, branch
   coverage ≥95%, and complete behavior coverage for authority, CAS, and pure
   reducers. Changed-scope admission binds the exact merge base and evaluates
   every coordinate independently; improvement in one coordinate never compensates
   for regression in another.
-- [x] 6.4 Migrated without implementation to the unique successor mapping; source obligation: Enforce native formatting and syntax for Python, TOML, YAML, JSON,
+- [ ] 6.4 Enforce native formatting and syntax for Python, TOML, YAML, JSON,
   Markdown, shell, schemas, CI, and forge files; canonical JSON serialization,
   consistent blank-line rules, internal and external links, and projection drift.
   Exercise GitHub workflows locally with locked `act` and GitLab pipelines with
   their declared local emulator as non-hosted evidence only.
-- [x] 6.5 Migrated without implementation to the unique successor mapping; source obligation: Admit duplicate/dead-definition, complexity, dependency, security, and
+- [ ] 6.5 Admit duplicate/dead-definition, complexity, dependency, security, and
   structural tools only for distinct owned properties; delete overlapping
   wrappers, baselines, advisory-only tools, and unconsumed dependencies. One
   online refresh proposes the latest stable direct floors and lock update;
@@ -285,19 +283,19 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   import/dependency analyzers, and native language tools by signal overlap,
   false-positive cost, speed, lockability, and net deletion; do not admit a tool
   merely because it finds another metric.
-- [x] 6.6 Migrated without implementation to the unique successor mapping; source obligation: Enforce Cyclopts-only CLI, no argparse, unnecessary `__all__`, import
+- [ ] 6.6 Enforce Cyclopts-only CLI, no argparse, unnecessary `__all__`, import
   aliases, shims, wrappers, thin forwarding, re-exports, compatibility facades,
   coverage-only tests, or hard-coded policy/configuration.
-- [x] 6.7 Migrated without implementation to the unique successor mapping; source obligation: Prove Python, Node/polyglot, and docs/infra adopters through offline
+- [ ] 6.7 Prove Python, Node/polyglot, and docs/infra adopters through offline
   install, adopt/status/plan/prove/land/publish, handoff/recovery, profile
   isolation, native layout, complete pinned-OpenSpec lifecycle, and clean
   uninstall without a mandatory forge provider. Prove first-hour UX and DX for
   CLI, Python SDK, subprocess JSON, generated scaffolds/projections, diagnostics,
   and recovery without cloning ETHOS's repository shape into adopters.
-- [x] 6.8 Migrated without implementation to the unique successor mapping; source obligation: Publish language-neutral schemas and one conformance kit for CLI,
+- [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
   Python SDK, subprocess JSON, permissions, determinism, authority isolation,
   versioning, errors, offline behavior, and optional MCP/A2A-style adapters.
-- [x] 6.9 Migrated without implementation to the unique successor mapping; source obligation: Admit an execution runtime, generator, scaffold, Jinja, DI, event bus,
+- [ ] 6.9 Admit an execution runtime, generator, scaffold, Jinja, DI, event bus,
   plugin framework, or protocol adapter only when a real adopter proves unique
   need, measurable token/time gain, zero truth ownership, clean uninstall, and
   net deletion. Execution budgets count only acceptance-gap reduction, failed
@@ -310,7 +308,7 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   operator whose untrusted output requires ETHOS verification, never a
   Native/Classic runtime, adapter, hook, state, archive, dashboard, Bundle, or
   marketplace owner.
-- [x] 6.10 Close this oversized source Change through the official owner-native OpenSpec action
+- [ ] 6.10 Close this Change through the official owner-native OpenSpec action
   at verified version `1.7.0` as the final tracked source mutation. Bind the
   effective tool version, returned archive path, warnings, no-op state, and
   resulting HEAD. Prove nested-spec archive, valid `skip_specs`,
@@ -323,26 +321,25 @@ invariant proof are uniquely migrated to `portable-reference-boundary` and
   then close through HEAD-bound Attestations and receipts. Archived task history
   preserves evidence only and never remains a current execution owner.
 
-**Exit 6:** every quality, compression, adopter, interface, and method-evaluation
-obligation is uniquely migrated; this source archive uses official OpenSpec 1.7
-with `--skip-specs` so speculative deltas do not become accepted behavior.
+**Exit 6:** quality, compression, adopter, interface, and method-evaluation
+obligations are implemented and proved; official OpenSpec 1.7 archives the
+completed Change without speculative spec mutation.
 
 ## 7. Close The Campaign Once
 
-- [x] 7.1 Migrated without implementation to the unique successor mapping; source obligation: At one immutable local HEAD run format, lint, type, unit, property,
+- [ ] 7.1 At one immutable local HEAD run format, lint, type, unit, property,
   formal model, mutation, integration, adopter, package, source-budget,
   security, SBOM, provenance, offline install, release, and full ETHOS proof.
   This complete local predicate is the sole admission to any campaign remote
   mutation.
-- [x] 7.2 Migrated without implementation to the unique successor mapping; source obligation: Advance only local `candidate/dev`, then protected `dev`, through
+- [ ] 7.2 Advance only local `candidate/dev`, then protected `dev`, through
   audited exact-CAS closeout; absorb or retire every owned lane and verify
   immutable record packages, manifests, hashes, and indexes.
-- [x] 7.3 Migrated without implementation to the unique successor mapping; source obligation: Create exactly one `proposal/terminal-convergence` from that closed
+- [ ] 7.3 Create exactly one `proposal/terminal-convergence` from that closed
   HEAD and independently verify GitLab and GitHub CI/CD and review evidence;
   neither provider substitutes for the other.
-- [x] 7.4 Migrated without implementation to the unique successor mapping; source obligation: Publish protected `dev`, release protected default `main`, and verify
+- [ ] 7.4 Publish protected `dev`, release protected default `main`, and verify
   the same commit, version, signed tag, SBOM, provenance, and artifact digests on
   both providers.
-**Exit 7:** terminal local closeout and dual-provider publication are uniquely
-migrated to `terminal-local-closeout` and `dual-provider-publication`; this source
-Change makes no hosted or release completion claim.
+**Exit 7:** terminal local closeout and both independent provider publications
+are verified against the same immutable product commit and artifact identities.

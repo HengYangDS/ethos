@@ -1,17 +1,23 @@
+"""Repository-locked OpenSpec 1.7 command and JSON contracts."""
+
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
-OFFICIAL_NPX_PACKAGE = "@fission-ai/openspec@1.6.0"
-# The hosted bootstrap exposes the official OpenSpec CLI through an npx shim.
-# Cold package resolution can exceed the usual command budget, so lifecycle
-# checks must allow that bounded startup before declaring the repository gapped.
+OFFICIAL_PACKAGE = "@fission-ai/openspec"
+OFFICIAL_VERSION = "1.7.0"
+OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
+
+_ROOT = Path(__file__).resolve().parents[4]
+_PACKAGE = _ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
+_ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
+_LOCK = _ROOT / "package-lock.json"
+_NODE = shutil.which("node")
 
 
 def current_branch(root: Path) -> str:
@@ -26,53 +32,87 @@ def current_branch(root: Path) -> str:
 
 
 def openspec_base_command() -> tuple[str, ...] | None:
-    explicit = os.environ.get("ETHOS_OPENSPEC_BIN", "").strip()
-    if explicit:
-        return (explicit,)
-    return (
-        cached_official_cli_entry()
-        or (("openspec",) if shutil.which("openspec") else None)
-        or (("npx", "--yes", OFFICIAL_NPX_PACKAGE) if shutil.which("npx") else None)
+    """Return only the repository-locked OpenSpec entry, never a fallback."""
+    command = (_NODE, _ENTRY.as_posix()) if _NODE and _ENTRY.is_file() else None
+    return command if command and verify_official_cli(command)["verdict"] == "pass" else None
+
+
+def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
+    """Verify package, lock, executable, and reported version as one identity."""
+    gaps: list[str] = []
+    package = _json_object(_PACKAGE)
+    lock = _json_object(_LOCK)
+    root = lock.get("packages", {}).get("", {}) if isinstance(lock.get("packages"), dict) else {}
+    locked = (
+        lock.get("packages", {}).get("node_modules/@fission-ai/openspec", {})
+        if isinstance(lock.get("packages"), dict)
+        else {}
     )
-
-
-def cached_official_cli_entry() -> tuple[str, str] | None:
-    node = shutil.which("node") or "node"
-    cache_root = Path(os.environ.get("ETHOS_NPX_CACHE_DIR", "") or Path.home() / ".npm" / "_npx")
-    if not cache_root.exists():
-        return None
-    candidates: list[tuple[tuple[int, ...], Path]] = []
-    for package_json in cache_root.glob("*/node_modules/@fission-ai/openspec/package.json"):
-        try:
-            payload = json.loads(package_json.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        bin_value = payload.get("bin")
-        entry = (
-            str(bin_value.get("openspec") or "")
-            if isinstance(bin_value, dict)
-            else bin_value
-            if isinstance(bin_value, str)
-            else ""
+    checks = (
+        (package.get("name") == OFFICIAL_PACKAGE, "openspec_package_identity_mismatch"),
+        (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
+        (
+            isinstance(root, dict)
+            and root.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+            "openspec_root_pin_mismatch",
+        ),
+        (
+            isinstance(locked, dict) and locked.get("version") == OFFICIAL_VERSION,
+            "openspec_lock_version_mismatch",
+        ),
+        (len(command) == 2 and Path(command[1]).resolve() == _ENTRY, "openspec_entry_mismatch"),
+    )
+    gaps.extend(gap for valid, gap in checks if not valid)
+    version = ""
+    if not gaps:
+        completed = subprocess.run(
+            [*command, "--version"],
+            cwd=_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
         )
-        if not entry:
-            continue
-        entry_path = (package_json.parent / entry).resolve()
-        if not entry_path.exists():
-            continue
-        version = version_key(str(payload.get("version") or "0"))
-        candidates.append((version, entry_path))
-    if not candidates:
-        return None
-    _version, entry_path = max(candidates, key=lambda item: item[0])
-    return (node, entry_path.as_posix())
+        version = completed.stdout.strip()
+        if completed.returncode or version != OFFICIAL_VERSION:
+            gaps.append("openspec_effective_version_mismatch")
+    return {
+        "verdict": "block" if gaps else "pass",
+        "package": OFFICIAL_PACKAGE_SPEC,
+        "version": version,
+        "base_command": list(command),
+        "required_gaps": gaps,
+    }
 
 
-def version_key(value: str) -> tuple[int, ...]:
-    return tuple(
-        int("".join(character for character in part if character.isdigit()) or 0)
-        for part in value.split(".")
+def status_contract_gaps(payload: dict[str, Any]) -> list[str]:
+    """Validate the OpenSpec 1.7 artifact dependency graph projection."""
+    artifacts = payload.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        return ["openspec_status_artifact_graph_missing"]
+    valid = all(
+        isinstance(item, dict)
+        and isinstance(item.get("id"), str)
+        and isinstance(item.get("status"), str)
+        and isinstance(item.get("requires"), list)
+        for item in artifacts
     )
+    return [] if valid else ["openspec_status_artifact_graph_invalid"]
+
+
+def instructions_contract_gaps(operation: str, payload: dict[str, Any]) -> list[str]:
+    """Validate official OpenSpec 1.7 apply/archive instruction projections."""
+    common = isinstance(payload.get("changeName"), str) and isinstance(payload.get("root"), dict)
+    if operation == "archive":
+        return [] if common else ["openspec_archive_instructions_invalid"]
+    apply = (
+        common
+        and payload.get("state") in {"blocked", "ready", "complete"}
+        and isinstance(payload.get("progress"), dict)
+        and isinstance(payload.get("tasks"), list)
+        and isinstance(payload.get("instruction"), str)
+    )
+    return [] if apply else ["openspec_apply_instructions_invalid"]
 
 
 def run_json(
@@ -81,7 +121,6 @@ def run_json(
     args: tuple[str, ...],
 ) -> dict[str, Any]:
     command = (*base_command, *args)
-    timeout_seconds = OPENSPEC_COMMAND_TIMEOUT_SECONDS
     try:
         completed = subprocess.run(
             command,
@@ -89,18 +128,16 @@ def run_json(
             text=True,
             capture_output=True,
             check=False,
-            timeout=timeout_seconds,
+            timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""
         stderr = exc.stderr if isinstance(exc.stderr, str) else ""
-        if not stderr:
-            stderr = f"openspec command timed out after {timeout_seconds} seconds"
         return {
             "command": list(command),
             "exit_code": 124,
             "stdout": stdout,
-            "stderr": stderr,
+            "stderr": stderr or "openspec command timed out after 60 seconds",
             "json": {},
             "parse_error": "openspec_command_timeout",
         }
@@ -124,3 +161,11 @@ def run_json(
         "json": payload,
         "parse_error": parse_error,
     }
+
+
+def _json_object(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}

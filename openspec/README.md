@@ -36,12 +36,12 @@ Every non-trivial self-profile governance mutation should have one selected
 active Change. A completed Change remains active and blocks integration until
 the owner-native archive operation removes it from official active state.
 
-A Campaign is reconstructed from a dependency graph of Changes; it has no
-parallel task or progress carrier. Each Change owns one independently landable
-semantic outcome and one short Work Lane. `Commitment.dependencies` names its
-accepted prerequisites. Create a successor only when those prerequisites are
-accepted; do not keep unrelated outcomes open in one Change or pre-create a
-forest of speculative carriers.
+A Campaign has one OpenSpec task-progress owner. It may use one Change with
+dependency-ordered phase exits or dependency-linked Changes when each can land
+independently without duplicating progress. Never create successor carriers merely
+to move unchecked work, and never mark migration as implementation. The current
+terminal-convergence Campaign deliberately remains one active Change and one Work
+Lane until its complete terminal predicate is proved.
 
 ## Proof
 

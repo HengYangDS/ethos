@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from itertools import product
 from typing import TYPE_CHECKING
+
+import pytest
 
 import ethos.domain.land.closeout as closeout
 from ethos.contracts.admission import AdmissionDecision
@@ -9,6 +12,7 @@ from ethos.contracts.admission import MutationSubject
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.contracts.verdict import require_closed_verdict
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -106,3 +110,38 @@ def test_report_verdict_requires_explicit_semantics_and_blocks_adverse_diagnosti
         == "pass"
     )
     assert report_verdict({}) == "unknown"
+
+
+def test_closed_verdict_algebra_matches_the_complete_bounded_model() -> None:
+    """Exhaust all 3 verdicts x gaps x warnings; effects remain outside this model."""
+    verdicts = ("pass", "block", "unknown")
+    optional_signals = ((), ("signal",))
+
+    for ok, gaps, warnings in product((True, False, None), optional_signals, optional_signals):
+        base = "pass" if ok is True else "block" if ok is False else "unknown"
+        expected = "block" if warnings or (base == "pass" and gaps) else base
+        assert observation_verdict(ok=ok, required_gaps=gaps, warnings=warnings) == expected
+
+    for length in range(4):
+        for values in product(verdicts, repeat=length):
+            base = (
+                "block"
+                if "block" in values
+                else "unknown"
+                if not values or "unknown" in values
+                else "pass"
+            )
+            for gaps, warnings in product(optional_signals, repeat=2):
+                expected = "block" if warnings or (base == "pass" and gaps) else base
+                assert reduce_verdicts(*values, required_gaps=gaps, warnings=warnings) == expected
+
+    for verdict, gaps, warnings in product(verdicts, optional_signals, optional_signals):
+        report = {"verdict": verdict, "required_gaps": gaps, "warnings": warnings}
+        expected = "block" if warnings or (verdict == "pass" and gaps) else verdict
+        assert report_verdict(report) == expected
+        if expected == verdict:
+            require_closed_verdict(verdict, gaps, warnings)
+        else:
+            reason = "pass_with_warnings" if warnings else "pass_with_required_gaps"
+            with pytest.raises(ValueError, match=rf"^{reason}$"):
+                require_closed_verdict(verdict, gaps, warnings)

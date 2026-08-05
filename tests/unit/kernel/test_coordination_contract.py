@@ -5,6 +5,7 @@ import sqlite3
 from contextlib import closing
 from datetime import UTC
 from datetime import datetime
+from itertools import product
 from pathlib import Path
 
 import pytest
@@ -206,3 +207,33 @@ def test_lane_lease_rejects_non_json_python_wire_values() -> None:
 
     with pytest.raises(TypeError, match="lane_lease_payload_type_invalid"):
         LaneLease.from_payload(payload)
+
+
+def test_takeover_bounded_model_requires_every_exact_authorization_coordinate() -> None:
+    """Exhaust the abstract takeover guard; task 4.4 owns its concrete effect."""
+
+    def transition(
+        state: tuple[str, int, str, str],
+        *,
+        exact: tuple[bool, ...],
+        source_state: str,
+    ) -> tuple[str, int, str, str]:
+        holder, epoch, head, dirty_digest = state
+        admitted = all(exact) and source_state in {"quiesced", "source_lost"}
+        return (
+            ("agent:test:case:target", epoch + 1, head, dirty_digest)
+            if admitted
+            else (holder, epoch, head, dirty_digest)
+        )
+
+    initial = ("agent:test:case:source", 7, "a" * 40, "b" * 64)
+    for exact, source_state in product(
+        product((False, True), repeat=6),
+        ("active", "quiesced", "source_lost"),
+    ):
+        observed = transition(initial, exact=exact, source_state=source_state)
+        admitted = all(exact) and source_state in {"quiesced", "source_lost"}
+        if admitted:
+            assert observed == ("agent:test:case:target", 8, "a" * 40, "b" * 64)
+        else:
+            assert observed == initial

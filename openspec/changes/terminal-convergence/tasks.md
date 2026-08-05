@@ -159,7 +159,7 @@ changing intent cannot deadlock or mutate an existing Commitment.
   examples, and generated projections contain no private-product vocabulary,
   personal identity, private host, workstation path, fixed key/fingerprint, or
   deployment-specific literal unless its positive owner explicitly declares it.
-- [ ] 3.6 Prove reducer, Lease, handoff, takeover, candidate CAS, retirement, and
+- [x] 3.6 Prove reducer, Lease, handoff, takeover, candidate CAS, retirement, and
   crash invariants with stateful property tests, selected mutation operators,
   and the smallest bounded formal model; each proof names its bounded state,
   mutation budget, kill criterion, and unsupported claims.

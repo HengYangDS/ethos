@@ -186,6 +186,60 @@ def coordination_gaps(
     return required, advisory
 
 
+def collaboration_competition_projection(
+    foreign_work_lanes: list[dict[str, object]],
+    *,
+    commitment_digest: str,
+    risks: tuple[str, ...],
+    proof_cost: int,
+    proof_capacity: int | None,
+) -> dict[str, object]:
+    """Derive collaboration or competition from current resource facts."""
+    branches = [str(lane.get("branch") or "") for lane in foreign_work_lanes]
+    overlap = [lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"]
+    unknown = [
+        lane
+        for lane in foreign_work_lanes
+        if lane.get("coordination_state") in {"deferred", "unknown"}
+    ]
+    alternatives = [
+        lane
+        for lane in overlap
+        if commitment_digest and lane.get("base_commitment_digest") == commitment_digest
+    ]
+    conflicts = [lane for lane in overlap if lane not in alternatives]
+    costs = [lane.get("proof_cost") for lane in alternatives]
+    total_cost = proof_cost + sum(cost for cost in costs if isinstance(cost, int))
+    if not foreign_work_lanes:
+        state, reason = "independent", "no_peer_work_lanes"
+    elif unknown:
+        state, reason = "await_facts", "peer_scope_unknown"
+    elif conflicts:
+        state, reason = "collaborate", "overlapping_intents_require_coordination"
+    elif not alternatives:
+        state, reason = "independent", "peer_scopes_disjoint"
+    elif not risks:
+        state, reason = "collaborate", "competition_has_no_declared_risk_basis"
+    elif proof_capacity is None or any(not isinstance(cost, int) for cost in costs):
+        state, reason = "await_facts", "proof_capacity_or_cost_missing"
+    elif total_cost > proof_capacity:
+        state, reason = "collaborate", "proof_capacity_below_alternative_cost"
+    else:
+        state, reason = "compete", "alternative_realizations_admitted"
+    return {
+        "state": state,
+        "reason": reason,
+        "proof_capacity": proof_capacity,
+        "proof_cost": total_cost,
+        "risk_count": len(risks),
+        "peer_count": len(foreign_work_lanes),
+        "alternative_count": len(alternatives),
+        "conflict_count": len(conflicts),
+        "unknown_count": len(unknown),
+        "branches": branches,
+    }
+
+
 def scopes_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
     return any(path_overlaps(a, b) for a in left for b in right)
 

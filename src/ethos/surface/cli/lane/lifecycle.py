@@ -107,6 +107,7 @@ class _ArchiveChange(AppliedLaneCommandOptions):
     command = "lane archive-change"
     change: Annotated[str, Parameter(name="--change")]
     expect_head: Annotated[str, Parameter(name="--expect-head")]
+    rebuild_from: Annotated[str, Parameter(name="--rebuild-from")] = ""
 
 
 _DEFAULT_HOUSEKEEPING = _Housekeeping()
@@ -459,6 +460,7 @@ def lane_archive_change(
         root=resolve_root(options.root),
         change=options.change,
         expect_head=options.expect_head,
+        rebuild_from=options.rebuild_from,
         apply=options.apply,
     )
     project_lane_result(

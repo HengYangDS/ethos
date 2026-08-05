@@ -55,6 +55,7 @@ def resolve_git_effect_repository(
     before: dict[str, object],
     *,
     environment: Mapping[str, str] | None = None,
+    allow_missing_prestate: bool = False,
 ) -> str:
     """Resolve one repository identity across every revision touched by an effect."""
     env = dict(environment or {})
@@ -65,10 +66,12 @@ def resolve_git_effect_repository(
         *effect.assertions.values(),
     } - _ZERO_OIDS
     try:
-        identities = {
-            load_repository_commitment(root, tree_ref=revision, environment=env).id
-            for revision in revisions
-        }
+        identities = set()
+        for revision in revisions:
+            raw = committed_file_bytes(root, revision, ".ethos/commitment.toml", environment=env)
+            if not raw and allow_missing_prestate and revision in expected:
+                continue
+            identities.add(load_repository_commitment(root, tree_ref=revision, environment=env).id)
         for revision in expected - _ZERO_OIDS:
             if committed_file_bytes(root, revision, ".ethos/commitment.toml", environment=env):
                 identities.add(

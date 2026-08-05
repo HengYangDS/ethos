@@ -969,6 +969,57 @@ def test_closeout_rejects_candidate_self_granted_accepted_authority(tmp_path: Pa
     assert git(repo, "rev-parse", "dev") == accepted_head
 
 
+def test_closeout_bootstraps_the_first_repository_commitment_from_an_authorized_candidate(
+    tmp_path: Path,
+) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    commitment_text = (repo / ".ethos" / "commitment.toml").read_text(encoding="utf-8")
+    git(repo, "rm", ".ethos/commitment.toml")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "represent the pre-commitment accepted root",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", accepted_head)
+    (candidate / ".ethos" / "commitment.toml").write_text(commitment_text, encoding="utf-8")
+    git(candidate, "add", ".ethos/commitment.toml")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "introduce the first repository commitment",
+    )
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_executed_proof(candidate, candidate_head)
+
+    report = accepted_mutation.promote_candidate(
+        root=repo,
+        policy=load_branch_role_policy(repo),
+        current_head=accepted_head,
+        candidate_head=candidate_head,
+        status=workspace_status(repo),
+    )
+
+    assert report["verdict"] == "pass", json.dumps(report, indent=2)
+    assert report["previous_head"] == accepted_head
+    assert report["head"] == candidate_head
+    assert git(repo, "rev-parse", "dev") == candidate_head
+    assert (
+        report["attestation"]["commitment_digest"]
+        == load_repository_commitment(repo, tree_ref=candidate_head).digest()
+    )
+
+
 def test_closeout_first_cas_uses_the_accepted_policy_when_candidate_changes_topology(
     tmp_path: Path,
 ) -> None:

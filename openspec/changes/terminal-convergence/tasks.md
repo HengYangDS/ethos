@@ -222,8 +222,14 @@ invariants are implemented and proved without parallel mutation owners.
   state, dirty-content preservation, and orphan resolution. Exact takeover binds
   branch, HEAD, lease generation, dirty digest, target actor, source quiescence
   or loss, and epoch CAS; drift has zero effect.
-- [ ] 4.5 Implement adaptive backpressure, parallel proof scheduling, queue age
-  policy, and a short serialized candidate CAS that preserves stable `dev` throughput.
+- [x] 4.5 Implement adaptive backpressure, parallel proof scheduling, queue age
+  policy, and a short serialized candidate CAS that preserves stable `dev`
+  throughput. Read-only ready gates now execute in bounded deterministic waves
+  while write gates remain exclusive. Queue age derives from Lease `issued_at`;
+  candidate progress/stall derives from native Git reflog advances; candidate
+  lag, proof cost, and capacity remain transient Facts. Landing retains one
+  exact-CAS mutation owner, re-observes and recompiles once after an unchanged
+  transient CAS rejection, and never overwrites a moved candidate ref.
 - [ ] 4.6 Absorb or retire every authorized campaign and budget-v2 family; block
   lane explosion by requiring one owner, bounded scope, current Lease, and an
   explicit absorption or retirement destination.

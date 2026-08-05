@@ -55,6 +55,7 @@ def test_collaboration_competition_projection_derives_only_from_facts() -> None:
         risks=("uncertain cutover",),
         proof_cost=2,
         proof_capacity=5,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
     ) == {
         "state": "compete",
         "reason": "alternative_realizations_admitted",
@@ -66,6 +67,11 @@ def test_collaboration_competition_projection_derives_only_from_facts() -> None:
         "conflict_count": 0,
         "unknown_count": 0,
         "branches": ["work/alternative"],
+        "admission_order": ["work/alternative"],
+        "queue_age_seconds": {"work/alternative": 0},
+        "backpressure": "open",
+        "candidate_progress": {},
+        "proof_capacity_available": 3,
     }
     insufficient = collaboration_competition_projection(
         [alternative],
@@ -73,6 +79,7 @@ def test_collaboration_competition_projection_derives_only_from_facts() -> None:
         risks=("uncertain cutover",),
         proof_cost=2,
         proof_capacity=4,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
     )
     assert {key: insufficient[key] for key in ("state", "reason")} == {
         "state": "collaborate",
@@ -84,6 +91,7 @@ def test_collaboration_competition_projection_derives_only_from_facts() -> None:
         risks=("uncertain cutover",),
         proof_cost=2,
         proof_capacity=20,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
     )
     assert {key: overlapping[key] for key in ("state", "reason")} == {
         "state": "collaborate",
@@ -95,6 +103,7 @@ def test_collaboration_competition_projection_derives_only_from_facts() -> None:
         risks=(),
         proof_cost=2,
         proof_capacity=20,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
     )
     assert {key: deterministic[key] for key in ("state", "reason")} == {
         "state": "collaborate",
@@ -106,11 +115,100 @@ def test_collaboration_competition_projection_derives_only_from_facts() -> None:
         risks=("uncertain cutover",),
         proof_cost=2,
         proof_capacity=None,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
     )
     assert {key: unknown[key] for key in ("state", "reason")} == {
         "state": "await_facts",
         "reason": "proof_capacity_or_cost_missing",
     }
+
+
+def test_adaptive_admission_ages_equivalent_ready_work_without_persisted_queue_state() -> None:
+    now = datetime(2026, 8, 6, tzinfo=UTC)
+    younger = {
+        "branch": "work/younger",
+        "coordination_state": "overlap",
+        "base_commitment_digest": "a" * 64,
+        "proof_cost": 1,
+        "lease": {"issued_at": "2026-08-05T12:00:00+00:00"},
+    }
+    older = younger | {
+        "branch": "work/older",
+        "lease": {"issued_at": "2026-08-01T00:00:00+00:00"},
+    }
+
+    projection = collaboration_competition_projection(
+        [younger, older],
+        commitment_digest="a" * 64,
+        risks=("uncertain cutover",),
+        proof_cost=1,
+        proof_capacity=3,
+        observed_at=now,
+    )
+
+    assert projection["admission_order"] == ["work/older", "work/younger"]
+    assert projection["queue_age_seconds"] == {
+        "work/older": 432000,
+        "work/younger": 43200,
+    }
+    assert projection["backpressure"] == "open"
+    assert "queued_at" not in projection
+
+
+def test_adaptive_admission_applies_backpressure_when_candidate_is_not_progressing() -> None:
+    projection = collaboration_competition_projection(
+        [],
+        commitment_digest="a" * 64,
+        risks=(),
+        proof_cost=2,
+        proof_capacity=4,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
+        candidate={
+            "behind_accepted": 3,
+            "advance_count": 8,
+            "latest_advance_age_seconds": 120,
+            "latest_interval_seconds": 1800,
+            "advances_per_hour": 2.0,
+        },
+    )
+
+    assert projection["backpressure"] == "candidate_behind_accepted"
+    assert projection["proof_capacity_available"] == 2
+
+
+def test_adaptive_admission_distinguishes_candidate_progress_from_stall() -> None:
+    current = collaboration_competition_projection(
+        [],
+        commitment_digest="a" * 64,
+        risks=(),
+        proof_cost=2,
+        proof_capacity=4,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
+        candidate={
+            "advance_count": 8,
+            "latest_advance_age_seconds": 120,
+            "latest_interval_seconds": 1800,
+            "advances_per_hour": 2.0,
+        },
+    )
+    stalled = collaboration_competition_projection(
+        [],
+        commitment_digest="a" * 64,
+        risks=(),
+        proof_cost=2,
+        proof_capacity=4,
+        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
+        candidate={
+            "advance_count": 1,
+            "latest_advance_age_seconds": 7200,
+            "latest_interval_seconds": 3600,
+            "advances_per_hour": 0.0,
+        },
+    )
+
+    assert current["backpressure"] == "open"
+    assert stalled["backpressure"] == "candidate_stalled"
+    assert current["candidate_progress"] != stalled["candidate_progress"]
 
 
 def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:

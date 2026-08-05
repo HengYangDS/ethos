@@ -1547,3 +1547,113 @@ def test_run_plan_checks_resolves_policy_from_plan_head(monkeypatch, tmp_path: P
 
     assert proof_cli.run_plan_checks(repo=repo, plan=plan, execute=False) == ([], False)
     assert seen == [{"tree_ref": head, "gate_ids": ()}]
+
+
+def test_land_reobserves_and_retries_one_transient_candidate_cas_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    work_head = _archive_fixture_change(monkeypatch, worktree)
+    seed_executed_proof(worktree, work_head)
+    original = landing_mutation.execute_git_effect
+    original_proof = landing_mutation.proof_attestation
+    attempts = 0
+    proof_reads = 0
+
+    def record_proof(*args, **kwargs):
+        nonlocal proof_reads
+        proof_reads += 1
+        return original_proof(*args, **kwargs)
+
+    def fail_once(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ValueError("git_effect_cas_rejected")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(landing_mutation, "execute_git_effect", fail_once)
+    monkeypatch.setattr(landing_mutation, "proof_attestation", record_proof)
+    payload = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        work_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert attempts == 2
+    assert proof_reads == 2
+    assert payload["verdict"] == "pass"
+    assert payload["data"]["candidate_update"]["cas_attempts"] == 2
+    assert git(candidate, "rev-parse", "HEAD") == work_head
+
+
+def test_land_bounds_repeated_candidate_cas_failure_to_two_attempts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    work_head = _archive_fixture_change(monkeypatch, worktree)
+    seed_executed_proof(worktree, work_head)
+    attempts = 0
+
+    def always_fail(*_args, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise ValueError("git_effect_cas_rejected")
+
+    monkeypatch.setattr(landing_mutation, "execute_git_effect", always_fail)
+    payload = run_ethos_blocked(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        work_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert attempts == 2
+    assert payload["required_gaps"] == ["candidate_cas_retry_exhausted"]
+    assert payload["data"]["candidate_update"]["cas_attempts"] == 2
+
+
+def test_land_reports_stale_candidate_without_overwriting_new_progress(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    work_head = _archive_fixture_change(monkeypatch, worktree)
+    seed_executed_proof(worktree, work_head)
+    original = landing_mutation.execute_git_effect
+    attempts = 0
+
+    def advance_candidate_then_fail(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            commit_fixture_file(candidate, "PEER.md", "# peer\n", "peer progress")
+            raise ValueError("git_effect_cas_rejected")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(landing_mutation, "execute_git_effect", advance_candidate_then_fail)
+    payload = run_ethos_blocked(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        work_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    assert attempts == 1
+    assert payload["required_gaps"] == ["candidate_cas_stale"]
+    assert payload["data"]["candidate_update"]["candidate_head"] == candidate_head
+    assert payload["data"]["candidate_update"]["cas_attempts"] == 1
+    assert candidate_head != work_head

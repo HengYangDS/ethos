@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from itertools import pairwise
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -17,6 +18,7 @@ from typing import overload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from datetime import datetime
 
 _GIT = shutil.which("git") or "git"
 
@@ -163,6 +165,41 @@ def git_stdout(root: Path, *args: str) -> str:
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
+
+
+def ref_progress(root: Path, ref: str, *, observed_at: datetime) -> dict[str, object]:
+    """Project recent ref progress from Git's native reflog."""
+    output = git_stdout(root, "reflog", "show", "--date=unix", "--format=%H%x00%gD", ref)
+    entries: list[tuple[str, int]] = []
+    for line in output.splitlines():
+        head, _, selector = line.partition("\0")
+        timestamp = selector.removeprefix(f"{ref}@{{").removesuffix("}")
+        if head and timestamp.isdigit():
+            entries.append((head, int(timestamp)))
+    timestamps = [
+        timestamp for (new, timestamp), (old, _) in pairwise(entries) if is_ancestor(root, old, new)
+    ]
+    if not timestamps:
+        return {
+            "observation": "git_reflog",
+            "ref": ref,
+            "advance_count": 0,
+            "interval_seconds": None,
+            "latest_interval_seconds": None,
+            "latest_advance_age_seconds": None,
+            "advances_per_hour": None,
+        }
+    interval = max(timestamps) - min(timestamps)
+    latest_interval = timestamps[0] - timestamps[1] if len(timestamps) > 1 else None
+    return {
+        "observation": "git_reflog",
+        "ref": ref,
+        "advance_count": len(timestamps),
+        "interval_seconds": interval,
+        "latest_interval_seconds": latest_interval,
+        "latest_advance_age_seconds": max(0, int(observed_at.timestamp()) - max(timestamps)),
+        "advances_per_hour": len(timestamps) * 3600 / interval if interval else 0.0,
+    }
 
 
 def committed_file_text(root: Path, ref: str, path: str) -> str:

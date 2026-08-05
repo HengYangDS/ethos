@@ -95,6 +95,14 @@ successor Lease. Prewrite, TransitionPlan, proof, head advance, handoff,
 closeout, retirement, and status all consume the same strict Lease observation
 and exact carrier binding. Cross-host source revocation is likewise an exact
 live-Lease CAS: a missing Lease blocks and never masquerades as successful replay.
+
+`ethos lane archive-change` closes the lifecycle edge that cannot be split
+between an external archive process and a later Git commit. It requires the
+same-holder exact Lease and proof for the pre-archive HEAD, runs official
+OpenSpec `1.7.0`, admits only its exact rename/spec delta, commits through the
+ordinary hooks, advances the Lease to the archived carrier, and attests the
+post-state. The archived HEAD remains plan/proof/land capable without restoring
+an active carrier or bypassing hooks.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
 HEAD, complete Lease generation, and accepted-relation facts, but no lifecycle
 command deletes them.

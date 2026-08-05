@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -7,7 +9,12 @@ import pytest
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
+from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.cli import main
 from ethos.normalization.coercion import repository_path_matches
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -22,6 +29,224 @@ def test_scope_glob_matches_archive_directory_descendants() -> None:
         "openspec/changes/archive/2026-08-05-fixture-change/tasks.md",
         "openspec/changes/archive/*-fixture-change/**",
     )
+
+
+def test_archive_change_owns_official_archive_commit_and_lease_transition(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, head: [] if head == completed_head else ["proof_not_proven"],
+    )
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed_head,
+        apply=True,
+    )
+
+    archived_head = git(worktree, "rev-parse", "HEAD")
+    assert report["verdict"] == "pass", report
+    assert report["state"] == "archived"
+    assert report["previous_head"] == completed_head
+    assert report["head"] == archived_head
+    assert report["archive_path"].endswith("-fixture-change")
+    assert report["tool_version"] == "1.7.0"
+    assert report["required_gaps"] == []
+    assert not (worktree / "openspec/changes/fixture-change").exists()
+    assert (worktree / report["archive_path"] / "commitment.toml").is_file()
+    assert git(worktree, "status", "--short") == ""
+    assert openspec_governance_report(worktree, lifecycle=True)["verdict"] == "pass"
+    changed_paths = change_scope_paths_from_status(worktree, workspace_status(worktree))
+    changed_plan = openspec_governance_report(
+        worktree,
+        lifecycle=True,
+        changed_paths=changed_paths,
+        require_workspace=False,
+    )
+    assert changed_plan["verdict"] == "pass", changed_plan
+    assert changed_plan["required_gaps"] == []
+    assert changed_plan["lifecycle"]["scope_binding"]["state"] == "post_archive_closeout"
+    plan = proof_plan(worktree, head=archived_head)
+    assert plan.verdict == "pass"
+    assert plan.facts["values"]["change_id"] == "fixture-change"
+
+
+def test_archive_change_is_exposed_through_installed_cli_projection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "ethos",
+            "lane",
+            "archive-change",
+            "--change",
+            "fixture-change",
+            "--expect-head",
+            completed_head,
+            "--root",
+            worktree.as_posix(),
+            "--json",
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="0"):
+        main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "lane archive-change"
+    assert payload["verdict"] == "pass"
+    assert payload["state"] == "ready_to_archive"
+
+
+def test_archive_change_rejects_stale_head_without_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head="f" * 40,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["expect_head_mismatch"]
+    assert git(worktree, "rev-parse", "HEAD") == completed_head
+    assert (worktree / "openspec/changes/fixture-change").is_dir()
+
+
+def test_archive_change_is_not_replayable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+    first = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed_head,
+        apply=True,
+    )
+
+    replay = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=str(first["head"]),
+        apply=True,
+    )
+
+    assert replay["verdict"] == "block"
+    assert "openspec_active_change_missing:fixture-change" in replay["required_gaps"]
+
+
+def test_archive_change_rejects_different_holder(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:different")
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed_head,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["lease_actor_mismatch"]
+    assert (worktree / "openspec/changes/fixture-change").is_dir()
+
+
+def test_archive_change_restores_tree_when_official_output_is_tampered(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+    original = openspec_cli.run_json
+
+    def tampered(root: Path, command: tuple[str, ...], args: tuple[str, ...]):
+        result = original(root, command, args)
+        if args[0] == "archive" and result["exit_code"] == 0:
+            result["json"]["archive"]["change"] = "other-change"
+        return result
+
+    monkeypatch.setattr(openspec_cli, "run_json", tampered)
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed_head,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["openspec_archive_result_invalid"]
+    assert git(worktree, "rev-parse", "HEAD") == completed_head
+    assert git(worktree, "status", "--short") == ""
+    assert (worktree / "openspec/changes/fixture-change").is_dir()
+
+
+def _complete_change(worktree: Path) -> str:
+    previous = git(worktree, "rev-parse", "HEAD")
+    tasks = worktree / "openspec/changes/fixture-change/tasks.md"
+    tasks.write_text(tasks.read_text(encoding="utf-8").replace("- [ ]", "- [x]"), encoding="utf-8")
+    git(worktree, "add", tasks.relative_to(worktree).as_posix())
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "complete fixture change",
+    )
+    head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=previous,
+        new_value=head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    return head
 
 
 def test_governance_allows_lease_bound_post_archive_closeout(

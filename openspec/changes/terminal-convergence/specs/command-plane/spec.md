@@ -46,6 +46,14 @@ Commands SHALL project one mechanism: observe, extract, resolve, compile, evalua
 - **AND** a repository without verified OpenSpec remains observation-only and
   fails closed before governed mutation
 
+#### Scenario: owner-native archive remains semantically namespaced
+- **WHEN** a completed Work Lane Change must cross the archive boundary
+- **THEN** the hidden lifecycle command is `ethos lane archive-change`
+- **AND** no seventh public root, `ethos openspec` compatibility command, or
+  parallel receipt authority is introduced
+- **AND** installed CLI discovery and repository source expose the same command
+  from the same package environment
+
 ### Requirement: Proof Command State Semantics
 Verdicts SHALL be compact and truthful: `pass`, `block`, or `unknown`; missing or
 unverifiable required facts produce `unknown` and block effects, while conflicts,

@@ -69,6 +69,18 @@ latest explicit ruling SHALL supersede earlier conflicting guidance.
 ### Requirement: Exact Work Lane Lifecycle Effects
 Routine coordination SHALL remain a local projection. Exceptional repository-semantic effects SHALL require exact selected Commitment, fresh Facts, explicit holder or authorized takeover, CAS preconditions, post-observation, and an Attestation; generic cleanup SHALL never infer authority.
 
+#### Scenario: archive is one reachable exact transition
+- **GIVEN** a clean Work Lane whose current same-holder Lease binds a completed
+  OpenSpec Change and exact proven HEAD/tree
+- **WHEN** the archive lifecycle command applies
+- **THEN** official archive mutation, archive-delta admission, normal-hook commit,
+  Lease carrier relocation, post-archive observation, and effect Attestation form
+  one recoverable transition
+- **AND** the post-archive HEAD can immediately recompile plan/proof and proceed
+  to land without an active Change carrier
+- **AND** ordinary staged archive mutation remains fail closed unless it is the
+  exact Lease-bound transition
+
 #### Scenario: routine lifecycle remains local
 
 - **WHEN** a lease is acquired, renewed, resumed, locally handed off, expires, or

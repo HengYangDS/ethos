@@ -16,6 +16,7 @@ from pydantic import ConfigDict
 import ethos.domain.prove as prove_domain
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
     refresh_candidate_from_accepted,
@@ -102,6 +103,12 @@ class _CommitmentRebind(AppliedLaneCommandOptions):
     expected_path_scope: Annotated[tuple[str, ...], Parameter(name="--expected-path-scope")] = ()
 
 
+class _ArchiveChange(AppliedLaneCommandOptions):
+    command = "lane archive-change"
+    change: Annotated[str, Parameter(name="--change")]
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
+
+
 _DEFAULT_HOUSEKEEPING = _Housekeeping()
 _DEFAULT_REFRESH_BASE = _RefreshBase()
 
@@ -176,6 +183,7 @@ _SUMMARIES: dict[str, Summary] = {
     },
     "lane start": _fields("branch", "path"),
     "lane refresh-base": _fields("branch", "candidate_branch", "head", "candidate_head"),
+    "lane archive-change": _fields("branch", "change", "head", "archive_path"),
 }
 _ACTIONS: dict[str, Action] = {
     "lane status": _status_action,
@@ -433,6 +441,25 @@ def lane_refresh_base(
         apply=options.apply,
         authorized=options.authorize,
         expect_head=options.expect_head,
+    )
+    project_lane_result(
+        options.command,
+        report,
+        enforce=options.apply,
+        json_output=options.json_output,
+    )
+
+
+@lane_app.command(name="archive-change")
+def lane_archive_change(
+    options: Annotated[_ArchiveChange, Parameter(name="*")],
+) -> None:
+    """Archive one completed Change through the official governed transition."""
+    report = archive_change(
+        root=resolve_root(options.root),
+        change=options.change,
+        expect_head=options.expect_head,
+        apply=options.apply,
     )
     project_lane_result(
         options.command,

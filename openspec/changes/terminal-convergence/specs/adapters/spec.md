@@ -169,7 +169,15 @@ mutation-capable adopter. Generic kernel compilation SHALL not import OpenSpec t
 
 #### Scenario: ETHOS archives its own active change
 - **WHEN** the self profile selects OpenSpec and the Change is ready for archival
-- **THEN** the operator invokes the owner-native official OpenSpec operation
+- **THEN** `ethos lane archive-change --change <id> --expect-head <head>
+  --apply` verifies the same-holder Lease, exact HEAD/tree, completed official
+  status, strict validation, and HEAD-bound proof before invoking pinned
+  OpenSpec `1.7.0`
+- **AND** the command admits only the exact source-to-archive rename and canonical
+  spec delta, commits it through normal hooks, advances the Lease to the archived
+  Commitment, and emits a content-addressed typed Attestation
+- **AND** stale facts, foreign holders, changed output, replay, or ref drift fail
+  closed without leaving a partial archive
 - **AND** the resulting archive is history, not a generic runtime authority
 
 ### Requirement: Optional tool adapters remain replaceable

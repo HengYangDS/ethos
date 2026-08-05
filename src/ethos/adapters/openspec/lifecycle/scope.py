@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import fnmatch
 from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.contracts.semantic import load_commitment_file
+from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.audit import change_tasks_complete
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -48,7 +48,7 @@ def material_change_scope_report(
         return report
     patterns = profile.declaration.openspec.material_paths
     material = tuple(
-        path for path in paths if any(path_matches_scope(path, glob) for glob in patterns)
+        path for path in paths if any(repository_path_matches(path, glob) for glob in patterns)
     )
     report.update(material_patterns=list(patterns), material_paths=list(material))
     names = _active_change_names(root, active_change_names)
@@ -72,7 +72,7 @@ def material_change_scope_report(
                 for change in changes
                 if change.get("verdict") == "pass"
                 and any(
-                    path_matches_scope(path, pattern)
+                    repository_path_matches(path, pattern)
                     for pattern in string_sequence(change.get("scope"))
                 )
             ],
@@ -126,13 +126,3 @@ def commitment_report(root: Path, name: str) -> dict[str, object]:
         "scope": list(contract.scope),
         "required_gaps": [],
     }
-
-
-def path_matches_scope(path: str, pattern: str) -> bool:
-    """Return whether one repository path is covered by a Commitment pattern."""
-    if pattern == "**":
-        return True
-    if pattern.endswith("/**"):
-        prefix = pattern[:-3]
-        return fnmatch.fnmatchcase(path, prefix) or fnmatch.fnmatchcase(path, f"{prefix}/*")
-    return fnmatch.fnmatchcase(path, pattern)

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ETHOS reference-transaction admission — closes the candidate-train bypass.
 #
 # Installed by `ethos hook install`. git runs this hook for every ref update with the

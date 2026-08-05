@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ETHOS pre-push admission: a push to a protected role (accepted/candidate) requires
 # an executed proof bound to the pushed HEAD. When a checkout opts into
 # ethos.pushIdentityPolicy=configured-user, every newly pushed commit must also match

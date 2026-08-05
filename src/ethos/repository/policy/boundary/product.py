@@ -19,6 +19,7 @@ from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_E
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_PREFIXES
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_FORBIDDEN_FILE_PREFIXES
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_MANIFEST_FILES
+from ethos.repository.policy.boundary.catalog import FIXED_KEY_PATTERNS
 from ethos.repository.policy.boundary.catalog import GENERIC_PLACEHOLDERS
 from ethos.repository.policy.boundary.catalog import HISTORICAL_SURFACE_PREFIXES
 from ethos.repository.policy.boundary.catalog import LOCAL_PATH_PATTERNS
@@ -32,6 +33,7 @@ from ethos.repository.policy.boundary.catalog import PRODUCT_SURFACES
 from ethos.repository.policy.boundary.catalog import RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
 from ethos.repository.policy.boundary.catalog import SESSION_SURFACE_PATTERNS
 from ethos.repository.policy.boundary.catalog import SKIPPED_PRODUCT_DIR_PARTS
+from ethos.repository.policy.boundary.catalog import TEXT_FILENAMES
 from ethos.repository.policy.boundary.catalog import TEXT_SUFFIXES
 
 
@@ -74,7 +76,7 @@ def _is_text_product_file(path: Path, *, root: Path, surfaces: tuple[str, ...]) 
         return False
     if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):
         return False
-    if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name == "LICENSE")):
+    if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name in TEXT_FILENAMES)):
         return False
     return any(rel == surface or rel.startswith(f"{surface}/") for surface in surfaces)
 
@@ -102,7 +104,7 @@ def _is_text_release_visible_historical_file(path: Path, *, root: Path) -> bool:
         return False
     if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):
         return False
-    if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name == "LICENSE")):
+    if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name in TEXT_FILENAMES)):
         return False
     return any(rel.startswith(prefix) for prefix in RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES)
 
@@ -251,6 +253,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
     patterns.extend(
         ("private_infrastructure_literal", pattern) for pattern in PRIVATE_INFRA_PATTERNS
     )
+    patterns.extend(("fixed_key_or_fingerprint", pattern) for pattern in FIXED_KEY_PATTERNS)
     patterns.extend(("adopter_specific_literal", pattern) for pattern in ADOPTER_LITERAL_PATTERNS)
     patterns.extend(
         ("private_reference_literal", pattern) for pattern in PRIVATE_REFERENCE_PATTERNS

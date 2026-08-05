@@ -143,7 +143,7 @@ def test_restricted_cel_prefix_predicate_matches_segment_boundary(path: str, pre
 def test_topology_cel_rules_compile_and_first_match_witnesses_cover_every_rule() -> None:
     declaration = load_generated_artifact_topology_declaration()
     witnesses = {
-        "product-adopter-root": "adopters/acme/report.json",
+        "product-adopter-root": "adopters/sample-adopter/report.json",
         "denied-prefix": ".config/ci/scripts/run-python-tests.sh",
         "denied-root-cache": ".import_linter_cache/cache.sqlite",
         "cache-flat": ".cache/tool/state.json",

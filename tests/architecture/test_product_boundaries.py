@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import Any
+from typing import cast
 
 import pytest
 
@@ -147,7 +149,8 @@ def test_workspace_contributor_policy_is_multi_actor() -> None:
     report = contributor_policy_report(ROOT)
     assert report["verdict"] == "pass", report["findings"]
     assert "ok" not in report
-    summary, policy = report["summary"], report["policy"]
+    summary = cast("dict[str, Any]", report["summary"])
+    policy = cast("dict[str, Any]", report["policy"])
     assert summary["identity_mode"] == "external"
     assert summary["identity_count"] >= 2
     assert {"maintainer", "team", "bot"} <= set(summary["roles"])
@@ -168,29 +171,66 @@ def test_distribution_metadata_is_neutral() -> None:
     npm = json.loads((ROOT / "distributions/npm/package.json").read_text())
     for manifest in (npm,):
         assert not {"author", "authors", "maintainers"} & manifest.keys()
-    for rel in ("pyproject.toml", "pyproject.toml", "pyproject.toml"):
+    for rel in ("pyproject.toml",):
         project = tomllib.loads((ROOT / rel).read_text(encoding="utf-8"))["project"]
         assert not {"authors", "maintainers"} & project.keys()
 
 
 def test_distribution_package_manifest_is_enterprise_neutral() -> None:
     report = product_boundary_report(ROOT)
+    policy = cast("dict[str, Any]", report["policy"])
     npm = json.loads((ROOT / "distributions/npm/package.json").read_text())
     root = json.loads((ROOT / "package.json").read_text())
     assert report["verdict"] == "pass", report["findings"]
     assert root["private"] is True
     assert npm["files"] == ["bin/ethos.mjs", "README.md"]
     assert not {"author", "authors", "maintainers", "contributors"} & npm.keys()
-    assert "distribution_manifest_files" in report["policy"]
-    assert "historical evidence" in report["policy"]["distribution_boundary"]
+    assert "distribution_manifest_files" in policy
+    assert "historical evidence" in policy["distribution_boundary"]
 
 
 def test_active_product_surfaces_have_no_named_private_reference_dependency() -> None:
     report = product_boundary_report(ROOT)
+    summary = cast("dict[str, Any]", report["summary"])
+    policy = cast("dict[str, Any]", report["policy"])
     assert report["verdict"] == "pass", report["findings"]
-    assert report["summary"]["by_kind"].get("private_reference_literal", 0) == 0
-    assert "private_reference_boundary" in report["policy"]
+    assert summary["by_kind"].get("private_reference_literal", 0) == 0
+    assert "private_reference_boundary" in policy
     assert not (ROOT / ".ethos" / "quality-regime-decision.md").exists()
+
+
+def test_product_boundary_covers_all_code_fixtures_and_tooling() -> None:
+    roots = set(declared_product_surface_roots(ROOT))
+    scanned = {path.relative_to(ROOT).as_posix() for path in declared_product_surface_files(ROOT)}
+
+    assert {"src/ethos", "tests", "tools", "system"} <= roots
+    assert {
+        ".githooks/pre-commit",
+        ".gitignore",
+        ".pre-commit-config.yaml",
+        ".config/checks/import-linter/contracts.ini",
+        ".config/checks/architecture/models/ethos_repository.c4",
+        "assets/brand/ethos-logo.svg",
+        "docs/architecture/_generated/ethos-repository.mmd",
+        "package-lock.json",
+        "ruff.toml",
+        "uv.lock",
+    } <= scanned
+
+
+def test_product_boundary_rejects_fixed_key_and_fingerprint_literals(tmp_path: Path) -> None:
+    source = tmp_path / "tests"
+    source.mkdir(parents=True)
+    source.joinpath("identity.py").write_text(
+        'key = "id_' + 'ed25519"\nfingerprint = "SHA' + '256:' + 'A' * 32 + '"\n',
+        encoding="utf-8",
+    )
+
+    report = product_boundary_report(tmp_path)
+    summary = cast("dict[str, Any]", report["summary"])
+
+    assert report["verdict"] == "block"
+    assert summary["by_kind"] == {"fixed_key_or_fingerprint": 2}
 
 
 def test_product_references_use_positive_native_owner_closure() -> None:
@@ -209,9 +249,10 @@ def test_declared_surface_carriers_include_active_openspec_and_exclude_history()
 def test_attestation_carrier_is_current_and_legacy_evidence_is_historical() -> None:
     roots = set(declared_product_surface_roots(ROOT))
     report = product_boundary_report(ROOT)
+    policy = cast("dict[str, Any]", report["policy"])
 
     assert "evidence/attestations" in roots
-    assert report["policy"]["historical_surface_prefixes"] == [
+    assert policy["historical_surface_prefixes"] == [
         "evidence/claims/",
         "evidence/chronicle/",
         "evidence/parity/",

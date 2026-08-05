@@ -9,7 +9,6 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
-from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.result import EthosResult
@@ -38,7 +37,9 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
             )
         )
     )
-    coordination = cast("dict[str, object]", observed.get("coordination") or {})
+    foreign = cast("list[dict[str, object]]", observed.get("foreign_work_lanes") or [])
+    unbound = cast("list[dict[str, object]]", observed.get("unbound_work_lane_refs") or [])
+    coordination_gaps = string_sequence(observed.get("coordination_gaps"))
     landing = cast("dict[str, object]", observed.get("landing_readiness") or {})
     data = {
         "root": observed.get("root", ""),
@@ -54,13 +55,13 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
             "next_action": landing.get("next_action", ""),
         },
         "coordination": {
-            "detail_state": coordination.get("detail_state", "exact"),
-            "blocking": bool(coordination.get("blocking")),
-            "foreign_work_lane_count": integer(coordination.get("foreign_work_lane_count")),
-            "unbound_work_lane_count": integer(coordination.get("unbound_work_lane_count")),
-            "missing_lease_count": integer(coordination.get("missing_lease_count")),
-            "advisory_count": _count(coordination.get("advisory_gaps")),
-            "required_count": _count(coordination.get("required_gaps")),
+            "detail_state": "deferred",
+            "blocking": any(gap.startswith("coordination_gap:") for gap in gaps),
+            "foreign_work_lane_count": len(foreign),
+            "unbound_work_lane_count": len(unbound),
+            "missing_lease_count": sum(lane.get("lease_state") == "missing" for lane in foreign),
+            "advisory_count": len(coordination_gaps),
+            "required_count": sum(gap.startswith("coordination_gap:") for gap in gaps),
         },
     }
     compact_coordination = data["coordination"]

@@ -138,6 +138,17 @@ new product ontology.
     one independently useful result. If a proved subset can land while another
     acceptance obligation remains open, the latter is a successor rather than
     more scope in the same lane.
+18. **Intent is compiled, not rediscovered or duplicated.** For each atomic
+    Change, official OpenSpec status, instructions, artifact dependencies,
+    project context, artifact rules, completed artifacts, and selected
+    Commitment are the inputs to one transient intent context. It derives
+    ambiguities, assumptions, invariants, negative scope, affected capabilities,
+    requirement-to-task-to-proof edges, and unresolved contradictions before
+    mutation. Missing material meaning is `model_gap`; generated agent context,
+    Skills, slash commands, MCP resources, code graphs, annotations, and reports
+    are disposable projections, never another intent store. Impact compilation
+    may later consume a proved code/spec graph, but only when it replaces search
+    and mapping code with better recall and lower token/time cost.
 
 ## Carrier Disposition
 
@@ -429,6 +440,11 @@ completion, create lifecycle authority, or substitute for checked tasks.
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |
 | Embed COMET Native or Classic | Rejected | It duplicates OpenSpec lifecycle, hook, state, archive, and task authority; only measured external treatment or verified operator output is admissible. |
+| Add OpenSpec MCP as a semantic owner | Rejected | OpenSpec 1.7 ships CLI, artifact graph, schemas, and generated Skills but no merged official MCP server; an optional stateless ETHOS MCP may project the same command JSON later without owning files or lifecycle. |
+| Add Spec Kit, LID, AIM, ANSS, or another SDD runtime | Rejected | Each would introduce overlapping spec, task, constitution, binding, or workflow authority. ETHOS instead evaluates and may absorb their ambiguity audit, EARS-like patterns, typed derived edges, realization-drift checks, negative scope, and cross-artifact analysis into OpenSpec-compatible owners. |
+| Replace OpenSpec with SpecD | Rejected for the current product | SpecD's compiled context, spec/code impact graph, mandatory conformance pass, and multi-workspace model are strong mechanisms, but its young lifecycle, schema, hooks, skills, plugins, archive, and future MCP would replace the selected SDD owner rather than complement it. Re-evaluate only as a measured destructive migration, never a second runtime. |
+| Embed Spec Kit, AI-DLC, Agent OS, BMAD, or Kiro workflows | Rejected | Their constitutions, phases, plans, tasks, roles, hooks, or agent state overlap OpenSpec and ETHOS. Absorb only bounded mechanisms such as clarification, cross-artifact analysis, requirement checklists, adaptive depth, explicit decision context, and pre-implementation verification questions. |
+| Treat generated Skills or slash commands as task authority | Rejected | Official OpenSpec templates generate host projections from one workflow; they remain replaceable instructions whose drift is checked against the pinned CLI and schema. |
 | Delete all history | Rejected | Immutable bytes may be needed for recovery and audit, but not as current truth. |
 | Replace tasks wholesale after redesign | Rejected | It destroys progress identity, hides dropped obligations, and permits old decisions to reappear. |
 | Preserve every conversation sentence as a repository ledger | Rejected | Raw dialogue is context; accepted independent obligations belong in their semantic owners and verifiable tasks. |

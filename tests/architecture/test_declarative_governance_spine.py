@@ -254,9 +254,7 @@ def test_remaining_git_mutation_commands_have_one_declared_owner_each() -> None:
         "config-write": {"adapters/repo/config_effects.py"},
         "init": {"adapters/mutation/lane_lifecycle/handoff/destination_objects.py"},
         "bundle-create": {"adapters/mutation/lane_lifecycle/handoff/package.py"},
-        "bundle-unbundle": {
-            "adapters/mutation/lane_lifecycle/handoff/destination_objects.py"
-        },
+        "bundle-unbundle": {"adapters/mutation/lane_lifecycle/handoff/destination_objects.py"},
     }
     observed = {effect: set() for effect in owners}
     for path in CORE_SOURCE.rglob("*.py"):

@@ -20,9 +20,11 @@ from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseHandoffOffer
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.coordination import lease_operation
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -66,6 +68,65 @@ def apply_lease_operation(
         require_expired=operation.require_expired,
         request=request,
     )
+
+
+def takeover_lease(
+    db_path: Path,
+    *,
+    request: LeaseTakeoverRequest,
+    observe_repository: Callable[[], tuple[str, str, str]],
+) -> dict[str, object]:
+    """Change one exact holder generation while repository observations stay fixed."""
+    if not request.apply:
+        raise ValueError("lease_apply_required:takeover")
+    lease_request = LeaseOperationRequest(
+        operation="handoff_accept",
+        branch=request.branch,
+        holder_ref=request.source_holder_ref,
+        lease_id=request.lease_id,
+        expected_epoch=request.expected_epoch,
+        expect_head=request.expect_head,
+        expected_expires_at=request.expected_expires_at,
+        expected_payload_sha256=request.expected_payload_sha256,
+        apply=True,
+    )
+    expected_observation = (
+        request.expect_head,
+        request.expected_tree,
+        request.expected_dirty_content_sha256,
+    )
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        initialize_state_connection(connection)
+        if observe_repository() != expected_observation:
+            raise ValueError("lease_takeover_repository_drift")
+        row, current = expected_current_lease(
+            connection,
+            request=lease_request,
+            require_expired=None,
+        )
+        if current.lane_incarnation_id != request.expected_lane_incarnation_id:
+            raise ValueError("lease_takeover_incarnation_drift")
+        if current.expected_tree != request.expected_tree:
+            raise ValueError("lease_takeover_tree_drift")
+        now = datetime.now(UTC)
+        result = replace_exact_lease_from_connection(
+            connection,
+            current=row,
+            replacement=_validated_reissue(
+                current,
+                holder_ref=HolderRef.parse(request.target_holder_ref),
+                epoch=current.epoch + 1,
+                renewed_at=now,
+                expires_at=now + timedelta(seconds=request.ttl_seconds),
+                handoff=None,
+            ),
+        )
+        if observe_repository() != expected_observation:
+            raise ValueError("lease_takeover_repository_drift")
+        connection.commit()
+    return result
 
 
 def _apply_lease_effect(

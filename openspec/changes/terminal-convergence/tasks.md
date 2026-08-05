@@ -217,7 +217,7 @@ invariants are implemented and proved without parallel mutation owners.
   the combined proof closure. The result is a transient command projection;
   no scheduler, WIP setting, competitor limit, registry, or stored coordination
   state was added.
-- [ ] 4.4 Complete vendor-neutral actor identity, shared-inbox reconstruction,
+- [x] 4.4 Complete vendor-neutral actor identity, shared-inbox reconstruction,
   optional Git-lock handoff, transcript-free takeover, lost-session unknown
   state, dirty-content preservation, and orphan resolution. Exact takeover binds
   branch, HEAD, lease generation, dirty digest, target actor, source quiescence

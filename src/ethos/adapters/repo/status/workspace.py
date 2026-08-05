@@ -363,6 +363,8 @@ def _normalize_worktree(
         "branch": branch or "detached",
         "role": policy.role_for_branch(branch),
         "worktree_binding": worktree_binding(path, current_path=current_path),
+        "locked": "true" if "locked" in entry else "false",
+        "lock_reason": entry.get("locked", ""),
     }
 
 

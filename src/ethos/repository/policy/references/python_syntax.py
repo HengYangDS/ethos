@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import re
 import shlex
+import warnings
 
 from ethos.repository.policy.references.commands import command_executables
 from ethos.repository.policy.references.commands import normalize_command
@@ -15,7 +16,7 @@ _SUBPROCESS_CALLS = {"run", "Popen", "check_call", "check_output"}
 def python_trees(text: str) -> tuple[ast.AST, ...]:
     """Parse complete Python or independent added lines with valid Python syntax."""
     try:
-        return (ast.parse(text),)
+        return (_parse_without_syntax_warnings(text),)
     except SyntaxError:
         trees = []
         for line in text.splitlines():
@@ -23,10 +24,17 @@ def python_trees(text: str) -> tuple[ast.AST, ...]:
             if line.lstrip().startswith("@"):
                 candidate += "\ndef _binding_probe() -> None:\n    pass"
             try:
-                trees.append(ast.parse(candidate))
+                trees.append(_parse_without_syntax_warnings(candidate))
             except SyntaxError:
                 continue
         return tuple(trees)
+
+
+def _parse_without_syntax_warnings(text: str) -> ast.AST:
+    """Treat warning-producing snippets as invalid partial Python syntax."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", SyntaxWarning)
+        return ast.parse(text)
 
 
 def import_roots(tree: ast.AST) -> set[str]:

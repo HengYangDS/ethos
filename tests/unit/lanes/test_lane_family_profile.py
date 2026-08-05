@@ -451,6 +451,30 @@ def test_foreign_and_unbound_lane_observation_only_requests_handoff_or_takeover(
     }
 
 
+def test_optional_git_worktree_lock_is_observed_but_never_mints_authority(
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    foreign = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-locked",
+        branch="work/locked",
+        holder_ref="agent:test:case:foreign",
+    )
+    git(repo, "worktree", "lock", "--reason", "handoff-in-progress", foreign.as_posix())
+
+    status = workspace_status(repo)
+    lane = next(item for item in status["foreign_work_lanes"] if item["branch"] == "work/locked")
+
+    assert lane["git_lock"] == {
+        "locked": True,
+        "reason": "handoff-in-progress",
+        "mints_authority": False,
+    }
+    assert lane["action_preview"]["mints_authority"] is False
+    assert lane["handoff_required"] is True
+
+
 def test_unbound_work_lane_ref_preserves_exact_lease_coordinates(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     path = create_change_source_lane(

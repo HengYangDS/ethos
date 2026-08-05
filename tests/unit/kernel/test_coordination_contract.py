@@ -237,3 +237,102 @@ def test_takeover_bounded_model_requires_every_exact_authorization_coordinate() 
             assert observed == ("agent:test:case:target", 8, "a" * 40, "b" * 64)
         else:
             assert observed == initial
+
+
+def test_shared_inbox_deduplicates_rebuilds_and_preserves_conflicts() -> None:
+    from ethos.adapters.repo.coordination import shared_inbox_projection
+
+    item = {
+        "kind": "gap",
+        "subject": "work/example",
+        "claim": "lease_holder_unknown",
+        "source_refs": ["lease:example"],
+        "next_action": "obtain accepted takeover authorization",
+    }
+    duplicate = {**item, "source_refs": ["lease:example", "lease:example"]}
+
+    rebuilt = shared_inbox_projection([item, duplicate], attestations=())
+    repeated = shared_inbox_projection([duplicate, item], attestations=())
+
+    assert rebuilt == repeated
+    assert rebuilt["state"] == "open"
+    assert rebuilt["item_count"] == 1
+    assert rebuilt["items"][0]["acknowledged_by"] == []
+    assert rebuilt["items"][0]["consumed_by"] == []
+
+    conflict = shared_inbox_projection(
+        [item, {**item, "next_action": "preserve lane"}], attestations=()
+    )
+    assert conflict["state"] == "conflict"
+    assert conflict["item_count"] == 1
+    assert conflict["items"][0]["conflict"] is True
+
+
+def test_shared_inbox_acknowledgement_does_not_consume_and_effect_does() -> None:
+    from datetime import UTC
+    from datetime import datetime
+
+    from ethos.adapters.repo.coordination import shared_inbox_projection
+    from ethos.contracts.semantic import Attestation
+    from ethos.contracts.semantic import canonical_json_digest
+
+    item = {
+        "kind": "handoff",
+        "subject": "work/example",
+        "claim": "successor_ready",
+        "source_refs": ["handoff:example"],
+        "next_action": "accept exact result",
+    }
+    digest = canonical_json_digest({key: item[key] for key in ("kind", "subject", "claim")})
+    issued = datetime.now(UTC)
+    acknowledgement = Attestation.issue(
+        {
+            "predicate": "inbox:acknowledged",
+            "verifier": "agent:test:case:reader",
+            "subject": f"inbox:item:{digest}",
+            "issued_at": issued,
+            "verdict": "pass",
+            "evidence_refs": (f"inbox:item:{digest}",),
+            "statement": {"actor": "agent:test:case:reader", "item_digest": digest},
+        }
+    )
+    consumed = Attestation.issue(
+        {
+            "predicate": "inbox:consumed",
+            "verifier": "agent:test:case:owner",
+            "subject": f"inbox:item:{digest}",
+            "issued_at": issued,
+            "verdict": "pass",
+            "effect_digest": "e" * 64,
+            "statement": {
+                "actor": "agent:test:case:owner",
+                "item_digest": digest,
+                "accepted_result": "git:commit:" + "a" * 40,
+            },
+        }
+    )
+
+    acknowledged = shared_inbox_projection([item], attestations=(acknowledgement,))
+    assert acknowledged["items"][0]["acknowledged_by"] == ["agent:test:case:reader"]
+    assert acknowledged["items"][0]["consumed_by"] == []
+
+    completed = shared_inbox_projection([item], attestations=(acknowledgement, consumed))
+    assert completed["state"] == "consumed"
+    assert completed["items"][0]["consumed_by"] == ["agent:test:case:owner"]
+
+    uneffected = consumed.model_copy(update={"effect_digest": ""})
+    unbound = shared_inbox_projection([item], attestations=(uneffected,))
+    assert unbound["state"] == "open"
+    assert unbound["items"][0]["consumed_by"] == []
+
+
+def test_python_reference_parser_never_emits_invalid_escape_warnings() -> None:
+    import warnings
+
+    from ethos.repository.policy.references.python_syntax import python_trees
+
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        python_trees('pattern = "[^\\s]+"')
+
+    assert captured == []

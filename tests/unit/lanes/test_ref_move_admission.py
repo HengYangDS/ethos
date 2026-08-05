@@ -123,7 +123,7 @@ def test_work_lane_ref_transition_rejects_zero_oid_without_lease(
     assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
 
 
-def test_work_lane_ref_creation_requires_exact_lease_and_base(
+def test_lane_start_uses_the_work_lane_creation_intent_operation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -149,8 +149,8 @@ def test_work_lane_ref_creation_requires_exact_lease_and_base(
         root=repo,
         ref_name=f"refs/heads/{branch}",
         update=update,
-        operation="lane.import",
-        plan_digest=canonical_json_digest({"operation": "lane.import"}),
+        operation="lane.start",
+        plan_digest=canonical_json_digest({"operation": "lane.start"}),
     )
     admitted = work_lane_ref_transition_report(
         root=repo,

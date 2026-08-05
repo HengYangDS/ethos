@@ -113,7 +113,7 @@ def work_lane_ref_transition_report(
             root=repo,
             ref_name=ref_name,
             update=update,
-            operation="lane.import",
+            operation="lane.start",
             phase="prepared",
         )
         if gap := str(intent["gap"] or ""):

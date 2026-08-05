@@ -96,7 +96,8 @@ def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") 
     if target.is_symlink() or (target.exists() and not target.is_dir()):
         message = "git_effect_compensation_path_unsafe"
         raise ValueError(message)
-    shutil.rmtree(target, ignore_errors=False)
+    if target.exists():
+        shutil.rmtree(target, ignore_errors=False)
 
 
 def execute_git_effect(

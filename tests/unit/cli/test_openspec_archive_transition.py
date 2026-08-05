@@ -164,6 +164,160 @@ def test_archive_change_is_not_replayable(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert "openspec_active_change_missing:fixture-change" in replay["required_gaps"]
 
 
+def test_archive_change_rebuilds_one_exact_historical_archive_through_normal_hooks(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    _stage_archive(worktree)
+    git(worktree, "commit", "-m", "historical archive without governed owner")
+    historical_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=historical_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, head: (
+            [] if head in {completed_head, historical_head} else ["proof_not_proven"]
+        ),
+    )
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=historical_head,
+        rebuild_from=completed_head,
+        apply=True,
+    )
+
+    rebuilt_head = git(worktree, "rev-parse", "HEAD")
+    assert report["verdict"] == "pass", report
+    assert report["state"] == "archived"
+    assert report["replaced_head"] == historical_head
+    assert report["previous_head"] == completed_head
+    assert rebuilt_head != historical_head
+    assert git(worktree, "rev-parse", f"{rebuilt_head}^") == completed_head
+    assert git(worktree, "status", "--short") == ""
+
+
+def test_archive_change_rebuild_rejects_a_non_parent_target(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    _stage_archive(worktree)
+    git(worktree, "commit", "-m", "historical archive without governed owner")
+    historical_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=historical_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=historical_head,
+        rebuild_from=git(worktree, "rev-list", "--max-parents=0", "HEAD"),
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert "openspec_archive_rebuild_parent_mismatch" in report["required_gaps"]
+    assert git(worktree, "rev-parse", "HEAD") == historical_head
+    assert git(worktree, "status", "--short") == ""
+
+
+def test_archive_change_rebuild_rejects_a_different_holder(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    _stage_archive(worktree)
+    git(worktree, "commit", "-m", "historical archive without governed owner")
+    historical_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=historical_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:different")
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=historical_head,
+        rebuild_from=completed_head,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert "lease_actor_mismatch" in report["required_gaps"]
+    assert git(worktree, "rev-parse", "HEAD") == historical_head
+
+
+def test_archive_change_rebuild_is_not_replayable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    _stage_archive(worktree)
+    git(worktree, "commit", "-m", "historical archive without governed owner")
+    historical_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=historical_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, head: (
+            [] if head in {completed_head, historical_head} else ["proof_not_proven"]
+        ),
+    )
+    first = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=historical_head,
+        rebuild_from=completed_head,
+        apply=True,
+    )
+
+    replay = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=str(first["head"]),
+        rebuild_from=completed_head,
+        apply=True,
+    )
+
+    assert first["verdict"] == "pass"
+    assert replay["verdict"] == "block"
+    assert "openspec_archive_rebuild_already_governed" in replay["required_gaps"]
+
+
 def test_archive_change_rejects_different_holder(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

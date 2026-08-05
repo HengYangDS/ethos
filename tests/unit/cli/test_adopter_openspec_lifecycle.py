@@ -80,6 +80,77 @@ def test_openspec_17_status_contract_exposes_artifact_graph() -> None:
     ]
 
 
+def test_repository_locked_openspec_17_resolves_project_schema_and_guidance(
+    tmp_path: Path,
+) -> None:
+    command = openspec_cli.openspec_base_command()
+    assert command is not None
+    repo = init_git_repo(tmp_path / "custom-schema")
+    schema = repo / "openspec" / "schemas" / "intent-to-proof"
+    templates = schema / "templates"
+    templates.mkdir(parents=True)
+    (repo / "openspec" / "config.yaml").write_text(
+        "schema: intent-to-proof\n"
+        "context: governed custom workflow\n"
+        "rules:\n"
+        "  intent: [state explicit non-goals]\n"
+        "operations:\n"
+        "  apply:\n"
+        "    guidance: [prefer deletion over compatibility]\n",
+        encoding="utf-8",
+    )
+    (schema / "schema.yaml").write_text(
+        "name: intent-to-proof\n"
+        "version: 1\n"
+        "artifacts:\n"
+        "  - id: intent\n"
+        "    generates: intent.md\n"
+        "    description: bounded intent\n"
+        "    template: intent.md\n"
+        "    requires: []\n"
+        "  - id: verification\n"
+        "    generates: verification.md\n"
+        "    description: evidence map\n"
+        "    template: verification.md\n"
+        "    requires: [intent]\n"
+        "apply:\n"
+        "  requires: [verification]\n"
+        "  tracks: null\n",
+        encoding="utf-8",
+    )
+    (templates / "intent.md").write_text("# Intent\n", encoding="utf-8")
+    (templates / "verification.md").write_text("# Verification\n", encoding="utf-8")
+
+    validated = openspec_cli.run_json(
+        repo, command, ("schema", "validate", "intent-to-proof", "--json")
+    )
+    created = openspec_cli.run_json(repo, command, ("new", "change", "custom-change", "--json"))
+    status = openspec_cli.run_json(repo, command, ("status", "--change", "custom-change", "--json"))
+    intent = openspec_cli.run_json(
+        repo,
+        command,
+        ("instructions", "intent", "--change", "custom-change", "--json"),
+    )
+    apply = openspec_cli.run_json(
+        repo,
+        command,
+        ("instructions", "apply", "--change", "custom-change", "--json"),
+    )
+
+    assert validated["json"]["valid"] is True
+    assert created["exit_code"] == 0
+    assert status["json"]["schemaName"] == "intent-to-proof"
+    assert [artifact["id"] for artifact in status["json"]["artifacts"]] == [
+        "intent",
+        "verification",
+    ]
+    assert intent["json"]["unlocks"] == ["verification"]
+    assert intent["json"]["context"] == "governed custom workflow"
+    assert intent["json"]["rules"] == ["state explicit non-goals"]
+    assert apply["json"]["missingArtifacts"] == ["verification"]
+    assert apply["json"]["operationGuidance"] == ["prefer deletion over compatibility"]
+
+
 def test_openspec_17_instructions_contract_covers_apply_and_archive() -> None:
     apply = {
         "changeName": "example",
@@ -146,7 +217,8 @@ def test_repository_locked_openspec_17_characterizes_skip_specs_and_nested_archi
         == "skipped"
     )
     assert skip_apply["json"]["state"] == "all_done"
-    assert skip_archive["json"]["archive"]["path"].endswith("/2026-08-05-skip-only")
+    archive_path = str(skip_archive["json"]["archive"]["path"])
+    assert archive_path.rsplit("/", 1)[-1].endswith("-skip-only")
     assert skip_archive["json"]["archive"].get("warnings", []) == []
     assert skip_archive["json"]["archive"]["specsUpdated"] is False
 
@@ -554,6 +626,22 @@ def test_official_config_report_uses_closed_verdicts(tmp_path: Path) -> None:
     assert official_config_report(repo)["required_gaps"] == [
         "openspec_config_default_store_forbidden"
     ]
+
+
+def test_official_config_report_accepts_project_local_schema_artifacts(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    config = repo / "openspec" / "config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "schema: intent-to-proof\n",
+        encoding="utf-8",
+    )
+
+    assert official_config_report(repo) == {
+        "verdict": "pass",
+        "path": config.as_posix(),
+        "required_gaps": [],
+    }
 
 
 def test_protected_branch_report_preserves_unknown_git_observation(

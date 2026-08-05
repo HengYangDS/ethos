@@ -10,6 +10,7 @@ from typing import cast
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.evidence.external import default_provider_config_path
+from ethos.adapters.admission.evidence.external import independent_verification_policy
 from ethos.adapters.admission.evidence.external import independent_verification_report
 from ethos.adapters.admission.evidence.external import load_independent_verification_provider
 from ethos.adapters.admission.evidence.external import path_is_within
@@ -18,7 +19,6 @@ from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.contracts.rules import stable_digest
 from ethos.contracts.verdict import report_verdict
-from ethos.repository.profile import IndependentVerificationPolicy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -168,7 +168,7 @@ def _verification_subject(
 def _verification_report(
     *, root: Path, request: dict[str, object], receipt_path: Path | None
 ) -> dict[str, object]:
-    policy = IndependentVerificationPolicy(mode="required")
+    policy = independent_verification_policy(root, "control_replacement")
     if receipt_path is None:
         return independent_verification_report(
             root=root,

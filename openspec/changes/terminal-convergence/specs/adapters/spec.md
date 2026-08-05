@@ -125,6 +125,24 @@ The official OpenSpec CLI SHALL own Change identity, design, specs,
 task-progress, artifact dependencies, and archive lifecycle for every complete
 mutation-capable adopter. Generic kernel compilation SHALL not import OpenSpec types.
 
+#### Scenario: A complete adopter selects a custom workflow schema
+- **WHEN** project configuration or Change metadata resolves a valid built-in,
+  project-local, or installed OpenSpec schema
+- **THEN** ETHOS uses the official resolved schema name, artifact IDs, dependency
+  graph, output paths, templates, and apply prerequisites
+- **AND** fresh Change creation does not force `spec-driven` or fixed
+  `proposal`, `specs`, `design`, and `tasks` rule keys
+- **AND** official schema validation and runtime status remain the structural
+  authority rather than an ETHOS parser or community-schema claim
+
+#### Scenario: A community schema claims additional enforcement
+- **WHEN** a community workflow adds reviews, ADRs, tests, retrospectives,
+  Gherkin formats, human gates, or external skills
+- **THEN** ETHOS distinguishes artifact-DAG enforcement from prompt-only
+  convention, external runtime dependency, and unknown keys ignored by OpenSpec
+- **AND** only independently verified mechanisms with one owner and net deletion
+  may be absorbed into the selected project schema
+
 #### Scenario: ETHOS observes an active OpenSpec carrier
 - **WHEN** the self profile evaluates current OpenSpec state
 - **THEN** the adapter consumes official `doctor`, `list`, `status`, and strict

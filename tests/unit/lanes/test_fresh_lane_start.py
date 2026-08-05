@@ -55,16 +55,22 @@ if args[:2] == ["new", "change"]:
     if failure == "create":
         raise SystemExit(2)
     change = args[2]
+    configured = "custom-workflow" if "schema: custom-workflow" in (
+        root / "openspec" / "config.yaml"
+    ).read_text() else "spec-driven"
+    schema = args[args.index("--schema") + 1] if "--schema" in args else configured
     target = root / "openspec" / "changes" / change
     target.mkdir(parents=True)
-    (target / ".openspec.yaml").write_text("schema: spec-driven\\ncreated: 2026-08-05\\n")
+    (target / ".openspec.yaml").write_text(f"schema: {schema}\\ncreated: 2026-08-05\\n")
     (target / "README.md").write_text(f"# {change}\\n")
     print(json.dumps({"change": {"id": change, "path": str(target)}}))
 elif args[:2] == ["status", "--change"]:
     if failure == "status":
         raise SystemExit(2)
     change = args[2]
-    print(json.dumps({"changeName": change, "schemaName": "spec-driven"}))
+    metadata = root / "openspec" / "changes" / change / ".openspec.yaml"
+    schema = metadata.read_text().splitlines()[0].removeprefix("schema: ")
+    print(json.dumps({"changeName": change, "schemaName": schema}))
 else:
     raise SystemExit(2)
 """,
@@ -78,6 +84,21 @@ def test_start_work_lane_bootstraps_a_fresh_change_without_a_source_lane(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, candidate = init_repo_with_candidate(tmp_path)
+    (candidate / "openspec" / "config.yaml").write_text(
+        "schema: custom-workflow\n",
+        encoding="utf-8",
+    )
+    git(candidate, "add", "openspec/config.yaml")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "select custom OpenSpec schema",
+    )
     target = tmp_path / "repo-work-fresh-change"
     commitment = _fresh_commitment(tmp_path / "commitment.toml")
     openspec = _fake_openspec(tmp_path)
@@ -113,8 +134,8 @@ def test_start_work_lane_bootstraps_a_fresh_change_without_a_source_lane(
                 text=True,
                 capture_output=True,
             ).stdout
-        )["changeName"]
-        == "fresh-change"
+        )["schemaName"]
+        == "custom-workflow"
     )
     assert git(target, "status", "--short") == ""
 

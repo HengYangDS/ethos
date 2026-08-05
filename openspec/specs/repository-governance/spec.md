@@ -1321,7 +1321,6 @@ projections, and gates instead of making adopter tools product ontology.
 - **AND** an inventory, expired lease, graph relation, or historical evidence
   alone SHALL NOT authorize retirement of another lane.
 
-
 ### Requirement: Preservation-bound exceptional Work Lane retirement
 
 ETHOS SHALL offer an explicit `preserve-retire` exceptional disposition for a
@@ -2599,59 +2598,6 @@ not the audited checkout, and unchanged at immediate reobservation.
 - **THEN** housekeeping reports a blocking inventory gap
 - **AND** it does not project an empty removable set as successful inspection.
 
-### Requirement: Archived Work Lane candidate-drift continuation
-
-ETHOS SHALL continue useful work from an archived or historically proved Work
-Lane through an owned, claim-bound successor based on the latest candidate. It
-MUST preserve predecessor ancestry, keep historical carriers immutable, and
-regenerate every projection and proof whose validity depends on the new HEAD.
-
-#### Scenario: Semantic refresh conflict fails closed
-
-- **WHEN** the official candidate-base refresh encounters a semantic conflict
-- **THEN** ETHOS MUST abort the replay and report `refresh_base_failed`
-- **AND** it MUST restore the Work Lane branch and worktree to the expected clean
-  head
-- **AND** no manual rebase continue, skip, raw ref movement, or history
-  replacement may be used to bypass the failure.
-
-#### Scenario: Latest candidate starts a successor
-
-- **WHEN** useful predecessor work cannot land because its candidate base is
-  stale and semantic refresh failed closed
-- **THEN** an owned successor MUST start from the latest observed candidate
-- **AND** it MUST bind the same episode claim
-- **AND** the predecessor Lane, archived Change, historical Chronicle, and proof
-  receipt MUST remain observe-only.
-
-#### Scenario: Successor preserves ancestry and regenerates evidence
-
-- **WHEN** the successor absorbs the useful predecessor head
-- **THEN** it MUST use a no-fast-forward merge with the candidate base as first
-  parent and the predecessor head as second parent
-- **AND** candidate-authoritative parity, configuration, and gate projections
-  MUST be retained but treated as stale after the merge
-- **AND** parity MUST be regenerated and proof MUST execute against the resulting
-  current HEAD rather than reuse a historical receipt.
-
-#### Scenario: Candidate advances after a topology-bearing merge
-
-- **WHEN** candidate advances again after the continuation has created a
-  topology-bearing merge but before land
-- **THEN** a further owned successor MUST start from the newer candidate and
-  no-fast-forward absorb the completed continuation head
-- **AND** ETHOS MUST NOT linearize or discard the existing merge topology merely
-  to refresh the base.
-
-#### Scenario: Historical facts are corrected without archive mutation
-
-- **WHEN** independent replay or review corrects a fact recorded by the
-  historical carrier
-- **THEN** the active continuation MUST record a superseding correction with its
-  reproducible inputs and digest
-- **AND** the archived Change, historical Chronicle, and historical proof
-  receipt MUST NOT be rewritten.
-
 ### Requirement: Exceptional unbound Work Lane retirement is exact and accepted-policy-bound
 
 `ethos lane retire unbound` SHALL admit one head-matched, accepted-ancestor
@@ -3484,3 +3430,52 @@ postconditions are verified.
 - **THEN** state inventory SHALL report the closeout-fence projection invalid
 - **AND** it SHALL continue to report the independently validated lease schema
   as current.
+
+### Requirement: Historical Work Lane semantic convergence
+
+ETHOS SHALL preserve useful intent and unique semantics from a historical Work
+Lane without requiring its obsolete implementation or Git ancestry to enter the
+current terminal tree. Historical carriers remain immutable observations, not
+mutation authority.
+
+#### Scenario: Semantic refresh conflict fails closed
+
+- **WHEN** the official candidate-base refresh encounters a semantic conflict
+- **THEN** ETHOS MUST abort the replay and report `refresh_base_failed`
+- **AND** it MUST restore the Work Lane branch and worktree to the expected clean
+  head
+- **AND** no manual rebase continue, skip, raw ref movement, or history
+  replacement may be used to bypass the failure.
+
+#### Scenario: Historical work is classified before implementation transfer
+
+- **WHEN** a historical Work Lane is evaluated against current accepted truth
+- **THEN** each useful obligation is classified as currently proved, uniquely
+  valuable, superseded by stronger semantics, or obsolete
+- **AND** only uniquely valuable semantics remain to be absorbed.
+
+#### Scenario: Semantics are absorbed without replaying obsolete code
+
+- **WHEN** current source and tests implement the historical lane's useful
+  semantics exactly or more strongly
+- **THEN** ETHOS records that semantic basis and permits exact retirement without
+  rebasing or merging the historical implementation
+- **AND** tree inequality alone does not imply missing product behavior.
+
+#### Scenario: Historical implementation remains the best terminal form
+
+- **WHEN** evidence shows that the historical implementation itself remains the
+  shortest correct terminal form
+- **THEN** an owned atomic Change may transfer that implementation onto the
+  current candidate and regenerate HEAD-bound proof
+- **AND** Git ancestry is preserved only when it carries necessary semantic or
+  audit value, not as a universal retirement prerequisite.
+
+#### Scenario: Historical facts are corrected without archive mutation
+
+- **WHEN** independent replay or review corrects a fact recorded by the
+  historical carrier
+- **THEN** the active continuation MUST record a superseding correction with its
+  reproducible inputs and digest
+- **AND** the archived Change, historical Chronicle, and historical proof
+  receipt MUST NOT be rewritten.

@@ -17,7 +17,7 @@
 
 ## 3. Close The Atomic Change
 
-- [ ] 3.1 Run focused tests, strict OpenSpec validation, formatting, lint, type,
+- [x] 3.1 Run focused tests, strict OpenSpec validation, formatting, lint, type,
   warning, architecture, and current ELOC checks.
-- [ ] 3.2 Run exact-HEAD executed proof, official OpenSpec archive, local land,
+- [x] 3.2 Run exact-HEAD executed proof, official OpenSpec archive, local land,
   accepted closeout, and native Work Lane retirement without remote push.

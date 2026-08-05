@@ -20,6 +20,7 @@ from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.schema import state_database
@@ -104,15 +105,14 @@ def remove_import_carriers(
             "handoff_import_compensation_failed",
             holds=not status.returncode and not status.stdout.strip(),
         )
-        removed = run_git(
+        remove_worktree(
             destination,
-            "worktree",
-            "remove",
-            worktree_path.as_posix(),
-            check=False,
-            env=object_environment,
+            worktree_path,
+            branch=branch,
+            head=head,
+            environment=object_environment,
+            runner=run_git,
         )
-        require("handoff_import_compensation_failed", holds=not removed.returncode)
     require(
         "handoff_import_compensation_failed",
         holds=not os.path.lexists(worktree_path)

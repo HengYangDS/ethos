@@ -19,6 +19,8 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.worktree_effects import add_worktree
+from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -142,9 +144,10 @@ def remove_linked_lane(
     branch, path, expected = (str(lane.get(key) or "") for key in ("branch", "path", "head"))
     if gaps := reobservation_gaps(branch, path, expected):
         return blocked(gaps)
-    removed = run_git(control_root, "worktree", "remove", path, check=False)
-    if removed.returncode != 0:
-        return blocked(["worktree_remove_failed"], removed.stderr)
+    try:
+        remove_worktree(control_root, Path(path), branch=branch, head=expected)
+    except ValueError as error:
+        return blocked(["worktree_remove_failed"], str(error))
     transaction_root = (
         Path(authority_path)
         if authority_branch not in {accepted_branch, branch} and Path(authority_path).is_dir()
@@ -407,11 +410,18 @@ def restore_worktree(control_root: Path, lane: dict[str, object]) -> bool:
     """Restore one removed linked worktree when a later retirement effect fails."""
     path = str(lane.get("path") or "")
     branch = str(lane.get("branch") or "")
-    return bool(
-        path
-        and branch
-        and run_git(control_root, "worktree", "add", path, branch, check=False).returncode == 0
-    )
+    if not path or not branch:
+        return False
+    try:
+        add_worktree(
+            control_root,
+            Path(path),
+            branch=branch,
+            head=str(lane.get("head") or ""),
+        )
+    except ValueError:
+        return False
+    return True
 
 
 def retirement_observation(

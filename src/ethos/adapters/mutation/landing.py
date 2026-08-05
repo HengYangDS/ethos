@@ -24,6 +24,7 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -119,12 +120,19 @@ def apply_land_to_candidate(
             remediation=remediation.remediation_for_gaps([gap]),
             **extra,
         )
-    synced = run_git(candidate_path, "reset", "--hard", current_head, check=False)
-    if synced.returncode:
+    try:
+        worktree_attestation = sync_worktree(
+            root,
+            candidate_path,
+            branch=policy.candidate_branch,
+            previous=candidate_head,
+            head=current_head,
+        )
+    except ValueError as error:
         return fail(
             ["candidate_worktree_sync_failed"],
             path=candidate_path.as_posix(),
-            stderr=synced.stderr.strip(),
+            stderr=str(error),
             attestation=attestation.model_dump(mode="json"),
         )
     return {
@@ -134,6 +142,7 @@ def apply_land_to_candidate(
         "head": current_head,
         "path": candidate_path.as_posix(),
         "attestation": attestation.model_dump(mode="json"),
+        "worktree_attestation": worktree_attestation.model_dump(mode="json"),
         "required_gaps": [],
     }
 

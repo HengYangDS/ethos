@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -14,15 +15,21 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import Attestation
 
 
 def _candidate_worktree_gap(candidate: dict[str, object], candidate_path: str) -> str:
@@ -134,20 +141,21 @@ def _refresh_work_lane(
     )
     if completed.returncode != 0:
         run_git(root, "rebase", "--abort", check=False)
-        restored = run_git(root, "switch", branch, check=False)
+        try:
+            _attach_work_lane(root, branch, current_head)
+            restore_gap: list[str] = []
+        except (OSError, ValueError):
+            restore_gap = ["refresh_base_worktree_restore_failed"]
         return _report(
             context,
             current_tracked_head(root),
             "blocked",
-            [
-                "refresh_base_failed",
-                *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
-            ],
+            ["refresh_base_failed", *restore_gap],
             stderr=completed.stderr.strip(),
         )
     rebased_head = current_tracked_head(root)
     if not is_ancestor(root, candidate_head, rebased_head):
-        run_git(root, "switch", branch, check=False)
+        _attach_work_lane(root, branch, current_head)
         return _report(
             context,
             current_tracked_head(root),
@@ -157,6 +165,13 @@ def _refresh_work_lane(
             next_action="inspect current Git ancestry and runner, signing, or hook diagnostics",
             stderr="candidate head is not an ancestor of refreshed work-lane head",
         )
+    rebase_attestation = _rebase_attestation(
+        root,
+        branch=branch,
+        previous=current_head,
+        candidate_head=candidate_head,
+        head=rebased_head,
+    )
     plan = _refresh_transition_plan(
         root,
         branch,
@@ -164,13 +179,20 @@ def _refresh_work_lane(
         rebased_head,
         candidate_branch,
         candidate_head,
+        rebase_attestation,
     )
+    attachment_attestation: Attestation | None = None
+
+    def attach() -> None:
+        nonlocal attachment_attestation
+        attachment_attestation = _attach_work_lane(root, branch, rebased_head)
+
     try:
-        execute_git_effect(
+        ref_attestation = execute_git_effect(
             root,
             plan,
             issuer=_actor(),
-            projection=lambda: _attach_work_lane(root, branch, rebased_head),
+            projection=attach,
             detached_branch=branch,
         )
     except (OSError, ValueError) as error:
@@ -197,13 +219,59 @@ def _refresh_work_lane(
             previous_head=current_head,
             stderr="work-lane branch advanced after refresh compare-and-swap",
         )
-    return _report(context, refreshed_head, "base_refreshed", [], previous_head=current_head)
+    if attachment_attestation is None:
+        return _report(
+            context,
+            refreshed_head,
+            "blocked",
+            ["refresh_base_worktree_attach_failed"],
+            previous_head=current_head,
+        )
+    return _report(
+        context,
+        refreshed_head,
+        "base_refreshed",
+        [],
+        previous_head=current_head,
+        rebase_attestation=rebase_attestation.model_dump(mode="json"),
+        ref_attestation=ref_attestation.model_dump(mode="json"),
+        attachment_attestation=attachment_attestation.model_dump(mode="json"),
+    )
 
 
-def _attach_work_lane(root: Path, branch: str, head: str) -> None:
-    attached = run_git(root, "switch", branch, check=False)
-    if attached.returncode or current_tracked_head(root) != head:
-        raise ValueError(attached.stderr.strip() or "work-lane branch attachment stale")
+def _attach_work_lane(root: Path, branch: str, head: str) -> Attestation:
+    try:
+        return attach_worktree(root, root, branch=branch, head=head)
+    except ValueError as error:
+        message = f"work-lane branch attachment stale:{error}"
+        raise ValueError(message) from error
+
+
+def _rebase_attestation(
+    root: Path,
+    *,
+    branch: str,
+    previous: str,
+    candidate_head: str,
+    head: str,
+) -> Attestation:
+    before = {"branch": branch, "head": previous, "candidate_head": candidate_head}
+    after = {"branch": "detached", "head": head, "candidate_head": candidate_head}
+    repository = load_repository_commitment(root, tree_ref=head)
+    return issue_native_effect(
+        root,
+        effect=NativeEffect(
+            predicate="effect:git-rebase",
+            operation="git.rebase",
+            command=("git", "rebase"),
+            subject={"branch": branch, "candidate_head": candidate_head},
+            before=before,
+            after=after,
+        ),
+        state="applied",
+        commitment_digest=repository.digest(),
+        repository_id=repository.id,
+    )
 
 
 def _recover_work_lane(
@@ -228,11 +296,15 @@ def _recover_work_lane(
     if not branch.startswith("work/") or plan.policy.get("execution_branch") != branch:
         msg = "git_effect_recovery_unproven"
         raise ValueError(msg)
+
+    def attach() -> None:
+        _attach_work_lane(root, branch, head)
+
     execute_git_effect(
         root,
         plan,
         issuer=_actor(),
-        projection=lambda: _attach_work_lane(root, branch, head),
+        projection=attach,
         detached_branch=branch,
     )
     return _report(
@@ -255,6 +327,7 @@ def _refresh_transition_plan(
     rebased_head: str,
     candidate_branch: str,
     candidate_head: str,
+    rebase_attestation: Attestation,
 ) -> TransitionPlan:
     lease = leases_by_branch(root).get(branch, {})
     return compile_observed_git_effect(
@@ -267,7 +340,7 @@ def _refresh_transition_plan(
             assertions={f"refs/heads/{candidate_branch}": candidate_head},
         ),
         head=rebased_head,
-        prior_attestations={},
+        prior_attestations={"rebase": rebase_attestation.model_dump(mode="json")},
         policy={"operation": "lane.refresh", "execution_branch": branch},
         values={"lease_generation": lease_generation(lease)},
     )

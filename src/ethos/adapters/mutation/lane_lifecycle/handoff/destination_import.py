@@ -29,6 +29,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
@@ -88,7 +89,18 @@ def apply_handoff_import(
                 lease,
                 object_environment=object_environment,
             )
-            install_pack(destination, prepared_pack)
+            commitment = load_lease_bound_commitment(
+                destination,
+                lease=lease,
+                environment=object_environment,
+            )
+            object_attestation = install_pack(
+                destination,
+                prepared_pack,
+                commitment_digest=commitment.digest(),
+                head=head,
+                repository_id=commitment.subjects[0],
+            )
         except (OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError, ValueError):
             if compensate_on_failure:
                 lease = lease or _recover_import_lease(
@@ -113,6 +125,7 @@ def apply_handoff_import(
         "worktree": {"branch": branch, "path": worktree_path.as_posix(), "head": head},
         "lease": lease,
         "acknowledgement": acknowledgement,
+        "object_attestation": object_attestation,
     }
 
 
@@ -290,7 +303,14 @@ def _ensure_import_worktree(
         )
         return
     require("handoff_destination_path_exists", holds=not os.path.lexists(path))
-    run_git(destination, "worktree", "add", path.as_posix(), branch, env=object_environment)
+    add_worktree(
+        destination,
+        path,
+        branch=branch,
+        head=head,
+        environment=object_environment,
+        runner=run_git,
+    )
 
 
 def _verify_destination_identity(

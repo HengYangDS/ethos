@@ -139,7 +139,7 @@ changing intent cannot deadlock or mutate an existing Commitment.
 - [x] 3.2 Remove fixed command phases, campaign/task/progress runtime state,
   decision ledgers, lifecycle read models, and current Claim/Chronicle/proof
   authorization; retain required bytes only as non-authorizing history.
-- [ ] 3.3 Give every Git effect one declared execution owner, exact pre/post
+- [x] 3.3 Give every Git effect one declared execution owner, exact pre/post
   observations, idempotent terminal recognition, crash recovery, and typed
   Attestation. Ref and Lease effects use native exact-CAS; worktree, index, and
   filesystem effects use their strongest native atomic primitive and fail closed

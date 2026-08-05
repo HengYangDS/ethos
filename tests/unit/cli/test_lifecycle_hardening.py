@@ -129,22 +129,23 @@ def test_lane_refresh_recovers_after_ref_cas_precedes_branch_attachment(
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     previous = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    original = work_lane_refresh.run_git
     failed = False
     branch_was_advanced = False
 
-    def fail_first_attachment(root, *args, **kwargs):
+    original = work_lane_refresh.attach_worktree
+
+    def fail_first_attachment(root, path, *, branch, head):
         nonlocal branch_was_advanced, failed
-        if args == ("switch", "work/feature") and not failed:
+        if branch == "work/feature" and not failed:
             failed = True
             branch_was_advanced = git(root, "rev-parse", "work/feature") == git(
                 root, "rev-parse", "HEAD"
             )
             msg = "injected post-CAS attachment failure"
             raise OSError(msg)
-        return original(root, *args, **kwargs)
+        return original(root, path, branch=branch, head=head)
 
-    monkeypatch.setattr(work_lane_refresh, "run_git", fail_first_attachment)
+    monkeypatch.setattr(work_lane_refresh, "attach_worktree", fail_first_attachment)
     arguments = (
         "lane",
         "refresh-base",

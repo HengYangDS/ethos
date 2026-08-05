@@ -1,9 +1,7 @@
-"""Git IO adapter — subprocess primitives for reading Git facts and wiring hooks.
+"""Git IO adapter — subprocess primitives for reading Git facts.
 
 The impure IO shell for Git: every function shells out to `git`. Product domain
-code stays pure and is fed these facts by the surface/orchestration layer. Reads
-dominate; the one sanctioned write is hook-path wiring (set_hooks_path), which
-installs the local admission entrance.
+code stays pure and is fed these facts by the surface/orchestration layer.
 """
 
 from __future__ import annotations
@@ -324,18 +322,6 @@ def publication_remote_syncs(root: Path, branch: str) -> dict[str, object]:
             if record.get("state") != "synchronized"
         ],
     }
-
-
-def set_hooks_path(root: Path, hooks_path: str) -> bool:
-    """Wire git core.hooksPath to hooks_path (the sanctioned local-entrance write)."""
-    completed = run_git(root, "config", "core.hooksPath", hooks_path, check=False)
-    return completed.returncode == 0
-
-
-def set_config(root: Path, key: str, value: str) -> bool:
-    """Set a local git config key (used to record ethos.acceptedBranch for the hooks)."""
-    completed = run_git(root, "config", key, value, check=False)
-    return completed.returncode == 0
 
 
 def git_common_dir(root: Path) -> str:

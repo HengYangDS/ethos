@@ -310,6 +310,44 @@ def test_native_owner_closure_derives_tool_capabilities_from_profile_and_release
     assert {"openspec", "ssh-keygen"} <= allowed["executable"]
 
 
+def test_native_owner_variation_axes_change_only_their_declaring_carriers() -> None:
+    first = native_owned_references_from_files(
+        {
+            "system/surfaces.toml": '[runtime]\ninputs = ["FIRST_HOME", "FIRST_PORT"]\n',
+            ".ethos/release.toml": (
+                '[host_profile]\nprovider = "first-forge"\n\n'
+                '[publication]\nfirst_remote = "origin"\n'
+            ),
+            "system/tools.toml": (
+                '[[tool]]\nconcern = "extension"\ntool = "first"\n'
+                'config = "first.toml"\nprofile = "product"\n'
+                'executables = ["first-tool"]\nreferences = ["first-extension"]\n'
+            ),
+        }
+    )
+    second = native_owned_references_from_files(
+        {
+            "system/surfaces.toml": '[runtime]\ninputs = ["SECOND_HOME", "SECOND_PORT"]\n',
+            ".ethos/release.toml": (
+                '[host_profile]\nprovider = "second-forge"\n\n'
+                '[publication]\nsecond_remote = "mirror"\n'
+            ),
+            "system/tools.toml": (
+                '[[tool]]\nconcern = "extension"\ntool = "second"\n'
+                'config = "second.toml"\nprofile = "product"\n'
+                'executables = ["second-tool"]\nreferences = ["second-extension"]\n'
+            ),
+        }
+    )
+
+    assert first["value"] == {"FIRST_HOME", "FIRST_PORT"}
+    assert second["value"] == {"SECOND_HOME", "SECOND_PORT"}
+    assert first["executable"] == {"first-tool"}
+    assert second["executable"] == {"second-tool"}
+    assert first["reference"] == {"first-forge", "first", "first-extension"}
+    assert second["reference"] == {"second-forge", "second", "second-extension"}
+
+
 def test_native_owner_closure_does_not_promote_observed_consumers(tmp_path: Path) -> None:
     (tmp_path / "system").mkdir()
     (tmp_path / "system/surfaces.toml").write_text(

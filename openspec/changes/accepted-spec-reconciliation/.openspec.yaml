@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-05
+goal: Make accepted specs truthful and make the declared campaign successor
+  sequence executable without legacy lane resurrection.

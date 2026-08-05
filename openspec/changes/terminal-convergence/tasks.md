@@ -230,9 +230,15 @@ invariants are implemented and proved without parallel mutation owners.
   lag, proof cost, and capacity remain transient Facts. Landing retains one
   exact-CAS mutation owner, re-observes and recompiles once after an unchanged
   transient CAS rejection, and never overwrites a moved candidate ref.
-- [ ] 4.6 Absorb or retire every authorized campaign and budget-v2 family; block
+- [x] 4.6 Absorb or retire every authorized campaign and budget-v2 family; block
   lane explosion by requiring one owner, bounded scope, current Lease, and an
-  explicit absorption or retirement destination.
+  explicit absorption or retirement destination. The budget-v2 successor chain,
+  lifecycle forks, publication-default repair lane, and pytest coverage refs were
+  retired after semantic comparison. The final native-resolution successor was
+  patch-equivalent at committed HEAD; its 200408-byte dirty patch was preserved
+  by exact digest and rejected because it restored the deleted coupling runtime,
+  legacy package tree, replay state, and ownerless-preservation control plane.
+  No compatibility branch, reader, wrapper, or parallel lane ledger remains.
 
 **Exit 4:** OpenSpec ownership, coordination reconstruction, integration
 throughput, and lane housekeeping are implemented and proved.

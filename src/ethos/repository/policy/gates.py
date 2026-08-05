@@ -118,8 +118,8 @@ def _owner_projection(
         return {"kind": "registry", "path": proof.gate_registry, **identity}
     return {
         "kind": "profile",
-        "required_gates": list(proof.required_gates),
-        "code_axes": dict(proof.code_axes),
+        "code_correctness_gates": list(proof.code_correctness_gates),
+        "code_correctness_map": dict(proof.code_correctness_map),
         **identity,
     }
 
@@ -159,8 +159,8 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
     return GateRegistryDeclaration(
         id=f"profile:{declaration.profile_id}",
         proof_sets=GateProofSets(
-            default=proof.required_gates,
-            full=proof.required_gates,
+            default=proof.code_correctness_gates,
+            full=proof.code_correctness_gates,
         ),
         gates=tuple(
             gate.model_copy(

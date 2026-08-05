@@ -570,8 +570,8 @@ def _declare_minimal_code_correctness(repo: Path) -> None:
         profile_path.read_text(encoding="utf-8")
         + "\n"
         + "[proof]\n"
-        + 'required_gates = ["sample-tests", "sample-static"]\n\n'
-        + "[proof.code_axes]\n"
+        + 'code_correctness_gates = ["sample-tests", "sample-static"]\n\n'
+        + "[proof.code_correctness_map]\n"
         + 'behavior = "sample-tests"\n'
         + 'static-analysis = "sample-static"\n\n'
         + "[[proof.gates]]\n"

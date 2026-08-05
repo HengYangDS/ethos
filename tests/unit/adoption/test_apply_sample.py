@@ -53,9 +53,9 @@ def test_profile_native_gate_owner_replaces_packaged_gates(tmp_path: Path) -> No
         + """
 
 [proof]
-required_gates = ["sample-tests", "sample-static"]
+code_correctness_gates = ["sample-tests", "sample-static"]
 
-[proof.code_axes]
+[proof.code_correctness_map]
 behavior = "sample-tests"
 static-analysis = "sample-static"
 

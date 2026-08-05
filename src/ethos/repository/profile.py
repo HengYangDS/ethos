@@ -92,14 +92,14 @@ class EvidenceRoots(_ProfileModel):
 
 class ProofPolicy(_ProfileModel):
     gate_registry: RepositoryPath | None = None
-    required_gates: NonEmptyTuple = ()
+    code_correctness_gates: NonEmptyTuple = ()
     gates: GateTuple = ()
-    code_axes: CodeCorrectnessMap = Field(default_factory=dict)
+    code_correctness_map: CodeCorrectnessMap = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def require_one_gate_owner(self) -> ProofPolicy:
         """Reject a local registry and profile-native gates as parallel owners."""
-        native = bool(self.required_gates or self.gates or self.code_axes)
+        native = bool(self.code_correctness_gates or self.gates or self.code_correctness_map)
         if self.gate_registry and native:
             msg = "proof policy has parallel gate owners"
             raise ValueError(msg)
@@ -107,14 +107,14 @@ class ProofPolicy(_ProfileModel):
             msg = "profile gates cannot select registries"
             raise ValueError(msg)
         gate_ids = tuple(gate.id for gate in self.gates)
-        if len(gate_ids) != len(set(gate_ids)) or set(gate_ids) != set(self.required_gates):
+        if len(gate_ids) != len(set(gate_ids)) or set(gate_ids) != set(self.code_correctness_gates):
             msg = "proof gate descriptors must match the proof floor exactly"
             raise ValueError(msg)
-        mapped = tuple(self.code_axes.values())
-        if self.required_gates and (
-            set(self.code_axes) != {"behavior", "static-analysis"}
+        mapped = tuple(self.code_correctness_map.values())
+        if self.code_correctness_gates and (
+            set(self.code_correctness_map) != {"behavior", "static-analysis"}
             or len(mapped) != len(set(mapped))
-            or not set(mapped) <= set(self.required_gates)
+            or not set(mapped) <= set(self.code_correctness_gates)
         ):
             msg = "proof code axes must map distinct required gates"
             raise ValueError(msg)

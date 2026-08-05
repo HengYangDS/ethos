@@ -103,9 +103,9 @@ def _adopted_repo(path: Path) -> tuple[Path, str]:
 material_paths = ["openspec/**"]
 
 [proof]
-required_gates = ["sample-tests", "sample-static"]
+code_correctness_gates = ["sample-tests", "sample-static"]
 
-[proof.code_axes]
+[proof.code_correctness_map]
 behavior = "sample-tests"
 static-analysis = "sample-static"
 

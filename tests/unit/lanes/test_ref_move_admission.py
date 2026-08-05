@@ -37,6 +37,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
@@ -577,9 +578,9 @@ def _accepted_boundary_repo(
         profile.read_text(encoding="utf-8")
         + """
 [proof]
-required_gates = ["sample-tests", "sample-static"]
+code_correctness_gates = ["sample-tests", "sample-static"]
 
-[proof.code_axes]
+[proof.code_correctness_map]
 behavior = "sample-tests"
 static-analysis = "sample-static"
 
@@ -802,6 +803,32 @@ def test_ref_move_policy_bootstraps_from_promoted_strict_control(
     )
 
     assert resolved.proposal_branch_prefix == "proposal/"
+
+
+def test_ref_move_policy_uses_valid_profile_defaults_without_workspace(tmp_path: Path) -> None:
+    repo = tmp_path
+    git(repo, "init", "-q", "-b", "dev")
+    git(repo, "config", "user.name", "test")
+    git(repo, "config", "user.email", "test@example.invalid")
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text('profile_id = "adopter"\n', encoding="utf-8")
+    git(repo, "add", ".ethos/profile.toml")
+    git(repo, "commit", "-m", "adopt")
+    old = git(repo, "rev-parse", "HEAD")
+    (repo / "change.txt").write_text("change", encoding="utf-8")
+    git(repo, "add", "change.txt")
+    git(repo, "commit", "-m", "change")
+    new = git(repo, "rev-parse", "HEAD")
+
+    resolved = git_admission.resolve_ref_move_policy(
+        repo,
+        ref_name="refs/heads/work/example",
+        old_value=old,
+        new_value=new,
+    )
+
+    assert resolved == BranchRolePolicy()
 
 
 def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_path: Path) -> None:

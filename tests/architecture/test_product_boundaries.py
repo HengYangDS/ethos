@@ -428,9 +428,11 @@ def test_openspec_specs_are_mece_product_families() -> None:
     assert {path.parent.name for path in (ROOT / "openspec/specs").glob("*/spec.md")} == expected
 
 
-def test_active_reconciliation_retires_mandatory_history_replay() -> None:
+def test_archived_reconciliation_retires_mandatory_history_replay() -> None:
     delta = (
-        ROOT / "openspec/changes/accepted-spec-reconciliation/specs/repository-governance/spec.md"
+        ROOT
+        / "openspec/changes/archive/2026-08-05-accepted-spec-reconciliation"
+        / "specs/repository-governance/spec.md"
     ).read_text(encoding="utf-8")
 
     assert "Historical Work Lane semantic convergence" in delta

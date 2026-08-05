@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -23,7 +24,6 @@ from ethos.repository.openspec.audit import protected_branch_active_change_repor
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from typing import Any
 
 
@@ -196,12 +196,24 @@ def _openspec_governance_report(
     list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
     rows = official_change_rows(list_result["json"])
     official_selected = selected_change(rows, request.change) if rows is not None else None
+    completed_change = (
+        rows[0]["name"]
+        if rows is not None and len(rows) == 1 and rows[0]["status"] == "complete"
+        else None
+    )
+    status = openspec_status_result(
+        root,
+        base_command,
+        official_selected or completed_change,
+        openspec_cli.run_json,
+    )
     archive_scope = (
         lease_bound_archive_scope_report(
             root,
             changed_paths=request.changed_paths,
             requested_change=request.change,
-            official_change_complete=bool(len(rows) == 1 and rows[0]["status"] == "complete"),
+            official_change_complete=completed_change is not None,
+            completion_artifacts=_artifact_output_paths(root, status.get("json", {})),
         )
         if official_selected is None
         and rows is not None
@@ -214,7 +226,6 @@ def _openspec_governance_report(
         else None
     )
     selected = official_selected or archived_change
-    status = openspec_status_result(root, base_command, official_selected, openspec_cli.run_json)
     apply = (
         openspec_cli.run_json(
             root,
@@ -313,3 +324,20 @@ def _openspec_governance_report(
             "validate": validate,
         },
     }
+
+
+def _artifact_output_paths(root: Path, status: dict[str, Any]) -> tuple[str, ...]:
+    paths: list[str] = []
+    artifact_paths = status.get("artifactPaths")
+    if not isinstance(artifact_paths, dict):
+        return ()
+    for artifact in artifact_paths.values():
+        if not isinstance(artifact, dict):
+            continue
+        outputs = artifact.get("existingOutputPaths")
+        for output in outputs if isinstance(outputs, list) else ():
+            try:
+                paths.append(Path(str(output)).resolve().relative_to(root.resolve()).as_posix())
+            except ValueError:
+                continue
+    return tuple(dict.fromkeys(paths))

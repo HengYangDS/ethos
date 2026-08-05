@@ -4,9 +4,15 @@ intent = "Make accepted specifications truthful and restore atomic successor Cha
 subjects = ["repository:self"]
 scope = [
   "docs/architecture/runner-and-mutation.md",
+  "openspec/changes/accepted-spec-reconciliation/**",
+  "openspec/changes/archive/*-accepted-spec-reconciliation/**",
   "openspec/specs/**",
+  "src/ethos/adapters/admission/git_admission.py",
   "src/ethos/adapters/mutation/**",
+  "src/ethos/adapters/repo/status/workspace.py",
   "src/ethos/surface/cli/lane/**",
+  "tests/architecture/test_product_boundaries.py",
+  "tests/unit/kernel/test_result_contract_model.py",
   "tests/unit/lanes/**",
 ]
 invariants = [

@@ -1,1 +1,1 @@
-"""Coupling audit policy package."""
+"""Positive native-reference ownership policy."""

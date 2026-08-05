@@ -115,6 +115,32 @@ def test_governance_allows_current_lease_staged_completion_transition(
     assert prewrite["required_gaps"] == []
 
 
+def test_governance_allows_custom_schema_completion_artifact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    verification = worktree / "openspec" / "changes" / "fixture-change" / "verification.md"
+    verification.write_text("# Verification\n\nComplete.\n", encoding="utf-8")
+    git(worktree, "add", verification.relative_to(worktree).as_posix())
+    _stub_official_archive_state(
+        monkeypatch,
+        completed=True,
+        completion_artifact="verification.md",
+    )
+
+    report = openspec_governance_report(
+        worktree,
+        lifecycle=True,
+        changed_paths=(verification.relative_to(worktree).as_posix(),),
+        require_workspace=False,
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    assert report["lifecycle"]["scope_binding"]["state"] == "completion_transition"
+
+
 @pytest.mark.parametrize("extra_path", ["README.md", "tests/extra.py"])
 def test_governance_rejects_completion_transition_with_extra_mutation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, extra_path: str
@@ -229,7 +255,10 @@ def _stage_archive(
 
 
 def _stub_official_archive_state(
-    monkeypatch: pytest.MonkeyPatch, *, completed: bool = False
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    completed: bool = False,
+    completion_artifact: str = "tasks.md",
 ) -> None:
     monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
 
@@ -250,6 +279,17 @@ def _stub_official_archive_state(
                 else []
             }
             if args[0] == "list"
+            else {
+                "changeName": "fixture-change",
+                "artifactPaths": {
+                    "completion": {
+                        "existingOutputPaths": [
+                            str(_root / "openspec/changes/fixture-change" / completion_artifact)
+                        ]
+                    }
+                },
+            }
+            if args[0] == "status"
             else {"items": [], "summary": {}}
         )
         return {

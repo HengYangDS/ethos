@@ -99,7 +99,7 @@ def _active_identifier_rejected_report(
         "verdict": "block",
         "official_config": official_config_report(root),
         "official_cli": {
-            "package": openspec_cli.OFFICIAL_NPX_PACKAGE,
+            "package": openspec_cli.OFFICIAL_PACKAGE_SPEC,
             "available": False,
             "base_command": [],
         },
@@ -151,7 +151,7 @@ def _openspec_governance_report(
             "state": "not_applicable",
             "official_config": official_config,
             "official_cli": openspec_official_cli(
-                package=openspec_cli.OFFICIAL_NPX_PACKAGE,
+                package=openspec_cli.OFFICIAL_PACKAGE_SPEC,
                 base_command=base_command,
             ),
             "change": None,
@@ -171,7 +171,7 @@ def _openspec_governance_report(
     context = OpenSpecReportContext(
         request=request,
         official_config=official_config,
-        official_package=openspec_cli.OFFICIAL_NPX_PACKAGE,
+        official_package=openspec_cli.OFFICIAL_PACKAGE_SPEC,
         required_gaps=required_gaps,
         advisory_gaps=advisory_gaps,
         protected_branch_residue=protected_branch_residue,
@@ -258,7 +258,7 @@ def _openspec_governance_report(
         "verdict": "block" if required_gaps else "pass",
         "official_config": official_config,
         "official_cli": openspec_official_cli(
-            package=openspec_cli.OFFICIAL_NPX_PACKAGE,
+            package=openspec_cli.OFFICIAL_PACKAGE_SPEC,
             base_command=base_command,
         ),
         "change": selected,

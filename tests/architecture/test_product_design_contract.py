@@ -14,7 +14,7 @@ from ethos.surface.cli.application import load_command_groups
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_OWNER = "docs/governance/product-design-contract.md"
 PLAN = "docs/plans/terminal-governance-product-design.md"
-SOURCE_CHANGE = "openspec/changes/archive/2026-08-04-terminal-convergence"
+SOURCE_CHANGE = "openspec/changes/terminal-convergence"
 AXIOMS = "system/axioms.md"
 PROJECTIONS = {
     "README.md",
@@ -240,7 +240,7 @@ def test_live_cyclopts_tree_has_exact_public_and_hidden_roots() -> None:
     assert {name for name, command in commands.items() if not command.show} == HIDDEN_ROOTS
 
 
-def test_campaign_is_an_acyclic_projection_of_atomic_change_outcomes() -> None:
+def test_campaign_has_one_progress_owner_and_acyclic_phase_outcomes() -> None:
     contract = section(read(CANONICAL_OWNER), "Campaign And Change Granularity")
     route = section(read(PLAN), "Campaign Projection And Convergence Route", level=3)
     rows = re.findall(r"^\| `([^`]+)` \| (.+?) \| (.+?) \|$", route, re.MULTILINE)
@@ -252,9 +252,9 @@ def test_campaign_is_an_acyclic_projection_of_atomic_change_outcomes() -> None:
         for dependency in re.findall(r"`([^`]+)`", dependencies):
             assert dependency in order, (outcome, dependency)
             assert order[dependency] < order[outcome], (outcome, dependency)
-    assert "no task list, progress store, lifecycle state" in contract
-    assert "one independently useful semantic outcome" in contract
-    assert "Migration closes only the source carrier" in contract
+    assert "one task-progress owner" in contract
+    assert "independently verifiable phase outcomes" in contract
+    assert "Moving an obligation never counts as implementing it" in contract
     assert "no fixed global WIP number" in contract
 
 
@@ -262,13 +262,14 @@ def test_openspec_workspace_owns_atomic_change_lifecycle() -> None:
     workspace = read("openspec/README.md")
 
     assert "every\nmutation-capable adopter" in workspace
-    assert "A Campaign is reconstructed from a dependency graph of Changes" in workspace
-    assert "one independently landable\nsemantic outcome and one short Work Lane" in workspace
-    assert "do not keep unrelated outcomes open in one Change" in workspace
+    assert "A Campaign has one OpenSpec task-progress owner" in workspace
+    assert "migration as implementation" in workspace
+    assert "terminal-convergence Campaign deliberately remains one active Change" in workspace
 
 
-def test_oversized_source_change_migrates_every_remaining_obligation_once() -> None:
-    design = section(read(f"{SOURCE_CHANGE}/design.md"), "Campaign Fission Closure")
+def test_terminal_change_keeps_every_remaining_obligation_open_once() -> None:
+    design = section(read(f"{SOURCE_CHANGE}/design.md"), "Campaign Dependency Graph")
+    tasks = read(f"{SOURCE_CHANGE}/tasks.md")
     rows = re.findall(r"^\| `([^`]+)` \| (.+?) \| (.+?) \| (.+?) \|$", design, re.MULTILINE)
     mapped = [
         task
@@ -288,18 +289,22 @@ def test_oversized_source_change_migrates_every_remaining_obligation_once() -> N
     assert len(rows) == len(SUCCESSOR_OUTCOMES)
     assert sorted(mapped) == sorted(expected)
     assert len(mapped) == len(set(mapped))
+    assert "Migrated without implementation" not in tasks
+    assert all(f"- [ ] {task} " in tasks for task in expected)
 
 
-def test_source_commitment_claims_only_fission_closeout() -> None:
+def test_terminal_commitment_claims_complete_campaign_closeout() -> None:
     commitment = tomllib.loads(read(f"{SOURCE_CHANGE}/commitment.toml"))
 
     assert commitment["acceptance"] == [
-        "kernel_authority_continuation_lease_and_git_transaction_slice_proven",
-        "thirty_remaining_source_obligations_uniquely_mapped_to_acyclic_successors",
-        "official_openspec_archive_skips_speculative_spec_application",
-        "source_change_lands_locally_and_work_lane_retires",
+        "contract_attestation_plan_and_effect_chain_proven",
+        "campaign_lane_records_docs_skills_and_ci_are_derived",
+        "three_adopter_profiles_conform",
+        "warnings_and_suppressions_zero",
+        "terminal_source_budget_met",
+        "local_gitlab_and_github_planes_independently_attested",
     ]
-    assert "terminal-publication.execute" not in commitment["permissions"]
+    assert "terminal-publication.execute" in commitment["permissions"]
     assert commitment["dependencies"] == []
 
 

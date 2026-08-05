@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -34,6 +35,68 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_openspec_runner_is_repository_locked_17_without_fallbacks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ETHOS_OPENSPEC_BIN", "/tmp/untrusted-openspec")
+    monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", "/tmp/untrusted-npx-cache")
+    monkeypatch.setenv("PATH", "/tmp/untrusted-path")
+
+    command = openspec_cli.openspec_base_command()
+
+    assert command is not None
+    assert command[-1].endswith("node_modules/@fission-ai/openspec/bin/openspec.js")
+    assert openspec_cli.OFFICIAL_PACKAGE == "@fission-ai/openspec"
+    assert openspec_cli.OFFICIAL_VERSION == "1.7.0"
+    assert openspec_cli.verify_official_cli(command)["verdict"] == "pass"
+    assert all(token not in command for token in ("npx", "openspec", "/tmp/untrusted-openspec"))
+    assert os.environ["PATH"] == "/tmp/untrusted-path"
+
+
+def test_openspec_17_status_contract_exposes_artifact_graph() -> None:
+    payload = {
+        "changeName": "example",
+        "schemaName": "spec-driven",
+        "isComplete": False,
+        "applyRequires": ["tasks"],
+        "artifactPaths": {"tasks": {"outputPath": "tasks.md"}},
+        "artifacts": [
+            {"id": "proposal", "status": "done", "requires": []},
+            {
+                "id": "tasks",
+                "status": "blocked",
+                "requires": ["proposal"],
+                "missingDeps": ["proposal"],
+            },
+        ],
+        "root": {"path": "/tmp/repository", "source": "nearest"},
+    }
+
+    assert openspec_cli.status_contract_gaps(payload) == []
+    assert openspec_cli.status_contract_gaps(payload | {"artifacts": []}) == [
+        "openspec_status_artifact_graph_missing"
+    ]
+
+
+def test_openspec_17_instructions_contract_covers_apply_and_archive() -> None:
+    apply = {
+        "changeName": "example",
+        "state": "blocked",
+        "progress": {"total": 0, "complete": 0, "remaining": 0},
+        "tasks": [],
+        "missingArtifacts": ["tasks"],
+        "instruction": "Create tasks first.",
+        "root": {"path": "/tmp/repository", "source": "nearest"},
+    }
+    archive = {
+        "changeName": "example",
+        "root": {"path": "/tmp/repository", "source": "nearest"},
+    }
+
+    assert openspec_cli.instructions_contract_gaps("apply", apply) == []
+    assert openspec_cli.instructions_contract_gaps("archive", archive) == []
 
 
 def test_selected_change_requires_an_explicit_request_to_exist() -> None:

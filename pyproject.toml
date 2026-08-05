@@ -23,6 +23,7 @@ dev = [
   "deptry>=0.25.1",
   "hypothesis>=6.164.0,<7",
   "import-linter>=2.13",
+  "mutmut>=3.7.0",
   "pre-commit>=4.6.1",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
@@ -56,3 +57,9 @@ include = [
 
 [tool.pytest.ini_options]
 cache_dir = "build/runtime/tool-cache/pytest"
+
+[tool.mutmut]
+source_paths = ["src/ethos"]
+only_mutate = ["src/ethos/contracts/verdict.py"]
+pytest_add_cli_args_test_selection = ["tests/unit/kernel/test_mutation_decision.py"]
+mutate_only_covered_lines = true

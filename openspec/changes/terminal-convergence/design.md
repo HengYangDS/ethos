@@ -382,6 +382,35 @@ the sole progress owner and the table below is only its dependency projection.
 | `terminal-local-closeout` | `7.1`, `7.2` | every preceding local outcome | One immutable local HEAD passes complete proof, advances local candidate and protected `dev` by exact CAS, verifies records, and retires all owned lanes. |
 | `dual-provider-publication` | `7.3`, `7.4` | `terminal-local-closeout` | Exactly one `proposal/*` sequence proves and publishes the same commit, version, signed tag, SBOM, provenance, and artifact digests independently on GitLab and GitHub. |
 
+### Transition-Invariant Proof Boundary
+
+Task `3.6` proves bounded claims, never general distributed correctness. The
+closed-verdict model exhausts the three verdict values, zero-or-one gaps,
+zero-or-one warnings, and reducer sequences of length zero through three. The
+Lease state machine runs 20 examples of 12 transitions over renew, handoff
+offer/accept, and stale-epoch rejection; it requires stable lane identity,
+carrier binding, holder/epoch rules, and zero effect on stale CAS. Existing
+effect tests provide concrete witnesses for exact Git multi-ref candidate CAS,
+handoff package integrity, retirement compensation after ref failure, and
+recovery after Attestation persistence failure.
+
+Mutation scope is exactly `src/ethos/contracts/verdict.py`, selected because it
+is deterministic and authority-bearing. `mutmut` runs the bounded verdict tests
+with one worker; all authorization-changing mutants must be killed. A survivor
+is admissible only when its diff changes no return value, exception type,
+mutation effect, or authorization decision; timeout, infrastructure error, or
+unclassified survivor is unknown and blocks. The pilot kill criterion is every
+semantic mutant killed, not a repository-wide percentage. Unsupported claims
+include arbitrary concurrency schedules, filesystem or SQLite failure modes not
+injected by the concrete tests, cross-host transport liveness, and takeover
+behavior that task `4.4` has not yet implemented.
+
+The final pinned pilot generated 112 mutants and killed 106. The six survivors
+were judged equivalent: three alter only the spelling of the missing-severity
+default passed to `str`, and three alter only non-authorizing placeholder text
+whose presence, not content, closes the verdict. No timeout, infrastructure
+failure, suspicious result, or unclassified survivor remained.
+
 Task `3.4` is split truthfully: `7cda1c1c` proves deletion of the coupling and
 standards registries plus native-owner derivation for current declared
 references; the unproved cross-surface variation-axis remainder stays open in

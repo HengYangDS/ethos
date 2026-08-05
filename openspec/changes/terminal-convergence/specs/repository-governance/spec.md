@@ -233,7 +233,7 @@ declaration may expand baseline authority.
   manifest varies
 - **THEN** the value is supplied by runtime, deployment, release, publication
   trust, or extension configuration
-- **AND** the portable product core requires no edit.
+- **AND** the portable product runtime requires no edit.
 
 ### Requirement: Contextual Authority Resolution
 Authority and currentness SHALL resolve contextually by subject, predicate,
@@ -502,7 +502,7 @@ A carrier SHALL be retired only when it is non-current, has no active inbound or
 - **WHEN** a target carrier is evaluated for retirement
 - **THEN** ETHOS reads the target repository's `.ethos/profile.toml`
 - **AND** validates declared binding roots such as `.config/`
-- **AND** rejects profile-declared forbidden product-core adopter roots in the
+- **AND** rejects profile-declared forbidden product-runtime adopter roots in the
   ETHOS product repository
 - **AND** includes parity and shadow false-negative evidence in the verdict
 - **AND** reports external-default, embedded-freeze, rollback-window evidence,

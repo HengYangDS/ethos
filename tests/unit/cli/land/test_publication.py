@@ -10,12 +10,12 @@ from ethos.domain.land.publication import local_proposal_package
 from ethos.domain.land.publication import publication_readiness
 from ethos.domain.land.publication import publication_with_remote_matrix
 from ethos.domain.land.publication import remote_publication_deferred
-from tests.support.contract_helpers import adopt_and_commit
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
-from tests.support.contract_helpers import seed_executed_proof
-from tests.support.contract_helpers import write_role_policy
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import seed_executed_proof
+from tests.support.governed_repository import write_role_policy
 
 
 def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(

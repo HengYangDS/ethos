@@ -85,7 +85,7 @@ for invalid dependency sets.
   explicit dependencies and validation gaps
 
 ### Requirement: Physical Target Product Homes
-ETHOS SHALL provide buildable target product package homes for core,
+ETHOS SHALL provide buildable target product package homes for the semantic kernel,
 contracts, repository semantics, assistants, adapters, CLI, and conformance
 proof.
 

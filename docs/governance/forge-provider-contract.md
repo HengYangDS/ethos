@@ -127,6 +127,6 @@ Dual-provider activation requires:
 ## Non-Adoption Decisions
 
 The forge contract does not require Nox, Pixi, Pants, Backlog, Superpowers,
-Dagger, or a hosted CI provider SDK as product core. Those may be admitted as
+Dagger, or a hosted CI provider SDK as product-runtime dependencies. Those may be admitted as
 adopter profile adapters when they reduce invalid states and keep their evidence
 boundary explicit.

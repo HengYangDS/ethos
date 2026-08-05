@@ -1,4 +1,4 @@
-"""Shared subprocess and registry helpers for architecture tests."""
+"""Run subprocess and registry architecture probes."""
 
 from __future__ import annotations
 

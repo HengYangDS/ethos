@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import ethos.domain.source_budget.measurement as source_budget
-from tests.support.contract_helpers import git
+from tests.support.governed_repository import git
 from tests.support.subprocesses import completed as cp
 
 

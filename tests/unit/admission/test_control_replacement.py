@@ -15,11 +15,11 @@ import ethos.adapters.admission.evidence.external as external_evidence
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.rules import stable_digest
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
-from tests.support.contract_helpers import seed_executed_proof
-from tests.support.contract_helpers import start_adopted_candidate
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import seed_executed_proof
+from tests.support.governed_repository import start_adopted_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path

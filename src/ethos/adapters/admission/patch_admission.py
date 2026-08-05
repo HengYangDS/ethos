@@ -8,9 +8,9 @@ import tomllib
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_stdout
-from ethos.repository.policy.references.ownership import native_owned_references_from_files
-from ethos.repository.policy.references.ownership import product_reference_gaps
-from ethos.repository.policy.references.ownership import product_references_from_files
+from ethos.repository.policy.references.closure import product_reference_gaps
+from ethos.repository.policy.references.declarations import native_owned_references_from_files
+from ethos.repository.policy.references.observation import product_references_from_files
 
 _UNIFIED_DIFF_HEADER_PART_COUNT = 4
 _REFERENCE_KINDS = ("import", "distribution", "executable", "reference", "command", "value")

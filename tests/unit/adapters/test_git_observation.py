@@ -5,9 +5,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import ref_progress
-from tests.support.contract_helpers import commit_fixture_file
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path

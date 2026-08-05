@@ -33,9 +33,9 @@ from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import start_adopted_candidate
-from tests.support.contract_helpers import write_active_commitment
+from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_candidate
+from tests.support.governed_repository import write_active_commitment
 
 
 def _write_object(destination: Path, content: str) -> str:

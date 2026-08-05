@@ -9,8 +9,8 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import load_repository_profile
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 ROOT = Path(__file__).resolve().parents[3]
 

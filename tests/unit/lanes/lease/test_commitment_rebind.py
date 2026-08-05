@@ -22,9 +22,9 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
 from ethos.contracts.semantic import Attestation
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_work_lane
 
 
 def _install_reference_transaction_hook(

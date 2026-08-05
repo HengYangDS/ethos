@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ethos.repository.policy.references.ownership import native_owned_references
-from ethos.repository.policy.references.ownership import native_owned_references_from_files
-from ethos.repository.policy.references.ownership import product_references_from_files
-from ethos.repository.policy.references.ownership import repository_product_reference_gaps
-from ethos.repository.policy.references.ownership import repository_product_references
+from ethos.repository.policy.references.closure import repository_product_reference_gaps
+from ethos.repository.policy.references.declarations import native_owned_references
+from ethos.repository.policy.references.declarations import native_owned_references_from_files
+from ethos.repository.policy.references.observation import product_references_from_files
+from ethos.repository.policy.references.observation import repository_product_references
 
 ROOT = Path(__file__).resolve().parents[3]
 

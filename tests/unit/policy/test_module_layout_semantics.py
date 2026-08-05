@@ -38,6 +38,21 @@ def test_ambiguous_module_name_is_always_blocked(tmp_path) -> None:
             "gap": "module_layout_ambiguous_module:src/ethos/domain/core.py",
             "path": "src/ethos/domain/core.py",
             "module": "core",
+            "ambiguous_tokens": ["core"],
+        }
+    ]
+
+
+def test_ambiguous_module_name_tokens_cannot_hide_in_compounds(tmp_path) -> None:
+    _write(tmp_path, "tests/support/contract_helpers.py", "VALUE = 1\n")
+    policy = {"semantic_paths": ["tests"], "ambiguous_module_names": ["helpers"]}
+
+    assert ambiguous_module_findings(tmp_path, policy) == [
+        {
+            "gap": "module_layout_ambiguous_module:tests/support/contract_helpers.py",
+            "path": "tests/support/contract_helpers.py",
+            "module": "contract_helpers",
+            "ambiguous_tokens": ["helpers"],
         }
     ]
 

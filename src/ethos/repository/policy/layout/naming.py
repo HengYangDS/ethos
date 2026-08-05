@@ -39,7 +39,8 @@ def ambiguous_module_findings(
     findings: list[dict[str, object]] = []
     for path in semantic_python_files(root, policy, files=files):
         module = path.stem.lstrip("_")
-        if module not in names:
+        ambiguous = sorted(_name_tokens(module).intersection(names))
+        if not ambiguous:
             continue
         relative = path.relative_to(root).as_posix()
         findings.append(
@@ -47,6 +48,7 @@ def ambiguous_module_findings(
                 "gap": f"module_layout_ambiguous_module:{relative}",
                 "path": relative,
                 "module": module,
+                "ambiguous_tokens": ambiguous,
             }
         )
     return findings
@@ -76,8 +78,13 @@ def ambiguous_package_findings(
             "package": directory.name.lstrip("_"),
         }
         for directory in sorted(directories)
-        if directory.name.lstrip("_") in names
+        if _name_tokens(directory.name.lstrip("_")).intersection(names)
     ]
+
+
+def _name_tokens(name: str) -> set[str]:
+    """Return semantic words from snake-case repository-owned Python names."""
+    return {token for token in name.split("_") if token}
 
 
 def multiple_command_owner_findings(

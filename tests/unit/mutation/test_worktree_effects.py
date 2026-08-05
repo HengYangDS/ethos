@@ -7,9 +7,9 @@ from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.repo.worktree_effects import sync_worktree
-from tests.support.contract_helpers import adopt_and_commit
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 
 
 def test_add_worktree_recognizes_exact_terminal_state(tmp_path) -> None:

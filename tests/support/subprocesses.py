@@ -1,4 +1,4 @@
-"""Small deterministic subprocess doubles shared by coverage tests."""
+"""Deterministic subprocess doubles for coverage tests."""
 
 from __future__ import annotations
 

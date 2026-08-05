@@ -17,6 +17,10 @@ Purpose: define tracked write admission and Work Lane discipline.
 - Normal tracked mutation belongs only in an owned `work/*` Work Lane.
 - `accepted_root` and `candidate` checkouts are observe-only for normal edits.
 - Before writing, run `ethos status --json` and `ethos lane prewrite`.
+- Archive a completed OpenSpec Change only with `ethos lane archive-change
+  --change <id> --expect-head <head> --apply`; do not run a standalone archive
+  followed by a manual commit. The command owns the exact official delta, normal
+  hook commit, Lease relocation, and typed effect evidence as one transition.
 - Write-capable tools must carry an explicit target root or working directory
   matching the admitted Work Lane. Do not rely on the host launch context's default
   filesystem path for tracked writes.

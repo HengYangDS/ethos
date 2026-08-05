@@ -17,6 +17,7 @@ from ethos.adapters.openspec.lifecycle.report import lifecycle_report
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.profile import completed_active_changes_report
+from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.plan import TransitionPlan
 from ethos.repository.adoption.planner import adoption_plan
@@ -1394,6 +1395,69 @@ def test_plan_emits_one_transition_plan_without_parallel_read_models(tmp_path: P
     assert not {"status", "plan", "prove"} & {
         node["id"] for node in payload["data"]["transition_plan"]["nodes"]
     }
+
+
+def test_plan_projects_explicit_proof_capacity_without_fixed_worker_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    commitment_path = repo / ".ethos" / "commitment.toml"
+    commitment_path.write_text(
+        commitment_path.read_text(encoding="utf-8") + 'risks = ["uncertain cutover"]\n',
+        encoding="utf-8",
+    )
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "adopt")
+    monkeypatch.setattr(
+        "ethos.surface.cli.root.planning.workspace_status",
+        lambda *_args, **_kwargs: {
+            "root": repo.as_posix(),
+            "branch": "dev",
+            "head": git(repo, "rev-parse", "HEAD"),
+            "role": "accepted_root",
+            "dirty": False,
+            "changed_paths": [],
+            "role_policy": {"candidate_branch": "candidate/dev"},
+            "foreign_work_lanes": [
+                {
+                    "branch": "work/alternative",
+                    "coordination_state": "overlap",
+                    "base_commitment_digest": load_profile_commitment(repo).digest(),
+                    "path_scope": ["src/ethos/example.py"],
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        "ethos.surface.cli.root.planning._peer_proof_cost",
+        lambda *_args, **_kwargs: 3,
+    )
+
+    payload = run_ethos(
+        "plan",
+        "--proof-node-capacity",
+        "7",
+        "--root",
+        repo.as_posix(),
+        "--json",
+    )
+
+    assert payload["data"]["coordination_strategy"] == {
+        "state": "compete",
+        "reason": "alternative_realizations_admitted",
+        "proof_capacity": 7,
+        "proof_cost": 3,
+        "risk_count": 1,
+        "peer_count": 1,
+        "alternative_count": 1,
+        "conflict_count": 0,
+        "unknown_count": 0,
+        "branches": ["work/alternative"],
+    }
+    assert "worker_count" not in payload["data"]["coordination_strategy"]
+    assert "competitor_limit" not in payload["data"]["coordination_strategy"]
 
 
 def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Path) -> None:

@@ -142,10 +142,10 @@ A command contract must not require a universal `packages/`, `tools/`, `scripts/
 or Python layout. Those are adopter implementation choices.
 
 Repository-native proof gates use the same typed descriptor vocabulary as a
-declared gate registry. The `[proof] required_gates` list names the gates
+declared gate registry. The `[proof] code_correctness_gates` list names the gates
 required for promotion; each profile-native id must also have one `[[proof.gates]]`
 descriptor with at least `id`, `kind`, and a list-form executable `command`.
-`[proof.code_axes]` explicitly maps the required `behavior` and
+`[proof.code_correctness_map]` explicitly maps the required `behavior` and
 `static-analysis` axes to distinct gate IDs. Missing axes, reused gates, undeclared
 IDs, and waivers are invalid declarations rather than runtime vocabulary guesses.
 Optional descriptor fields such as `depends_on`, `evidence_class`,
@@ -196,5 +196,5 @@ A valid adopter uses the official OpenSpec lifecycle when a workspace exists,
 OpenSpec is explicitly requested, or a changed path matches declared
 `material_paths`. Without those applicability facts, plan and proof report the
 capability as not applicable. Lifecycle is not a
-`[proof].required_gates` entry, and no method package is a governance
+`[proof].code_correctness_gates` entry, and no method package is a governance
 substitute.

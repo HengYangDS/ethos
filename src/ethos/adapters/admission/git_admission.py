@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitRefUpdate
@@ -26,13 +27,13 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
     from ethos.contracts.admission import HookAdmissionRequest
-    from ethos.contracts.branch.roles import BranchRolePolicy
 
 HOOK_LAYERS = {
     name: {"timing": timing, "duty": duty, "fallback": fallback}
@@ -287,6 +288,13 @@ def resolve_ref_move_policy(
     policy = _strict_ref_policy(repo, old_value)
     if policy is None:
         policy = _strict_ref_policy(repo, new_value)
+    if policy is None:
+        for revision in (old_value, new_value):
+            if revision not in _ZERO_OIDS:
+                profile = load_repository_profile(repo, tree_ref=revision)
+                if profile.state == "valid" and profile.declaration is not None:
+                    policy = BranchRolePolicy()
+                    break
     if policy is None:
         message = "ref_move_policy_unavailable"
         raise ValueError(message)

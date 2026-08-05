@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_evidence_roots
@@ -24,7 +25,7 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     with pytest.raises(ValidationError):
         declaration.profile_id = "mutable"
     with pytest.raises(TypeError):
-        declaration.proof.code_axes["behavior"] = "mutable"
+        declaration.proof.code_correctness_map["behavior"] = "mutable"
     with pytest.raises(ValidationError):
         RepositoryProfileDeclaration.model_validate(
             {
@@ -70,20 +71,79 @@ def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path
 @pytest.mark.parametrize(
     "proof",
     [
-        'code_correctness_gates = ["tests", "types"]\n',
-        'required_gates = ["tests", "types"]\n\n[proof.code_axes]\nbehavior = "tests"\n',
+        'required_gates = ["tests", "types"]\n',
+        'code_axes = { behavior = "tests", static-analysis = "types" }\n',
         (
-            'required_gates = ["tests", "types"]\n\n[proof.code_axes]\n'
+            'code_correctness_gates = ["tests", "types"]\n\n'
+            '[proof.code_correctness_map]\nbehavior = "tests"\n'
+        ),
+        (
+            'code_correctness_gates = ["tests", "types"]\n\n'
+            "[proof.code_correctness_map]\n"
             'behavior = "tests"\nstatic-analysis = "tests"\n'
         ),
     ],
 )
-def test_profile_rejects_legacy_or_incomplete_proof_owners(tmp_path: Path, proof: str) -> None:
+def test_profile_rejects_retired_or_incomplete_proof_owners(tmp_path: Path, proof: str) -> None:
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir()
     profile.write_text('profile_id = "sample"\n\n[proof]\n' + proof, encoding="utf-8")
 
     assert load_repository_profile(tmp_path).state == "invalid"
+
+
+def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", tmp_path], check=True)
+    subprocess.run(["git", "config", "user.name", "test"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.invalid"], cwd=tmp_path, check=True
+    )
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "codex-responses-proxy"\n\n'
+        "[proof]\n"
+        'code_correctness_gates = ["python-quality", "python-matrix"]\n\n'
+        "[proof.code_correctness_map]\n"
+        'behavior = "python-matrix"\n'
+        'static-analysis = "python-quality"\n\n'
+        "[[proof.gates]]\n"
+        'id = "python-quality"\n'
+        'kind = "static"\n'
+        'command = ["nox", "-s", "quality"]\n'
+        'dimensions = ["static-analysis"]\n'
+        'execution_mode = "subprocess"\n'
+        'evidence_class = "proof"\n'
+        "trust_bearing = true\n"
+        'tool_adapter = "repository-native"\n\n'
+        "[[proof.gates]]\n"
+        'id = "python-matrix"\n'
+        'kind = "test"\n'
+        'command = ["nox", "-s", "tests"]\n'
+        'dimensions = ["behavior"]\n'
+        'execution_mode = "subprocess"\n'
+        'evidence_class = "proof"\n'
+        "trust_bearing = true\n"
+        'tool_adapter = "repository-native"\n',
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", ".ethos/profile.toml"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "profile"], cwd=tmp_path, check=True)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    worktree = resolve_gate_policy(tmp_path)
+    committed = resolve_gate_policy(tmp_path, tree_ref=head)
+
+    assert worktree.profile is not None
+    assert worktree.profile.state == "valid"
+    assert worktree.digest == committed.digest
+    assert set(worktree.gate_ids) == {"python-quality", "python-matrix"}
 
 
 def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
@@ -92,7 +152,7 @@ def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
     profile.write_text(
         'profile_id = "sample"\n\n'
         "[proof]\n"
-        'required_gates = ["tests"]\n\n'
+        'code_correctness_gates = ["tests"]\n\n'
         "[[proof.gates]]\n"
         'id = "tests"\n'
         'kind = "test"\n'

@@ -4,24 +4,21 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Literal
-from typing import cast
 
 Verdict = Literal["pass", "block", "unknown"]
-_VERDICTS = frozenset(("pass", "block", "unknown"))
+_VERDICTS: dict[object, Verdict] = {"pass": "pass", "block": "block", "unknown": "unknown"}
 
 
-def _strings(value: object) -> tuple[str, ...]:
-    return tuple(str(item) for item in value) if isinstance(value, (list, tuple)) else ()
+def _items(value: object) -> tuple[object, ...]:
+    return tuple(value) if isinstance(value, (list, tuple)) else ()
 
 
-def _adverse_diagnostics(value: object) -> tuple[str, ...]:
+def _has_adverse_diagnostic(value: object) -> bool:
     if not isinstance(value, (list, tuple)):
-        return ()
-    return tuple(
-        str(item.get("message") or item.get("code") or item.get("severity"))
+        return False
+    return any(
+        isinstance(item, Mapping) and str(item.get("severity", "")).lower() in {"warning", "error"}
         for item in value
-        if isinstance(item, Mapping)
-        and str(item.get("severity") or "").lower() in {"warning", "error"}
     )
 
 
@@ -49,12 +46,14 @@ def observation_verdict(
 
 def report_verdict(report: Mapping[str, object]) -> Verdict:
     """Reduce one explicit report; an absent or invalid verdict stays unknown."""
-    gaps = _strings(report.get("required_gaps"))
-    warnings = (*_strings(report.get("warnings")), *_adverse_diagnostics(report.get("diagnostics")))
-    declared = report.get("verdict")
-    if declared in _VERDICTS:
-        return close_verdict(cast("Verdict", declared), gaps, warnings)
-    return close_verdict("unknown", gaps, warnings)
+    gaps = tuple(str(item) for item in _items(report.get("required_gaps")))
+    warnings = (
+        ("reported_warning",)
+        if _items(report.get("warnings")) or _has_adverse_diagnostic(report.get("diagnostics"))
+        else ()
+    )
+    declared = _VERDICTS.get(report.get("verdict"), "unknown")
+    return close_verdict(declared, gaps, warnings)
 
 
 def reduce_verdicts(

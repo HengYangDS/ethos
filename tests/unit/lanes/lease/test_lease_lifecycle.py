@@ -5,14 +5,21 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 import pytest
+from hypothesis import settings
+from hypothesis.stateful import RuleBasedStateMachine
+from hypothesis.stateful import invariant
+from hypothesis.stateful import precondition
+from hypothesis.stateful import rule
 
 import ethos.adapters.mutation.lane_retirement.effects as retirement_effects
 import ethos.adapters.repo.git_effects as git_effects
@@ -180,6 +187,129 @@ def _insert_lease_row(
                 raw_payload,
             ),
         )
+
+
+class LeaseTransitionMachine(RuleBasedStateMachine):
+    """Bounded model of exact Lease refresh, offer, accept, and stale-CAS behavior."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.database = Path(self.temporary_directory.name) / "state.sqlite"
+        now = datetime.now(UTC)
+        self.binding = {
+            "expected_head": "a" * 40,
+            "expected_tree": "b" * 40,
+            "base_commitment_path": "openspec/changes/example/commitment.toml",
+            "base_commitment_bytes_sha256": "c" * 64,
+            "base_commitment_digest": "d" * 64,
+        }
+        acquire_lease(
+            self.database,
+            lease=LaneLease(
+                lane_incarnation_id="lane-incarnation:model",
+                lease_id="lease:model",
+                lane_ref="work/model",
+                holder_ref=HolderRef.parse("agent:test:case:first"),
+                epoch=1,
+                issued_at=now,
+                renewed_at=now,
+                expires_at=now + timedelta(hours=1),
+                path_scope=(),
+                handoff=None,
+                **self.binding,
+            ),
+        )
+
+    def teardown(self) -> None:
+        self.temporary_directory.cleanup()
+
+    def snapshot(self) -> dict[str, Any]:
+        return observe_lease(self.database, "work/model").record()
+
+    def request(self, operation: str, **values: object) -> LeaseOperationRequest:
+        lease = self.snapshot()
+        return _lease_request(
+            operation=operation,
+            branch="work/model",
+            holder_ref=str(lease["holder_ref"]),
+            lease=lease,
+            apply=True,
+            **values,
+        )
+
+    @rule()
+    def renew(self) -> None:
+        before = self.snapshot()
+        after = _apply_lease(self.database, self.request("renew", ttl_seconds=3600))
+        assert (after["holder_ref"], after["epoch"]) == (
+            before["holder_ref"],
+            before["epoch"],
+        )
+
+    @rule()
+    def offer(self) -> None:
+        before = self.snapshot()
+        target = (
+            "agent:test:case:second"
+            if before["holder_ref"] == "agent:test:case:first"
+            else "agent:test:case:first"
+        )
+        after = _apply_lease(
+            self.database,
+            self.request("handoff_offer", target_holder_ref=target),
+        )
+        assert (after["holder_ref"], after["epoch"]) == (
+            before["holder_ref"],
+            before["epoch"],
+        )
+
+    @precondition(lambda self: bool(self.snapshot()["payload"]["handoff"]))
+    @rule()
+    def accept(self) -> None:
+        before = self.snapshot()
+        handoff = before["payload"]["handoff"]
+        assert isinstance(handoff, dict)
+        after = _apply_lease(
+            self.database,
+            self.request(
+                "handoff_accept",
+                target_holder_ref=str(handoff["target_holder_ref"]),
+                offer_id=str(handoff["offer_id"]),
+                holder_quiesced=True,
+                ttl_seconds=3600,
+            ),
+        )
+        payload = cast("dict[str, object]", after["payload"])
+        assert (after["holder_ref"], after["epoch"], payload["handoff"]) == (
+            handoff["target_holder_ref"],
+            int(before["epoch"]) + 1,
+            None,
+        )
+
+    @rule()
+    def stale_epoch_has_zero_effect(self) -> None:
+        before = self.snapshot()
+        request = self.request("renew").model_copy(
+            update={"expected_epoch": int(before["epoch"]) + 1}
+        )
+        with pytest.raises(ValueError, match=r"^lease_epoch_stale:"):
+            _apply_lease(self.database, request)
+        assert self.snapshot() == before
+
+    @invariant()
+    def identity_and_binding_are_preserved(self) -> None:
+        lease = self.snapshot()
+        assert (lease["lease_id"], lease["lane_ref"]) == ("lease:model", "work/model")
+        assert all(lease[field] == value for field, value in self.binding.items())
+
+
+TestLeaseTransitionMachine = LeaseTransitionMachine.TestCase
+TestLeaseTransitionMachine.settings = settings(
+    deadline=None,
+    max_examples=20,
+    stateful_step_count=12,
+)
 
 
 def test_lease_observation_keeps_valid_expired_unknown_and_missing_distinct(

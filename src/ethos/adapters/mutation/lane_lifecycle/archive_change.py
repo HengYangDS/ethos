@@ -18,7 +18,9 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effects import commit_git_worktree
+from ethos.adapters.repo.git_effects import compensate_git_worktree
+from ethos.adapters.repo.git_effects import stage_git_worktree
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -107,7 +109,7 @@ def _apply_archive(
     result = openspec_cli.run_json(repo, command, ("archive", change, "--yes", "--json"))
     mutation_gaps, archive_path = _official_result_gaps(repo, change, result)
     if mutation_gaps:
-        _restore(repo, head, archive_path)
+        compensate_git_worktree(repo, head=head, untracked_path=archive_path)
         return _report(
             branch,
             head,
@@ -117,7 +119,7 @@ def _apply_archive(
             command=result.get("command", []),
         )
 
-    run_git(repo, "add", "--all")
+    stage_git_worktree(repo, previous=head)
     changed = tuple(
         git_stdout(repo, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD").splitlines()
     )
@@ -131,7 +133,7 @@ def _apply_archive(
         or scope.get("verdict") != "pass"
         or scope.get("state") != "archive_transition"
     ):
-        _restore(repo, head, archive_path)
+        compensate_git_worktree(repo, head=head, untracked_path=archive_path)
         return _report(
             branch,
             head,
@@ -140,16 +142,20 @@ def _apply_archive(
             change=change,
             changed_paths=list(changed),
         )
-    commit = run_git(repo, "commit", "-m", f"archive OpenSpec change {change}", check=False)
-    if commit.returncode:
-        _restore(repo, head, archive_path)
+    archive_commit = commit_git_worktree(
+        repo,
+        previous=head,
+        message=f"archive OpenSpec change {change}",
+    )
+    if archive_commit["verdict"] != "pass":
+        compensate_git_worktree(repo, head=head, untracked_path=archive_path)
         return _report(
             branch,
             head,
             "blocked",
             ["openspec_archive_commit_failed"],
             change=change,
-            stderr=commit.stderr.strip(),
+            stderr=str(archive_commit.get("error") or ""),
         )
 
     archived_head = current_tracked_head(repo)
@@ -302,12 +308,6 @@ def _official_result_gaps(root: Path, change: str, result: dict[str, Any]) -> tu
         and archive_path.endswith(f"-{change}")
     )
     return ([] if valid else ["openspec_archive_result_invalid"], archive_path)
-
-
-def _restore(root: Path, head: str, archive_path: str) -> None:
-    run_git(root, "reset", "--hard", head, check=False)
-    if archive_path:
-        run_git(root, "clean", "-fd", "--", archive_path, check=False)
 
 
 def _report(

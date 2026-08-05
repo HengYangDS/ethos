@@ -41,7 +41,8 @@ def material_change_scope_report(
         return report
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
-    assert profile.declaration is not None
+    if profile.declaration is None:
+        raise ValueError(INVALID_PROFILE_ERROR)
     if profile.declaration.openspec is None:
         report["state"] = "not_applicable"
         return report

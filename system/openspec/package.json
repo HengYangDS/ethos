@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "@fission-ai/openspec": "1.7.0"
+  }
+}

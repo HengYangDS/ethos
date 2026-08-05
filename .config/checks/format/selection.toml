@@ -136,6 +136,7 @@ yaml_allowed_roots = [
 ".ini" = { roots = [".config/"] }
 ".json" = { roots = [
   "system/schemas/",
+  "system/openspec/",
   "evidence/",
   "distributions/npm/",
 ], files = [

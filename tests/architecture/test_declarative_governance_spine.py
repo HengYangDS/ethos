@@ -249,7 +249,7 @@ def test_git_rebase_mutation_has_one_declared_execution_owner() -> None:
 def test_remaining_git_mutation_commands_have_one_declared_owner_each() -> None:
     owners = {
         "checkout": {"adapters/mutation/lane_start_carrier.py"},
-        "index-add": {"adapters/mutation/lane_start_carrier.py"},
+        "index-add": {"adapters/repo/git_effects.py"},
         "commit-tree": {"adapters/mutation/lane_start_carrier.py"},
         "config-write": {"adapters/repo/config_effects.py"},
         "init": {"adapters/mutation/lane_lifecycle/handoff/destination_objects.py"},

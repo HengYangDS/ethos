@@ -111,7 +111,6 @@ def apply_land_to_candidate(
             remediation=remediation.remediation_for_gaps([gap]),
             **extra,
         )
-    assert attestation is not None
     try:
         worktree_attestation = sync_worktree(
             root,

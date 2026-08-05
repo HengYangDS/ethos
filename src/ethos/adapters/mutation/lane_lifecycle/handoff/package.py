@@ -48,16 +48,6 @@ def write_handoff_package(
     base = (output_root or repo / "build" / "artifacts" / "handoff").resolve()
     base.mkdir(parents=True, exist_ok=True)
     _verify_export_snapshot(repo=repo, handoff=handoff)
-    commitment = load_lease_bound_commitment(
-        repo,
-        lease={
-            "expected_head": handoff.source_head,
-            "expected_tree": handoff.source_tree,
-            "base_commitment_path": handoff.base_commitment_path,
-            "base_commitment_bytes_sha256": handoff.base_commitment_bytes_sha256,
-            "base_commitment_digest": handoff.base_commitment_digest,
-        },
-    )
     recognized = False
     with tempfile.TemporaryDirectory(prefix="handoff-", dir=base) as temporary:
         staging = Path(temporary)
@@ -73,6 +63,16 @@ def write_handoff_package(
             "handoff_bundle_identity_mismatch",
             holds=run_git(repo, "bundle", "list-heads", bundle.as_posix()).stdout.splitlines()
             == [f"{handoff.source_head} refs/heads/{handoff.source_lane_ref}"],
+        )
+        commitment = load_lease_bound_commitment(
+            repo,
+            lease={
+                "expected_head": handoff.source_head,
+                "expected_tree": handoff.source_tree,
+                "base_commitment_path": handoff.base_commitment_path,
+                "base_commitment_bytes_sha256": handoff.base_commitment_bytes_sha256,
+                "base_commitment_digest": handoff.base_commitment_digest,
+            },
         )
         context_path = staging / "context.md"
         context_path.write_text(context, encoding="utf-8")

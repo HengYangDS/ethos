@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from collections.abc import Callable
 from collections.abc import Mapping
 from pathlib import Path
@@ -28,7 +29,74 @@ from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from ethos.contracts.semantic import Attestation
+
+
+def stage_git_paths(
+    root: Path,
+    paths: tuple[str, ...],
+    *,
+    runner: Callable[..., Any] = run_git,
+) -> None:
+    """Stage one exact non-empty path set through the sole Git effect owner."""
+    if not paths:
+        message = "git_effect_stage_paths_missing"
+        raise ValueError(message)
+    completed = runner(root, "add", *paths, check=False)
+    if completed.returncode:
+        raise ValueError(completed.stderr.strip() or "git_effect_stage_failed")
+
+
+def stage_git_worktree(root: Path, *, previous: str) -> None:
+    """Stage the complete current delta at one exact pre-effect HEAD."""
+    if current_tracked_head(root) != previous:
+        message = "git_effect_head_stale"
+        raise ValueError(message)
+    completed = run_git(root, "add", "--all", check=False)
+    if completed.returncode:
+        raise ValueError(completed.stderr.strip() or "git_effect_stage_failed")
+
+
+def commit_git_worktree(root: Path, *, previous: str, message: str) -> dict[str, object]:
+    """Commit the staged Git effect through normal hooks at one exact HEAD."""
+    if current_tracked_head(root) != previous:
+        message = "git_effect_head_stale"
+        raise ValueError(message)
+    completed = run_git(root, "commit", "-m", message, check=False)
+    return {
+        "verdict": "pass" if completed.returncode == 0 else "block",
+        "error": completed.stderr.strip(),
+    }
+
+
+def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") -> None:
+    """Compensate one failed workspace effect back to its exact pre-effect tree."""
+    completed = run_git(
+        root,
+        "restore",
+        "--source",
+        head,
+        "--staged",
+        "--worktree",
+        ".",
+        check=False,
+    )
+    if completed.returncode:
+        raise ValueError(completed.stderr.strip() or "git_effect_compensation_failed")
+    if not untracked_path:
+        return
+    target = (root / untracked_path).resolve()
+    try:
+        target.relative_to(root.resolve())
+    except ValueError as error:
+        message = "git_effect_compensation_path_outside_root"
+        raise ValueError(message) from error
+    if target.is_symlink() or (target.exists() and not target.is_dir()):
+        message = "git_effect_compensation_path_unsafe"
+        raise ValueError(message)
+    shutil.rmtree(target, ignore_errors=False)
 
 
 def execute_git_effect(

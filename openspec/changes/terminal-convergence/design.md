@@ -212,6 +212,42 @@ runtime may be an external method/operator only when a real consumer proves net
 deletion, no second SSOT, clean recovery, and measurable time/token benefit;
 Spec Kit is not a core dependency and COMET remains only such a candidate.
 
+OpenSpec customization is a governed product surface, not a compatibility
+escape hatch. Its native layers are project context/rules/operation guidance,
+the selected artifact schema, and reusable schema bundles. The selected schema
+may vary by Change because a defect, refactor, product feature, research task,
+event contract, release, and end-to-end runbook do not have the same irreducible
+information needs. ETHOS therefore does not impose one universal artifact graph
+or preserve a registry of framework adapters. It observes the schema resolved by
+the pinned official CLI and admits mutation only when the effective schema is
+reproducible from the pinned OpenSpec package or tracked project bytes. A
+user-global schema is useful for authoring and discovery but must be materialized
+into the repository before it can govern a complete adopter; otherwise another
+machine cannot reproduce the Change from Git.
+
+Community workflows are evaluated as mechanism specimens, not trusted packages.
+The surveyed set includes Superpowers bridges; minimalist, intent-, behaviour-,
+event-, ADR-, SRS-, TDD-, question/research-, subagent-, human-gate-, bugfix-,
+refactor-, feature-, release-, full-cycle-, and end-to-end-runbook schemas. Their
+reusable contribution falls into four distinct classes:
+
+1. artifact topology natively enforced by OpenSpec through `requires`, output
+   paths, `apply.requires`, and tracked task files;
+2. artifact grammar conveyed by templates, context, and rules but requiring a
+   separate parser or verifier for mechanical enforcement;
+3. execution method delegated to an optional Skill, agent host, reviewer, or
+   external command and therefore unavailable when that capability is absent;
+4. extension fields or prose claims that the official runtime does not interpret
+   and that provide no governance guarantee.
+
+Schema admission first classifies every claimed mechanism into those classes,
+then checks semantic fit, unique ownership, hermetic resolution, validation,
+uninstall cleanliness, and measured terminal cost. Promotion to a bootstrap
+default additionally requires matched evaluation against `spec-driven` and net
+deletion across source, tests, tools, and documentation. This permits deep
+OpenSpec customization without mistaking a long prompt, an installed plugin, or
+an ignored YAML key for enforcement.
+
 The owner-native archive is the final tracked source mutation, not the final
 proof claim. It changes HEAD, so local proof, proposal/hosted verification, and
 dual-provider publication execute once on the post-archive commit. The archived
@@ -450,6 +486,8 @@ completion, create lifecycle authority, or substitute for checked tasks.
 | Force every adopter onto built-in `spec-driven` | Rejected | OpenSpec 1.7 natively resolves project-local schemas and arbitrary artifact DAGs; fixing four artifact names discards official capability and blocks valid community workflows. |
 | Vendor a large community workflow unchanged | Rejected | Community schemas demonstrate useful patterns, but prompt-only gates, external skill dependencies, persistent duplicate artifacts, and ignored extension keys require independent verification and selective absorption. |
 | Replace the greenfield default before a deletion proof | Rejected | Current community sampling validates customization breadth but does not show that an ETHOS-specific schema deletes more code than it adds. Existing custom config is preserved; `spec-driven` remains only the bootstrap default, not a runtime assumption. |
+| Resolve mutation workflow from an untracked user-global schema | Rejected | OpenSpec supports global overrides for authoring convenience, but a complete adopter must reproduce the effective artifact graph from the pinned package or repository bytes on another machine. |
+| Use one maximal schema for every Change | Rejected | Defects, refactors, features, research, releases, and runbooks need different irreducible artifacts; per-Change schema selection avoids both missing intent and permanent ceremony. |
 | Keep a global authority order | Rejected | Different subjects and planes require simultaneous local authorities. |
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |

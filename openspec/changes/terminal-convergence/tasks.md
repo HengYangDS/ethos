@@ -181,20 +181,27 @@ invariants are implemented and proved without parallel mutation owners.
   Consume the officially resolved project schema rather than forcing
   `spec-driven`; characterize project-local schema resolution, arbitrary artifact
   IDs/DAGs/templates, config context/rules, operation guidance, generated host
-  projections, and official schema validation. Survey official community schemas
-  as evidence, distinguish native enforcement from prompt convention or ignored
+  projections, and official schema validation. Survey official and broader
+  community schemas as evidence, distinguish native artifact-graph enforcement
+  from template/rule grammar, external Skill/runtime dependencies, and ignored
   extension keys, and admit only a minimal ETHOS schema or borrowed pattern that
-  proves net deletion and no second owner. This task was reopened after current
+  proves net deletion and no second owner. Mutation-capable use of a user-global
+  schema is non-reproducible until its effective bundle is tracked; the pinned
+  built-in schema or repository-local bytes must reconstruct the workflow on
+  another machine. This task was reopened after current
   code was found to force `--schema spec-driven` and fixed four rule IDs despite
   OpenSpec 1.7's valid custom-schema contract. Characterization covered official
   project-schema resolution, arbitrary DAGs, templates, context/rules,
   apply/archive guidance, generated Codex Skills, and preservation of an
   adopter-owned custom config. Community sampling covered Superpowers bridges,
-  intent/event/BDD/ADR, SRS/TDD, human-gate, and full-cycle SDLC variants: DAG,
-  templates, `requires`, and `apply` are native; prose instructions are advisory,
-  companion skills are external dependencies, unknown extension keys may pass
-  structural validation without runtime enforcement, and bundles outside
-  `openspec/schemas/<name>` are not project-resolved until explicitly installed.
+  minimalist, intent/event/BDD/ADR, SRS/TDD, question/research, subagent,
+  human-gate, bugfix, refactor, feature, release, full-cycle SDLC, and end-to-end
+  runbook variants: DAG, `requires`, output paths, and `apply` prerequisites are
+  native; template/rule grammar is not mechanical enforcement without a
+  verifier, prose instructions are advisory, companion skills are external
+  dependencies, unknown extension keys may pass structural validation without
+  runtime enforcement, and bundles outside `openspec/schemas/<name>` are not
+  project-resolved until installed.
   No borrowed schema proved a net deletion over the current greenfield
   `spec-driven` default, so no new ETHOS schema or compatibility layer was added.
 - [x] 4.2 Reduce Worktree Family, Work Lane, Lease, handoff, inbox, records, and
@@ -348,8 +355,15 @@ are proved homomorphic projections of one portable policy.
   depth and verification questions; BMAD's explicit decision carry-forward;
   Agent OS and Kiro's lightweight agent context. Reject their runtimes, roles,
   hooks, lifecycle, and task stores unless a matched destructive replacement
-  proves a strictly better sole owner. OpenSpec MCP remains unadmitted while no
-  official merged server exists; an optional ETHOS MCP must be stateless,
+  proves a strictly better sole owner. Treat OpenSpec custom schemas as a
+  governed method portfolio rather than one maximal workflow: characterize at
+  least defect, refactor, feature, research, release, and runbook workloads;
+  classify each claimed mechanism as native DAG enforcement, template/rule
+  grammar, external capability, or ignored extension; require repository-
+  reproducible resolution; and promote a schema or per-Change selector only when
+  matched evidence shows lower ambiguity, time/token cost, intent loss, or
+  terminal ELOC than the pinned `spec-driven` control. OpenSpec MCP remains
+  unadmitted while no official merged server exists; an optional ETHOS MCP must be stateless,
   demand-loaded, schema-conformant, and behaviorally identical to CLI/SDK JSON.
 - [ ] 6.10 Close this Change through the official owner-native OpenSpec action
   at verified version `1.7.0` as the final tracked source mutation. Bind the

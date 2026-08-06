@@ -198,7 +198,11 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "aarch64-unknown-linux-gnu" in installer
     assert "x86_64-unknown-linux-gnu" in installer
     assert "find" in installer
-    assert "LYCHEE_VERSION" in installer
+    assert 'version="lychee-v0.24.2"' in installer
+    assert "releases/latest" not in installer
+    assert "LYCHEE_VERSION" not in installer
+    assert "checksum_url" in installer
+    assert "sha256sum" in installer
     assert "--retry" in installer
     assert "--retry-all-errors" in installer
     assert "--max-time" in installer

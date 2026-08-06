@@ -17,7 +17,6 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
-from ethos.normalization.coercion import string_mapping
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import load_repository_profile
@@ -71,36 +70,6 @@ class ResolvedGatePolicy:
     @property
     def digest(self) -> str:
         return canonical_json_digest(self.projection)
-
-    def conformance_gaps(self, runs: object) -> list[str]:
-        if not isinstance(runs, list):
-            return []
-        if self.gaps:
-            return list(self.gaps)
-        by_action = {
-            str(payload.get("action_id", "")): payload
-            for run in runs
-            if isinstance(run, dict)
-            for payload in (string_mapping(run),)
-        }
-        gaps: list[str] = []
-        for gate in self.gates:
-            run = by_action.get(gate.id)
-            if run is None:
-                continue
-            raw_command = run.get("command")
-            command = (
-                tuple(str(token) for token in raw_command)
-                if isinstance(raw_command, (list, tuple))
-                else ()
-            )
-            if not (
-                canonical_gate_command(command) == gate_execution_identity(gate)
-                and run.get("trust_bearing") == gate.trust_bearing
-                and run.get("evidence_class") == gate.evidence_class
-            ):
-                gaps.append(f"proof_gate_not_policy_conformant:{gate.id}")
-        return gaps
 
 
 def _owner_projection(

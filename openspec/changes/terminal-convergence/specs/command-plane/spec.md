@@ -76,6 +76,17 @@ top-level `ok` field.
 
 ## REMOVED Requirements
 
+### Requirement: Explain Command Projects Invalid-State Signals
+
+**Reason**: The retired `ethos explain` root and its separate taxonomy duplicate
+the structured `required_gaps`, diagnostics, and singular `next_action` already
+owned by each verifier and the schema-version-`2` result envelope.
+
+**Migration**: Preserve each verifier's original signal and project its bounded
+meaning and recovery directly through the six-command result contract.
+
+**Replacement**: Public Command Plane
+
 ### Requirement: Self OpenSpec Lifecycle Mode
 
 **Reason**: A carrier-specific public command creates a seventh workflow root

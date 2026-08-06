@@ -449,6 +449,7 @@ boundary. A missing or stale edge is `model_gap`.
 | `assistant-projections:Terminal assistant projections are derived, not root configuration` | `5.5` | `playbooks-v2` |
 | `command-plane:Public Command Plane` | `F.5` | `unit-cli` |
 | `command-plane:Proof Command State Semantics` | `7.1` | `full-proof` |
+| `command-plane:Explain Command Projects Invalid-State Signals` | `3.2` | `unit-cli` |
 | `command-plane:Self OpenSpec Lifecycle Mode` | `4.1` | `openspec` |
 | `command-plane:ETHOS OpenSpec adapter remains under one command plane` | `4.1` | `openspec` |
 | `contracts:Provider-neutral Contracts` | `6.8` | `schemas` |

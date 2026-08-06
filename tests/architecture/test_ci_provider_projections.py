@@ -167,7 +167,6 @@ def test_remote_provider_ci_excludes_local_candidate_and_includes_proposal() -> 
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     required = {
         "bootstrap-python.sh",
-        "run-python-lint.sh",
         "run-config-lint.sh",
         "run-shell-lint.sh",
         "run-markdown-lint.sh",
@@ -194,6 +193,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         assert script in combined
         assert (ROOT / script).stat().st_mode & stat.S_IXUSR
     for text in (combined,):
+        assert ".venv/bin/nox -s lint" in text
         assert "tools/ci/scripts/run-actionlint.sh" in text
         assert "tools/ci/scripts/run-product-boundary.sh" in text
         assert "uv build --out-dir build/artifacts/python --clear --no-create-gitignore" in text

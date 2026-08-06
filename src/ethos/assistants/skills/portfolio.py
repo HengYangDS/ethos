@@ -143,9 +143,11 @@ def portfolio_retirement(
         if not isinstance(entry, dict):
             gaps.append(f"skill_retirement_invalid:{skill_id}")
             continue
-        for field in ("reason", "retired_on", "kill_signal"):
-            if not str(entry.get(field) or "").strip():
-                gaps.append(f"skill_retirement_field_missing:{skill_id}:{field}")
+        gaps.extend(
+            f"skill_retirement_field_missing:{skill_id}:{field}"
+            for field in ("reason", "retired_on", "kill_signal")
+            if not str(entry.get(field) or "").strip()
+        )
         path = str(entry.get("path") or "")
         if path and (root / path).exists():
             gaps.append(f"skill_retirement_live_path:{skill_id}:{path}")

@@ -60,7 +60,7 @@ ethos:lint:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-python-lint.sh
+    - .venv/bin/nox -s lint
 
 ethos:types:
   <<: *python_setup

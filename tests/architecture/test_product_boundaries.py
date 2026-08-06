@@ -542,7 +542,7 @@ def test_product_behavior_does_not_live_in_tools_directory() -> None:
 def test_pre_commit_uses_local_deterministic_quality_hook() -> None:
     config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
     assert "repo: local" in config
-    assert "tools/ci/scripts/run-python-lint.sh" in config
+    assert ".venv/bin/nox -s lint" in config
     assert "uv run --group dev ruff check" not in config
     assert "github.com" not in config
 

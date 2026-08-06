@@ -15,7 +15,6 @@ forbidden_log_patterns = [
 ]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
-  "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-json-schema-check.sh",
   "tools/ci/scripts/run-shell-lint.sh",
@@ -55,7 +54,6 @@ forbidden_log_patterns = [
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "tools/ci/scripts/run-node-compatibility.sh",
-  "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-json-schema-check.sh",
   "tools/ci/scripts/run-shell-lint.sh",

@@ -18,6 +18,13 @@ def test_nox_reuses_the_single_locked_project_environment() -> None:
     assert any(requirement.startswith("uv>=0.12.2") for requirement in development)
 
 
+def test_nox_lint_includes_new_candidate_python_files() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+    for option in ("--cached", "--others", "--exclude-standard"):
+        assert f'"{option}"' in source
+
+
 def test_nox_is_the_only_python_lint_orchestrator() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
@@ -51,3 +58,20 @@ def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
     assert "def tests(" in source
     assert "def coverage_floor(" in source
     assert not (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
+
+
+def test_nox_is_the_only_python_build_orchestrator() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    gates = {gate["id"]: gate for gate in declaration["gates"]}
+
+    assert gates["build"]["command"] == [".venv/bin/nox", "-s", "build"]
+    for relative in (
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".config/ci/templates/hosted/gitlab-ci.yml",
+        ".github/workflows/ci.yml",
+        ".gitlab-ci.yml",
+        "tools/ci/scripts/run-local-install-smoke.sh",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "uv build" not in text
+        assert ".venv/bin/nox -s build" in text

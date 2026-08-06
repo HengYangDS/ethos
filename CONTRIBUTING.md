@@ -53,5 +53,5 @@ uv run ethos prove --json
 Changes that affect package metadata should also run:
 
 ```bash
-uv build --out-dir build/artifacts/python --clear --no-create-gitignore
+.venv/bin/nox -s build
 ```

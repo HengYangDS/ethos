@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import subprocess
 import time
 import tomllib
 from contextlib import contextmanager
@@ -15,6 +14,9 @@ from pathlib import Path
 from typing import IO
 from typing import TYPE_CHECKING
 from typing import Self
+
+from ethos.adapters.repo.git import run_command
+from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -27,6 +29,15 @@ PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"
 COVERAGE_CONFIG = ROOT / ".config/checks/coverage/coverage.ini"
 COVERAGE_POLICY = ROOT / ".config/checks/coverage/policy.toml"
 TARGETS = ("tests/unit", "tests/architecture")
+LOCK_OWNER_FIELD_COUNT = 2
+
+
+def _executable(name: str) -> str:
+    path = shutil.which(name)
+    if path is None:
+        message = f"required executable is unavailable: {name}"
+        raise RuntimeError(message)
+    return path
 
 
 def _number(name: str, default: int, *, zero: bool = False) -> int:
@@ -50,17 +61,13 @@ def _parallelism(name: str, default: int) -> int | None:
 
 
 def _head() -> str:
-    return subprocess.run(
-        ("git", "rev-parse", "HEAD"), cwd=ROOT, check=True, capture_output=True, text=True
-    ).stdout.strip()
+    return run_git(ROOT, "rev-parse", "HEAD", observation=True).stdout.strip()
 
 
 def _process_start(pid: int) -> str:
-    return subprocess.run(
-        ("ps", "-o", "lstart=", "-p", str(pid)),
-        check=False,
-        capture_output=True,
-        text=True,
+    return run_command(
+        ROOT,
+        (_executable("ps"), "-o", "lstart=", "-p", str(pid)),
     ).stdout.strip()
 
 
@@ -123,9 +130,11 @@ class Settings:
         if not uid and not gid:
             return None
         if not uid or not gid or not uid.isdecimal() or not gid.isdecimal() or "0" in {uid, gid}:
-            raise ValueError("ETHOS_TEST_RUN_AS_UID/GID must be positive integers set together")
+            message = "ETHOS_TEST_RUN_AS_UID/GID must be positive integers set together"
+            raise ValueError(message)
         if os.getuid() != 0 or shutil.which("setpriv") is None:
-            raise ValueError("test identity drop requires a root launcher and setpriv")
+            message = "test identity drop requires a root launcher and setpriv"
+            raise ValueError(message)
         return int(uid), int(gid)
 
 
@@ -184,7 +193,10 @@ class PythonTestGate:
                     owner.read_text(encoding="utf-8").strip().split("\t") if owner.is_file() else []
                 )
                 valid = (
-                    len(fields) == 2 and fields[0].isdigit() and int(fields[0]) > 0 and fields[1]
+                    len(fields) == LOCK_OWNER_FIELD_COUNT
+                    and fields[0].isdigit()
+                    and int(fields[0]) > 0
+                    and fields[1]
                 )
                 dead = valid and _process_start(int(fields[0])) != fields[1]
                 reclaim = dead or (
@@ -202,7 +214,8 @@ class PythonTestGate:
                 time.sleep(1)
         started = _process_start(os.getpid())
         if not started:
-            raise RuntimeError("could not determine coverage lock process identity")
+            message = "could not determine coverage lock process identity"
+            raise RuntimeError(message)
         owner.write_text(f"{os.getpid()}\t{started}\n", encoding="utf-8")
         try:
             yield
@@ -332,8 +345,11 @@ class PythonTestGate:
         )
 
     def _sharded(self, session: nox.Session) -> None:
-        assert self.s.shards is not None
-        shard_dir, key = self.pytest / "shards", f"{self.s.head}:shards={self.s.shards}"
+        shards = self.s.shards
+        if shards is None:
+            message = "sharded execution requires a positive shard count"
+            raise RuntimeError(message)
+        shard_dir, key = self.pytest / "shards", f"{self.s.head}:shards={shards}"
         head = shard_dir / "head.txt"
         if not head.is_file() or head.read_text(encoding="utf-8").strip() != key:
             for path in (
@@ -362,11 +378,12 @@ class PythonTestGate:
             if line.startswith("tests/") and "::" in line
         ]
         if not nodeids:
-            raise RuntimeError("pytest collect-only produced no nodeids")
+            message = "pytest collect-only produced no nodeids"
+            raise RuntimeError(message)
         files = []
-        for index in range(1, self.s.shards + 1):
+        for index in range(1, shards + 1):
             assigned, data, marker = (
-                nodeids[index - 1 :: self.s.shards],
+                nodeids[index - 1 :: shards],
                 self.coverage / f".coverage.shard-{index}",
                 shard_dir / f"shard-{index}.passed",
             )

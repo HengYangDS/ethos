@@ -65,22 +65,11 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
     candidate_head = str(context.candidate["head"])
     prepared, final_head, carrier_attestation = prepare_lane_start_carrier(context)
     if prepared is not None:
-        failure_gap = (
-            "worktree_add_failed"
-            if not os.path.lexists(context.target)
-            else prepared.stderr.strip() or "lane_start_initialization_failed"
-        )
-        return rollback.rollback_lane_start(
-            rollback.LaneStartRollback(
-                repo=context.repo,
-                target=context.target,
-                branch=context.branch,
-                ownership=("detached", candidate_head, ""),
-                completed=prepared,
-                run=context.run,
-                lease=None,
-                failure_gap=failure_gap,
-            )
+        return rollback.compensate(
+            context,
+            prepared,
+            ownership=("detached", candidate_head, ""),
+            gap="worktree_add_failed" if not os.path.lexists(context.target) else None,
         )
     try:
         binding = exact_commitment_fields(
@@ -110,17 +99,11 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
             ),
         )
     except (RuntimeError, ValueError) as exc:
-        return rollback.rollback_lane_start(
-            rollback.LaneStartRollback(
-                repo=context.repo,
-                target=context.target,
-                branch=context.branch,
-                ownership=("detached", candidate_head, ""),
-                completed=failed_process(str(exc)),
-                run=context.run,
-                lease=None,
-                failure_gap=str(exc),
-            )
+        return rollback.compensate(
+            context,
+            failed_process(str(exc)),
+            ownership=("detached", candidate_head, ""),
+            gap=str(exc),
         )
     try:
         execute_git_effect(
@@ -134,22 +117,16 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
             issuer=context.holder_ref,
         )
     except (OSError, ValueError) as error:
-        failed = failed_process(str(error))
-        return rollback.rollback_lane_start(
-            rollback.LaneStartRollback(
-                repo=context.repo,
-                target=context.target,
-                branch=context.branch,
-                ownership=(
-                    "detached",
-                    candidate_head,
-                    final_head if ref_head(context.repo, context.branch) == final_head else "",
-                ),
-                completed=failed,
-                run=context.run,
-                lease=lease,
-                failure_gap="lane_start_ref_creation_failed",
-            )
+        return rollback.compensate(
+            context,
+            failed_process(str(error)),
+            ownership=(
+                "detached",
+                candidate_head,
+                final_head if ref_head(context.repo, context.branch) == final_head else "",
+            ),
+            lease=lease,
+            gap="lane_start_ref_creation_failed",
         )
     try:
         attachment_attestation = attach_worktree(
@@ -160,17 +137,12 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
             runner=context.run,
         )
     except ValueError as error:
-        return rollback.rollback_lane_start(
-            rollback.LaneStartRollback(
-                repo=context.repo,
-                target=context.target,
-                branch=context.branch,
-                ownership=("detached", candidate_head, final_head),
-                completed=failed_process(str(error)),
-                run=context.run,
-                lease=lease,
-                failure_gap="lane_start_worktree_binding_failed",
-            )
+        return rollback.compensate(
+            context,
+            failed_process(str(error)),
+            ownership=("detached", candidate_head, final_head),
+            lease=lease,
+            gap="lane_start_worktree_binding_failed",
         )
     if not rollback.exact_worktree(
         context.repo,
@@ -179,17 +151,12 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
         head=final_head,
         run=context.run,
     ):
-        return rollback.rollback_lane_start(
-            rollback.LaneStartRollback(
-                repo=context.repo,
-                target=context.target,
-                branch=context.branch,
-                ownership=(context.branch, final_head, final_head),
-                completed=failed_process("lane_start_worktree_binding_mismatch"),
-                run=context.run,
-                lease=lease,
-                failure_gap="lane_start_worktree_binding_mismatch",
-            )
+        return rollback.compensate(
+            context,
+            failed_process("lane_start_worktree_binding_mismatch"),
+            ownership=(context.branch, final_head, final_head),
+            lease=lease,
+            gap="lane_start_worktree_binding_mismatch",
         )
     return started_lane_report(
         context,

@@ -4,6 +4,6 @@ current_hard_floor = 95
 aspirational_floor = 95
 branch_coverage_required = true
 owner = "product-toolchain"
-source = ".venv/bin/nox -s tests"
+source = "uv run --frozen --offline python -m nox -s tests"
 latest_artifact = "build/evidence/quality/tests/coverage/coverage.xml"
 runtime_data = "build/evidence/quality/tests/coverage/.coverage"

@@ -6,14 +6,14 @@ repos:
     hooks:
       - id: python-lint
         name: python lint, format, and ruff ratchet
-        entry: .venv/bin/nox -s lint
+        entry: uv run --frozen --offline python -m nox -s lint
         language: system
         types_or: [python, pyi]
         pass_filenames: false
 
       - id: module-layout
         name: semantic module layout
-        entry: .venv/bin/nox -s module_layout
+        entry: uv run --frozen --offline python -m nox -s module_layout
         language: system
         types_or: [python, pyi]
         pass_filenames: false
@@ -29,7 +29,7 @@ repos:
         pass_filenames: false
       - id: product-boundary
         name: product boundary and contributor policy
-        entry: .venv/bin/nox -s product_boundary
+        entry: uv run --frozen --offline python -m nox -s product_boundary
         language: system
         pass_filenames: false
       - id: shell-lint

@@ -1,7 +1,7 @@
 schema = "ethos-security-audit-policy-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Python dependency vulnerabilities are audited directly from the frozen uv lock."
-runner = ".venv/bin/nox -s vulnerabilities"
+runner = "uv run --frozen --offline python -m nox -s vulnerabilities"
 
 [uv_audit]
 state = "active_owner_gate"

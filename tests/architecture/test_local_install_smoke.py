@@ -17,7 +17,7 @@ def _owner_text() -> str:
 def test_local_install_smoke_has_one_executable_owner() -> None:
     assert OWNER.is_file()
     block = tool_block(ROOT, "local_install_smoke")
-    assert 'gate = ".venv/bin/nox -s install_smoke"' in block
+    assert 'gate = "uv run --frozen --offline python -m nox -s install_smoke"' in block
     assert 'artifacts = "build/evidence/local-install/"' in block
 
 
@@ -27,7 +27,7 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "build/artifacts/python" in owner
     assert "build/runtime/work/local-install-smoke" in owner
     assert "build/evidence/local-install/smoke.json" in owner
-    assert '"command": ".venv/bin/nox -s install_smoke"' in owner
+    assert '"command": "uv run --frozen --offline python -m nox -s install_smoke"' in owner
     assert "ethos-locked-runtime.pth" in owner
     for argument in ("install", "--offline", "--no-deps"):
         assert f'"{argument}"' in owner
@@ -65,12 +65,10 @@ def test_local_install_smoke_validates_declared_wheel_resources() -> None:
 
 
 def test_local_ci_runs_install_smoke_before_fallback_manifest() -> None:
-    local_ci = (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
+    local_ci = (ROOT / "tools/ci/local_ci.py").read_text(encoding="utf-8")
 
-    assert ".venv/bin/nox -s install_smoke" in local_ci
-    assert local_ci.index("nox -s install_smoke") < local_ci.index(
-        "build/evidence/local-ci/fallback.json"
-    )
+    assert '"install_smoke"' in local_ci
+    assert local_ci.index("DELIVERY_SESSIONS") < local_ci.index("EVIDENCE.write_text")
 
 
 def test_full_proof_registers_one_trust_bearing_install_smoke() -> None:
@@ -85,7 +83,7 @@ def test_full_proof_registers_one_trust_bearing_install_smoke() -> None:
         "id": "local-install-smoke",
         "registries": ["runtime"],
         "kind": "package",
-        "command": [".venv/bin/nox", "-s", "install_smoke"],
+        "command": ["{python}", "-m", "nox", "-s", "install_smoke"],
         "profile": "product-toolchain",
         "toolchain": "uv-python",
         "depends_on": ["build"],

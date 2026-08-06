@@ -43,8 +43,8 @@ Avoid vague subjects such as `Update files` or product claims without evidence.
 Before proposing a change:
 
 ```bash
-.venv/bin/nox -s tests
-.venv/bin/nox -s lint
+uv run --frozen --offline python -m nox -s tests
+uv run --frozen --offline python -m nox -s lint
 uv run ethos status --json
 uv run ethos plan --changed --json
 uv run ethos prove --json
@@ -53,5 +53,5 @@ uv run ethos prove --json
 Changes that affect package metadata should also run:
 
 ```bash
-.venv/bin/nox -s build
+uv run --frozen --offline python -m nox -s build
 ```

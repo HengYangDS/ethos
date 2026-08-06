@@ -16,7 +16,7 @@ tool = "ruff"
 config = "ruff.toml + .config/checks/ruff/ratchet.toml"
 executables = ["ruff"]
 profile = "minimal"
-gate = ".venv/bin/nox -s lint"
+gate = "uv run --frozen --offline python -m nox -s lint"
 
 [[tool]]
 concern = "tests"
@@ -25,7 +25,7 @@ config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
 executables = ["pytest"]
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
-gate = ".venv/bin/nox -s tests"
+gate = "uv run --frozen --offline python -m nox -s tests"
 
 [[tool]]
 concern = "property_testing"
@@ -33,7 +33,7 @@ tool = "Hypothesis"
 config = ".config/checks/pytest/policy.toml"
 artifacts = "build/runtime/tool-cache/hypothesis/"
 profile = "product"
-gate = ".venv/bin/nox -s tests"
+gate = "uv run --frozen --offline python -m nox -s tests"
 
 [[tool]]
 concern = "python_typing"
@@ -48,14 +48,14 @@ tool = "import-linter"
 config = ".config/checks/import-linter/"
 executables = ["lint-imports"]
 profile = "product"
-gate = ".venv/bin/nox -s import_boundaries"
+gate = "uv run --frozen --offline python -m nox -s import_boundaries"
 
 [[tool]]
 concern = "python_sast"
 tool = "ruff"
 config = "ruff.toml"
 profile = "product"
-gate = ".venv/bin/nox -s lint"
+gate = "uv run --frozen --offline python -m nox -s lint"
 
 [[tool]]
 concern = "links"
@@ -71,21 +71,21 @@ tool = "coverage.py + pytest-cov"
 config = ".config/checks/coverage/coverage.ini"
 artifacts = "build/evidence/quality/tests/coverage/"
 profile = "product"
-gate = ".venv/bin/nox -s tests"
+gate = "uv run --frozen --offline python -m nox -s tests"
 
 [[tool]]
 concern = "python_docstrings"
 tool = "ethos-docstrings-google"
 config = ".config/checks/docstrings/policy.toml"
 profile = "product"
-gate = ".venv/bin/nox -s docstrings"
+gate = "uv run --frozen --offline python -m nox -s docstrings"
 
 [[tool]]
 concern = "python_module_layout"
 tool = "ethos-module-layout"
 config = ".config/checks/module-layout/policy.toml"
 profile = "product"
-gate = ".venv/bin/nox -s module_layout"
+gate = "uv run --frozen --offline python -m nox -s module_layout"
 
 [[tool]]
 concern = "dependency_hygiene"
@@ -93,14 +93,14 @@ tool = "deptry"
 config = ".config/checks/deptry/policy.toml"
 artifacts = "build/evidence/quality/dependency/"
 profile = "product"
-gate = ".venv/bin/nox -s dependencies"
+gate = "uv run --frozen --offline python -m nox -s dependencies"
 
 [[tool]]
 concern = "product_boundary"
 tool = "ethos-product-boundary"
 config = "src/ethos/repository/policy/boundary/product.py"
 profile = "product"
-gate = ".venv/bin/nox -s product_boundary"
+gate = "uv run --frozen --offline python -m nox -s product_boundary"
 
 [[tool]]
 concern = "repository_hygiene"
@@ -151,7 +151,7 @@ concern = "json_schema"
 tool = "check-jsonschema"
 config = ".config/checks/schema/jsonschema.toml + system/schemas/"
 profile = "minimal"
-gate = ".venv/bin/nox -s schemas"
+gate = "uv run --frozen --offline python -m nox -s schemas"
 
 [[tool]]
 concern = "hook_config"
@@ -199,7 +199,7 @@ gate = "tools/ci/scripts/run-node-compatibility.sh"
 [[tool]]
 concern = "local_ci_fallback"
 tool = "ETHOS local-ci owner gate bundle"
-config = "tools/ci/scripts/run-local-ci.sh + tools/ci/scripts/require-stable-head.sh"
+config = "uv run --frozen --offline python -m nox -s local_ci + tools/ci/scripts/require-stable-head.sh"
 executables = [
   "bash",
   "cat",
@@ -220,7 +220,7 @@ executables = [
 ]
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
-gate = "tools/ci/scripts/run-local-ci.sh"
+gate = "uv run --frozen --offline python -m nox -s local_ci"
 
 [[tool]]
 concern = "python_build"
@@ -229,7 +229,7 @@ config = "noxfile.py + pyproject.toml + uv.lock"
 executables = ["nox", "uv"]
 artifacts = "build/artifacts/python/"
 profile = "product-toolchain"
-gate = ".venv/bin/nox -s build"
+gate = "uv run --frozen --offline python -m nox -s build"
 
 [[tool]]
 concern = "local_install_smoke"
@@ -237,7 +237,7 @@ tool = "uv offline wheel installation smoke"
 config = ".ethos/release.toml + noxfile.py + tools/ci/local_install_smoke.py"
 artifacts = "build/evidence/local-install/"
 profile = "release"
-gate = ".venv/bin/nox -s install_smoke"
+gate = "uv run --frozen --offline python -m nox -s install_smoke"
 
 [[tool]]
 concern = "shell"
@@ -261,7 +261,7 @@ concern = "python_vuln"
 tool = "uv audit"
 config = ".config/checks/security/audit.toml"
 artifacts = "build/evidence/quality/security/"
-gate = ".venv/bin/nox -s vulnerabilities"
+gate = "uv run --frozen --offline python -m nox -s vulnerabilities"
 profile = "security"
 
 [[tool]]
@@ -270,7 +270,7 @@ tool = "syft"
 config = ".config/release/supply-chain.toml"
 executables = ["syft"]
 artifacts = "build/evidence/release/"
-gate = ".venv/bin/nox -s supply_chain"
+gate = "uv run --frozen --offline python -m nox -s supply_chain"
 profile = "release"
 
 [[tool]]
@@ -278,7 +278,7 @@ concern = "ci_template_consistency"
 tool = "ethos-ci-template-sync"
 config = ".config/ci/templates/hosted/ + .config/checks/ci/templates.toml"
 references = ["docker", "github", "gitlab"]
-gate = ".venv/bin/nox -s ci_templates"
+gate = "uv run --frozen --offline python -m nox -s ci_templates"
 profile = "provider"
 
 [[tool]]
@@ -310,21 +310,21 @@ concern = "architecture_modeling"
 tool = "LikeC4-like source -> Mermaid"
 config = ".config/checks/architecture/"
 artifacts = "docs/architecture/_generated/"
-gate = ".venv/bin/nox -s architecture_projection"
+gate = "uv run --frozen --offline python -m nox -s architecture_projection"
 profile = "architecture"
 
 [[tool]]
 concern = "architecture_projection_drift"
 tool = "ethos-architecture-projection-drift"
 config = ".config/checks/architecture/projection.toml"
-gate = ".venv/bin/nox -s architecture_projection"
+gate = "uv run --frozen --offline python -m nox -s architecture_projection"
 profile = "architecture"
 
 [[tool]]
 concern = "format_selection"
 tool = "ethos-format-selection"
 config = ".config/checks/format/selection.toml"
-gate = ".venv/bin/nox -s format_selection"
+gate = "uv run --frozen --offline python -m nox -s format_selection"
 profile = "product"
 
 [[tool]]
@@ -339,7 +339,7 @@ profile = "product"
 concern = "runbook_registry"
 tool = "ethos-runbook-registry"
 config = ".config/checks/runbook/registry.toml + docs/reference/runbook-registry.md"
-gate = ".venv/bin/nox -s runbook_registry"
+gate = "uv run --frozen --offline python -m nox -s runbook_registry"
 profile = "docs"
 
 [[tool]]

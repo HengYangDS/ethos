@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import sys
 import sysconfig
 import tomllib
 import zipfile
@@ -23,6 +25,13 @@ ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS = ROOT / "build/artifacts/python"
 WORK = ROOT / "build/runtime/work/local-install-smoke"
 EVIDENCE = ROOT / "build/evidence/local-install/smoke.json"
+
+
+def _venv_executable(root: Path, name: str) -> Path:
+    """Return a virtual-environment executable on POSIX or Windows."""
+    directory = "Scripts" if os.name == "nt" else "bin"
+    suffix = ".exe" if os.name == "nt" else ""
+    return root / directory / f"{name}{suffix}"
 
 
 def _executable(name: str) -> str:
@@ -94,7 +103,7 @@ def _verify_resources(wheel: Path) -> list[str]:
 
 
 def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, str]:
-    python, ethos = smoke / "bin/python", smoke / "bin/ethos"
+    python, ethos = _venv_executable(smoke, "python"), _venv_executable(smoke, "ethos")
     _run(str(ethos), "--help", cwd=WORK)
     version = _run(str(ethos), "--version", cwd=WORK)
     origin = _run(
@@ -143,12 +152,12 @@ def run(session: nox.Session) -> None:
     EVIDENCE.unlink(missing_ok=True)
     WORK.mkdir(parents=True)
     wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
-    uv, source_python = _executable("uv"), ROOT / ".venv/bin/python"
+    uv, source_python = _executable("uv"), Path(sys.executable)
     _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
     source_site = Path(sysconfig.get_paths()["purelib"])
     smoke_site = Path(
         _run(
-            str(smoke / "bin/python"),
+            str(_venv_executable(smoke, "python")),
             "-c",
             "import sysconfig; print(sysconfig.get_paths()['purelib'])",
         )
@@ -161,7 +170,7 @@ def run(session: nox.Session) -> None:
         "--offline",
         "--no-deps",
         "--python",
-        str(smoke / "bin/python"),
+        str(_venv_executable(smoke, "python")),
         str(wheel),
     )
     adopter_head = _initialize_adopter(adopter)
@@ -176,7 +185,7 @@ def run(session: nox.Session) -> None:
         "verdict": "pass",
         "state": "passed",
         "head": head,
-        "command": ".venv/bin/nox -s install_smoke",
+        "command": "uv run --frozen --offline python -m nox -s install_smoke",
         "generated_at": datetime.now(UTC).isoformat(),
         "head_stability": "verified_before_evidence_write",
         "offline": True,

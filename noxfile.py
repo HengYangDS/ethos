@@ -19,7 +19,9 @@ run_dependency_hygiene = import_module("tools.ci.dependency_hygiene").run
 run_architecture_projection = import_module("tools.ci.architecture_projection").main
 run_ci_templates = import_module("tools.ci.ci_templates").check_templates
 run_format_selection = import_module("tools.ci.format_selection").main
+run_hosted_observation = import_module("tools.ci.hosted_observation").capture_observation
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
+run_local_ci = import_module("tools.ci.local_ci").run
 run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_audit").run
 run_release_supply_chain = import_module("tools.ci.release_supply_chain").run
 run_runbook_registry = import_module("tools.ci.runbook_registry").main
@@ -182,6 +184,15 @@ def runbook_registry(session: nox.Session) -> None:
 
 
 @nox.session(python=False)
+def hosted_observation(session: nox.Session) -> None:
+    """Capture bounded hosted-provider observations without minting proof."""
+    execute = os.environ.get("ETHOS_HOSTED_OBSERVATION_EXECUTE") == "1"
+    result = run_hosted_observation(execute=execute)
+    if execute and result:
+        session.error("hosted provider observation failed")
+
+
+@nox.session(python=False)
 def docstrings(session: nox.Session) -> None:
     """Run the docstring contract through the repository CLI."""
     session.run(
@@ -256,3 +267,9 @@ def schemas(session: nox.Session) -> None:
         "-o",
         "json",
     )
+
+
+@nox.session(python=False)
+def local_ci(session: nox.Session) -> None:
+    """Run the cross-platform local verification and delivery closure."""
+    run_local_ci(session)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
+import shutil
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -106,18 +108,31 @@ def _repository_path_gap(root: Path, field: str, value: str, *, executable: bool
     prefix = f"publication_topology_{field}"
     if not value:
         return f"{prefix}_missing"
-    relative = Path(value)
-    resolved_root = root.resolve()
+    try:
+        argv = shlex.split(value) if executable else [value]
+    except ValueError:
+        return f"{prefix}_invalid:{value}"
+    return _resolved_path_gap(root, prefix, value, argv, executable=executable)
+
+
+def _resolved_path_gap(
+    root: Path, prefix: str, value: str, argv: list[str], *, executable: bool
+) -> str:
+    if not argv:
+        return f"{prefix}_missing"
+    relative, resolved_root = Path(argv[0]), root.resolve()
     resolved = (resolved_root / relative).resolve()
     if relative.is_absolute() or not resolved.is_relative_to(resolved_root):
         return f"{prefix}_path_escape:{value}"
     if not resolved.exists():
-        return f"{prefix}_missing:{value}"
+        return "" if executable and shutil.which(argv[0]) else f"{prefix}_missing:{value}"
     if not resolved.is_file():
         return f"{prefix}_not_regular:{value}"
-    if executable and not os.access(resolved, os.X_OK):
-        return f"{prefix}_not_executable:{value}"
-    return ""
+    return (
+        f"{prefix}_not_executable:{value}"
+        if executable and not os.access(resolved, os.X_OK)
+        else ""
+    )
 
 
 def _topology(*, values: Mapping[str, str], gaps: tuple[str, ...]) -> dict[str, object]:

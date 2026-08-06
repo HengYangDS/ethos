@@ -23,6 +23,7 @@ scope = [
   "package-lock.json",
   "package.json",
   "packages/**",
+  "noxfile.py",
   "pyproject.toml",
   "rules/**",
   "ruff.toml",

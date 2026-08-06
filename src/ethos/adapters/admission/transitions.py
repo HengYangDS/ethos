@@ -361,7 +361,8 @@ def _changed_commitment_target(
         observation=True,
     )
     if changed.returncode:
-        raise ValueError("commitment_rebind_target_unreadable")
+        msg = "commitment_rebind_target_unreadable"
+        raise ValueError(msg)
     candidates = []
     for raw_path in changed.stdout.split(b"\0"):
         if not raw_path:
@@ -369,7 +370,8 @@ def _changed_commitment_target(
         try:
             path = raw_path.decode()
         except UnicodeDecodeError as error:
-            raise ValueError("commitment_rebind_target_path_invalid") from error
+            msg = "commitment_rebind_target_path_invalid"
+            raise ValueError(msg) from error
         if not path.endswith("/commitment.toml"):
             continue
         try:
@@ -380,7 +382,8 @@ def _changed_commitment_target(
         if commitment.id == commitment_id and commitment.digest() != old_digest:
             candidates.append(fields)
     if len(candidates) != 1:
-        raise ValueError("commitment_rebind_target_ambiguous")
+        msg = "commitment_rebind_target_ambiguous"
+        raise ValueError(msg)
     return candidates[0]
 
 

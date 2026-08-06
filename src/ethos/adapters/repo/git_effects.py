@@ -124,9 +124,11 @@ def compensate_created_paths(
     try:
         target.relative_to(root.resolve())
     except ValueError as error:
-        raise ValueError("git_effect_compensation_path_outside_root") from error
+        msg = "git_effect_compensation_path_outside_root"
+        raise ValueError(msg) from error
     if target.is_symlink() or (target.exists() and not target.is_dir()):
-        raise ValueError("git_effect_compensation_path_unsafe")
+        msg = "git_effect_compensation_path_unsafe"
+        raise ValueError(msg)
     if target.exists():
         shutil.rmtree(target, ignore_errors=False)
 
@@ -137,9 +139,11 @@ def remove_untracked_tree(root: Path, path: str) -> None:
     try:
         target.relative_to(root.resolve())
     except ValueError as error:
-        raise ValueError("git_effect_compensation_path_outside_root") from error
+        msg = "git_effect_compensation_path_outside_root"
+        raise ValueError(msg) from error
     if target.is_symlink() or (target.exists() and not target.is_dir()):
-        raise ValueError("git_effect_compensation_path_unsafe")
+        msg = "git_effect_compensation_path_unsafe"
+        raise ValueError(msg)
     if target.exists():
         shutil.rmtree(target, ignore_errors=False)
 
@@ -388,7 +392,8 @@ def _require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
         return
     if _is_commitment_rebind_authority(effect, plan):
         return
-    raise ValueError("git_effect_permission_denied")
+    msg = "git_effect_permission_denied"
+    raise ValueError(msg)
 
 
 def _is_commitment_rebind_authority(effect: GitEffect, plan: TransitionPlan) -> bool:

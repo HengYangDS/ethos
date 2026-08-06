@@ -141,7 +141,7 @@ GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 
 ```bash
 tools/ci/scripts/run-python-tests.sh
-tools/ci/scripts/run-python-lint.sh
+.venv/bin/nox -s lint
 uv run ethos status --json
 uv run ethos plan --changed --json
 uv run ethos prove --json

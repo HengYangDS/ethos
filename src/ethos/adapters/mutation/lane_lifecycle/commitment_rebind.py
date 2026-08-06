@@ -120,7 +120,8 @@ def _apply(
     )
     new_overlay = working_overlay_sha256(repo)
     if old_overlay != new_overlay:
-        raise ValueError("commitment_rebind_overlay_changed")
+        msg = "commitment_rebind_overlay_changed"
+        raise ValueError(msg)
     attestation = issue_rebind_attestation(
         repo=repo,
         request=request,

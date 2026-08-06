@@ -8,6 +8,7 @@ emulator_tool = "act"
 emulator_event = "workflow_dispatch"
 emulator_job = "quality"
 emulator_image = "catthehacker/ubuntu:act-latest"
+provider_specific_owner_scripts = { "tools/ci/scripts/run-actionlint.sh" = "GitHub workflow syntax is a GitHub-native property." }
 forbidden_log_patterns = [
   "(?:^|[ >])DeprecationWarning:",
   "(?:^|[ >])WARNING:",
@@ -46,6 +47,7 @@ emulator_tool = "gitlab-ci-local"
 emulator_event = "pipeline"
 emulator_job = "ethos:lint"
 emulator_image = "python:3.14"
+provider_specific_owner_scripts = { "tools/ci/scripts/run-node-compatibility.sh" = "GitLab owns the explicit Node compatibility matrix; GitHub package proof covers the canonical npm artifact once.", "tools/ci/scripts/run-python-tests.sh" = "GitHub verify reaches the same test owner through the single HEAD-bound proof; GitLab exposes the owner as a native job." }
 forbidden_log_patterns = [
   "(?:^|[ >])DeprecationWarning:",
   "(?:^|[ >])WARNING:",
@@ -85,23 +87,23 @@ hosted_status_claim_boundary = "local emulators MUST NOT claim hosted provider s
 [[forge_surface]]
 provider = "github"
 kind = "issue"
-source = ".config/forge/issue.md"
 projection = ".github/ISSUE_TEMPLATE/task.md"
+required_sections = ["subject", "intent", "contract", "acceptance", "evidence"]
 
 [[forge_surface]]
 provider = "github"
 kind = "change"
-source = ".config/forge/change.md"
 projection = ".github/PULL_REQUEST_TEMPLATE.md"
+required_sections = ["summary", "evidence", "governance"]
 
 [[forge_surface]]
 provider = "gitlab"
 kind = "issue"
-source = ".config/forge/issue.md"
 projection = ".gitlab/issue_templates/task.md"
+required_sections = ["subject", "intent", "contract", "acceptance", "evidence"]
 
 [[forge_surface]]
 provider = "gitlab"
 kind = "change"
-source = ".config/forge/change.md"
 projection = ".gitlab/merge_request_templates/default.md"
+required_sections = ["summary", "evidence", "governance"]

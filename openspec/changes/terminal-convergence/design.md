@@ -485,6 +485,11 @@ boundary. A missing or stale edge is `model_gap`.
 | `repository-governance:Cohort-bound full Work Lane convergence` | `4.5` | `candidate-throughput` |
 | `repository-governance:External Retirement Readiness` | `4.6` | `lane-retirement` |
 | `repository-governance:Evolution Governance` | `5.5` | `knowledge-evolution` |
+| `repository-governance:Source-bound Work Lane runner bootstrap` | `6.1` | `quality-profile` |
+| `repository-governance:Worktree-bound semantic runtime bootstrap` | `6.1` | `quality-profile` |
+| `repository-governance:Explicit execution overrides remain bounded` | `6.1` | `quality-profile` |
+| `repository-governance:Generated Artifact Topology Contract` | `6.1` | `quality-profile` |
+| `repository-governance:Shadow parity external execution honors checkout runtime topology` | `6.1` | `quality-profile` |
 | `repository-governance:Work Lane Lifecycle Resolution` | `3.1` | `unit-lanes` |
 | `repository-governance:Land readiness is proof-grounded` | `7.1` | `full-proof` |
 

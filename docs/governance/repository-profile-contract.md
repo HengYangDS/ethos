@@ -111,9 +111,32 @@ scope = [
 ]
 ```
 
-Create a Change through the official OpenSpec command and add its Commitment
-before later material writes. No bootstrap exception or second scope-write path
-exists.
+Create the first Change through the normal Work Lane start path. After a Change
+has been archived, an existing owned lane starts its next atomic generation with
+the public exact transition:
+
+```bash
+ethos lane start-change <change-id> \
+  --intent "<bounded intent>" \
+  --scope "<repository-relative glob>" \
+  --expect-head "$(git rev-parse HEAD)" \
+  --apply --json
+```
+
+If the forward fix already exists in the lane, stage exactly that bounded
+overlay, run the command once without `--apply`, and pass the returned
+`overlay.digest` back as `--expected-overlay-digest` when applying. ETHOS then
+commits the overlay and the new Commitment together; unstaged, uncovered, or
+changed bytes are rejected without consuming the transition.
+
+The transition requires the current holder, a valid Lease bound to the archived
+Commitment, an exact clean HEAD/tree, and no active Change. It uses the locked
+official OpenSpec creator, commits the new Change and Commitment through normal
+hooks, then advances the Lease HEAD/tree/carrier/epoch and emits typed effect
+evidence. A retry recognizes the completed effect or resumes the exact
+post-commit/pre-rebind state; different holders, stale observations, drift, and
+unrelated replay remain fail closed. No bootstrap exception, unarchive path,
+manual state edit, or second scope-write path exists.
 
 ## Optional Declarations
 

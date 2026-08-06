@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -19,11 +21,46 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "build/evidence/quality/dependency/deptry-ethos.json"
 SUMMARY = ROOT / "build/evidence/quality/dependency/summary.json"
+PROJECT = ROOT / "pyproject.toml"
+LOWER_BOUND = re.compile(r"^(?P<name>[A-Za-z0-9_.-]+)>=(?P<version>[^,;\s]+)$")
 
 
 def _project_script(name: str) -> str:
     suffix = ".exe" if os.name == "nt" else ""
     return str(Path(sys.executable).parent / f"{name}{suffix}")
+
+
+def _declared_requirements() -> list[str]:
+    project = tomllib.loads(PROJECT.read_text(encoding="utf-8"))
+    runtime = project.get("project", {}).get("dependencies", [])
+    groups = project.get("dependency-groups", {})
+    development = [item for values in groups.values() for item in values]
+    build = project.get("build-system", {}).get("requires", [])
+    return list(dict.fromkeys(str(item) for item in (*runtime, *development, *build)))
+
+
+def _locked_versions() -> dict[str, str]:
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    return {
+        str(package["name"]).lower().replace("_", "-"): str(package["version"])
+        for package in lock.get("package", [])
+        if isinstance(package, dict) and "name" in package and "version" in package
+    }
+
+
+def _declaration_gaps() -> list[str]:
+    gaps = []
+    locked = _locked_versions()
+    for requirement in _declared_requirements():
+        match = LOWER_BOUND.fullmatch(requirement)
+        if match is None:
+            gaps.append(f"direct_dependency_not_single_lower_bound:{requirement}")
+            continue
+        name = match.group("name").lower().replace("_", "-")
+        version = match.group("version")
+        if locked.get(name) != version:
+            gaps.append(f"direct_dependency_lock_mismatch:{name}:{version}:{locked.get(name, '')}")
+    return gaps
 
 
 def run(session: nox.Session) -> None:
@@ -71,6 +108,9 @@ def run(session: nox.Session) -> None:
                 if findings
                 else ("pass", "passed", [])
             )
+    gaps.extend(_declaration_gaps())
+    if gaps:
+        verdict, state = "block", "declaration_invalid"
     payload = {
         "schema_version": 1,
         "kind": "ethos_dependency_hygiene",

@@ -100,10 +100,9 @@ def repair_commit_identity(
     report = _report(branch, old_commit, new_commit, trust, gaps)
     if gaps or not apply:
         return report | {"state": "blocked" if gaps else "ready_to_repair_identity"}
-    assert proof is not None
     authority = load_lease_bound_commitment(root, lease=lease)
     evidence = {
-        "proof": proof.model_dump(mode="json"),
+        "proof": proof.model_dump(mode="json") if proof is not None else {},
         "commit_trust": trust,
     }
     replacement = _Replacement(
@@ -197,7 +196,8 @@ def _apply_candidate_replacement(replacement: _Replacement) -> dict[str, object]
     if replacement.refs[candidate] == new:
         sync = _sync_branch_worktrees(root, replacement.status, candidate, old, new)
         if sync["worktree_sync"] == "failed":
-            raise ValueError("identity_repair_candidate_worktree_sync_failed")
+            message = "identity_repair_candidate_worktree_sync_failed"
+            raise ValueError(message)
         return {"state": "recognized", "worktree_sync": sync}
     effect = GitEffect(
         updates={f"refs/heads/{candidate}": GitRefUpdate(expected=old, desired=new)},
@@ -207,7 +207,8 @@ def _apply_candidate_replacement(replacement: _Replacement) -> dict[str, object]
     attestation = execute_git_effect(root, plan, issuer=str(replacement.lease["holder_ref"]))
     sync = _sync_branch_worktrees(root, replacement.status, candidate, old, new)
     if sync["worktree_sync"] == "failed":
-        raise ValueError("identity_repair_candidate_worktree_sync_failed")
+        message = "identity_repair_candidate_worktree_sync_failed"
+        raise ValueError(message)
     return {"effect": attestation.model_dump(mode="json"), "worktree_sync": sync}
 
 
@@ -231,7 +232,8 @@ def _apply_accepted_replacement(replacement: _Replacement) -> dict[str, object]:
             for name in branches
         ]
         if any(item["worktree_sync"] == "failed" for item in synchronized):
-            raise ValueError("identity_repair_accepted_worktree_sync_failed")
+            message = "identity_repair_accepted_worktree_sync_failed"
+            raise ValueError(message)
         return {"state": "recognized", "worktree_sync": synchronized}
     effect = GitEffect(
         updates=updates,
@@ -245,7 +247,8 @@ def _apply_accepted_replacement(replacement: _Replacement) -> dict[str, object]:
         if replacement.refs[name] == old
     ]
     if any(item["worktree_sync"] == "failed" for item in synchronized):
-        raise ValueError("identity_repair_accepted_worktree_sync_failed")
+        message = "identity_repair_accepted_worktree_sync_failed"
+        raise ValueError(message)
     return {"effect": attestation.model_dump(mode="json"), "worktree_sync": synchronized}
 
 

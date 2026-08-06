@@ -135,7 +135,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     branch_policy = load_branch_role_policy(root)
     expected_protected_branches = list(branch_policy.protected_branches)
     host_profile = _host_profile(config)
-    publication = publication_topology(config)
+    publication = publication_topology(root, config)
     attestation = config.get("attestation", {})
     gaps: list[str] = []
     gaps.extend(f"release_file_missing:{path}" for path in missing_files)

@@ -1,28 +1,37 @@
-"""Read the declared dual-remote publication topology."""
+"""Compile one explicit repository-native publication topology."""
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 from typing import cast
 
-_PEERS = {
-    "gitlab": ("organization_collaboration", ".gitlab-ci.yml"),
-    "github": ("public_distribution", ".github/workflows/ci.yml"),
+_PROVIDERS = {
+    "gitlab": "organization_collaboration",
+    "github": "public_distribution",
 }
 _CAPABILITIES = ["repository", "ci_cd", "publication"]
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-_DECLARATION_FIELDS = frozenset(f"{provider}_remote" for provider in _PEERS)
+_LOCAL_FIELDS = ("local_verification_command", "local_installation_command")
+_PROVIDER_FIELDS = tuple(
+    field for provider in _PROVIDERS for field in (f"{provider}_remote", f"{provider}_ci_surface")
+)
+_DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, *_PROVIDER_FIELDS))
 
 
-def publication_topology(config: Mapping[str, Any]) -> dict[str, object]:
-    """Project the required named GitLab and GitHub remote declaration."""
+def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
+    """Compile and validate the repository's sole publication declaration."""
     raw = config.get("publication")
-    if not isinstance(raw, Mapping):
-        return _topology(remotes={}, gaps=("publication_topology_declaration_invalid",))
-    remotes, gaps = _declared_remotes(raw)
-    return _topology(remotes=remotes, gaps=gaps)
+    if not isinstance(raw, Mapping) or set(raw) - _DECLARATION_FIELDS:
+        return _topology(values={}, gaps=("publication_topology_declaration_invalid",))
+    if any(not isinstance(raw.get(field), str) for field in raw):
+        return _topology(values={}, gaps=("publication_topology_declaration_invalid",))
+    values = {field: str(raw.get(field) or "") for field in _DECLARATION_FIELDS}
+    gaps = [*_remote_gaps(values), *_path_gaps(root, values)]
+    return _topology(values=values, gaps=tuple(gaps))
 
 
 def publication_branch_admission(
@@ -64,24 +73,12 @@ def topology_remotes(topology: Mapping[str, object]) -> dict[str, str]:
     """Return provider IDs and their explicitly declared Git remote names."""
     return {
         provider: str(_mapping(topology.get(provider)).get("git_remote") or "")
-        for provider in _PEERS
+        for provider in _PROVIDERS
     }
 
 
-def _declared_remotes(
-    raw: Mapping[str, object],
-) -> tuple[dict[str, str], tuple[str, ...]]:
-    """Read only the required named scalar remote declaration."""
-    fields = set(raw)
-    if fields - _DECLARATION_FIELDS:
-        return {}, ("publication_topology_declaration_invalid",)
-    if any(not isinstance(raw.get(field), str) for field in fields):
-        return {}, ("publication_topology_declaration_invalid",)
-    remotes = {provider: str(raw.get(f"{provider}_remote") or "") for provider in _PEERS}
-    return remotes, tuple(_remote_name_gaps(remotes))
-
-
-def _remote_name_gaps(remotes: Mapping[str, str]) -> list[str]:
+def _remote_gaps(values: Mapping[str, str]) -> list[str]:
+    remotes = {provider: values[f"{provider}_remote"] for provider in _PROVIDERS}
     gaps = [
         f"publication_topology_{provider}_remote_missing"
         if not remote
@@ -94,8 +91,37 @@ def _remote_name_gaps(remotes: Mapping[str, str]) -> list[str]:
     return gaps
 
 
-def _topology(*, remotes: Mapping[str, str], gaps: tuple[str, ...]) -> dict[str, object]:
-    peers = {provider: _peer(provider, remotes.get(provider, "")) for provider in _PEERS}
+def _path_gaps(root: Path, values: Mapping[str, str]) -> list[str]:
+    gaps = []
+    for field in (*_LOCAL_FIELDS, *(f"{provider}_ci_surface" for provider in _PROVIDERS)):
+        value = values[field]
+        kind = "command" if field in _LOCAL_FIELDS else "surface"
+        gap = _repository_path_gap(root, field, value, executable=kind == "command")
+        if gap:
+            gaps.append(gap)
+    return gaps
+
+
+def _repository_path_gap(root: Path, field: str, value: str, *, executable: bool) -> str:
+    prefix = f"publication_topology_{field}"
+    if not value:
+        return f"{prefix}_missing"
+    relative = Path(value)
+    resolved_root = root.resolve()
+    resolved = (resolved_root / relative).resolve()
+    if relative.is_absolute() or not resolved.is_relative_to(resolved_root):
+        return f"{prefix}_path_escape:{value}"
+    if not resolved.exists():
+        return f"{prefix}_missing:{value}"
+    if not resolved.is_file():
+        return f"{prefix}_not_regular:{value}"
+    if executable and not os.access(resolved, os.X_OK):
+        return f"{prefix}_not_executable:{value}"
+    return ""
+
+
+def _topology(*, values: Mapping[str, str], gaps: tuple[str, ...]) -> dict[str, object]:
+    peers = {provider: _peer(provider, values) for provider in _PROVIDERS}
     return {
         "kind": "ethos_publication_topology",
         "state": "ready" if not gaps else "invalid",
@@ -103,38 +129,33 @@ def _topology(*, remotes: Mapping[str, str], gaps: tuple[str, ...]) -> dict[str,
             "id": "local",
             "role": "local_verification_install",
             "mode": "offline",
-            "verification_command": "tools/ci/scripts/run-local-ci.sh",
-            "installation_command": "tools/ci/scripts/run-local-install-smoke.sh",
+            "verification_command": values.get("local_verification_command", ""),
+            "installation_command": values.get("local_installation_command", ""),
         },
         "branch_admission": {
             "candidate_role": "local_only",
             "remote_branches": "accepted_release_proposal_only",
         },
         "remotes": list(peers.values()),
-        "gitlab": peers["gitlab"],
-        "github": peers["github"],
+        **peers,
         "required_gaps": list(gaps),
     }
 
 
-def _peer(provider: str, remote: str) -> dict[str, object]:
-    """Render one canonical provider peer from its named remote."""
-    role, surface = _PEERS[provider]
+def _peer(provider: str, values: Mapping[str, str]) -> dict[str, object]:
     return {
         "id": provider,
-        "role": role,
+        "role": _PROVIDERS[provider],
         "provider": provider,
-        "git_remote": remote,
-        "ci_surface": surface,
+        "git_remote": values.get(f"{provider}_remote", ""),
+        "ci_surface": values.get(f"{provider}_ci_surface", ""),
         "capabilities": _CAPABILITIES,
     }
 
 
 def _mapping(value: object) -> Mapping[str, object]:
-    """Return a mapping only when the external payload has mapping shape."""
     return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else {}
 
 
 def _strings(value: object) -> list[str]:
-    """Return a JSON-string sequence or its empty projection."""
     return [str(item) for item in value] if isinstance(value, (list, tuple)) else []

@@ -472,6 +472,7 @@ boundary. A missing or stale edge is `model_gap`.
 | `quality:Matched Workflow Evaluation` | `6.9` | `workflow-eval` |
 | `quality:Product Experience Is A Kernel Projection` | `6.7` | `adopter-conformance` |
 | `repository-governance:Lossless Campaign Intent Closure` | `5.2` | `unit-governance` |
+| `repository-governance:Exact artifact supply-chain evidence` | `6.1` | `quality-profile` |
 | `repository-governance:Exact Work Lane Lifecycle Effects` | `3.1` | `unit-lanes` |
 | `repository-governance:Coupling Binding Registry` | `3.4` | `product-boundary` |
 | `repository-governance:Standards Adapter Lifecycle` | `3.4` | `product-boundary` |

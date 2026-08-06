@@ -160,7 +160,7 @@ jobs:
       - name: Build Python distributions
         run: .venv/bin/nox -s build
       - name: Generate SPDX SBOM
-        run: tools/ci/scripts/run-release-supply-chain.sh
+        run: .venv/bin/nox -s supply_chain
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: python-distributions

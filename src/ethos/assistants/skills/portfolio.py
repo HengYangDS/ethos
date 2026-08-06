@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
@@ -9,6 +10,9 @@ from ethos.normalization.coercion import string_list
 
 SKILL_PACKAGE_FILE_LIMIT = 6
 INTENT_TOKEN_OWNER_LIMIT = 2
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def portfolio_coverage(
@@ -65,6 +69,7 @@ def portfolio_design(
     command_owners: dict[str, list[str]] = {}
     path_owners: dict[str, list[str]] = {}
     token_owners: dict[str, list[str]] = {}
+    route_owners: dict[str, list[str]] = {}
     package_by_id = {str(report.get("id") or ""): report for report in package_reports}
     for record in records:
         skill_id = str(record["id"])
@@ -78,6 +83,11 @@ def portfolio_design(
             path_owners.setdefault(pattern, []).append(skill_id)
         for token in cast("list[str]", record["intent_tokens"]):
             token_owners.setdefault(token, []).append(skill_id)
+        route_key = ":".join(
+            value for value in (str(record["primary_subject"]), str(record["operation"])) if value
+        )
+        if route_key:
+            route_owners.setdefault(route_key, []).append(skill_id)
         file_count = len(cast("list[object]", package.get("files", [])))
         if file_count > SKILL_PACKAGE_FILE_LIMIT:
             gaps.append(f"skill_portfolio_package_overloaded:{skill_id}:{file_count}")
@@ -89,10 +99,58 @@ def portfolio_design(
         gaps.append(f"skill_portfolio_path_glob_duplicate:{pattern}:{','.join(owners)}")
     for token, owners in sorted(duplicate_tokens.items()):
         gaps.append(f"skill_portfolio_intent_token_overclaimed:{token}:{','.join(owners)}")
+    novelty = _portfolio_novelty(route_owners)
+    gaps.extend(cast("list[str]", novelty["required_gaps"]))
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "command_owner_count": {key: len(ids) for key, ids in sorted(command_owners.items())},
         "path_glob_owner_count": {key: len(ids) for key, ids in sorted(path_owners.items())},
         "intent_token_owner_count": {key: len(ids) for key, ids in sorted(token_owners.items())},
+        "novelty": novelty,
+        "required_gaps": gaps,
+    }
+
+
+def _portfolio_novelty(route_owners: dict[str, list[str]]) -> dict[str, object]:
+    duplicates = {key: ids for key, ids in route_owners.items() if len(ids) > 1}
+    gaps = [
+        f"skill_portfolio_route_duplicate:{route}:{','.join(owners)}"
+        for route, owners in sorted(duplicates.items())
+    ]
+    return {
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
+        "route_owner_count": {key: len(ids) for key, ids in sorted(route_owners.items())},
+        "duplicate_routes": {key: list(ids) for key, ids in sorted(duplicates.items())},
+        "required_gaps": gaps,
+    }
+
+
+def portfolio_retirement(
+    registry: dict[str, object],
+    records: list[dict[str, object]],
+    root: Path,
+) -> dict[str, object]:
+    """Ensure retired routes cannot remain active or leave a live carrier behind."""
+    retired = registry.get("retired")
+    retired_entries = retired if isinstance(retired, dict) else {}
+    active_ids = {str(record["id"]) for record in records}
+    gaps: list[str] = []
+    for raw_skill_id, entry in sorted(retired_entries.items()):
+        skill_id = str(raw_skill_id)
+        if skill_id in active_ids:
+            gaps.append(f"skill_retirement_active_duplicate:{skill_id}")
+            continue
+        if not isinstance(entry, dict):
+            gaps.append(f"skill_retirement_invalid:{skill_id}")
+            continue
+        for field in ("reason", "retired_on", "kill_signal"):
+            if not str(entry.get(field) or "").strip():
+                gaps.append(f"skill_retirement_field_missing:{skill_id}:{field}")
+        path = str(entry.get("path") or "")
+        if path and (root / path).exists():
+            gaps.append(f"skill_retirement_live_path:{skill_id}:{path}")
+    return {
+        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
+        "retired": sorted(str(skill_id) for skill_id in retired_entries),
         "required_gaps": gaps,
     }

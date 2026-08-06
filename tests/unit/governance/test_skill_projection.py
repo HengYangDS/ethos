@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from ethos.assistants.skills.packages import validate_skill_package_manifest
+from ethos.assistants.skills.portfolio import portfolio_design
+from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.contracts.skill.activation import normalize_skill_activation
 from tests.support.playbooks import write_v2_playbook_package
 
@@ -89,3 +92,68 @@ def test_skill_package_omits_absent_eval_projection(tmp_path: Path) -> None:
     result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
 
     assert result["eval"] == {}
+
+
+def test_skill_novelty_requires_one_owner_per_semantic_boundary() -> None:
+    records: list[dict[str, object]] = [
+        {
+            "id": skill_id,
+            "primary_subject": subject,
+            "subjects": [subject],
+            "path_globs": [f"{skill_id}/**"],
+            "intent_tokens": [subject],
+            "operation": "govern",
+        }
+        for skill_id, subject in (("first", "alpha"), ("second", "alpha"))
+    ]
+
+    result = portfolio_design(records, [])
+
+    assert result["required_gaps"] == ["skill_portfolio_route_duplicate:alpha:govern:first,second"]
+    novelty = cast("dict[str, object]", result["novelty"])
+    assert novelty["duplicate_routes"] == {"alpha:govern": ["first", "second"]}
+
+
+def test_retired_skill_requires_complete_disposition_and_absent_carrier(tmp_path: Path) -> None:
+    path = tmp_path / ".agents/skills/retired-skill"
+    path.mkdir(parents=True)
+    registry: dict[str, object] = {
+        "retired": {
+            "retired-skill": {
+                "reason": "replaced",
+                "path": ".agents/skills/retired-skill",
+            }
+        }
+    }
+
+    result = portfolio_retirement(registry, [], tmp_path)
+
+    assert result["required_gaps"] == [
+        "skill_retirement_field_missing:retired-skill:retired_on",
+        "skill_retirement_field_missing:retired-skill:kill_signal",
+        "skill_retirement_live_path:retired-skill:.agents/skills/retired-skill",
+    ]
+
+
+def test_eval_metadata_remains_evidence_and_never_progress_state(tmp_path: Path) -> None:
+    manifest = Path(write_v2_playbook_package(tmp_path / ".agents" / "skills", "sample-skill"))
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8")
+        + """
+
+[eval]
+treatment_id = "candidate"
+metrics = ["pass_at_k", "pass_power_k", "instability_gap"]
+pass_at_k = 0.8
+pass_power_k = 0.6
+instability_gap = 0.1
+evidence_refs = ["evidence/attestations/workflow-eval.json"]
+""",
+        encoding="utf-8",
+    )
+
+    result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
+
+    assert result["verdict"] == "pass"
+    assert result["eval"]["truth_boundary"] == "skill_metadata_only"
+    assert not {"done", "progress", "status", "tasks"} & result["eval"].keys()

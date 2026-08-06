@@ -15,6 +15,9 @@ truth center.
   criteria in references.
 - A skill routes work only. It does not create a task store, lifecycle ledger,
   or provider-specific authority.
+- OpenSpec owns its generated Skills and slash commands. ETHOS characterizes
+  their pinned output and never forks the official workflow templates.
+- Matched evaluation is evidence about a route, not progress through a Change.
 
 ## Admission
 
@@ -22,6 +25,10 @@ A new skill is justified only when the procedure is repeated,
 repository-specific, and cannot fit an existing owner without losing a clear
 subject boundary. It needs a package manifest, activation route, digest, and
 current owner-script or proof-gate evidence.
+
+An existing skill is retired only after its route has moved or disappeared,
+its carrier is removed, and activation metadata records the reason, retirement
+date, and observable kill signal.
 
 ## Audit Loop
 

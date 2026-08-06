@@ -1,11 +1,11 @@
 schema = "ethos-runbook-registry-v1"
 owner = "ethos-quality-gate-governance"
 registry = "docs/reference/runbook-registry.md"
-runner = "tools/ci/scripts/run-runbook-registry-check.sh"
+runner = ".venv/bin/nox -s runbook_registry"
 
 [[entry]]
 id = "RUN-CI-TEMPLATES"
-command = "tools/ci/scripts/run-ci-template-check.sh"
+command = ".venv/bin/nox -s ci_templates"
 category = "provider-projection"
 evidence = "JSON stdout"
 
@@ -23,13 +23,13 @@ evidence = "build/evidence/local-ci/gitlab/doctor.json"
 
 [[entry]]
 id = "RUN-FORMAT-SELECTION"
-command = "tools/ci/scripts/run-format-selection.sh"
+command = ".venv/bin/nox -s format_selection"
 category = "format-boundary"
 evidence = "JSON stdout"
 
 [[entry]]
 id = "RUN-ARCHITECTURE-PROJECTION"
-command = "tools/ci/scripts/run-architecture-projection-drift.sh"
+command = ".venv/bin/nox -s architecture_projection"
 category = "architecture-projection"
 evidence = "JSON stdout"
 

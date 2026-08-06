@@ -180,7 +180,7 @@ ethos:ci-projections:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-ci-template-check.sh
+    - .venv/bin/nox -s ci_templates
 
 ethos:github-workflow-syntax:
   <<: *python_setup
@@ -192,19 +192,19 @@ ethos:format-selection:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-format-selection.sh
+    - .venv/bin/nox -s format_selection
 
 ethos:architecture-projection:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-architecture-projection-drift.sh
+    - .venv/bin/nox -s architecture_projection
 
 ethos:runbook-registry:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-runbook-registry-check.sh
+    - .venv/bin/nox -s runbook_registry
 
 ethos:hosted-provider-observation:
   <<: *python_setup

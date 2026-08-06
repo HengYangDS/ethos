@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -266,7 +267,10 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
         "GIT_CONFIG_VALUE_0": "/dev/null",
     }
     for job in ("quality", "verify", "package"):
-        assert github["jobs"][job]["steps"][0]["uses"] == "actions/checkout@v7"
+        assert (
+            github["jobs"][job]["steps"][0]["uses"]
+            == "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+        )
         assert github["jobs"][job]["steps"][0]["env"] == isolation
     assert gitlab["default"]["tags"] == ["${ETHOS_GITLAB_RUNNER_TAG}"]
     assert (
@@ -499,10 +503,10 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
         (
             ".github/workflows/ci.yml",
             (
-                "actions/checkout@v7",
-                "actions/setup-python@v6",
+                "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
                 "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9",
-                "actions/upload-artifact@v7",
+                "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
             ),
             (),
         ),
@@ -526,6 +530,15 @@ def test_static_ci_policies(
         assert needle in text
     for needle in forbidden:
         assert needle not in text
+
+
+def test_github_actions_use_immutable_commit_identities() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "actions/checkout@v7" not in workflow
+    assert "actions/setup-python@v6" not in workflow
+    assert "actions/upload-artifact@v7" not in workflow
+    for reference in re.findall(r"uses:\s+[^@\s]+@([^\s]+)", workflow):
+        assert re.fullmatch(r"[0-9a-f]{40}", reference)
 
 
 def test_static_ci_policy_cross_file_invariants() -> None:

@@ -17,6 +17,7 @@ PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
 run_dependency_hygiene = import_module("tools.ci.dependency_hygiene").run
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
 run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_audit").run
+run_release_supply_chain = import_module("tools.ci.release_supply_chain").run
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 
 nox.options.default_venv_backend = "none"
@@ -132,3 +133,9 @@ def dependencies(session: nox.Session) -> None:
 def vulnerabilities(session: nox.Session) -> None:
     """Audit the frozen Python lock with uv's native OSV client."""
     run_python_vulnerability_audit(session)
+
+
+@nox.session(python=False)
+def supply_chain(session: nox.Session) -> None:
+    """Generate the exact-wheel SPDX SBOM and bounded receipt."""
+    run_release_supply_chain(session)

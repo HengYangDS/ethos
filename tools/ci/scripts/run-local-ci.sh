@@ -23,7 +23,7 @@ trap _ethos_verify_local_ci_head_stability EXIT
 quality_checks=(tools/ci/scripts/run-config-lint.sh tools/ci/scripts/run-json-schema-check.sh tools/ci/scripts/run-shell-lint.sh tools/ci/scripts/run-markdown-lint.sh tools/ci/scripts/run-prose-check.sh tools/ci/scripts/run-import-linter.sh .venv/bin/nox -s dependencies tools/ci/scripts/run-docstring-coverage.sh tools/ci/scripts/run-module-layout.sh tools/ci/scripts/run-product-boundary.sh .venv/bin/nox -s vulnerabilities tools/ci/scripts/run-repository-hygiene.sh tools/ci/scripts/run-secrets-scan.sh tools/ci/scripts/run-ci-template-check.sh tools/ci/scripts/run-format-selection.sh tools/ci/scripts/run-architecture-projection-drift.sh tools/ci/scripts/run-runbook-registry-check.sh)
 for check in "${quality_checks[@]}"; do "${check}"; done
 .venv/bin/nox -s tests
-delivery_checks=(".venv/bin/nox -s install_smoke" tools/ci/scripts/run-release-supply-chain.sh tools/ci/scripts/run-hosted-provider-observation.sh)
+delivery_checks=(".venv/bin/nox -s install_smoke" ".venv/bin/nox -s supply_chain" tools/ci/scripts/run-hosted-provider-observation.sh)
 for check in "${delivery_checks[@]}"; do "${check}"; done
 
 mkdir -p build/evidence/local-ci

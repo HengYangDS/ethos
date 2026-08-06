@@ -41,7 +41,7 @@ evidence = "JSON stdout"
 
 [[entry]]
 id = "RUN-RELEASE-SUPPLY-CHAIN"
-command = "tools/ci/scripts/run-release-supply-chain.sh"
+command = ".venv/bin/nox -s supply_chain"
 category = "release-supply-chain"
 evidence = "build/evidence/release/supply-chain.json"
 

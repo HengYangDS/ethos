@@ -32,7 +32,7 @@ Release readiness is proven with:
 .venv/bin/nox -s lint
 .venv/bin/nox -s install_smoke
 .venv/bin/nox -s build
-tools/ci/scripts/run-release-supply-chain.sh
+.venv/bin/nox -s supply_chain
 npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm

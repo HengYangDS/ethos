@@ -11,6 +11,7 @@ from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,6 +33,23 @@ def load_profile_commitment(
             if change_id is not None or str(error) != "commitment_missing":
                 raise
     return load_commitment(root, change_id=change_id, tree_ref=tree_ref)
+
+
+def load_work_lane_commitment(
+    root: Path,
+    *,
+    lease: dict[str, object],
+    change_id: str | None = None,
+) -> Commitment:
+    """Load current intent while retaining the Lease as prior-generation fact."""
+    selected_change = change_id
+    if selected_change is None:
+        try:
+            prior = load_lease_bound_commitment(root, lease=lease)
+        except ValueError:
+            prior = None
+        selected_change = prior.id.removeprefix("change:") if prior is not None else None
+    return load_profile_commitment(root, change_id=selected_change)
 
 
 def completed_active_changes_report(root: Path) -> dict[str, object]:

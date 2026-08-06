@@ -19,6 +19,7 @@ from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.adapters.openspec.profile import load_profile_commitment
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import Commitment
@@ -35,6 +36,7 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 
 if TYPE_CHECKING:
@@ -1433,6 +1435,33 @@ def test_plan_uses_explicit_openspec_profile_commitment(tmp_path: Path) -> None:
     assert payload["required_gaps"] == ["proof_floor_empty"]
     assert payload["data"]["commitment"]["id"] == "change:selected"
     assert payload["data"]["profile_adapter"]["change"] == "selected"
+
+
+def test_work_lane_plan_uses_the_current_active_commitment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    holder = "agent:test:case:current-plan-commitment"
+    fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
+    root = fixture.worktree
+    branch = git(root, "branch", "--show-current")
+    lease = leases_by_branch(root)[branch]
+    carrier = root / str(lease["base_commitment_path"])
+    carrier.write_text(
+        carrier.read_text(encoding="utf-8")
+        + 'acceptance = ["current working-tree intent is planned"]\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+
+    payload = run_ethos("plan", "--root", root.as_posix(), "--json", cwd=root)
+
+    assert payload["data"]["commitment"]["acceptance"] == ["current working-tree intent is planned"]
+    assert (
+        payload["data"]["transition_plan"]["inputs"]["commitment"]
+        == load_profile_commitment(root).digest()
+        != lease["base_commitment_digest"]
+    )
 
 
 def test_complete_adopter_commands_require_openspec_layout(tmp_path: Path) -> None:

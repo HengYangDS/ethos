@@ -62,6 +62,8 @@ def _case(
     monkeypatch: pytest.MonkeyPatch,
     *,
     relocate_carrier: bool = False,
+    archive_to_active: bool = False,
+    minimal_permissions: bool = False,
 ) -> dict[str, object]:
     holder = "agent:test:case:commitment-rebind"
     fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
@@ -72,17 +74,62 @@ def _case(
     old_head = git(worktree, "rev-parse", "HEAD")
     carrier = Path(str(lease["base_commitment_path"]))
     commitment = worktree / carrier
+    if archive_to_active:
+        git(worktree, "config", "--unset-all", "core.hooksPath")
+        archived_carrier = Path(
+            "openspec/changes/archive/2026-08-06-fixture-change/commitment.toml"
+        )
+        archived = worktree / archived_carrier
+        archived.parent.mkdir(parents=True)
+        git(worktree, "mv", carrier.as_posix(), archived_carrier.as_posix())
+        git(
+            worktree,
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "archive fixture commitment",
+        )
+        head = git(worktree, "rev-parse", "HEAD")
+        binding = exact_commitment_fields(worktree, head=head, carrier=archived_carrier.as_posix())
+        _replace_lease_payload(
+            worktree,
+            branch,
+            expected_head=head,
+            expected_tree=binding["expected_tree"],
+            base_commitment_path=binding["base_commitment_path"],
+            base_commitment_bytes_sha256=binding["base_commitment_bytes_sha256"],
+            base_commitment_digest=binding["base_commitment_digest"],
+        )
+        lease = leases_by_branch(worktree)[branch]
+        old_head = head
+        carrier = archived_carrier
+        commitment = archived
+        git(worktree, "config", "core.hooksPath", (worktree / ".githooks").as_posix())
     target_carrier = (
-        Path("openspec/changes/rebound-fixture/commitment.toml") if relocate_carrier else carrier
+        Path("openspec/changes/fixture-change/commitment.toml")
+        if archive_to_active
+        else Path("openspec/changes/rebound-fixture/commitment.toml")
+        if relocate_carrier
+        else carrier
     )
-    if relocate_carrier:
-        (worktree / target_carrier).parent.mkdir(parents=True)
+    if relocate_carrier or archive_to_active:
+        (worktree / target_carrier).parent.mkdir(parents=True, exist_ok=True)
         git(worktree, "mv", carrier.as_posix(), target_carrier.as_posix())
         commitment = worktree / target_carrier
     commitment.write_text(
-        commitment.read_text(encoding="utf-8").replace(
+        commitment.read_text(encoding="utf-8")
+        .replace(
             "Exercise the governed fixture lifecycle.",
             "Rebind one changed governed fixture intent.",
+        )
+        .replace(
+            'permissions = ["git.ref.compare-and-swap"]',
+            'permissions = ["repository.read", "work-lane.write"]'
+            if minimal_permissions
+            else 'permissions = ["git.ref.compare-and-swap"]',
         ),
         encoding="utf-8",
     )
@@ -171,6 +218,39 @@ def test_commitment_rebind_owns_one_exact_carrier_relocation(
 
     assert raw_move["required_gaps"] == ["lease_base_commitment_path_mismatch"]
     assert report["required_gaps"] == [], report
+    assert report["verdict"] == "pass", report
+    _assert_terminal(case, report)
+
+
+def test_commitment_rebind_owns_one_archive_to_active_carrier_rollover(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(tmp_path, monkeypatch, archive_to_active=True)
+    worktree = case["worktree"]
+    request = case["request"]
+    assert isinstance(worktree, Path)
+    assert isinstance(request, CommitmentRebindRequest)
+
+    report = execute_commitment_rebind(root=worktree, request=request)
+
+    assert report["required_gaps"] == [], report
+    assert report["verdict"] == "pass", report
+    _assert_terminal(case, report)
+
+
+def test_commitment_rebind_uses_exact_cas_bootstrap_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(tmp_path, monkeypatch, minimal_permissions=True)
+    worktree = case["worktree"]
+    request = case["request"]
+    assert isinstance(worktree, Path)
+    assert isinstance(request, CommitmentRebindRequest)
+
+    report = execute_commitment_rebind(root=worktree, request=request)
+
     assert report["verdict"] == "pass", report
     _assert_terminal(case, report)
 
@@ -292,6 +372,34 @@ def test_commitment_rebind_recovers_after_git_cas_before_lease_cas(
     assert not list(ref_intent_dir(worktree).glob("*.json"))
 
     monkeypatch.setattr(rebind, "rebind_lease_commitment", apply_lease)
+    recovered = execute_commitment_rebind(root=worktree, request=request)
+
+    assert recovered["state"] == "recovered"
+    _assert_terminal(case, recovered)
+
+
+def test_commitment_rebind_recovers_after_hook_advanced_only_the_lease_head(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    worktree = case["worktree"]
+    branch = case["branch"]
+    lease = case["lease"]
+    request = case["request"]
+    assert isinstance(worktree, Path)
+    assert isinstance(branch, str)
+    assert isinstance(lease, dict)
+    assert isinstance(request, CommitmentRebindRequest)
+    git(worktree, "config", "--unset-all", "core.hooksPath")
+    git(worktree, "update-ref", f"refs/heads/{branch}", request.target_commit, request.expect_head)
+    _replace_lease_payload(
+        worktree,
+        branch,
+        expected_head=request.target_commit,
+        expected_tree=request.expect_index_tree,
+    )
+
     recovered = execute_commitment_rebind(root=worktree, request=request)
 
     assert recovered["state"] == "recovered"
@@ -586,6 +694,34 @@ def test_commitment_rebind_cli_projects_the_same_terminal_transaction(
     assert applied["data"]["state"] == "applied"
     assert recognized["data"]["state"] == "recognized"
     assert applied["data"]["attestation"] == recognized["data"]["attestation"]
+
+
+def test_commitment_rebind_cli_preserves_carrier_coordinates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(tmp_path, monkeypatch, relocate_carrier=True)
+    worktree = case["worktree"]
+    request = case["request"]
+    assert isinstance(worktree, Path)
+    assert isinstance(request, CommitmentRebindRequest)
+    arguments = ["lane", "rebind-commitment", "--root", worktree.as_posix()]
+    for name, value in request.model_dump().items():
+        option = "--" + name.replace("_", "-")
+        if isinstance(value, bool):
+            if value:
+                arguments.append(option)
+        elif isinstance(value, tuple):
+            for item in value:
+                arguments.extend((option, str(item)))
+        else:
+            arguments.extend((option, str(value)))
+    arguments.append("--json")
+
+    applied = run_ethos(*arguments, cwd=worktree)
+
+    assert applied["data"]["verdict"] == "pass"
+    assert applied["data"]["lease"]["base_commitment_path"] == request.new_commitment_path
 
 
 @pytest.mark.parametrize(

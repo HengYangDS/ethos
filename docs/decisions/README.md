@@ -17,10 +17,8 @@ records through the one Decision Index.
 
 | Need | Read |
 | --- | --- |
-| All current and superseded rulings | [Decision Index](decision-index.md) |
+| Current rulings first, then historical rulings | [Decision Index](decision-index.md) |
 | Start a new decision record | [Decision Record Template](decision-record-template.md) |
-| Review dependencies | [Decision Dependency Map](decision-dependency-map.md) |
-| Review code and check links | [Decision Code Links](decision-code-links.md) |
 
 ## Boundary
 
@@ -34,5 +32,11 @@ judgment.
 
 Does not own: routine task notes, proof transcripts, OpenSpec deltas, runtime
 state, generated reports, or current runtime behavior.
+
+Each `DR-*.md` record owns its dependencies, implementation/evidence links,
+alternatives, consequences, and revisit trigger. The index owns navigation and
+orders accepted/proposed records by decision-change date descending before
+superseded history. No dependency map or code-link ledger duplicates those
+record-local facts.
 
 See also: [Documentation Index](../index.md), [Product Design Contract](../governance/product-design-contract.md), and [Generated Artifact Topology](../architecture/generated-artifact-topology.md).

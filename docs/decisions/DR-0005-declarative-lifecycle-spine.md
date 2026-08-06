@@ -43,7 +43,7 @@ See also: [Decision Records](README.md), [Decision Index](decision-index.md),
 | Proof or Evidence | The `terminal-convergence` OpenSpec change owns implementation and deletion proof; focused contract, determinism, schema, command, and HEAD-bound proof must pass before closeout. |
 | Revisit Trigger | Revisit when declarations increase total maintenance, obscure authority, prevent explanation, or require an execution substrate to own lifecycle truth. |
 
-## Rationale
+## Context
 
 ETHOS had accumulated procedural gap collection, dictionary normalization,
 hand-written command glue, repeated dependency walkers, and generated surfaces
@@ -51,7 +51,9 @@ with overlapping ownership. The corrective principle is not “replace Python
 with frameworks.” It is one semantic obligation, one owner, and the smallest
 mature mechanism that preserves meaning.
 
-The lifecycle spine is therefore:
+## Decision
+
+Use the following singular lifecycle spine:
 
 1. **Contracts:** Pydantic v2 only at persisted or external boundaries.
 2. **Facts:** freshly observed and passed explicitly; no ambient mutable truth.

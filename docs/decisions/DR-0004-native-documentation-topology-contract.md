@@ -48,6 +48,18 @@ See also: [Decision Index](decision-index.md) and
 | Proof or Evidence | Historical focused topology tests and historical HEAD-bound proof execution. These are retained as record context, not as current commands or gates. |
 | Revisit Trigger | Reopen only if a future authority establishes a stronger documentation contract that cannot be expressed by portable registry semantics and ETHOS self-audit. |
 
+## Context
+
+The historical product encoded documentation discoverability through one fixed
+directory kernel. That improved predictability but incorrectly made an ETHOS
+product layout a portable adopter requirement.
+
+## Decision
+
+Retire the fixed-path adopter contract. Portable metadata, taxonomy,
+discoverability, and examples belong to the Docs Registry; ETHOS alone audits
+its product-specific physical layout.
+
 ## Historical Decision
 
 The historical strict kernel was:

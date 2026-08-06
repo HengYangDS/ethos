@@ -576,6 +576,18 @@ Contradictions, stale projections, and model gaps SHALL promote the affected bou
 - **WHEN** classification would discard or distort a valid distinction
 - **THEN** ETHOS blocks the effect and promotes the model boundary without imposing any taxonomy
 
+#### Scenario: durable decisions remain one ordered record surface
+- **WHEN** a repository carries durable Decision Records
+- **THEN** each ruling is one flat record owning its status, dates, dependencies,
+  alternatives, selected decision, consequences, evidence, revisit trigger, and
+  change ledger
+- **AND** alternatives use one comparable pros/cons/decision-basis table rather
+  than prose piles or incomparable templates
+- **AND** one index lists current accepted or proposed records first by newest
+  decision-change date, followed by superseded history
+- **AND** dependency maps, code-link ledgers, status directories, or other
+  parallel decision owners are absent
+
 ## REMOVED Requirements
 
 ### Requirement: Work Lane Lifecycle Resolution

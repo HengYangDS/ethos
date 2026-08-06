@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.registry.docs.decisions import decision_record_gaps
 from ethos.repository.registry.docs.links import markdown_links
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
 from ethos.repository.registry.docs.registry import VISIBLE_SECTION_LABELS
@@ -66,6 +67,7 @@ def docs_health_report(
         command_example_gaps(root, registry, command_validator) if command_validator else []
     )
     unindexed_plans = plan_index_gaps(root, registry)
+    decision_gaps = decision_record_gaps(root, docs_root(root))
     required_gaps = (
         missing
         + invalid_state
@@ -74,6 +76,7 @@ def docs_health_report(
         + visible_section_gaps
         + invalid_command_examples
         + unindexed_plans
+        + decision_gaps
     )
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
@@ -85,6 +88,7 @@ def docs_health_report(
         "missing_visible_sections": visible_section_gaps,
         "invalid_command_examples": invalid_command_examples,
         "unindexed_plans": unindexed_plans,
+        "decision_record_gaps": decision_gaps,
         "required_gaps": required_gaps,
         "registry": registry,
     }
@@ -102,6 +106,7 @@ def empty_docs_health_report(gap: str) -> dict[str, object]:
         "missing_visible_sections": [],
         "invalid_command_examples": [],
         "unindexed_plans": [],
+        "decision_record_gaps": [],
         "required_gaps": [gap],
         "registry": [],
     }

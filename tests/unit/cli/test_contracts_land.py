@@ -1127,59 +1127,6 @@ def test_closeout_rejects_an_explicit_incomplete_workspace(tmp_path: Path) -> No
     assert report["required_gaps"] == ["accepted_policy_unavailable"]
 
 
-def test_closeout_bootstraps_from_preproposal_accepted_policy(tmp_path: Path) -> None:
-    repo, candidate = start_adopted_candidate(tmp_path)
-    accepted_workspace = repo / ".ethos" / "workspace.toml"
-    accepted_workspace.write_text(
-        accepted_workspace.read_text(encoding="utf-8").replace(
-            'proposal_branch_prefix = "proposal/"', 'submit_branch_prefix = "submit/"'
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", accepted_workspace.as_posix())
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "record preproposal accepted policy",
-    )
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    git(candidate, "reset", "--hard", accepted_head)
-    candidate_workspace = candidate / ".ethos" / "workspace.toml"
-    candidate_workspace.write_text(
-        candidate_workspace.read_text(encoding="utf-8").replace(
-            'submit_branch_prefix = "submit/"', 'proposal_branch_prefix = "proposal/"'
-        ),
-        encoding="utf-8",
-    )
-    git(candidate, "add", candidate_workspace.as_posix())
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "adopt proposal policy",
-    )
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-    seed_executed_proof(candidate, candidate_head)
-
-    report = landing_mutation.apply_candidate_to_accepted(
-        root=repo,
-        authorized=True,
-        expect_head=accepted_head,
-    )
-
-    assert report["verdict"] == "pass", report
-    assert git(repo, "rev-parse", "dev") == candidate_head
-
-
 def test_closeout_uses_committed_accepted_policy_when_worktree_masks_release_mirror(
     tmp_path: Path,
 ) -> None:

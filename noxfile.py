@@ -15,9 +15,13 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
 run_dependency_hygiene = import_module("tools.ci.dependency_hygiene").run
+run_architecture_projection = import_module("tools.ci.architecture_projection").main
+run_ci_templates = import_module("tools.ci.ci_templates").check_templates
+run_format_selection = import_module("tools.ci.format_selection").main
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
 run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_audit").run
 run_release_supply_chain = import_module("tools.ci.release_supply_chain").run
+run_runbook_registry = import_module("tools.ci.runbook_registry").main
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 
 nox.options.default_venv_backend = "none"
@@ -139,3 +143,31 @@ def vulnerabilities(session: nox.Session) -> None:
 def supply_chain(session: nox.Session) -> None:
     """Generate the exact-wheel SPDX SBOM and bounded receipt."""
     run_release_supply_chain(session)
+
+
+@nox.session(python=False)
+def ci_templates(session: nox.Session) -> None:
+    """Verify that provider CI files equal their canonical templates."""
+    if run_ci_templates(json_output=True):
+        session.error("CI provider projections differ from their owners")
+
+
+@nox.session(python=False)
+def architecture_projection(session: nox.Session) -> None:
+    """Verify generated architecture views against their source model."""
+    if run_architecture_projection():
+        session.error("architecture projections differ from their owner")
+
+
+@nox.session(python=False)
+def format_selection(session: nox.Session) -> None:
+    """Verify every tracked extension and executable carrier is governed."""
+    if run_format_selection():
+        session.error("format selection policy did not pass")
+
+
+@nox.session(python=False)
+def runbook_registry(session: nox.Session) -> None:
+    """Verify the runbook projection against its declared commands."""
+    if run_runbook_registry():
+        session.error("runbook registry did not pass")

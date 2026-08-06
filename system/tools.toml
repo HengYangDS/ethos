@@ -278,7 +278,7 @@ concern = "ci_template_consistency"
 tool = "ethos-ci-template-sync"
 config = ".config/ci/templates/hosted/ + .config/checks/ci/templates.toml"
 references = ["docker", "github", "gitlab"]
-gate = "tools/ci/scripts/run-ci-template-check.sh"
+gate = ".venv/bin/nox -s ci_templates"
 profile = "provider"
 
 [[tool]]
@@ -310,21 +310,21 @@ concern = "architecture_modeling"
 tool = "LikeC4-like source -> Mermaid"
 config = ".config/checks/architecture/"
 artifacts = "docs/architecture/_generated/"
-gate = "tools/ci/scripts/run-architecture-projection-drift.sh"
+gate = ".venv/bin/nox -s architecture_projection"
 profile = "architecture"
 
 [[tool]]
 concern = "architecture_projection_drift"
 tool = "ethos-architecture-projection-drift"
 config = ".config/checks/architecture/projection.toml"
-gate = "tools/ci/scripts/run-architecture-projection-drift.sh"
+gate = ".venv/bin/nox -s architecture_projection"
 profile = "architecture"
 
 [[tool]]
 concern = "format_selection"
 tool = "ethos-format-selection"
 config = ".config/checks/format/selection.toml"
-gate = "tools/ci/scripts/run-format-selection.sh"
+gate = ".venv/bin/nox -s format_selection"
 profile = "product"
 
 [[tool]]
@@ -339,7 +339,7 @@ profile = "product"
 concern = "runbook_registry"
 tool = "ethos-runbook-registry"
 config = ".config/checks/runbook/registry.toml + docs/reference/runbook-registry.md"
-gate = "tools/ci/scripts/run-runbook-registry-check.sh"
+gate = ".venv/bin/nox -s runbook_registry"
 profile = "docs"
 
 [[tool]]

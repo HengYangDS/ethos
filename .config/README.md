@@ -33,7 +33,7 @@ configuration plane, not a truth center.
 - `tools/ci/scripts/run-repository-hygiene.sh` owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, and merge-conflict marker detection.
 - `.config/ci/templates/hosted/` owns provider CI template sources.
   `.github/workflows/ci.yml` and `.gitlab-ci.yml` are checked projections over
-  those templates; `tools/ci/scripts/run-ci-template-check.sh` is the drift gate.
+  those templates; `.venv/bin/nox -s ci_templates` is the drift gate.
 - `.config/ci/emulators/` owns local provider emulator config for `act` and
   `gitlab-ci-local`. Emulator wrappers emit local evidence only and must not
   claim hosted GitHub or GitLab status.
@@ -43,7 +43,7 @@ configuration plane, not a truth center.
   `actionlint` is installed.
 - `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; `tools/ci/scripts/run-hosted-provider-observation.sh` records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
 - `.config/checks/format/selection.toml` owns fail-closed executable-carrier
-  admission and file-format boundary checks; `tools/ci/scripts/run-format-selection.sh`
+  admission and file-format boundary checks; `.venv/bin/nox -s format_selection`
   is the reusable runner.
 - `.config/checks/architecture/projection.toml` owns architecture projection
   drift checks from `.config/checks/architecture/models/` source to generated Mermaid. The generated

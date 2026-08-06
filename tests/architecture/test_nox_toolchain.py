@@ -86,3 +86,22 @@ def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
         "install_smoke",
     ]
     assert not (ROOT / "tools/ci/scripts/run-local-install-smoke.sh").exists()
+
+
+def test_nox_replaces_cross_platform_python_gate_wrappers() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    sessions = (
+        "ci_templates",
+        "format_selection",
+        "architecture_projection",
+        "runbook_registry",
+    )
+    for session in sessions:
+        assert f"def {session}(" in source
+    for retired in (
+        "run-ci-template-check.sh",
+        "run-format-selection.sh",
+        "run-architecture-projection-drift.sh",
+        "run-runbook-registry-check.sh",
+    ):
+        assert not (ROOT / "tools/ci/scripts" / retired).exists()

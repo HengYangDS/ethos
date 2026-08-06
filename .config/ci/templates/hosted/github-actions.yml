@@ -79,15 +79,15 @@ jobs:
       - name: Prose spelling
         run: tools/ci/scripts/run-prose-check.sh
       - name: CI projection drift
-        run: tools/ci/scripts/run-ci-template-check.sh
+        run: .venv/bin/nox -s ci_templates
       - name: GitHub workflow syntax
         run: tools/ci/scripts/run-actionlint.sh
       - name: Format selection boundary
-        run: tools/ci/scripts/run-format-selection.sh
+        run: .venv/bin/nox -s format_selection
       - name: Architecture projection drift
-        run: tools/ci/scripts/run-architecture-projection-drift.sh
+        run: .venv/bin/nox -s architecture_projection
       - name: Runbook registry
-        run: tools/ci/scripts/run-runbook-registry-check.sh
+        run: .venv/bin/nox -s runbook_registry
       - name: Hosted provider observation envelope
         run: tools/ci/scripts/run-hosted-provider-observation.sh
 

@@ -1,7 +1,7 @@
 schema = "ethos-format-selection-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Fail-closed executable-carrier admission audit."
-runner = "tools/ci/scripts/run-format-selection.sh"
+runner = ".venv/bin/nox -s format_selection"
 
 [source_budget]
 contract_version = 2
@@ -29,7 +29,7 @@ budget = [
 extensions = [".svg", ".png"]
 carrier = "Brand presentation asset"
 owner = "assets/brand/"
-execution = "tools/ci/scripts/run-format-selection.sh"
+execution = ".venv/bin/nox -s format_selection"
 truth_boundary = "repository-owned public presentation projection"
 
 [[format]]
@@ -107,7 +107,7 @@ budget = [{ category = "js", comment_prefixes = ["//"] }]
 extensions = [".c4"]
 carrier = "LikeC4 model"
 owner = ".config/checks/architecture/projection.toml"
-execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
+execution = ".venv/bin/nox -s architecture_projection"
 truth_boundary = "architecture source projection input"
 budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 
@@ -115,7 +115,7 @@ budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 extensions = [".mmd"]
 carrier = "Mermaid diagram"
 owner = ".config/checks/architecture/projection.toml"
-execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
+execution = ".venv/bin/nox -s architecture_projection"
 truth_boundary = "generated architecture projection output"
 budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 

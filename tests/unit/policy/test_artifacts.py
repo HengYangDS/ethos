@@ -82,6 +82,27 @@ package = { cmd = ["uv", "build", "--out-dir", "./dist/"] }
     ]
 
 
+def test_entrypoint_audit_reads_the_nox_python_test_owner(tmp_path: Path) -> None:
+    path = tmp_path / "tools/ci/python_test_gate.py"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        'PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"\npytest\n',
+        encoding="utf-8",
+    )
+
+    report = generated_artifact_entrypoint_audit(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == [
+        ("generated_artifact_entrypoint_coverage_evidence_unrouted:tools/ci/python_test_gate.py"),
+        ("generated_artifact_entrypoint_pytest_basetemp_unrouted:tools/ci/python_test_gate.py"),
+        (
+            "generated_artifact_entrypoint_pytest_config_argument_missing:"
+            "tools/ci/python_test_gate.py"
+        ),
+    ]
+
+
 def test_entrypoint_audit_allows_the_single_checkout_venv_and_rejects_the_retired_home(
     tmp_path: Path,
 ) -> None:

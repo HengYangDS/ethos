@@ -25,7 +25,7 @@ config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
 executables = ["pytest"]
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
-gate = "tools/ci/scripts/run-python-tests.sh"
+gate = ".venv/bin/nox -s tests"
 
 [[tool]]
 concern = "property_testing"
@@ -33,7 +33,7 @@ tool = "Hypothesis"
 config = ".config/checks/pytest/policy.toml"
 artifacts = "build/runtime/tool-cache/hypothesis/"
 profile = "product"
-gate = "tools/ci/scripts/run-python-tests.sh"
+gate = ".venv/bin/nox -s tests"
 
 [[tool]]
 concern = "python_typing"
@@ -71,7 +71,7 @@ tool = "coverage.py + pytest-cov"
 config = ".config/checks/coverage/coverage.ini"
 artifacts = "build/evidence/quality/tests/coverage/"
 profile = "product"
-gate = "tools/ci/scripts/run-python-tests.sh"
+gate = ".venv/bin/nox -s tests"
 
 [[tool]]
 concern = "python_docstrings"

@@ -1,0 +1,398 @@
+"""Python test and coverage execution for repository Nox sessions."""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import time
+import tomllib
+from contextlib import contextmanager
+from contextlib import suppress
+from dataclasses import dataclass
+from pathlib import Path
+from typing import IO
+from typing import TYPE_CHECKING
+from typing import Self
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import nox
+
+ROOT = Path(__file__).resolve().parents[2]
+PYTHON = ROOT / ".venv/bin/python"
+PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"
+COVERAGE_CONFIG = ROOT / ".config/checks/coverage/coverage.ini"
+COVERAGE_POLICY = ROOT / ".config/checks/coverage/policy.toml"
+TARGETS = ("tests/unit", "tests/architecture")
+
+
+def _number(name: str, default: int, *, zero: bool = False) -> int:
+    raw = os.getenv(name, str(default))
+    valid = re.fullmatch(r"[0-9]+", raw) and (zero or int(raw) > 0)
+    if not valid:
+        qualifier = "non-negative" if zero else "positive"
+        message = f"{name} must be a {qualifier} integer"
+        raise ValueError(message)
+    return int(raw)
+
+
+def _parallelism(name: str, default: int) -> int | None:
+    raw = os.getenv(name, str(default))
+    if raw == "serial":
+        return None
+    if not re.fullmatch(r"[1-9][0-9]*", raw):
+        message = f"{name} must be a positive integer or serial"
+        raise ValueError(message)
+    return int(raw)
+
+
+def _head() -> str:
+    return subprocess.run(
+        ("git", "rev-parse", "HEAD"), cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def _process_start(pid: int) -> str:
+    return subprocess.run(
+        ("ps", "-o", "lstart=", "-p", str(pid)),
+        check=False,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _remove(path: Path) -> None:
+    shutil.rmtree(path, ignore_errors=True) if path.is_dir() else path.unlink(missing_ok=True)
+
+
+def _chown(path: Path, uid: int, gid: int) -> None:
+    if not path.exists():
+        return
+    for child in (path, *path.rglob("*")):
+        shutil.chown(child, user=uid, group=gid)
+
+
+@dataclass(frozen=True, slots=True)
+class Settings:
+    """Validated environment controls for one test graph."""
+
+    head: str
+    evidence: Path
+    basetemp: Path
+    workers: int | None
+    shards: int | None
+    durations: int
+    timeout: tuple[int, str] | None
+    lock_wait: int
+    identity: tuple[int, int] | None
+
+    @classmethod
+    def load(cls) -> Self:
+        """Read the declared execution controls once."""
+        evidence = ROOT / os.getenv("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests")
+        temp_root = os.getenv("TMPDIR", "/tmp").rstrip("/")
+        default_temp = f"{temp_root}/ethos-pytest-{os.getenv('USER', 'user')}-{os.getpid()}"
+        return cls(
+            _head(),
+            evidence,
+            Path(os.getenv("ETHOS_TEST_BASETEMP", default_temp)),
+            _parallelism("ETHOS_TEST_WORKERS", 8),
+            _parallelism("ETHOS_TEST_SHARDS", 1),
+            _number("ETHOS_TEST_DURATIONS", 20),
+            cls._pair("ETHOS_TEST_TIMEOUT_SECONDS", "ETHOS_TEST_TIMEOUT_METHOD"),
+            _number("ETHOS_COVERAGE_LOCK_WAIT_SECONDS", 30, zero=True),
+            cls._identity(),
+        )
+
+    @staticmethod
+    def _pair(first: str, second: str) -> tuple[int, str] | None:
+        seconds, method = os.getenv(first), os.getenv(second)
+        if not seconds and not method:
+            return None
+        if not seconds or method not in {"signal", "thread"}:
+            message = f"{first} and {second}=signal|thread must be set together"
+            raise ValueError(message)
+        return _number(first, 1), method
+
+    @staticmethod
+    def _identity() -> tuple[int, int] | None:
+        uid, gid = os.getenv("ETHOS_TEST_RUN_AS_UID"), os.getenv("ETHOS_TEST_RUN_AS_GID")
+        if not uid and not gid:
+            return None
+        if not uid or not gid or not uid.isdecimal() or not gid.isdecimal() or "0" in {uid, gid}:
+            raise ValueError("ETHOS_TEST_RUN_AS_UID/GID must be positive integers set together")
+        if os.getuid() != 0 or shutil.which("setpriv") is None:
+            raise ValueError("test identity drop requires a root launcher and setpriv")
+        return int(uid), int(gid)
+
+
+class PythonTestGate:
+    """Own pytest, coverage, isolation, sharding, and HEAD freshness."""
+
+    def __init__(self, settings: Settings) -> None:
+        self.s = settings
+        self.coverage = settings.evidence / "coverage"
+        self.pytest = settings.evidence / "pytest"
+        self.data = self.coverage / ".coverage"
+        self.head_file = self.coverage / "head.txt"
+        self.identity_home = Path(os.getenv("TMPDIR", "/tmp")) / f"ethos-test-{os.getpid()}"
+
+    @classmethod
+    def from_environment(cls) -> Self:
+        """Create one gate from the current execution declaration."""
+        return cls(Settings.load())
+
+    def run_tests(self, session: nox.Session) -> None:
+        """Run unit and architecture tests with branch coverage."""
+        with self._coverage_lock():
+            self._prepare()
+            try:
+                self._sharded(session) if self.s.shards not in {None, 1} else self._single(session)
+                self.head_file.write_text(self.s.head + "\n", encoding="utf-8")
+            finally:
+                self._cleanup()
+                self._stable_head()
+
+    def enforce_floor(self, session: nox.Session) -> None:
+        """Enforce the hard floor against current-HEAD evidence only."""
+        with self._coverage_lock():
+            current = (
+                self.head_file.read_text(encoding="utf-8").strip()
+                if self.head_file.is_file()
+                else ""
+            )
+            if not self.data.is_file() or current != self.s.head:
+                session.error(f"coverage evidence is missing or stale for {self.s.head}")
+            floor = tomllib.loads(COVERAGE_POLICY.read_text(encoding="utf-8"))["current_hard_floor"]
+            session.run(*self._coverage("report", f"--fail-under={floor:g}"), env=self._env())
+            self._stable_head()
+
+    @contextmanager
+    def _coverage_lock(self) -> Iterator[None]:
+        self.coverage.mkdir(parents=True, exist_ok=True)
+        lock, owner = self.coverage / ".write.lock", self.coverage / ".write.lock/owner.pid"
+        deadline, invalid_reclaimed = time.monotonic() + self.s.lock_wait, False
+        while True:
+            try:
+                lock.mkdir()
+                break
+            except FileExistsError:
+                fields = (
+                    owner.read_text(encoding="utf-8").strip().split("\t") if owner.is_file() else []
+                )
+                valid = (
+                    len(fields) == 2 and fields[0].isdigit() and int(fields[0]) > 0 and fields[1]
+                )
+                dead = valid and _process_start(int(fields[0])) != fields[1]
+                reclaim = dead or (
+                    time.monotonic() >= deadline and not valid and not invalid_reclaimed
+                )
+                if reclaim:
+                    invalid_reclaimed = invalid_reclaimed or not dead
+                    owner.unlink(missing_ok=True)
+                    with suppress(OSError):
+                        lock.rmdir()
+                    continue
+                if time.monotonic() >= deadline:
+                    message = f"coverage evidence lock unavailable: {lock}"
+                    raise RuntimeError(message) from None
+                time.sleep(1)
+        started = _process_start(os.getpid())
+        if not started:
+            raise RuntimeError("could not determine coverage lock process identity")
+        owner.write_text(f"{os.getpid()}\t{started}\n", encoding="utf-8")
+        try:
+            yield
+        finally:
+            owner.unlink(missing_ok=True)
+            with suppress(OSError):
+                lock.rmdir()
+
+    def _prepare(self) -> None:
+        self._cleanup()
+        for path in (self.coverage, self.pytest, self.s.basetemp):
+            path.mkdir(parents=True, exist_ok=True)
+        if self.s.identity:
+            self.identity_home.mkdir(parents=True, exist_ok=True)
+            for path in (ROOT / "build", self.s.basetemp, self.identity_home):
+                _chown(path, *self.s.identity)
+
+    def _cleanup(self) -> None:
+        for path in (
+            ROOT / ".pytest_cache",
+            ROOT / ".ruff_cache",
+            ROOT / ".coverage",
+            ROOT / "coverage.xml",
+            ROOT / "junit.xml",
+        ):
+            _remove(path)
+        for path in (ROOT / "src").rglob("__pycache__"):
+            _remove(path)
+        if self.s.identity:
+            _chown(ROOT / "build", 0, 0)
+            _chown(self.s.basetemp, 0, 0)
+            _remove(self.identity_home)
+
+    def _stable_head(self) -> None:
+        if (current := _head()) != self.s.head:
+            message = f"Python test HEAD moved: {self.s.head} -> {current}"
+            raise RuntimeError(message)
+
+    def _env(self, data: Path | None = None) -> dict[str, str | None]:
+        config = [
+            ("core.hooksPath", "/dev/null"),
+            ("core.fsmonitor", "false"),
+            ("credential.helper", ""),
+            ("init.templateDir", ""),
+        ]
+        config += (
+            [("safe.directory", str(ROOT)), ("safe.directory", str(ROOT / ".git"))]
+            if self.s.identity
+            else []
+        )
+        env: dict[str, str | None] = {
+            "COVERAGE_FILE": str(data or self.data),
+            "ETHOS_ACTOR": None,
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_COUNT": str(len(config)),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"),
+        }
+        for index, (key, value) in enumerate(config):
+            env[f"GIT_CONFIG_KEY_{index}"], env[f"GIT_CONFIG_VALUE_{index}"] = key, value
+        if self.s.identity:
+            env |= {
+                "HOME": str(self.identity_home),
+                "XDG_CACHE_HOME": str(self.identity_home / ".cache"),
+            }
+        return env
+
+    def _command(self) -> tuple[str, ...]:
+        prefix = (
+            (
+                "setpriv",
+                f"--reuid={self.s.identity[0]}",
+                f"--regid={self.s.identity[1]}",
+                "--clear-groups",
+            )
+            if self.s.identity
+            else ()
+        )
+        return (*prefix, str(PYTHON), "-m", "pytest")
+
+    def _args(self) -> list[str]:
+        args = [
+            "-c",
+            str(PYTEST_CONFIG),
+            "-W",
+            "error",
+            f"--rootdir={ROOT}",
+            f"--cov-config={COVERAGE_CONFIG}",
+            "--cov=ethos",
+            f"--basetemp={self.s.basetemp}",
+            f"--durations={self.s.durations}",
+            "--dist=loadscope",
+        ]
+        args[:0] = ["-n", str(self.s.workers)] if self.s.workers not in {None, 1} else []
+        args += (
+            [f"--timeout={self.s.timeout[0]}", f"--timeout-method={self.s.timeout[1]}"]
+            if self.s.timeout
+            else []
+        )
+        return args
+
+    def _run(
+        self,
+        session: nox.Session,
+        *args: str,
+        data: Path | None = None,
+        stdout: IO[str] | None = None,
+    ) -> None:
+        session.run(*self._command(), *args, env=self._env(data), stdout=stdout)
+
+    def _coverage(self, action: str, *args: str) -> tuple[str, ...]:
+        return (str(PYTHON), "-m", "coverage", action, f"--data-file={self.data}", *args)
+
+    def _single(self, session: nox.Session) -> None:
+        for path in (self.data, self.coverage / "coverage.xml", self.pytest / "junit.xml"):
+            _remove(path)
+        self._run(
+            session,
+            *self._args(),
+            f"--junitxml={self.pytest / 'junit.xml'}",
+            "--cov-report=term-missing",
+            f"--cov-report=xml:{self.coverage / 'coverage.xml'}",
+            "--cov-fail-under=0",
+            *TARGETS,
+            "-q",
+        )
+
+    def _sharded(self, session: nox.Session) -> None:
+        assert self.s.shards is not None
+        shard_dir, key = self.pytest / "shards", f"{self.s.head}:shards={self.s.shards}"
+        head = shard_dir / "head.txt"
+        if not head.is_file() or head.read_text(encoding="utf-8").strip() != key:
+            for path in (
+                *self.coverage.glob(".coverage*"),
+                *self.pytest.glob("junit*.xml"),
+                shard_dir,
+            ):
+                _remove(path)
+            shard_dir.mkdir(parents=True)
+            head.write_text(key + "\n", encoding="utf-8")
+        nodeids_path = self.pytest / "nodeids.txt"
+        with nodeids_path.open("w", encoding="utf-8") as stream:
+            self._run(
+                session,
+                "--collect-only",
+                "-q",
+                "-c",
+                str(PYTEST_CONFIG),
+                f"--rootdir={ROOT}",
+                *TARGETS,
+                stdout=stream,
+            )
+        nodeids = [
+            line
+            for line in nodeids_path.read_text(encoding="utf-8").splitlines()
+            if line.startswith("tests/") and "::" in line
+        ]
+        if not nodeids:
+            raise RuntimeError("pytest collect-only produced no nodeids")
+        files = []
+        for index in range(1, self.s.shards + 1):
+            assigned, data, marker = (
+                nodeids[index - 1 :: self.s.shards],
+                self.coverage / f".coverage.shard-{index}",
+                shard_dir / f"shard-{index}.passed",
+            )
+            if not assigned:
+                continue
+            if (
+                not data.is_file()
+                or not marker.is_file()
+                or marker.read_text(encoding="utf-8").strip() != key
+            ):
+                _remove(data)
+                _remove(marker)
+                self._run(
+                    session,
+                    *self._args(),
+                    "--cov-report=",
+                    "--cov-fail-under=0",
+                    f"--junitxml={self.pytest / f'junit-shard-{index}.xml'}",
+                    *assigned,
+                    "-q",
+                    data=data,
+                )
+                marker.write_text(key + "\n", encoding="utf-8")
+            files.append(str(data))
+        session.run(*self._coverage("combine", *files), env=self._env())
+        session.run(
+            *self._coverage("xml", "-o", str(self.coverage / "coverage.xml")), env=self._env()
+        )
+        session.run(*self._coverage("report", "--fail-under=0"), env=self._env())

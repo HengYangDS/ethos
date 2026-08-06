@@ -405,6 +405,28 @@ def test_committed_gate_policy_never_reads_missing_source_from_worktree(tmp_path
     assert gaps == ("gate_policy_source_missing:check:tools/check.sh",)
 
 
+def test_nox_gate_policy_binds_the_repository_noxfile_not_the_generated_venv(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _write_script_gate_policy(repo)
+    policy = repo / "system/gates.toml"
+    policy.write_text(
+        policy.read_text(encoding="utf-8").replace(
+            'command = ["tools/check.sh"]',
+            'command = [".venv/bin/nox", "-s", "check"]',
+        ),
+        encoding="utf-8",
+    )
+    (repo / "noxfile.py").write_text("def check(): pass\n", encoding="utf-8")
+    head = _commit(repo, "nox policy")
+
+    resolved = resolve_gate_policy(repo, tree_ref=head)
+
+    assert resolved.gaps == ()
+    assert resolved.sources[0][1][0][0] == "noxfile.py"
+
+
 def test_gate_policy_digest_binds_profile_correctness_semantics(tmp_path: Path) -> None:
     repo, first_head = _adopted_repo(tmp_path / "repo")
     first = resolve_gate_policy(repo, tree_ref=first_head).digest

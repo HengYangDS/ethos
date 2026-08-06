@@ -93,7 +93,7 @@ tool = "deptry"
 config = ".config/checks/deptry/policy.toml"
 artifacts = "build/evidence/quality/dependency/"
 profile = "product"
-gate = "tools/ci/scripts/run-dependency-hygiene.sh"
+gate = ".venv/bin/nox -s dependencies"
 
 [[tool]]
 concern = "product_boundary"

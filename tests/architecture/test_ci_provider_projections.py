@@ -89,7 +89,7 @@ def test_hosted_provider_templates_are_projection_sources(
 
 
 def test_forge_collaboration_surfaces_are_semantic_projections() -> None:
-    """GitHub and GitLab expose the same issue and change contracts."""
+    """GitHub and GitLab expose one contract through provider-native files."""
     config = tomllib.loads(TEMPLATE_CONFIG.read_text(encoding="utf-8"))
     surfaces = config["forge_surface"]
 
@@ -100,10 +100,48 @@ def test_forge_collaboration_surfaces_are_semantic_projections() -> None:
         ("gitlab", "change"),
     }
     for entry in surfaces:
-        source = ROOT / entry["source"]
         projection = ROOT / entry["projection"]
-        assert source.is_file()
-        assert projection.read_bytes() == source.read_bytes()
+        headings = {
+            line.removeprefix("## ").strip().lower()
+            for line in projection.read_text(encoding="utf-8").splitlines()
+            if line.startswith("## ")
+        }
+        assert headings.issuperset(entry["required_sections"])
+        assert "source" not in entry
+
+    github_issue = (ROOT / ".github/ISSUE_TEMPLATE/task.md").read_text(encoding="utf-8")
+    gitlab_issue = (ROOT / ".gitlab/issue_templates/task.md").read_text(encoding="utf-8")
+    assert github_issue.startswith("---\nname:")
+    assert not gitlab_issue.startswith("---\n")
+
+
+def test_provider_specific_gate_differences_have_explicit_reasons() -> None:
+    providers = _providers()
+    common = set(providers["github"]["required_owner_scripts"]) & set(
+        providers["gitlab"]["required_owner_scripts"]
+    )
+
+    assert common
+    for provider, peer in (("github", "gitlab"), ("gitlab", "github")):
+        unique = set(providers[provider]["required_owner_scripts"]) - set(
+            providers[peer]["required_owner_scripts"]
+        )
+        reasons = providers[provider]["provider_specific_owner_scripts"]
+        assert set(reasons) == unique
+        assert all(reason.strip() for reason in reasons.values())
+    assert providers["github"]["provider_specific_owner_scripts"] == {
+        "tools/ci/scripts/run-actionlint.sh": "GitHub workflow syntax is a GitHub-native property."
+    }
+    assert providers["gitlab"]["provider_specific_owner_scripts"] == {
+        "tools/ci/scripts/run-node-compatibility.sh": (
+            "GitLab owns the explicit Node compatibility matrix; GitHub package proof "
+            "covers the canonical npm artifact once."
+        ),
+        "tools/ci/scripts/run-python-tests.sh": (
+            "GitHub verify reaches the same test owner through the single HEAD-bound proof; "
+            "GitLab exposes the owner as a native job."
+        ),
+    }
 
 
 @pytest.mark.parametrize(

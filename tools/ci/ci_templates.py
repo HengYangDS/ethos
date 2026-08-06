@@ -185,25 +185,34 @@ def _forge_surface_reports() -> tuple[list[dict[str, Any]], list[dict[str, str]]
     surfaces = []
     failures = []
     for entry in _surface_entries():
-        source = ROOT / str(entry["source"])
         projection = ROOT / str(entry["projection"])
-        missing = [path.as_posix() for path in (source, projection) if not path.is_file()]
-        match = not missing and source.read_bytes() == projection.read_bytes()
+        required = {str(section) for section in entry.get("required_sections", [])}
+        missing = not projection.is_file()
+        headings = (
+            {
+                line.removeprefix("## ").strip().lower()
+                for line in projection.read_text(encoding="utf-8").splitlines()
+                if line.startswith("## ")
+            }
+            if not missing
+            else set()
+        )
+        absent = sorted(required - headings)
         if missing:
             failures.append(
                 {
                     "provider": str(entry["provider"]),
-                    "reason": f"missing files: {', '.join(missing)}",
+                    "reason": f"missing forge surface: {entry['projection']}",
                 }
             )
-        elif not match:
+        elif absent:
             failures.append(
                 {
                     "provider": str(entry["provider"]),
-                    "reason": f"projection drift: {entry['projection']} != {entry['source']}",
+                    "reason": f"forge surface sections missing: {', '.join(absent)}",
                 }
             )
-        surfaces.append(dict(entry) | {"projection_matches_source": match})
+        surfaces.append(dict(entry) | {"required_sections_present": not absent and not missing})
     return surfaces, failures
 
 
@@ -255,6 +264,9 @@ def check_templates(*, json_output: bool) -> int:
                 "projection_sha256": _sha256(projection),
                 "projection_matches_template": match,
                 "required_owner_scripts": list(entry.get("required_owner_scripts", [])),
+                "provider_specific_owner_scripts": dict(
+                    entry.get("provider_specific_owner_scripts", {})
+                ),
             }
         )
     surfaces, surface_failures = _forge_surface_reports()
@@ -437,11 +449,12 @@ def emulator_evidence(
     )
     workspace = tempfile.TemporaryDirectory(prefix=f"ethos-{provider}-") if materializes else None
     state_dir = Path(workspace.name) if workspace is not None else None
-    if materializes:
+    if workspace is not None:
+        materialization_dir = Path(workspace.name)
         try:
             materialization |= materialize_emulator_source(
                 source_root=ROOT,
-                state_dir=state_dir,
+                state_dir=materialization_dir,
                 expected_head=str(git_start["head"]),
             )
             if provider == "github":

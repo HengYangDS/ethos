@@ -280,7 +280,7 @@ throughput, and lane housekeeping are implemented and proved.
 - [x] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
   necessary history, then delete misleading or redundant residue without a
   generic archive truth root.
-- [ ] 5.7 Derive GitLab/GitHub issue, review, CI/CD, release, and provider
+- [x] 5.7 Derive GitLab/GitHub issue, review, CI/CD, release, and provider
   projections from one portable semantic contract while preserving each
   provider's native syntax and capabilities; both are independent complete
   CI/CD and distribution planes, not a primary-plus-mirror pair. Block semantic

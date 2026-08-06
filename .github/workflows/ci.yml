@@ -24,7 +24,7 @@ jobs:
     name: quality gates
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         env:
           # The macOS host globally arms ETHOS ref-transaction hooks. Checkout must
           # establish the immutable CI ref before this job can configure its own
@@ -34,7 +34,7 @@ jobs:
           GIT_CONFIG_VALUE_0: /dev/null
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
@@ -104,7 +104,7 @@ jobs:
       ETHOS_TEST_TIMEOUT_SECONDS: "300"
       ETHOS_TEST_TIMEOUT_METHOD: "signal"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         env:
           # See quality: the source-controlled admission hook is armed after checkout.
           GIT_CONFIG_COUNT: "1"
@@ -112,7 +112,7 @@ jobs:
           GIT_CONFIG_VALUE_0: /dev/null
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
@@ -130,7 +130,7 @@ jobs:
         run: tools/ci/scripts/run-head-bound-proof.sh
       - name: Upload proof receipt
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ethos-proof-receipt
           path: |
@@ -143,13 +143,13 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: verify
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         env:
           # Prevent the runner host's global hook from vetoing the initial checkout.
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: core.hooksPath
           GIT_CONFIG_VALUE_0: /dev/null
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
@@ -161,7 +161,7 @@ jobs:
         run: tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir build/artifacts/python --clear --no-create-gitignore
       - name: Generate SPDX SBOM
         run: tools/ci/scripts/run-release-supply-chain.sh
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: python-distributions
           path: |

@@ -38,28 +38,19 @@ Node runtime ownership remains layered rather than mechanically unified:
   supply chain, not by this repository.
 - `.config/checks/node/runtime.toml` owns the exact releases used to prove the
   npm launcher and the pinned Linux archive SHA-256 values. The current set is
-  Node 24.18.0 and Node 26.5.0.
+  the latest LTS Node 24.19.0 and latest stable Node 26.7.0.
 - `tools/ci/scripts/install-node.sh` verifies the selected official archive
   against that policy before extraction.
 - Hosted npm compatibility jobs select one exact declared release and execute
   `tools/ci/scripts/run-node-compatibility.sh`.
-- Hosted packaging keeps the installer default at Node 24.18.0 so compatibility
-  expansion does not silently promote the release baseline.
+- Hosted packaging uses Node 26.7.0; the matrix separately proves the latest
+  Node 24 LTS without preserving a future-promotion state.
 - IDE-, desktop-, and application-managed Node runtimes remain owned by those
   applications and are not repository mutation targets.
 
-Node 26.5.0 is the next default candidate, not the current default. The date
-2026-10-28 is only the earliest review trigger. Promotion requires current
-release-status verification, successful hosted compatibility results, package
-proof, and a separate reviewed repository change; the date alone performs no
-transition.
-
 The exact Node proof uses the npm bundled with each official Node archive. The
-local Linux runs for Node 24.18.0 and 26.5.0 both supplied npm 11.11.0. The
-repository keeps `packageManager = "npm@11.12.1"`, but this change does not
-provision or prove that npm release. Package-manager supply and enforcement are
-a separate reviewed decision so the Node matrix does not silently change two
-runtime variables at once.
+declared matrix therefore proves Node and its bundled npm as one official
+runtime identity rather than declaring a second independently provisioned npm.
 
 Published package scope is intentionally narrower than repository history.
 Distribution manifests must use explicit allowlists for neutral launcher assets

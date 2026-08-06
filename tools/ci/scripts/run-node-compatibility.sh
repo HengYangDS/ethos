@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import sys
 import tomllib
-from datetime import date
 from pathlib import Path
 
 policy_path = Path(sys.argv[1])
@@ -42,18 +41,14 @@ if policy.get("schema") != "ethos-node-runtime-compatibility-v1":
 
 default = policy.get("default_version")
 compatibility = policy.get("compatibility_versions")
-candidate = policy.get("next_default_candidate")
-review_not_before = policy.get("review_not_before")
 if not isinstance(default, str) or not isinstance(compatibility, list) or not compatibility:
     raise SystemExit("Node runtime policy must declare default_version and compatibility_versions")
 if not all(isinstance(version, str) for version in compatibility):
     raise SystemExit("Node runtime compatibility_versions must contain only strings")
 if len(set(compatibility)) != len(compatibility):
     raise SystemExit("Node runtime compatibility_versions must not contain duplicates")
-if default not in compatibility or not isinstance(candidate, str) or candidate not in compatibility:
-    raise SystemExit("Node runtime default and candidate must belong to compatibility_versions")
-if not isinstance(review_not_before, date):
-    raise SystemExit("Node runtime review_not_before must be a TOML local date")
+if default not in compatibility:
+    raise SystemExit("Node runtime default must belong to compatibility_versions")
 
 selected = requested or default
 if selected not in compatibility:

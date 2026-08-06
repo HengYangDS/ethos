@@ -293,7 +293,7 @@ def _ref_operation(plan: TransitionPlan, ref_name: str) -> str:
     release_ref = f"refs/heads/{plan.policy.get('release_branch') or ''}"
     return (
         "release.mirror"
-        if operation == "candidate.accept" and ref_name == release_ref
+        if operation in {"candidate.accept", "commit.identity-replace"} and ref_name == release_ref
         else operation
     )
 

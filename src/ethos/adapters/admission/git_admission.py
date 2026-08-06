@@ -14,6 +14,7 @@ from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -242,16 +243,21 @@ def accepted_advance_gaps(
 ) -> list[str]:
     """Return candidate-head and fast-forward gaps for an accepted advance."""
     candidate = policy.candidate_branch
+    identity_replacement = equivalent_commit_identity(repo, old_value, new_value)
     contained = commit_contained_in(repo, new_value, candidate)
     candidate_head = git_stdout(repo, "rev-parse", "--verify", "--quiet", candidate)
     gaps = (
         []
-        if contained and new_value == candidate_head
+        if new_value == candidate_head and (identity_replacement or contained)
         else ["accepted_ref_move_not_candidate_head"]
         if contained
         else ["accepted_advance_not_candidate_validated"]
     )
-    if old_value not in _ZERO_OIDS and not commit_contained_in(repo, old_value, new_value):
+    if (
+        not identity_replacement
+        and old_value not in _ZERO_OIDS
+        and not commit_contained_in(repo, old_value, new_value)
+    ):
         gaps.append("accepted_ref_move_not_fast_forward")
     return gaps
 
@@ -354,7 +360,10 @@ def ref_move_admission_report(
         return base
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     operation = (
-        "release.mirror"
+        "commit.identity-replace"
+        if branch in {policy.candidate_branch, policy.accepted_branch}
+        and equivalent_commit_identity(repo, old_value, new_value)
+        else "release.mirror"
         if mirror
         else "candidate.accept"
         if branch == policy.accepted_branch

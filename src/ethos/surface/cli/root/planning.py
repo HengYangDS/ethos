@@ -13,7 +13,7 @@ from cyclopts import Parameter
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
@@ -85,7 +85,7 @@ def plan(
             else {}
         )
         commitment = (
-            load_lease_bound_commitment(
+            load_work_lane_commitment(
                 repo,
                 change_id=change,
                 lease=lease,

@@ -19,6 +19,7 @@ from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
+from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import TransitionPlan
@@ -33,6 +34,7 @@ from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import start_adopted_work_lane
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -51,6 +53,30 @@ def _commit(root: Path, message: str) -> str:
         message,
     )
     return git(root, "rev-parse", "HEAD")
+
+
+def test_work_lane_proof_plan_uses_the_current_active_commitment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    holder = "agent:test:case:current-commitment"
+    fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
+    root = fixture.worktree
+    branch = git(root, "branch", "--show-current")
+    lease = proof_module.leases_by_branch(root)[branch]
+    carrier = root / str(lease["base_commitment_path"])
+    carrier.write_text(
+        carrier.read_text(encoding="utf-8")
+        + 'acceptance = ["current working-tree intent is planned"]\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+
+    plan = proof_plan(root, head=git(root, "rev-parse", "HEAD"))
+
+    assert plan.inputs.commitment == load_profile_commitment(root).digest()
+    assert plan.inputs.commitment != lease["base_commitment_digest"]
+    assert plan.commitment["acceptance"] == ("current working-tree intent is planned",)
 
 
 def _write_script_gate_policy(root: Path) -> None:

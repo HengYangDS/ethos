@@ -62,6 +62,8 @@ def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -
     try:
         lease = leases_by_branch(repo).get(request.branch, {})
         _admit_request(repo, request)
+        if _is_head_only_partial_target(repo, request, lease):
+            return _recover_head_only_partial_target(repo, request, effect, lease)
         if integer_value(lease.get("epoch")) == request.expected_epoch:
             _admit_old_generation(request, lease)
         terminal_plan = _plan(
@@ -115,8 +117,7 @@ def _apply(
     )
     new_overlay = working_overlay_sha256(repo)
     if old_overlay != new_overlay:
-        message = "commitment_rebind_overlay_changed"
-        raise ValueError(message)
+        raise ValueError("commitment_rebind_overlay_changed")
     attestation = issue_rebind_attestation(
         repo=repo,
         request=request,
@@ -133,6 +134,72 @@ def _apply(
         attestation,
         "recovered" if recovering else "applied",
     )
+
+
+def _is_head_only_partial_target(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    lease: dict[str, object],
+) -> bool:
+    """Detect Git+hook success before the Commitment Lease CAS completed."""
+    return (
+        integer_value(lease.get("epoch")) == request.expected_epoch
+        and str(lease.get("lease_id") or "") == request.lease_id
+        and str(lease.get("holder_ref") or "") == request.holder_ref
+        and str(lease.get("expected_head") or "") == request.target_commit
+        and str(lease.get("expected_tree") or "") == request.expect_index_tree
+        and str(lease.get("base_commitment_path") or "") == request.expected_commitment_path
+        and str(lease.get("base_commitment_digest") or "") == request.expected_commitment_digest
+        and ref_head(repo, request.branch) == request.target_commit
+    )
+
+
+def _recover_head_only_partial_target(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    effect: GitEffect,
+    lease: dict[str, object],
+) -> dict[str, object]:
+    """Finish Lease/Attestation after the ref CAS already succeeded."""
+    prior_coordinates = {
+        **lease,
+        "expected_head": request.expect_head,
+        "expected_tree": request.expected_tree,
+        "payload_sha256": request.expected_payload_sha256,
+    }
+    old_commitment = load_lease_bound_commitment(repo, lease=prior_coordinates)
+    target = _target_binding(repo, request, old_commitment.id, old_commitment.digest())
+    current_request = request.model_copy(
+        update={
+            "expect_head": str(lease["expected_head"]),
+            "expected_tree": str(lease["expected_tree"]),
+            "expected_payload_sha256": str(lease["payload_sha256"]),
+        }
+    )
+    updated = rebind_lease_commitment(
+        state_database(repo),
+        request=_lease_request(current_request),
+        binding=target,
+    )
+    plan = _plan(
+        repo,
+        request,
+        old_generation(request),
+        effect,
+        old_commitment.digest(),
+        working_overlay_sha256(repo),
+    )
+    attestation = issue_rebind_attestation(
+        repo=repo,
+        request=request,
+        new_lease=updated,
+        plan=plan,
+        effect=effect,
+        git_state="recovered",
+        issued_at=datetime.now(UTC),
+    )
+    persist_rebind_attestation(repo, effect, attestation)
+    return _report(request, updated, attestation, "recovered")
 
 
 def _admit(

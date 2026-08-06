@@ -20,6 +20,10 @@ organization collaboration, and GitHub public distribution. GitLab and GitHub
 are independent forge authority planes. A maintainer may select one configured
 remote for a bounded publication when the other is unavailable, but that choice
 does not assert synchronization, hosted CI success, or authority precedence.
+The `[publication]` table explicitly declares both local repository-native
+commands and each provider's CI surface. ETHOS validates that all paths remain
+regular files inside the repository and that local commands are executable; it
+never guesses ETHOS's own script or workflow layout for an adopter.
 
 Release readiness is proven with:
 

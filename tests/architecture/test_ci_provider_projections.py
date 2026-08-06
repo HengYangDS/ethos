@@ -174,7 +174,6 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "run-repository-hygiene.sh",
         "run-product-boundary.sh",
         "run-secrets-scan.sh",
-        "run-ci-template-check.sh",
         "run-json-schema-check.sh",
         "run-hosted-provider-observation.sh",
     }
@@ -188,6 +187,13 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         assert (ROOT / script).stat().st_mode & stat.S_IXUSR
     assert ".venv/bin/nox -s dependencies" in combined
     assert ".venv/bin/nox -s vulnerabilities" in combined
+    for session in (
+        "ci_templates",
+        "format_selection",
+        "architecture_projection",
+        "runbook_registry",
+    ):
+        assert f".venv/bin/nox -s {session}" in combined
     for text in (combined,):
         assert ".venv/bin/nox -s lint" in text
         assert ".venv/bin/nox -s tests" in text
@@ -866,7 +872,7 @@ def test_github_emulator_run_materializes_an_independent_git_source(
 
 def test_tool_catalog_contains_only_active_provider_gates() -> None:
     active = {
-        "ci_template_consistency": "tools/ci/scripts/run-ci-template-check.sh",
+        "ci_template_consistency": ".venv/bin/nox -s ci_templates",
         "github_workflow_syntax": "tools/ci/scripts/run-actionlint.sh",
         "github_local_emulator": "tools/ci/scripts/run-github-local-emulator.sh",
         "gitlab_local_emulator": "tools/ci/scripts/run-gitlab-local-emulator.sh",

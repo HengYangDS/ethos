@@ -12,7 +12,7 @@ Status: canonical.
 
 Purpose: provide a compact registry of reusable local runbooks introduced by the
 tooling adoption work. This registry is checked by
-`tools/ci/scripts/run-runbook-registry-check.sh` and is not a second command
+`.venv/bin/nox -s runbook_registry` and is not a second command
 plane.
 
 See also: [Command Plane](command-plane.md), [Tooling Adoption Roadmap](../plans/tooling-adoption-roadmap.md),
@@ -20,11 +20,11 @@ and [Forge Provider Contract](../governance/forge-provider-contract.md).
 
 | ID | Command | Category | Evidence |
 | --- | --- | --- | --- |
-| RUN-CI-TEMPLATES | `tools/ci/scripts/run-ci-template-check.sh` | provider-projection | JSON stdout |
+| RUN-CI-TEMPLATES | `.venv/bin/nox -s ci_templates` | provider-projection | JSON stdout |
 | RUN-GITHUB-EMULATOR | `ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-github-local-emulator.sh doctor` | provider-emulator | `build/evidence/local-ci/github/doctor.json` |
 | RUN-GITLAB-EMULATOR | `ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-gitlab-local-emulator.sh doctor` | provider-emulator | `build/evidence/local-ci/gitlab/doctor.json` |
-| RUN-FORMAT-SELECTION | `tools/ci/scripts/run-format-selection.sh` | format-boundary | JSON stdout |
-| RUN-ARCHITECTURE-PROJECTION | `tools/ci/scripts/run-architecture-projection-drift.sh` | architecture-projection | JSON stdout |
+| RUN-FORMAT-SELECTION | `.venv/bin/nox -s format_selection` | format-boundary | JSON stdout |
+| RUN-ARCHITECTURE-PROJECTION | `.venv/bin/nox -s architecture_projection` | architecture-projection | JSON stdout |
 | RUN-GENERATED-ARTIFACTS | `ethos prove --gate generated-artifacts --json` | generated-artifact-topology | JSON stdout |
 | RUN-RELEASE-SUPPLY-CHAIN | `.venv/bin/nox -s supply_chain` | release-supply-chain | `build/evidence/release/supply-chain.json` |
 

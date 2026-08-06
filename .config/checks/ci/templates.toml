@@ -28,12 +28,8 @@ required_owner_scripts = [
   "tools/ci/scripts/run-secrets-scan.sh",
   "tools/ci/scripts/install-lychee.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
-  "tools/ci/scripts/run-ci-template-check.sh",
-  "tools/ci/scripts/run-actionlint.sh",
-  "tools/ci/scripts/run-format-selection.sh",
-  "tools/ci/scripts/run-architecture-projection-drift.sh",
-  "tools/ci/scripts/run-runbook-registry-check.sh",
   "noxfile.py",
+  "tools/ci/scripts/run-actionlint.sh",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
 [[projection]]
@@ -65,10 +61,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-secrets-scan.sh",
   "tools/ci/scripts/install-lychee.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
-  "tools/ci/scripts/run-ci-template-check.sh",
-  "tools/ci/scripts/run-format-selection.sh",
-  "tools/ci/scripts/run-architecture-projection-drift.sh",
-  "tools/ci/scripts/run-runbook-registry-check.sh",
   "noxfile.py",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]

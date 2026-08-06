@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from collections.abc import Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from typing import NamedTuple
@@ -18,6 +20,7 @@ from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_arc
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import relocated_commitment_fields_to
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import exact_rename_target
@@ -27,14 +30,19 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_effects import move_tracked_tree
 from ethos.adapters.repo.git_effects import stage_git_worktree
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_effects import sync_worktree
+from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
+from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
@@ -46,6 +54,22 @@ class _ArchiveTransition(NamedTuple):
     head: str
     archive_path: str
     changed_paths: tuple[str, ...]
+
+
+class _ArchiveCollision(NamedTuple):
+    path: str
+    tree: str
+    preserved_path: str
+
+
+class _ArchiveFinish(NamedTuple):
+    branch: str
+    previous_head: str
+    change: str
+    result: dict[str, Any]
+    archive_path: str
+    changed_paths: tuple[str, ...]
+    collision: _ArchiveCollision | None
 
 
 def archive_change(
@@ -84,6 +108,7 @@ def archive_change(
                 rebuild_from=rebuild_from,
             )
     gaps = _archive_preflight(repo, branch, head, expect_head, lease, change)
+    collision = _archive_collision(repo, head, change) if not gaps else None
     if gaps or not apply:
         return _report(
             branch,
@@ -91,8 +116,25 @@ def archive_change(
             "blocked" if gaps else "ready_to_archive",
             gaps,
             change=change,
+            **({"archive_collision": _collision_payload(collision)} if collision else {}),
         )
-    return _apply_archive(repo, branch, head, change)
+    try:
+        return _apply_archive(repo, branch, head, change, collision=collision)
+    except (OSError, TypeError, ValueError) as error:
+        if current_tracked_head(repo) == head:
+            compensate_git_worktree(
+                repo,
+                head=head,
+                untracked_path=collision.preserved_path if collision else "",
+            )
+        return _report(
+            branch,
+            current_tracked_head(repo),
+            "repair_required",
+            [str(error)],
+            change=change,
+            **({"archive_collision": _collision_payload(collision)} if collision else {}),
+        )
 
 
 def _rebuild_preflight(
@@ -294,11 +336,14 @@ def _apply_archive(
     branch: str,
     head: str,
     change: str,
+    *,
+    collision: _ArchiveCollision | None = None,
 ) -> dict[str, object]:
-
     command = openspec_cli.openspec_base_command()
     if command is None:
         return _report(branch, head, "blocked", ["openspec_official_cli_missing"], change=change)
+    if collision is not None:
+        move_tracked_tree(repo, collision.path, collision.preserved_path)
     result = openspec_cli.run_json(repo, command, ("archive", change, "--yes", "--json"))
     mutation_gaps, archive_path = _official_result_gaps(repo, change, result)
     if mutation_gaps:
@@ -310,6 +355,7 @@ def _apply_archive(
             mutation_gaps,
             change=change,
             command=result.get("command", []),
+            **({"archive_collision": _collision_payload(collision)} if collision else {}),
         )
 
     stage_git_worktree(repo, previous=head)
@@ -326,7 +372,11 @@ def _apply_archive(
         or scope.get("verdict") != "pass"
         or scope.get("state") != "archive_transition"
     ):
-        compensate_git_worktree(repo, head=head, untracked_path=archive_path)
+        compensate_git_worktree(
+            repo,
+            head=head,
+            untracked_path=collision.preserved_path if collision else archive_path,
+        )
         return _report(
             branch,
             head,
@@ -350,10 +400,31 @@ def _apply_archive(
             change=change,
             stderr=str(archive_commit.get("error") or ""),
         )
+    return _finish_archive(
+        repo,
+        _ArchiveFinish(branch, head, change, result, archive_path, changed, collision),
+    )
 
+
+def _finish_archive(
+    repo: Path,
+    finish: _ArchiveFinish,
+) -> dict[str, object]:
+    branch, head, change, result, archive_path, changed, collision = finish
     archived_head = current_tracked_head(repo)
     archived_lease = leases_by_branch(repo).get(branch, {})
     if archived_lease.get("expected_head") != archived_head:
+        target = (
+            relocated_commitment_fields_to(
+                repo,
+                old_head=head,
+                new_head=archived_head,
+                lease=archived_lease,
+                carrier=f"{archive_path}/commitment.toml",
+            )
+            if collision
+            else None
+        )
         transition = work_lane_ref_transition_report(
             root=repo,
             phase="committed",
@@ -361,6 +432,14 @@ def _apply_archive(
             old_value=head,
             new_value=archived_head,
         )
+        if target is not None and transition.get("verdict") != "pass":
+            transition = _advance_archive_lease(
+                repo,
+                branch=branch,
+                previous_head=head,
+                lease=archived_lease,
+                target=target,
+            )
         if transition.get("verdict") == "pass":
             archived_lease = leases_by_branch(repo).get(branch, {})
     post = openspec_governance_report(repo, lifecycle=True)
@@ -395,6 +474,7 @@ def _apply_archive(
         change=change,
         previous_head=head,
         archive_path=archive_path,
+        **({"preserved_archive_path": collision.preserved_path} if collision else {}),
         changed_paths=list(changed),
         tool_version=openspec_cli.OFFICIAL_VERSION,
         command=result["command"],
@@ -404,6 +484,60 @@ def _apply_archive(
         lease=archived_lease,
         attestation=receipt.model_dump(mode="json"),
     )
+
+
+def _archive_collision(root: Path, head: str, change: str) -> _ArchiveCollision | None:
+    """Describe the deterministic preservation target for today's immutable collision."""
+    local_date = datetime.now().astimezone().date().isoformat()
+    path = f"openspec/changes/archive/{local_date}-{change}"
+    tree = git_stdout(root, "rev-parse", f"{head}:{path}")
+    if not tree:
+        return None
+    suffix = hashlib.sha256(f"{tree}\0{head}".encode()).hexdigest()[:12]
+    preserved = f"{path}-{suffix}"
+    existing = git_stdout(root, "rev-parse", f"{head}:{preserved}")
+    if existing and existing != tree:
+        message = "openspec_archive_collision_preservation_conflict"
+        raise ValueError(message)
+    return _ArchiveCollision(path, tree, preserved)
+
+
+def _advance_archive_lease(
+    root: Path,
+    *,
+    branch: str,
+    previous_head: str,
+    lease: dict[str, object],
+    target: dict[str, str],
+) -> dict[str, object]:
+    """Advance the Lease after one collision-preserving archive commit."""
+    try:
+        updated = advance_lease_ref(
+            state_database(root),
+            request=LeaseOperationRequest(
+                operation="advance",
+                branch=branch,
+                holder_ref=os.environ.get("ETHOS_ACTOR", "").strip(),
+                lease_id=str(lease.get("lease_id") or ""),
+                expected_epoch=integer_value(lease.get("epoch")),
+                expect_head=previous_head,
+                expected_expires_at=str(lease.get("expires_at") or ""),
+                expected_payload_sha256=str(lease.get("payload_sha256") or ""),
+                apply=True,
+            ),
+            binding=target,
+        )
+    except ValueError as error:
+        return {"verdict": "block", "required_gaps": [str(error)]}
+    return {"verdict": "pass", "state": "lease_ref_advanced", "lease": updated}
+
+
+def _collision_payload(collision: _ArchiveCollision) -> dict[str, str]:
+    return {
+        "path": collision.path,
+        "tree": collision.tree,
+        "preserved_path": collision.preserved_path,
+    }
 
 
 def _archive_attestation(

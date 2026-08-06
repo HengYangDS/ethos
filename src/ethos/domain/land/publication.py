@@ -89,7 +89,10 @@ def _evidence_status(state: str, path: str, current_head: str) -> dict[str, obje
         "verdict": "block",
         "next_action": _FALLBACK
         if state in {"missing", "not_checked"}
-        else "rerun uv run --frozen --offline python -m nox -s local_ci to refresh local fallback evidence",
+        else (
+            "rerun uv run --frozen --offline python -m nox -s local_ci "
+            "to refresh local fallback evidence"
+        ),
     }
 
 

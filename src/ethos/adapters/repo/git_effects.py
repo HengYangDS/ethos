@@ -59,6 +59,28 @@ def stage_git_worktree(root: Path, *, previous: str) -> None:
         raise ValueError(completed.stderr.strip() or "git_effect_stage_failed")
 
 
+def move_tracked_tree(root: Path, source: str, target: str) -> None:
+    """Move one tracked directory without overwriting another filesystem entry."""
+    source_path = (root / source).resolve()
+    target_path = (root / target).resolve()
+    try:
+        source_path.relative_to(root.resolve())
+        target_path.relative_to(root.resolve())
+    except ValueError as error:
+        message = "git_effect_move_path_outside_root"
+        raise ValueError(message) from error
+    if (
+        not source_path.is_dir()
+        or source_path.is_symlink()
+        or os.path.lexists(target_path)
+        or target_path.parent.is_symlink()
+    ):
+        message = "git_effect_move_binding_stale"
+        raise ValueError(message)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.rename(target_path)
+
+
 def commit_git_worktree(root: Path, *, previous: str, message: str) -> dict[str, object]:
     """Commit the staged Git effect through normal hooks at one exact HEAD."""
     if current_tracked_head(root) != previous:

@@ -44,10 +44,11 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert '"archive-change"' in owner
     assert '"--rebuild-from"' in owner
     assert "/Users/" not in owner
-    assert '"@fission-ai/openspec@1.7.0"' in owner
-    assert '"system/openspec/package.json" = "ethos/data/openspec/package.json"' in (
+    assert "OFFICIAL_PACKAGE_SPEC" in owner
+    assert '"package.json" = "ethos/data/supply-chain/package.json"' in (
         ROOT / "pyproject.toml"
     ).read_text(encoding="utf-8")
+    assert not (ROOT / "system/openspec/package.json").exists()
     assert '"system/schemas/kernel" = "ethos/data/schemas/kernel"' in (
         ROOT / "pyproject.toml"
     ).read_text(encoding="utf-8")

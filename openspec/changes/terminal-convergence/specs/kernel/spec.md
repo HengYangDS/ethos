@@ -52,6 +52,12 @@ An Attestation SHALL carry an open predicate, statement, verifier, bindings, val
 - **THEN** ETHOS SHALL not require or inspect a semantic receipt directory,
   account, daemon, credential, network operation, or dedicated local account
 
+#### Scenario: Digest-only claim remains portable
+
+- **WHEN** a historical or external claim declares `digest_only`
+- **THEN** ETHOS SHALL not require or inspect a semantic receipt directory,
+  account, daemon, credential, network operation, or dedicated local account
+
 #### Scenario: Semantic attestation has a current semantic scope
 
 - **WHEN** an Attestation declares an independently verified semantic predicate

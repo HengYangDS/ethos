@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import exact_rename_target
+from ethos.adapters.repo.git import run_git
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
 from ethos.normalization.coercion import object_sequence
@@ -210,6 +211,32 @@ def relocated_commitment_fields(
         message = "lease_base_commitment_path_mismatch"
         raise ValueError(message)
     return exact_commitment_fields(repo, head=new_head, carrier=target)
+
+
+def relocated_commitment_fields_to(
+    repo: Path,
+    *,
+    old_head: str,
+    new_head: str,
+    lease: Mapping[str, object],
+    carrier: str,
+) -> dict[str, str]:
+    """Validate one exact semantic relocation to a predeclared carrier path."""
+    source_commitment = load_lease_bound_commitment(repo, lease=lease)
+    target = exact_commitment_fields(
+        repo,
+        head=new_head,
+        carrier=carrier,
+        change_id=source_commitment.id.removeprefix("change:"),
+    )
+    parents = run_git(repo, "rev-list", "--parents", "-n", "1", new_head).stdout.split()
+    if (
+        parents != [new_head, old_head]
+        or target["base_commitment_digest"] != source_commitment.digest()
+    ):
+        message = "lease_base_commitment_path_mismatch"
+        raise ValueError(message)
+    return target
 
 
 def load_lease_bound_commitment(

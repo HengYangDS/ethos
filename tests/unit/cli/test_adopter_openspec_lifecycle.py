@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -39,8 +39,7 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 
-if TYPE_CHECKING:
-    from pathlib import Path
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_openspec_runner_is_repository_locked_17_without_fallbacks(
@@ -55,7 +54,10 @@ def test_openspec_runner_is_repository_locked_17_without_fallbacks(
     assert command is not None
     assert command[-1].endswith("node_modules/@fission-ai/openspec/bin/openspec.js")
     assert openspec_cli.OFFICIAL_PACKAGE == "@fission-ai/openspec"
-    assert openspec_cli.OFFICIAL_VERSION == "1.7.0"
+    manifest = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    assert (
+        manifest["devDependencies"][openspec_cli.OFFICIAL_PACKAGE] == openspec_cli.OFFICIAL_VERSION
+    )
     assert openspec_cli.verify_official_cli(command)["verdict"] == "pass"
     assert all(token not in command for token in ("npx", "openspec", "/tmp/untrusted-openspec"))
     assert os.environ["PATH"] == "/tmp/untrusted-path"
@@ -257,7 +259,7 @@ def test_repository_locked_openspec_17_resolves_project_schema_and_guidance(
     assert apply["json"]["operationGuidance"] == ["prefer deletion over compatibility"]
 
 
-def test_openspec_17_generates_host_projections_from_resolved_schema_contract(
+def test_openspec_18_generates_shared_agent_skills_and_host_commands(
     tmp_path: Path,
 ) -> None:
     command = openspec_cli.openspec_base_command()
@@ -312,7 +314,7 @@ def test_openspec_17_generates_host_projections_from_resolved_schema_contract(
             "init",
             repo.as_posix(),
             "--tools",
-            "codex,claude",
+            "agents,claude",
             "--profile",
             "custom",
             "--force",
@@ -336,12 +338,12 @@ def test_openspec_17_generates_host_projections_from_resolved_schema_contract(
     assert (repo / "openspec" / "config.yaml").read_text(encoding="utf-8") == (
         "schema: intent-to-proof\n"
     )
-    apply_skill = (repo / ".codex" / "skills" / "openspec-apply-change" / "SKILL.md").read_text(
+    apply_skill = (repo / ".agents" / "skills" / "openspec-apply-change" / "SKILL.md").read_text(
         encoding="utf-8"
     )
     assert 'openspec status --change "<name>" --json' in apply_skill
     assert 'openspec instructions apply --change "<name>" --json' in apply_skill
-    assert 'generatedBy: "1.7.0"' in apply_skill
+    assert 'generatedBy: "1.8.0"' in apply_skill
     assert "Other schemas: follow the contextFiles from CLI output" in apply_skill
     assert "Use contextFiles from CLI output, don't assume specific file names" in apply_skill
     claude_skill = (repo / ".claude" / "skills" / "openspec-apply-change" / "SKILL.md").read_text(
@@ -352,7 +354,7 @@ def test_openspec_17_generates_host_projections_from_resolved_schema_contract(
     )
     assert 'openspec status --change "<name>" --json' in claude_command
     assert 'openspec instructions apply --change "<name>" --json' in claude_command
-    assert 'generatedBy: "1.7.0"' in claude_skill
+    assert 'generatedBy: "1.8.0"' in claude_skill
     assert "Use contextFiles from CLI output, don't assume specific file names" in claude_skill
     assert not (codex_home / "prompts").exists()
 
@@ -1153,7 +1155,7 @@ def test_invalid_commitment_is_a_gap_without_material_paths(tmp_path: Path) -> N
     assert "commitment_invalid:invalid-contract" in lifecycle["required_gaps"]
 
 
-def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
+def test_complete_change_remains_scope_authority_until_archive(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "adopter")
@@ -1193,11 +1195,14 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
     )
 
     assert [change["name"] for change in lifecycle["changes"]] == ["completed-change"]
-    assert lifecycle["scope_binding"]["state"] == "uncovered"
-    assert lifecycle["scope_binding"]["covered_paths"] == []
-    assert lifecycle["scope_binding"]["required_gaps"] == [
-        "openspec_material_path_uncovered:docs/governance/new-policy.md"
+    assert lifecycle["scope_binding"]["state"] == "covered"
+    assert lifecycle["scope_binding"]["covered_paths"] == [
+        {
+            "path": "docs/governance/new-policy.md",
+            "changes": ["completed-change"],
+        }
     ]
+    assert lifecycle["scope_binding"]["required_gaps"] == []
 
     explicitly_selected = lifecycle_report(
         repo,
@@ -1221,7 +1226,7 @@ def test_complete_change_is_reviewed_but_cannot_authorize_new_material_writes(
         apply_payload=apply,
     )
 
-    assert explicitly_selected["scope_binding"]["state"] == "uncovered"
+    assert explicitly_selected["scope_binding"]["state"] == "covered"
 
 
 def test_lifecycle_observes_official_state_without_predictive_archive(

@@ -14,6 +14,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 from ethos.adapters.admission.ref_intent import ref_intent_dir
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import execute_commitment_rebind
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
@@ -59,6 +60,8 @@ def _install_reference_transaction_hook(
 def _case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    relocate_carrier: bool = False,
 ) -> dict[str, object]:
     holder = "agent:test:case:commitment-rebind"
     fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
@@ -69,6 +72,13 @@ def _case(
     old_head = git(worktree, "rev-parse", "HEAD")
     carrier = Path(str(lease["base_commitment_path"]))
     commitment = worktree / carrier
+    target_carrier = (
+        Path("openspec/changes/rebound-fixture/commitment.toml") if relocate_carrier else carrier
+    )
+    if relocate_carrier:
+        (worktree / target_carrier).parent.mkdir(parents=True)
+        git(worktree, "mv", carrier.as_posix(), target_carrier.as_posix())
+        commitment = worktree / target_carrier
     commitment.write_text(
         commitment.read_text(encoding="utf-8").replace(
             "Exercise the governed fixture lifecycle.",
@@ -76,7 +86,7 @@ def _case(
         ),
         encoding="utf-8",
     )
-    git(worktree, "add", carrier.as_posix())
+    git(worktree, "add", target_carrier.as_posix())
     index_tree = git(worktree, "write-tree")
     target_commit = git(
         worktree,
@@ -94,8 +104,7 @@ def _case(
     target = exact_commitment_fields(
         worktree,
         head=target_commit,
-        carrier=carrier.as_posix(),
-        change_id="fixture-change",
+        carrier=target_carrier.as_posix(),
     )
     tracked_overlay = worktree / "README.md"
     tracked_overlay.write_text("# sample\n\nlocal overlay\n", encoding="utf-8")
@@ -139,6 +148,31 @@ def _case(
         "untracked_overlay": untracked_overlay,
         "overlay": overlay,
     }
+
+
+def test_commitment_rebind_owns_one_exact_carrier_relocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(tmp_path, monkeypatch, relocate_carrier=True)
+    worktree = case["worktree"]
+    request = case["request"]
+    assert isinstance(worktree, Path)
+    assert isinstance(request, CommitmentRebindRequest)
+
+    raw_move = work_lane_ref_transition_report(
+        root=worktree,
+        phase="prepared",
+        ref_name=f"refs/heads/{request.branch}",
+        old_value=request.expect_head,
+        new_value=request.target_commit,
+    )
+    report = execute_commitment_rebind(root=worktree, request=request)
+
+    assert raw_move["required_gaps"] == ["lease_base_commitment_path_mismatch"]
+    assert report["required_gaps"] == [], report
+    assert report["verdict"] == "pass", report
+    _assert_terminal(case, report)
 
 
 def _assert_terminal(case: dict[str, object], report: dict[str, object]) -> None:

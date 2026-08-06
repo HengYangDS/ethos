@@ -290,6 +290,7 @@ def _commitment_rebind_report(
 
 _COMMITMENT_REBIND_GAPS = frozenset(
     {
+        "lease_base_commitment_path_mismatch",
         "lease_base_commitment_bytes_mismatch",
         "lease_base_commitment_digest_mismatch",
     }
@@ -307,6 +308,14 @@ def _commitment_rebind_gap(
     """Validate one semantic Work Lane ref move against live immutable facts."""
     try:
         old_commitment = load_lease_bound_commitment(root, lease=lease)
+        if not target:
+            target = _changed_commitment_target(
+                root,
+                old_value=old_value,
+                new_value=new_value,
+                commitment_id=old_commitment.id,
+                old_digest=old_commitment.digest(),
+            )
         new_commitment = load_commitment(
             root,
             carrier=target["base_commitment_path"],
@@ -329,6 +338,50 @@ def _commitment_rebind_gap(
     except (KeyError, ValueError) as error:
         return str(error)
     return next((gap for valid, gap in checks if not valid), "")
+
+
+def _changed_commitment_target(
+    root: Path,
+    *,
+    old_value: str,
+    new_value: str,
+    commitment_id: str,
+    old_digest: str,
+) -> dict[str, str]:
+    """Resolve the sole semantically changed carrier in one rebind target."""
+    changed = run_git(
+        root,
+        "diff",
+        "--name-only",
+        "-z",
+        old_value,
+        new_value,
+        check=False,
+        text=False,
+        observation=True,
+    )
+    if changed.returncode:
+        raise ValueError("commitment_rebind_target_unreadable")
+    candidates = []
+    for raw_path in changed.stdout.split(b"\0"):
+        if not raw_path:
+            continue
+        try:
+            path = raw_path.decode()
+        except UnicodeDecodeError as error:
+            raise ValueError("commitment_rebind_target_path_invalid") from error
+        if not path.endswith("/commitment.toml"):
+            continue
+        try:
+            fields = exact_commitment_fields(root, head=new_value, carrier=path)
+            commitment = load_commitment(root, carrier=path, tree_ref=new_value)
+        except ValueError:
+            continue
+        if commitment.id == commitment_id and commitment.digest() != old_digest:
+            candidates.append(fields)
+    if len(candidates) != 1:
+        raise ValueError("commitment_rebind_target_ambiguous")
+    return candidates[0]
 
 
 def _is_zero_oid(value: str) -> bool:

@@ -31,8 +31,6 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 from ethos.repository.profile import profile_gate_registry
 
-_CONTROL_CHARACTER_UPPER_BOUND = 32
-_DELETE_CONTROL_CODE_POINT = 127
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "lease_id", "epoch", "head")
 _SCOPE_LIST_FIELDS = (
     "changed_paths",
@@ -46,14 +44,8 @@ _SCOPE_LIST_FIELDS = (
 )
 
 
-def has_path_whitespace(text: str) -> bool:
-    """Return whether a path token contains ambiguous whitespace."""
-    return any(character.isspace() for character in text)
-
-
 def has_invalid_path_token_character(text: str) -> bool:
-    """Return whether a path token is unsafe as one mutation subject."""
-    return has_control_character(text) or has_path_whitespace(text)
+    return any(character.isspace() or not character.isprintable() for character in text)
 
 
 def prewrite_guard(
@@ -112,11 +104,10 @@ def prewrite_guard(
         report_verdict(scope),
         required_gaps=tuple(gaps),
     )
-    error = gaps[0] if gaps else ""
     decision = _prewrite_decision(root, effective, checked, lease, verdict, tuple(gaps))
     return {
         "verdict": decision.verdict,
-        "error": error,
+        "error": gaps[0] if gaps else "",
         "role": role,
         "branch": effective["branch"],
         "status_role": status_role,
@@ -184,8 +175,7 @@ def _rebase_head_branch(root: Path) -> str:
 
 
 def _git_path(root: Path) -> Path:
-    value = git_stdout(root, "rev-parse", "--git-path", ".")
-    path = Path(value) if value else root / ".git"
+    path = Path(git_stdout(root, "rev-parse", "--git-path", ".") or ".git")
     return path if path.is_absolute() else root / path
 
 
@@ -310,22 +300,21 @@ def _prewrite_decision(
     paths = tuple(
         str(item.get("relative_path") or item.get("path") or "") for item in checked_paths
     )
-    state = {
-        "root": root.resolve().as_posix(),
-        "role": role,
-        "branch": branch,
-        "paths": list(paths),
-        "holder_ref": str(lease_check.get("holder_ref") or ""),
-        "lease_id": str(lease_check.get("lease_id") or ""),
-        "epoch": integer_value(lease_check.get("epoch")),
-        "head": str(lease_check.get("expected_head") or ""),
-    }
     return AdmissionDecision(
         verdict=verdict,
         subject=MutationSubject(
             action="lane.prewrite",
             resource=f"{branch}:{','.join(paths)}",
-            expected_state=state,
+            expected_state={
+                "root": root.resolve().as_posix(),
+                "role": role,
+                "branch": branch,
+                "paths": list(paths),
+                "holder_ref": str(lease_check.get("holder_ref") or ""),
+                "lease_id": str(lease_check.get("lease_id") or ""),
+                "epoch": integer_value(lease_check.get("epoch")),
+                "head": str(lease_check.get("expected_head") or ""),
+            },
         ),
         policy_refs=("commitment:tracked-write-admission",),
         evidence_refs=("evidence:current-worktree-and-lease-observation",),
@@ -409,10 +398,13 @@ def _editor_root_check(
 
 def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
     text = path.as_posix()
-    if has_control_character(text):
-        return _path_report(text, reason="path_invalid_control_character")
-    if has_path_whitespace(text):
-        return _path_report(text, reason="path_invalid_whitespace")
+    if has_invalid_path_token_character(text):
+        reason = (
+            "path_invalid_control_character"
+            if any(not character.isprintable() for character in text)
+            else "path_invalid_whitespace"
+        )
+        return _path_report(text, reason=reason)
     root_path = root.resolve()
     resolved = (path if path.is_absolute() else root_path / path).resolve()
     try:
@@ -456,14 +448,6 @@ def _path_report(path: str, *, reason: str, **details: object) -> dict[str, obje
         "reason": reason,
         **details,
     }
-
-
-def has_control_character(text: str) -> bool:
-    """Return whether a path token contains unsafe control bytes."""
-    return any(
-        ord(char) < _CONTROL_CHARACTER_UPPER_BOUND or ord(char) == _DELETE_CONTROL_CODE_POINT
-        for char in text
-    )
 
 
 def _is_ignored(root: Path, relative_path: str) -> bool:
@@ -557,9 +541,7 @@ def _commitment_scope(
 
 
 def _scope_matches(path: str, pattern: str) -> bool:
-    if pattern == "**":
-        return True
     if pattern.endswith("/**"):
         prefix = pattern[:-3]
         return path == prefix or path.startswith(f"{prefix}/")
-    return fnmatchcase(path, pattern)
+    return pattern == "**" or fnmatchcase(path, pattern)

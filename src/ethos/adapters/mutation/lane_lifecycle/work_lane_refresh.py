@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
@@ -110,6 +111,17 @@ def refresh_work_lane_base(
         return _report(context, current_head, "blocked", gaps)
     if is_ancestor(root, candidate_head, current_head):
         return _report(context, current_head, "base_current", [])
+    if equivalent_commit_identity(root, candidate_head, current_head):
+        return _report(
+            context,
+            current_head,
+            "blocked",
+            ["commit_identity_replacement_required"],
+            next_action=(
+                "ethos lane repair-identity --old-commit "
+                f"{candidate_head} --new-commit {current_head} --json"
+            ),
+        )
     if not apply:
         return _report(context, current_head, "ready_to_refresh_base", [])
     return _refresh_work_lane(root, context, current_head)

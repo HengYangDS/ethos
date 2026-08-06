@@ -398,6 +398,22 @@ Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashbo
 - **AND** an unproven dirty candidate worktree remains blocked and is never
   overwritten as recovery.
 
+#### Scenario: trusted commit identity is replaced without changing payload
+
+- **WHEN** the current holder repairs one Work Lane commit so only its Git
+  signature headers and resulting OID change
+- **THEN** `ethos lane refresh-base` blocks before replaying the lane onto the
+  stale candidate OID and directs the holder to `ethos lane repair-identity`
+- **AND** repair binds distinct old/new OIDs, byte-identical unsigned commit
+  payloads, the exact current HEAD/tree, valid Lease generation, current actor,
+  fresh HEAD-bound proof, and a verified repository-external trust anchor
+- **AND** one exact-CAS transition advances candidate, accepted, and configured
+  release-mirror refs without admitting any general non-fast-forward update
+- **AND** interruption after a ref CAS is recognized on retry and completes only
+  missing clean-worktree projections; stale refs, changed parents/message/dates,
+  untrusted signatures, repository-owned anchors, foreign actors, and dirty or
+  drifting worktrees fail closed.
+
 #### Scenario: legacy adoption and cleanup resist replay
 
 - **GIVEN** a legacy or recreated lane lacks trusted normalized state

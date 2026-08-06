@@ -21,6 +21,11 @@ Purpose: define tracked write admission and Work Lane discipline.
   --change <id> --expect-head <head> --apply`; do not run a standalone archive
   followed by a manual commit. The command owns the exact official delta, normal
   hook commit, Lease relocation, and typed effect evidence as one transition.
+- Replace a same-payload commit OID only with `ethos lane repair-identity`; the
+  command requires exact old/new commit observations, the current holder and
+  Lease, fresh proof, verified external signature trust, and exact-CAS train
+  advancement. Never use refresh/rebase, direct ref edits, or a general
+  non-fast-forward exception for signature-only identity repair.
 - Write-capable tools must carry an explicit target root or working directory
   matching the admitted Work Lane. Do not rely on the host launch context's default
   filesystem path for tracked writes.

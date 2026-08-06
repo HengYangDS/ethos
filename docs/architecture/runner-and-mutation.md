@@ -86,6 +86,13 @@ path, carrier-byte SHA-256, and semantic digest. Missing, ambiguous, or
 mismatched Commitment coordinates block before any ref, worktree, or SQLite
 effect. `ethos lane
 refresh-base` replays a stale lane onto the configured candidate branch, `ethos
+lane repair-identity` handles the narrower case where a trusted re-sign changes
+only the commit signature headers and OID: it binds the current holder, Lease,
+exact HEAD/tree, fresh proof, repository-external signature trust, and unchanged
+unsigned commit payload, then advances candidate, accepted, and any configured
+release mirror through exact CAS. It never authorizes a general non-fast-forward
+rewrite; an interrupted post-CAS worktree projection is completed by an
+identical retry. `ethos
 land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
 Lane HEAD. `ethos lane retire superseded` also lets the current clean, leased

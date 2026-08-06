@@ -22,17 +22,15 @@ case "$(uname -m)" in
   *) echo "Unsupported lychee architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
-version="${LYCHEE_VERSION:-latest}"
+version="lychee-v0.24.2"
 archive="lychee-${target}.tar.gz"
-if [ "${version}" = "latest" ]; then
-  url="https://github.com/lycheeverse/lychee/releases/latest/download/${archive}"
-else
-  url="https://github.com/lycheeverse/lychee/releases/download/${version}/${archive}"
-fi
+url="https://github.com/lycheeverse/lychee/releases/download/${version}/${archive}"
+checksum_url="${url}.sha256"
 
 cache_dir="${LYCHEE_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/lychee}"
 mkdir -p "${cache_dir}"
 archive_path="${cache_dir}/${version}-${archive}"
+checksum_path="${archive_path}.sha256"
 partial_path="${archive_path}.part"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
@@ -66,6 +64,17 @@ download_archive() {
 }
 
 download_archive
+curl --fail --location --show-error \
+  --connect-timeout 30 --max-time 120 \
+  --retry 8 --retry-delay 5 --retry-all-errors \
+  --output "${checksum_path}" \
+  "${checksum_url}"
+expected_sha256="$(awk '{print $1}' "${checksum_path}")"
+actual_sha256="$(sha256sum "${archive_path}" | awk '{print $1}')"
+if [[ ! "${expected_sha256}" =~ ^[0-9a-f]{64}$ || "${actual_sha256}" != "${expected_sha256}" ]]; then
+  echo "lychee archive checksum mismatch" >&2
+  exit 1
+fi
 tar xzf "${archive_path}" -C "${tmpdir}"
 lychee_bin="$(find "${tmpdir}" -type f -name lychee -perm /111 | head -n 1)"
 if [ -z "${lychee_bin}" ]; then

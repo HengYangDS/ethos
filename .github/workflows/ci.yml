@@ -51,7 +51,7 @@ jobs:
       - name: Import boundaries
         run: tools/ci/scripts/run-import-linter.sh
       - name: Dependency hygiene
-        run: tools/ci/scripts/run-dependency-hygiene.sh
+        run: .venv/bin/nox -s dependencies
       - name: Config lint
         run: tools/ci/scripts/run-config-lint.sh
       - name: JSON schema hygiene

@@ -28,7 +28,7 @@ and [Forge Provider Contract](../governance/forge-provider-contract.md).
 | RUN-GENERATED-ARTIFACTS | `ethos prove --gate generated-artifacts --json` | generated-artifact-topology | JSON stdout |
 | RUN-RELEASE-SUPPLY-CHAIN | `tools/ci/scripts/run-release-supply-chain.sh` | built-wheel SPDX SBOM | `build/evidence/release/supply-chain.json` |
 
-| RUN-DEPENDENCY-HYGIENE | `tools/ci/scripts/run-dependency-hygiene.sh` | dependency-hygiene | `build/evidence/quality/dependency/summary.json` |
+| RUN-DEPENDENCY-HYGIENE | `.venv/bin/nox -s dependencies` | dependency-hygiene | `build/evidence/quality/dependency/summary.json` |
 | RUN-PYTHON-VULNERABILITY-AUDIT | `tools/ci/scripts/run-python-vulnerability-audit.sh` | security-vulnerability | `build/evidence/quality/security/python-vulnerability-audit.json` |
 | RUN-JSON-SCHEMA | `tools/ci/scripts/run-json-schema-check.sh` | schema-hygiene | JSON stdout |
 | RUN-PROSE-CHECK | `tools/ci/scripts/run-prose-check.sh` | prose | exit code + codespell count |

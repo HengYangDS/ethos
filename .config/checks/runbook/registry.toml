@@ -47,7 +47,7 @@ evidence = "build/evidence/release/supply-chain.json"
 
 [[entry]]
 id = "RUN-DEPENDENCY-HYGIENE"
-command = "tools/ci/scripts/run-dependency-hygiene.sh"
+command = ".venv/bin/nox -s dependencies"
 category = "dependency-hygiene"
 evidence = "build/evidence/quality/dependency/summary.json"
 

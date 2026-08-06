@@ -169,7 +169,6 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "run-markdown-lint.sh",
         "run-prose-check.sh",
         "run-import-linter.sh",
-        "run-dependency-hygiene.sh",
         "run-docstring-coverage.sh",
         "run-module-layout.sh",
         "run-python-vulnerability-audit.sh",
@@ -188,6 +187,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         script = f"tools/ci/scripts/{name}"
         assert script in combined
         assert (ROOT / script).stat().st_mode & stat.S_IXUSR
+    assert ".venv/bin/nox -s dependencies" in combined
     for text in (combined,):
         assert ".venv/bin/nox -s lint" in text
         assert ".venv/bin/nox -s tests" in text

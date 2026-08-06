@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -28,6 +27,7 @@ from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -314,41 +314,8 @@ def apply_candidate_to_accepted(
 
 
 def _accepted_transition_policy(text: str) -> BranchRolePolicy:
-    """Read only the incumbent fields that authorize accepted-ref promotion."""
-    raw = tomllib.loads(text).get("branch_roles")
-    required = {
-        "release_branch",
-        "accepted_branch",
-        "candidate_branch",
-        "work_branch_prefix",
-        "release_mirror",
-        "repository_family_worktrees",
-    }
-    if type(raw) is not dict or not required <= set(raw):
-        message = "accepted transition policy is incomplete"
-        raise ValueError(message)
-    text_fields = required - {"repository_family_worktrees"}
-    if any(
-        type(raw[field]) is not str or not raw[field] or raw[field] != raw[field].strip()
-        for field in text_fields
-    ):
-        message = "accepted transition policy text is invalid"
-        raise ValueError(message)
-    if raw["release_mirror"] not in {"independent", RELEASE_MIRROR_ACCEPTED_FF}:
-        message = "accepted transition release mirror is invalid"
-        raise ValueError(message)
-    if type(raw["repository_family_worktrees"]) is not bool:
-        message = "accepted transition family policy is invalid"
-        raise ValueError(message)
-    return BranchRolePolicy(
-        release_branch=raw["release_branch"],
-        accepted_branch=raw["accepted_branch"],
-        candidate_branch=raw["candidate_branch"],
-        work_branch_prefix=raw["work_branch_prefix"],
-        proposal_branch_prefix="",
-        release_mirror=raw["release_mirror"],
-        repository_family_worktrees=raw["repository_family_worktrees"],
-    )
+    """Parse the exact incumbent branch-role contract without compatibility."""
+    return strict_branch_role_policy_from_text(text)
 
 
 def _default_accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:

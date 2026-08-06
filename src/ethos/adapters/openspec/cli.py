@@ -10,6 +10,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+import nodejs_wheel
+
 from ethos.adapters.repo.git import run_command
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
@@ -40,10 +42,7 @@ _GIT = shutil.which("git") or "/usr/bin/git"
 
 def _packaged_node() -> str | None:
     """Resolve the platform Node payload installed with the Python distribution."""
-    try:
-        package = resources.files("nodejs_wheel")
-    except ModuleNotFoundError:
-        return None
+    package = resources.files(nodejs_wheel)
     relative = ("node.exe",) if os.name == "nt" else ("bin", "node")
     executable = Path(str(package.joinpath(*relative)))
     return executable.as_posix() if executable.is_file() else None

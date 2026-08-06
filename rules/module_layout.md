@@ -14,7 +14,7 @@ general module-layout boundary study and `system/axioms.md`.
 | Authority | [Product Design Contract](../docs/governance/product-design-contract.md), `system/axioms.md`, `.config/checks/module-layout/policy.toml` |
 | Trigger | Creating, moving, renaming, splitting, importing, or deleting repository-owned Python. |
 | Action | Model one narrow concept per owner, preserve carrier-native syntax, and choose absorb, precise rename, semantic split, or delete for mixed ownership. |
-| Evidence | `.venv/bin/nox -s module_layout` and focused contract tests. |
+| Evidence | `uv run --frozen --offline python -m nox -s module_layout` and focused contract tests. |
 | Stop | Ambiguous ownership, duplicate command owners, facades, private cross-module imports, or a split justified only by a metric. |
 
 ## 1. Physical organization — semantic boundaries, not metric shapes

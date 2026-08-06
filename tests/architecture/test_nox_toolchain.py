@@ -47,7 +47,7 @@ def test_nox_is_the_only_python_lint_orchestrator() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
 
-    assert gates["ruff"]["command"] == [".venv/bin/nox", "-s", "lint"]
+    assert gates["ruff"]["command"] == ["{python}", "-m", "nox", "-s", "lint"]
     assert not (ROOT / "tools/ci/scripts/run-python-lint.sh").exists()
     assert not (ROOT / "tools/ci/scripts/run-ruff-ratchet.sh").exists()
     for relative in (
@@ -55,11 +55,10 @@ def test_nox_is_the_only_python_lint_orchestrator() -> None:
         ".config/ci/templates/hosted/gitlab-ci.yml",
         ".github/workflows/ci.yml",
         ".gitlab-ci.yml",
-        "tools/ci/scripts/run-local-ci.sh",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert "run-python-lint.sh" not in text
-        assert ".venv/bin/nox -s lint" in text
+        assert "uv run --frozen --offline python -m nox -s lint" in text
 
 
 def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
@@ -67,9 +66,11 @@ def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
     gates = {gate["id"]: gate for gate in declaration["gates"]}
     source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
 
-    assert gates["unit-architecture"]["command"] == [".venv/bin/nox", "-s", "tests"]
+    assert gates["unit-architecture"]["command"] == ["{python}", "-m", "nox", "-s", "tests"]
     assert gates["coverage-floor"]["command"] == [
-        ".venv/bin/nox",
+        "{python}",
+        "-m",
+        "nox",
         "-s",
         "coverage_floor",
     ]
@@ -82,7 +83,7 @@ def test_nox_is_the_only_python_build_orchestrator() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
 
-    assert gates["build"]["command"] == [".venv/bin/nox", "-s", "build"]
+    assert gates["build"]["command"] == ["{python}", "-m", "nox", "-s", "build"]
     for relative in (
         ".config/ci/templates/hosted/github-actions.yml",
         ".config/ci/templates/hosted/gitlab-ci.yml",
@@ -91,7 +92,7 @@ def test_nox_is_the_only_python_build_orchestrator() -> None:
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert "uv build" not in text
-        assert ".venv/bin/nox -s build" in text
+        assert "uv run --frozen --offline python -m nox -s build" in text
 
 
 def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
@@ -99,7 +100,9 @@ def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
     gates = {gate["id"]: gate for gate in declaration["gates"]}
 
     assert gates["local-install-smoke"]["command"] == [
-        ".venv/bin/nox",
+        "{python}",
+        "-m",
+        "nox",
         "-s",
         "install_smoke",
     ]

@@ -60,7 +60,7 @@ ethos:lint:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s lint
+    - uv run --frozen --offline python -m nox -s lint
 
 ethos:types:
   <<: *python_setup
@@ -77,20 +77,20 @@ ethos:architecture:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s import_boundaries
+    - uv run --frozen --offline python -m nox -s import_boundaries
 
 ethos:dependency-hygiene:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s dependencies
+    - uv run --frozen --offline python -m nox -s dependencies
 
 ethos:config:
   <<: *python_setup
   stage: quality
   script:
     - tools/ci/scripts/run-config-lint.sh
-    - .venv/bin/nox -s schemas
+    - uv run --frozen --offline python -m nox -s schemas
 
 ethos:hygiene:
   <<: *python_setup
@@ -102,7 +102,7 @@ ethos:product-boundary:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s product_boundary
+    - uv run --frozen --offline python -m nox -s product_boundary
 
 ethos:shell:
   <<: *python_setup
@@ -114,19 +114,19 @@ ethos:docstrings:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s docstrings
+    - uv run --frozen --offline python -m nox -s docstrings
 
 ethos:module-layout:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s module_layout
+    - uv run --frozen --offline python -m nox -s module_layout
 
 ethos:security:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s vulnerabilities
+    - uv run --frozen --offline python -m nox -s vulnerabilities
   artifacts:
     when: always
     paths:
@@ -180,7 +180,7 @@ ethos:ci-projections:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s ci_templates
+    - uv run --frozen --offline python -m nox -s ci_templates
 
 ethos:github-workflow-syntax:
   <<: *python_setup
@@ -192,19 +192,19 @@ ethos:format-selection:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s format_selection
+    - uv run --frozen --offline python -m nox -s format_selection
 
 ethos:architecture-projection:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s architecture_projection
+    - uv run --frozen --offline python -m nox -s architecture_projection
 
 ethos:runbook-registry:
   <<: *python_setup
   stage: quality
   script:
-    - .venv/bin/nox -s runbook_registry
+    - uv run --frozen --offline python -m nox -s runbook_registry
 
 ethos:hosted-provider-observation:
   <<: *python_setup
@@ -238,7 +238,7 @@ ethos:verify:
     - tools/ci/scripts/configure-git-checkout.sh
     - tools/ci/scripts/with-python-runtime.sh -- uv run ethos hook install --json
     - node_modules/.bin/openspec --version
-    - .venv/bin/nox -s tests
+    - uv run --frozen --offline python -m nox -s tests
     - openspec validate --all --strict --json
     - tools/ci/scripts/run-head-bound-proof.sh
   artifacts:
@@ -266,8 +266,8 @@ ethos:package:
   <<: *python_setup
   stage: package
   script:
-    - .venv/bin/nox -s build
-    - .venv/bin/nox -s supply_chain
+    - uv run --frozen --offline python -m nox -s build
+    - uv run --frozen --offline python -m nox -s supply_chain
   artifacts:
     when: always
     paths:

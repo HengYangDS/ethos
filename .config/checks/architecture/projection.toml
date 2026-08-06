@@ -1,7 +1,7 @@
 schema = "ethos-architecture-projection-v1"
 owner = "ethos-quality-gate-governance"
 summary = "C4/LikeC4 source remains a projection input; Mermaid output is checked drift, not truth."
-runner = ".venv/bin/nox -s architecture_projection"
+runner = "uv run --frozen --offline python -m nox -s architecture_projection"
 
 [[projection]]
 id = "ethos-repository"

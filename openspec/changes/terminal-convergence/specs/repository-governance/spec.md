@@ -247,7 +247,7 @@ ETHOS SHALL bind a standard SBOM to the exact built artifact without inventing
 local provenance or signature authority.
 
 #### Scenario: Built artifact SBOM is generated
-- **WHEN** `.venv/bin/nox -s supply_chain` runs
+- **WHEN** `uv run --frozen --offline python -m nox -s supply_chain` runs
 - **THEN** Syft `1.50.0` emits SPDX 2.3 JSON for exactly one built wheel
 - **AND** the receipt binds HEAD, artifact and SBOM digests, and generator version
 - **AND** no provenance, signature, SLSA level, hosted-CI, or publication claim

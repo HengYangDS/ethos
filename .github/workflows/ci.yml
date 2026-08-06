@@ -43,31 +43,31 @@ jobs:
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Python lint
-        run: .venv/bin/nox -s lint
+        run: uv run --frozen --offline python -m nox -s lint
       - name: Type policy
         run: >-
           tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --execute
           --gate python-types --expect-head "$(git rev-parse HEAD)" --json
       - name: Import boundaries
-        run: .venv/bin/nox -s import_boundaries
+        run: uv run --frozen --offline python -m nox -s import_boundaries
       - name: Dependency hygiene
-        run: .venv/bin/nox -s dependencies
+        run: uv run --frozen --offline python -m nox -s dependencies
       - name: Config lint
         run: tools/ci/scripts/run-config-lint.sh
       - name: JSON schema hygiene
-        run: .venv/bin/nox -s schemas
+        run: uv run --frozen --offline python -m nox -s schemas
       - name: Repository hygiene
         run: tools/ci/scripts/run-repository-hygiene.sh
       - name: Product boundary
-        run: .venv/bin/nox -s product_boundary
+        run: uv run --frozen --offline python -m nox -s product_boundary
       - name: Shell lint
         run: tools/ci/scripts/run-shell-lint.sh
       - name: Docstring coverage
-        run: .venv/bin/nox -s docstrings
+        run: uv run --frozen --offline python -m nox -s docstrings
       - name: Module layout
-        run: .venv/bin/nox -s module_layout
+        run: uv run --frozen --offline python -m nox -s module_layout
       - name: Python vulnerability audit
-        run: .venv/bin/nox -s vulnerabilities
+        run: uv run --frozen --offline python -m nox -s vulnerabilities
       - name: Secrets scan
         run: tools/ci/scripts/run-secrets-scan.sh
       - name: External links
@@ -79,15 +79,15 @@ jobs:
       - name: Prose spelling
         run: tools/ci/scripts/run-prose-check.sh
       - name: CI projection drift
-        run: .venv/bin/nox -s ci_templates
+        run: uv run --frozen --offline python -m nox -s ci_templates
       - name: GitHub workflow syntax
         run: tools/ci/scripts/run-actionlint.sh
       - name: Format selection boundary
-        run: .venv/bin/nox -s format_selection
+        run: uv run --frozen --offline python -m nox -s format_selection
       - name: Architecture projection drift
-        run: .venv/bin/nox -s architecture_projection
+        run: uv run --frozen --offline python -m nox -s architecture_projection
       - name: Runbook registry
-        run: .venv/bin/nox -s runbook_registry
+        run: uv run --frozen --offline python -m nox -s runbook_registry
       - name: Hosted provider observation envelope
         run: tools/ci/scripts/run-hosted-provider-observation.sh
 
@@ -158,9 +158,9 @@ jobs:
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions
-        run: .venv/bin/nox -s build
+        run: uv run --frozen --offline python -m nox -s build
       - name: Generate SPDX SBOM
-        run: .venv/bin/nox -s supply_chain
+        run: uv run --frozen --offline python -m nox -s supply_chain
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: python-distributions

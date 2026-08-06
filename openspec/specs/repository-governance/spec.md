@@ -381,7 +381,7 @@ ETHOS SHALL bind a standard SBOM to the exact built artifact without inventing
 local provenance or signature authority.
 
 #### Scenario: Built artifact SBOM is generated
-- **WHEN** `.venv/bin/nox -s supply_chain` runs
+- **WHEN** `uv run --frozen --offline python -m nox -s supply_chain` runs
 - **THEN** Syft `1.50.0` emits SPDX 2.3 JSON for exactly one built wheel
 - **AND** the receipt binds HEAD, artifact and SBOM digests, and generator version
 - **AND** no provenance, signature, SLSA level, hosted-CI, or publication claim
@@ -1103,7 +1103,7 @@ a local-ci fallback evidence path when the configured Git remote is unavailable.
 #### Scenario: local-ci fallback uses owner gates
 
 - **WHEN** remote publication is unavailable or deferred
-- **THEN** ETHOS recommends `tools/ci/scripts/run-local-ci.sh` as local
+- **THEN** ETHOS recommends `uv run --frozen --offline python -m nox -s local_ci` as local
   fallback evidence
 - **AND** that script invokes reusable owner gate scripts rather than restating
   hosted CI policy inline
@@ -1672,7 +1672,7 @@ keep child source without waiting on the outer lock.
 - **WHEN** the request passes through the runtime bootstrap
 - **THEN** the bootstrap invokes `uv run --group dev python` with the original
   Python arguments and lets uv materialize only that checkout's environment
-- **AND** it does not resolve `<worktree>/.venv/bin/python`
+- **AND** it does not resolve the retired root project environment interpreter
 
 #### Scenario: a nested hook bootstrap avoids parent cache-lock reentry
 
@@ -1722,7 +1722,7 @@ runtime exists, and SHALL NOT execute product modules.
 #### Scenario: an executable entrypoint attempts root environment fallback
 
 - **WHEN** generated-artifact topology audits a product-owned executable script,
-  hook, or CI projection containing an active root `.venv/bin/python` fallback
+  hook, or CI projection containing an active retired root-environment fallback
   or bare `uv run` path that bypasses the semantic bootstrap
 - **THEN** the audit reports a required runtime-entrypoint routing gap
 - **AND** proof remains blocked until the producer routes through the bootstrap
@@ -2452,16 +2452,16 @@ unpreserved dirty overlay.
 
 ### Requirement: Shadow parity external execution honors checkout runtime topology
 
-ETHOS SHALL select the checkout-bound `build/runtime/venv/bin/python` for a
+ETHOS SHALL select the checkout-bound semantic runtime interpreter for a
 shadow-parity external command when that interpreter exists. It SHALL select
-that runtime before a legacy root `.venv/bin/python`, so ignored migration
+that runtime before a retired root-environment interpreter, so ignored migration
 residue that cannot import ETHOS does not make a current Work Lane appear to
 have an external command failure.
 
 #### Scenario: Stale root environment does not block current parity
 
-- **WHEN** a Work Lane has both `build/runtime/venv/bin/python` and a root
-  `.venv/bin/python` that lacks the ETHOS package
+- **WHEN** a Work Lane has both the checkout-bound semantic runtime and a
+  retired root project environment that lacks the ETHOS package
 - **THEN** shadow parity invokes the checkout-bound runtime for its external
   command
 - **AND** it can produce current parity evidence instead of reporting an

@@ -180,8 +180,8 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         script = f"tools/ci/scripts/{name}"
         assert script in combined
         assert (ROOT / script).stat().st_mode & stat.S_IXUSR
-    assert ".venv/bin/nox -s dependencies" in combined
-    assert ".venv/bin/nox -s vulnerabilities" in combined
+    assert "uv run --frozen --offline python -m nox -s dependencies" in combined
+    assert "uv run --frozen --offline python -m nox -s vulnerabilities" in combined
     for session in (
         "ci_templates",
         "format_selection",
@@ -193,13 +193,13 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "module_layout",
         "product_boundary",
     ):
-        assert f".venv/bin/nox -s {session}" in combined
+        assert f"uv run --frozen --offline python -m nox -s {session}" in combined
     for text in (combined,):
-        assert ".venv/bin/nox -s lint" in text
-        assert ".venv/bin/nox -s tests" in text
+        assert "uv run --frozen --offline python -m nox -s lint" in text
+        assert "uv run --frozen --offline python -m nox -s tests" in text
         assert "tools/ci/scripts/run-actionlint.sh" in text
-        assert ".venv/bin/nox -s product_boundary" in text
-        assert ".venv/bin/nox -s build" in text
+        assert "uv run --frozen --offline python -m nox -s product_boundary" in text
+        assert "uv run --frozen --offline python -m nox -s build" in text
         assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
         assert "uv run --no-project --with import-linter lint-imports" not in text
         assert "image: node:24" not in text
@@ -286,7 +286,7 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
 )
 def test_github_repository_proof_executes_one_full_test_graph(relative: str) -> None:
     providers = _providers()
-    direct = ".venv/bin/nox -s tests"
+    direct = "uv run --frozen --offline python -m nox -s tests"
     proof = "tools/ci/scripts/run-head-bound-proof.sh"
     assert (
         "tools/ci/scripts/run-python-tests.sh" not in providers["github"]["required_owner_scripts"]
@@ -354,19 +354,16 @@ def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(tmp_
     assert Path(key).is_file()
 
 
-def test_provider_python_producers_are_runtime_bound() -> None:
-    runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
+def test_provider_python_producers_use_the_portable_locked_runtime() -> None:
+    command = "uv run --frozen --offline python -m nox -s "
     for relative in (
         ".github/workflows/ci.yml",
         ".gitlab-ci.yml",
-        "tools/ci/scripts/run-github-local-emulator.sh",
-        "tools/ci/scripts/run-gitlab-local-emulator.sh",
     ):
-        lines = (ROOT / relative).read_text(encoding="utf-8").splitlines()
-        uv_producers = [line.strip() for line in lines if "uv run" in line]
-        assert uv_producers, relative
-        assert all(runtime in line for line in uv_producers), relative
-        assert all("uv build" not in line for line in lines), relative
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert command in text, relative
+        assert ".venv/bin/" not in text, relative
+        assert "uv build" not in text, relative
 
 
 def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
@@ -482,7 +479,7 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
 @pytest.mark.parametrize(
     ("relative", "needles", "forbidden"),
     [
-        ("tools/ci/scripts/run-local-ci.sh", ("export PYTHONWARNINGS=error",), ()),
+        ("tools/ci/local_ci.py", ("PYTHONWARNINGS", "ThreadPoolExecutor"), ()),
         (
             "tools/ci/scripts/bootstrap-python.sh",
             (
@@ -872,7 +869,7 @@ def test_github_emulator_run_materializes_an_independent_git_source(
 
 def test_tool_catalog_contains_only_active_provider_gates() -> None:
     active = {
-        "ci_template_consistency": ".venv/bin/nox -s ci_templates",
+        "ci_template_consistency": "uv run --frozen --offline python -m nox -s ci_templates",
         "github_workflow_syntax": "tools/ci/scripts/run-actionlint.sh",
         "github_local_emulator": "tools/ci/scripts/run-github-local-emulator.sh",
         "gitlab_local_emulator": "tools/ci/scripts/run-gitlab-local-emulator.sh",

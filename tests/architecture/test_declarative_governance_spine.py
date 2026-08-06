@@ -506,7 +506,7 @@ def test_terminal_gate_owners_are_singular_and_hosted_logic_stays_in_tools() -> 
     ):
         assert _tracked_or_nonignored(f"src/ethos/{relative}") == []
 
-    local_ci = _read("tools/ci/scripts/run-local-ci.sh")
+    local_ci = _read("uv run --frozen --offline python -m nox -s local_ci")
     for relative in (
         "tools/ci/scripts/run-no-compat.sh",
         "tools/ci/scripts/run-governance-kernel.sh",

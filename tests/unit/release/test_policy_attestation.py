@@ -15,13 +15,13 @@ _LOCAL = {
     "id": "local",
     "role": "local_verification_install",
     "mode": "offline",
-    "verification_command": "tools/ci/scripts/run-local-ci.sh",
-    "installation_command": ".venv/bin/nox -s install_smoke",
+    "verification_command": "uv run --frozen --offline python -m nox -s local_ci",
+    "installation_command": "uv run --frozen --offline python -m nox -s install_smoke",
 }
 
 _PUBLICATION = {
-    "local_verification_command": "tools/ci/scripts/run-local-ci.sh",
-    "local_installation_command": ".venv/bin/nox -s install_smoke",
+    "local_verification_command": "uv run --frozen --offline python -m nox -s local_ci",
+    "local_installation_command": "uv run --frozen --offline python -m nox -s install_smoke",
     "gitlab_remote": "origin",
     "gitlab_ci_surface": ".gitlab-ci.yml",
     "github_remote": "github",

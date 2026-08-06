@@ -1,11 +1,11 @@
 schema = "ethos-runbook-registry-v1"
 owner = "ethos-quality-gate-governance"
 registry = "docs/reference/runbook-registry.md"
-runner = ".venv/bin/nox -s runbook_registry"
+runner = "uv run --frozen --offline python -m nox -s runbook_registry"
 
 [[entry]]
 id = "RUN-CI-TEMPLATES"
-command = ".venv/bin/nox -s ci_templates"
+command = "uv run --frozen --offline python -m nox -s ci_templates"
 category = "provider-projection"
 evidence = "JSON stdout"
 
@@ -23,13 +23,13 @@ evidence = "build/evidence/local-ci/gitlab/doctor.json"
 
 [[entry]]
 id = "RUN-FORMAT-SELECTION"
-command = ".venv/bin/nox -s format_selection"
+command = "uv run --frozen --offline python -m nox -s format_selection"
 category = "format-boundary"
 evidence = "JSON stdout"
 
 [[entry]]
 id = "RUN-ARCHITECTURE-PROJECTION"
-command = ".venv/bin/nox -s architecture_projection"
+command = "uv run --frozen --offline python -m nox -s architecture_projection"
 category = "architecture-projection"
 evidence = "JSON stdout"
 
@@ -41,19 +41,19 @@ evidence = "JSON stdout"
 
 [[entry]]
 id = "RUN-RELEASE-SUPPLY-CHAIN"
-command = ".venv/bin/nox -s supply_chain"
+command = "uv run --frozen --offline python -m nox -s supply_chain"
 category = "release-supply-chain"
 evidence = "build/evidence/release/supply-chain.json"
 
 [[entry]]
 id = "RUN-DEPENDENCY-HYGIENE"
-command = ".venv/bin/nox -s dependencies"
+command = "uv run --frozen --offline python -m nox -s dependencies"
 category = "dependency-hygiene"
 evidence = "build/evidence/quality/dependency/summary.json"
 
 [[entry]]
 id = "RUN-JSON-SCHEMA"
-command = ".venv/bin/nox -s schemas"
+command = "uv run --frozen --offline python -m nox -s schemas"
 category = "schema-hygiene"
 evidence = "JSON stdout"
 
@@ -71,6 +71,6 @@ evidence = "build/evidence/hosted-ci/observation.json"
 
 [[entry]]
 id = "RUN-PYTHON-VULNERABILITY-AUDIT"
-command = ".venv/bin/nox -s vulnerabilities"
+command = "uv run --frozen --offline python -m nox -s vulnerabilities"
 category = "security-vulnerability"
 evidence = "build/evidence/quality/security/python-vulnerability-audit.json"

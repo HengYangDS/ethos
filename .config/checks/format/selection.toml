@@ -1,7 +1,7 @@
 schema = "ethos-format-selection-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Fail-closed executable-carrier admission audit."
-runner = ".venv/bin/nox -s format_selection"
+runner = "uv run --frozen --offline python -m nox -s format_selection"
 
 [source_budget]
 contract_version = 2
@@ -16,7 +16,7 @@ line_width = 100
 extensions = [".py", ".pyi"]
 carrier = "Python source"
 owner = "ruff.toml"
-execution = ".venv/bin/nox -s lint"
+execution = "uv run --frozen --offline python -m nox -s lint"
 truth_boundary = "source"
 budget = [
   { category = "python_product", paths = ["src/ethos/*"], measure = "python_ast", comment_prefixes = ["#"] },
@@ -29,7 +29,7 @@ budget = [
 extensions = [".svg", ".png"]
 carrier = "Brand presentation asset"
 owner = "assets/brand/"
-execution = ".venv/bin/nox -s format_selection"
+execution = "uv run --frozen --offline python -m nox -s format_selection"
 truth_boundary = "repository-owned public presentation projection"
 
 [[format]]
@@ -107,7 +107,7 @@ budget = [{ category = "js", comment_prefixes = ["//"] }]
 extensions = [".c4"]
 carrier = "LikeC4 model"
 owner = ".config/checks/architecture/projection.toml"
-execution = ".venv/bin/nox -s architecture_projection"
+execution = "uv run --frozen --offline python -m nox -s architecture_projection"
 truth_boundary = "architecture source projection input"
 budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 
@@ -115,7 +115,7 @@ budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 extensions = [".mmd"]
 carrier = "Mermaid diagram"
 owner = ".config/checks/architecture/projection.toml"
-execution = ".venv/bin/nox -s architecture_projection"
+execution = "uv run --frozen --offline python -m nox -s architecture_projection"
 truth_boundary = "generated architecture projection output"
 budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 

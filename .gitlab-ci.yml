@@ -52,7 +52,7 @@ default:
 # generated-artifact and release supply-chain checks.
 # A gate that does not run in CI is not a gate.
 .python_setup: &python_setup
-  image: python:3.14
+  image: ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
 
@@ -237,7 +237,7 @@ ethos:verify:
     # same setup a developer's checkout has.
     - tools/ci/scripts/configure-git-checkout.sh
     - tools/ci/scripts/with-python-runtime.sh -- uv run ethos hook install --json
-    - openspec --version
+    - node_modules/.bin/openspec --version
     - tools/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json
     - tools/ci/scripts/run-head-bound-proof.sh
@@ -256,7 +256,7 @@ ethos:npm:
           - "26.5.0"
   # Runs on python:3.14 with exact Node
   # releases installed from nodejs.org; see the runtime policy and installer.
-  image: python:3.14
+  image: ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75
   script:
     - source tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh
@@ -278,7 +278,7 @@ ethos:npm-package:
   stage: package
   # See ethos:npm — python:3.14 + install-node.sh avoids the unreachable
   # node:24 image.
-  image: python:3.14
+  image: ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75
   script:
     - source tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh

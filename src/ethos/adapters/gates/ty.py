@@ -18,7 +18,7 @@ _DIAGNOSTIC_EXCERPT_LIMIT = 12
 
 def _runtime_command(root: Path, package_src: str) -> list[str]:
     """Build the source-bound command for one checkout-local type check."""
-    venv = root / "build/runtime/venv"
+    venv = root / ".venv"
     return [
         str(root / "tools/ci/scripts/with-python-runtime.sh"),
         "--",

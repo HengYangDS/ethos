@@ -10,7 +10,7 @@ set -e
 remote_name="$1"
 repo_root="$(git rev-parse --show-toplevel)"
 runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
-runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
+runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/.venv/bin/python}}"
 ethos_pythonpath="$repo_root/src"
 receipt_path="${ETHOS_RECONCILIATION_RECEIPT:-}"
 origin_head=""

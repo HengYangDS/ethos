@@ -30,7 +30,7 @@ esac
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 
 runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
-runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
+runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/.venv/bin/python}}"
 ethos_pythonpath="$repo_root/src"
 
 # The accepted checkout owns this shell/CAS boundary.  On its prepared advance,
@@ -144,7 +144,7 @@ while read -r old_value new_value ref_name; do
                 exit 1
             }
             candidate_root="$candidate_runner"
-            candidate_python="$candidate_root/build/runtime/venv/bin/python"
+            candidate_python="$candidate_root/.venv/bin/python"
             [ -x "$candidate_python" ] || {
                 echo "ethos: blocked ref move on $ref_name — candidate project environment is unavailable." >&2
                 exit 1

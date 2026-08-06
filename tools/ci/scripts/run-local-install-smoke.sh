@@ -41,7 +41,7 @@ if [[ "${#wheels[@]}" -ne 1 ]]; then
 fi
 wheel="${wheels[0]}"
 
-source_python="${ETHOS_PYTHON:-${repo_root}/build/runtime/venv/bin/python}"
+source_python="${ETHOS_PYTHON:-${repo_root}/.venv/bin/python}"
 uv venv --offline --python "${source_python}" "${venv_dir}" >&2
 smoke_python="${venv_dir}/bin/python"
 uv export --locked --offline --no-dev --no-emit-project --no-header --no-annotate \

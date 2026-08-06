@@ -5,7 +5,7 @@ adopter_specific_product_dirs_allowed = false
 cache_flat_root_prefix = ".cache"
 cache_allowed_prefixes = [".cache/local-state"]
 runtime_flat_root_prefix = "build/runtime"
-runtime_allowed_prefixes = ["build/runtime/tool-cache", "build/runtime/venv", "build/runtime/work"]
+runtime_allowed_prefixes = [".venv", "build/runtime/tool-cache", "build/runtime/work"]
 ignore_boundary = "not a generated artifact topology subject"
 source_schema_suffix = ".schema.json"
 
@@ -108,8 +108,8 @@ prefix = "build/runtime/tool-cache"
 boundary = "ignored tool runtime caches keyed by tool name"
 
 [[allowed_prefix]]
-prefix = "build/runtime/venv"
-boundary = "ignored source-bound virtual environments for Work Lane runners"
+prefix = ".venv"
+boundary = "ignored repository-local virtual environment selected by uv.lock"
 
 [[allowed_prefix]]
 prefix = "build/runtime/work"
@@ -222,7 +222,7 @@ homes = [
   ".cache/local-state",
   ".ethos/state",
   "build/runtime/tool-cache",
-  "build/runtime/venv",
+  ".venv",
   "build/runtime/work",
 ]
 tracked = false

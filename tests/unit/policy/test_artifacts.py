@@ -82,6 +82,28 @@ package = { cmd = ["uv", "build", "--out-dir", "./dist/"] }
     ]
 
 
+def test_entrypoint_audit_allows_the_single_checkout_venv_and_rejects_the_retired_home(
+    tmp_path: Path,
+) -> None:
+    script = tmp_path / "tools/ci/scripts/example.sh"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        "tools/ci/scripts/with-python-runtime.sh -- .venv/bin/python -m ethos.cli status\n",
+        encoding="utf-8",
+    )
+    assert generated_artifact_entrypoint_audit(tmp_path)["verdict"] == "pass"
+
+    script.write_text(
+        "tools/ci/scripts/with-python-runtime.sh -- build/runtime/venv/bin/python "
+        "-m ethos.cli status\n",
+        encoding="utf-8",
+    )
+    report = generated_artifact_entrypoint_audit(tmp_path)
+    assert report["required_gaps"] == [
+        "generated_artifact_entrypoint_retired_venv_runtime:tools/ci/scripts/example.sh"
+    ]
+
+
 def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
     path = tmp_path / "tools/ci/scripts/example.sh"
     path.parent.mkdir(parents=True)

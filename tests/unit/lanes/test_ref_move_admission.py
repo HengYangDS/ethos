@@ -1154,7 +1154,7 @@ def test_reference_transaction_hook_uses_the_candidate_project_environment() -> 
     hook = Path(__file__).resolve().parents[3] / ".githooks/reference-transaction"
     text = hook.read_text(encoding="utf-8")
 
-    assert 'candidate_python="$candidate_root/build/runtime/venv/bin/python"' in text
+    assert 'candidate_python="$candidate_root/.venv/bin/python"' in text
     assert '"${candidate_python}" -P -m ethos.cli hook ref-transaction' in text
     assert "--isolated" not in text
 

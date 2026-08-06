@@ -38,6 +38,17 @@ _SOURCE_NODE = shutil.which("node")
 _GIT = shutil.which("git") or "/usr/bin/git"
 
 
+def _packaged_node() -> str | None:
+    """Resolve the platform Node payload installed with the Python distribution."""
+    try:
+        package = resources.files("nodejs_wheel")
+    except ModuleNotFoundError:
+        return None
+    relative = ("node.exe",) if os.name == "nt" else ("bin", "node")
+    executable = Path(str(package.joinpath(*relative)))
+    return executable.as_posix() if executable.is_file() else None
+
+
 def current_branch(root: Path) -> str:
     completed = run_command(
         root,
@@ -54,11 +65,10 @@ def openspec_base_command() -> tuple[str, ...] | None:
     source = (_SOURCE_NODE, _ENTRY.as_posix()) if _SOURCE_NODE and _ENTRY.is_file() else None
     if source and verify_official_cli(source)["verdict"] == "pass":
         return source
-    bundled = (
-        (_SOURCE_NODE, _DISTRIBUTION_ENTRY.as_posix())
-        if _SOURCE_NODE and _DISTRIBUTION_ENTRY.is_file()
-        else None
-    )
+    node = _packaged_node()
+    bundled = (node, _DISTRIBUTION_ENTRY.as_posix()) if node else None
+    if bundled is not None and not _DISTRIBUTION_ENTRY.is_file():
+        bundled = None
     return bundled if bundled and verify_official_cli(bundled)["verdict"] == "pass" else None
 
 

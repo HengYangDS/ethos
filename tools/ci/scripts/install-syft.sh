@@ -2,6 +2,12 @@
 # Reuse Homebrew locally; install the pinned official archive in hosted Linux.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 version="1.50.0"
 if command -v syft >/dev/null 2>&1 \
   && [[ "$(syft version -o json | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "${version}" ]]; then

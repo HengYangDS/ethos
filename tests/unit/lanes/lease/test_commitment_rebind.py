@@ -406,6 +406,38 @@ def test_commitment_rebind_recovers_after_hook_advanced_only_the_lease_head(
     _assert_terminal(case, recovered)
 
 
+def test_commitment_rebind_projects_partial_target_recovery_before_apply(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    worktree = case["worktree"]
+    branch = case["branch"]
+    request = case["request"]
+    assert isinstance(worktree, Path)
+    assert isinstance(branch, str)
+    assert isinstance(request, CommitmentRebindRequest)
+    git(worktree, "config", "--unset-all", "core.hooksPath")
+    git(worktree, "update-ref", f"refs/heads/{branch}", request.target_commit, request.expect_head)
+    _replace_lease_payload(
+        worktree,
+        branch,
+        expected_head=request.target_commit,
+        expected_tree=request.expect_index_tree,
+    )
+
+    ready = execute_commitment_rebind(
+        root=worktree,
+        request=request.model_copy(update={"apply": False}),
+    )
+
+    assert ready["verdict"] == "pass"
+    assert ready["state"] == "ready_to_recover"
+    assert ready["required_gaps"] == []
+    assert ready["lease"]["epoch"] == request.expected_epoch
+    assert leases_by_branch(worktree)[branch]["epoch"] == request.expected_epoch
+
+
 def test_commitment_rebind_retries_prepared_intent_when_git_cas_never_ran(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

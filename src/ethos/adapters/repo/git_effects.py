@@ -100,6 +100,50 @@ def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") 
         shutil.rmtree(target, ignore_errors=False)
 
 
+def compensate_created_paths(
+    root: Path,
+    *,
+    head: str,
+    paths: tuple[str, ...],
+    untracked_root: str,
+) -> None:
+    """Remove only newly created staged paths while preserving a prior overlay."""
+    completed = run_git(
+        root,
+        "restore",
+        "--source",
+        head,
+        "--staged",
+        "--",
+        *paths,
+        check=False,
+    )
+    if completed.returncode:
+        raise ValueError(completed.stderr.strip() or "git_effect_compensation_failed")
+    target = (root / untracked_root).resolve()
+    try:
+        target.relative_to(root.resolve())
+    except ValueError as error:
+        raise ValueError("git_effect_compensation_path_outside_root") from error
+    if target.is_symlink() or (target.exists() and not target.is_dir()):
+        raise ValueError("git_effect_compensation_path_unsafe")
+    if target.exists():
+        shutil.rmtree(target, ignore_errors=False)
+
+
+def remove_untracked_tree(root: Path, path: str) -> None:
+    """Remove one newly created untracked directory through the Git effect owner."""
+    target = (root / path).resolve()
+    try:
+        target.relative_to(root.resolve())
+    except ValueError as error:
+        raise ValueError("git_effect_compensation_path_outside_root") from error
+    if target.is_symlink() or (target.exists() and not target.is_dir()):
+        raise ValueError("git_effect_compensation_path_unsafe")
+    if target.exists():
+        shutil.rmtree(target, ignore_errors=False)
+
+
 def execute_git_effect(
     root: Path,
     plan: TransitionPlan,

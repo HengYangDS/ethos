@@ -588,6 +588,117 @@ Contradictions, stale projections, and model gaps SHALL promote the affected bou
 - **AND** dependency maps, code-link ledgers, status directories, or other
   parallel decision owners are absent
 
+### Requirement: Source-bound Work Lane runner bootstrap
+
+ETHOS SHALL return a runner bootstrap for a newly started Work Lane that
+executes its own source in the checkout's single uv-locked `.venv`, with caches
+kept in semantic runtime homes.
+
+#### Scenario: a Work Lane uses its bootstrap runner
+
+- **WHEN** the operator runs the returned runner from the linked Work Lane
+- **THEN** the uv environment is `<worktree>/.venv`
+- **AND** the uv cache is under `build/runtime/tool-cache/uv`
+- **AND** the command runner binds to that Work Lane source.
+
+### Requirement: Worktree-bound semantic runtime bootstrap
+
+One repository bootstrap SHALL bind `UV_PROJECT_ENVIRONMENT` to the current
+worktree's `.venv` and execute that checkout's source. The provider SHALL supply
+the exact admitted uv version; the repository SHALL validate it and synchronize
+only from `uv.lock`. Explicit cache roots win; otherwise downloads use a
+host-scoped content-addressed cache. No bootstrap venv, pip-installed uv, PATH
+injection, fallback environment, or second project environment is permitted.
+`ETHOS_RUNTIME_BOOTSTRAPPED=1` owner scripts SHALL invoke outer uv with
+`--no-sync`.
+
+#### Scenario: two Work Lanes initialize independently
+
+- **GIVEN** two linked Work Lanes from the same Git common directory
+- **WHEN** each runs a Python owner command through the bootstrap
+- **THEN** each command receives its own `<worktree>/.venv`
+- **AND** neither command creates `build/runtime/venv` or a bootstrap venv
+- **AND** the cache location does not become a Work Lane lease, source, evidence,
+  or authority store.
+
+#### Scenario: a hook starts before its checkout environment exists
+
+- **GIVEN** a hook requests the default `<worktree>/.venv/bin/python` and that
+  interpreter is absent
+- **WHEN** the request passes through the runtime bootstrap
+- **THEN** the bootstrap invokes locked uv synchronization for that checkout
+- **AND** it materializes only `<worktree>/.venv`.
+
+#### Scenario: a nested hook bootstrap avoids parent cache-lock reentry
+
+- **GIVEN** an outer uv command holds the selected cache lock for one worktree
+- **WHEN** a Git hook in a different worktree requests its missing default
+  semantic interpreter through the bootstrap
+- **THEN** the hook materializes only the child worktree's `.venv`
+- **AND** its uv invocation uses a bounded namespace beneath the selected host
+  or CI cache root
+- **AND** it does not wait on or share the outer uv cache lock.
+
+#### Scenario: a marked owner script does not reenter its own environment lock
+
+- **GIVEN** a product owner script is handed off through
+  `env ETHOS_RUNTIME_BOOTSTRAPPED=1 <script>`
+- **WHEN** the runtime bootstrap launches that handoff
+- **THEN** its outer `uv run` invocation includes `--no-sync`
+- **AND** the script retains ownership of any later tool synchronization
+- **AND** an inner tool invocation does not wait on a parent process holding
+  the same `<worktree>/.venv` lock.
+
+### Requirement: Explicit execution overrides remain bounded
+
+ETHOS SHALL permit an explicit `ETHOS_PYTHON`, `PYTHON`, `UV_CACHE_DIR`, or
+`ETHOS_UV_CACHE_DIR` override for a bounded invocation. An override MUST NOT
+change the checkout root, substitute another checkout's source environment, or
+select a second project environment.
+
+#### Scenario: CI supplies its own cache path
+
+- **GIVEN** a hosted CI projection supplies an explicit uv cache location
+- **WHEN** an owner script invokes the runtime bootstrap
+- **THEN** the bootstrap preserves that cache location
+- **AND** the source environment remains the current checkout's `.venv`.
+
+### Requirement: Generated Artifact Topology Contract
+
+ETHOS SHALL classify generated outputs by lifecycle and audit both files and
+executable producers. Root `.venv` SHALL be the only normal project execution
+environment. `build/runtime/venv`, `.nox`, bootstrap venvs, and other parallel
+project environments are retired and SHALL be rejected by active entrypoints.
+Provider-native setup may supply an exact admitted uv binary but SHALL NOT
+execute product modules or create another environment.
+
+#### Scenario: an executable entrypoint attempts parallel environment fallback
+
+- **WHEN** generated-artifact topology audits a product-owned executable script,
+  hook, or CI projection containing `build/runtime/venv`, a bootstrap venv, or a
+  bare `uv run` path that bypasses the semantic bootstrap
+- **THEN** the audit reports a required runtime-entrypoint routing gap
+- **AND** proof remains blocked until the producer uses the checkout `.venv`.
+
+#### Scenario: legacy parallel environment remains non-authoritative
+
+- **GIVEN** an ignored retired environment exists after the runtime contract changes
+- **WHEN** topology and local-state audits run
+- **THEN** they identify it as disposable runtime residue rather than product truth
+- **AND** no product command selects it as an execution environment.
+
+### Requirement: Shadow parity external execution honors checkout runtime topology
+
+ETHOS SHALL select the checkout's `.venv/bin/python` for a shadow-parity
+external command. No legacy environment receives precedence or fallback status.
+
+#### Scenario: Stale root environment does not block current parity
+
+- **WHEN** a Work Lane has a valid `.venv/bin/python`
+- **THEN** shadow parity invokes that interpreter for its external command
+- **AND** absence of the retired `build/runtime/venv` cannot create an
+  `external_command_failed` gap.
+
 ## REMOVED Requirements
 
 ### Requirement: Work Lane Lifecycle Resolution

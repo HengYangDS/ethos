@@ -65,7 +65,7 @@ def _load_ci_templates_module():
                 "emulator_tool": "gitlab-ci-local",
                 "emulator_event": "pipeline",
                 "emulator_job": "ethos:lint",
-                "emulator_image": "python:3.14",
+                "emulator_image": "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75",
             },
         ),
     ],
@@ -443,7 +443,7 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
     (repo / "pyproject.toml").write_text(
         "[project]\nname = 'runtime-test'\nversion = '0.0.0'\n", encoding="utf-8"
     )
-    python = repo / "build/runtime/venv/bin/python"
+    python = repo / ".venv/bin/python"
     python.parent.mkdir(parents=True)
     python.write_text("#!/bin/sh\nprintf 'semantic-runtime\\n'\n", encoding="utf-8")
     python.chmod(0o755)
@@ -477,14 +477,11 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
         (
             "tools/ci/scripts/bootstrap-python.sh",
             (
-                'ln -sf "${repo_root}/node_modules/.bin/openspec"',
                 "npm ci --ignore-scripts",
-                "openspec --version",
-                '"${bootstrap_python}" -m venv',
-                "uv sync --group dev",
-                'bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"',
-                'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"',
-                "'uv==0.11.29'",
+                '"${repo_root}/node_modules/.bin/openspec" --version',
+                "uv sync --locked --group dev",
+                'export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"',
+                'required_uv="0.12.2"',
             ),
             (
                 "@fission-ai/openspec@1.6.0",
@@ -492,11 +489,21 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
                 "build/runtime/bootstrap",
                 "python -m pip install",
                 "pip install uv",
+                "uv-bootstrap",
+                "build/runtime/venv",
+                "uv==0.11.29",
+                " -m venv",
+                'ln -sf "${repo_root}/node_modules/.bin/openspec"',
             ),
         ),
         (
             ".github/workflows/ci.yml",
-            ("actions/checkout@v7", "actions/setup-python@v6", "actions/upload-artifact@v7"),
+            (
+                "actions/checkout@v7",
+                "actions/setup-python@v6",
+                "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9",
+                "actions/upload-artifact@v7",
+            ),
             (),
         ),
         (
@@ -524,10 +531,10 @@ def test_static_ci_policies(
 def test_static_ci_policy_cross_file_invariants() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
     projection = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
-    assert "openspec --version" in projection
-    assert bootstrap.index(
-        'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"'
-    ) < bootstrap.index("uv sync --group dev")
+    assert "node_modules/.bin/openspec --version" in projection
+    assert bootstrap.index('export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"') < bootstrap.index(
+        "uv sync --locked --group dev"
+    )
     assert "build/runtime/tool-cache/uv/" in (ROOT / ".gitignore").read_text(encoding="utf-8")
 
 
@@ -641,7 +648,10 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(
         "-j",
         "quality",
     ]
-    images = {"github": "catthehacker/ubuntu:act-latest", "gitlab": "python:3.14"}
+    images = {
+        "github": "catthehacker/ubuntu:act-latest",
+        "gitlab": "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75",
+    }
     for provider in ("github", "gitlab"):
         output = tmp_path / f"{provider}.json"
         assert (

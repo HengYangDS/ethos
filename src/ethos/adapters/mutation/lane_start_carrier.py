@@ -533,7 +533,7 @@ def runner_bootstrap(target: Path) -> dict[str, str]:
     resolved = target.resolve().as_posix()
     return {
         "command": "tools/ci/scripts/run-ethos-lane.sh",
-        "project_environment": "build/runtime/venv",
+        "project_environment": ".venv",
         "environment_scope": "checkout",
         "uv_cache": "host_or_ci_content_addressed",
         "cache_scope": "host_or_ci",

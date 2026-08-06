@@ -46,7 +46,7 @@ _DENIED_ENTRYPOINT_HOME_TOKENS = (
     "dist/",
 )
 _RUNTIME_BOOTSTRAP_PATH = "tools/ci/scripts/with-python-runtime.sh"
-_ROOT_VENV_RUNTIME_MARKER = ".venv/bin/python"
+_RETIRED_VENV_RUNTIME_MARKER = "build/runtime/venv"
 _PYTHON_EXECUTION_PATTERN = re.compile(r"(?:^|[;&|()]|\s)(?:python(?:[0-9.]*)?)(?:\s|$)")
 _PYTHON_BOOTSTRAP_EXEMPTIONS = frozenset(
     {
@@ -197,10 +197,10 @@ def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, 
     bootstrap_bound = "with-python-runtime.sh" in producer_text
     checks = (
         (
-            _ROOT_VENV_RUNTIME_MARKER in producer_text,
-            "root-venv-runtime",
-            "active execution must not fall back to root .venv",
-            "root_venv_runtime",
+            _RETIRED_VENV_RUNTIME_MARKER in producer_text,
+            "retired-venv-runtime",
+            "active execution must use the checkout's single root .venv",
+            "retired_venv_runtime",
         ),
         (
             "uv run" in producer_text and not bootstrap_bound,

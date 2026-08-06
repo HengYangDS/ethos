@@ -26,6 +26,7 @@ esac
 
 cache="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/ci-tools}/syft/${version}"
 archive="${cache}/syft_${version}_linux_${arch}.tar.gz"
+executable="${cache}/syft"
 mkdir -p "${cache}"
 if [[ ! -s "${archive}" ]]; then
   tools/ci/scripts/download-file.sh \
@@ -36,4 +37,4 @@ printf '%s  %s\n' "${sha256}" "${archive}" | sha256sum -c -
 temporary="$(mktemp -d)"
 trap 'rm -rf "${temporary}"' EXIT
 tar -xzf "${archive}" -C "${temporary}" syft
-install -m 0755 "${temporary}/syft" /usr/local/bin/syft
+install -m 0755 "${temporary}/syft" "${executable}"

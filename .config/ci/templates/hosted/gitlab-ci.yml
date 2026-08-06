@@ -267,7 +267,7 @@ ethos:package:
   stage: package
   script:
     - .venv/bin/nox -s build
-    - tools/ci/scripts/run-release-supply-chain.sh
+    - .venv/bin/nox -s supply_chain
   artifacts:
     when: always
     paths:

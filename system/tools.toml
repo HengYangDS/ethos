@@ -270,7 +270,7 @@ tool = "syft"
 config = ".config/release/supply-chain.toml"
 executables = ["syft"]
 artifacts = "build/evidence/release/"
-gate = "tools/ci/scripts/run-release-supply-chain.sh"
+gate = ".venv/bin/nox -s supply_chain"
 profile = "release"
 
 [[tool]]

@@ -33,7 +33,7 @@ required_owner_scripts = [
   "tools/ci/scripts/run-format-selection.sh",
   "tools/ci/scripts/run-architecture-projection-drift.sh",
   "tools/ci/scripts/run-runbook-registry-check.sh",
-  "tools/ci/scripts/run-release-supply-chain.sh",
+  "noxfile.py",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
 [[projection]]
@@ -69,7 +69,7 @@ required_owner_scripts = [
   "tools/ci/scripts/run-format-selection.sh",
   "tools/ci/scripts/run-architecture-projection-drift.sh",
   "tools/ci/scripts/run-runbook-registry-check.sh",
-  "tools/ci/scripts/run-release-supply-chain.sh",
+  "noxfile.py",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
 [evidence]

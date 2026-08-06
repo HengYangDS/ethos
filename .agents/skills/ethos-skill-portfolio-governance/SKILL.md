@@ -18,9 +18,15 @@ manifests, projection drift controls, or the skill creation process.
    Route executable checks through `playbooks-v2`; put longer criteria in references.
 3. Update `SKILL.md`, `package.toml`, and `activation.toml` together so the
    route, package digest, and command metadata remain aligned.
-4. Route durable truth to source, tests, schemas, docs, OpenSpec, claims, or
+4. Require one owner for each subject-operation route. Retire an obsolete route
+   with its reason, date, kill signal, and removal of its declared carrier.
+5. Generate OpenSpec Skills and host-supported slash commands with the pinned
+   official OpenSpec workflow; characterize the generated version and official
+   status/instructions calls instead of copying templates into ETHOS.
+6. Route durable truth to source, tests, schemas, docs, OpenSpec, claims, or
    evidence; a skill must not create a shadow task store or lifecycle ledger.
-5. Run the current proof gate and changed-scope plan before claiming portfolio
+   Treat matched evaluation as evidence, never task or progress state.
+7. Run the current proof gate and changed-scope plan before claiming portfolio
    readiness.
 
 ## Evidence

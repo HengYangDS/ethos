@@ -133,12 +133,9 @@ def _exact_preserved_archive(
     target: str,
 ) -> bool:
     source_tree = git_stdout(root, "rev-parse", f"{head}:{source}")
+    replacement_tree = git_stdout(root, "rev-parse", f"{tree}:{source}")
     target_tree = git_stdout(root, "rev-parse", f"{tree}:{target}")
-    return bool(
-        source_tree
-        and source_tree == target_tree
-        and not git_stdout(root, "rev-parse", f"{tree}:{source}")
-    )
+    return bool(source_tree and replacement_tree and source_tree == target_tree)
 
 
 def _archive_binding(

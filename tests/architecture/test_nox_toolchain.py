@@ -16,6 +16,24 @@ def test_nox_reuses_the_single_locked_project_environment() -> None:
     assert "session.run_install(" not in source
     assert any(requirement.startswith("nox>=2026.7.11") for requirement in development)
     assert any(requirement.startswith("uv>=0.12.2") for requirement in development)
+    assert "PROJECT_SCRIPTS = Path(sys.executable).parent" in source
+    assert 'suffix = ".exe" if os.name == "nt" else ""' in source
+    for implicit_command in ('session.run("ethos"', 'session.run("lint-imports"'):
+        assert implicit_command not in source
+    assert '"-m",\n        "check_jsonschema"' in source
+
+
+def test_nox_gate_registry_uses_the_bound_python_runtime() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    gates = {gate["id"]: gate for gate in declaration["gates"]}
+
+    assert gates["import-boundaries"]["command"] == [
+        "{python}",
+        "-m",
+        "nox",
+        "-s",
+        "import_boundaries",
+    ]
 
 
 def test_nox_lint_includes_new_candidate_python_files() -> None:

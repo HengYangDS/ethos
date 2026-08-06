@@ -76,7 +76,7 @@ class _ResumeOptions(_RenewOptions):
     contrary_decision: Annotated[bool, Parameter(name="--contrary-decision-present")] = False
 
 
-class _TakeoverOptions(LeaseProofOptions):
+class TakeoverOptions(LeaseProofOptions):
     """Exact accepted authorization for one exceptional holder change."""
 
     branch: Annotated[str, Parameter(name="--branch")]
@@ -144,7 +144,7 @@ def lane_lease_resume(options: Annotated[_ResumeOptions, Parameter(name="*")]) -
 
 
 @lane_lease_app.command(name="takeover")
-def lane_lease_takeover(options: Annotated[_TakeoverOptions, Parameter(name="*")]) -> None:
+def lane_lease_takeover(options: Annotated[TakeoverOptions, Parameter(name="*")]) -> None:
     """Apply one accepted exact-CAS Lease takeover without transcript authority."""
     report = execute_lease_takeover(
         root=resolve_root(options.root),

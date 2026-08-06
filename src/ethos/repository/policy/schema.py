@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tomllib
+from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -53,6 +54,10 @@ def _product_schema_dir() -> Path:
         candidate = parent / "system" / "schemas" / "kernel"
         if _schema_dir_has_contracts(candidate):
             return candidate
+    packaged = resources.files("ethos").joinpath("data", "schemas", "kernel")
+    packaged_path = Path(str(packaged))
+    if _schema_dir_has_contracts(packaged_path):
+        return packaged_path
     return _schema_dir(_repo_root())
 
 

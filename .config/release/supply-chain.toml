@@ -1,6 +1,6 @@
 schema = "ethos-release-supply-chain-v1"
 owner = "ethos-quality-gate-governance"
-runner = ".venv/bin/nox -s supply_chain"
+runner = "uv run --frozen --offline python -m nox -s supply_chain"
 summary = "Syft emits SPDX 2.3 JSON for the exact built Python artifact; provenance remains a provider release concern."
 output = "build/evidence/release/supply-chain.json"
 sbom = "build/evidence/release/ethos.spdx.json"

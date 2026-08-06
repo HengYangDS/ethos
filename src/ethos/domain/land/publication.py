@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
 
 LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
-_FALLBACK = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+_FALLBACK = "run uv run --frozen --offline python -m nox -s local_ci as local fallback evidence"
 _NOT_PROBED: dict[str, object] = {
     "kind": "git_remote_availability",
     "remote": "origin",
@@ -89,7 +89,7 @@ def _evidence_status(state: str, path: str, current_head: str) -> dict[str, obje
         "verdict": "block",
         "next_action": _FALLBACK
         if state in {"missing", "not_checked"}
-        else "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence",
+        else "rerun uv run --frozen --offline python -m nox -s local_ci to refresh local fallback evidence",
     }
 
 
@@ -118,7 +118,7 @@ def local_ci_fallback_package(
         "boundary": "local-ci evidence; hosted CI status unclaimed",
         "hosted_ci_status_claimed": False,
         "remote_availability_state": str(availability.get("state") or "not_probed"),
-        "command": "tools/ci/scripts/run-local-ci.sh",
+        "command": "uv run --frozen --offline python -m nox -s local_ci",
         "owner_scripts": local_ci_owner_scripts(root=root),
         "evidence_status": status,
     }
@@ -126,7 +126,7 @@ def local_ci_fallback_package(
 
 def local_ci_owner_scripts(*, root: Path | None = None) -> list[str]:
     """Project owner gates invoked by the target repo's local-ci script."""
-    script = (root or Path.cwd()) / "tools/ci/scripts/run-local-ci.sh"
+    script = (root or Path.cwd()) / "uv run --frozen --offline python -m nox -s local_ci"
     if script.exists():
         return list(
             dict.fromkeys(

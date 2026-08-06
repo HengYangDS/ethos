@@ -140,8 +140,8 @@ GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 ## Development
 
 ```bash
-.venv/bin/nox -s tests
-.venv/bin/nox -s lint
+uv run --frozen --offline python -m nox -s tests
+uv run --frozen --offline python -m nox -s lint
 uv run ethos status --json
 uv run ethos plan --changed --json
 uv run ethos prove --json

@@ -28,11 +28,11 @@ never guesses ETHOS's own script or workflow layout for an adopter.
 Release readiness is proven with:
 
 ```bash
-.venv/bin/nox -s tests
-.venv/bin/nox -s lint
-.venv/bin/nox -s install_smoke
-.venv/bin/nox -s build
-.venv/bin/nox -s supply_chain
+uv run --frozen --offline python -m nox -s tests
+uv run --frozen --offline python -m nox -s lint
+uv run --frozen --offline python -m nox -s install_smoke
+uv run --frozen --offline python -m nox -s build
+uv run --frozen --offline python -m nox -s supply_chain
 npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm

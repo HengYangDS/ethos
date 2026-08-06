@@ -1,7 +1,7 @@
 schema = "ethos-json-schema-quality-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Validate repository JSON Schema documents as metaschemas and keep vendor schema validation explicit."
-runner = ".venv/bin/nox -s schemas"
+runner = "uv run --frozen --offline python -m nox -s schemas"
 
 [[check]]
 id = "system-json-schemas"

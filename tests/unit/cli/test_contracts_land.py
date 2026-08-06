@@ -1259,7 +1259,12 @@ def test_publish_apply_requires_authorization_and_expected_head(tmp_path: Path) 
             "remote unavailable; local-ci fallback evidence is current at HEAD",
             ("remote unavailable; local-ci fallback evidence is current at HEAD", "ethos status"),
         ),
-        ("stale", "stale", "run tools/ci/scripts/run-local-ci.sh as local fallback evidence", None),
+        (
+            "stale",
+            "stale",
+            "run uv run --frozen --offline python -m nox -s local_ci as local fallback evidence",
+            None,
+        ),
     ],
     ids=("current", "stale"),
 )
@@ -1284,7 +1289,7 @@ def test_publish_reports_local_ci_fallback_evidence(
                 "kind": "ethos_local_ci_fallback_evidence",
                 "verdict": "pass",
                 "head": evidence_head,
-                "command": "tools/ci/scripts/run-local-ci.sh",
+                "command": "uv run --frozen --offline python -m nox -s local_ci",
             },
             indent=2,
             sort_keys=True,
@@ -1316,7 +1321,7 @@ def test_publish_rejects_legacy_local_ci_ok_without_explicit_verdict(tmp_path: P
                 "kind": "ethos_local_ci_fallback_evidence",
                 "ok": True,
                 "head": head,
-                "command": "tools/ci/scripts/run-local-ci.sh",
+                "command": "uv run --frozen --offline python -m nox -s local_ci",
             },
             indent=2,
             sort_keys=True,
@@ -1332,7 +1337,7 @@ def test_publish_rejects_legacy_local_ci_ok_without_explicit_verdict(tmp_path: P
     assert evidence_status["state"] == "stale"
     assert evidence_status["evidence_head"] == head
     assert evidence_status["next_action"] == (
-        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+        "run uv run --frozen --offline python -m nox -s local_ci as local fallback evidence"
     )
 
 

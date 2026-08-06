@@ -34,7 +34,7 @@ def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
         "evidence_head": "",
         "verdict": "block",
         "next_action": (
-            "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence"
+            "rerun uv run --frozen --offline python -m nox -s local_ci to refresh local fallback evidence"
         ),
     }
 
@@ -138,7 +138,7 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
         )
 
         assert publication["next_action"] == (
-            "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+            "run uv run --frozen --offline python -m nox -s local_ci as local fallback evidence"
         )
 
 

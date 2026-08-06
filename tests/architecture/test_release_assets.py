@@ -63,10 +63,9 @@ def _assert_tool_registry(tools: str) -> None:
     assert 'config = ".config/boundaries/"' not in tools
     assert 'config = ".config/docs/lychee.toml"' not in tools
     assert 'concern = "product_boundary"' in tools
-    assert 'gate = ".venv/bin/nox -s product_boundary"' in tools
+    assert 'gate = "uv run --frozen --offline python -m nox -s product_boundary"' in tools
     assert 'concern = "local_ci_fallback"' in tools
-    assert "tools/ci/scripts/require-stable-head.sh" in tools
-    assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
+    assert 'gate = "uv run --frozen --offline python -m nox -s local_ci"' in tools
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
     assert 'tool = "ethos-docstrings-google"' in tools
     assert 'concern = "python_docstrings"' in tools
@@ -82,8 +81,7 @@ def _assert_required_ci_scripts() -> None:
     assert (ROOT / ".config/checks/coverage/.gitignore").exists()
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
     assert "def docstrings(" in noxfile
-    assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
-    assert (ROOT / "tools/ci/scripts/require-stable-head.sh").exists()
+    assert (ROOT / "tools/ci/local_ci.py").exists()
     assert "def product_boundary(" in noxfile
 
 
@@ -145,7 +143,7 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "npm config set engine-strict true" in text
     assert "npm ci --ignore-scripts" in text
     assert "npm run test:npm" in text
-    assert ".venv/bin/nox -s tests" in text
+    assert "uv run --frozen --offline python -m nox -s tests" in text
     assert 'ETHOS_TEST_WORKERS: "1"' in text
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
     assert "tools/ci/scripts/bootstrap-python.sh" in text
@@ -154,8 +152,8 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools" in text
     assert "    - build/runtime/tool-cache/lychee/" not in text
     assert "    - build/runtime/tool-cache/ci-tools/" not in text
-    assert ".venv/bin/nox -s import_boundaries" in text
-    assert ".venv/bin/nox -s docstrings" in text
+    assert "uv run --frozen --offline python -m nox -s import_boundaries" in text
+    assert "uv run --frozen --offline python -m nox -s docstrings" in text
     assert (
         "uv run --group dev lint-imports --config .config/checks/import-linter/contracts.ini"
         not in text
@@ -471,7 +469,7 @@ def test_docstring_gate_is_owned_by_separated_policy_and_nox_session() -> None:
 
 def test_module_layout_gate_is_owned_by_policy_and_nox_surfaces() -> None:
     runner = (ROOT / "noxfile.py").read_text(encoding="utf-8")
-    local_ci = (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
+    local_ci = (ROOT / "tools/ci/local_ci.py").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/module-layout/policy.toml").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
@@ -491,13 +489,13 @@ def test_module_layout_gate_is_owned_by_policy_and_nox_surfaces() -> None:
     assert 'concern = "python_module_layout"' in tools
     assert 'tool = "ethos-module-layout"' in tools
     assert 'config = ".config/checks/module-layout/policy.toml"' in tools
-    assert 'gate = ".venv/bin/nox -s module_layout"' in tools
-    assert ".venv/bin/nox -s module_layout" in local_ci
-    assert ".venv/bin/nox -s module_layout" in gitlab
-    assert ".venv/bin/nox -s module_layout" in precommit
-    assert ".venv/bin/nox -s product_boundary" in local_ci
-    assert ".venv/bin/nox -s product_boundary" in gitlab
-    assert ".venv/bin/nox -s product_boundary" in precommit
+    assert 'gate = "uv run --frozen --offline python -m nox -s module_layout"' in tools
+    assert '"module_layout"' in local_ci
+    assert "uv run --frozen --offline python -m nox -s module_layout" in gitlab
+    assert "uv run --frozen --offline python -m nox -s module_layout" in precommit
+    assert '"product_boundary"' in local_ci
+    assert "uv run --frozen --offline python -m nox -s product_boundary" in gitlab
+    assert "uv run --frozen --offline python -m nox -s product_boundary" in precommit
 
 
 def test_python_test_gate_separates_change_execution_from_terminal_coverage() -> None:
@@ -512,7 +510,9 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
     assert "coverage-floor" in declaration["proof_sets"]["full"]
     assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
     assert gates["coverage-floor"]["command"] == [
-        ".venv/bin/nox",
+        "{python}",
+        "-m",
+        "nox",
         "-s",
         "coverage_floor",
     ]
@@ -541,7 +541,7 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
     assert "patch = subprocess" in coverage
     assert "current_hard_floor = 95" in policy
     assert "aspirational_floor = 95" in policy
-    assert 'source = ".venv/bin/nox -s tests"' in policy
+    assert 'source = "uv run --frozen --offline python -m nox -s tests"' in policy
 
 
 def test_python_lint_gate_keeps_the_debt_ratchet_in_change_proof() -> None:

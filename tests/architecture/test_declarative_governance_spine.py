@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ast
 import json
-import re
 import subprocess
 import tomllib
 from pathlib import Path
@@ -44,23 +43,6 @@ def _tracked_or_nonignored(relative: str) -> list[str]:
         text=True,
     ).stdout.splitlines()
     return [path for path in paths if (ROOT / path).exists()]
-
-
-def test_canonical_decision_code_links_reference_existing_paths() -> None:
-    text = _read("docs/decisions/decision-code-links.md")
-    prefixes = (".config/", "docs/", "src/", "system/", "tests/", "tools/")
-    missing = []
-    for line in text.splitlines():
-        if not line.startswith("|") or "Historical only" in line:
-            continue
-        for reference in re.findall(r"`([^`]+)`", line):
-            path = reference.partition("::")[0]
-            if (path.startswith(prefixes) or path == "pyproject.toml") and not (
-                ROOT / path
-            ).exists():
-                missing.append(path)
-
-    assert missing == []
 
 
 def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:
@@ -500,6 +482,7 @@ def test_terminal_gate_owners_are_singular_and_hosted_logic_stays_in_tools() -> 
         "visible-sections",
         "command-examples",
         "plan-discoverability",
+        "decision-records",
     ]
     assert gates["markdown-links"]["network_policy"] == "offline"
     assert gates["external-links"]["network_policy"] == "required"

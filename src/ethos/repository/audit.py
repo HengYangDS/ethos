@@ -28,8 +28,6 @@ REQUIRED_DOCS = (
     "docs/history/README.md",
     "docs/decisions/README.md",
     "docs/decisions/decision-index.md",
-    "docs/decisions/decision-dependency-map.md",
-    "docs/decisions/decision-code-links.md",
     "docs/decisions/decision-record-template.md",
     "docs/architecture/distribution.md",
     "docs/concepts/kernel-model.md",

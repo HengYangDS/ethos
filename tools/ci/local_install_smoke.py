@@ -7,7 +7,6 @@ import json
 import os
 import shutil
 import sys
-import sysconfig
 import tomllib
 import zipfile
 from datetime import UTC
@@ -159,28 +158,18 @@ def run(session: nox.Session) -> None:
     wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
     uv, source_python = _project_script("uv"), Path(sys.executable)
     _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
-    source_site = Path(sysconfig.get_paths()["purelib"])
-    smoke_site = Path(
-        _run(
-            str(_venv_executable(smoke, "python")),
-            "-c",
-            "import sysconfig; print(sysconfig.get_paths()['purelib'])",
-        )
-    )
-    (smoke_site / "ethos-locked-runtime.pth").write_text(f"{source_site}\n", encoding="utf-8")
     _run(
         uv,
         "pip",
         "install",
         "--offline",
-        "--no-deps",
         "--python",
         str(_venv_executable(smoke, "python")),
         str(wheel),
     )
     adopter_head = _initialize_adopter(adopter)
     origin, version = _installed_cli_checks(smoke, adopter, adopter_head)
-    _run(uv, "pip", "check", "--python", str(source_python))
+    _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
     resources = _verify_resources(wheel)
     if current_tracked_head(ROOT) != head:
         session.error(f"local install smoke HEAD moved from {head}")

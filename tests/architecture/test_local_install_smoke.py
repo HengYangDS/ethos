@@ -28,9 +28,10 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "build/runtime/work/local-install-smoke" in owner
     assert "build/evidence/local-install/smoke.json" in owner
     assert '"command": "uv run --frozen --offline python -m nox -s install_smoke"' in owner
-    assert "ethos-locked-runtime.pth" in owner
-    for argument in ("install", "--offline", "--no-deps"):
+    assert "ethos-locked-runtime.pth" not in owner
+    for argument in ("install", "--offline"):
         assert f'"{argument}"' in owner
+    assert '"--no-deps"' not in owner
     assert '"check", "--python"' in owner
     assert "ethos" in owner
     assert "ethos.__file__" in owner

@@ -39,6 +39,9 @@ Node runtime ownership remains layered rather than mechanically unified:
 - `.config/checks/node/runtime.toml` owns the exact releases used to prove the
   npm launcher and the pinned Linux archive SHA-256 values. The current set is
   the latest LTS Node 24.19.0 and latest stable Node 26.7.0.
+- The Python distribution declares one platform Node payload solely to execute
+  its bundled OpenSpec package without a global Node or PATH fallback. That
+  payload owns no repository Node matrix, package workflow, or policy.
 - `tools/ci/scripts/install-node.sh` verifies the selected official archive
   against that policy before extraction.
 - Hosted npm compatibility jobs select one exact declared release and execute

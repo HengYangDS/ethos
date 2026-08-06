@@ -6,7 +6,7 @@ repos:
     hooks:
       - id: python-lint
         name: python lint, format, and ruff ratchet
-        entry: tools/ci/scripts/run-python-lint.sh
+        entry: .venv/bin/nox -s lint
         language: system
         types_or: [python, pyi]
         pass_filenames: false

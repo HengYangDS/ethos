@@ -16,7 +16,7 @@ tool = "ruff"
 config = "ruff.toml + .config/checks/ruff/ratchet.toml"
 executables = ["ruff"]
 profile = "minimal"
-gate = "tools/ci/scripts/run-python-lint.sh"
+gate = ".venv/bin/nox -s lint"
 
 [[tool]]
 concern = "tests"
@@ -55,7 +55,7 @@ concern = "python_sast"
 tool = "ruff"
 config = "ruff.toml"
 profile = "product"
-gate = "tools/ci/scripts/run-python-lint.sh"
+gate = ".venv/bin/nox -s lint"
 
 [[tool]]
 concern = "links"

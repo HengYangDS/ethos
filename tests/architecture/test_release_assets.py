@@ -533,10 +533,10 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
 
 def test_python_lint_gate_keeps_the_debt_ratchet_in_change_proof() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    runner = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "noxfile.py").read_text(encoding="utf-8")
 
     assert "ruff" in declaration["proof_sets"]["default"]
-    assert "run-ruff-ratchet.sh" in runner
+    assert "_ruff_ratchet" in runner
 
 
 def test_change_proof_does_not_own_terminal_size_debt() -> None:

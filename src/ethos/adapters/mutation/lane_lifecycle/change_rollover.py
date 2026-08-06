@@ -68,6 +68,16 @@ class _FinishRequest(NamedTuple):
     state: str
 
 
+class _RecoveryRequest(NamedTuple):
+    branch: str
+    change: str
+    previous_head: str
+    head: str
+    lease: dict[str, object]
+    command: tuple[str, ...]
+    apply: bool
+
+
 def start_change(
     *,
     root: Path,
@@ -86,38 +96,12 @@ def start_change(
     recognized = _recognized(repo, branch, change, expect_head, lease)
     if recognized is not None:
         return recognized
-    recovery = _recoverable(repo, branch, change, expect_head, lease)
+    recovery = _recoverable(repo, change, expect_head, lease)
     if recovery is not None:
-        if not apply:
-            return _report(
-                branch,
-                head,
-                "ready_to_recover",
-                [],
-                change=change,
-                previous_head=expect_head,
-            )
-        try:
-            return _finish(
-                repo,
-                _FinishRequest(
-                    branch,
-                    change,
-                    expect_head,
-                    head,
-                    lease,
-                    recovery,
-                    "recovered",
-                ),
-            )
-        except (OSError, TypeError, ValueError) as error:
-            return _report(
-                branch,
-                head,
-                "repair_required",
-                [str(error)],
-                change=change,
-            )
+        return _recover(
+            repo,
+            _RecoveryRequest(branch, change, expect_head, head, lease, recovery, apply),
+        )
     request = _StartRequest(
         branch,
         head,
@@ -151,6 +135,43 @@ def start_change(
         )
 
 
+def _recover(
+    root: Path,
+    request: _RecoveryRequest,
+) -> dict[str, object]:
+    branch, change, previous_head, head, lease, command, apply = request
+    if not apply:
+        return _report(
+            branch,
+            head,
+            "ready_to_recover",
+            [],
+            change=change,
+            previous_head=previous_head,
+        )
+    try:
+        return _finish(
+            root,
+            _FinishRequest(
+                branch,
+                change,
+                previous_head,
+                head,
+                lease,
+                command,
+                "recovered",
+            ),
+        )
+    except (OSError, TypeError, ValueError) as error:
+        return _report(
+            branch,
+            head,
+            "repair_required",
+            [str(error)],
+            change=change,
+        )
+
+
 def _preflight(
     root: Path,
     request: _StartRequest,
@@ -178,12 +199,14 @@ def _preflight(
         (not (root / "openspec" / "changes" / change).exists(), f"openspec_change_exists:{change}"),
     )
     gaps = [gap for valid, gap in checks if not valid]
+    overlay = _empty_overlay()
     if gaps:
-        return gaps, _empty_overlay()
+        return gaps, overlay
     try:
         _commitment(change=change, intent=intent, scope=scope)
     except ValueError:
-        return ["openspec_change_commitment_invalid"], _empty_overlay()
+        gaps.append("openspec_change_commitment_invalid")
+        return gaps, overlay
     overlay = change_overlay_report(
         root,
         scope=scope,
@@ -196,15 +219,19 @@ def _preflight(
     try:
         load_lease_bound_commitment(root, lease=lease)
     except ValueError as error:
-        return [str(error)], overlay
+        gaps.append(str(error))
+        return gaps, overlay
     command = openspec_cli.openspec_base_command()
     if command is None:
-        return ["openspec_official_cli_missing"], overlay
+        gaps.append("openspec_official_cli_missing")
+        return gaps, overlay
     listed = openspec_cli.run_json(root, command, ("list", "--json"))
     rows = official_change_rows(listed.get("json", {}))
     if listed.get("exit_code") != 0 or listed.get("parse_error") or rows is None:
-        return ["openspec_list_unreadable"], overlay
-    return (["openspec_active_change_present"] if rows else []), overlay
+        gaps.append("openspec_list_unreadable")
+    elif rows:
+        gaps.append("openspec_active_change_present")
+    return gaps, overlay
 
 
 def _apply(
@@ -215,13 +242,15 @@ def _apply(
     branch, _head, change, intent, scope, previous_head, _digest, _apply, old_lease = request
     command = openspec_cli.openspec_base_command()
     if command is None:
-        raise ValueError("openspec_official_cli_missing")
+        msg = "openspec_official_cli_missing"
+        raise ValueError(msg)
     result = openspec_cli.run_json(root, command, ("new", "change", change, "--json"))
     change_root = f"openspec/changes/{change}"
     created_paths = (f"{change_root}/.openspec.yaml", f"{change_root}/commitment.toml")
     if not _official_new_result(root, change, result):
         remove_untracked_tree(root, change_root)
-        raise ValueError("openspec_change_create_failed")
+        msg = "openspec_change_create_failed"
+        raise ValueError(msg)
     commitment_path = f"{change_root}/commitment.toml"
     (root / commitment_path).write_text(
         _commitment_text(change=change, intent=intent, scope=scope),
@@ -241,7 +270,8 @@ def _apply(
             paths=created_paths,
             untracked_root=change_root,
         )
-        raise ValueError("openspec_change_commit_failed")
+        msg = "openspec_change_commit_failed"
+        raise ValueError(msg)
     head = current_tracked_head(root)
     _advance_lease_head(root, branch, previous_head, head)
     return _finish(
@@ -316,7 +346,8 @@ def _advance_lease_head(
         new_value=head,
     )
     if transition.get("verdict") != "pass":
-        raise ValueError("openspec_change_lease_head_transition_failed")
+        msg = "openspec_change_lease_head_transition_failed"
+        raise ValueError(msg)
     return leases_by_branch(root).get(branch, {})
 
 
@@ -454,7 +485,6 @@ def _recognized(
 
 def _recoverable(
     root: Path,
-    branch: str,
     change: str,
     previous_head: str,
     lease: dict[str, object],

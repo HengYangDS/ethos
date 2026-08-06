@@ -22,6 +22,7 @@ _REQUIRED_SECTIONS = (
 )
 _ALTERNATIVE_HEADER = "| Option | Verdict | Pros | Cons | Decision basis |"
 _DECISION_FILE = re.compile(r"^DR-[0-9]{4}-.+\.md$")
+_RECORD_FIELD_COUNT = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,7 +103,7 @@ def _record_fields(text: str) -> dict[str, str]:
     fields: dict[str, str] = {}
     for line in table.splitlines():
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) == 2 and cells[0] not in {"Field", "---"}:
+        if len(cells) == _RECORD_FIELD_COUNT and cells[0] not in {"Field", "---"}:
             fields[cells[0]] = cells[1]
     return fields
 

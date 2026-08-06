@@ -16,7 +16,7 @@ line_width = 100
 extensions = [".py", ".pyi"]
 carrier = "Python source"
 owner = "ruff.toml"
-execution = "tools/ci/scripts/run-python-lint.sh"
+execution = ".venv/bin/nox -s lint"
 truth_boundary = "source"
 budget = [
   { category = "python_product", paths = ["src/ethos/*"], measure = "python_ast", comment_prefixes = ["#"] },

@@ -29,7 +29,7 @@ Release readiness is proven with:
 
 ```bash
 tools/ci/scripts/run-python-tests.sh
-tools/ci/scripts/run-python-lint.sh
+.venv/bin/nox -s lint
 tools/ci/scripts/run-local-install-smoke.sh
 uv build --out-dir build/artifacts/python --clear --no-create-gitignore
 tools/ci/scripts/run-release-supply-chain.sh

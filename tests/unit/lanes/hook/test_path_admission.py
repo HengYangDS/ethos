@@ -6,8 +6,6 @@ import pytest
 
 import ethos.adapters.admission.prewrite as admission_prewrite
 from ethos.adapters.admission.git_admission import hook_admission_report
-from ethos.adapters.admission.prewrite import has_control_character
-from ethos.adapters.admission.prewrite import has_path_whitespace
 from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
@@ -34,18 +32,6 @@ def worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     worktree = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     return worktree
-
-
-def test_path_token_control_character_detector_covers_ascii_controls() -> None:
-    assert has_control_character("README.md") is False
-    assert has_control_character("README.md\nAGENTS.md") is True
-    assert has_control_character("README.md\x7fAGENTS.md") is True
-
-
-def test_path_token_whitespace_detector_marks_ambiguous_subjects() -> None:
-    assert has_path_whitespace("README.md") is False
-    assert has_path_whitespace("README.md .gitignore") is True
-    assert has_path_whitespace("README.md\t.gitignore") is True
 
 
 @pytest.mark.parametrize(

@@ -76,6 +76,7 @@ def test_installed_openspec_runner_uses_the_packaged_node_runtime(
     command = openspec_cli.openspec_base_command()
 
     assert command is not None
+    assert openspec_cli.nodejs_wheel.__name__ == "nodejs_wheel"
     assert "nodejs_wheel" in command[0]
     assert command[1] == entry.as_posix()
 

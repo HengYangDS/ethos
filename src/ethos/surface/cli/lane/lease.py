@@ -15,9 +15,7 @@ from pydantic import ConfigDict
 
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_takeover
-from ethos.adapters.mutation.lane_lifecycle.lease_recovery import recover_legacy_lease
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.coordination import LeaseRecoveryRequest
 from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.semantic import Attestation
 from ethos.normalization.coercion import integer
@@ -81,15 +79,6 @@ class _ResumeOptions(_RenewOptions):
     operation = "resume"
 
     contrary_decision: Annotated[bool, Parameter(name="--contrary-decision-present")] = False
-
-
-class _RecoverOptions(LeaseProofOptions):
-    """Exact raw-row proof for destructive terminal Lease normalization."""
-
-    branch: Annotated[str, Parameter(name="--branch")]
-    holder_ref: Annotated[str, Parameter(name="--holder-ref")]
-    change_id: Annotated[str, Parameter(name="--change")]
-    ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
 
 
 class _TakeoverOptions(LeaseProofOptions):
@@ -157,27 +146,6 @@ def lane_lease_renew(options: Annotated[_RenewOptions, Parameter(name="*")]) -> 
 def lane_lease_resume(options: Annotated[_ResumeOptions, Parameter(name="*")]) -> None:
     """Resume an expired lease for the same holder and generation."""
     execute_declared_lease_operation(options)
-
-
-@lane_lease_app.command(name="recover")
-def lane_lease_recover(options: Annotated[_RecoverOptions, Parameter(name="*")]) -> None:
-    """Replace one same-holder legacy Lease from exact current repository facts."""
-    report = recover_legacy_lease(
-        root=resolve_root(options.root),
-        request=LeaseRecoveryRequest(
-            branch=options.branch,
-            holder_ref=options.holder_ref,
-            lease_id=options.lease_id,
-            expected_epoch=options.epoch,
-            expect_head=options.expect_head,
-            expected_expires_at=options.expected_expires_at,
-            expected_payload_sha256=options.expected_payload_sha256,
-            change_id=options.change_id,
-            ttl_seconds=options.ttl_seconds,
-            apply=options.apply,
-        ),
-    )
-    emit_lease_result("lane lease recover", report, json_output=options.json_output)
 
 
 @lane_lease_app.command(name="takeover")

@@ -118,7 +118,7 @@ def test_bundled_openspec_runner_requires_the_packaged_lock(
     ]
 
 
-def test_openspec_17_status_contract_exposes_artifact_graph() -> None:
+def test_openspec_18_status_contract_exposes_artifact_graph() -> None:
     payload = {
         "changeName": "example",
         "schemaName": "spec-driven",
@@ -243,7 +243,7 @@ def test_governance_report_blocks_unmapped_requirement_before_mutation(tmp_path:
     assert "model_gap" in report["required_gaps"]
 
 
-def test_repository_locked_openspec_17_resolves_project_schema_and_guidance(
+def test_repository_locked_openspec_18_resolves_project_schema_and_guidance(
     tmp_path: Path,
 ) -> None:
     command = openspec_cli.openspec_base_command()
@@ -414,7 +414,7 @@ def test_openspec_18_generates_shared_agent_skills_and_host_commands(
     assert not (codex_home / "prompts").exists()
 
 
-def test_openspec_17_instructions_contract_covers_apply_and_archive() -> None:
+def test_openspec_18_instructions_contract_covers_apply_and_archive() -> None:
     apply = {
         "changeName": "example",
         "state": "blocked",
@@ -433,7 +433,7 @@ def test_openspec_17_instructions_contract_covers_apply_and_archive() -> None:
     assert openspec_cli.instructions_contract_gaps("archive", archive) == []
 
 
-def test_openspec_17_rejects_default_store_and_accepts_archive_no_op() -> None:
+def test_openspec_18_rejects_default_store_and_accepts_archive_no_op() -> None:
     result = {
         "archive": {
             "change": "example",
@@ -455,7 +455,7 @@ def test_openspec_17_rejects_default_store_and_accepts_archive_no_op() -> None:
     assert archive["warnings"] == []
 
 
-def test_repository_locked_openspec_17_characterizes_skip_specs_and_nested_archive(
+def test_repository_locked_openspec_18_characterizes_skip_specs_and_nested_archive(
     tmp_path: Path,
 ) -> None:
     command = openspec_cli.openspec_base_command()

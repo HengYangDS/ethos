@@ -28,7 +28,7 @@ SUCCESSOR_OUTCOMES = {
     "accepted-spec-reconciliation",
     "portable-reference-boundary",
     "transition-invariant-proof",
-    "openspec-17-cutover",
+    "openspec-18-cutover",
     "coordination-reconstruction",
     "integration-throughput-housekeeping",
     "repository-knowledge-grammar",

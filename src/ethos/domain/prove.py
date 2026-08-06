@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
-from ethos.adapters.config import code_size_policy
 from ethos.measure import effective_code_lines
+from ethos.repository.policy.rules.config import load_rules_config
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
@@ -33,7 +33,9 @@ def _role_for(relative: str, surface_globs: tuple[str, ...]) -> str:
 
 def code_size_report(root: Path) -> dict[str, object]:
     """Derive the code-size gate verdict against the role-based limits."""
-    policy = code_size_policy(root)
+    quality = load_rules_config(root).get("quality")
+    policy = quality.get("code_size", {}) if isinstance(quality, dict) else {}
+    policy = cast("dict[str, object]", policy) if isinstance(policy, dict) else {}
     default_limit = int(cast("int | None", policy.get("default_effective_max_lines")) or 400)
     test_limit = int(cast("int | None", policy.get("test_effective_max_lines")) or default_limit)
     surface_limit = int(

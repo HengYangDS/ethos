@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 import ethos.domain.prove as prove
 
 
@@ -19,18 +21,23 @@ def test_code_size_report_applies_role_limits_and_global_cap(tmp_path, monkeypat
 
     monkeypatch.setattr(
         prove,
-        "code_size_policy",
+        "load_rules_config",
         lambda _root: {
-            "default_effective_max_lines": 3,
-            "surface_effective_max_lines": 5,
-            "test_effective_max_lines": 8,
-            "surface_path_globs": ["**/surface/**"],
+            "quality": {
+                "code_size": {
+                    "default_effective_max_lines": 3,
+                    "surface_effective_max_lines": 5,
+                    "test_effective_max_lines": 8,
+                    "surface_path_globs": ["**/surface/**"],
+                }
+            }
         },
     )
     monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: tuple(files))
 
     report = prove.code_size_report(tmp_path)
-    by_path = {record["path"]: record for record in report["files"]}
+    records = cast("list[dict[str, object]]", report["files"])
+    by_path = {record["path"]: record for record in records}
 
     assert by_path["src/ethos/domain/small.py"]["role"] == "logic"
     assert by_path["src/ethos/domain/small.py"]["limit"] == 3
@@ -51,7 +58,11 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
     path = tmp_path / relative
     path.parent.mkdir(parents=True)
     path.write_text("a=1\nb=2\nc=3\n", encoding="utf-8")
-    monkeypatch.setattr(prove, "code_size_policy", lambda _root: {"default_effective_max_lines": 2})
+    monkeypatch.setattr(
+        prove,
+        "load_rules_config",
+        lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 2}}},
+    )
     monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
 
     report = prove.code_size_report(tmp_path)
@@ -63,7 +74,11 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
 
 def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
     relative = "src/ethos/domain/deleted.py"
-    monkeypatch.setattr(prove, "code_size_policy", lambda _root: {"default_effective_max_lines": 2})
+    monkeypatch.setattr(
+        prove,
+        "load_rules_config",
+        lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 2}}},
+    )
     monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
 
     report = prove.code_size_report(tmp_path)

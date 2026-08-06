@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import subprocess
 import tomllib
 from pathlib import Path
 from typing import cast
@@ -18,15 +17,19 @@ nox.options.error_on_external_run = True
 nox.options.sessions = ["lint"]
 
 
-def _tracked_python_paths() -> tuple[str, ...]:
-    completed = subprocess.run(
-        ("git", "ls-files", "-z", "*.py", "*.pyi"),
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+def _tracked_python_paths(session: nox.Session) -> tuple[str, ...]:
+    output = cast(
+        "str",
+        session.run(
+            "git",
+            "ls-files",
+            "-z",
+            "*.py",
+            "*.pyi",
+            silent=True,
+        ),
     )
-    paths = tuple(path for path in completed.stdout.split("\0") if path)
+    paths = tuple(path for path in output.split("\0") if path)
     if not paths:
         msg = "no tracked Python files found for Ruff"
         raise RuntimeError(msg)
@@ -68,7 +71,7 @@ def _ruff_ratchet(session: nox.Session, paths: tuple[str, ...]) -> None:
 @nox.session(python=False)
 def lint(session: nox.Session) -> None:
     """Run repository-wide Ruff lint, format, and exact debt ratchet."""
-    paths = _tracked_python_paths()
+    paths = _tracked_python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
     session.run("ruff", "check", *common, *paths)

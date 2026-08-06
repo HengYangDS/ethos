@@ -43,7 +43,7 @@ fi
 if ! [[ "${coverage_lock_wait_seconds}" =~ ^[0-9]+$ ]]; then echo "ETHOS_COVERAGE_LOCK_WAIT_SECONDS must be a non-negative integer" >&2; exit 2; fi
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]] && { ! [[ "${shards}" =~ ^[0-9]+$ ]] || [[ "${shards}" -lt 1 ]]; }; then echo "ETHOS_TEST_SHARDS must be a positive integer" >&2; exit 2; fi
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
-export UV_PROJECT_ENVIRONMENT="build/runtime/venv"
+export UV_PROJECT_ENVIRONMENT=".venv"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage" RUFF_CACHE_DIR="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 if [[ "$#" -gt 1 || ( "$#" -eq 1 && "$1" != "--enforce-coverage-floor" ) ]]; then
   echo "usage: $0 [--enforce-coverage-floor]" >&2

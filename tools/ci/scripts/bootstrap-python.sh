@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
-# Shared GitLab Python bootstrap. CI YAML is a provider projection; this script is
-# the local SSOT for Python/uv/OpenSpec setup used by hosted jobs.
+# Synchronize the repository-local Python and OpenSpec runtimes from locked inputs.
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-# Hosted owner scripts use `uv run --no-sync` after bootstrap. Materialize the
-# same checkout-bound environment first so they cannot fall back to a default
-# `.venv` or ambient interpreter.
-export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
-bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"
-bootstrap_python="${ETHOS_BOOTSTRAP_PYTHON:-python3}"
-"${bootstrap_python}" -m venv "${bootstrap_venv}"
-"${bootstrap_venv}/bin/pip" install --disable-pip-version-check --quiet 'uv==0.11.29'
-export PATH="${bootstrap_venv}/bin:${PATH}"
+cd "${repo_root}"
+export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"
+
+required_uv="0.12.2"
+actual_uv="$(uv --version | awk '{print $2}')"
+if [[ "${actual_uv}" != "${required_uv}" ]]; then
+  printf 'uv version mismatch: expected %s, observed %s\n' "${required_uv}" "${actual_uv}" >&2
+  exit 1
+fi
 
 # The OpenSpec shim execs npx. Hosted Python images do not supply Node, and
 # this runner's Debian mirror can stall during apt installation. Reuse the
@@ -21,10 +20,7 @@ export PATH="${bootstrap_venv}/bin:${PATH}"
 if ! command -v npx >/dev/null 2>&1; then
   "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-node.sh"
 fi
-openspec_shim="${bootstrap_venv}/bin/openspec"
-ln -sf "${repo_root}/node_modules/.bin/openspec" "${openspec_shim}"
-if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "${bootstrap_venv}/bin" >> "${GITHUB_PATH}"; fi
 uv --version
 if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-scripts; fi
-openspec --version
-uv sync --group dev
+"${repo_root}/node_modules/.bin/openspec" --version
+uv sync --locked --group dev

@@ -46,7 +46,7 @@ packages = ["src/ethos"]
 "system/gates.toml" = "ethos/data/gates.toml"
 "system/policies/evidence-layout.toml" = "ethos/data/evidence_layout.toml"
 "system/policies/generated-artifact-topology.toml" = "ethos/data/generated_artifact_topology.toml"
-"system/openspec/package.json" = "ethos/data/openspec/package.json"
+"package.json" = "ethos/data/supply-chain/package.json"
 "system/schemas/kernel" = "ethos/data/schemas/kernel"
 
 [tool.hatch.build.targets.sdist]

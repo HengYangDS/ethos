@@ -280,7 +280,7 @@ def lifecycle_report(
         return {"required_gaps": [], **lifecycle}
     rows = official_change_rows(list_payload) or []
     names = [request.change] if request.change else [item["name"] for item in rows]
-    active_names = tuple(item["name"] for item in rows if item["status"] in _ACTIVE_STATUSES)
+    unarchived_names = tuple(item["name"] for item in rows)
     changes, required_gaps = [], []
     for name in names:
         status = status_payload or {}
@@ -295,7 +295,7 @@ def lifecycle_report(
         changes.append(change)
         required_gaps.extend(gaps)
     binding = scope.material_change_scope_report(
-        root, changed_paths=request.changed_paths, active_change_names=active_names
+        root, changed_paths=request.changed_paths, active_change_names=unarchived_names
     )
     required_gaps.extend(map(str, binding["required_gaps"]))
     return {

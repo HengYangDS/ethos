@@ -201,9 +201,9 @@ after the auxiliary dirty bytes, holder, Lease, and exact target state are
 admitted. The second admission cannot erase or postpone the first, while the
 task remains incomplete until the native retirement receipt exists.
 
-### Official OpenSpec 1.7 Cutover
+### Official OpenSpec 1.8 Cutover
 
-Tasks `4.1` and `6.10` own one no-compatibility cutover to OpenSpec `1.7.0`.
+Tasks `4.1` and `6.10` own one no-compatibility cutover to OpenSpec `1.8.0`.
 The repository pin and effective executable must agree; a cache-selected or
 machine-global version cannot override the declaration. The adapter consumes
 official `list`, `status`, `validate`, and `archive` JSON, including nested spec
@@ -266,7 +266,7 @@ store.
 The reachable edge is `ethos lane archive-change`, a semantically namespaced
 transaction rather than a seventh public root. It verifies the current
 same-holder Lease, exact HEAD/tree, completed official status, strict validation,
-and pre-archive proof; invokes only the pinned OpenSpec `1.7.0`; validates the
+and pre-archive proof; invokes only the pinned OpenSpec `1.8.0`; validates the
 exact rename and canonical-spec delta; commits through normal hooks; advances
 the Lease to the archived Commitment; and emits a typed Attestation. This removes
 the former split ownership among an external mutation, later Git commit, and
@@ -337,6 +337,7 @@ post-cutover refinement tables rather than appended to another ledger.
 | CL-023 | Feed hosted parity into evidence without creating another truth store. | absorbed | `7.3`, `7.4` | hosted results enter as plane-bound Attestations, never a second truth store | independent provider Attestations |
 | CL-024 | Make every admitted standard executable, evidenced, and removable. | absorbed | `6.1`, `6.9` | standards have one admitted owner, bounded evidence, exit strategy, and consumer | tool admission and dependency gates |
 | CL-025 | Keep accepted feedback auditable so scope cannot silently narrow or vanish. | superseded | `0.4`, `0.5` | structural history and intent checks replace a permanent conversation ledger | intent-closure architecture test |
+| CL-026 | Move agent mutation failure left and bind enforcement to the earliest host capability boundary; skills and prompts only route. | absorbed | `5.5`, `6.7`, `7.1` | Codex/Claude and degraded-host probes show pre-tool/pre-run rejection where supported and no unadmitted output reaches protected truth | host hook probes plus protected-ref receipts |
 
 ## Pre-cutover Task Closure
 
@@ -506,7 +507,7 @@ the sole progress owner and the table below is only its dependency projection.
 | `accepted-spec-reconciliation` | carrier reconciliation prerequisite | completed foundations | Stable specs state only implemented behavior; historical archive placement has no current authority; official strict validation and architecture tests pass. |
 | `portable-reference-boundary` | `3.4`, `3.5` | `accepted-spec-reconciliation` | Positive native ownership covers references and variation classes across code, tests, docs, schemas, templates, fixtures, and projections; product/private/workstation scans pass. |
 | `transition-invariant-proof` | `3.6` | `accepted-spec-reconciliation` | Bounded property, mutation, and formal evidence names state space, budget, kill criterion, and unsupported claims for reducers and Git/Lease effects. |
-| `openspec-17-cutover` | `4.1`; `6.10` characterization and lifecycle edge cases | `accepted-spec-reconciliation` | One exact `@fission-ai/openspec@1.7.0` executable owns complete-adopter lifecycle semantics; no cache, PATH, global, 1.6, defaultStore, parsing, or prediction fallback remains. |
+| `openspec-18-cutover` | `4.1`; `6.10` characterization and lifecycle edge cases | `accepted-spec-reconciliation` | One exact `@fission-ai/openspec@1.8.0` executable owns complete-adopter lifecycle semantics; no cache, PATH, global, 1.6, defaultStore, parsing, or prediction fallback remains. |
 | `coordination-reconstruction` | `4.2`, `4.3`, `4.4` | `accepted-spec-reconciliation` | Worktree Family, lane, Lease, handoff, takeover, inbox, records, collaboration, and competition reconstruct from Commitment, Git, fresh Facts, and Attestations with vendor-neutral actor identity. |
 | `integration-throughput-housekeeping` | `4.5`, `4.6` | `coordination-reconstruction` | Adaptive admission, parallel proof scheduling, and short candidate CAS preserve stable `dev` throughput; each authorized campaign/budget lane has one absorbed or retired receipt. |
 | `repository-knowledge-grammar` | `5.1`, `5.3`, `5.4` | `accepted-spec-reconciliation`, `portable-reference-boundary` | Canonical docs, flat newest-first DRs, rules, skills, specs, schemas, records, tests, and modules have strong grammar, narrow semantic names, and no ambiguous catch-all or physical/logic mismatch. |

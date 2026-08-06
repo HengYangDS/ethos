@@ -62,16 +62,23 @@ def lease_bound_archive_scope_report(
     requested_change: str | None = None,
     official_change_complete: bool = False,
     completion_artifacts: tuple[str, ...] = (),
+    preserved_archive: tuple[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Project the sole archive edge authorized by the current Work Lane Lease."""
     context = _archive_context(root)
     if context is None:
         return None
-    head, lease, source = context
-    change = source.id.removeprefix("change:")
-    if source.id == change or requested_change not in {None, change}:
+    head, lease, source_commitment = context
+    change = source_commitment.id.removeprefix("change:")
+    if source_commitment.id == change or requested_change not in {None, change}:
         return None
-    resolved = _archive_binding(root, head=head, change=change, lease=lease)
+    resolved = _archive_binding(
+        root,
+        head=head,
+        change=change,
+        lease=lease,
+        target_carrier=f"{preserved_archive[0]}/commitment.toml" if preserved_archive else "",
+    )
     if resolved is None:
         return None
     state, tree, carrier = resolved
@@ -88,10 +95,24 @@ def lease_bound_archive_scope_report(
     active = _active_commitments(root, tree)
     expected_active = (carrier,) if state == "completion_transition" else ()
     changed = tuple(dict.fromkeys(filter(None, changed_paths)))
+    if preserved_archive is not None:
+        preserved_source, preserved_target = preserved_archive
+        if not _exact_preserved_archive(
+            root,
+            head=head,
+            tree=tree,
+            source=preserved_source,
+            target=preserved_target,
+        ):
+            return None
     completion_invalid = state == "completion_transition" and (
         not official_change_complete or len(changed) != 1 or changed[0] not in completion_artifacts
     )
-    if archived.digest() != source.digest() or active != expected_active or completion_invalid:
+    if (
+        archived.digest() != source_commitment.digest()
+        or active != expected_active
+        or completion_invalid
+    ):
         return None
     return _scope_report(
         root,
@@ -103,12 +124,36 @@ def lease_bound_archive_scope_report(
     )
 
 
+def _exact_preserved_archive(
+    root: Path,
+    *,
+    head: str,
+    tree: str,
+    source: str,
+    target: str,
+) -> bool:
+    source_tree = git_stdout(root, "rev-parse", f"{head}:{source}")
+    target_tree = git_stdout(root, "rev-parse", f"{tree}:{target}")
+    return bool(
+        source_tree
+        and source_tree == target_tree
+        and not git_stdout(root, "rev-parse", f"{tree}:{source}")
+    )
+
+
 def _archive_binding(
-    root: Path, *, head: str, change: str, lease: dict[str, object]
+    root: Path,
+    *,
+    head: str,
+    change: str,
+    lease: dict[str, object],
+    target_carrier: str = "",
 ) -> tuple[str, str, str] | None:
     carrier = str(lease.get("base_commitment_path") or "")
     if _valid_archive_carrier(carrier, change):
         source = f"openspec/changes/{change}/commitment.toml"
+        if not git_stdout(root, "rev-parse", f"{head}:{source}"):
+            return "post_archive_closeout", current_tree(root, head), carrier
         revisions = git_stdout(root, "rev-list", head, "--", source, carrier).splitlines()
         for revision in revisions:
             parents = run_git(root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
@@ -135,11 +180,15 @@ def _archive_binding(
             }
             if all(target[name] == value for name, value in expected.items()):
                 return "completion_transition", target["expected_tree"], carrier
-        target = relocated_commitment_fields(
-            root,
-            old_head=head,
-            new_head=index_tree,
-            lease=lease,
+        target = (
+            exact_commitment_fields(
+                root,
+                head=index_tree,
+                carrier=target_carrier,
+                change_id=change,
+            )
+            if target_carrier
+            else relocated_commitment_fields(root, old_head=head, new_head=index_tree, lease=lease)
         )
     except ValueError:
         return None

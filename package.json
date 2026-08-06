@@ -11,6 +11,6 @@
     "test:npm": "npm pack --dry-run --workspace @agentic-workflow/ethos"
   },
   "devDependencies": {
-    "@fission-ai/openspec": "1.7.0"
+    "@fission-ai/openspec": "1.8.0"
   }
 }

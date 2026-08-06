@@ -14,7 +14,7 @@ Collaboration and handoff SHALL be vendor-neutral projections over selected Comm
 - **WHEN** a complete adopter initializes or updates an admitted agent host
 - **THEN** the pinned official OpenSpec workflow generates that host's Skills
   and supported slash commands from its resolved schema and workflow templates
-- **AND** generated artifacts identify OpenSpec 1.7.0 and consume official
+- **AND** generated artifacts identify OpenSpec 1.8.0 and consume official
   `status` and `instructions` output rather than hardcoded artifact names
 - **AND** ETHOS carries no copied OpenSpec template or second lifecycle owner
 

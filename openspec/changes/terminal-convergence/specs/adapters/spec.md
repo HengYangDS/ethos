@@ -125,6 +125,14 @@ The official OpenSpec CLI SHALL own Change identity, design, specs,
 task-progress, artifact dependencies, and archive lifecycle for every complete
 mutation-capable adopter. Generic kernel compilation SHALL not import OpenSpec types.
 
+#### Scenario: official active state is malformed or ambiguous
+
+- **WHEN** official `list --json` has an invalid wire shape, an absent explicitly
+  requested Change, or multiple implicitly selectable Changes
+- **THEN** ETHOS blocks with a precise gap
+- **AND** it does not select by timestamp, directory order, task-file parsing,
+  fallback field names, or a private rank.
+
 #### Scenario: A complete adopter selects a custom workflow schema
 - **WHEN** project configuration or Change metadata resolves a valid built-in,
   project-local, or installed OpenSpec schema
@@ -151,13 +159,21 @@ mutation-capable adopter. Generic kernel compilation SHALL not import OpenSpec t
   or ambiguous implicit selection blocks instead of becoming an empty clean list
 - **AND** no reader, plan, or proof path invokes or predicts `archive`.
 
-#### Scenario: A completed Change remains active
+#### Scenario: a completed Change remains active
 - **WHEN** official `list` reports a completed Change under the active changes
   surface
 - **THEN** land and accepted-root closeout report
   `openspec_completed_change_unarchived:<change>`
 - **AND** the gap clears only after the owner-native archive operation removes
   that Change from official active state.
+
+#### Scenario: historical archives use an older shape
+
+- **WHEN** a historical archive contains obsolete names, metadata, tasks, or
+  delta layout
+- **THEN** ETHOS preserves it as non-authorizing history
+- **AND** current admission does not re-run or reinterpret that historical
+  workflow.
 
 #### Scenario: Historical archive bytes use an older shape
 - **WHEN** a historical archive has obsolete naming, metadata, tasks, or delta
@@ -172,7 +188,7 @@ mutation-capable adopter. Generic kernel compilation SHALL not import OpenSpec t
 - **THEN** `ethos lane archive-change --change <id> --expect-head <head>
   --apply` verifies the same-holder Lease, exact HEAD/tree, completed official
   status, strict validation, and HEAD-bound proof before invoking pinned
-  OpenSpec `1.7.0`
+  OpenSpec `1.8.0`
 - **AND** the command admits only the exact source-to-archive rename and canonical
   spec delta, commits it through normal hooks, advances the Lease to the archived
   Commitment, and emits a content-addressed typed Attestation

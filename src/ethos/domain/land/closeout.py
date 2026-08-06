@@ -155,7 +155,11 @@ def land_next_action(
         if gap.startswith("openspec_active_change_unarchived:") and gap.endswith(":work_lane")
     )
     if active_carriers:
-        return f"openspec archive {active_carriers[0].split(':', 2)[1]} --yes --json"
+        change = active_carriers[0].split(":", 2)[1]
+        return (
+            f"ethos lane archive-change --change {change} "
+            f"--expect-head {current_head} --apply --json"
+        )
     if "proof_not_proven" in gaps:
         return f"ethos prove --execute --expect-head {current_head} --json"
     return "ethos prove --json"

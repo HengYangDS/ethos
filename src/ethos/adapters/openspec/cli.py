@@ -1,4 +1,4 @@
-"""Repository-locked OpenSpec 1.7 command and JSON contracts."""
+"""Repository-locked official OpenSpec command and JSON contracts."""
 
 from __future__ import annotations
 
@@ -13,12 +13,16 @@ from typing import Any
 from ethos.adapters.repo.git import run_command
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
-OFFICIAL_VERSION = "1.7.0"
+OFFICIAL_VERSION = ""
 OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
 _SOURCE_COMMAND_LENGTH = 2
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+_SOURCE_DECLARATION = _SOURCE_ROOT / "package.json"
+_DISTRIBUTION_DECLARATION = Path(
+    str(resources.files("ethos").joinpath("data", "supply-chain", "package.json"))
+)
 _PACKAGE = _SOURCE_ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
 _ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"
@@ -72,9 +76,7 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
             ),
         )
     else:
-        declaration = _json_object(
-            Path(str(resources.files("ethos").joinpath("data", "openspec", "package.json")))
-        )
+        declaration = _json_object(_DISTRIBUTION_DECLARATION)
         executable = Path(command[0]).resolve() if len(command) == 1 else Path()
         package = _nearest_package(executable)
         checks = (
@@ -82,7 +84,7 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
             (package.get("name") == OFFICIAL_PACKAGE, "openspec_package_identity_mismatch"),
             (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
             (
-                declaration.get("dependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+                declaration.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
                 "openspec_distribution_pin_mismatch",
             ),
         )
@@ -110,7 +112,7 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
 
 
 def status_contract_gaps(payload: dict[str, Any]) -> list[str]:
-    """Validate the OpenSpec 1.7 artifact dependency graph projection."""
+    """Validate the official artifact dependency graph projection."""
     artifacts = payload.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         return ["openspec_status_artifact_graph_missing"]
@@ -125,7 +127,7 @@ def status_contract_gaps(payload: dict[str, Any]) -> list[str]:
 
 
 def instructions_contract_gaps(operation: str, payload: dict[str, Any]) -> list[str]:
-    """Validate official OpenSpec 1.7 apply/archive instruction projections."""
+    """Validate official apply/archive instruction projections."""
     common = isinstance(payload.get("changeName"), str) and isinstance(payload.get("root"), dict)
     if operation == "archive":
         return [] if common else ["openspec_archive_instructions_invalid"]
@@ -201,9 +203,21 @@ def _json_object(path: Path) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _declared_version(path: Path) -> str:
+    declaration = _json_object(path)
+    dependencies = declaration.get("devDependencies", {})
+    return str(dependencies.get(OFFICIAL_PACKAGE) or "") if isinstance(dependencies, dict) else ""
+
+
 def _nearest_package(executable: Path) -> dict[str, Any]:
     for parent in executable.parents:
         package = _json_object(parent / "package.json")
         if package.get("name") == OFFICIAL_PACKAGE:
             return package
     return {}
+
+
+OFFICIAL_VERSION = _declared_version(
+    _SOURCE_DECLARATION if _SOURCE_DECLARATION.is_file() else _DISTRIBUTION_DECLARATION
+)
+OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"

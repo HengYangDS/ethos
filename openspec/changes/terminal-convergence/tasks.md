@@ -173,7 +173,7 @@ invariants are implemented and proved without parallel mutation owners.
   OpenSpec for every mutation-capable adopter as the sole Change/SDD carrier;
   observation-only repositories may omit it but cannot govern mutation. Pin
   and verify the effective CLI as
-  `@fission-ai/openspec@1.7.0`, reject cache/PATH/global version drift, consume
+  `@fission-ai/openspec@1.8.0`, reject cache/PATH/global version drift, consume
   official status, artifact `requires`, `skip_specs`, nested specs,
   apply/archive instructions, warnings, paths, and no-op JSON, resolve Change-ID
   syntax differences, reject `defaultStore`, retain no 1.6 or carrier fallback,
@@ -387,7 +387,7 @@ are proved homomorphic projections of one portable policy.
   unadmitted while no official merged server exists; an optional ETHOS MCP must be stateless,
   demand-loaded, schema-conformant, and behaviorally identical to CLI/SDK JSON.
 - [ ] 6.10 Close this Change through the official owner-native OpenSpec action
-  at verified version `1.7.0` as the final tracked source mutation. Bind the
+  at verified version `1.8.0` as the final tracked source mutation. Bind the
   effective tool version, returned archive path, warnings, no-op state, and
   resulting HEAD. The public `ethos lane archive-change` transition must bind
   the same-holder Lease, exact pre-archive HEAD/tree and proof, official delta,

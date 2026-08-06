@@ -211,7 +211,9 @@ def test_land_blocks_active_change_even_when_exact_head_is_proven(tmp_path: Path
     assert payload["required_gaps"] == [
         "openspec_active_change_unarchived:fixture-change:work_lane"
     ]
-    assert payload["next_action"] == "openspec archive fixture-change --yes --json"
+    assert payload["next_action"] == (
+        f"ethos lane archive-change --change fixture-change --expect-head {work_head} --apply --json"
+    )
     assert "proof_readiness" not in payload["data"]
     mutation = payload["data"]["mutation"]
     assert mutation["request"] == {
@@ -256,7 +258,9 @@ def test_land_apply_refuses_active_change_without_updating_candidate(tmp_path: P
     assert payload["required_gaps"] == [
         "openspec_active_change_unarchived:fixture-change:work_lane"
     ]
-    assert payload["next_action"] == "openspec archive fixture-change --yes --json"
+    assert payload["next_action"] == (
+        f"ethos lane archive-change --change fixture-change --expect-head {work_head} --apply --json"
+    )
     assert payload["data"]["candidate_update"] == {}
     assert git(candidate, "rev-parse", "HEAD") == candidate_head
 

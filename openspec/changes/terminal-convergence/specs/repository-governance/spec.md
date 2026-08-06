@@ -153,6 +153,38 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
   reconciles residue before the block clears
 - **AND** a self-supplied flag or holder string is insufficient.
 
+#### Scenario: agent mutation failure moves to the earliest capability boundary
+
+- **WHEN** Codex, Claude, an IDE, MCP tool, shell, or another agent host can
+  invoke a tracked mutation capability
+- **THEN** ETHOS binds exact repository, path, Work Lane, Lease, Change scope,
+  and operation admission before that capability executes whenever the host
+  exposes a pre-tool or pre-run boundary
+- **AND** skills, prompts, and generated agent instructions remain routing
+  projections rather than enforcement authority
+- **AND** a host without complete mediation declares degraded coverage and uses
+  immediate post-write fusion plus Git, exact-CAS, proof, and protected-ref
+  admission as defense in depth
+- **AND** ETHOS does not claim that a same-user raw filesystem process is
+  physically impossible, but its unadmitted output cannot become candidate,
+  accepted, or published truth.
+
+#### Scenario: agent mutation failure moves to the earliest capability boundary
+
+- **WHEN** Codex, Claude, an IDE, MCP tool, shell, or another agent host can
+  invoke a tracked mutation capability
+- **THEN** ETHOS binds exact repository, path, Work Lane, Lease, Change scope,
+  and operation admission before that capability executes whenever the host
+  exposes a pre-tool or pre-run boundary
+- **AND** skills, prompts, and generated agent instructions remain routing
+  projections rather than enforcement authority
+- **AND** a host without complete mediation declares degraded coverage and uses
+  immediate post-write fusion plus Git, exact-CAS, proof, and protected-ref
+  admission as defense in depth
+- **AND** ETHOS does not claim that a same-user raw filesystem process is
+  physically impossible, but its unadmitted output cannot become candidate,
+  accepted, or published truth.
+
 #### Scenario: exceptional lane handoff is attested
 
 - **GIVEN** a Work Lane handoff cannot be resolved by the normal local
@@ -383,6 +415,17 @@ Worktree families, lanes, leases, handoffs, inboxes, queues, records, and dashbo
   without persisting a second coordination payload, next action, or lifecycle state
 - **AND** deferred foreign scopes remain explicit on each affected lane
 - **AND** no projection grants foreign Work Lane mutation authority.
+
+#### Scenario: projection preserves observed coordination detail state
+
+- **WHEN** bounded status or orientation projects a coordination observation
+- **THEN** its summary and coordination payload SHALL both expose
+  `detail_state=deferred`
+- **AND** counts requiring foreign-path inspection SHALL remain `null` even when
+  no foreign Work Lane row is visible
+- **AND** a full coordination inventory MAY expose `detail_state=exact` and
+  integer detail counts only after computing that full inventory
+- **AND** neither state grants foreign Work Lane mutation authority.
 
 #### Scenario: normalized lease has one concrete current holder
 
@@ -683,6 +726,21 @@ environment. `build/runtime/venv`, `.nox`, bootstrap venvs, and other parallel
 project environments are retired and SHALL be rejected by active entrypoints.
 Provider-native setup may supply an exact admitted uv binary but SHALL NOT
 execute product modules or create another environment.
+
+#### Scenario: an executable entrypoint attempts root environment fallback
+
+- **WHEN** generated-artifact topology audits a product-owned executable script,
+  hook, or CI projection containing an active retired root-environment fallback
+  or bare `uv run` path that bypasses the semantic bootstrap
+- **THEN** the audit reports a required runtime-entrypoint routing gap
+- **AND** proof remains blocked until the producer routes through the bootstrap
+
+#### Scenario: legacy root environment remains observable but non-authoritative
+
+- **GIVEN** an ignored root `.venv` exists after the runtime contract changes
+- **WHEN** topology and local-state audits run
+- **THEN** they identify it as migration residue rather than product truth
+- **AND** no cleanup command removes it without an explicit local operator action
 
 #### Scenario: an executable entrypoint attempts parallel environment fallback
 

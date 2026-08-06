@@ -24,6 +24,14 @@ Purpose: place guards at the earliest useful failure point.
 Git hooks are fallback. The mandatory choke point for the accepted-root bypass
 is the pre-tool hook.
 
+Failure placement is monotonic: declarations and schemas reject invalid shape;
+context and pre-tool hooks reject invalid target or scope before a write-capable
+tool is invoked; pre-run hooks reject an inadmissible mutation command before
+process execution; post-write hooks fuse only hosts that cannot mediate earlier;
+Git, CI, and protected-ref checks are defense in depth rather than the normal
+first feedback point. Skills and prompts route agents but never substitute for
+binding the mutation capability itself.
+
 ## Context Binding
 
 Pre-tool hooks must reject tracked writes when the tool call cannot prove:

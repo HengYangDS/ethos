@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -41,15 +42,21 @@ def load_work_lane_commitment(
     lease: dict[str, object],
     change_id: str | None = None,
 ) -> Commitment:
-    """Load current intent while retaining the Lease as prior-generation fact."""
+    """Load current intent or the exact archived carrier bound by the Lease."""
+    prior = None
+    with suppress(ValueError):
+        prior = load_lease_bound_commitment(root, lease=lease)
     selected_change = change_id
     if selected_change is None:
-        try:
-            prior = load_lease_bound_commitment(root, lease=lease)
-        except ValueError:
-            prior = None
         selected_change = prior.id.removeprefix("change:") if prior is not None else None
-    return load_profile_commitment(root, change_id=selected_change)
+    try:
+        return load_profile_commitment(root, change_id=selected_change)
+    except ValueError as error:
+        if prior is None or str(error) != f"commitment_missing:{selected_change}":
+            raise
+        if prior.id != f"change:{selected_change}":
+            raise
+        return prior
 
 
 def completed_active_changes_report(root: Path) -> dict[str, object]:

@@ -137,9 +137,10 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
     _run(
         str(python),
         "-c",
-        "from ethos.adapters.openspec.cli import openspec_base_command, verify_official_cli; "
+        "from ethos.adapters.openspec.cli import "
+        "OFFICIAL_PACKAGE_SPEC, openspec_base_command, verify_official_cli; "
         "c=openspec_base_command(); assert c is not None; r=verify_official_cli(c); "
-        "assert r['verdict']=='pass' and r['package']=='@fission-ai/openspec@1.7.0'",
+        "assert r['verdict']=='pass' and r['package']==OFFICIAL_PACKAGE_SPEC",
         cwd=adopter,
     )
     return origin, version
@@ -196,7 +197,7 @@ def run(session: nox.Session) -> None:
             "ethos --help and --version",
             "installed status and plan dry-run in an adopter repository",
             "installed archive-change and rebuild dry-runs",
-            "@fission-ai/openspec@1.7.0",
+            "repository-declared OpenSpec package identity",
             "declared wheel resources match canonical sources",
         ],
         "wheel_resources": resources,

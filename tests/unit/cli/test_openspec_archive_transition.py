@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -50,12 +52,12 @@ def test_archive_change_owns_official_archive_commit_and_lease_transition(
     )
 
     archived_head = git(worktree, "rev-parse", "HEAD")
-    assert report["verdict"] == "pass", report
+    assert report["verdict"] == "pass", json.dumps(report, indent=2, default=str)
     assert report["state"] == "archived"
     assert report["previous_head"] == completed_head
     assert report["head"] == archived_head
     assert report["archive_path"].endswith("-fixture-change")
-    assert report["tool_version"] == "1.7.0"
+    assert report["tool_version"] == "1.8.0"
     assert report["required_gaps"] == []
     assert not (worktree / "openspec/changes/fixture-change").exists()
     assert (worktree / report["archive_path"] / "commitment.toml").is_file()
@@ -162,6 +164,152 @@ def test_archive_change_is_not_replayable(monkeypatch: pytest.MonkeyPatch, tmp_p
 
     assert replay["verdict"] == "block"
     assert "openspec_active_change_missing:fixture-change" in replay["required_gaps"]
+
+
+def test_archive_change_preserves_a_conflicting_immutable_archive(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    active = worktree / "openspec/changes/fixture-change"
+    archive_date = datetime.now().astimezone().date().isoformat()
+    collision = worktree / f"openspec/changes/archive/{archive_date}-fixture-change"
+    collision.parent.mkdir(parents=True)
+    shutil.copytree(active, collision)
+    historical = collision / "commitment.toml"
+    historical.write_text(
+        historical.read_text(encoding="utf-8").replace(
+            "Exercise the governed fixture lifecycle.",
+            "Preserve the earlier immutable archive generation.",
+        ),
+        encoding="utf-8",
+    )
+    git(worktree, "add", collision.relative_to(worktree).as_posix())
+    git(worktree, "commit", "-m", "retain earlier fixture archive generation")
+    collision_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=collision_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    historical_tree = git(
+        worktree, "rev-parse", f"{collision_head}:{collision.relative_to(worktree)}"
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, head: [] if head == collision_head else ["proof_not_proven"],
+    )
+
+    dry_run = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=collision_head,
+    )
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=collision_head,
+        apply=True,
+    )
+
+    assert report["verdict"] == "pass", json.dumps(report, indent=2, default=str)
+    preserved_path = str(report["preserved_archive_path"])
+    assert dry_run["state"] == "ready_to_archive"
+    assert dry_run["archive_collision"]["path"] == collision.relative_to(worktree).as_posix()
+    assert dry_run["archive_collision"]["tree"] == historical_tree
+    assert report["state"] == "archived"
+    assert preserved_path.startswith(f"{collision.relative_to(worktree).as_posix()}-")
+    assert git(worktree, "rev-parse", f"HEAD:{preserved_path}") == historical_tree
+    assert (worktree / report["archive_path"] / "commitment.toml").is_file()
+    assert not active.exists()
+    assert git(worktree, "status", "--short") == ""
+
+
+def test_archive_change_collision_rejects_stale_head_without_moving_history(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    active = worktree / "openspec/changes/fixture-change"
+    archive_date = datetime.now().astimezone().date().isoformat()
+    collision = worktree / f"openspec/changes/archive/{archive_date}-fixture-change"
+    collision.parent.mkdir(parents=True)
+    shutil.copytree(active, collision)
+    git(worktree, "add", collision.relative_to(worktree).as_posix())
+    git(worktree, "commit", "-m", "retain colliding archive")
+    collision_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=collision_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    before = git(worktree, "rev-parse", f"HEAD:{collision.relative_to(worktree)}")
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head="f" * 40,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["expect_head_mismatch"]
+    assert git(worktree, "rev-parse", f"HEAD:{collision.relative_to(worktree)}") == before
+    assert active.is_dir()
+
+
+def test_archive_change_collision_rolls_back_an_invalid_delta(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    active = worktree / "openspec/changes/fixture-change"
+    archive_date = datetime.now().astimezone().date().isoformat()
+    collision = worktree / f"openspec/changes/archive/{archive_date}-fixture-change"
+    collision.parent.mkdir(parents=True)
+    shutil.copytree(active, collision)
+    git(worktree, "add", collision.relative_to(worktree).as_posix())
+    git(worktree, "commit", "-m", "retain colliding archive before invalid delta")
+    collision_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=completed_head,
+        new_value=collision_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
+    historical_tree = git(worktree, "rev-parse", f"HEAD:{collision.relative_to(worktree)}")
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.lease_bound_archive_scope_report",
+        lambda *_args, **_kwargs: None,
+    )
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=collision_head,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == ["openspec_archive_delta_invalid"]
+    assert git(worktree, "rev-parse", "HEAD") == collision_head
+    assert git(worktree, "rev-parse", f"HEAD:{collision.relative_to(worktree)}") == historical_tree
+    assert active.is_dir()
+    assert git(worktree, "status", "--short") == ""
 
 
 def test_archive_change_rebuilds_one_exact_historical_archive_through_normal_hooks(

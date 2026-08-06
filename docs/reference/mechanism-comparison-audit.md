@@ -51,7 +51,7 @@ multi-contributor enterprise adopters.
 | MCP and agent projections | MCP readiness, assembly catalogs, materialized overlays, host probes, and assistant directives. | Agent projection docs, Skills V2, MCP smoke gate. | Keep MCP replaceable and read-mostly; do not make MCP semantic center. |
 | Agent method packs | External planning/review/verification disciplines guide agent work. | Adapter-only method-pack entries; no runtime/package dependency. | Optional and replaceable. ETHOS needs equivalent evidence discipline, not a specific pack. |
 | Task ledger and intake | Task ledgers can integrate boards, lanes, statements, and closeout. | Self-profile OpenSpec tasks plus optional task-ledger adapters. | Keep task UI adapter-only; Commitment and Attestation semantics stay ETHOS-owned. |
-| Release and supply chain | Package smoke, reproducibility, SBOM, signing, artifact policy, provider release observation. | Local SBOM, release attestation, supply-chain envelope. | External signing/upload/image scanning remain release adapters. |
+| Release and supply chain | Package smoke, reproducibility, SBOM, signing, artifact policy, provider release observation. | Syft SPDX 2.3 JSON over the exact built wheel; local receipt binds artifact/SBOM digests and tool version. | Provenance, signing, upload, and image scanning require distinct provider receipts. |
 | Domain runtime | Domain-specific data, cache, SQL, orchestration, compatibility, and observability mechanics. | Repository governance product only. | Do not absorb domain runtime. Govern it as adopter subject through profiles. |
 
 ## What ETHOS Has More Of

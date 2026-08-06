@@ -210,6 +210,24 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "tar xz -C /usr/local/bin lychee" not in installer
 
 
+def test_release_sbom_uses_pinned_syft_over_the_built_wheel() -> None:
+    installer = (ROOT / "tools/ci/scripts/install-syft.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/ci/scripts/run-release-supply-chain.sh").read_text(encoding="utf-8")
+    policy = tomllib.loads((ROOT / ".config/release/supply-chain.toml").read_text())
+
+    assert policy["tool"] == "syft"
+    assert policy["tool_version"] == "1.50.0"
+    assert policy["format"] == "spdx-json"
+    assert policy["artifact_glob"] == "build/artifacts/python/ethos-*.whl"
+    assert "syft_${version}_linux_${arch}.tar.gz" in installer
+    assert "sha256sum -c" in installer
+    assert 'syft scan "file:${artifact}"' in runner
+    assert '"SPDX-2.3"' in runner
+    assert '"not_claimed"' in runner
+    assert not (ROOT / "src/ethos/repository/release/attestation.py").exists()
+    assert not (ROOT / "tools/ci/release_supply_chain.py").exists()
+
+
 def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
     policy_path = ROOT / ".config/checks/node/runtime.toml"
     runner_path = ROOT / "tools/ci/scripts/run-node-compatibility.sh"

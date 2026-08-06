@@ -152,11 +152,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     for key, path in host_profile["surfaces"].items():
         if not (root / path).exists():
             gaps.append(f"host_surface_missing:{provider}:{key}:{path}")
-    if set(attestation.get("formats", [])) < {
-        "in-toto-shaped",
-        "slsa-shaped",
-        "spdx-lite",
-    }:
+    if attestation.get("formats") != ["spdx-2.3-json"]:
         gaps.append("attestation_formats_incomplete")
     publication_gaps = publication.get("required_gaps", [])
     if isinstance(publication_gaps, list):

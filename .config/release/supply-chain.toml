@@ -1,15 +1,19 @@
 schema = "ethos-release-supply-chain-v1"
 owner = "ethos-quality-gate-governance"
 runner = "tools/ci/scripts/run-release-supply-chain.sh"
-summary = "Release-profile evidence uses ETHOS-native SBOM, attestation, and policy envelopes before optional external signing adapters."
+summary = "Syft emits SPDX 2.3 JSON for the exact built Python artifact; provenance remains a provider release concern."
 output = "build/evidence/release/supply-chain.json"
+sbom = "build/evidence/release/ethos.spdx.json"
+artifact_glob = "build/artifacts/python/ethos-*.whl"
+tool = "syft"
+tool_version = "1.50.0"
+format = "spdx-json"
 
-commands = ["uv run python tools/ci/release_supply_chain.py"]
 [boundary]
-claim = "local release evidence envelope generated"
+claim = "the exact built wheel has a Syft-generated SPDX 2.3 JSON SBOM"
 not_claimed = [
   "remote release published",
-  "cosign signature uploaded",
-  "SLSA provenance uploaded",
+  "provenance emitted or signed",
+  "SLSA conformance or level",
   "hosted CI passed",
 ]

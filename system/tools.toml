@@ -179,6 +179,7 @@ executables = [
   "mv",
   "rm",
   "sha256sum",
+  "ssh-keygen",
   "sleep",
   "tar",
   "xz",
@@ -256,16 +257,9 @@ profile = "security"
 
 [[tool]]
 concern = "sbom"
-tool = "ethos-sbom-projection"
+tool = "syft"
 config = ".config/release/supply-chain.toml"
-artifacts = "build/evidence/release/"
-gate = "tools/ci/scripts/run-release-supply-chain.sh"
-profile = "release"
-
-[[tool]]
-concern = "attestation"
-tool = "ethos-release-attestation"
-config = ".config/release/supply-chain.toml"
+executables = ["syft"]
 artifacts = "build/evidence/release/"
 gate = "tools/ci/scripts/run-release-supply-chain.sh"
 profile = "release"

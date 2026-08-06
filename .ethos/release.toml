@@ -15,5 +15,5 @@ gitlab_remote = "origin"
 github_remote = "github"
 
 [attestation]
-formats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]
-signing = "git-ssh"
+formats = ["spdx-2.3-json"]
+signing = "provider-native"

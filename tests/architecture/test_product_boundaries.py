@@ -325,7 +325,6 @@ def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
 def test_ci_public_envelopes_do_not_publish_top_level_ok() -> None:
     for relative in (
         "tools/ci/runbook_registry.py",
-        "tools/ci/release_supply_chain.py",
         "tools/ci/architecture_projection.py",
         "tools/ci/format_selection.py",
         "tools/ci/ci_templates.py",

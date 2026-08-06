@@ -6,8 +6,6 @@ from pathlib import Path
 import pytest
 
 import ethos.repository.release.configuration as release_core
-from ethos.repository.release.attestation import release_attestation
-from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
 from ethos.repository.release.publication import publication_branch_admission
@@ -304,7 +302,7 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(tmp_path
         'tags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\n'
         'ci = ".gitlab-ci.yml"\nmerge_request_template = ".gitlab/merge_request_templates/default.md"\n'
         'issue_template = ".gitlab/issue_templates/task.md"\n\n[attestation]\n'
-        'formats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]\nsigning = "git-ssh"\n'
+        'formats = ["spdx-2.3-json"]\nsigning = "provider-native"\n'
     )
     workspace = (
         '[branch_roles]\nrelease_branch = "release"\naccepted_branch = "integration"\n'
@@ -331,12 +329,12 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(tmp_path
     ("release", "expected", "gap"),
     [
         (
-            '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[gitlab]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]\n',
+            '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[gitlab]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["spdx-2.3-json"]\n',
             {"provider": "", "layer": "profile_config", "surfaces": {}},
             "",
         ),
         (
-            '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]\n',
+            '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["spdx-2.3-json"]\n',
             None,
             "host_surface_missing:gitlab:ci:.gitlab-ci.yml",
         ),
@@ -351,68 +349,3 @@ def test_release_policy_separates_host_profile_from_product_files(
     else:
         assert "release_file_missing:.gitlab-ci.yml" not in report["required_gaps"]
         assert gap in report["required_gaps"]
-
-
-def test_release_attestation_and_sbom_project_workspace_truth() -> None:
-    attestation, sbom = (
-        release_attestation(root=Path.cwd(), head="abc123", evidence_digest="deadbeef"),
-        sbom_projection(Path.cwd()),
-    )
-    assert attestation["_type"] == "https://in-toto.io/Statement/v1"
-    assert attestation["predicateType"].endswith("/ethos-release/v1")
-    assert attestation["predicate"]["slsa"]["builder"]["id"] == "ethos"
-    assert attestation["subject"][0]["name"] == "ethos@0.1.0a2"
-    materials = {material["uri"] for material in attestation["predicate"]["slsa"]["materials"]}
-    assert {"git+repository", "ethos+evidence", "file+uv.lock", "ethos+sbom"} <= materials
-    assert attestation["predicate"]["sbom"]["lockfile"]["path"] == "uv.lock"
-    assert attestation["predicate"]["sbom"]["package_layers"]["lockfile_transitive"] > 0
-    assert sbom["format"] == "SPDX-lite"
-    assert sbom["truth"] == "pyproject-and-lockfile"
-    assert sbom["lockfile"]["path"] == "uv.lock"
-    assert sbom["lockfile"]["digest"].startswith("sha256:")
-    assert {"ethos", "pytest"} <= {package["name"] for package in sbom["packages"]}
-    assert any(
-        package["name"] == "pytest" and package["layer"] == "lockfile_transitive"
-        for package in sbom["packages"]
-    )
-    assert sbom["package_layers"]["workspace"] == 1
-    assert sbom["package_layers"]["lockfile_transitive"] > 0
-
-
-def test_sbom_projection_handles_missing_irregular_and_non_table_lockfile_packages(
-    tmp_path: Path,
-) -> None:
-    root = _minimal_release_root(tmp_path)
-    without_lock = sbom_projection(root)
-    assert without_lock["lockfile"]["digest"] == ""
-    assert without_lock["package_layers"]["lockfile_transitive"] == 0
-    (root / "uv.lock").write_text(
-        '[[package]]\nname = "editable"\nversion = "1.0.0"\nsource = { editable = "." }\n\n'
-        '[[package]]\nname = ""\nversion = "1.0.0"\n\n[[package]]\nname = "alpha"\n'
-        'version = "2.0.0"\nsource = { registry = "https://example.test/simple" }\n'
-        'wheels = [{ url = "alpha.whl", hash = "sha256:wheel" }, "not-a-wheel"]\n'
-        'sdist = { hash = "sha256:sdist" }\n\n[[package]]\nname = "beta"\nversion = "3.0.0"\n'
-        'wheels = "not-a-list"\nsdist = "not-a-table"\n\n[[package]]\nname = "gamma"\n'
-        'version = "4.0.0"\nwheels = [{ url = "gamma.whl" }]\n',
-        encoding="utf-8",
-    )
-    packages = [
-        package
-        for package in sbom_projection(root)["packages"]
-        if package["layer"] == "lockfile_transitive"
-    ]
-    assert [package["name"] for package in packages] == ["alpha", "beta", "gamma"]
-    _assert_fields(
-        packages[0],
-        name="alpha",
-        version="2.0.0",
-        layer="lockfile_transitive",
-        source="https://example.test/simple",
-        hashes=["sha256:wheel"],
-        sdist_hash="sha256:sdist",
-    )
-    assert "hashes" not in packages[1]
-    assert "sdist_hash" not in packages[1]
-    assert "hashes" not in packages[2]
-    (root / "uv.lock").write_text('package = ["not-a-table"]\n', encoding="utf-8")
-    assert sbom_projection(root)["package_layers"]["lockfile_transitive"] == 0

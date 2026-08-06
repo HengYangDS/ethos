@@ -28,6 +28,7 @@ tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
 tools/ci/scripts/run-local-install-smoke.sh
 uv build --out-dir build/artifacts/python --clear --no-create-gitignore
+tools/ci/scripts/run-release-supply-chain.sh
 npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm
@@ -47,6 +48,11 @@ environment, and exercises the installed CLI help and version surfaces. Its
 HEAD-bound receipt lives at `build/evidence/local-install/smoke.json`. This
 local proof does not assert registry delivery, remote publication, or hosted
 runner success.
+
+The supply-chain owner runs only after the Python wheel exists. Syft `1.50.0`
+generates SPDX 2.3 JSON for that exact artifact and the receipt binds its SHA-256,
+the SBOM SHA-256, HEAD, and generator version. It deliberately makes no local
+provenance, signature, SLSA-level, hosted-CI, or publication claim.
 
 Status: see front matter.
 

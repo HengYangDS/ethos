@@ -28,7 +28,7 @@ never guesses ETHOS's own script or workflow layout for an adopter.
 Release readiness is proven with:
 
 ```bash
-tools/ci/scripts/run-python-tests.sh
+.venv/bin/nox -s tests
 .venv/bin/nox -s lint
 tools/ci/scripts/run-local-install-smoke.sh
 uv build --out-dir build/artifacts/python --clear --no-create-gitignore

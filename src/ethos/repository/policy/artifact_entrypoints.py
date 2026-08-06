@@ -20,6 +20,7 @@ _ENTRYPOINT_EXPLICIT_FILES = (
     ".config/checks/pytest/pytest.ini",
     "tools/ci/ci_templates.py",
     "tools/ci/architecture_projection.py",
+    "tools/ci/python_test_gate.py",
 )
 _ENTRYPOINT_GLOB_PATTERNS = (
     ".github/workflows/*.yml",
@@ -283,26 +284,26 @@ def _import_linter_route_findings(
 
 
 def _pytest_runner_findings(rel: str, producer_text: str, full_text: str) -> list[dict[str, str]]:
-    if rel != "tools/ci/scripts/run-python-tests.sh" or "pytest" not in producer_text:
+    if rel != "tools/ci/python_test_gate.py" or "pytest" not in producer_text:
         return []
     required_routes = {
         "pytest-config": (
-            'pytest_config_path=".config/checks/pytest/pytest.ini"',
+            'PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"',
             f"generated_artifact_entrypoint_pytest_config_unrouted:{rel}",
             "pytest must use the explicit .config/checks/pytest/pytest.ini owner",
         ),
         "pytest-config-argument": (
-            '-c "${pytest_config_path}"',
+            "str(PYTEST_CONFIG)",
             f"generated_artifact_entrypoint_pytest_config_argument_missing:{rel}",
             "pytest command must pass its explicit config owner",
         ),
         "coverage-evidence": (
-            'COVERAGE_FILE="${coverage_evidence_dir}/.coverage"',
+            'self.data = self.coverage / ".coverage"',
             f"generated_artifact_entrypoint_coverage_evidence_unrouted:{rel}",
             "coverage runtime data must route under build/evidence quality evidence",
         ),
         "pytest-basetemp": (
-            '--basetemp="${pytest_tmp_dir}"',
+            'f"--basetemp={self.s.basetemp}"',
             f"generated_artifact_entrypoint_pytest_basetemp_unrouted:{rel}",
             "pytest scratch work must route to an explicit temporary work directory",
         ),

@@ -35,3 +35,19 @@ def test_nox_is_the_only_python_lint_orchestrator() -> None:
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert "run-python-lint.sh" not in text
         assert ".venv/bin/nox -s lint" in text
+
+
+def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    gates = {gate["id"]: gate for gate in declaration["gates"]}
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+    assert gates["unit-architecture"]["command"] == [".venv/bin/nox", "-s", "tests"]
+    assert gates["coverage-floor"]["command"] == [
+        ".venv/bin/nox",
+        "-s",
+        "coverage_floor",
+    ]
+    assert "def tests(" in source
+    assert "def coverage_floor(" in source
+    assert not (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()

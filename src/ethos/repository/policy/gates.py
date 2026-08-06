@@ -174,16 +174,22 @@ def _source_paths(gate: Gate) -> tuple[str, ...]:
         f"src/{reference.partition(':')[0].replace('.', '/')}.py" for reference in gate.providers
     )
     command = canonical_gate_command(gate.command)
+    noxfile = (
+        ("noxfile.py",)
+        if command and command[0].rsplit("/", maxsplit=1)[-1] == "nox" and "-s" in command
+        else ()
+    )
     script = (
         (command[0],)
         if command
+        and not noxfile
         and command[0] not in {"python", "ethos"}
         and "/" in command[0]
         and not Path(command[0]).is_absolute()
         and ".." not in Path(command[0]).parts
         else ()
     )
-    return (*providers, *script)
+    return (*providers, *noxfile, *script)
 
 
 def _bind_sources(

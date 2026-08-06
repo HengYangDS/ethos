@@ -19,8 +19,12 @@ ethos_local_ci_head="$(tools/ci/scripts/require-stable-head.sh capture)"
 _ethos_verify_local_ci_head_stability() { tools/ci/scripts/require-stable-head.sh verify "${ethos_local_ci_head}" "tools/ci/scripts/run-local-ci.sh"; }
 trap _ethos_verify_local_ci_head_stability EXIT
 
-checks=(.venv/bin/nox -s lint tools/ci/scripts/run-config-lint.sh tools/ci/scripts/run-json-schema-check.sh tools/ci/scripts/run-shell-lint.sh tools/ci/scripts/run-markdown-lint.sh tools/ci/scripts/run-prose-check.sh tools/ci/scripts/run-import-linter.sh tools/ci/scripts/run-dependency-hygiene.sh tools/ci/scripts/run-docstring-coverage.sh tools/ci/scripts/run-module-layout.sh tools/ci/scripts/run-product-boundary.sh tools/ci/scripts/run-python-vulnerability-audit.sh tools/ci/scripts/run-repository-hygiene.sh tools/ci/scripts/run-secrets-scan.sh tools/ci/scripts/run-ci-template-check.sh tools/ci/scripts/run-format-selection.sh tools/ci/scripts/run-architecture-projection-drift.sh tools/ci/scripts/run-runbook-registry-check.sh tools/ci/scripts/run-python-tests.sh tools/ci/scripts/run-local-install-smoke.sh tools/ci/scripts/run-release-supply-chain.sh tools/ci/scripts/run-hosted-provider-observation.sh)
-for check in "${checks[@]}"; do "${check}"; done
+.venv/bin/nox -s lint
+quality_checks=(tools/ci/scripts/run-config-lint.sh tools/ci/scripts/run-json-schema-check.sh tools/ci/scripts/run-shell-lint.sh tools/ci/scripts/run-markdown-lint.sh tools/ci/scripts/run-prose-check.sh tools/ci/scripts/run-import-linter.sh tools/ci/scripts/run-dependency-hygiene.sh tools/ci/scripts/run-docstring-coverage.sh tools/ci/scripts/run-module-layout.sh tools/ci/scripts/run-product-boundary.sh tools/ci/scripts/run-python-vulnerability-audit.sh tools/ci/scripts/run-repository-hygiene.sh tools/ci/scripts/run-secrets-scan.sh tools/ci/scripts/run-ci-template-check.sh tools/ci/scripts/run-format-selection.sh tools/ci/scripts/run-architecture-projection-drift.sh tools/ci/scripts/run-runbook-registry-check.sh)
+for check in "${quality_checks[@]}"; do "${check}"; done
+.venv/bin/nox -s tests
+delivery_checks=(tools/ci/scripts/run-local-install-smoke.sh tools/ci/scripts/run-release-supply-chain.sh tools/ci/scripts/run-hosted-provider-observation.sh)
+for check in "${delivery_checks[@]}"; do "${check}"; done
 
 mkdir -p build/evidence/local-ci
 ETHOS_LOCAL_CI_HEAD="${ethos_local_ci_head}" python - <<'PY'

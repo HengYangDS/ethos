@@ -137,11 +137,7 @@ def test_provider_specific_gate_differences_have_explicit_reasons() -> None:
         "tools/ci/scripts/run-node-compatibility.sh": (
             "GitLab owns the explicit Node compatibility matrix; GitHub package proof "
             "covers the canonical npm artifact once."
-        ),
-        "tools/ci/scripts/run-python-tests.sh": (
-            "GitHub verify reaches the same test owner through the single HEAD-bound proof; "
-            "GitLab exposes the owner as a native job."
-        ),
+        )
     }
 
 
@@ -180,7 +176,6 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "run-repository-hygiene.sh",
         "run-product-boundary.sh",
         "run-secrets-scan.sh",
-        "run-python-tests.sh",
         "run-ci-template-check.sh",
         "run-json-schema-check.sh",
         "run-hosted-provider-observation.sh",
@@ -195,6 +190,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         assert (ROOT / script).stat().st_mode & stat.S_IXUSR
     for text in (combined,):
         assert ".venv/bin/nox -s lint" in text
+        assert ".venv/bin/nox -s tests" in text
         assert "tools/ci/scripts/run-actionlint.sh" in text
         assert "tools/ci/scripts/run-product-boundary.sh" in text
         assert "uv build --out-dir build/artifacts/python --clear --no-create-gitignore" in text
@@ -284,12 +280,14 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
 )
 def test_github_repository_proof_executes_one_full_test_graph(relative: str) -> None:
     providers = _providers()
-    direct, proof = (
-        "tools/ci/scripts/run-python-tests.sh",
-        "tools/ci/scripts/run-head-bound-proof.sh",
+    direct = ".venv/bin/nox -s tests"
+    proof = "tools/ci/scripts/run-head-bound-proof.sh"
+    assert (
+        "tools/ci/scripts/run-python-tests.sh" not in providers["github"]["required_owner_scripts"]
     )
-    assert direct not in providers["github"]["required_owner_scripts"]
-    assert direct in providers["gitlab"]["required_owner_scripts"]
+    assert (
+        "tools/ci/scripts/run-python-tests.sh" not in providers["gitlab"]["required_owner_scripts"]
+    )
     assert proof in providers["github"]["required_owner_scripts"]
     payload = _yaml(relative)
     commands = [

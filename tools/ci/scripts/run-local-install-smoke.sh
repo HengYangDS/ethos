@@ -32,7 +32,7 @@ rm -rf "${scratch_root}"
 rm -f "${evidence_path}"
 mkdir -p "${artifact_dir}" "${check_dir}" "$(dirname "${evidence_path}")"
 
-uv build --offline --wheel --out-dir "${artifact_dir}" --clear --no-create-gitignore >&2
+.venv/bin/nox -s build >&2
 shopt -s nullglob
 wheels=("${artifact_dir}"/ethos-*.whl)
 if [[ "${#wheels[@]}" -ne 1 ]]; then

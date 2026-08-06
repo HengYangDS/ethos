@@ -223,6 +223,15 @@ profile = "minimal"
 gate = "tools/ci/scripts/run-local-ci.sh"
 
 [[tool]]
+concern = "python_build"
+tool = "Nox + uv + Hatchling"
+config = "noxfile.py + pyproject.toml + uv.lock"
+executables = ["nox", "uv"]
+artifacts = "build/artifacts/python/"
+profile = "product-toolchain"
+gate = ".venv/bin/nox -s build"
+
+[[tool]]
 concern = "local_install_smoke"
 tool = "uv offline wheel installation smoke"
 config = ".ethos/release.toml + tools/ci/scripts/run-local-install-smoke.sh"

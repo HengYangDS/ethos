@@ -158,7 +158,7 @@ jobs:
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions
-        run: tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir build/artifacts/python --clear --no-create-gitignore
+        run: .venv/bin/nox -s build
       - name: Generate SPDX SBOM
         run: tools/ci/scripts/run-release-supply-chain.sh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

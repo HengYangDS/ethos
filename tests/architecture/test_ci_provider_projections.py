@@ -193,7 +193,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         assert ".venv/bin/nox -s tests" in text
         assert "tools/ci/scripts/run-actionlint.sh" in text
         assert "tools/ci/scripts/run-product-boundary.sh" in text
-        assert "uv build --out-dir build/artifacts/python --clear --no-create-gitignore" in text
+        assert ".venv/bin/nox -s build" in text
         assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
         assert "uv run --no-project --with import-linter lint-imports" not in text
         assert "image: node:24" not in text
@@ -357,9 +357,10 @@ def test_provider_python_producers_are_runtime_bound() -> None:
         "tools/ci/scripts/run-gitlab-local-emulator.sh",
     ):
         lines = (ROOT / relative).read_text(encoding="utf-8").splitlines()
-        producers = [line.strip() for line in lines if "uv run" in line or "uv build" in line]
-        assert producers, relative
-        assert all(runtime in line for line in producers), relative
+        uv_producers = [line.strip() for line in lines if "uv run" in line]
+        assert uv_producers, relative
+        assert all(runtime in line for line in uv_producers), relative
+        assert all("uv build" not in line for line in lines), relative
 
 
 def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:

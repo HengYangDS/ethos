@@ -53,6 +53,9 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert '"system/openspec/package.json" = "ethos/data/openspec/package.json"' in (
         ROOT / "pyproject.toml"
     ).read_text(encoding="utf-8")
+    assert '"system/schemas/kernel" = "ethos/data/schemas/kernel"' in (
+        ROOT / "pyproject.toml"
+    ).read_text(encoding="utf-8")
     assert owner.count("require-stable-head.sh") == 2
     assert " capture)" in owner
     assert ' verify "${head}" "$0"' in owner

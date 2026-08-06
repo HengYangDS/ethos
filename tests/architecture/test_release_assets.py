@@ -76,7 +76,7 @@ def _assert_required_ci_scripts() -> None:
     assert (ROOT / "tools/ci/scripts/bootstrap-python.sh").exists()
     assert (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
     assert (ROOT / "tools/ci/scripts/run-import-linter.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
+    assert not (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
     assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
     assert (ROOT / ".config/checks/coverage/.gitignore").exists()
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
@@ -144,7 +144,7 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "npm config set engine-strict true" in text
     assert "npm ci --ignore-scripts" in text
     assert "npm run test:npm" in text
-    assert "tools/ci/scripts/run-python-tests.sh" in text
+    assert ".venv/bin/nox -s tests" in text
     assert 'ETHOS_TEST_WORKERS: "1"' in text
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
     assert "tools/ci/scripts/bootstrap-python.sh" in text
@@ -494,7 +494,7 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
 def test_python_test_gate_separates_change_execution_from_terminal_coverage() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
-    runner = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/ci/python_test_gate.py").read_text(encoding="utf-8")
     coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/coverage/policy.toml").read_text(encoding="utf-8")
 
@@ -503,26 +503,26 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
     assert "coverage-floor" in declaration["proof_sets"]["full"]
     assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
     assert gates["coverage-floor"]["command"] == [
-        "tools/ci/scripts/run-python-tests.sh",
-        "--enforce-coverage-floor",
+        ".venv/bin/nox",
+        "-s",
+        "coverage_floor",
     ]
     assert "--cov=ethos" in runner
-    assert "coverage_hard_floor=" in runner
-    assert "--enforce-coverage-floor" in runner
+    assert "current_hard_floor" in runner
+    assert "def enforce_floor(" in runner
     assert "--cov-fail-under=0" in runner
-    assert '"${ethos_python}" -m coverage report' in runner
-    assert '--fail-under="${coverage_hard_floor}"' in runner
-    assert 'coverage_head_path="${coverage_evidence_dir}/head.txt"' in runner
-    assert '"$(cat "${coverage_head_path}")" != "${ethos_python_test_head}"' in runner
+    assert 'self._coverage("report", f"--fail-under={floor:g}")' in runner
+    assert 'f"--fail-under={floor:g}"' in runner
+    assert 'self.head_file = self.coverage / "head.txt"' in runner
+    assert "current != self.s.head" in runner
     assert "--cov-fail-under=100" not in runner
-    assert "-W error" in runner
-    assert 'COVERAGE_FILE="${coverage_evidence_dir}/.coverage"' in runner
-    assert "rm -f .coverage .coverage.*" in runner
-    assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in runner
-    assert 'rm -f "${pytest_evidence_dir}/junit.xml"' in runner
+    assert '"-W",\n            "error"' in runner
+    assert 'self.data = self.coverage / ".coverage"' in runner
+    assert 'ROOT / ".coverage"' in runner
+    assert 'self.pytest / "junit.xml"' in runner
     assert "--cov-report=term-missing" in runner
-    assert '--cov-report="xml:${coverage_evidence_dir}/coverage.xml"' in runner
-    assert '--cov-config="${coverage_config_dir}/coverage.ini"' in runner
+    assert "f\"--cov-report=xml:{self.coverage / 'coverage.xml'}\"" in runner
+    assert 'f"--cov-config={COVERAGE_CONFIG}"' in runner
     assert "--cov-report=xml:coverage.xml" not in runner
     assert "build/evidence/quality/tests" in runner
     assert "ETHOS_TEST_BASETEMP" in runner
@@ -532,7 +532,7 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
     assert "patch = subprocess" in coverage
     assert "current_hard_floor = 95" in policy
     assert "aspirational_floor = 95" in policy
-    assert 'source = "tools/ci/scripts/run-python-tests.sh"' in policy
+    assert 'source = ".venv/bin/nox -s tests"' in policy
 
 
 def test_python_lint_gate_keeps_the_debt_ratchet_in_change_proof() -> None:

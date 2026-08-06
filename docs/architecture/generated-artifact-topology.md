@@ -149,7 +149,7 @@ happen to exist after a run. Provider CI projections, reusable owner scripts,
 package entrypoints, and tool configuration must route generated state before
 the command writes it:
 
-- `tools/ci/scripts/run-python-tests.sh` must call pytest with the explicit
+- `noxfile.py` and `tools/ci/python_test_gate.py` must call pytest with the explicit
   `.config/checks/pytest/pytest.ini` owner, route pytest cache to
   `build/runtime/tool-cache/pytest`, send coverage and JUnit machine evidence to
   `build/evidence/quality/tests/`, use an explicit scratch temp directory, and

@@ -43,7 +43,7 @@ Avoid vague subjects such as `Update files` or product claims without evidence.
 Before proposing a change:
 
 ```bash
-tools/ci/scripts/run-python-tests.sh
+.venv/bin/nox -s tests
 .venv/bin/nox -s lint
 uv run ethos status --json
 uv run ethos plan --changed --json

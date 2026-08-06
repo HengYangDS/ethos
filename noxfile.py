@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import re
+import sys
 import tomllib
+from importlib import import_module
 from pathlib import Path
 from typing import cast
 
 import nox
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 
 nox.options.default_venv_backend = "none"
@@ -77,3 +81,15 @@ def lint(session: nox.Session) -> None:
     session.run("ruff", "check", *common, *paths)
     session.run("ruff", "format", *common, "--check", *paths)
     _ruff_ratchet(session, paths)
+
+
+@nox.session(python=False)
+def tests(session: nox.Session) -> None:
+    """Run the isolated unit and architecture graph with branch coverage."""
+    PythonTestGate.from_environment().run_tests(session)
+
+
+@nox.session(python=False)
+def coverage_floor(session: nox.Session) -> None:
+    """Enforce the hard floor against current-HEAD coverage evidence."""
+    PythonTestGate.from_environment().enforce_floor(session)

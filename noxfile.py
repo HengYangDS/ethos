@@ -14,6 +14,7 @@ import nox
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
+run_install_smoke = import_module("tools.ci.local_install_smoke").run
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 
 nox.options.default_venv_backend = "none"
@@ -111,3 +112,9 @@ def build(session: nox.Session) -> None:
         "--clear",
         "--no-create-gitignore",
     )
+
+
+@nox.session(python=False)
+def install_smoke(session: nox.Session) -> None:
+    """Prove offline installation from the single built wheel."""
+    run_install_smoke(session)

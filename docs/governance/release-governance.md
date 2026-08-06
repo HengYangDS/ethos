@@ -30,7 +30,7 @@ Release readiness is proven with:
 ```bash
 .venv/bin/nox -s tests
 .venv/bin/nox -s lint
-tools/ci/scripts/run-local-install-smoke.sh
+.venv/bin/nox -s install_smoke
 .venv/bin/nox -s build
 tools/ci/scripts/run-release-supply-chain.sh
 npm ci --ignore-scripts

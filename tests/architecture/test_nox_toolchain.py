@@ -70,8 +70,19 @@ def test_nox_is_the_only_python_build_orchestrator() -> None:
         ".config/ci/templates/hosted/gitlab-ci.yml",
         ".github/workflows/ci.yml",
         ".gitlab-ci.yml",
-        "tools/ci/scripts/run-local-install-smoke.sh",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert "uv build" not in text
         assert ".venv/bin/nox -s build" in text
+
+
+def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    gates = {gate["id"]: gate for gate in declaration["gates"]}
+
+    assert gates["local-install-smoke"]["command"] == [
+        ".venv/bin/nox",
+        "-s",
+        "install_smoke",
+    ]
+    assert not (ROOT / "tools/ci/scripts/run-local-install-smoke.sh").exists()

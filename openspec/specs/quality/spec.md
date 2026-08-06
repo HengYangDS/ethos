@@ -216,7 +216,7 @@ version, module origin, and artifact digests SHALL bind to the same stable HEAD.
 
 #### Scenario: Offline installation succeeds
 
-- **WHEN** `tools/ci/scripts/run-local-install-smoke.sh` completes
+- **WHEN** `.venv/bin/nox -s install_smoke` completes
 - **THEN** disposable state stays under `build/runtime/**`
 - **AND** evidence stays under `build/evidence/**`
 - **AND** source-checkout imports, network access, HEAD movement, or artifact

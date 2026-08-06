@@ -42,7 +42,6 @@ packages = ["src/ethos"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "system/gates.toml" = "ethos/data/gates.toml"
-"system/invalid_states.toml" = "ethos/data/invalid_states.toml"
 "system/policies/evidence-layout.toml" = "ethos/data/evidence_layout.toml"
 "system/policies/generated-artifact-topology.toml" = "ethos/data/generated_artifact_topology.toml"
 "system/openspec/package.json" = "ethos/data/openspec/package.json"

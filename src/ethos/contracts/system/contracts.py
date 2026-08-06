@@ -25,7 +25,6 @@ SYSTEM_CONTRACTS = (
     "surfaces",
     "tools",
     "evidence_boundaries",
-    "invalid_states",
 )
 
 

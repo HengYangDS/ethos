@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import cast
 
 from ethos.adapters.repo.git import run_git
 
@@ -47,32 +48,10 @@ def verify_commit_trust(root: Path, revision: str) -> dict[str, object]:
         "gpg.ssh.allowedSignersFile",
         check=False,
     ).stdout.strip()
-    if not configured:
-        return _trust_report(revision, "", ["commit_trust_anchor_missing"])
-    anchor = Path(configured).expanduser()
-    if not anchor.is_absolute():
-        return _trust_report(revision, configured, ["commit_trust_anchor_not_absolute"])
-    try:
-        resolved = anchor.resolve(strict=True)
-        resolved.relative_to(root.resolve())
-    except FileNotFoundError:
-        return _trust_report(revision, configured, ["commit_trust_anchor_missing"])
-    except ValueError:
-        resolved = anchor.resolve()
-    else:
-        return _trust_report(
-            revision,
-            resolved.as_posix(),
-            ["commit_trust_anchor_inside_repository"],
-        )
-    if not resolved.is_file():
-        return _trust_report(revision, resolved.as_posix(), ["commit_trust_anchor_missing"])
-    if not _protected_from_current_identity(resolved):
-        return _trust_report(
-            revision,
-            resolved.as_posix(),
-            ["commit_trust_anchor_unprotected"],
-        )
+    resolved, gaps = _trust_anchor(root, configured)
+    if gaps:
+        return _trust_report(revision, resolved.as_posix() if resolved else configured, gaps)
+    resolved = cast("Path", resolved)
     completed = run_git(
         root,
         "-c",
@@ -87,6 +66,34 @@ def verify_commit_trust(root: Path, revision: str) -> dict[str, object]:
         **_trust_report(revision, resolved.as_posix(), gaps),
         "status": completed.stderr.strip() or completed.stdout.strip(),
     }
+
+
+def _trust_anchor(root: Path, configured: str) -> tuple[Path | None, list[str]]:
+    if not configured:
+        return None, ["commit_trust_anchor_missing"]
+    anchor = Path(configured).expanduser()
+    if not anchor.is_absolute():
+        return None, ["commit_trust_anchor_not_absolute"]
+    resolved: Path | None = None
+    gaps: list[str] = []
+    try:
+        resolved = anchor.resolve(strict=True)
+        resolved.relative_to(root.resolve())
+    except FileNotFoundError:
+        gaps = ["commit_trust_anchor_missing"]
+    except ValueError:
+        resolved = anchor.resolve()
+    else:
+        gaps = ["commit_trust_anchor_inside_repository"]
+    if resolved is not None and not gaps:
+        gaps = (
+            ["commit_trust_anchor_missing"]
+            if not resolved.is_file()
+            else ["commit_trust_anchor_unprotected"]
+            if not _protected_from_current_identity(resolved)
+            else []
+        )
+    return resolved, gaps
 
 
 def _protected_from_current_identity(path: Path) -> bool:

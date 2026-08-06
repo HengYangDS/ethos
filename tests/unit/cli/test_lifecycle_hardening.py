@@ -312,7 +312,7 @@ def test_repair_identity_resumes_after_candidate_cas_before_worktree_sync(
             "required_gaps": [],
         },
     )
-    original = identity_repair._sync_branch_worktrees
+    original = identity_repair.sync_ref_worktrees
     interrupted = False
 
     def interrupt_candidate_once(*args, **kwargs):
@@ -322,7 +322,7 @@ def test_repair_identity_resumes_after_candidate_cas_before_worktree_sync(
             return {"worktree_sync": "failed", "worktrees": []}
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(identity_repair, "_sync_branch_worktrees", interrupt_candidate_once)
+    monkeypatch.setattr(identity_repair, "sync_ref_worktrees", interrupt_candidate_once)
     arguments = (
         "lane",
         "repair-identity",
@@ -369,7 +369,7 @@ def test_repair_identity_resumes_after_accepted_cas_before_worktree_sync(
             "required_gaps": [],
         },
     )
-    original = identity_repair._sync_branch_worktrees
+    original = identity_repair.sync_ref_worktrees
     calls = 0
 
     def interrupt_accepted_once(*args, **kwargs):
@@ -379,7 +379,7 @@ def test_repair_identity_resumes_after_accepted_cas_before_worktree_sync(
             return {"worktree_sync": "failed", "worktrees": []}
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(identity_repair, "_sync_branch_worktrees", interrupt_accepted_once)
+    monkeypatch.setattr(identity_repair, "sync_ref_worktrees", interrupt_accepted_once)
     arguments = (
         "lane",
         "repair-identity",

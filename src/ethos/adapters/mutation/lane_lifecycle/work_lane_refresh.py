@@ -110,9 +110,9 @@ def refresh_work_lane_base(
     if gaps:
         return _report(context, current_head, "blocked", gaps)
     if is_ancestor(root, candidate_head, current_head):
-        return _report(context, current_head, "base_current", [])
-    if equivalent_commit_identity(root, candidate_head, current_head):
-        return _report(
+        result = _report(context, current_head, "base_current", [])
+    elif equivalent_commit_identity(root, candidate_head, current_head):
+        result = _report(
             context,
             current_head,
             "blocked",
@@ -122,9 +122,11 @@ def refresh_work_lane_base(
                 f"{candidate_head} --new-commit {current_head} --json"
             ),
         )
-    if not apply:
-        return _report(context, current_head, "ready_to_refresh_base", [])
-    return _refresh_work_lane(root, context, current_head)
+    elif not apply:
+        result = _report(context, current_head, "ready_to_refresh_base", [])
+    else:
+        result = _refresh_work_lane(root, context, current_head)
+    return result
 
 
 def _refresh_work_lane(

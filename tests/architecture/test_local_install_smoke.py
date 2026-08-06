@@ -29,7 +29,7 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "build/artifacts/python" in owner
     assert "build/runtime/work/local-install-smoke" in owner
     assert "build/evidence/local-install/smoke.json" in owner
-    assert 'uv build --offline --wheel --out-dir "${artifact_dir}"' in owner
+    assert ".venv/bin/nox -s build" in owner
     assert "uv export --locked --offline --no-dev --no-emit-project" in owner
     assert 'printf \'%s\\n\' "${source_site}" > "${smoke_site}/ethos-locked-runtime.pth"' in owner
     assert 'uv pip install --offline --no-deps --python "${smoke_python}" "${wheel}"' in owner

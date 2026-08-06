@@ -21,12 +21,15 @@ nox.options.error_on_external_run = True
 nox.options.sessions = ["lint"]
 
 
-def _tracked_python_paths(session: nox.Session) -> tuple[str, ...]:
+def _candidate_python_paths(session: nox.Session) -> tuple[str, ...]:
     output = cast(
         "str",
         session.run(
             "git",
             "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
             "-z",
             "*.py",
             "*.pyi",
@@ -35,7 +38,7 @@ def _tracked_python_paths(session: nox.Session) -> tuple[str, ...]:
     )
     paths = tuple(path for path in output.split("\0") if path)
     if not paths:
-        msg = "no tracked Python files found for Ruff"
+        msg = "no candidate Python files found for Ruff"
         raise RuntimeError(msg)
     return paths
 
@@ -75,7 +78,7 @@ def _ruff_ratchet(session: nox.Session, paths: tuple[str, ...]) -> None:
 @nox.session(python=False)
 def lint(session: nox.Session) -> None:
     """Run repository-wide Ruff lint, format, and exact debt ratchet."""
-    paths = _tracked_python_paths(session)
+    paths = _candidate_python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
     session.run("ruff", "check", *common, *paths)
@@ -93,3 +96,18 @@ def tests(session: nox.Session) -> None:
 def coverage_floor(session: nox.Session) -> None:
     """Enforce the hard floor against current-HEAD coverage evidence."""
     PythonTestGate.from_environment().enforce_floor(session)
+
+
+@nox.session(python=False)
+def build(session: nox.Session) -> None:
+    """Build the Hatchling wheel through the locked uv project environment."""
+    session.run(
+        "uv",
+        "build",
+        "--offline",
+        "--wheel",
+        "--out-dir",
+        "build/artifacts/python",
+        "--clear",
+        "--no-create-gitignore",
+    )

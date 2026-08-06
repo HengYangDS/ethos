@@ -162,8 +162,8 @@ the command writes it:
   `build/runtime/tool-cache/ruff`.
 - import-linter entrypoints must set `--cache-dir` or `IMPORT_LINTER_CACHE_DIR`
   to `build/runtime/tool-cache/import-linter`.
-- Python package builds must use `uv build --out-dir build/artifacts/python` or
-  an equivalent `build/artifacts/<kind>` route.
+- Python package builds must use the repository `nox -s build` owner, which
+  routes Hatchling output to `build/artifacts/python`.
 - `gitlab-ci-local` must use `--state-dir build/runtime/work/gitlab-ci-local`.
 
 These checks prevent a cleanup-only failure mode: a gate should not merely

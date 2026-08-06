@@ -48,7 +48,7 @@ tool = "import-linter"
 config = ".config/checks/import-linter/"
 executables = ["lint-imports"]
 profile = "product"
-gate = "tools/ci/scripts/run-import-linter.sh"
+gate = ".venv/bin/nox -s import_boundaries"
 
 [[tool]]
 concern = "python_sast"
@@ -78,14 +78,14 @@ concern = "python_docstrings"
 tool = "ethos-docstrings-google"
 config = ".config/checks/docstrings/policy.toml"
 profile = "product"
-gate = "tools/ci/scripts/run-docstring-coverage.sh"
+gate = ".venv/bin/nox -s docstrings"
 
 [[tool]]
 concern = "python_module_layout"
 tool = "ethos-module-layout"
 config = ".config/checks/module-layout/policy.toml"
 profile = "product"
-gate = "tools/ci/scripts/run-module-layout.sh"
+gate = ".venv/bin/nox -s module_layout"
 
 [[tool]]
 concern = "dependency_hygiene"
@@ -100,7 +100,7 @@ concern = "product_boundary"
 tool = "ethos-product-boundary"
 config = "src/ethos/repository/policy/boundary/product.py"
 profile = "product"
-gate = "tools/ci/scripts/run-product-boundary.sh"
+gate = ".venv/bin/nox -s product_boundary"
 
 [[tool]]
 concern = "repository_hygiene"
@@ -151,7 +151,7 @@ concern = "json_schema"
 tool = "check-jsonschema"
 config = ".config/checks/schema/jsonschema.toml + system/schemas/"
 profile = "minimal"
-gate = "tools/ci/scripts/run-json-schema-check.sh"
+gate = ".venv/bin/nox -s schemas"
 
 [[tool]]
 concern = "hook_config"

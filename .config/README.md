@@ -20,14 +20,14 @@ configuration plane, not a truth center.
   repository-wide semantic scope, plus the narrower product-package topology
   scope, ambiguous naming, facade, command-owner, and import-boundary policy; it
   contains no baseline or file-count waiver.
-  `tools/ci/scripts/run-module-layout.sh` is the reusable runner.
+  `.venv/bin/nox -s module_layout` is the reusable runner.
 - `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. `.config/checks/json/format.toml` owns path-selected Python stdlib JSON formatting: ordinary JSON is two-space pretty form, while schemas and evidence remain compact machine carriers. `tools/ci/scripts/run-config-lint.sh` invokes both owners without restating their policy.
 - `.config/checks/yaml/yamllint.yaml` owns YAML linting, including one structural blank line between semantic blocks; CI invokes it through `tools/ci/scripts/run-config-lint.sh`.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `tools/ci/scripts/run-shell-lint.sh` is the runner.
 - `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy; `tools/ci/scripts/run-markdown-lint.sh` installs Node (via `install-node.sh`) and runs `markdownlint-cli2`. The gate is lint-only — it never rewrites files — so it is safe over the digest-pinned governance documents; `evidence/`, `openspec/`, generated projections, and local state are excluded by the config.
 - `.config/checks/prose/codespell.toml` owns report-first prose spelling policy; `tools/ci/scripts/run-prose-check.sh` runs `codespell` without rewriting files and excludes archives, generated projections, evidence, and lockfiles.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy; `tools/ci/scripts/run-dependency-hygiene.sh` runs `deptry` per Python distribution so package metadata is checked without treating the workspace root as a runtime package.
-- `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `tools/ci/scripts/run-json-schema-check.sh` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
+- `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `.venv/bin/nox -s schemas` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
 - `.config/checks/security/audit.toml` owns the Python vulnerability audit boundary. `tools/ci/scripts/run-python-vulnerability-audit.sh` runs native `uv audit --frozen` against `uv.lock` and records OSV-backed local owner-gate evidence; image/package scanning, hosted CI success, and remote publication remain explicitly unclaimed.
 - The root `.gitleaks.toml` owns secret-scanning policy (gitleaks resolves its config from a git-discoverable location, so it stays at the root); `tools/ci/scripts/run-secrets-scan.sh` installs the pinned binary via `install-gitleaks.sh` and runs the scan. `.config/checks/secrets/README.md` records the ownership boundary.
 - `tools/ci/scripts/run-repository-hygiene.sh` owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, and merge-conflict marker detection.

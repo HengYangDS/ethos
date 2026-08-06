@@ -13,7 +13,7 @@ repos:
 
       - id: module-layout
         name: semantic module layout
-        entry: tools/ci/scripts/run-module-layout.sh
+        entry: .venv/bin/nox -s module_layout
         language: system
         types_or: [python, pyi]
         pass_filenames: false
@@ -29,7 +29,7 @@ repos:
         pass_filenames: false
       - id: product-boundary
         name: product boundary and contributor policy
-        entry: tools/ci/scripts/run-product-boundary.sh
+        entry: .venv/bin/nox -s product_boundary
         language: system
         pass_filenames: false
       - id: shell-lint

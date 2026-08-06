@@ -53,7 +53,7 @@ evidence = "build/evidence/quality/dependency/summary.json"
 
 [[entry]]
 id = "RUN-JSON-SCHEMA"
-command = "tools/ci/scripts/run-json-schema-check.sh"
+command = ".venv/bin/nox -s schemas"
 category = "schema-hygiene"
 evidence = "JSON stdout"
 

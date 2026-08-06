@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 import tomllib
@@ -23,6 +24,7 @@ run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_au
 run_release_supply_chain = import_module("tools.ci.release_supply_chain").run
 run_runbook_registry = import_module("tools.ci.runbook_registry").main
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
+PROJECT_SCRIPTS = Path(sys.executable).parent
 
 nox.options.default_venv_backend = "none"
 nox.options.error_on_external_run = True
@@ -81,6 +83,12 @@ def _ruff_ratchet(session: nox.Session, paths: tuple[str, ...]) -> None:
     ]
     if drift:
         session.error("Ruff ratchet drift:\n" + "\n".join(drift))
+
+
+def _project_script(name: str) -> str:
+    """Resolve a console script from the active project environment only."""
+    suffix = ".exe" if os.name == "nt" else ""
+    return str(PROJECT_SCRIPTS / f"{name}{suffix}")
 
 
 @nox.session(python=False)
@@ -171,3 +179,80 @@ def runbook_registry(session: nox.Session) -> None:
     """Verify the runbook projection against its declared commands."""
     if run_runbook_registry():
         session.error("runbook registry did not pass")
+
+
+@nox.session(python=False)
+def docstrings(session: nox.Session) -> None:
+    """Run the docstring contract through the repository CLI."""
+    session.run(
+        sys.executable,
+        "-m",
+        "ethos.cli",
+        "prove",
+        "--execute",
+        "--gate",
+        "docstrings",
+        "--json",
+    )
+
+
+@nox.session(python=False)
+def module_layout(session: nox.Session) -> None:
+    """Run the semantic module-layout contract through the repository CLI."""
+    session.run(
+        sys.executable,
+        "-m",
+        "ethos.cli",
+        "prove",
+        "--execute",
+        "--gate",
+        "module-layout",
+        "--json",
+    )
+
+
+@nox.session(python=False)
+def product_boundary(session: nox.Session) -> None:
+    """Run product-boundary admission through the repository CLI."""
+    session.run(
+        sys.executable,
+        "-m",
+        "ethos.cli",
+        "prove",
+        "--execute",
+        "--gate",
+        "product-boundary",
+        "--json",
+    )
+
+
+@nox.session(python=False)
+def import_boundaries(session: nox.Session) -> None:
+    """Run import-linter against the repository's declared contracts."""
+    cache = ROOT / "build/runtime/tool-cache/import-linter"
+    cache.mkdir(parents=True, exist_ok=True)
+    pythonpath = str(ROOT / "src")
+    if inherited := os.environ.get("PYTHONPATH"):
+        pythonpath = f"{pythonpath}{os.pathsep}{inherited}"
+    session.run(
+        _project_script("lint-imports"),
+        "--cache-dir",
+        str(cache),
+        "--config",
+        ".config/checks/import-linter/contracts.ini",
+        env={"PYTHONPATH": pythonpath},
+    )
+
+
+@nox.session(python=False)
+def schemas(session: nox.Session) -> None:
+    """Validate repository JSON Schemas against their metaschema."""
+    session.run(
+        sys.executable,
+        "-m",
+        "check_jsonschema",
+        "--check-metaschema",
+        *sorted(str(path) for path in ROOT.glob("system/schemas/**/*.json")),
+        "-o",
+        "json",
+    )

@@ -20,7 +20,7 @@ _ethos_verify_local_ci_head_stability() { tools/ci/scripts/require-stable-head.s
 trap _ethos_verify_local_ci_head_stability EXIT
 
 .venv/bin/nox -s lint
-quality_checks=(tools/ci/scripts/run-config-lint.sh tools/ci/scripts/run-json-schema-check.sh tools/ci/scripts/run-shell-lint.sh tools/ci/scripts/run-markdown-lint.sh tools/ci/scripts/run-prose-check.sh tools/ci/scripts/run-import-linter.sh .venv/bin/nox -s dependencies tools/ci/scripts/run-docstring-coverage.sh tools/ci/scripts/run-module-layout.sh tools/ci/scripts/run-product-boundary.sh .venv/bin/nox -s vulnerabilities tools/ci/scripts/run-repository-hygiene.sh tools/ci/scripts/run-secrets-scan.sh ".venv/bin/nox -s ci_templates" ".venv/bin/nox -s format_selection" ".venv/bin/nox -s architecture_projection" ".venv/bin/nox -s runbook_registry")
+quality_checks=(tools/ci/scripts/run-config-lint.sh ".venv/bin/nox -s schemas" tools/ci/scripts/run-shell-lint.sh tools/ci/scripts/run-markdown-lint.sh tools/ci/scripts/run-prose-check.sh ".venv/bin/nox -s import_boundaries" .venv/bin/nox -s dependencies ".venv/bin/nox -s docstrings" ".venv/bin/nox -s module_layout" ".venv/bin/nox -s product_boundary" .venv/bin/nox -s vulnerabilities tools/ci/scripts/run-repository-hygiene.sh tools/ci/scripts/run-secrets-scan.sh ".venv/bin/nox -s ci_templates" ".venv/bin/nox -s format_selection" ".venv/bin/nox -s architecture_projection" ".venv/bin/nox -s runbook_registry")
 for check in "${quality_checks[@]}"; do "${check}"; done
 .venv/bin/nox -s tests
 delivery_checks=(".venv/bin/nox -s install_smoke" ".venv/bin/nox -s supply_chain" tools/ci/scripts/run-hosted-provider-observation.sh)

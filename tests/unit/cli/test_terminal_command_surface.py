@@ -13,7 +13,7 @@ from ethos.adapters.mutation.proof import persist_attestation
 from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
-from ethos.surface.cli.lane.lease import _TakeoverOptions
+from ethos.surface.cli.lane.lease import TakeoverOptions
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
@@ -69,7 +69,7 @@ def test_takeover_is_a_public_generation_bound_lease_command() -> None:
 
 
 def test_takeover_runtime_annotations_are_fully_resolvable() -> None:
-    annotations = get_type_hints(_TakeoverOptions)
+    annotations = get_type_hints(TakeoverOptions)
 
     assert annotations["authorization"]
 

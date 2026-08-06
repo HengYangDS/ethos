@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     import subprocess
     from collections.abc import Callable
 
+    from ethos.adapters.mutation.lane_start_carrier import LaneStartContext
+
 
 class LaneStartRollback(NamedTuple):
     """Exact carrier ownership and effects available to lane-start compensation."""
@@ -35,6 +37,29 @@ class LaneStartRollback(NamedTuple):
     run: Callable[..., subprocess.CompletedProcess[str]]
     lease: dict[str, object] | None
     failure_gap: str
+
+
+def compensate(
+    context: LaneStartContext,
+    completed: subprocess.CompletedProcess[str],
+    *,
+    ownership: tuple[str, str, str],
+    lease: dict[str, object] | None = None,
+    gap: str | None = None,
+) -> dict[str, object]:
+    """Compensate one failed lane-start step from its shared context."""
+    return rollback_lane_start(
+        LaneStartRollback(
+            repo=context.repo,
+            target=context.target,
+            branch=context.branch,
+            ownership=ownership,
+            completed=completed,
+            run=context.run,
+            lease=lease,
+            failure_gap=gap or completed.stderr.strip() or "lane_start_initialization_failed",
+        )
+    )
 
 
 def worktree_head(

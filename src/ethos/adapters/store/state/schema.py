@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import sqlite3
-from contextlib import closing
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import git_common_dir
+
+if TYPE_CHECKING:
+    import sqlite3
 
 SCHEMA = (
     """
@@ -163,17 +165,3 @@ def validate_current_lease_schema(connection: sqlite3.Connection) -> bool:
     _require_exact_subject_uniqueness(connection)
     _require_no_lease_triggers(connection)
     return True
-
-
-def initialize_state(db_path: Path) -> None:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("pragma foreign_keys = on")
-        try:
-            connection.execute("begin immediate")
-            initialize_state_connection(connection)
-            connection.commit()
-        except Exception:
-            connection.rollback()
-            raise
-        connection.execute("pragma journal_mode = wal")

@@ -283,7 +283,7 @@ They close here rather than surviving as a second current document.
 | Product behavior uses one `src/ethos` distribution with narrow modules; adopter semantics remain in profiles or adopter repositories | superseded | product boundary and isomorphic adopter governance; `F.3`, `3.5`, `5.3`, `6.7` | package, module-boundary, and three-adopter gates |
 | Domain contracts remain profile data rather than ETHOS assumptions | absorbed | product contract and profile schemas; `6.7`, `6.8` | profile isolation and schema conformance |
 | Superpowers and host capabilities remain optional observations, never durable repository truth | absorbed | product contract and method-pack boundary; `F.7`, `4.4`, `5.5` | authority and method-pack architecture tests |
-| Complete adopters require OpenSpec as the sole Change/SDD carrier while the kernel remains vendor-neutral | absorbed | adoption and OpenSpec boundary; `F.9`, `4.1`, `5.5`, `6.7`, `6.10` | pinned 1.7 characterization, three-adopter lifecycle, and archive receipt |
+| Complete adopters require OpenSpec as the sole Change/SDD carrier while the kernel remains vendor-neutral | absorbed | adoption and OpenSpec boundary; `F.9`, `4.1`, `5.5`, `6.7`, `6.10` | pinned 1.8 characterization, three-adopter lifecycle, and archive receipt |
 | Backlog, execution runtimes, generators, and scaffolds require a proved consumer and net deletion | deferred | adapter admission; `6.9` | consumer, uninstall, and dependency gates |
 | Product behavior does not migrate into `tools/`; adopter `tools/agent` content is classified during adoption | absorbed | semantic module ownership and adopter classification; `5.3`, `6.7` | module-boundary and adopter report gates |
 | `.mailmap` and package-root re-exports remain absent | absorbed | repository hygiene; `6.6` | architecture scans |
@@ -515,7 +515,7 @@ the sole progress owner and the table below is only its dependency projection.
 | `hermetic-quality-toolchain` | `6.1`, `6.2`, `6.4` | `accepted-spec-reconciliation` | One project `.venv`, uv lock, Nox session plane, Hatchling build, native formatters, schema/link checks, hermetic fixtures, and zero-warning/suppression policy own local and hosted quality execution. |
 | `forge-projection-homomorphism` | `5.7` | `repository-knowledge-grammar`, `hermetic-quality-toolchain` | GitLab and GitHub preserve one portable policy while retaining native syntax, complete independent CI/CD, issue/review, protected-ref, and distribution behavior. |
 | `terminal-compression` | `6.3`, `6.5`, `6.6` | `portable-reference-boundary`, `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Python/global ELOC, branch coverage, architecture, duplication, dependencies, security, Cyclopts-only CLI, and no shim/wrapper/re-export/alias/compatibility residue pass repository-wide. |
-| `adopter-product-surfaces` | `6.7`, `6.8` | `openspec-17-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Python, Node/polyglot, and docs/infra adopters prove offline lifecycle, recovery, install/uninstall, CLI, SDK, subprocess JSON, schemas/conformance, and optional stateless MCP/A2A projections. |
+| `adopter-product-surfaces` | `6.7`, `6.8` | `openspec-18-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Python, Node/polyglot, and docs/infra adopters prove offline lifecycle, recovery, install/uninstall, CLI, SDK, subprocess JSON, schemas/conformance, and optional stateless MCP/A2A projections. |
 | `workflow-method-evaluation` | `6.9` | `adopter-product-surfaces`, `hermetic-quality-toolchain` | Matched task × treatment × repetition evidence admits only methods, generators, frameworks, or tools that improve completion, token, time, recovery, intent retention, evidence, and terminal ELOC without a second owner. |
 | `terminal-local-closeout` | `7.1`, `7.2` | every preceding local outcome | One immutable local HEAD passes complete proof, advances local candidate and protected `dev` by exact CAS, verifies records, and retires all owned lanes. |
 | `dual-provider-publication` | `7.3`, `7.4` | `terminal-local-closeout` | Exactly one `proposal/*` sequence proves and publishes the same commit, version, signed tag, SBOM, provenance, and artifact digests independently on GitLab and GitHub. |
@@ -563,7 +563,7 @@ completion, create lifecycle authority, or substitute for checked tasks.
 | --- | --- | --- |
 | Rename legacy concepts in place | Rejected | Labels do not remove parallel authority or historical re-evaluation. |
 | Shape the semantic kernel with OpenSpec types | Rejected | The kernel remains vendor-neutral while complete mutation-capable adoption deliberately standardizes on OpenSpec. |
-| Force every adopter onto built-in `spec-driven` | Rejected | OpenSpec 1.7 natively resolves project-local schemas and arbitrary artifact DAGs; fixing four artifact names discards official capability and blocks valid community workflows. |
+| Force every adopter onto built-in `spec-driven` | Rejected | OpenSpec 1.8 natively resolves project-local schemas and arbitrary artifact DAGs; fixing four artifact names discards official capability and blocks valid community workflows. |
 | Vendor a large community workflow unchanged | Rejected | Community schemas demonstrate useful patterns, but prompt-only gates, external skill dependencies, persistent duplicate artifacts, and ignored extension keys require independent verification and selective absorption. |
 | Replace the greenfield default before a deletion proof | Rejected | Current community sampling validates customization breadth but does not show that an ETHOS-specific schema deletes more code than it adds. Existing custom config is preserved; `spec-driven` remains only the bootstrap default, not a runtime assumption. |
 | Resolve mutation workflow from an untracked user-global schema | Rejected | OpenSpec supports global overrides for authoring convenience, but a complete adopter must reproduce the effective artifact graph from the pinned package or repository bytes on another machine. |
@@ -572,7 +572,7 @@ completion, create lifecycle authority, or substitute for checked tasks.
 | Retain amendment and ledger chains | Rejected | They create mutable semantic roots and an additional currentness system. |
 | Add a framework for coordination | Rejected | No proved consumer yet justifies its semantic and maintenance cost. |
 | Embed COMET Native or Classic | Rejected | It duplicates OpenSpec lifecycle, hook, state, archive, and task authority; only measured external treatment or verified operator output is admissible. |
-| Add OpenSpec MCP as a semantic owner | Rejected | OpenSpec 1.7 ships CLI, artifact graph, schemas, and generated Skills but no merged official MCP server; an optional stateless ETHOS MCP may project the same command JSON later without owning files or lifecycle. |
+| Add OpenSpec MCP as a semantic owner | Rejected | OpenSpec 1.8 ships CLI, artifact graph, schemas, and generated Skills but no merged official MCP server; an optional stateless ETHOS MCP may project the same command JSON later without owning files or lifecycle. |
 | Add Spec Kit, LID, AIM, ANSS, or another SDD runtime | Rejected | Each would introduce overlapping spec, task, constitution, binding, or workflow authority. ETHOS instead evaluates and may absorb their ambiguity audit, EARS-like patterns, typed derived edges, realization-drift checks, negative scope, and cross-artifact analysis into OpenSpec-compatible owners. |
 
 ## Authorized Lane Disposition
@@ -611,7 +611,7 @@ ledger are not retained.
   retain dual evaluators or dual readers.
 - **Deletion can lose unique meaning.** Inventory independent semantic deltas
   before deletion; preserve history where required and prove no active consumer.
-- **OpenSpec drift can split the Change lifecycle.** Pin and characterize 1.7
+- **OpenSpec drift can split the Change lifecycle.** Pin and characterize 1.8
   for every complete adopter; observation-only repositories fail closed before mutation.
 - **Parallel work can race.** Use exact scopes, fresh facts, resource leases,
   and short CAS integration; never infer ownership from visibility.

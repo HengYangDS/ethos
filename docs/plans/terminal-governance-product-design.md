@@ -102,7 +102,7 @@ task store, or a speculative forest of lanes.
 | `accepted-spec-reconciliation` | terminal slice accepted | Stable specs describe implemented behavior and no archived carrier remains current authority. |
 | `portable-reference-boundary` | `accepted-spec-reconciliation` | Product references and variable values have positive native owners across every product surface. |
 | `transition-invariant-proof` | `accepted-spec-reconciliation` | Reducers and Git/Lease effects have bounded property, mutation, and model evidence. |
-| `openspec-17-cutover` | `accepted-spec-reconciliation` | One exact OpenSpec 1.7 executable owns complete-adopter lifecycle semantics; the 1.6 reader and predictions are absent. |
+| `openspec-18-cutover` | `accepted-spec-reconciliation` | One exact OpenSpec 1.8 executable owns complete-adopter lifecycle semantics; no older reader or prediction path remains. |
 | `coordination-reconstruction` | `accepted-spec-reconciliation` | Lane, Lease, handoff, takeover, inbox, family, and record behavior reconstructs from Git, Facts, Commitment, and Attestations. |
 | `integration-throughput-housekeeping` | `coordination-reconstruction` | Adaptive admission and short candidate CAS preserve throughput; every authorized residue has one absorption or retirement result. |
 | `repository-knowledge-grammar` | `accepted-spec-reconciliation`, `portable-reference-boundary` | Docs, flat DRs, rules, schemas, skills, and specs have narrow owners, strong grammar, and no ambiguous catch-all. |
@@ -110,7 +110,7 @@ task store, or a speculative forest of lanes.
 | `hermetic-quality-toolchain` | `accepted-spec-reconciliation` | Project `.venv`, uv, Nox, Hatchling, native formatters, and zero-warning checks are the sole local/hosted execution owners. |
 | `forge-projection-homomorphism` | `repository-knowledge-grammar`, `hermetic-quality-toolchain` | GitLab and GitHub are independent complete projections of one portable contract. |
 | `terminal-compression` | `portable-reference-boundary`, `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Repository-wide architecture, duplication, coverage, and ELOC constraints pass with no suppressions or compatibility residue. |
-| `adopter-product-surfaces` | `openspec-17-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Three adopter shapes and CLI, SDK, JSON, schema, MCP/A2A projections prove the same kernel and first-hour UX. |
+| `adopter-product-surfaces` | `openspec-18-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Three adopter shapes and CLI, SDK, JSON, schema, MCP/A2A projections prove the same kernel and first-hour UX. |
 | `workflow-method-evaluation` | `adopter-product-surfaces`, `hermetic-quality-toolchain` | Matched evaluation admits only methods or tools that improve completion, time, token, recovery, and terminal size without a second owner. |
 | `terminal-local-closeout` | all preceding local outcomes | One immutable HEAD passes full local proof, advances candidate and `dev`, and retires every owned lane. |
 | `dual-provider-publication` | `terminal-local-closeout` | One `proposal/*` sequence proves and publishes the same signed artifacts independently on GitLab and GitHub. |

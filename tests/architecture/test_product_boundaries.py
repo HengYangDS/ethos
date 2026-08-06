@@ -69,11 +69,6 @@ def product_surface_files() -> list[Path]:
     return sorted(files)
 
 
-def documentation_topology_files() -> list[Path]:
-    """Return the retired topology locator, the only carrier this check governs."""
-    return [ROOT / "docs" / "architecture" / "docs-topology.md"]
-
-
 def imported_modules(path: Path) -> set[str]:
     modules: set[str] = set()
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -278,7 +273,6 @@ def test_lane_resolution_parallel_truth_plane_is_absent() -> None:
 @pytest.mark.parametrize(
     ("paths", "terms", "lower"),
     [
-        (documentation_topology_files, RETIRED_SELF_TERMS, True),
         (product_surface_files, HOST_PROJECTION_LABELS, False),
     ],
 )
@@ -745,6 +739,16 @@ def test_markdown_docs_declare_subject_role_state_relations() -> None:
         header = text.split("---", 2)[1]
         for field in ("subject:", "role:", "state:", "relations:"):
             assert field in header, path
+
+
+def test_superseded_documents_live_only_in_decisions_or_history() -> None:
+    superseded = []
+    for path in (ROOT / "docs").rglob("*.md"):
+        header = path.read_text(encoding="utf-8").split("---", 2)[1]
+        if "state: superseded" in header:
+            superseded.append(path.relative_to(ROOT / "docs").parts[0])
+
+    assert set(superseded) <= {"decisions", "history"}
 
 
 def test_command_plane_docs_match_the_terminal_root_vocabulary() -> None:

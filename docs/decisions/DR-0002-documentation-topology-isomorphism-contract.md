@@ -13,7 +13,8 @@ Status: superseded.
 Purpose: record the durable ruling that ETHOS and governed repositories must
 share a high-isomorphism documentation kernel before DR-0004 replaced `current`/`future` physical lanes with semantic roots.
 
-See also: [Docs Topology](../architecture/docs-topology.md),
+See also: [Historical Documentation Topology](../history/docs-topology-contract-20260708.md),
+[Docs Registry](../governance/docs-registry.md),
 [DR-0004](DR-0004-native-documentation-topology-contract.md),
 [Decision Index](decision-index.md), and [Generated Artifact Topology](../architecture/generated-artifact-topology.md).
 

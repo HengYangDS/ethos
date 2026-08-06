@@ -43,6 +43,13 @@ parallel maps.
 Archive material may preserve old vocabulary. Canonical docs must lead with the
 single `ethos ...` command plane.
 
+Superseded documents live only as flat Decision Records or explicit
+`docs/history/` carriers. Current architecture, governance, reference, start,
+and plan surfaces must not retain redirect or locator pages for retired
+concepts; they link directly to the historical carrier when historical context
+is necessary. Retirement removes only the redundant current-surface carrier,
+never immutable OpenSpec archives or historical evidence bytes.
+
 ## Portability Boundary
 
 The registry owns portable document metadata, role/state vocabulary, taxonomy

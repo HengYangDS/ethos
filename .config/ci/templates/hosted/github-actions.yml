@@ -67,7 +67,7 @@ jobs:
       - name: Module layout
         run: tools/ci/scripts/run-module-layout.sh
       - name: Python vulnerability audit
-        run: tools/ci/scripts/run-python-vulnerability-audit.sh
+        run: .venv/bin/nox -s vulnerabilities
       - name: Secrets scan
         run: tools/ci/scripts/run-secrets-scan.sh
       - name: External links

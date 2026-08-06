@@ -29,7 +29,7 @@ and [Forge Provider Contract](../governance/forge-provider-contract.md).
 | RUN-RELEASE-SUPPLY-CHAIN | `tools/ci/scripts/run-release-supply-chain.sh` | built-wheel SPDX SBOM | `build/evidence/release/supply-chain.json` |
 
 | RUN-DEPENDENCY-HYGIENE | `.venv/bin/nox -s dependencies` | dependency-hygiene | `build/evidence/quality/dependency/summary.json` |
-| RUN-PYTHON-VULNERABILITY-AUDIT | `tools/ci/scripts/run-python-vulnerability-audit.sh` | security-vulnerability | `build/evidence/quality/security/python-vulnerability-audit.json` |
+| RUN-PYTHON-VULNERABILITY-AUDIT | `.venv/bin/nox -s vulnerabilities` | security-vulnerability | `build/evidence/quality/security/python-vulnerability-audit.json` |
 | RUN-JSON-SCHEMA | `tools/ci/scripts/run-json-schema-check.sh` | schema-hygiene | JSON stdout |
 | RUN-PROSE-CHECK | `tools/ci/scripts/run-prose-check.sh` | prose | exit code + codespell count |
 | RUN-HOSTED-PROVIDER-OBSERVATION | `tools/ci/scripts/run-hosted-provider-observation.sh` | hosted-provider-observation | `build/evidence/hosted-ci/observation.json` |

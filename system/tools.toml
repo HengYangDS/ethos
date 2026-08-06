@@ -261,7 +261,7 @@ concern = "python_vuln"
 tool = "uv audit"
 config = ".config/checks/security/audit.toml"
 artifacts = "build/evidence/quality/security/"
-gate = "tools/ci/scripts/run-python-vulnerability-audit.sh"
+gate = ".venv/bin/nox -s vulnerabilities"
 profile = "security"
 
 [[tool]]

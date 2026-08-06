@@ -55,6 +55,7 @@ include = [
   "/system",
   "/README.md",
   "/LICENSE",
+  "/package.json",
   "/pyproject.toml",
 ]
 

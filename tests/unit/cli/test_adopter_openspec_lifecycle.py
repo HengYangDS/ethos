@@ -63,6 +63,23 @@ def test_openspec_runner_is_repository_locked_without_fallbacks(
     assert os.environ["PATH"] == "/tmp/untrusted-path"
 
 
+def test_installed_openspec_runner_uses_the_packaged_node_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(openspec_cli, "_SOURCE_NODE", None)
+    entry = tmp_path / "openspec.js"
+    entry.touch()
+    monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_ENTRY", entry)
+    monkeypatch.setattr(openspec_cli, "verify_official_cli", lambda _command: {"verdict": "pass"})
+
+    command = openspec_cli.openspec_base_command()
+
+    assert command is not None
+    assert "nodejs_wheel" in command[0]
+    assert command[1] == entry.as_posix()
+
+
 def test_bundled_openspec_runner_requires_the_packaged_lock(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

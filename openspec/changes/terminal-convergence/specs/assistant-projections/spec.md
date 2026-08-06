@@ -9,6 +9,26 @@ Collaboration and handoff SHALL be vendor-neutral projections over selected Comm
 - **THEN** ETHOS reports package, registry, generator, and projection drift
   records without accepting host metadata as authority
 
+#### Scenario: official workflow projects agent-native entry points
+
+- **WHEN** a complete adopter initializes or updates an admitted agent host
+- **THEN** the pinned official OpenSpec workflow generates that host's Skills
+  and supported slash commands from its resolved schema and workflow templates
+- **AND** generated artifacts identify OpenSpec 1.7.0 and consume official
+  `status` and `instructions` output rather than hardcoded artifact names
+- **AND** ETHOS carries no copied OpenSpec template or second lifecycle owner
+
+#### Scenario: the skill portfolio evolves without parallel truth
+
+- **WHEN** an ETHOS skill route is admitted, evaluated, replaced, or retired
+- **THEN** coverage, overlap, novelty, route ownership, package quality, and
+  retirement checks report one active subject-operation owner
+- **AND** retirement removes the obsolete carrier and records its reason, date,
+  and kill signal
+- **AND** matched evaluation remains evidence metadata and cannot own tasks,
+  progress, status, completion, or lifecycle
+- **AND** Superpowers and other method packs remain optional procedures
+
 #### Scenario: a different agent takes over
 - **WHEN** an agent host changes
 - **THEN** the successor consumes the same bounded handoff projection without replaying private session state

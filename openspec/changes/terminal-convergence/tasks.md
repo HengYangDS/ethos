@@ -265,7 +265,7 @@ throughput, and lane housekeeping are implemented and proved.
 - [x] 5.4 Make DRs flat, newest-current first, strongly structured, and concise;
   alternatives use comparable decision tables with pros, cons, rationale,
   consequences, revisit triggers, and evidence.
-- [ ] 5.5 Make specs, rules, and skills evolve through coverage, overlap,
+- [x] 5.5 Make specs, rules, and skills evolve through coverage, overlap,
   novelty, route-owner, quality, retirement, and matched evaluation checks;
   Superpowers remains an optional method pack, OpenSpec tasks remain the sole
   task SSOT, official OpenSpec Skills are generated projections without truth

@@ -11,6 +11,7 @@ from ethos.assistants.skills.packages import validate_skill_markdown
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
+from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.contracts.skill.activation import skill_registry_digest
 from ethos.contracts.verdict import close_verdict
@@ -60,11 +61,15 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         v2_gaps.append(f"playbook_activation_unsupported_version:{activation_version}")
     portfolio_coverage_report = portfolio_coverage(registry.get("coverage", {}), records)
     portfolio_design_report = portfolio_design(records, package_reports)
+    portfolio_retirement_report = portfolio_retirement(registry, records, root)
     v2_gaps.extend(
         str(gap) for gap in cast("list[object]", portfolio_coverage_report["required_gaps"])
     )
     v2_gaps.extend(
         str(gap) for gap in cast("list[object]", portfolio_design_report["required_gaps"])
+    )
+    v2_gaps.extend(
+        str(gap) for gap in cast("list[object]", portfolio_retirement_report["required_gaps"])
     )
     if skills_root.exists() and not (skills_root / "README.md").exists():
         required_gaps.append(".agents/skills/README.md")
@@ -92,6 +97,7 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         "coverage": _coverage(records),
         "portfolio_coverage": portfolio_coverage_report,
         "portfolio_design": portfolio_design_report,
+        "portfolio_retirement": portfolio_retirement_report,
         "package_quality": {
             "verdict": close_verdict("pass", required_gaps=tuple(package_quality_gaps)),
             "packages": package_reports,

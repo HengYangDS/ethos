@@ -255,7 +255,7 @@ def test_repository_locked_openspec_17_resolves_project_schema_and_guidance(
     assert apply["json"]["operationGuidance"] == ["prefer deletion over compatibility"]
 
 
-def test_openspec_17_generated_codex_skill_follows_resolved_schema_contract(
+def test_openspec_17_generates_host_projections_from_resolved_schema_contract(
     tmp_path: Path,
 ) -> None:
     command = openspec_cli.openspec_base_command()
@@ -296,7 +296,7 @@ def test_openspec_17_generated_codex_skill_follows_resolved_schema_contract(
         json.dumps(
             {
                 "profile": "custom",
-                "delivery": "skills",
+                "delivery": "both",
                 "workflows": ["apply"],
                 "telemetry": {"enabled": False},
             }
@@ -310,7 +310,7 @@ def test_openspec_17_generated_codex_skill_follows_resolved_schema_contract(
             "init",
             repo.as_posix(),
             "--tools",
-            "codex",
+            "codex,claude",
             "--profile",
             "custom",
             "--force",
@@ -339,8 +339,19 @@ def test_openspec_17_generated_codex_skill_follows_resolved_schema_contract(
     )
     assert 'openspec status --change "<name>" --json' in apply_skill
     assert 'openspec instructions apply --change "<name>" --json' in apply_skill
+    assert 'generatedBy: "1.7.0"' in apply_skill
     assert "Other schemas: follow the contextFiles from CLI output" in apply_skill
     assert "Use contextFiles from CLI output, don't assume specific file names" in apply_skill
+    claude_skill = (repo / ".claude" / "skills" / "openspec-apply-change" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    claude_command = (repo / ".claude" / "commands" / "opsx" / "apply.md").read_text(
+        encoding="utf-8"
+    )
+    assert 'openspec status --change "<name>" --json' in claude_command
+    assert 'openspec instructions apply --change "<name>" --json' in claude_command
+    assert 'generatedBy: "1.7.0"' in claude_skill
+    assert "Use contextFiles from CLI output, don't assume specific file names" in claude_skill
     assert not (codex_home / "prompts").exists()
 
 

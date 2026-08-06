@@ -18,5 +18,14 @@ Purpose: define the canonical skill system and projection boundary.
   references, not in `SKILL.md`.
 - `.agents/skills/activation.toml` is routing metadata, not authority over source,
   tests, docs, OpenSpec, or evidence.
+- Every active subject-operation route has one owner. Retirement requires a
+  reason, date, kill signal, and removal of any declared live carrier.
+- Matched skill evaluations are evidence only; they never own tasks, progress,
+  status, completion, or lifecycle.
 - `.agents/skills`, `.claude/skills`, `.codex/skills`, IDE rules, and MCP
   prompt packs are projections unless the host owns an official native artifact.
+- Generate OpenSpec Skills and supported slash commands only through the pinned
+  official OpenSpec workflow, then characterize their version and use of
+  official status/instructions. Do not copy or maintain local OpenSpec templates.
+- Superpowers and other method packs are optional and never own repository
+  tasks, plans, progress, or lifecycle state.

@@ -28,7 +28,7 @@ general module-layout boundary study and `system/axioms.md`.
 - A module name states one narrow domain concept or role slice (`transition.py`,
   `measurement.py`, `report.py`). Generic entry names are not a default.
 - Native carrier syntax remains native: pytest discovery names such as
-  `test_*.py` and descriptive tool scripts such as `release_supply_chain.py` are
+  `test_*.py` and descriptive tool scripts are
   not product package topology. The same semantic invariants apply, but a naming
   convention required by the carrier is not itself a violation.
 

@@ -15,6 +15,16 @@ Each quality property SHALL have one admitted owner consumed identically by loca
 - **WHEN** two owners claim the same quality property
 - **THEN** admission blocks until one owner is selected and the other is removed
 
+#### Scenario: a built-artifact SBOM is required
+
+- **WHEN** local or hosted release packaging completes one Python wheel
+- **THEN** the single SBOM owner is pinned Syft emitting SPDX 2.3 JSON for that
+  exact artifact
+- **AND** the native SPDX-lite builder, recursive envelope runner, and shaped
+  in-toto or SLSA claims are absent
+- **AND** provenance and signatures remain unknown until provider-native receipts
+  bind the same artifact digest.
+
 #### Scenario: a quality owner runs against a repository checkout
 - **WHEN** any product-owned status, admission, gate, or proof implementation runs
 - **THEN** runner source, schema source, editor root, audit root, and target checkout

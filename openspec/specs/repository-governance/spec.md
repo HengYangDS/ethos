@@ -377,14 +377,15 @@ declared by that topology.
 - **AND** it SHALL NOT inspect or execute the outside target as a release owner.
 
 ### Requirement: Release Attestation
-ETHOS SHALL emit deterministic release attestation and SBOM projections without
-publishing them as independent truth.
+ETHOS SHALL bind a standard SBOM to the exact built artifact without inventing
+local provenance or signature authority.
 
-#### Scenario: Attestation is generated
+#### Scenario: Built artifact SBOM is generated
 - **WHEN** `tools/ci/scripts/run-release-supply-chain.sh` runs
-- **THEN** the result includes an in-toto-shaped statement with SLSA-style
-  builder facts and an SPDX-lite SBOM projection derived from repository
-  metadata
+- **THEN** Syft `1.50.0` emits SPDX 2.3 JSON for exactly one built wheel
+- **AND** the receipt binds HEAD, artifact and SBOM digests, and generator version
+- **AND** no provenance, signature, SLSA level, hosted-CI, or publication claim
+  exists without its own provider receipt.
 
 ### Requirement: Commit And Hosted Verification Policy
 ETHOS SHALL distinguish current local commit/signature status from GitLab

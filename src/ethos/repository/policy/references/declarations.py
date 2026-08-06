@@ -104,10 +104,6 @@ def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[s
     profile = _toml(files.get(".ethos/profile.toml", ""))
     if isinstance(profile.get("openspec"), dict):
         owned["executable"].add("openspec")
-    release = _toml(files.get(".ethos/release.toml", ""))
-    attestation = release.get("attestation", {}) if isinstance(release, dict) else {}
-    if isinstance(attestation, dict) and attestation.get("signing") == "git-ssh":
-        owned["executable"].add("ssh-keygen")
 
 
 def _declared_surface_inputs(files: dict[str, str], owned: dict[str, set[str]]) -> None:

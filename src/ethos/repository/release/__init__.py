@@ -1,1 +1,1 @@
-"""Release policy, attestation, and SBOM projections."""
+"""Release policy and publication projections."""

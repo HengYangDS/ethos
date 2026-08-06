@@ -46,7 +46,7 @@ The release changes every active version carrier in one Work Lane:
   by a new empty `Unreleased` section.
 
 Version agreement is proven by the release-policy, npm, unit, architecture,
-build, local-install, SBOM, and release-attestation gates.
+build, local-install, and built-artifact SBOM gates.
 
 ## Publication Topology
 
@@ -62,8 +62,8 @@ Publication remains three separate transitions:
 3. **Release distribution:** create one SSH-signed annotated tag
    `v0.1.0a2`, push it without force to both remotes, and create prerelease
    entries on GitLab and GitHub containing the locally rebuilt Python and npm
-   artifacts, checksums, SPDX-lite SBOM, and in-toto-shaped release
-   attestation.
+   artifacts, checksums, Syft SPDX 2.3 JSON SBOM, and provider-native
+   provenance when the forge emits a verifiable receipt.
 
 PyPI, TestPyPI, npm registry, Homebrew, Docker/OCI, GitHub Marketplace, and
 GitLab Component publication remain outside this release because the canonical
@@ -78,8 +78,8 @@ clean release Work Lane. The release bundle contains:
 - two Python wheels and two source distributions;
 - the npm launcher tarball;
 - `SHA256SUMS` covering every distributed artifact;
-- the ETHOS SPDX-lite SBOM envelope;
-- the ETHOS in-toto-shaped release attestation;
+- the Syft SPDX 2.3 JSON SBOM for the exact built wheel;
+- provider-native provenance and signatures only when independently verified;
 - local release-policy, supply-chain, proof, remote, hosted-observation, tag,
   and forge-release evidence.
 
@@ -91,7 +91,7 @@ set.
 ## Failure And Rollback Rules
 
 - Any version-carrier mismatch blocks the release before land.
-- Any proof, build, install, SBOM, attestation, or package failure blocks
+- Any proof, build, install, SBOM, provenance verification, or package failure blocks
   publication.
 - Remote heads are re-read immediately before every push. Divergence blocks the
   push; no force option is permitted.

@@ -48,9 +48,9 @@ configuration plane, not a truth center.
   `docs/reference/runbook-registry.md` is the human-facing registry.
 - `.config/checks/local-state/audit.toml` owns local/generated state boundary
   checks. Runtime state remains ignored unless promoted into reviewed evidence.
-- `.config/release/supply-chain.toml` owns ETHOS-native release evidence
-  envelopes for SBOM, attestation, and release policy. External signing and SLSA
-  upload adapters remain optional until separately admitted.
+- `.config/release/supply-chain.toml` binds Syft `1.50.0` to the exact built
+  wheel and SPDX 2.3 JSON output. Provenance and signing remain provider release
+  concerns until real hosted receipts exist.
 - `tools/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.
 - `system/tools.toml` records why each gate exists, which profile owns it, where

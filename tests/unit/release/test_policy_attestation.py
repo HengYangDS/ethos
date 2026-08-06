@@ -16,12 +16,12 @@ _LOCAL = {
     "role": "local_verification_install",
     "mode": "offline",
     "verification_command": "tools/ci/scripts/run-local-ci.sh",
-    "installation_command": "tools/ci/scripts/run-local-install-smoke.sh",
+    "installation_command": ".venv/bin/nox -s install_smoke",
 }
 
 _PUBLICATION = {
     "local_verification_command": "tools/ci/scripts/run-local-ci.sh",
-    "local_installation_command": "tools/ci/scripts/run-local-install-smoke.sh",
+    "local_installation_command": ".venv/bin/nox -s install_smoke",
     "gitlab_remote": "origin",
     "gitlab_ci_surface": ".gitlab-ci.yml",
     "github_remote": "github",

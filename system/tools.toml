@@ -234,10 +234,10 @@ gate = ".venv/bin/nox -s build"
 [[tool]]
 concern = "local_install_smoke"
 tool = "uv offline wheel installation smoke"
-config = ".ethos/release.toml + tools/ci/scripts/run-local-install-smoke.sh"
+config = ".ethos/release.toml + noxfile.py + tools/ci/local_install_smoke.py"
 artifacts = "build/evidence/local-install/"
 profile = "release"
-gate = "tools/ci/scripts/run-local-install-smoke.sh"
+gate = ".venv/bin/nox -s install_smoke"
 
 [[tool]]
 concern = "shell"

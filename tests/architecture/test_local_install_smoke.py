@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import stat
 import tomllib
 from pathlib import Path
 
 from tests.support.architecture import tool_block
 
 ROOT = Path(__file__).resolve().parents[2]
-OWNER = ROOT / "tools/ci/scripts/run-local-install-smoke.sh"
+OWNER = ROOT / "tools/ci/local_install_smoke.py"
 
 
 def _owner_text() -> str:
@@ -17,9 +16,8 @@ def _owner_text() -> str:
 
 def test_local_install_smoke_has_one_executable_owner() -> None:
     assert OWNER.is_file()
-    assert OWNER.stat().st_mode & stat.S_IXUSR
     block = tool_block(ROOT, "local_install_smoke")
-    assert 'gate = "tools/ci/scripts/run-local-install-smoke.sh"' in block
+    assert 'gate = ".venv/bin/nox -s install_smoke"' in block
     assert 'artifacts = "build/evidence/local-install/"' in block
 
 
@@ -29,26 +27,23 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "build/artifacts/python" in owner
     assert "build/runtime/work/local-install-smoke" in owner
     assert "build/evidence/local-install/smoke.json" in owner
-    assert ".venv/bin/nox -s build" in owner
-    assert "uv export --locked --offline --no-dev --no-emit-project" in owner
-    assert 'printf \'%s\\n\' "${source_site}" > "${smoke_site}/ethos-locked-runtime.pth"' in owner
-    assert 'uv pip install --offline --no-deps --python "${smoke_python}" "${wheel}"' in owner
-    assert 'uv pip check --python "${source_python}"' in owner
+    assert '"command": ".venv/bin/nox -s install_smoke"' in owner
+    assert "ethos-locked-runtime.pth" in owner
+    for argument in ("install", "--offline", "--no-deps"):
+        assert f'"{argument}"' in owner
+    assert '"check", "--python"' in owner
     assert "ethos" in owner
     assert "ethos.__file__" in owner
     assert "ethos.__file__" in owner
     assert "uv cache dir" not in owner
     assert "ETHOS_LOCAL_INSTALL_UV_CACHE_DIR" not in owner
-    assert '"${venv_dir}/bin/ethos" --help' in owner
-    assert '"${venv_dir}/bin/ethos" --version' in owner
-    assert '"${venv_dir}/bin/ethos" status --root "${adopter_dir}" --json' in owner
-    assert '"${venv_dir}/bin/ethos" plan --changed --root "${adopter_dir}" --json' in owner
-    assert '"${venv_dir}/bin/ethos" lane archive-change' in owner
-    assert '--rebuild-from "${adopter_head}"' in owner
-    assert '"${adopter_dir}"' in owner
+    assert '"--help"' in owner
+    assert '"--version"' in owner
+    assert '"status", "--root"' in owner
+    assert '"plan", "--changed"' in owner
+    assert '"archive-change"' in owner
+    assert '"--rebuild-from"' in owner
     assert "/Users/" not in owner
-    assert "openspec_base_command" in owner
-    assert "verify_official_cli" in owner
     assert '"@fission-ai/openspec@1.7.0"' in owner
     assert '"system/openspec/package.json" = "ethos/data/openspec/package.json"' in (
         ROOT / "pyproject.toml"
@@ -56,9 +51,7 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert '"system/schemas/kernel" = "ethos/data/schemas/kernel"' in (
         ROOT / "pyproject.toml"
     ).read_text(encoding="utf-8")
-    assert owner.count("require-stable-head.sh") == 2
-    assert " capture)" in owner
-    assert ' verify "${head}" "$0"' in owner
+    assert "current_tracked_head(ROOT)" in owner
     assert '"hosted_ci_status_claimed": False' in owner
     assert '"remote_publication_claimed": False' in owner
 
@@ -66,17 +59,16 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
 def test_local_install_smoke_validates_declared_wheel_resources() -> None:
     owner = _owner_text()
 
-    assert '"force-include"' in owner
-    assert 'PurePosixPath(target).relative_to("ethos")' in owner
-    assert 'resources.files("ethos").joinpath(*relative.parts)' in owner
+    assert '["force-include"]' in owner
+    assert "zipfile.ZipFile" in owner
     assert '"lifecycle.toml"' not in owner
 
 
 def test_local_ci_runs_install_smoke_before_fallback_manifest() -> None:
     local_ci = (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
 
-    assert "tools/ci/scripts/run-local-install-smoke.sh" in local_ci
-    assert local_ci.index("run-local-install-smoke.sh") < local_ci.index(
+    assert ".venv/bin/nox -s install_smoke" in local_ci
+    assert local_ci.index("nox -s install_smoke") < local_ci.index(
         "build/evidence/local-ci/fallback.json"
     )
 
@@ -93,7 +85,7 @@ def test_full_proof_registers_one_trust_bearing_install_smoke() -> None:
         "id": "local-install-smoke",
         "registries": ["runtime"],
         "kind": "package",
-        "command": ["tools/ci/scripts/run-local-install-smoke.sh"],
+        "command": [".venv/bin/nox", "-s", "install_smoke"],
         "profile": "product-toolchain",
         "toolchain": "uv-python",
         "depends_on": ["build"],

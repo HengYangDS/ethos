@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import shlex
+import shutil
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
@@ -114,11 +116,21 @@ def _local_command_gaps(root: Path, publication: dict[str, Any]) -> list[str]:
         if not command:
             gaps.append(f"release_local_command_missing:{field}:")
             continue
-        command_path = (resolved_root / command).resolve()
+        try:
+            argv = shlex.split(command)
+        except ValueError:
+            gaps.append(f"release_local_command_invalid:{field}:{command}")
+            continue
+        if not argv:
+            gaps.append(f"release_local_command_missing:{field}:")
+            continue
+        command_path = (resolved_root / argv[0]).resolve()
         if not command_path.is_relative_to(resolved_root):
             gaps.append(f"release_local_command_path_escape:{field}:{command}")
-        elif not command_path.exists():
+        elif not command_path.exists() and not shutil.which(argv[0]):
             gaps.append(f"release_local_command_missing:{field}:{command}")
+        elif not command_path.exists():
+            continue
         elif not command_path.is_file():
             gaps.append(f"release_local_command_not_regular:{field}:{command}")
         elif not os.access(command_path, os.X_OK):

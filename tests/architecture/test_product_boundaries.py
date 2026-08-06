@@ -580,7 +580,7 @@ def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:
     assert manifest["bugs"]["url"] == "https://example.invalid/ethos/issues"
     assert manifest["publishConfig"]["access"] == "public"
     assert "governance" in manifest["keywords"]
-    assert json.loads((ROOT / "package.json").read_text())["packageManager"] == "npm@11.12.1"
+    assert "packageManager" not in json.loads((ROOT / "package.json").read_text())
 
 
 def _launcher(tmp_path: Path) -> Path:

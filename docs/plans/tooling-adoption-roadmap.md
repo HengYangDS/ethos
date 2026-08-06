@@ -136,7 +136,7 @@ single tracked supply declaration rather than comments spread across runners.
 | Python vulnerabilities | uv audit | Native lock audit remains current; a multi-ecosystem replacement must prove net deletion first. |
 | Build and local installation | uv build plus isolated wheel smoke | Artifact contents and reproducibility remain separate future checks. |
 | Source budget | ETHOS native measurement | `scc` is an independent inventory sensor, never correctness authority. |
-| Release envelopes | ETHOS SPDX-lite and in-toto/SLSA-shaped projections | Local shapes only; no standard-conformance or artifact-signature claim. |
+| Built-artifact SBOM | Syft 1.50.0, SPDX 2.3 JSON | Exact wheel and generator version are bound; provenance and signatures require provider receipts. |
 
 ### Bounded pilot queue
 
@@ -174,7 +174,7 @@ license boundaries. A check-only runner must never install or update its tool.
 | P1 | npm package correctness | publint | Run against the packed thin launcher; reject if it adds no finding beyond `npm pack --dry-run` and native smoke. |
 | P1 | MCP protocol conformance | official MCP conformance suite | Own protocol behavior and delete overlapping semantic smoke; keep the current projection-only check separate. |
 | P1 | Documentation terminology | Vale | Product docs only; prove value for controlled vocabulary without policing archives or Chinese prose incorrectly. |
-| P1 | Standard SBOM | Syft | Replace and delete the native SPDX-lite builder/tests after parity; never coexist permanently. |
+| P1 | Standard SBOM | Syft | Promoted at 1.50.0; the native SPDX-lite builder and tests are retired. |
 | P1 | SBOM conformance | SPDX tools-python | Validate the admitted SPDX output; generation and conformance remain separate capabilities. |
 | P1 | File-level licensing | REUSE | Prefer one bounded repository metadata declaration over thousands of source headers. |
 | P2 | Test-order coupling | pytest-randomly | Use changing scheduled seeds, retain the failing seed, and reproduce exactly; promote only after two real coupling defects. |

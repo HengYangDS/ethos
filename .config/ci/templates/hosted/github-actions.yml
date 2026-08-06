@@ -85,8 +85,6 @@ jobs:
         run: tools/ci/scripts/run-architecture-projection-drift.sh
       - name: Runbook registry
         run: tools/ci/scripts/run-runbook-registry-check.sh
-      - name: Release supply-chain envelope
-        run: tools/ci/scripts/run-release-supply-chain.sh
       - name: Hosted provider observation envelope
         run: tools/ci/scripts/run-hosted-provider-observation.sh
 
@@ -152,7 +150,11 @@ jobs:
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions
         run: tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir build/artifacts/python --clear --no-create-gitignore
+      - name: Generate SPDX SBOM
+        run: tools/ci/scripts/run-release-supply-chain.sh
       - uses: actions/upload-artifact@v7
         with:
           name: python-distributions
-          path: build/artifacts/python/
+          path: |
+            build/artifacts/python/
+            build/evidence/release/

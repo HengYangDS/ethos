@@ -26,7 +26,7 @@ and [Forge Provider Contract](../governance/forge-provider-contract.md).
 | RUN-FORMAT-SELECTION | `tools/ci/scripts/run-format-selection.sh` | format-boundary | JSON stdout |
 | RUN-ARCHITECTURE-PROJECTION | `tools/ci/scripts/run-architecture-projection-drift.sh` | architecture-projection | JSON stdout |
 | RUN-GENERATED-ARTIFACTS | `ethos prove --gate generated-artifacts --json` | generated-artifact-topology | JSON stdout |
-| RUN-RELEASE-SUPPLY-CHAIN | `tools/ci/scripts/run-release-supply-chain.sh` | release-supply-chain | `build/evidence/release/supply-chain.json` |
+| RUN-RELEASE-SUPPLY-CHAIN | `tools/ci/scripts/run-release-supply-chain.sh` | built-wheel SPDX SBOM | `build/evidence/release/supply-chain.json` |
 
 | RUN-DEPENDENCY-HYGIENE | `tools/ci/scripts/run-dependency-hygiene.sh` | dependency-hygiene | `build/evidence/quality/dependency/summary.json` |
 | RUN-PYTHON-VULNERABILITY-AUDIT | `tools/ci/scripts/run-python-vulnerability-audit.sh` | security-vulnerability | `build/evidence/quality/security/python-vulnerability-audit.json` |

@@ -302,12 +302,13 @@ def test_native_owner_closure_derives_tool_capabilities_from_profile_and_release
                 'profile_id = "example"\n\n[openspec]\nmaterial_paths = ["**"]\n'
             ),
             ".ethos/release.toml": (
-                '[attestation]\nformats = ["in-toto-shaped"]\nsigning = "git-ssh"\n'
+                '[attestation]\nformats = ["spdx-2.3-json"]\nsigning = "provider-native"\n'
             ),
         }
     )
 
-    assert {"openspec", "ssh-keygen"} <= allowed["executable"]
+    assert "openspec" in allowed["executable"]
+    assert "ssh-keygen" not in allowed["executable"]
 
 
 def test_native_owner_variation_axes_change_only_their_declaring_carriers() -> None:

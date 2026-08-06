@@ -332,6 +332,7 @@ def test_wheel_resources_are_native_projections_without_a_build_hook() -> None:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
         assert wheel[canonical] == f"ethos/data/{resource}"
+    assert wheel["system/schemas/kernel"] == "ethos/data/schemas/kernel"
 
 
 def test_declaration_backed_policies_are_first_class() -> None:

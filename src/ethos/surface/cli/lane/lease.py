@@ -1,8 +1,6 @@
 """Generation-bound Lane Lease commands and request projection."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+import pathlib
 from typing import Annotated
 from typing import Any
 from typing import ClassVar
@@ -27,9 +25,6 @@ from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class LeaseCommandOptions(BaseModel):
@@ -91,7 +86,7 @@ class _TakeoverOptions(LeaseProofOptions):
     expected_tree: Annotated[str, Parameter(name="--expect-tree")]
     expected_dirty_content_sha256: Annotated[str, Parameter(name="--dirty-content-sha256")]
     source_state: Annotated[Literal["quiesced", "source_lost"], Parameter(name="--source-state")]
-    authorization: Annotated[Path, Parameter(name="--authorization")]
+    authorization: Annotated[pathlib.Path, Parameter(name="--authorization")]
     ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
 
 

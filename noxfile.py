@@ -14,6 +14,7 @@ import nox
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
+run_dependency_hygiene = import_module("tools.ci.dependency_hygiene").run
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 
@@ -118,3 +119,9 @@ def build(session: nox.Session) -> None:
 def install_smoke(session: nox.Session) -> None:
     """Prove offline installation from the single built wheel."""
     run_install_smoke(session)
+
+
+@nox.session(python=False)
+def dependencies(session: nox.Session) -> None:
+    """Validate direct Python dependency declarations with deptry."""
+    run_dependency_hygiene(session)

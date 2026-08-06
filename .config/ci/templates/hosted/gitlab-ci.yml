@@ -83,7 +83,7 @@ ethos:dependency-hygiene:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-dependency-hygiene.sh
+    - .venv/bin/nox -s dependencies
 
 ethos:config:
   <<: *python_setup

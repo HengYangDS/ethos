@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -38,6 +39,21 @@ def test_python_gate_helpers_bind_project_scripts_instead_of_path() -> None:
     assert 'session.run(\n            "deptry"' not in dependency
     assert '_project_script("uv")' in install
     assert '_executable("uv")' not in install
+
+
+def test_direct_python_dependencies_are_single_current_lower_bounds() -> None:
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    runtime = project["project"]["dependencies"]
+    development = [item for group in project["dependency-groups"].values() for item in group]
+    build = project["build-system"]["requires"]
+    requirements = [*runtime, *development, *build]
+
+    assert all(re.fullmatch(r"[A-Za-z0-9_.-]+>=[^,;\s]+", item) for item in requirements)
+    assert "cyclopts>=4.22.5" in runtime
+    assert "hatchling>=1.31.0" in development
+    assert "hypothesis>=6.165.2" in development
+    assert "ty>=0.0.69" in development
+    assert build == ["hatchling>=1.31.0"]
 
 
 def test_locked_tool_resolution_ignores_untrusted_path(

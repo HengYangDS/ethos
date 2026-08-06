@@ -35,22 +35,6 @@ _NOT_CHECKED_SYNC: dict[str, object] = {
 _REMOTE_PAIR = 2
 
 
-def remote_publication_deferred(
-    remote_availability: dict[str, object] | None = None, *, root: Path | None = None
-) -> dict[str, object]:
-    """Describe deferred remote publication without claiming adapter success."""
-    availability = remote_availability or dict(_NOT_PROBED)
-    return {
-        "remote_push": "not_performed",
-        "state": "deferred",
-        "reason": "remote unavailable; use local-ci fallback evidence"
-        if availability.get("state") in {"unavailable", "unconfigured"}
-        else "remote publication adapter unavailable",
-        "availability": availability,
-        "fallback": local_ci_fallback_package(remote_availability=availability, root=root),
-    }
-
-
 def local_ci_fallback_evidence_status(
     repo: Path, *, current_head: str, remote_availability_state: str = "not_probed"
 ) -> dict[str, object]:
@@ -252,19 +236,6 @@ def _proposal_package(
             "create configured proposal branch when remote publication is available",
         ],
     }
-
-
-def local_proposal_package(
-    *,
-    branch: str,
-    proposal_branch: str,
-    remote_availability: dict[str, object] | None = None,
-    local_ci_fallback: dict[str, object] | None = None,
-) -> dict[str, object]:
-    """Return the public compatibility projection of the local proposal plan."""
-    availability = remote_availability or dict(_NOT_PROBED)
-    fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
-    return _proposal_package(branch, proposal_branch, availability, fallback)
 
 
 def _object(value: object, fallback: dict[str, object] | None = None) -> dict[str, object]:

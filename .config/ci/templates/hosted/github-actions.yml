@@ -49,23 +49,23 @@ jobs:
           tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --execute
           --gate python-types --expect-head "$(git rev-parse HEAD)" --json
       - name: Import boundaries
-        run: tools/ci/scripts/run-import-linter.sh
+        run: .venv/bin/nox -s import_boundaries
       - name: Dependency hygiene
         run: .venv/bin/nox -s dependencies
       - name: Config lint
         run: tools/ci/scripts/run-config-lint.sh
       - name: JSON schema hygiene
-        run: tools/ci/scripts/run-json-schema-check.sh
+        run: .venv/bin/nox -s schemas
       - name: Repository hygiene
         run: tools/ci/scripts/run-repository-hygiene.sh
       - name: Product boundary
-        run: tools/ci/scripts/run-product-boundary.sh
+        run: .venv/bin/nox -s product_boundary
       - name: Shell lint
         run: tools/ci/scripts/run-shell-lint.sh
       - name: Docstring coverage
-        run: tools/ci/scripts/run-docstring-coverage.sh
+        run: .venv/bin/nox -s docstrings
       - name: Module layout
-        run: tools/ci/scripts/run-module-layout.sh
+        run: .venv/bin/nox -s module_layout
       - name: Python vulnerability audit
         run: .venv/bin/nox -s vulnerabilities
       - name: Secrets scan

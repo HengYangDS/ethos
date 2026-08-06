@@ -168,13 +168,8 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "run-shell-lint.sh",
         "run-markdown-lint.sh",
         "run-prose-check.sh",
-        "run-import-linter.sh",
-        "run-docstring-coverage.sh",
-        "run-module-layout.sh",
         "run-repository-hygiene.sh",
-        "run-product-boundary.sh",
         "run-secrets-scan.sh",
-        "run-json-schema-check.sh",
         "run-hosted-provider-observation.sh",
     }
     combined = "\n".join(
@@ -192,13 +187,18 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "format_selection",
         "architecture_projection",
         "runbook_registry",
+        "schemas",
+        "import_boundaries",
+        "docstrings",
+        "module_layout",
+        "product_boundary",
     ):
         assert f".venv/bin/nox -s {session}" in combined
     for text in (combined,):
         assert ".venv/bin/nox -s lint" in text
         assert ".venv/bin/nox -s tests" in text
         assert "tools/ci/scripts/run-actionlint.sh" in text
-        assert "tools/ci/scripts/run-product-boundary.sh" in text
+        assert ".venv/bin/nox -s product_boundary" in text
         assert ".venv/bin/nox -s build" in text
         assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
         assert "uv run --no-project --with import-linter lint-imports" not in text

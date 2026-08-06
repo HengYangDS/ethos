@@ -1,7 +1,7 @@
 schema = "ethos-json-schema-quality-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Validate repository JSON Schema documents as metaschemas and keep vendor schema validation explicit."
-runner = "tools/ci/scripts/run-json-schema-check.sh"
+runner = ".venv/bin/nox -s schemas"
 
 [[check]]
 id = "system-json-schemas"

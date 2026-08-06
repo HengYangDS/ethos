@@ -63,7 +63,7 @@ def _assert_tool_registry(tools: str) -> None:
     assert 'config = ".config/boundaries/"' not in tools
     assert 'config = ".config/docs/lychee.toml"' not in tools
     assert 'concern = "product_boundary"' in tools
-    assert 'gate = "tools/ci/scripts/run-product-boundary.sh"' in tools
+    assert 'gate = ".venv/bin/nox -s product_boundary"' in tools
     assert 'concern = "local_ci_fallback"' in tools
     assert "tools/ci/scripts/require-stable-head.sh" in tools
     assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
@@ -75,15 +75,16 @@ def _assert_tool_registry(tools: str) -> None:
 def _assert_required_ci_scripts() -> None:
     assert (ROOT / "tools/ci/scripts/bootstrap-python.sh").exists()
     assert (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-import-linter.sh").exists()
+    noxfile = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    assert "def import_boundaries(" in noxfile
     assert not (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
     assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
     assert (ROOT / ".config/checks/coverage/.gitignore").exists()
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
-    assert (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").exists()
+    assert "def docstrings(" in noxfile
     assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
     assert (ROOT / "tools/ci/scripts/require-stable-head.sh").exists()
-    assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
+    assert "def product_boundary(" in noxfile
 
 
 def test_dual_forge_collaboration_files_exist() -> None:
@@ -153,8 +154,8 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools" in text
     assert "    - build/runtime/tool-cache/lychee/" not in text
     assert "    - build/runtime/tool-cache/ci-tools/" not in text
-    assert "tools/ci/scripts/run-import-linter.sh" in text
-    assert "tools/ci/scripts/run-docstring-coverage.sh" in text
+    assert ".venv/bin/nox -s import_boundaries" in text
+    assert ".venv/bin/nox -s docstrings" in text
     assert (
         "uv run --group dev lint-imports --config .config/checks/import-linter/contracts.ini"
         not in text
@@ -164,6 +165,12 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "curl -sSL https://github.com/lycheeverse/lychee" not in text
     assert "wt " not in text
     assert "proof " not in text
+
+
+def test_ci_tool_cache_is_a_declared_runtime_input() -> None:
+    surfaces = tomllib.loads((ROOT / "system/surfaces.toml").read_text(encoding="utf-8"))
+
+    assert "ETHOS_CI_TOOL_CACHE_DIR" in surfaces["runtime"]["inputs"]
 
 
 def test_configuration_layout_is_separated_by_concern() -> None:
@@ -445,12 +452,13 @@ def test_secrets_gate_scans_current_tree_and_git_history() -> None:
     assert "history = true" in tools.split('concern = "secrets"', 1)[1].split("[[tool]]", 1)[0]
 
 
-def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
-    runner = (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
+def test_docstring_gate_is_owned_by_separated_policy_and_nox_session() -> None:
+    runner = (ROOT / "noxfile.py").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/docstrings/policy.toml").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
-    assert "ethos prove --execute --gate docstrings" in runner
+    assert "def docstrings(" in runner
+    assert '"--gate",\n        "docstrings"' in runner
     assert "--min-coverage" not in runner
     assert "fail_under = 100" in policy
     assert 'paths = ["src/ethos"]' in policy
@@ -461,15 +469,16 @@ def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
 
 
-def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
-    runner = (ROOT / "tools/ci/scripts/run-module-layout.sh").read_text(encoding="utf-8")
+def test_module_layout_gate_is_owned_by_policy_and_nox_surfaces() -> None:
+    runner = (ROOT / "noxfile.py").read_text(encoding="utf-8")
     local_ci = (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/module-layout/policy.toml").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
     precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
-    assert "ethos prove --execute --gate module-layout" in runner
+    assert "def module_layout(" in runner
+    assert '"--gate",\n        "module-layout"' in runner
     assert "--flat-directory-limit" not in runner
     assert 'semantic_paths = [".agents/skills", "src/ethos", "tests", "tools"]' in policy
     assert 'package_paths = ["src/ethos"]' in policy
@@ -482,13 +491,13 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert 'concern = "python_module_layout"' in tools
     assert 'tool = "ethos-module-layout"' in tools
     assert 'config = ".config/checks/module-layout/policy.toml"' in tools
-    assert 'gate = "tools/ci/scripts/run-module-layout.sh"' in tools
-    assert "tools/ci/scripts/run-module-layout.sh" in local_ci
-    assert "tools/ci/scripts/run-module-layout.sh" in gitlab
-    assert "tools/ci/scripts/run-module-layout.sh" in precommit
-    assert "tools/ci/scripts/run-product-boundary.sh" in local_ci
-    assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
-    assert "tools/ci/scripts/run-product-boundary.sh" in precommit
+    assert 'gate = ".venv/bin/nox -s module_layout"' in tools
+    assert ".venv/bin/nox -s module_layout" in local_ci
+    assert ".venv/bin/nox -s module_layout" in gitlab
+    assert ".venv/bin/nox -s module_layout" in precommit
+    assert ".venv/bin/nox -s product_boundary" in local_ci
+    assert ".venv/bin/nox -s product_boundary" in gitlab
+    assert ".venv/bin/nox -s product_boundary" in precommit
 
 
 def test_python_test_gate_separates_change_execution_from_terminal_coverage() -> None:

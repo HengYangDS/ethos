@@ -366,6 +366,7 @@ def _apply_archive(
         repo,
         changed_paths=changed,
         requested_change=change,
+        preserved_archive=(collision.path, collision.preserved_path) if collision else None,
     )
     if (
         scope is None

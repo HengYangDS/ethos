@@ -1,3 +1,11 @@
+---
+name: Governed change
+about: Capture one repository subject, intent, contract, acceptance boundary, and evidence plan.
+title: ""
+labels: []
+assignees: []
+---
+
 ## Subject
 
 What repository object or product surface is governed?

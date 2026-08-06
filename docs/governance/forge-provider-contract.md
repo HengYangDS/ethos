@@ -20,9 +20,10 @@ See also: [Product Design Contract](product-design-contract.md),
 
 ## Contract
 
-ETHOS supports GitHub and GitLab as symmetric hosted forge providers. They are
-carriers for the same Git-native repository governance contract, not separate
-product modes.
+ETHOS supports GitHub and GitLab as semantically homomorphic hosted forge
+providers. They carry the same Git-native repository governance contract, not
+separate product modes; their physical syntax and provider-native capabilities
+may differ.
 
 GitLab is the organization-collaboration plane and GitHub is the public-distribution
 plane. Both carry the same repository, CI/CD, and publication capabilities; neither
@@ -47,8 +48,11 @@ ETHOS lifecycle state.
 
 ## Required Provider Invariants
 
-1. **Mirror semantics**: GitHub and GitLab SHALL execute the same required gate
-   classes, thresholds, and evidence boundaries for a given profile.
+1. **Homomorphic semantics**: GitHub and GitLab SHALL cover the same required
+   contract capabilities, thresholds, and evidence boundaries for a given
+   profile. A provider-specific execution path is valid only when its reason is
+   declared in `.config/checks/ci/templates.toml` and the shared capability is
+   still proved exactly once by an owner script.
 1. **Template ownership**: provider YAML SHALL be generated or checked from
    tracked provider templates. Hand-edited drift in hosted files is a governance
    gap.
@@ -76,8 +80,8 @@ ETHOS lifecycle state.
 | Syntax gate | `actionlint` | YAML/config lint plus GitLab template checks | Provider syntax, not repository proof |
 | Local emulator | `act` wrapper | `gitlab-ci-local` wrapper | Local provider emulation only |
 | Hosted observation | GitHub Checks / Actions artifacts | GitLab pipeline/job/artifacts | Hosted provider evidence only |
-| Issue intake | `.github/ISSUE_TEMPLATE/task.md` | `.gitlab/issue_templates/task.md` | `.config/forge/issue.md` |
-| Proposed change | `.github/PULL_REQUEST_TEMPLATE.md` | `.gitlab/merge_request_templates/default.md` | `.config/forge/change.md` |
+| Issue intake | `.github/ISSUE_TEMPLATE/task.md` | `.gitlab/issue_templates/task.md` | `forge_surface.required_sections` |
+| Proposed change | `.github/PULL_REQUEST_TEMPLATE.md` | `.gitlab/merge_request_templates/default.md` | `forge_surface.required_sections` |
 | ETHOS gate | `ethos prove`, `ethos status`, owner scripts | Same | Repository governance truth |
 
 The checked parity inventory covers CI, issue intake, proposed-change review,

@@ -71,6 +71,6 @@ evidence = "build/evidence/hosted-ci/observation.json"
 
 [[entry]]
 id = "RUN-PYTHON-VULNERABILITY-AUDIT"
-command = "tools/ci/scripts/run-python-vulnerability-audit.sh"
+command = ".venv/bin/nox -s vulnerabilities"
 category = "security-vulnerability"
 evidence = "build/evidence/quality/security/python-vulnerability-audit.json"

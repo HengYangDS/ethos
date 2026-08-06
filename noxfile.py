@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT))
 PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
 run_dependency_hygiene = import_module("tools.ci.dependency_hygiene").run
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
+run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_audit").run
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 
 nox.options.default_venv_backend = "none"
@@ -125,3 +126,9 @@ def install_smoke(session: nox.Session) -> None:
 def dependencies(session: nox.Session) -> None:
     """Validate direct Python dependency declarations with deptry."""
     run_dependency_hygiene(session)
+
+
+@nox.session(python=False)
+def vulnerabilities(session: nox.Session) -> None:
+    """Audit the frozen Python lock with uv's native OSV client."""
+    run_python_vulnerability_audit(session)

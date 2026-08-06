@@ -126,7 +126,7 @@ ethos:security:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-python-vulnerability-audit.sh
+    - .venv/bin/nox -s vulnerabilities
   artifacts:
     when: always
     paths:

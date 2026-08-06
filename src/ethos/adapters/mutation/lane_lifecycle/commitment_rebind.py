@@ -61,9 +61,12 @@ def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -
     )
     try:
         lease = leases_by_branch(repo).get(request.branch, {})
-        _admit_request(repo, request)
+        _admit_request(repo, request, require_apply=False)
         if _is_head_only_partial_target(repo, request, lease):
+            if not request.apply:
+                return _project_partial_target_recovery(repo, request, lease)
             return _recover_head_only_partial_target(repo, request, effect, lease)
+        _admit_request(repo, request, require_apply=True)
         if integer_value(lease.get("epoch")) == request.expected_epoch:
             _admit_old_generation(request, lease)
         terminal_plan = _plan(
@@ -202,6 +205,30 @@ def _recover_head_only_partial_target(
     return _report(request, updated, attestation, "recovered")
 
 
+def _project_partial_target_recovery(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    lease: dict[str, object],
+) -> dict[str, object]:
+    """Validate an exact partial target without mutating its Lease."""
+    prior_coordinates = {
+        **lease,
+        "expected_head": request.expect_head,
+        "expected_tree": request.expected_tree,
+        "payload_sha256": request.expected_payload_sha256,
+    }
+    old_commitment = load_lease_bound_commitment(repo, lease=prior_coordinates)
+    _target_binding(repo, request, old_commitment.id, old_commitment.digest())
+    return {
+        "verdict": "pass",
+        "state": "ready_to_recover",
+        "branch": request.branch,
+        "lease": lease,
+        "attestation": {},
+        "required_gaps": [],
+    }
+
+
 def _admit(
     repo: Path,
     request: CommitmentRebindRequest,
@@ -289,9 +316,14 @@ def _admit_old_generation(
         raise ValueError(gap)
 
 
-def _admit_request(repo: Path, request: CommitmentRebindRequest) -> None:
+def _admit_request(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    *,
+    require_apply: bool,
+) -> None:
     checks = (
-        (request.apply, "commitment_rebind_apply_required"),
+        (request.apply or not require_apply, "commitment_rebind_apply_required"),
         (
             load_branch_role_policy(repo).role_for_branch(request.branch) == ROLE_WORK_LANE,
             "work_lane_required",

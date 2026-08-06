@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +21,11 @@ OUTPUT = ROOT / "build/evidence/quality/dependency/deptry-ethos.json"
 SUMMARY = ROOT / "build/evidence/quality/dependency/summary.json"
 
 
+def _project_script(name: str) -> str:
+    suffix = ".exe" if os.name == "nt" else ""
+    return str(Path(sys.executable).parent / f"{name}{suffix}")
+
+
 def run(session: nox.Session) -> None:
     """Run deptry and write one bounded verdict over its JSON result."""
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
@@ -27,7 +34,7 @@ def run(session: nox.Session) -> None:
     result = cast(
         "str",
         session.run(
-            "deptry",
+            _project_script("deptry"),
             "src/ethos",
             "--config",
             "pyproject.toml",

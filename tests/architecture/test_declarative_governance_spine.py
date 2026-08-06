@@ -324,15 +324,20 @@ def test_wheel_resources_are_native_projections_without_a_build_hook() -> None:
     build = package_config["tool"]["hatch"]["build"]
     wheel = build["targets"]["wheel"]["force-include"]
     sdist = build["targets"]["sdist"]["include"]
+    sdist_forced = build["targets"]["sdist"]["force-include"]
 
     assert "hooks" not in build
     assert "/src" in sdist
     assert "/system" in sdist
+    assert "/package-lock.json" in sdist
+    assert sdist_forced == {"node_modules": "node_modules"}
     for canonical, resource in WHEEL_PROJECTIONS:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
         assert wheel[canonical] == f"ethos/data/{resource}"
     assert wheel["system/schemas/kernel"] == "ethos/data/schemas/kernel"
+    assert wheel["package-lock.json"] == "ethos/data/supply-chain/package-lock.json"
+    assert wheel["node_modules"] == "ethos/data/openspec-runtime/node_modules"
 
 
 def test_declaration_backed_policies_are_first_class() -> None:

@@ -23,6 +23,14 @@ _SOURCE_DECLARATION = _SOURCE_ROOT / "package.json"
 _DISTRIBUTION_DECLARATION = Path(
     str(resources.files("ethos").joinpath("data", "supply-chain", "package.json"))
 )
+_DISTRIBUTION_LOCK = Path(
+    str(resources.files("ethos").joinpath("data", "supply-chain", "package-lock.json"))
+)
+_DISTRIBUTION_MODULES = Path(
+    str(resources.files("ethos").joinpath("data", "openspec-runtime", "node_modules"))
+)
+_DISTRIBUTION_PACKAGE = _DISTRIBUTION_MODULES / "@fission-ai" / "openspec" / "package.json"
+_DISTRIBUTION_ENTRY = _DISTRIBUTION_PACKAGE.parent / "bin" / "openspec.js"
 _PACKAGE = _SOURCE_ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
 _ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"
@@ -42,19 +50,24 @@ def current_branch(root: Path) -> str:
 
 
 def openspec_base_command() -> tuple[str, ...] | None:
-    """Return only the source-locked or installed exact OpenSpec command."""
+    """Return only the source-locked or package-bundled OpenSpec command."""
     source = (_SOURCE_NODE, _ENTRY.as_posix()) if _SOURCE_NODE and _ENTRY.is_file() else None
     if source and verify_official_cli(source)["verdict"] == "pass":
         return source
-    installed = shutil.which("openspec")
-    command = (installed,) if installed else None
-    return command if command and verify_official_cli(command)["verdict"] == "pass" else None
+    bundled = (
+        (_SOURCE_NODE, _DISTRIBUTION_ENTRY.as_posix())
+        if _SOURCE_NODE and _DISTRIBUTION_ENTRY.is_file()
+        else None
+    )
+    return bundled if bundled and verify_official_cli(bundled)["verdict"] == "pass" else None
 
 
 def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
     """Verify package, lock, executable, and reported version as one identity."""
     gaps: list[str] = []
-    source_entry = len(command) == _SOURCE_COMMAND_LENGTH and Path(command[1]).resolve() == _ENTRY
+    entry = Path(command[1]).resolve() if len(command) == _SOURCE_COMMAND_LENGTH else Path()
+    source_entry = entry == _ENTRY
+    bundled_entry = entry == _DISTRIBUTION_ENTRY
     if source_entry:
         package = _json_object(_PACKAGE)
         lock = _json_object(_LOCK)
@@ -75,24 +88,39 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
                 "openspec_lock_version_mismatch",
             ),
         )
-    else:
+    elif bundled_entry:
         declaration = _json_object(_DISTRIBUTION_DECLARATION)
-        executable = Path(command[0]).resolve() if len(command) == 1 else Path()
-        package = _nearest_package(executable)
+        package = _json_object(_DISTRIBUTION_PACKAGE)
+        lock = _json_object(_DISTRIBUTION_LOCK)
+        packages = lock.get("packages")
+        packages = packages if isinstance(packages, dict) else {}
+        root = packages.get("", {})
+        locked = packages.get("node_modules/@fission-ai/openspec", {})
         checks = (
-            (len(command) == 1, "openspec_entry_mismatch"),
+            (len(command) == _SOURCE_COMMAND_LENGTH, "openspec_entry_mismatch"),
             (package.get("name") == OFFICIAL_PACKAGE, "openspec_package_identity_mismatch"),
             (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
             (
                 declaration.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
                 "openspec_distribution_pin_mismatch",
             ),
+            (
+                isinstance(root, dict)
+                and root.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+                "openspec_root_pin_mismatch",
+            ),
+            (
+                isinstance(locked, dict) and locked.get("version") == OFFICIAL_VERSION,
+                "openspec_lock_version_mismatch",
+            ),
         )
+    else:
+        checks = ((False, "openspec_entry_mismatch"),)
     gaps.extend(gap for valid, gap in checks if not valid)
     version = ""
     if not gaps:
         completed = run_command(
-            _SOURCE_ROOT if source_entry else Path.cwd(),
+            _SOURCE_ROOT if source_entry else _DISTRIBUTION_MODULES.parent,
             (*command, "--version"),
             text=True,
             capture_output=True,
@@ -207,14 +235,6 @@ def _declared_version(path: Path) -> str:
     declaration = _json_object(path)
     dependencies = declaration.get("devDependencies", {})
     return str(dependencies.get(OFFICIAL_PACKAGE) or "") if isinstance(dependencies, dict) else ""
-
-
-def _nearest_package(executable: Path) -> dict[str, Any]:
-    for parent in executable.parents:
-        package = _json_object(parent / "package.json")
-        if package.get("name") == OFFICIAL_PACKAGE:
-            return package
-    return {}
 
 
 OFFICIAL_VERSION = _declared_version(

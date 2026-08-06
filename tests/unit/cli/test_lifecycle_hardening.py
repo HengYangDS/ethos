@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import os
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
+import ethos.adapters.mutation.lane_lifecycle.identity_repair as identity_repair
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as work_lane_refresh
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.admission.ref_intent import ref_intent_dir
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.repo.commit_identity import verify_commit_trust
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
@@ -165,6 +171,274 @@ def test_lane_refresh_recovers_after_ref_cas_precedes_branch_attachment(
     assert recovered["state"] == "base_refreshed"
     assert git(worktree, "branch", "--show-current") == "work/feature"
     assert not list(ref_intent_dir(worktree).glob("*.json"))
+
+
+def test_refresh_base_blocks_same_tree_identity_repair_instead_of_rebasing_back(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    git(candidate, "reset", "--hard", old_head)
+    repaired_head = _replace_signature(worktree, old_head)
+    _advance_lane_lease(worktree, old_head, repaired_head)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(worktree, repaired_head)
+
+    payload = run_ethos_blocked(
+        "lane",
+        "refresh-base",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        repaired_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["required_gaps"] == ["commit_identity_replacement_required"]
+    assert git(worktree, "rev-parse", "HEAD") == repaired_head
+    assert git(candidate, "rev-parse", "HEAD") == old_head
+
+
+def test_repair_identity_requires_protected_trust_and_exact_new_head_proof(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    git(candidate, "reset", "--hard", old_head)
+    repaired_head = _replace_signature(worktree, old_head)
+    _advance_lane_lease(worktree, old_head, repaired_head)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(worktree, repaired_head)
+    assert proof_attestation(worktree, repaired_head) is not None
+
+    payload = run_ethos_blocked(
+        "lane",
+        "repair-identity",
+        "--old-commit",
+        old_head,
+        "--new-commit",
+        repaired_head,
+        "--expect-head",
+        repaired_head,
+        "--apply",
+        "--authorize",
+        "--json",
+        cwd=worktree,
+    )
+
+    assert "commit_trust_anchor_missing" in payload["required_gaps"]
+    assert git(candidate, "rev-parse", "HEAD") == old_head
+
+
+def test_repair_identity_rejects_repository_owned_trust_anchor(tmp_path: Path, monkeypatch) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    repaired_head = _replace_signature(worktree, old_head)
+    anchor = worktree / ".ethos" / "state" / "allowed-signers"
+    anchor.write_text("agent:test ssh-ed25519 synthetic\n", encoding="utf-8")
+    git(worktree, "config", "gpg.ssh.allowedSignersFile", anchor.as_posix())
+    monkeypatch.setattr(
+        "ethos.adapters.repo.commit_identity.os.geteuid",
+        lambda: anchor.stat().st_uid + 1,
+    )
+
+    report = verify_commit_trust(worktree, repaired_head)
+
+    assert report["required_gaps"] == ["commit_trust_anchor_inside_repository"]
+
+
+def test_repair_identity_advances_candidate_and_accepted_through_exact_cas(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    git(candidate, "reset", "--hard", old_head)
+    git(repo, "reset", "--hard", old_head)
+    repaired_head = _replace_signature(worktree, old_head)
+    _advance_lane_lease(worktree, old_head, repaired_head)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(worktree, repaired_head)
+    monkeypatch.setattr(
+        identity_repair,
+        "verify_commit_trust",
+        lambda _root, revision: {
+            "verdict": "pass",
+            "revision": revision,
+            "anchor": "/protected/allowed-signers",
+            "required_gaps": [],
+        },
+    )
+
+    payload = run_ethos(
+        "lane",
+        "repair-identity",
+        "--old-commit",
+        old_head,
+        "--new-commit",
+        repaired_head,
+        "--expect-head",
+        repaired_head,
+        "--apply",
+        "--authorize",
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["state"] == "identity_repaired"
+    assert git(candidate, "rev-parse", "HEAD") == repaired_head
+    assert git(repo, "rev-parse", "HEAD") == repaired_head
+
+
+def test_repair_identity_resumes_after_candidate_cas_before_worktree_sync(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    git(candidate, "reset", "--hard", old_head)
+    git(repo, "reset", "--hard", old_head)
+    repaired_head = _replace_signature(worktree, old_head)
+    _advance_lane_lease(worktree, old_head, repaired_head)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(worktree, repaired_head)
+    monkeypatch.setattr(
+        identity_repair,
+        "verify_commit_trust",
+        lambda _root, revision: {
+            "verdict": "pass",
+            "revision": revision,
+            "anchor": "/protected/allowed-signers",
+            "required_gaps": [],
+        },
+    )
+    original = identity_repair._sync_branch_worktrees
+    interrupted = False
+
+    def interrupt_candidate_once(*args, **kwargs):
+        nonlocal interrupted
+        if not interrupted:
+            interrupted = True
+            return {"worktree_sync": "failed", "worktrees": []}
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(identity_repair, "_sync_branch_worktrees", interrupt_candidate_once)
+    arguments = (
+        "lane",
+        "repair-identity",
+        "--old-commit",
+        old_head,
+        "--new-commit",
+        repaired_head,
+        "--expect-head",
+        repaired_head,
+        "--apply",
+        "--authorize",
+        "--json",
+    )
+
+    failed = run_ethos_blocked(*arguments, cwd=worktree)
+    recovered = run_ethos(*arguments, cwd=worktree)
+
+    assert failed["required_gaps"] == ["identity_repair_cas_rejected"]
+    assert recovered["state"] == "identity_repaired"
+    assert git(candidate, "rev-parse", "HEAD") == repaired_head
+    assert git(candidate, "status", "--short") == ""
+    assert git(repo, "rev-parse", "HEAD") == repaired_head
+    assert git(repo, "status", "--short") == ""
+
+
+def test_repair_identity_resumes_after_accepted_cas_before_worktree_sync(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    git(candidate, "reset", "--hard", old_head)
+    git(repo, "reset", "--hard", old_head)
+    repaired_head = _replace_signature(worktree, old_head)
+    _advance_lane_lease(worktree, old_head, repaired_head)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(worktree, repaired_head)
+    monkeypatch.setattr(
+        identity_repair,
+        "verify_commit_trust",
+        lambda _root, revision: {
+            "verdict": "pass",
+            "revision": revision,
+            "anchor": "/protected/allowed-signers",
+            "required_gaps": [],
+        },
+    )
+    original = identity_repair._sync_branch_worktrees
+    calls = 0
+
+    def interrupt_accepted_once(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            return {"worktree_sync": "failed", "worktrees": []}
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(identity_repair, "_sync_branch_worktrees", interrupt_accepted_once)
+    arguments = (
+        "lane",
+        "repair-identity",
+        "--old-commit",
+        old_head,
+        "--new-commit",
+        repaired_head,
+        "--expect-head",
+        repaired_head,
+        "--apply",
+        "--authorize",
+        "--json",
+    )
+
+    failed = run_ethos_blocked(*arguments, cwd=worktree)
+    recovered = run_ethos(*arguments, cwd=worktree)
+
+    assert failed["required_gaps"] == ["identity_repair_cas_rejected"]
+    assert recovered["state"] == "identity_repaired"
+    assert git(candidate, "rev-parse", "HEAD") == repaired_head
+    assert git(repo, "rev-parse", "HEAD") == repaired_head
+    assert git(repo, "status", "--short") == ""
+
+
+def _replace_signature(worktree: Path, head: str) -> str:
+    raw = git(worktree, "cat-file", "commit", head)
+    repaired = raw.replace(
+        "\n\nfeature work",
+        "\ngpgsig -----BEGIN SSH SIGNATURE-----\n synthetic\n -----END SSH SIGNATURE-----\n\nfeature work",
+    )
+    completed = subprocess.run(
+        ["git", "hash-object", "-t", "commit", "-w", "--stdin"],
+        cwd=worktree,
+        input=repaired + "\n",
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    repaired_head = completed.stdout.strip()
+    git(worktree, "update-ref", "refs/heads/work/feature", repaired_head, head)
+    git(worktree, "reset", "--hard", repaired_head)
+    return repaired_head
+
+
+def _advance_lane_lease(worktree: Path, previous: str, head: str) -> None:
+    prior = os.environ.get("ETHOS_ACTOR")
+    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
+    report = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name="refs/heads/work/feature",
+        old_value=previous,
+        new_value=head,
+    )
+    if prior is None:
+        os.environ.pop("ETHOS_ACTOR", None)
+    else:
+        os.environ["ETHOS_ACTOR"] = prior
+    assert report["state"] == "lease_ref_advanced", report
 
 
 def test_land_closeout_reports_actionable_candidate_divergence(tmp_path: Path) -> None:

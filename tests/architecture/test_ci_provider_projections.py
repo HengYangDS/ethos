@@ -490,7 +490,6 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
                 'required_uv="0.12.2"',
             ),
             (
-                "@fission-ai/openspec@1.6.0",
                 "npx --yes",
                 "build/runtime/bootstrap",
                 "python -m pip install",

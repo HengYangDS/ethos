@@ -176,7 +176,7 @@ invariants are implemented and proved without parallel mutation owners.
   `@fission-ai/openspec@1.8.0`, reject cache/PATH/global version drift, consume
   official status, artifact `requires`, `skip_specs`, nested specs,
   apply/archive instructions, warnings, paths, and no-op JSON, resolve Change-ID
-  syntax differences, reject `defaultStore`, retain no 1.6 or carrier fallback,
+  syntax differences, reject `defaultStore`, retain no legacy or carrier fallback,
   and delete local predictive/parsing replicas after characterization and parity.
   Consume the officially resolved project schema rather than forcing
   `spec-driven`; characterize project-local schema resolution, arbitrary artifact
@@ -190,7 +190,7 @@ invariants are implemented and proved without parallel mutation owners.
   built-in schema or repository-local bytes must reconstruct the workflow on
   another machine. This task was reopened after current
   code was found to force `--schema spec-driven` and fixed four rule IDs despite
-  OpenSpec 1.7's valid custom-schema contract. Characterization covered official
+  OpenSpec 1.8's valid custom-schema contract. Characterization covered official
   project-schema resolution, arbitrary DAGs, templates, context/rules,
   apply/archive guidance, generated Codex Skills, and preservation of an
   adopter-owned custom config. Community sampling covered Superpowers bridges,
@@ -405,7 +405,7 @@ are proved homomorphic projections of one portable policy.
   preserves evidence only and never remains a current execution owner.
 
 **Exit 6:** quality, compression, adopter, interface, and method-evaluation
-obligations are implemented and proved; official OpenSpec 1.7 archives the
+obligations are implemented and proved; official OpenSpec 1.8 archives the
 completed Change without speculative spec mutation.
 
 ## 7. Close The Campaign Once

@@ -148,7 +148,7 @@ def push_admission_report(
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
     role = policy.role_for_branch(branch)
-    topology = publication_topology(release_config(repo))
+    topology = publication_topology(repo, release_config(repo))
     branch_admission = publication_branch_admission(
         topology,
         branch=branch,

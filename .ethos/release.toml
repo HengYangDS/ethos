@@ -11,8 +11,12 @@ merge_request_template = ".gitlab/merge_request_templates/default.md"
 issue_template = ".gitlab/issue_templates/task.md"
 
 [publication]
+local_verification_command = "tools/ci/scripts/run-local-ci.sh"
+local_installation_command = "tools/ci/scripts/run-local-install-smoke.sh"
 gitlab_remote = "origin"
+gitlab_ci_surface = ".gitlab-ci.yml"
 github_remote = "github"
+github_ci_surface = ".github/workflows/ci.yml"
 
 [attestation]
 formats = ["spdx-2.3-json"]

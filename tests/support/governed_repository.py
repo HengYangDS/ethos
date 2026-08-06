@@ -539,17 +539,37 @@ def render_branch_policy(
 
 
 def write_publication_topology(
-    repo: Path, *, gitlab_remote: str = "origin", github_remote: str = "github"
+    repo: Path,
+    *,
+    gitlab_remote: str = "origin",
+    github_remote: str = "github",
+    verification_command: str = "dev/verify",
+    installation_command: str = "dev/install",
+    gitlab_ci_surface: str = ".gitlab-ci.yml",
+    github_ci_surface: str = ".github/workflows/verify.yml",
 ) -> None:
     """Declare the canonical independent GitLab and GitHub test remotes."""
     release = repo / ".ethos" / "release.toml"
     release.parent.mkdir(parents=True, exist_ok=True)
+    for command in (verification_command, installation_command):
+        path = repo / command
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        path.chmod(0o755)
+    for surface in (gitlab_ci_surface, github_ci_surface):
+        path = repo / surface
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# repository-native CI\n", encoding="utf-8")
     release.write_text(
         "\n".join(
             (
                 "[publication]",
+                f'local_verification_command = "{verification_command}"',
+                f'local_installation_command = "{installation_command}"',
                 f'gitlab_remote = "{gitlab_remote}"',
+                f'gitlab_ci_surface = "{gitlab_ci_surface}"',
                 f'github_remote = "{github_remote}"',
+                f'github_ci_surface = "{github_ci_surface}"',
                 "",
             )
         ),

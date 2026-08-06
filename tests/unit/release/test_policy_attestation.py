@@ -19,6 +19,19 @@ _LOCAL = {
     "installation_command": "tools/ci/scripts/run-local-install-smoke.sh",
 }
 
+_PUBLICATION = {
+    "local_verification_command": "tools/ci/scripts/run-local-ci.sh",
+    "local_installation_command": "tools/ci/scripts/run-local-install-smoke.sh",
+    "gitlab_remote": "origin",
+    "gitlab_ci_surface": ".gitlab-ci.yml",
+    "github_remote": "github",
+    "github_ci_surface": ".github/workflows/verify.yml",
+}
+
+
+def _publication_config(**updates: object) -> dict[str, object]:
+    return {"publication": {**_PUBLICATION, **updates}}
+
 
 def _assert_fields(actual: dict[str, object], **expected: object) -> None:
     assert {key: actual[key] for key in expected} == expected
@@ -99,7 +112,7 @@ def _topology(monkeypatch: pytest.MonkeyPatch, command: str, gaps: object = ()) 
     monkeypatch.setattr(
         release_core,
         "publication_topology",
-        lambda _config: {"local": {"installation_command": command}, "required_gaps": gaps},
+        lambda _root, _config: {"local": {"installation_command": command}, "required_gaps": gaps},
     )
 
 
@@ -209,7 +222,7 @@ def test_release_policy_ignores_malformed_publication_gap_collection(
     monkeypatch.setattr(
         release_core,
         "publication_topology",
-        lambda _config: {"local": _LOCAL, "required_gaps": "malformed"},
+        lambda _root, _config: {"local": _LOCAL, "required_gaps": "malformed"},
     )
     report = release_policy_report(Path.cwd())
     assert report["verdict"] == "pass"
@@ -225,8 +238,8 @@ def test_release_policy_rejects_unequal_remote_capability_declaration() -> None:
         (scratch / ".ethos").mkdir(exist_ok=True)
         (scratch / ".ethos" / "release.toml").write_text(
             config.replace(
-                'gitlab_remote = "origin"\ngithub_remote = "github"',
-                'gitlab_remote = "origin"\ngithub_remote = "origin"',
+                'github_remote = "github"',
+                'github_remote = "origin"',
                 1,
             ),
             encoding="utf-8",
@@ -261,38 +274,117 @@ def test_release_policy_rejects_unequal_remote_capability_declaration() -> None:
         ({"publication": "invalid"}, ["publication_topology_declaration_invalid"]),
         (
             {"publication": {"gitlab_remote": "origin"}},
-            ["publication_topology_github_remote_missing"],
+            [
+                "publication_topology_github_remote_missing",
+                "publication_topology_local_verification_command_missing",
+                "publication_topology_local_installation_command_missing",
+                "publication_topology_gitlab_ci_surface_missing",
+                "publication_topology_github_ci_surface_missing",
+            ],
         ),
         (
             {"publication": {}},
             [
                 "publication_topology_gitlab_remote_missing",
                 "publication_topology_github_remote_missing",
+                "publication_topology_local_verification_command_missing",
+                "publication_topology_local_installation_command_missing",
+                "publication_topology_gitlab_ci_surface_missing",
+                "publication_topology_github_ci_surface_missing",
             ],
         ),
         (
             {"publication": {"gitlab_remote": "origin", "github_remote": "origin"}},
-            ["publication_topology_git_remotes_duplicate"],
+            [
+                "publication_topology_git_remotes_duplicate",
+                "publication_topology_local_verification_command_missing",
+                "publication_topology_local_installation_command_missing",
+                "publication_topology_gitlab_ci_surface_missing",
+                "publication_topology_github_ci_surface_missing",
+            ],
         ),
     ],
 )
 def test_release_topology_rejects_invalid_declarations(
     declaration: dict[str, object], gaps: list[str]
 ) -> None:
-    topology = publication_topology(declaration)
+    topology = publication_topology(Path.cwd(), declaration)
     assert topology["state"] == "invalid"
     assert topology["required_gaps"] == gaps
 
 
 def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
     admission = publication_branch_admission(
-        publication_topology({"publication": {"remotes": ["origin", "github"]}}),
+        publication_topology(Path.cwd(), {"publication": {"remotes": ["origin", "github"]}}),
         branch="dev",
         candidate_branch="candidate/dev",
         remote_name="origin",
         enforce=False,
     )
     assert admission["enforcement_gaps"] == ["publication_topology_declaration_invalid"]
+
+
+def test_release_topology_uses_declared_repository_native_commands_and_ci_surfaces(
+    tmp_path: Path,
+) -> None:
+    verification = tmp_path / "dev" / "verify"
+    installation = tmp_path / "dev" / "install"
+    gitlab = tmp_path / ".gitlab-ci.yml"
+    github = tmp_path / ".github" / "workflows" / "verify.yml"
+    for command in (verification, installation):
+        command.parent.mkdir(parents=True, exist_ok=True)
+        command.write_text("#!/bin/sh\n", encoding="utf-8")
+        command.chmod(0o755)
+    for surface in (gitlab, github):
+        surface.parent.mkdir(parents=True, exist_ok=True)
+        surface.write_text("jobs: {}\n", encoding="utf-8")
+
+    topology = publication_topology(
+        tmp_path,
+        _publication_config(
+            local_verification_command="dev/verify",
+            local_installation_command="dev/install",
+        ),
+    )
+
+    assert topology["state"] == "ready"
+    assert topology["local"]["verification_command"] == "dev/verify"
+    assert topology["local"]["installation_command"] == "dev/install"
+    assert topology["gitlab"]["ci_surface"] == ".gitlab-ci.yml"
+    assert topology["github"]["ci_surface"] == ".github/workflows/verify.yml"
+
+
+@pytest.mark.parametrize(
+    ("updates", "gap"),
+    [
+        (
+            {"local_verification_command": ""},
+            "publication_topology_local_verification_command_missing",
+        ),
+        (
+            {"local_installation_command": "../install"},
+            "publication_topology_local_installation_command_path_escape:../install",
+        ),
+        (
+            {"local_verification_command": "missing"},
+            "publication_topology_local_verification_command_missing:missing",
+        ),
+        (
+            {"github_ci_surface": "/tmp/verify.yml"},
+            "publication_topology_github_ci_surface_path_escape:/tmp/verify.yml",
+        ),
+        (
+            {"gitlab_ci_surface": "missing.yml"},
+            "publication_topology_gitlab_ci_surface_missing:missing.yml",
+        ),
+    ],
+)
+def test_release_topology_rejects_invalid_declared_paths(
+    tmp_path: Path, updates: dict[str, object], gap: str
+) -> None:
+    topology = publication_topology(tmp_path, _publication_config(**updates))
+
+    assert gap in topology["required_gaps"]
 
 
 def test_release_policy_uses_configured_branch_roles_for_protected_refs(tmp_path: Path) -> None:

@@ -22,8 +22,21 @@ Provider projections SHALL be symmetric derived views of one portable release co
 - **WHEN** product or adopter release policy reads `.ethos/release.toml`
 - **THEN** protected refs, host surfaces, publication remotes, and attestation
   policy remain available
+- **AND** `[publication]` explicitly names the repository-native local
+  verification command, local installation command, GitLab CI surface, and
+  GitHub CI surface rather than inheriting ETHOS product paths
+- **AND** each declared command is an executable regular file and every command
+  or CI surface resolves inside the governed repository
 - **AND** dead `version_source`, `tag_pattern`, and `artifact_glob = "dist/*"`
   fields are not generated or treated as configurable behavior.
+
+#### Scenario: Adopter-native release owners require no forwarding wrapper
+
+- **WHEN** an adopter's verification, installation, GitLab CI, or GitHub CI path
+  differs from ETHOS's own product layout
+- **THEN** publication topology SHALL project the exact declared repository path
+- **AND** it SHALL NOT infer or generate an ETHOS-shaped forwarding script or a
+  fixed `.github/workflows/ci.yml` surface.
 
 #### Scenario: Distribution output is located
 

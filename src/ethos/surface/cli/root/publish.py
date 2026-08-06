@@ -170,7 +170,7 @@ def publish(
         report_verdict(independent_verification),
         required_gaps=gaps,
     )
-    remote_topology = publication_topology(release_config(repo))
+    remote_topology = publication_topology(repo, release_config(repo))
     raw_topology_gaps = remote_topology.get("required_gaps", [])
     topology_gaps = (
         tuple(str(gap) for gap in raw_topology_gaps) if isinstance(raw_topology_gaps, list) else ()

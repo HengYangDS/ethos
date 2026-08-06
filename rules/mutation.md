@@ -21,6 +21,15 @@ Purpose: define tracked write admission and Work Lane discipline.
   --change <id> --expect-head <head> --apply`; do not run a standalone archive
   followed by a manual commit. The command owns the exact official delta, normal
   hook commit, Lease relocation, and typed effect evidence as one transition.
+- After that archive transition, start the next atomic Change in the same owned
+  Work Lane only with `ethos lane start-change <id> --intent <intent> --scope
+  <glob> --expect-head <head> --apply`. The command requires the same holder and
+  exact current HEAD/tree, invokes the locked official OpenSpec creator, commits
+  through normal hooks, and advances the Lease to the new Commitment generation.
+  A pre-existing forward-fix overlay must be fully staged, covered by the new
+  scope, and rebound with the exact digest reported by dry-run through
+  `--expected-overlay-digest`; unstaged, uncovered, or drifting content blocks.
+  Do not unarchive the prior Change, recreate the lane, or edit Lease state.
 - Replace a same-payload commit OID only with `ethos lane repair-identity`; the
   command requires exact old/new commit observations, the current holder and
   Lease, fresh proof, verified external signature trust, and exact-CAS train

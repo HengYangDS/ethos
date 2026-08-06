@@ -81,6 +81,21 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
 - **AND** ordinary staged archive mutation remains fail closed unless it is the
   exact Lease-bound transition
 
+#### Scenario: an archived lane starts its next Change generation exactly
+- **GIVEN** a clean Work Lane whose current same-holder Lease binds an archived
+  Commitment and exact current HEAD/tree
+- **WHEN** the holder starts one new atomic Change in that existing lane
+- **THEN** the locked official OpenSpec creation, new Commitment, normal-hook
+  commit, Lease HEAD/tree/carrier/epoch advance, and effect Attestation form one
+  recoverable transition
+- **AND** any pre-existing forward-fix overlay is fully staged, covered by the
+  new scope, and bound by its exact content digest before it is committed with
+  the new Commitment
+- **AND** the new Commitment immediately admits its declared material scope
+- **AND** a different holder, stale observation, active Change, official-output
+  mismatch, filesystem or ref drift, or unrelated replay produces no authority
+  and no partial repository or Lease state
+
 #### Scenario: routine lifecycle remains local
 
 - **WHEN** a lease is acquired, renewed, resumed, locally handed off, expires, or

@@ -32,6 +32,14 @@ The registry lifecycle is:
 observe -> shape -> canonize -> project -> retire
 ```
 
+For `role: decision`, the registry additionally enforces a flat `DR-*.md`
+surface, the shared record/invariants/alternatives/decision/consequences/evidence/
+revisit/change-ledger grammar, comparable alternatives tables, and a single
+Decision Index. Current accepted/proposed records appear first by descending
+decision-change date; superseded records follow as history. Dependencies and
+code/evidence references remain inside each record rather than duplicated into
+parallel maps.
+
 Archive material may preserve old vocabulary. Canonical docs must lead with the
 single `ethos ...` command plane.
 

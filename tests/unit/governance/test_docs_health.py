@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import cast
 
 from ethos.surface.cli.root.reference import docs_registry_report
 
@@ -169,7 +170,8 @@ See also: none.
     report = docs_registry_report(tmp_path)
 
     assert report["verdict"] == "pass"
-    assert [entry["path"] for entry in report["registry"]] == ["handbook/guide.md"]
+    registry = cast("list[dict[str, str]]", report["registry"])
+    assert [entry["path"] for entry in registry] == ["handbook/guide.md"]
 
 
 def test_docs_health_fails_closed_for_an_invalid_profile(tmp_path: Path) -> None:
@@ -209,7 +211,8 @@ def test_docs_health_does_not_scan_product_distribution_layout(tmp_path: Path) -
     report = docs_registry_report(tmp_path)
 
     assert report["verdict"] == "pass"
-    assert [entry["path"] for entry in report["registry"]] == ["docs/reference/example.md"]
+    registry = cast("list[dict[str, str]]", report["registry"])
+    assert [entry["path"] for entry in registry] == ["docs/reference/example.md"]
 
 
 def test_observational_roles_do_not_require_reader_sections(tmp_path: Path) -> None:
@@ -248,6 +251,7 @@ def test_docs_registry_gate_declares_only_its_owned_dimensions() -> None:
         "visible-sections",
         "command-examples",
         "plan-discoverability",
+        "decision-records",
     ]
 
 
@@ -262,3 +266,159 @@ def test_decision_records_use_one_comparison_table_shape() -> None:
         )
         assert "| Option | Verdict | Pros | Cons | Decision basis |" in alternatives
         assert not {"**Pros**", "**Cons**", "**Why Rejected**"} & set(alternatives.splitlines())
+
+
+def test_decision_records_require_the_single_concise_grammar(tmp_path: Path) -> None:
+    """A durable ruling is incomplete when its comparable decision grammar is partial."""
+    path = tmp_path / "docs" / "decisions" / "DR-0001-example.md"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        """---
+subject: example:decision
+role: decision
+state: canonical
+relations: none
+---
+
+# DR-0001: Example
+
+Status: accepted.
+
+Purpose: expose an incomplete durable ruling.
+
+See also: none.
+
+## Record
+
+| Field | Value |
+| --- | --- |
+| Decision ID | DR-0001 |
+| Status | accepted |
+| Decision Date | 2026-08-06 |
+| Decision Change Date | 2026-08-06 |
+""",
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        (
+            "decision_record_sections_missing:docs/decisions/DR-0001-example.md:"
+            "Context,Invariants,Alternatives Considered,Decision,Consequences,Proof Or Evidence,"
+            "Revisit Trigger,Decision Change Ledger"
+        ),
+        "decision_index_missing:docs/decisions/decision-index.md",
+    ]
+    assert report["verdict"] == "block"
+
+
+def test_decision_index_requires_current_records_newest_first(tmp_path: Path) -> None:
+    """The decision index leads with accepted rulings ordered by latest change date."""
+    decisions = tmp_path / "docs" / "decisions"
+    decisions.mkdir(parents=True)
+    for decision_id, changed in (("DR-0001", "2026-08-01"), ("DR-0002", "2026-08-06")):
+        (decisions / f"{decision_id}-example.md").write_text(
+            _decision_record(decision_id, changed),
+            encoding="utf-8",
+        )
+    (decisions / "decision-index.md").write_text(
+        _decision_index(("DR-0001", "DR-0002")),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        "decision_index_order_invalid:docs/decisions/decision-index.md:DR-0002,DR-0001"
+    ]
+
+
+def _decision_record(decision_id: str, changed: str) -> str:
+    return f"""---
+subject: example:decision:{decision_id.lower()}
+role: decision
+state: canonical
+relations: none
+---
+
+# {decision_id}: Example
+
+Status: accepted.
+
+Purpose: exercise decision ordering.
+
+See also: none.
+
+## Record
+
+| Field | Value |
+| --- | --- |
+| Decision ID | {decision_id} |
+| Status | accepted |
+| Decision Date | {changed} |
+| Decision Change Date | {changed} |
+
+## Context
+
+Context.
+
+## Invariants
+
+- One invariant.
+
+## Alternatives Considered
+
+| Option | Verdict | Pros | Cons | Decision basis |
+| --- | --- | --- | --- | --- |
+| One | selected | Clear. | Cost. | Best fit. |
+| Two | rejected | Familiar. | Breaks invariant. | Inferior. |
+
+## Decision
+
+Select one.
+
+## Consequences
+
+One consequence.
+
+## Proof Or Evidence
+
+- One check.
+
+## Revisit Trigger
+
+One falsifiable trigger.
+
+## Decision Change Ledger
+
+| Version | Date | Change | Reason | Evidence |
+| --- | --- | --- | --- | --- |
+| 1 | {changed} | Initial ruling | Select | Check |
+"""
+
+
+def _decision_index(decision_ids: tuple[str, ...]) -> str:
+    rows = "\n".join(
+        f"| [{decision_id}]({decision_id}-example.md) | Example | accepted | 2026-08-06 |"
+        for decision_id in decision_ids
+    )
+    return f"""---
+subject: example:decision:index
+role: index
+state: canonical
+relations: none
+---
+
+# Decision Index
+
+Status: canonical.
+
+Purpose: route decisions.
+
+See also: none.
+
+| ID | Title | Status | Changed |
+| --- | --- | --- | --- |
+{rows}
+"""

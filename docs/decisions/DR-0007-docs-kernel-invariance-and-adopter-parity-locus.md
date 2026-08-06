@@ -23,7 +23,12 @@ See also: [Decision Records](README.md), [Decision Index](decision-index.md),
 
 | Field | Value |
 | --- | --- |
+| Decision ID | DR-0007 |
+| Kind | architecture / documentation |
 | Status | superseded |
+| Decision Date | 2026-07-12 |
+| Decision Version | 2 |
+| Decision Change Date | 2026-07-28 |
 | Class | architecture / documentation |
 | Scope | Docs required-path kernel invariance; locus and cost profile of adopter parity evidence. |
 | Supersedes | none |

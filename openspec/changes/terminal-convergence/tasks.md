@@ -262,7 +262,7 @@ throughput, and lane housekeeping are implemented and proved.
 - [x] 5.3 Split, rename, absorb, or delete ambiguous `core/common/shared/utils`
   and other catch-alls by actual semantic axes across source, tests, tools,
   configuration, and documentation; no size-only split or facade.
-- [ ] 5.4 Make DRs flat, newest-current first, strongly structured, and concise;
+- [x] 5.4 Make DRs flat, newest-current first, strongly structured, and concise;
   alternatives use comparable decision tables with pros, cons, rationale,
   consequences, revisit triggers, and evidence.
 - [ ] 5.5 Make specs, rules, and skills evolve through coverage, overlap,

@@ -121,8 +121,6 @@ separation.
 See also
 
 - [Decision Index](decision-index.md)
-- [Decision Dependency Map](decision-dependency-map.md)
-- [Decision Code Links](decision-code-links.md)
 
 ## Invariants
 

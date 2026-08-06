@@ -23,7 +23,12 @@ See also: [Decision Records](README.md) and [Decision Index](decision-index.md).
 
 | Field | Value |
 | --- | --- |
+| Decision ID | DR-0006 |
+| Kind | architecture / security |
 | Status | accepted |
+| Decision Date | 2026-07-10 |
+| Decision Version | 3 |
+| Decision Change Date | 2026-07-31 |
 | Class | architecture / security |
 | Scope | What a local executed-proof record does and does not guarantee; where the genuine anti-forgery trust root lives; the optional verification adapter interface. |
 | Supersedes | none |

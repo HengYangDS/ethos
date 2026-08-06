@@ -42,7 +42,7 @@ from tests.support.governed_repository import write_active_commitment
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_openspec_runner_is_repository_locked_17_without_fallbacks(
+def test_openspec_runner_is_repository_locked_without_fallbacks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("ETHOS_OPENSPEC_BIN", "/tmp/untrusted-openspec")
@@ -61,6 +61,44 @@ def test_openspec_runner_is_repository_locked_17_without_fallbacks(
     assert openspec_cli.verify_official_cli(command)["verdict"] == "pass"
     assert all(token not in command for token in ("npx", "openspec", "/tmp/untrusted-openspec"))
     assert os.environ["PATH"] == "/tmp/untrusted-path"
+
+
+def test_bundled_openspec_runner_requires_the_packaged_lock(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "node_modules/@fission-ai/openspec/package.json"
+    entry = package.parent / "bin/openspec.js"
+    declaration = tmp_path / "package.json"
+    package.parent.mkdir(parents=True)
+    entry.parent.mkdir()
+    package.write_text(
+        json.dumps(
+            {"name": openspec_cli.OFFICIAL_PACKAGE, "version": openspec_cli.OFFICIAL_VERSION}
+        ),
+        encoding="utf-8",
+    )
+    declaration.write_text(
+        json.dumps(
+            {"devDependencies": {openspec_cli.OFFICIAL_PACKAGE: openspec_cli.OFFICIAL_VERSION}}
+        ),
+        encoding="utf-8",
+    )
+    entry.touch()
+    assert openspec_cli._SOURCE_NODE is not None
+    command = (openspec_cli._SOURCE_NODE, entry.as_posix())
+    monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_DECLARATION", declaration)
+    monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_PACKAGE", package)
+    monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_ENTRY", entry)
+    monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_LOCK", tmp_path / "package-lock.json")
+
+    report = openspec_cli.verify_official_cli(command)
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == [
+        "openspec_root_pin_mismatch",
+        "openspec_lock_version_mismatch",
+    ]
 
 
 def test_openspec_17_status_contract_exposes_artifact_graph() -> None:

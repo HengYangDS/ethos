@@ -277,7 +277,7 @@ throughput, and lane housekeeping are implemented and proved.
   earliest enforceable owner through rule → gate → schema/default → scaffold or
   generator, while obsolete lower carriers are removed; decorative prose alone
   cannot count as prevention, learning, or completion.
-- [ ] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
+- [x] 5.6 Absorb valuable meaning from obsolete docs and lanes, preserve only
   necessary history, then delete misleading or redundant residue without a
   generic archive truth root.
 - [ ] 5.7 Derive GitLab/GitHub issue, review, CI/CD, release, and provider

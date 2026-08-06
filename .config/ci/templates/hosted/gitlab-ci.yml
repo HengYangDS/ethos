@@ -252,8 +252,8 @@ ethos:npm:
   parallel:
     matrix:
       - NODE_VERSION:
-          - "24.18.0"
-          - "26.5.0"
+          - "24.19.0"
+          - "26.7.0"
   # Runs on python:3.14 with exact Node
   # releases installed from nodejs.org; see the runtime policy and installer.
   image: ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75

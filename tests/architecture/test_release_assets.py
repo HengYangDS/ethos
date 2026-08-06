@@ -5,7 +5,6 @@ import re
 import stat
 import subprocess
 import tomllib
-from datetime import date
 from pathlib import Path
 
 from tests.support.architecture import tool_block
@@ -248,10 +247,10 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
 
     assert policy["schema"] == "ethos-node-runtime-compatibility-v1"
     assert policy["owner"] == "ethos-quality-gate-governance"
-    assert policy["default_version"] == "24.18.0"
-    assert policy["compatibility_versions"] == ["24.18.0", "26.5.0"]
-    assert policy["next_default_candidate"] == "26.5.0"
-    assert policy["review_not_before"] == date(2026, 10, 28)
+    assert policy["default_version"] == "26.7.0"
+    assert policy["compatibility_versions"] == ["24.19.0", "26.7.0"]
+    assert "next_default_candidate" not in policy
+    assert "review_not_before" not in policy
     archive_sha256 = policy["archive_sha256"]
     assert set(archive_sha256) == set(policy["compatibility_versions"])
     for checksums in archive_sha256.values():
@@ -266,7 +265,7 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
     assert "npm ci --ignore-scripts" in runner
     assert "npm run ethos -- --version" in runner
     assert "npm run test:npm" in runner
-    assert '"packageManager": "npm@11.12.1"' in package
+    assert '"packageManager"' not in package
     installer_default = re.search(r'version="\$\{NODE_VERSION:-([^}]+)\}"', installer)
     assert installer_default is not None
     assert installer_default.group(1) == policy["default_version"]
@@ -298,8 +297,8 @@ printf '%s|engine=%s\\n' "$*" "${npm_config_engine_strict:-}" >> "${FAKE_NPM_LOG
     env.update(
         {
             "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
-            "NODE_VERSION": "24.18.0",
-            "FAKE_NODE_VERSION": "24.18.0",
+            "NODE_VERSION": "24.19.0",
+            "FAKE_NODE_VERSION": "24.19.0",
             "FAKE_NPM_LOG": str(npm_log),
         }
     )
@@ -345,8 +344,8 @@ printf 'called\\n' >> "${FAKE_NPM_LOG}"
     env.update(
         {
             "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
-            "NODE_VERSION": "24.18.0",
-            "FAKE_NODE_VERSION": "26.5.0",
+            "NODE_VERSION": "24.19.0",
+            "FAKE_NODE_VERSION": "26.7.0",
             "FAKE_NPM_LOG": str(npm_log),
         }
     )
@@ -361,7 +360,7 @@ printf 'called\\n' >> "${FAKE_NPM_LOG}"
     )
 
     assert result.returncode != 0
-    assert "Node runtime mismatch: requested 24.18.0, active 26.5.0" in result.stderr
+    assert "Node runtime mismatch: requested 24.19.0, active 26.7.0" in result.stderr
     assert not npm_log.exists()
 
 

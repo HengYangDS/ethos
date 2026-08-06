@@ -10,7 +10,7 @@
 # Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic.
 set -euo pipefail
 
-version="${NODE_VERSION:-24.18.0}"
+version="${NODE_VERSION:-26.7.0}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 policy_path="${repo_root}/.config/checks/node/runtime.toml"

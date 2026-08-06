@@ -155,7 +155,7 @@ def execute_git_effect(
 ) -> Attestation:
     """Recognize, execute, or recover one exact Git ref transaction."""
     effect = git_effect_from_plan(plan)
-    _require_effect_permission(effect, plan.permissions)
+    _require_effect_permission(effect, plan)
     recorded = ethos.adapters.repo.git_effect_attestation.records(root, plan)
     if attestation := next(iter(recorded), None):
         ethos.adapters.repo.git_effect_attestation.validate(
@@ -381,11 +381,33 @@ def _effect_environment(
     }
 
 
-def _require_effect_permission(effect: GitEffect, permissions: tuple[str, ...]) -> None:
-    admitted = set(permissions)
-    if "git.ref.compare-and-swap" not in admitted and not set(effect.permissions) <= admitted:
-        message = "git_effect_permission_denied"
-        raise ValueError(message)
+def _require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
+    """Admit one CAS through its Commitment or its narrow lease-bound bootstrap."""
+    admitted = set(plan.permissions)
+    if "git.ref.compare-and-swap" in admitted or set(effect.permissions) <= admitted:
+        return
+    if _is_commitment_rebind_authority(effect, plan):
+        return
+    raise ValueError("git_effect_permission_denied")
+
+
+def _is_commitment_rebind_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
+    """Recognize rebind's command-level CAS authority without widening normal effects."""
+    if plan.policy.get("operation") != "commitment.rebind":
+        return False
+    values = plan.facts.get("values")
+    facts = values if isinstance(values, Mapping) else {}
+    required = {
+        "lease_generation",
+        "lease_successor",
+        "new_commitment_path",
+        "new_commitment_bytes_sha256",
+        "new_commitment_digest",
+    }
+    policy_bound = all(
+        plan.policy.get(name) for name in ("old_commitment_digest", "new_commitment_digest")
+    )
+    return len(effect.updates) == 1 and required <= set(facts) and policy_bound
 
 
 def _require_plan_prestate(

@@ -42,6 +42,10 @@ def _executable(name: str) -> str:
     return executable
 
 
+def _project_script(name: str) -> str:
+    return str(_venv_executable(Path(sys.executable).parent.parent, name))
+
+
 def _run(*command: str, cwd: Path = ROOT) -> str:
     completed = run_command(cwd, command, check=True)
     return completed.stdout.strip()
@@ -153,7 +157,7 @@ def run(session: nox.Session) -> None:
     EVIDENCE.unlink(missing_ok=True)
     WORK.mkdir(parents=True)
     wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
-    uv, source_python = _executable("uv"), Path(sys.executable)
+    uv, source_python = _project_script("uv"), Path(sys.executable)
     _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
     source_site = Path(sysconfig.get_paths()["purelib"])
     smoke_site = Path(

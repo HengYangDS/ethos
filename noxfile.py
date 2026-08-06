@@ -61,7 +61,7 @@ def _ruff_ratchet(session: nox.Session, paths: tuple[str, ...]) -> None:
     completed = cast(
         "str",
         session.run(
-            "ruff",
+            _project_script("ruff"),
             "check",
             "--config",
             "ruff.toml",
@@ -99,8 +99,9 @@ def lint(session: nox.Session) -> None:
     paths = _candidate_python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
-    session.run("ruff", "check", *common, *paths)
-    session.run("ruff", "format", *common, "--check", *paths)
+    ruff = _project_script("ruff")
+    session.run(ruff, "check", *common, *paths)
+    session.run(ruff, "format", *common, "--check", *paths)
     _ruff_ratchet(session, paths)
 
 
@@ -120,7 +121,7 @@ def coverage_floor(session: nox.Session) -> None:
 def build(session: nox.Session) -> None:
     """Build the Hatchling wheel through the locked uv project environment."""
     session.run(
-        "uv",
+        _project_script("uv"),
         "build",
         "--offline",
         "--wheel",

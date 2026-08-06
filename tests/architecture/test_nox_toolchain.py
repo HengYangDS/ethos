@@ -18,9 +18,47 @@ def test_nox_reuses_the_single_locked_project_environment() -> None:
     assert any(requirement.startswith("uv>=0.12.2") for requirement in development)
     assert "PROJECT_SCRIPTS = Path(sys.executable).parent" in source
     assert 'suffix = ".exe" if os.name == "nt" else ""' in source
-    for implicit_command in ('session.run("ethos"', 'session.run("lint-imports"'):
+    for implicit_command in (
+        'session.run("ethos"',
+        'session.run("lint-imports"',
+        'session.run("ruff"',
+        'session.run("uv"',
+    ):
         assert implicit_command not in source
+    assert 'ruff = _project_script("ruff")' in source
+    assert '_project_script("uv"),' in source
     assert '"-m",\n        "check_jsonschema"' in source
+
+
+def test_python_gate_helpers_bind_project_scripts_instead_of_path() -> None:
+    dependency = (ROOT / "tools/ci/dependency_hygiene.py").read_text(encoding="utf-8")
+    install = (ROOT / "tools/ci/local_install_smoke.py").read_text(encoding="utf-8")
+
+    assert '_project_script("deptry")' in dependency
+    assert 'session.run(\n            "deptry"' not in dependency
+    assert '_project_script("uv")' in install
+    assert '_executable("uv")' not in install
+
+
+def test_locked_tool_resolution_ignores_untrusted_path(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    for name in ("ruff", "uv", "deptry"):
+        executable = tmp_path / name
+        executable.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
+        executable.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    import noxfile
+    from tools.ci import dependency_hygiene
+    from tools.ci import local_install_smoke
+
+    project_scripts = Path(noxfile.sys.executable).parent
+    assert Path(noxfile._project_script("ruff")).parent == project_scripts
+    assert Path(noxfile._project_script("uv")).parent == project_scripts
+    assert Path(dependency_hygiene._project_script("deptry")).parent == project_scripts
+    assert Path(local_install_smoke._project_script("uv")).parent == project_scripts
 
 
 def test_nox_gate_registry_uses_the_bound_python_runtime() -> None:

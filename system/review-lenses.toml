@@ -1,0 +1,87 @@
+schema_version = 1
+id = "review-lenses"
+source_refs = ["system/review-lenses.toml"]
+
+[[lens]]
+id = "structure"
+phases = ["pre-implementation", "post-implementation"]
+owner = "deterministic-structure"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 0
+
+[[lens]]
+id = "traceability"
+phases = ["pre-implementation", "post-implementation"]
+requires = ["structure"]
+owner = "requirement-traceability"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 0
+
+[[lens]]
+id = "contradiction"
+phases = ["pre-implementation", "post-implementation"]
+requires = ["traceability"]
+owner = "intent-coherence"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 0
+
+[[lens]]
+id = "realization"
+phases = ["post-implementation"]
+requires = ["contradiction"]
+owner = "requirement-realization"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 0
+
+[[lens]]
+id = "reverse-discovery"
+phases = ["post-implementation"]
+requires = ["realization"]
+owner = "behavior-discovery"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 0
+
+[[lens]]
+id = "architecture"
+phases = ["pre-implementation", "post-implementation"]
+requires = ["contradiction"]
+triggers = ["kernel", "architecture", "src/**"]
+owner = "architecture-boundary"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 16000
+
+[[lens]]
+id = "security"
+phases = ["pre-implementation", "post-implementation"]
+requires = ["contradiction"]
+triggers = ["security"]
+owner = "security-boundary"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 16000
+
+[[lens]]
+id = "migration"
+phases = ["pre-implementation", "post-implementation"]
+requires = ["contradiction"]
+triggers = ["migration"]
+owner = "migration-integrity"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 12000
+
+[[lens]]
+id = "irreversibility"
+phases = ["pre-implementation", "post-implementation"]
+requires = ["contradiction"]
+triggers = ["irreversible"]
+owner = "irreversible-effect-boundary"
+output_schema = "review-result.schema.json"
+blocking = true
+max_tokens = 8000

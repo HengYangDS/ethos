@@ -10,19 +10,3 @@ paths = [
   "rules",
   "openspec/specs",
 ]
-skip = [
-  "docs/archive",
-  "docs/architecture/_generated",
-  "evidence",
-  "openspec/changes/archive",
-  "uv.lock",
-]
-ignore_words = [
-  "alos",
-  "crate",
-  "datas",
-  "fo",
-  "nd",
-  "ot",
-  "ue",
-]

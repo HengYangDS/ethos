@@ -8,9 +8,8 @@ include = [
   "SKILL.md",
   "references/gate-design.md",
 ]
-exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:272902b2f98308e4ddb40d92346a85f0651641d34252f5f4d5da8729f379cc33"
+expected_digest = "sha256:c1c9fde53d08ce06a60c4de4414299dfadb370143b7b54f7f21125e12e5fc83d"
 
 [quality]
 placeholder_allowed = false

@@ -226,10 +226,9 @@ def _product_baseline(
 ) -> None:
     (repo / "system").mkdir()
     dependencies = [root.replace("_", "-") for root in import_roots]
+    project = f'[project]\nname = "test-product"\nversion = "1"\ndependencies = {dependencies!r}\n'
     (repo / "pyproject.toml").write_text(
-        f'[project]\nname = "test-product"\nversion = "1"\ndependencies = {dependencies!r}\n'.replace(
-            "'", '"'
-        ),
+        project.replace("'", '"'),
         encoding="utf-8",
     )
     (repo / "system" / "tools.toml").write_text(

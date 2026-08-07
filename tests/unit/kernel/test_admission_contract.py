@@ -113,10 +113,12 @@ def test_hook_admission_request_normalizes_pathlike_inputs() -> None:
         expected_root=Path("/repo"),
     )
 
-    assert (
-        request.model_dump_json()
-        == '{"root":"/repo","layer":"pre-tool","paths":["README.md"],"editor_root":"/repo","require_editor_root":false,"command":"","expected_root":"/repo"}'
+    expected = (
+        '{"root":"/repo","layer":"pre-tool","paths":["README.md"],'
+        '"editor_root":"/repo","require_editor_root":false,"command":"",'
+        '"expected_root":"/repo"}'
     )
+    assert request.model_dump_json() == expected
 
 
 def test_hook_admission_request_rejects_non_path_bound_context() -> None:

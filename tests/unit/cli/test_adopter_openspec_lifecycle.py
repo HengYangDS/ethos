@@ -103,8 +103,9 @@ def test_bundled_openspec_runner_requires_the_packaged_lock(
         encoding="utf-8",
     )
     entry.touch()
-    assert openspec_cli._SOURCE_NODE is not None
-    command = (openspec_cli._SOURCE_NODE, entry.as_posix())
+    source_command = openspec_cli.openspec_base_command()
+    assert source_command is not None
+    command = (source_command[0], entry.as_posix())
     monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_DECLARATION", declaration)
     monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_PACKAGE", package)
     monkeypatch.setattr(openspec_cli, "_DISTRIBUTION_ENTRY", entry)

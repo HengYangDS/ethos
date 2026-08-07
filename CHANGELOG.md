@@ -21,7 +21,7 @@ Commits.
 
 ### Changed
 
-- Coverage floor ratcheted to 100% (no exemptions), enforced across
+- Coverage floor raised to 100% and enforced across
   `coverage.ini`, the test runner, and the coverage policy.
 - npm CI jobs install Node from nodejs.org on the cached `python:3.12` image
   instead of pulling the unreachable `node:24` registry image.

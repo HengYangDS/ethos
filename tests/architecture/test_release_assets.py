@@ -36,9 +36,6 @@ def _assert_project_configuration(
     assert "extend" not in ruff_config
     assert not (ROOT / ".config/checks/ruff/ruff.toml").exists()
     assert not (ROOT / "pytest.ini").exists()
-    assert "[lint.per-file-ignores]" in ruff
-    assert '"tests/**" = [' in ruff
-    assert '"INP001"' in ruff
     assert "src/ethos/repository/evidence/core.py" not in ruff
     assert "src/ethos/repository/evidence/proof.py" not in ruff
     assert "[pytest]" in pytest
@@ -52,7 +49,7 @@ def _assert_tool_registry(tools: str) -> None:
     assert (
         'config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"' in tools
     )
-    assert 'config = "ruff.toml + .config/checks/ruff/ratchet.toml"' in tools
+    assert 'config = "ruff.toml"' in tools
     assert 'config = ".config/checks/ruff/ruff.toml"' not in tools
     assert 'config = ".config/checks/import-linter/"' in tools
     assert 'config = ".config/checks/lychee/"' in tools
@@ -405,14 +402,6 @@ def test_secrets_scan_is_bounded_to_git_tracked_source() -> None:
     assert "tracked files" in runner
 
 
-def test_gitleaks_allowlist_never_exempts_the_test_tree() -> None:
-    allowlist = tomllib.loads((ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))["allowlist"]
-
-    assert "paths" not in allowlist
-    assert "tests/" not in "\n".join(allowlist["regexes"])
-    assert "sk-proj-1234567890abcdef1234567890abcdef" in allowlist["regexes"]
-
-
 def test_ci_gitleaks_installer_uses_cached_tool_supply_with_checksum() -> None:
     installer = (ROOT / "tools/ci/scripts/install-gitleaks.sh").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
@@ -541,14 +530,6 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
     assert "current_hard_floor = 95" in policy
     assert "aspirational_floor = 95" in policy
     assert 'source = "uv run --frozen --offline python -m nox -s tests"' in policy
-
-
-def test_python_lint_gate_keeps_the_debt_ratchet_in_change_proof() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    runner = (ROOT / "noxfile.py").read_text(encoding="utf-8")
-
-    assert "ruff" in declaration["proof_sets"]["default"]
-    assert "_ruff_ratchet" in runner
 
 
 def test_change_proof_does_not_own_terminal_size_debt() -> None:

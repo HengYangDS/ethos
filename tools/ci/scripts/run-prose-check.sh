@@ -22,8 +22,6 @@ from pathlib import Path
 
 config = tomllib.loads(Path(".config/checks/prose/codespell.toml").read_text())
 paths = [str(item) for item in config["paths"]]
-skips = [str(item) for item in config["skip"]]
-ignore_words = [str(item) for item in config["ignore_words"]]
 cmd = [
     "uv",
     "run",
@@ -32,10 +30,6 @@ cmd = [
     "codespell",
     "--toml",
     ".config/checks/prose/codespell.toml",
-    "--skip",
-    ",".join(skips),
-    "--ignore-words-list",
-    ",".join(ignore_words),
     "--count",
     "--quiet-level=2",
     *paths,

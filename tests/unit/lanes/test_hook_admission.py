@@ -285,7 +285,8 @@ def test_pre_tool_hook_evaluates_leased_work_lane_actor(
     assert lease["expected_head"] == git(leased_worktree, "rev-parse", "HEAD")
     if state == "blocked":
         assert report["next_action"] == (
-            "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, or obtain handoff"
+            "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, "
+            "or obtain handoff"
         )
 
 

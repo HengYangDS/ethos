@@ -34,7 +34,8 @@ def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
         "evidence_head": "",
         "verdict": "block",
         "next_action": (
-            "rerun uv run --frozen --offline python -m nox -s local_ci to refresh local fallback evidence"
+            "rerun uv run --frozen --offline python -m nox -s local_ci "
+            "to refresh local fallback evidence"
         ),
     }
 

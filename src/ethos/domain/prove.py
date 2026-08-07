@@ -55,8 +55,8 @@ def code_size_report(root: Path) -> dict[str, object]:
             continue
         effective = effective_code_lines(path)
         role = _role_for(relative, surface_globs)
-        # One limit per role, no per-file exemption: a governance runtime that
-        # forbids `# pragma: no cover` cannot ship a size-exemption table either.
+        # One limit per role and no per-file escape hatch: a governance runtime
+        # cannot ship a size-exemption table.
         # An over-limit file is decomposed into a semantic sub-package, not frozen.
         limit = role_limits[role]
         within_limit = effective <= limit

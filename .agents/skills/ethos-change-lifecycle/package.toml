@@ -9,7 +9,6 @@ include = [
   "scripts/readiness.py",
   "references/verdicts-and-gaps.md",
 ]
-exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 expected_digest = "sha256:4d819265b44f815534d34b03df27204ca3a9d418fb8e7c9fc9aefb197a167a81"
 

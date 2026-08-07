@@ -93,9 +93,11 @@ Historical carriers preserved facts but could not issue current instructions.
 
 The former audit surface included these historical command examples:
 
-    ethos prove --gate docs-topology --json
-    ethos prove --execute --gate docs-topology --expect-head <git-head> --json
-    ethos prove --gate docs-topology --root <repo> --json
+```text
+ethos prove --gate docs-topology --json
+ethos prove --execute --gate docs-topology --expect-head <git-head> --json
+ethos prove --gate docs-topology --root <repo> --json
+```
 
 These examples are historical only. They are not current commands, current gates,
 or instructions to execute. Current documentation quality is owned by the

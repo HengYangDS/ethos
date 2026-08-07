@@ -180,7 +180,9 @@ def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
             {
                 "gap": "candidate_base_stale",
                 "kind": "stale_base",
-                "next_action": "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
+                "next_action": (
+                    "ethos lane refresh-base --apply --authorize --expect-head <head> --json"
+                ),
             }
         ],
     }
@@ -212,7 +214,8 @@ def test_land_blocks_active_change_even_when_exact_head_is_proven(tmp_path: Path
         "openspec_active_change_unarchived:fixture-change:work_lane"
     ]
     assert payload["next_action"] == (
-        f"ethos lane archive-change --change fixture-change --expect-head {work_head} --apply --json"
+        "ethos lane archive-change --change fixture-change "
+        f"--expect-head {work_head} --apply --json"
     )
     assert "proof_readiness" not in payload["data"]
     mutation = payload["data"]["mutation"]
@@ -259,7 +262,8 @@ def test_land_apply_refuses_active_change_without_updating_candidate(tmp_path: P
         "openspec_active_change_unarchived:fixture-change:work_lane"
     ]
     assert payload["next_action"] == (
-        f"ethos lane archive-change --change fixture-change --expect-head {work_head} --apply --json"
+        "ethos lane archive-change --change fixture-change "
+        f"--expect-head {work_head} --apply --json"
     )
     assert payload["data"]["candidate_update"] == {}
     assert git(candidate, "rev-parse", "HEAD") == candidate_head

@@ -1,7 +1,8 @@
+---
 extends: default
 
 rules:
-  document-start: disable
+  document-start: enable
   indentation:
     indent-sequences: consistent
   line-length:

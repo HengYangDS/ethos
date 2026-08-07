@@ -57,6 +57,7 @@ def start_adopted_work_lane(
     *,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
+    scope: tuple[str, ...] = ("**",),
 ) -> WorkLaneFixture:
     """Create a generic adopted repository, candidate worktree, and owned lane."""
     repo, candidate = start_adopted_candidate(tmp_path)
@@ -65,6 +66,7 @@ def start_adopted_work_lane(
         tmp_path / f"repo-work-source-{name}",
         branch=f"work/source-{name}",
         holder_ref=holder_ref,
+        scope=scope,
     )
     worktree = tmp_path / f"repo-work-{name}"
     run_ethos(

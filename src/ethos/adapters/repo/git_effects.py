@@ -82,12 +82,18 @@ def move_tracked_tree(root: Path, source: str, target: str) -> None:
     source_path.rename(target_path)
 
 
-def commit_git_worktree(root: Path, *, previous: str, message: str) -> dict[str, object]:
+def commit_git_worktree(
+    root: Path,
+    *,
+    previous: str,
+    message: str,
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, object]:
     """Commit the staged Git effect through normal hooks at one exact HEAD."""
     if current_tracked_head(root) != previous:
         message = "git_effect_head_stale"
         raise ValueError(message)
-    completed = run_git(root, "commit", "-m", message, check=False)
+    completed = run_git(root, "commit", "-m", message, check=False, env=environment)
     return {
         "verdict": "pass" if completed.returncode == 0 else "block",
         "error": completed.stderr.strip(),

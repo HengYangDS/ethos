@@ -14,6 +14,7 @@ from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_environment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.schema import state_database
@@ -37,7 +38,10 @@ def test_scope_glob_matches_archive_directory_descendants() -> None:
 def test_archive_change_owns_official_archive_commit_and_lease_transition(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(
+        tmp_path,
+        scope=("openspec/changes/fixture-change/**",),
+    )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     completed_head = _complete_change(worktree)
     monkeypatch.setattr(
@@ -734,7 +738,7 @@ def test_governance_rejects_completion_transition_with_extra_mutation(
     assert "openspec_active_change_missing" in report["required_gaps"]
 
 
-def test_governance_allows_current_lease_staged_archive_transition(
+def test_governance_rejects_staged_archive_without_archive_owner_intent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
@@ -749,18 +753,55 @@ def test_governance_allows_current_lease_staged_archive_transition(
         require_workspace=False,
     )
 
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
-    assert report["change"] == "fixture-change"
-    assert report["lifecycle"]["scope_binding"]["state"] == "archive_transition"
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["openspec_active_change_missing"]
     prewrite = prewrite_guard(
         root=worktree,
         paths=[worktree / path for path in changed_paths],
         editor_root=worktree,
         require_editor_root=True,
     )
-    assert prewrite["verdict"] == "pass", prewrite
-    assert prewrite["required_gaps"] == []
+    assert prewrite["verdict"] == "block", prewrite
+    assert prewrite["required_gaps"] == [
+        (
+            "openspec_material_path_uncovered:"
+            "openspec/changes/archive/2026-08-04-fixture-change/commitment.toml"
+        )
+    ]
+
+
+def test_governance_rejects_a_stale_archive_owner_intent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    head = git(worktree, "rev-parse", "HEAD")
+    changed_paths = _stage_archive(worktree)
+    monkeypatch.setenv(
+        "ETHOS_ARCHIVE_TRANSITION",
+        archive_transition_environment(
+            worktree,
+            change="fixture-change",
+            head=head,
+            changed_paths=changed_paths,
+            official_change_complete=True,
+            completion_artifacts=("openspec/changes/fixture-change/tasks.md",),
+        )["ETHOS_ARCHIVE_TRANSITION"],
+    )
+    extra = worktree / "README.md"
+    extra.write_text("# Drift\n", encoding="utf-8")
+    git(worktree, "add", "README.md")
+
+    report = openspec_governance_report(
+        worktree,
+        lifecycle=True,
+        changed_paths=(*changed_paths, "README.md"),
+        require_workspace=False,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["openspec_active_change_missing"]
 
 
 @pytest.mark.parametrize(

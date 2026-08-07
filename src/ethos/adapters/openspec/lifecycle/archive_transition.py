@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import re
 from datetime import date
 from typing import TYPE_CHECKING
@@ -18,6 +20,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -34,6 +37,80 @@ _ARCHIVE_COMMITMENT = re.compile(
 _ACTIVE_COMMITMENT = re.compile(
     r"^openspec/changes/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/commitment\.toml$"
 )
+_ARCHIVE_TRANSITION_ENV = "ETHOS_ARCHIVE_TRANSITION"
+_ARCHIVE_TRANSITION_KEYS = frozenset(
+    {
+        "schema_version",
+        "change",
+        "head",
+        "head_tree",
+        "index_tree",
+        "changed_paths",
+        "completion_artifacts",
+        "official_change_complete",
+        "nonce",
+    }
+)
+
+
+def archive_transition_environment(
+    root: Path,
+    *,
+    change: str,
+    head: str,
+    changed_paths: tuple[str, ...],
+    official_change_complete: bool,
+    completion_artifacts: tuple[str, ...],
+) -> dict[str, str]:
+    """Bind one hook invocation to the exact admitted official archive delta."""
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "change": change,
+        "head": head,
+        "head_tree": current_tree(root, head),
+        "index_tree": run_git(root, "write-tree").stdout.strip(),
+        "changed_paths": list(changed_paths),
+        "completion_artifacts": list(completion_artifacts),
+        "official_change_complete": official_change_complete,
+    }
+    payload["nonce"] = canonical_json_digest(payload)
+    return {_ARCHIVE_TRANSITION_ENV: json.dumps(payload, sort_keys=True, separators=(",", ":"))}
+
+
+def archive_transition_facts(
+    root: Path,
+    *,
+    changed_paths: tuple[str, ...],
+    requested_change: str | None,
+) -> tuple[bool, tuple[str, ...]] | None:
+    """Read exact, process-local archive facts only for their bound staged tree."""
+    raw = os.environ.get(_ARCHIVE_TRANSITION_ENV, "")
+    try:
+        payload = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict) or set(payload) != _ARCHIVE_TRANSITION_KEYS:
+        return None
+    identity = {key: value for key, value in payload.items() if key != "nonce"}
+    change = payload.get("change")
+    artifacts = payload.get("completion_artifacts")
+    paths = payload.get("changed_paths")
+    head = current_tracked_head(root)
+    valid = (
+        payload.get("schema_version") == 1
+        and isinstance(change, str)
+        and bool(change)
+        and requested_change in {None, change}
+        and payload.get("head") == head
+        and payload.get("head_tree") == current_tree(root, head)
+        and payload.get("index_tree") == run_git(root, "write-tree").stdout.strip()
+        and paths == list(changed_paths)
+        and isinstance(artifacts, list)
+        and all(isinstance(path, str) and path for path in artifacts)
+        and payload.get("official_change_complete") is True
+        and payload.get("nonce") == canonical_json_digest(identity)
+    )
+    return (True, tuple(artifacts)) if valid else None
 
 
 def _archive_context(root: Path) -> tuple[str, dict[str, object], Commitment] | None:
@@ -107,10 +184,14 @@ def lease_bound_archive_scope_report(
     completion_invalid = state == "completion_transition" and (
         not official_change_complete or len(changed) != 1 or changed[0] not in completion_artifacts
     )
+    archive_invalid = state == "archive_transition" and (
+        not official_change_complete or not completion_artifacts
+    )
     if (
         archived.digest() != source_commitment.digest()
         or active != expected_active
         or completion_invalid
+        or archive_invalid
         or preserved_archive_invalid
     ):
         return None
@@ -121,6 +202,7 @@ def lease_bound_archive_scope_report(
         carrier=carrier,
         state=state,
         changed_paths=changed_paths,
+        completion_artifacts=completion_artifacts,
     )
 
 
@@ -286,7 +368,11 @@ def _archive_binding(
     try:
         index_tree = run_git(root, "write-tree").stdout.strip()
         active_carrier = f"openspec/changes/{change}/commitment.toml"
-        if carrier == active_carrier and carrier in _active_commitments(root, index_tree):
+        if (
+            index_tree != current_tree(root, head)
+            and carrier == active_carrier
+            and carrier in _active_commitments(root, index_tree)
+        ):
             target = exact_commitment_fields(
                 root,
                 head=index_tree,
@@ -451,6 +537,7 @@ def _scope_report(
     carrier: str,
     state: str,
     changed_paths: tuple[str, ...],
+    completion_artifacts: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     profile = load_repository_profile(root)
     if (
@@ -464,10 +551,21 @@ def _scope_report(
     material = tuple(
         path for path in paths if any(repository_path_matches(path, glob) for glob in patterns)
     )
+    authority_paths = {
+        path: _archive_authority_path(
+            root,
+            path,
+            change=change,
+            carrier=carrier,
+            state=state,
+            completion_artifacts=completion_artifacts,
+        )
+        for path in material
+    }
     uncovered = [
         path
-        for path in material
-        if not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
+        for path, authority_path in authority_paths.items()
+        if not any(repository_path_matches(authority_path, pattern) for pattern in commitment.scope)
     ]
     covered = [{"path": path, "changes": [change]} for path in material if path not in uncovered]
     gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
@@ -489,3 +587,34 @@ def _scope_report(
         "required_gaps": gaps,
         "advisory_gaps": [],
     }
+
+
+def _archive_authority_path(
+    root: Path,
+    path: str,
+    *,
+    change: str,
+    carrier: str,
+    state: str,
+    completion_artifacts: tuple[str, ...],
+) -> str:
+    """Map an official archive output to the active artifact that authorized it."""
+    if state not in {"archive_transition", "post_archive_closeout"}:
+        return path
+    active_root = f"openspec/changes/{change}"
+    archive_root = carrier.removesuffix("/commitment.toml")
+    if path == archive_root or path.startswith(f"{archive_root}/"):
+        return active_root + path.removeprefix(archive_root)
+    canonical_prefix = "openspec/specs/"
+    if path.startswith(canonical_prefix):
+        active_spec = f"{active_root}/specs/{path.removeprefix(canonical_prefix)}"
+        if active_spec in completion_artifacts or (
+            state == "post_archive_closeout"
+            and git_stdout(
+                root,
+                "rev-parse",
+                f"HEAD:{archive_root}/specs/{path.removeprefix(canonical_prefix)}",
+            )
+        ):
+            return active_spec
+    return path

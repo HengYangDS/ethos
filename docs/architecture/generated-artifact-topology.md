@@ -78,7 +78,7 @@ Root cache homes such as `.import_linter_cache/`, `.import-linter-cache/`,
 `.uv-cache/`, and root `dist/` are denied even when ignored. They are local
 residue, not semantic topology. Route them to `build/runtime/tool-cache/<tool>/`
 or `build/artifacts/<kind>/`. New Work Lane Python environments belong under
-the root `.venv/` through `tools/ci/scripts/run-ethos-lane.sh`. Retired flat
+the root `.venv/` through `uv run --frozen --offline ethos`. Retired flat
 homes such as `build/cache/` and
 `build/runtime/gitlab-ci-local/` are also denied; use
 `build/runtime/tool-cache/<tool>/` and `build/runtime/work/gitlab-ci-local/`

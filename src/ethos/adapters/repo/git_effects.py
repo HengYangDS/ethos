@@ -27,6 +27,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
+from ethos.repository.hooks import hook_runtime_binding
 
 if TYPE_CHECKING:
     from typing import Any
@@ -392,18 +393,14 @@ def _effect_environment(
     ):
         message = "git_effect_candidate_binding_stale"
         raise ValueError(message)
-    hooks = candidate / ".githooks"
-    hook = hooks / "reference-transaction"
-    if hooks.is_symlink() or not hooks.is_dir():
-        message = "git_effect_candidate_hook_invalid"
-        raise ValueError(message)
-    if hook.is_symlink() or not hook.is_file() or not os.access(hook, os.X_OK):
-        message = "git_effect_candidate_hook_invalid"
+    runtime = hook_runtime_binding(candidate)
+    if runtime["required_gaps"]:
+        message = "git_effect_candidate_hook_invalid:" + ",".join(runtime["required_gaps"])
         raise ValueError(message)
     return {
         "GIT_CONFIG_COUNT": "1",
         "GIT_CONFIG_KEY_0": "core.hooksPath",
-        "GIT_CONFIG_VALUE_0": hooks.as_posix(),
+        "GIT_CONFIG_VALUE_0": str(runtime["hooks_path"]),
     }
 
 

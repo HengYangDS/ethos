@@ -34,8 +34,8 @@ policy without turning a person into product authority:
 git config ethos.pushIdentityPolicy configured-user
 ```
 
-When that policy is enabled, `.githooks/pre-push` passes the remote tip to
-`ethos hook pre-push`; the hook checks every newly pushed commit in the range and
+When that policy is enabled, the worktree-local launcher installed by
+`ethos hook install` passes the remote tip to the Python hook owner; the hook checks every newly pushed commit in the range and
 requires both Git author and Git committer to match the checkout's configured
 `user.name` and `user.email`. This is a local admission policy for a repository
 or forge account, not tracked historical alias metadata and not a product-wide

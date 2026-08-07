@@ -15,6 +15,7 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -79,6 +80,7 @@ def _recovery_plan(root: Path, accepted: str, candidate: str, desired: str, oper
 def _add_candidate_worktree(root: Path, path: Path, branch: str) -> None:
     head = run_git(root, "rev-parse", branch).stdout.strip()
     add_worktree(root, path, branch=branch, head=head)
+    install_hook_launchers(path)
 
 
 def bootstrap_candidate(
@@ -113,6 +115,7 @@ def bootstrap_candidate(
             )
             if plan is not None:
                 execute_git_effect(repo, plan, issuer=issuer)
+            install_hook_launchers(Path(str(candidate["worktree_path"])))
         except ValueError as error:
             gaps.append(str(error))
         return _report(

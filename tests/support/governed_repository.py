@@ -8,7 +8,7 @@ import uuid
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import NamedTuple
 
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
@@ -28,9 +29,6 @@ from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class WorkLaneFixture(NamedTuple):
@@ -49,6 +47,7 @@ def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    install_hook_launchers(candidate)
     return repo, candidate
 
 
@@ -126,8 +125,12 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
     path.write_text(content, encoding="utf-8")
     previous = git(root, "rev-parse", "HEAD")
     git(root, "add", relative)
+    empty_hooks = Path(git(root, "rev-parse", "--path-format=absolute", "--git-path", "test-hooks"))
+    empty_hooks.mkdir(parents=True, exist_ok=True)
     git(
         root,
+        "-c",
+        f"core.hooksPath={empty_hooks.as_posix()}",
         "-c",
         "user.name=Test User",
         "-c",
@@ -481,10 +484,6 @@ def write_role_policy(
 def adopt_and_commit(repo: Path) -> None:
     plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
-    hook = repo / ".githooks" / "reference-transaction"
-    hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    hook.chmod(0o755)
     (repo / ".ethos" / "workspace.toml").write_text(
         render_branch_policy(
             release_branch="main",

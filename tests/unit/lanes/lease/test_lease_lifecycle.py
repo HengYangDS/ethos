@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import json
-import shutil
 import sqlite3
 import subprocess
-import sys
 import tempfile
 from contextlib import closing
 from datetime import UTC
@@ -30,6 +28,7 @@ from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementReque
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
@@ -145,22 +144,14 @@ def _assert_reissue_changes(
 def _install_reference_transaction_hook(
     repo: Path,
     invocation_root: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    _monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    hooks = repo / ".githooks"
-    hooks.mkdir(parents=True, exist_ok=True)
-    hook = hooks / "reference-transaction"
-    shutil.copy(Path(__file__).resolve().parents[4] / ".githooks/reference-transaction", hook)
-    hook.chmod(0o755)
+    install_hook_launchers(repo)
+    if invocation_root != repo:
+        install_hook_launchers(invocation_root)
     exclude = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
     exclude.parent.mkdir(parents=True, exist_ok=True)
     exclude.write_text("tools/\n", encoding="utf-8")
-    runtime = invocation_root / "tools/ci/scripts/with-python-runtime.sh"
-    runtime.parent.mkdir(parents=True, exist_ok=True)
-    runtime.write_text('#!/bin/sh\n[ "$1" = "--" ] && shift\nexec "$@"\n', encoding="utf-8")
-    runtime.chmod(0o755)
-    git(repo, "config", "core.hooksPath", hooks.as_posix())
-    monkeypatch.setenv("ETHOS_PYTHON", sys.executable)
 
 
 def _apply_lease(database: Path, request: LeaseOperationRequest) -> dict[str, object]:

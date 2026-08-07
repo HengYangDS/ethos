@@ -183,7 +183,6 @@ def test_product_boundary_covers_all_code_fixtures_and_tooling() -> None:
 
     assert {"src/ethos", "tests", "tools", "system"} <= roots
     assert {
-        ".githooks/pre-commit",
         ".gitignore",
         ".pre-commit-config.yaml",
         ".config/checks/import-linter/contracts.ini",

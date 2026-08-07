@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from ethos.contracts.semantic import Attestation
+    from ethos.repository.hooks import HookRuntimeBinding
 
 import ethos.adapters.mutation.lane_start_rollback as rollback
 from ethos.adapters.openspec.cli import openspec_base_command
@@ -25,6 +26,7 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import stage_git_paths
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -158,13 +160,44 @@ def create_lane_start_carrier(context: LaneStartContext) -> dict[str, object]:
             lease=lease,
             gap="lane_start_worktree_binding_mismatch",
         )
-    return started_lane_report(
+    return complete_lane_start(
         context,
         base_head=candidate_head,
         head=final_head,
         lease=lease,
         carrier_attestation=carrier_attestation,
         attachment_attestation=attachment_attestation,
+    )
+
+
+def complete_lane_start(
+    context: LaneStartContext,
+    *,
+    base_head: str,
+    head: str,
+    lease: dict[str, object],
+    carrier_attestation: Attestation | None,
+    attachment_attestation: Attestation,
+) -> dict[str, object]:
+    """Bind the exact hook runtime and emit the terminal lane-start receipt."""
+    try:
+        hook_runtime = install_hook_launchers(context.target)
+    except (OSError, ValueError) as error:
+        return rollback.compensate(
+            context,
+            failed_process(str(error)),
+            ownership=(context.branch, head, head),
+            lease=lease,
+            gap="lane_start_hook_runtime_binding_failed",
+        )
+    return started_lane_report(
+        context,
+        base_head=base_head,
+        head=head,
+        lease=lease,
+        carrier_attestation=carrier_attestation,
+        attachment_attestation=attachment_attestation,
+        hook_runtime=hook_runtime,
     )
 
 
@@ -487,6 +520,7 @@ def started_lane_report(
     lease: dict[str, object],
     carrier_attestation: Attestation | None,
     attachment_attestation: Attestation,
+    hook_runtime: HookRuntimeBinding,
 ) -> dict[str, object]:
     """Build the receipt for an exact, leased, linked Work Lane."""
     return {
@@ -509,6 +543,7 @@ def started_lane_report(
             carrier_attestation.model_dump(mode="json") if carrier_attestation else {}
         ),
         "attachment_attestation": attachment_attestation.model_dump(mode="json"),
+        "hook_runtime": hook_runtime,
         "runner_bootstrap": runner_bootstrap(context.target),
         "required_gaps": [],
     }

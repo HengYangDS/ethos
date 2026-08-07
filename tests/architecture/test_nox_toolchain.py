@@ -143,6 +143,16 @@ def test_nox_owns_cross_platform_python_gate_sessions() -> None:
         assert f"def {session}(" in source
 
 
+def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+    assert "def host_conformance(" in source
+    assert "_build_wheel(session)" in source
+    assert "run_install_smoke(session)" in source
+    assert '"tests/architecture/test_portable_toolchain.py"' in source
+    assert '"tests/architecture/test_local_install_smoke.py"' in source
+
+
 def test_python_test_gate_uses_portable_runtime_paths_and_lock(tmp_path: Path) -> None:
     gate = PythonTestGate(
         Settings(

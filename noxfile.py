@@ -82,9 +82,7 @@ def coverage_floor(session: nox.Session) -> None:
     PythonTestGate.from_environment().enforce_floor(session)
 
 
-@nox.session(python=False)
-def build(session: nox.Session) -> None:
-    """Build the Hatchling wheel through the locked uv project environment."""
+def _build_wheel(session: nox.Session) -> None:
     session.run(
         _project_script("uv"),
         "build",
@@ -98,9 +96,30 @@ def build(session: nox.Session) -> None:
 
 
 @nox.session(python=False)
+def build(session: nox.Session) -> None:
+    """Build the Hatchling wheel through the locked uv project environment."""
+    _build_wheel(session)
+
+
+@nox.session(python=False)
 def install_smoke(session: nox.Session) -> None:
     """Prove offline installation from the single built wheel."""
     run_install_smoke(session)
+
+
+@nox.session(python=False)
+def host_conformance(session: nox.Session) -> None:
+    """Execute the installed-wheel contract on the current real host."""
+    _build_wheel(session)
+    run_install_smoke(session)
+    session.run(
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "tests/architecture/test_portable_toolchain.py",
+        "tests/architecture/test_local_install_smoke.py",
+    )
 
 
 @nox.session(python=False)

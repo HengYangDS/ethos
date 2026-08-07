@@ -226,7 +226,10 @@ def _shell_command_line(line: str) -> str:
         or re.match(r"(?:function\s+)?\w+\s*\(\)\s*\{", line)
     ):
         return ""
-    if match := re.match(r"[A-Za-z0-9_*-]+(?:\|[A-Za-z0-9_*-]+)*\)\s*(.*)$", line):
+    if match := re.match(
+        r"[A-Za-z0-9_*-]+(?:\s*\|\s*[A-Za-z0-9_*-]+)*\)\s*(.*)$",
+        line,
+    ):
         line = match.group(1)
     return line.removeprefix("$").lstrip()
 

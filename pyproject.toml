@@ -59,7 +59,7 @@ packages = ["src/ethos"]
 "system/schemas/kernel" = "ethos/data/schemas/kernel"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-path = "tools/packaging/openspec_runtime_hook.py"
+path = "src/ethos/packaging/openspec_runtime_hook.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

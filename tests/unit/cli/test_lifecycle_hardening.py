@@ -9,6 +9,7 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 import ethos.adapters.mutation.lane_lifecycle.identity_repair as identity_repair
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as work_lane_refresh
+import ethos.adapters.openspec.profile as openspec_profile
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -25,6 +26,25 @@ from tests.support.governed_repository import start_adopted_work_lane
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_work_lane_commitment_never_falls_back_from_an_invalid_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def invalid_lease(*_args: object, **_kwargs: object) -> None:
+        message = "lease_expected_tree_mismatch"
+        raise ValueError(message)
+
+    monkeypatch.setattr(openspec_profile, "load_lease_bound_commitment", invalid_lease)
+    monkeypatch.setattr(
+        openspec_profile,
+        "load_profile_commitment",
+        lambda *_args, **_kwargs: pytest.fail("invalid Lease must stop carrier selection"),
+    )
+
+    with pytest.raises(ValueError, match="lease_expected_tree_mismatch"):
+        openspec_profile.load_work_lane_commitment(tmp_path, lease={})
 
 
 def _diverged_candidate_repo(tmp_path: Path) -> tuple[Path, Path, str, str]:

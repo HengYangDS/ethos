@@ -45,9 +45,7 @@ def import_objects(
     require("handoff_object_format_mismatch", holds=len(head) == expected_width)
     with (
         verified_package_snapshot(package=package, manifest=manifest, root=destination) as snapshot,
-        tempfile.TemporaryDirectory(
-            prefix="handoff-bare-", ignore_cleanup_errors=True
-        ) as temporary,
+        tempfile.TemporaryDirectory(prefix="handoff-bare-") as temporary,
     ):
         isolated = Path(temporary) / "repository.git"
         isolated.mkdir()
@@ -129,9 +127,7 @@ def _prepared_pack(destination: Path, isolated: Path, head: str) -> Iterator[lis
         text=False,
     ).stdout
     require("handoff_import_object_pack_empty", holds=bool(packed))
-    with tempfile.TemporaryDirectory(
-        prefix="handoff-import-", dir=objects, ignore_cleanup_errors=True
-    ) as temporary:
+    with tempfile.TemporaryDirectory(prefix="handoff-import-", dir=objects) as temporary:
         quarantine = Path(temporary)
         (quarantine / "pack").mkdir()
         installed = run_git(

@@ -1033,8 +1033,7 @@ def test_reference_transaction_hook_fails_closed_on_governed_branches(tmp_path: 
     process could set it) and was removed, so setting it no longer advances the accepted
     branch — sanctioned closeout must earn an admitted verdict through the reducer."""
     hook_src = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
-    if not hook_src.exists():
-        pytest.skip("reference-transaction hook script not present")
+    assert hook_src.is_file()
 
     def g(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         return subprocess.run(

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
@@ -142,9 +141,11 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
         gap = "lane_start_ref_changed"
     ref_removed = not current_head if not gap else False
     if not gap and current_head:
-        with suppress(OSError, TypeError, ValueError):
+        try:
             delete_lane_start_ref(repo, branch, owned_ref_head, context.lease)
             ref_removed = not ref_head(repo, branch)
+        except (OSError, TypeError, ValueError) as error:
+            gap = str(error) or "lane_start_ref_cleanup_failed"
     if not ref_removed:
         gap = gap or "lane_start_ref_cleanup_failed"
     try:

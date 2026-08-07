@@ -255,9 +255,7 @@ def _verify_export_snapshot(
 @contextmanager
 def verified_package_snapshot(*, package: Path, manifest: dict[str, Any], root: Path):
     """Yield one immutable verified package snapshot for an import transaction."""
-    with tempfile.TemporaryDirectory(
-        prefix="handoff-import-", ignore_cleanup_errors=True
-    ) as temporary:
+    with tempfile.TemporaryDirectory(prefix="handoff-import-") as temporary:
         snapshot = Path(temporary) / str(manifest["package_id"])
         shutil.copytree(
             package.resolve(), snapshot, symlinks=True, copy_function=_copy_regular_file

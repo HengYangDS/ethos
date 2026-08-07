@@ -19,7 +19,7 @@ repos:
         pass_filenames: false
       - id: config-lint
         name: config lint
-        entry: tools/ci/scripts/run-config-lint.sh
+        entry: uv run --frozen --offline python -m nox -s config_quality --
         language: system
         files: \.(toml|ya?ml|json)$
       - id: repository-hygiene

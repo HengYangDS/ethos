@@ -17,7 +17,7 @@ provider projections.
 
 1. Read `AGENTS.md`, `rules/mutation.md`, `rules/evidence.md`,
    `docs/governance/product-design-contract.md`, and the relevant quality spec.
-2. Put reusable commands in `tools/ci/scripts/` and tool-native policy under
+2. Put reusable orchestration in Nox/Python and tool-native policy under
    `.config/checks/<concern>/` or the smallest stable native config owner.
 3. Keep `pyproject.toml` limited to package/workspace metadata unless a tool has
    no better native owner.
@@ -37,7 +37,7 @@ proof output:
 
 ```bash
 uv run --frozen --offline python -m nox -s lint
-tools/ci/scripts/run-config-lint.sh
+uv run --frozen --offline python -m nox -s config_quality
 uv run --frozen --offline python -m nox -s shell_lint
 uv run --frozen --offline python -m nox -s prose
 ethos prove --gate repository-audit --json

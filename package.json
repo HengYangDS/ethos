@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.8.0",
+    "@taplo/cli": "0.7.0",
     "markdownlint-cli2": "0.23.2"
   }
 }

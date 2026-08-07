@@ -20,7 +20,7 @@ configuration plane, not a truth center.
   repository-wide semantic scope, plus the narrower product-package topology
   scope, ambiguous naming, facade, command-owner, and import-boundary policy.
   `uv run --frozen --offline python -m nox -s module_layout` is the reusable runner.
-- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. `.config/checks/json/format.toml` owns path-selected Python stdlib JSON formatting: ordinary JSON is two-space pretty form, while schemas and evidence remain compact machine carriers. `tools/ci/scripts/run-config-lint.sh` invokes both owners without restating their policy.
+- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. `.config/checks/json/format.toml` owns path-selected Python stdlib JSON formatting: ordinary JSON is two-space pretty form, while schemas and evidence remain compact machine carriers. The `config_quality` Nox session invokes the exact locked owners without shell, PATH, or dynamic dependency fallback.
 - `.config/checks/yaml/yamllint.yaml` owns ETHOS-authored YAML linting,
   including CI, hook, and quality configurations. OpenSpec YAML remains under
   the pinned OpenSpec validator. CI invokes both owners through their existing

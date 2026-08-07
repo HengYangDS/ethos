@@ -114,9 +114,9 @@ gate = "uv run --frozen --offline python -m nox -s repository_hygiene"
 concern = "toml"
 tool = "taplo"
 config = ".config/checks/taplo/taplo.toml"
-executables = ["taplo"]
+executables = ["node"]
 profile = "minimal"
-gate = "tools/ci/scripts/run-config-lint.sh"
+gate = "uv run --frozen --offline python -m nox -s config_quality"
 
 [[tool]]
 concern = "markdown_style"
@@ -137,14 +137,14 @@ concern = "yaml"
 tool = "yamllint"
 config = ".config/checks/yaml/yamllint.yaml"
 profile = "minimal"
-gate = "tools/ci/scripts/run-config-lint.sh"
+gate = "uv run --frozen --offline python -m nox -s config_quality"
 
 [[tool]]
 concern = "json_format"
 tool = "python stdlib json"
 config = ".config/checks/json/format.toml"
 profile = "minimal"
-gate = "tools/ci/scripts/run-config-lint.sh"
+gate = "uv run --frozen --offline python -m nox -s config_quality"
 
 [[tool]]
 concern = "json_schema"
@@ -159,7 +159,7 @@ tool = "pre-commit validate-config"
 config = ".pre-commit-config.yaml"
 executables = ["pre-commit"]
 profile = "minimal"
-gate = "tools/ci/scripts/run-config-lint.sh"
+gate = "uv run --frozen --offline python -m nox -s config_quality"
 
 [[tool]]
 concern = "ci_tool_supply"

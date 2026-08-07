@@ -57,6 +57,15 @@ class PlanNode(_PlanModel):
     depends_on: FrozenTuple[str] = Field(default=(), json_schema_extra={"uniqueItems": True})
 
 
+def dependency_cycle(graph: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
+    """Return the stable members of one dependency cycle, or an empty tuple."""
+    try:
+        tuple(TopologicalSorter(graph).static_order())
+    except CycleError as error:
+        return tuple(sorted(set(error.args[1])))
+    return ()
+
+
 class PlanInputs(_PlanModel):
     """Exact inputs bound by one public TransitionPlan projection."""
 
@@ -194,16 +203,13 @@ class TransitionPlan(_PlanModel):
         )
         if gaps:
             return stable, tuple(dict.fromkeys(gaps))
-        sorter = TopologicalSorter(
-            {
-                node.id: tuple(sorted(node.depends_on))
-                for node in sorted(selected_nodes, key=lambda item: item.id)
-            }
-        )
-        try:
-            order = tuple(sorter.static_order())
-        except CycleError:
+        graph = {
+            node.id: tuple(sorted(node.depends_on))
+            for node in sorted(selected_nodes, key=lambda item: item.id)
+        }
+        if dependency_cycle(graph):
             return stable, ("cycle_detected",)
+        order = tuple(TopologicalSorter(graph).static_order())
         return tuple(by_id[node_id] for node_id in order), ()
 
     @classmethod

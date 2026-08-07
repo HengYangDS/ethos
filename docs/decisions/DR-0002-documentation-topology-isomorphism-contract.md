@@ -32,6 +32,7 @@ See also: [Historical Documentation Topology](../history/docs-topology-contract-
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
 | Superseded By | DR-0004 |
+| Depends On | None |
 | Scope | Documentation information architecture across ETHOS and governed repositories. |
 | Boundary | Owns the common docs kernel and decision-record surface across single repositories, monorepos, and multi-repository governed subjects; does not force identical subject matter, product extension roots, or adopter domain docs. |
 | Context | External ETHOS must replace embedded adopter-local ETHOS without making agents relearn repository governance layout per adopter. |

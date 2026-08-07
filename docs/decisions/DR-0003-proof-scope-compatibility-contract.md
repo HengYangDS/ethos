@@ -32,6 +32,7 @@ and [Docs Registry](../governance/docs-registry.md).
 | Record Review Date | 2026-10-08 |
 | Supersedes | None |
 | Superseded By | None |
+| Depends On | None |
 | Scope | `ethos prove` scoped proof compatibility and host-probe boundary for adopter migration. |
 | Boundary | Owns accepted proof-scope flags and host/probe truth classification; does not make host-local readiness, hosted CI, or a governed transition complete. |
 | Context | a reference adopter repository may invoke `ethos prove --objective ... --scope proof-kernel` and `--host --probe`. A conforming ETHOS product must not be weaker than adopter-local governance during a transition. |

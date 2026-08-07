@@ -28,6 +28,7 @@ See also: [Decision Records](README.md) and [Decision Index](decision-index.md).
 | Record Review Date | YYYY-MM-DD |
 | Supersedes | None |
 | Superseded By | None |
+| Depends On | None |
 | Scope | Exact semantic scope |
 | Boundary | What this ruling owns and excludes |
 

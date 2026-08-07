@@ -27,6 +27,7 @@ contract, not housekeeping, while governed repositories preserve evidence bounda
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
 | Superseded By | None |
+| Depends On | None |
 | Scope | Generated artifact topology, producer-entrypoint routing, lifecycle classes, adopter-neutral product roots, Attestation promotion, proof/report placement, and immutable historical evidence. |
 | Boundary | Owns generic path policy, path router behavior, entrypoint audit behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
 | Context | A governed repository needs a small shared docs kernel while keeping generated output, durable Attestations, and historical bytes in distinct boundaries. |

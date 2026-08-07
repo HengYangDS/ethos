@@ -88,6 +88,24 @@ A valid requirement that cannot be represented losslessly by the roots and carri
 - **AND** generated projections do not outrank source, tests, schemas, docs,
   OpenSpec records, attestations, evidence, or command JSON
 
+#### Scenario: a declaration or expression attempts an effect
+- **WHEN** an OpenSpec artifact, custom schema, CEL expression, Skill, template,
+  plugin, workflow step, or model response describes a repository transition
+- **THEN** it may contribute validated intent, policy, or review facts but SHALL
+  NOT execute Git, SQLite, filesystem, subprocess, network, or provider effects
+- **AND** only a canonical `TransitionPlan` with `verdict = pass`, exact
+  permissions, and fresh preconditions may reach the sole native effect owner
+- **AND** unknown fields, expressions, operations, or required inputs fail closed
+  before effect execution
+
+#### Scenario: policy evaluation is replayed
+- **WHEN** the same Commitment, Facts, policy, prior Attestations, and effect
+  request are compiled without an external-state change
+- **THEN** pure compilation produces the same ordered plan, verdict, gaps, and
+  digest
+- **AND** post-effect observation and Attestation remain separate from policy
+  evaluation
+
 #### Scenario: a new requirement does not fit the model
 - **WHEN** carrier extraction cannot map the requirement without an exception or parallel truth owner
 - **THEN** ETHOS preserves the distinction for model promotion and blocks the effect

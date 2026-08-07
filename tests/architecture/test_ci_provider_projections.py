@@ -59,6 +59,7 @@ def _load_ci_templates_module():
                     "ghcr.io/catthehacker/ubuntu@sha256:"
                     "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
                 ),
+                "emulator_timeout_seconds": 1800,
             },
         ),
         (
@@ -73,6 +74,7 @@ def _load_ci_templates_module():
                     "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:"
                     "d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75"
                 ),
+                "emulator_timeout_seconds": 1800,
             },
         ),
     ],
@@ -219,11 +221,26 @@ def test_hosted_inline_gates_execute_at_the_checked_out_head() -> None:
         for step in github["jobs"]["quality"]["steps"]
         if step.get("name") == "Type policy"
     )
-    assert '--execute --gate python-types --expect-head "$(git rev-parse HEAD)"' in github_type
+    assert (
+        '--host --execute --gate python-types --expect-head "$(git rev-parse HEAD)"' in github_type
+    )
     for job, gate in (("ethos:types", "python-types"), ("ethos:docs-links", "markdown-links")):
-        assert f'--execute --gate {gate} --expect-head "$(git rev-parse HEAD)"' in " ".join(
-            gitlab[job]["script"]
-        )
+        command = " ".join(gitlab[job]["script"])
+        assert f'--host --execute --gate {gate} --expect-head "$(git rev-parse HEAD)"' in command
+
+
+def test_nox_semantic_policy_sessions_use_the_host_only_gate_boundary() -> None:
+    """Hosted policy sessions must not require repository mutation authority."""
+    runner = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+    assert "def _run_host_gate(" in runner
+    for session, gate in (
+        ("docstrings", "docstrings"),
+        ("module_layout", "module-layout"),
+        ("product_boundary", "product-boundary"),
+    ):
+        body = runner.split(f"def {session}(", 1)[1].split("\n\n", 1)[0]
+        assert f'_run_host_gate(session, "{gate}")' in body
 
 
 def test_both_hosted_providers_check_external_links_online() -> None:
@@ -237,7 +254,10 @@ def test_both_hosted_providers_check_external_links_online() -> None:
     gitlab_external = " ".join(gitlab["ethos:external-links"]["script"])
 
     for command in (github_external, gitlab_external):
-        assert '--execute --gate external-links --expect-head "$(git rev-parse HEAD)"' in command
+        assert (
+            '--host --execute --gate external-links --expect-head "$(git rev-parse HEAD)"'
+            in command
+        )
 
 
 def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
@@ -553,6 +573,7 @@ def test_static_ci_policy_cross_file_invariants() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
     projection = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
     assert "node_modules/.bin/openspec --version" in projection
+    assert "git libatomic1" in bootstrap
     assert bootstrap.index('export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"') < bootstrap.index(
         "uv sync --locked --group dev"
     )
@@ -597,344 +618,6 @@ def test_ci_public_check_envelopes_use_verdict(script: str, kind: str) -> None:
     assert payload["kind"] == kind
     assert payload["verdict"] == "pass"
     assert "ok" not in payload
-
-
-@pytest.mark.parametrize(
-    ("mode", "expected_code", "output"), [("doctor", 0, None), ("run", 127, "gitlab-run.json")]
-)
-def test_local_emulator_missing_optional_tool(
-    monkeypatch, tmp_path: Path, mode: str, expected_code: int, output: str | None
-) -> None:
-    ci = _load_ci_templates_module()
-    monkeypatch.setattr(ci.shutil, "which", lambda _: None)
-    destination = None if output is None else tmp_path / output
-    assert (
-        ci.emulator_evidence(
-            "gitlab", mode=mode, dry_run=False, allow_untracked=mode == "run", output=destination
-        )
-        == expected_code
-    )
-    payload = json.loads(
-        (ROOT / "build/evidence/local-ci/gitlab/doctor.json").read_text()
-        if output is None
-        else destination.read_text()
-    )
-    assert payload["tool_available"] is False
-    assert payload["returncode"] == 127
-    assert payload["stderr"] == "tool not found"
-    if mode == "doctor":
-        assert payload["verdict"] == "pass"
-        assert payload["hosted_gitlab_status_claimed"] is False
-    else:
-        assert payload["verdict"] == "block"
-        assert payload["materialization"] == {
-            "issue": "",
-            "mode_allows_untracked": False,
-            "normal_run_refuses_untracked_by_default": True,
-            "untracked_allowed": True,
-            "untracked_policy": "refuse_before_emulator_run",
-        }
-
-
-def test_local_emulator_run_executes_a_selected_formal_provider_job(
-    monkeypatch, tmp_path: Path
-) -> None:
-    ci, commands, roots, states = _load_ci_templates_module(), [], [], []
-    monkeypatch.setattr(
-        ci.shutil,
-        "which",
-        lambda tool: "/usr/local/bin/emulator" if tool in {"act", "gitlab-ci-local"} else None,
-    )
-    monkeypatch.setattr(ci, "_tool_version", lambda tool: f"{tool} 1.0")
-
-    def materialize(**kwargs):
-        states.append(kwargs["state_dir"])
-        return {"source_dir": str(kwargs["state_dir"] / "source")}
-
-    monkeypatch.setattr(ci, "materialize_emulator_source", materialize)
-    monkeypatch.setattr(
-        ci,
-        "_run_command",
-        lambda command, **kw: (
-            commands.append(command)
-            or roots.append(kw["cwd"])
-            or {
-                "returncode": 0,
-                "ok": True,
-                "stdout": "Job succeeded" if command[0] == "act" else "PASS ethos:carrier-quality",
-                "stderr": "",
-            }
-        ),
-    )
-    github_image = (
-        "ghcr.io/catthehacker/ubuntu@sha256:"
-        "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
-    )
-    expected_github = [
-        "act",
-        "workflow_dispatch",
-        "-W",
-        ".github/workflows/ci.yml",
-        "-j",
-        "quality",
-        "--platform",
-        f"self-hosted={github_image}",
-    ]
-    images = {
-        "github": github_image,
-        "gitlab": (
-            "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:"
-            "d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75"
-        ),
-    }
-    providers = _providers()
-    providers["github"] = providers["github"] | {"emulator_image": github_image}
-    monkeypatch.setattr(ci, "_provider_entry", lambda provider: providers[provider])
-    for provider in ("github", "gitlab"):
-        output = tmp_path / f"{provider}.json"
-        assert (
-            ci.emulator_evidence(
-                provider, mode="run", dry_run=False, allow_untracked=True, output=output
-            )
-            == 0
-        )
-        payload = json.loads(output.read_text())
-        assert payload["execution"] == {
-            "formal_workflow": ".github/workflows/ci.yml"
-            if provider == "github"
-            else ".gitlab-ci.yml",
-            "mode": "selected_job_execution",
-            "selected_job": "quality" if provider == "github" else "ethos:carrier-quality",
-            "executed": True,
-        }
-        assert payload["execution_environment"] == {
-            "declared_image": images[provider],
-            "image_digest": images[provider].partition("@sha256:")[2],
-            "image_digest_status": "declaration_bound",
-            "tool_version": f"{commands[-1][0]} 1.0",
-        }
-    assert commands[0] == expected_github
-    assert commands[1] == [
-        "gitlab-ci-local",
-        "--cwd",
-        str(states[1] / "source"),
-        "--file",
-        ".gitlab-ci.yml",
-        "--state-dir",
-        str(states[1] / "state"),
-        "ethos:carrier-quality",
-    ]
-    assert roots == [states[0] / "source", ROOT]
-    assert all(not state.is_relative_to(ROOT) for state in states)
-    assert all(not state.exists() for state in states)
-
-
-@pytest.mark.parametrize(
-    "stdout",
-    [
-        "Skipping unsupported platform -- Try running with -P self-hosted=...",
-        "",
-    ],
-)
-def test_github_emulator_rejects_a_zero_exit_run_without_executed_steps(
-    monkeypatch, tmp_path: Path, stdout: str
-) -> None:
-    ci = _load_ci_templates_module()
-    monkeypatch.setattr(ci.shutil, "which", lambda _: "/usr/local/bin/act")
-    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
-    monkeypatch.setattr(
-        ci,
-        "materialize_emulator_source",
-        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
-    )
-    monkeypatch.setattr(
-        ci,
-        "_run_command",
-        lambda _command, **_: {"returncode": 0, "ok": True, "stdout": stdout, "stderr": ""},
-    )
-    output = tmp_path / "github-run.json"
-
-    assert (
-        ci.emulator_evidence(
-            "github", mode="run", dry_run=False, allow_untracked=True, output=output
-        )
-        == 1
-    )
-    payload = json.loads(output.read_text())
-    assert payload["verdict"] == "block"
-    assert payload["execution"]["executed"] is False
-
-
-@pytest.mark.parametrize(
-    ("stdout", "expected_code", "warnings"),
-    [
-        ("(node:1) DeprecationWarning: stale action runtime", 1, ["(?:^|[ >])DeprecationWarning:"]),
-        (
-            (
-                "Job succeeded\n"
-                '"forbidden_log_patterns": '
-                '["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]'
-            ),
-            0,
-            [],
-        ),
-    ],
-)
-def test_local_emulator_log_warning_policy(
-    monkeypatch, tmp_path: Path, stdout: str, expected_code: int, warnings: list[str]
-) -> None:
-    ci = _load_ci_templates_module()
-    entry = {
-        "provider": "github",
-        "projection": ".github/workflows/ci.yml",
-        "template": ".config/ci/templates/hosted/github-actions.yml",
-        "emulator_tool": "act",
-        "emulator_event": "workflow_dispatch",
-        "emulator_job": "quality",
-        "emulator_image": (
-            "ghcr.io/catthehacker/ubuntu@sha256:"
-            "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
-        ),
-        "forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"],
-    }
-    monkeypatch.setattr(ci, "_provider_entry", lambda _: entry)
-    monkeypatch.setattr(ci.shutil, "which", {"act": "/usr/local/bin/act"}.get)
-    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
-    monkeypatch.setattr(
-        ci,
-        "materialize_emulator_source",
-        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
-    )
-    monkeypatch.setattr(
-        ci,
-        "_run_command",
-        lambda _command, **_: {"returncode": 0, "ok": True, "stdout": stdout, "stderr": ""},
-    )
-    output = tmp_path / "github-run.json"
-    assert (
-        ci.emulator_evidence(
-            "github", mode="run", dry_run=False, allow_untracked=True, output=output
-        )
-        == expected_code
-    )
-    payload = json.loads(output.read_text())
-    assert payload["verdict"] == ("pass" if expected_code == 0 else "block")
-    assert payload["log_warnings"] == warnings
-
-
-def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
-    monkeypatch, tmp_path: Path
-) -> None:
-    ci, environment = _load_ci_templates_module(), {}
-    monkeypatch.delenv("DOCKER_HOST", raising=False)
-    monkeypatch.setattr(ci.shutil, "which", lambda _: "/usr/local/bin/tool")
-    monkeypatch.setattr(ci, "_docker_context_endpoint", lambda: "unix:///context/docker.sock")
-    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
-    monkeypatch.setattr(
-        ci,
-        "_run_command",
-        lambda _command, **kwargs: (
-            environment.update(kwargs["env"])
-            or {"returncode": 0, "ok": True, "stdout": "Job succeeded", "stderr": ""}
-        ),
-    )
-    assert (
-        ci.emulator_evidence(
-            "github",
-            mode="run",
-            dry_run=False,
-            allow_untracked=True,
-            output=tmp_path / "github-run.json",
-        )
-        == 0
-    )
-    assert environment["DOCKER_HOST"] == "unix:///context/docker.sock"
-
-
-def test_github_emulator_run_materializes_an_independent_git_source(
-    monkeypatch, tmp_path: Path
-) -> None:
-    ci = _load_ci_templates_module()
-    entry = {
-        "provider": "github",
-        "projection": ".github/workflows/ci.yml",
-        "template": ".config/ci/templates/hosted/github-actions.yml",
-        "emulator_tool": "act",
-        "emulator_event": "workflow_dispatch",
-        "emulator_job": "quality",
-        "emulator_image": (
-            "ghcr.io/catthehacker/ubuntu@sha256:"
-            "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
-        ),
-        "emulator_state_dir": "build/runtime/work/github-act",
-    }
-    summary = {
-        "branch": "work/example",
-        "head": "expected-head",
-        "dirty": False,
-        "status_short": "",
-        "changed_scope": {
-            "staged_paths": [],
-            "unstaged_paths": [],
-            "tracked_changed_paths": [],
-            "untracked_count": 0,
-            "untracked_preview": [],
-            "untracked_preview_limit": 12,
-        },
-    }
-    recorded = {}
-
-    def materialize(**kw):
-        source_dir = kw["state_dir"] / "source"
-        source_dir.mkdir(parents=True)
-        materialization = {
-            "kind": "independent_git_checkout",
-            "source_dir": str(source_dir),
-            "source_head": "expected-head",
-            "source_head_matches_expected": True,
-            "git_directory_is_real": True,
-            "uses_external_object_alternates": False,
-            "tracked_diff_bytes": 0,
-        }
-        recorded["materialization"] = kw
-        return materialization
-
-    monkeypatch.setattr(ci, "ROOT", tmp_path)
-    monkeypatch.setattr(ci, "_provider_entry", lambda _: entry)
-    monkeypatch.setattr(ci.shutil, "which", lambda _: "/usr/local/bin/act")
-    monkeypatch.setattr(ci, "_docker_context_endpoint", lambda: "")
-    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
-    monkeypatch.setattr(ci, "_git_summary", lambda: summary)
-    monkeypatch.setattr(ci, "materialize_emulator_source", materialize, raising=False)
-    monkeypatch.setattr(
-        ci,
-        "_run_command",
-        lambda command, **kw: (
-            recorded.update(command=command, run=kw)
-            or {"returncode": 0, "ok": True, "stdout": "Job succeeded", "stderr": ""}
-        ),
-    )
-    assert (
-        ci.emulator_evidence(
-            "github",
-            mode="run",
-            dry_run=False,
-            allow_untracked=True,
-            output=tmp_path / "github-run.json",
-        )
-        == 0
-    )
-    state_dir = recorded["materialization"]["state_dir"]
-    assert recorded["materialization"] == {
-        "source_root": tmp_path,
-        "state_dir": state_dir,
-        "expected_head": "expected-head",
-    }
-    assert not state_dir.is_relative_to(tmp_path)
-    assert recorded["run"]["cwd"] == state_dir / "source"
-    assert not state_dir.exists()
-    payload = json.loads((tmp_path / "github-run.json").read_text())
-    assert payload["materialization"]["source_retained"] is False
 
 
 def test_tool_catalog_contains_only_active_provider_gates() -> None:

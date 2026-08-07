@@ -71,7 +71,7 @@ ethos:types:
     # Unavailable or indeterminate ty execution also blocks through verdict-to-exit
     # binding, so the pipeline cannot pass on an unverified type result.
     - >-
-      tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --execute
+      tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --host --execute
       --gate python-types --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:architecture:
@@ -144,7 +144,7 @@ ethos:docs-links:
   script:
     - tools/ci/scripts/install-lychee.sh
     - >-
-      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
+      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
       --gate markdown-links --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:external-links:
@@ -153,7 +153,7 @@ ethos:external-links:
   script:
     - tools/ci/scripts/install-lychee.sh
     - >-
-      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
+      tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
       --gate external-links --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:prose:

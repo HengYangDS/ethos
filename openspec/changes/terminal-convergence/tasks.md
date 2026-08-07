@@ -326,7 +326,7 @@ are proved homomorphic projections of one portable policy.
   reducers. Changed-scope admission binds the exact merge base and evaluates
   every coordinate independently; improvement in one coordinate never compensates
   for regression in another.
-- [ ] 6.4 Enforce native formatting and syntax for Python, TOML, YAML, JSON,
+- [x] 6.4 Enforce native formatting and syntax for Python, TOML, YAML, JSON,
   Markdown, shell, schemas, CI, and forge files; canonical JSON serialization,
   consistent blank-line rules, internal and external links, and projection drift.
   Exercise GitHub workflows locally with locked `act` and GitLab pipelines with

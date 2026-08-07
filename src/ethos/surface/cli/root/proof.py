@@ -88,6 +88,114 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
     }
 
 
+def _host_gate_observation(
+    *, repo: Path, gate_ids: tuple[str, ...], expect_head: str | None
+) -> EthosResult:
+    """Execute focused gates without repository lifecycle or Attestation authority."""
+    current_head = git.current_head(repo)
+    required_gaps = (
+        ("host_gate_selection_required",)
+        if not gate_ids
+        else ("expected_head_mismatch",)
+        if expect_head is not None and expect_head != current_head
+        else ()
+    )
+    checks: list[dict[str, object]] = []
+    if not required_gaps:
+        policy = resolve_gate_policy(repo, tree_ref=current_head, gate_ids=gate_ids)
+        results = run_gate_waves(
+            LocalGateRunner(),
+            policy.nodes,
+            policy.registry,
+            root=repo,
+            capacity=max(1, os.cpu_count() or 1),
+            parallel=True,
+        )
+        checks = [
+            {
+                "action_id": result.action_id,
+                "command": list(result.command),
+                "exit_code": result.exit_code,
+                "verdict": result.verdict,
+                "diagnostics": list(result.diagnostics),
+            }
+            for result in results
+        ]
+        required_gaps = tuple(
+            f"gate_{'failed' if check['verdict'] == 'block' else 'unknown'}:{check['action_id']}"
+            for check in checks
+            if check["verdict"] != "pass"
+        )
+    verdict: Verdict = "pass" if checks and not required_gaps else "block"
+    return EthosResult(
+        command="prove",
+        verdict=verdict,
+        state="observed" if verdict == "pass" else "gapped",
+        summary={
+            "boundary": "host",
+            "gate_count": len(checks),
+            "proof_attestation_issued": False,
+        },
+        required_gaps=required_gaps,
+        next_action="repair the selected host gate" if required_gaps else "",
+        data={
+            "executed": True,
+            "boundary": "host",
+            "host_probe": host_probe_boundary(host=True, probe=False),
+            "checks": checks,
+            "attestation": {},
+            "expected_head": {
+                "expected": expect_head or "",
+                "current": current_head,
+                "matches": expect_head is None or expect_head == current_head,
+            },
+        },
+    )
+
+
+def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_output: bool) -> bool:
+    """Emit the host-only gate result and report whether it owned this invocation."""
+    if not (options.host and options.execute):
+        return False
+    emit(
+        _host_gate_observation(
+            repo=repo,
+            gate_ids=options.gate,
+            expect_head=options.expect_head,
+        ),
+        json_output=json_output,
+    )
+    return True
+
+
+def _changed_paths(repo: Path) -> tuple[str, ...]:
+    """Return the current tracked change scope for proof planning."""
+    return change_scope_paths_from_status(
+        repo, workspace_status(repo, include_foreign_path_scope=False)
+    )
+
+
+def _proof_context(
+    repo: Path, options: _ProofOptions
+) -> tuple[str, dict[str, object], tuple[str, ...], dict[str, object]]:
+    """Observe the repository and OpenSpec lifecycle once for governed proof."""
+    current_head = git.current_head(repo)
+    audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
+    changed_paths = _changed_paths(repo)
+    openspec_lifecycle = (
+        openspec_governance_report(
+            repo,
+            change=options.change,
+            lifecycle=True,
+            changed_paths=changed_paths,
+            require_workspace=False,
+        )
+        if openspec_profile_enabled(repo, tree_ref=current_head)
+        else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
+    )
+    return current_head, audit, changed_paths, openspec_lifecycle
+
+
 def run_plan_checks(
     *,
     repo: Path,
@@ -177,22 +285,9 @@ def prove(
 ) -> None:
     """Produce proof readiness or one executed generic proof Attestation."""
     repo = resolve_root(root)
-    current_head = git.current_head(repo)
-    audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
-    changed_paths = change_scope_paths_from_status(
-        repo, workspace_status(repo, include_foreign_path_scope=False)
-    )
-    openspec_lifecycle = (
-        openspec_governance_report(
-            repo,
-            change=options.change,
-            lifecycle=True,
-            changed_paths=changed_paths,
-            require_workspace=False,
-        )
-        if openspec_profile_enabled(repo, tree_ref=current_head)
-        else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
-    )
+    if _emit_host_gate_observation(repo=repo, options=options, json_output=json_output):
+        return
+    current_head, audit, changed_paths, openspec_lifecycle = _proof_context(repo, options)
     try:
         plan = proof_plan(
             repo,
@@ -271,7 +366,7 @@ def prove(
     required_gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
-            + tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
+            + tuple(string_sequence(openspec_lifecycle.get("required_gaps")))
             + plan_gaps
             + failed_gate_gaps
             + (("full_proof_requires_execute",) if options.full and not options.execute else ())

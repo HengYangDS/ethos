@@ -17,8 +17,11 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import execute_commitment_rebind
 from ethos.adapters.repo.commitment import exact_commitment_fields
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
@@ -57,13 +60,56 @@ def _install_reference_transaction_hook(
     monkeypatch.setenv("ETHOS_PYTHON", sys.executable)
 
 
+def _bind_old_permissions(
+    worktree: Path,
+    branch: str,
+    carrier: Path,
+    permissions: tuple[str, ...],
+) -> tuple[str, dict[str, object]]:
+    """Commit and bind one old Commitment that cannot authorize its own rebind."""
+    text = json.dumps(permissions, separators=(",", ":")).replace(",", ", ")
+    commitment = worktree / carrier
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace(
+            'permissions = ["git.ref.compare-and-swap"]',
+            f"permissions = {text}",
+        ),
+        encoding="utf-8",
+    )
+    git(worktree, "add", carrier.as_posix())
+    git(worktree, "config", "--unset-all", "core.hooksPath")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "bind minimal fixture commitment",
+    )
+    git(worktree, "config", "core.hooksPath", (worktree / ".githooks").as_posix())
+    old_head = git(worktree, "rev-parse", "HEAD")
+    binding = exact_commitment_fields(worktree, head=old_head, carrier=carrier.as_posix())
+    _replace_lease_payload(
+        worktree,
+        branch,
+        expected_head=old_head,
+        expected_tree=binding["expected_tree"],
+        base_commitment_bytes_sha256=binding["base_commitment_bytes_sha256"],
+        base_commitment_digest=binding["base_commitment_digest"],
+    )
+    return old_head, leases_by_branch(worktree)[branch]
+
+
 def _case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     *,
     relocate_carrier: bool = False,
     archive_to_active: bool = False,
-    minimal_permissions: bool = False,
+    old_permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
+    new_permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
 ) -> dict[str, object]:
     holder = "agent:test:case:commitment-rebind"
     fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
@@ -74,6 +120,10 @@ def _case(
     old_head = git(worktree, "rev-parse", "HEAD")
     carrier = Path(str(lease["base_commitment_path"]))
     commitment = worktree / carrier
+    old_permission_text = json.dumps(old_permissions, separators=(",", ":"))
+    old_permission_text = old_permission_text.replace(",", ", ")
+    if old_permissions != ("git.ref.compare-and-swap",):
+        old_head, lease = _bind_old_permissions(worktree, branch, carrier, old_permissions)
     if archive_to_active:
         git(worktree, "config", "--unset-all", "core.hooksPath")
         archived_carrier = Path(
@@ -126,10 +176,8 @@ def _case(
             "Rebind one changed governed fixture intent.",
         )
         .replace(
-            'permissions = ["git.ref.compare-and-swap"]',
-            'permissions = ["repository.read", "work-lane.write"]'
-            if minimal_permissions
-            else 'permissions = ["git.ref.compare-and-swap"]',
+            f"permissions = {old_permission_text}",
+            f"permissions = {json.dumps(new_permissions).replace(': ', ':')}",
         ),
         encoding="utf-8",
     )
@@ -239,11 +287,15 @@ def test_commitment_rebind_owns_one_archive_to_active_carrier_rollover(
     _assert_terminal(case, report)
 
 
-def test_commitment_rebind_uses_exact_cas_bootstrap_authority(
+def test_commitment_rebind_bootstraps_exact_cas_from_the_old_minimal_commitment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    case = _case(tmp_path, monkeypatch, minimal_permissions=True)
+    case = _case(
+        tmp_path,
+        monkeypatch,
+        old_permissions=("repository.read", "work-lane.write"),
+    )
     worktree = case["worktree"]
     request = case["request"]
     assert isinstance(worktree, Path)
@@ -253,6 +305,65 @@ def test_commitment_rebind_uses_exact_cas_bootstrap_authority(
 
     assert report["verdict"] == "pass", report
     _assert_terminal(case, report)
+
+
+def test_commitment_rebind_bootstrap_rejects_a_mismatched_target_digest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(
+        tmp_path,
+        monkeypatch,
+        old_permissions=("repository.read", "work-lane.write"),
+    )
+    worktree = case["worktree"]
+    request = case["request"]
+    lease = case["lease"]
+    assert isinstance(worktree, Path)
+    assert isinstance(request, CommitmentRebindRequest)
+    assert isinstance(lease, dict)
+    effect = rebind.GitEffect(
+        updates={
+            f"refs/heads/{request.branch}": rebind.GitRefUpdate(
+                expected=request.expect_head,
+                desired=request.target_commit,
+            )
+        }
+    )
+    successor = rebind.old_generation(request) | {
+        "epoch": request.expected_epoch + 1,
+        "expected_head": request.target_commit,
+        "expected_tree": request.expect_index_tree,
+        "base_commitment_path": request.new_commitment_path,
+        "base_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
+        "base_commitment_digest": request.new_commitment_digest,
+    }
+    successor = rebind.lease_generation(successor)
+    successor.pop("payload_sha256")
+    plan = compile_observed_git_effect(
+        worktree,
+        load_lease_bound_commitment(worktree, lease=lease),
+        effect,
+        head=request.expect_head,
+        prior_attestations={},
+        policy={
+            "operation": "commitment.rebind",
+            "old_commitment_digest": request.expected_commitment_digest,
+            "new_commitment_digest": "0" * 64,
+        },
+        values={
+            "lease_generation": rebind.lease_generation(lease),
+            "lease_successor": successor,
+            "index_tree": request.expect_index_tree,
+            "working_overlay_sha256": request.expected_working_overlay_sha256,
+            "new_commitment_path": request.new_commitment_path,
+            "new_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
+            "new_commitment_digest": request.new_commitment_digest,
+        },
+    )
+
+    with pytest.raises(ValueError, match="git_effect_permission_denied"):
+        execute_git_effect(worktree, plan, issuer=request.holder_ref)
 
 
 def _assert_terminal(case: dict[str, object], report: dict[str, object]) -> None:

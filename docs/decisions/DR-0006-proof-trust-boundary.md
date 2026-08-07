@@ -39,7 +39,7 @@ See also: [Decision Records](README.md) and [Decision Index](decision-index.md).
 
 ETHOS governs autonomous agents that run as the **same OS user** as the human operator.
 The local executed-proof carrier is a content-addressed proof Attestation under
-`.ethos/state/attestations/<attestation-id>.json`. Admission validates one self-contained
+`<git-common-dir>/ethos/attestations/<attestation-id>.json`. Admission validates one self-contained
 closure over the exact Commitment, Facts, policy, transient TransitionPlan, proof operation,
 and digest-addressed checks artifact under `artifacts/<sha256>.json`. It does not replay a
 historical workflow: it validates the carried closure, the current Git tree at the attested

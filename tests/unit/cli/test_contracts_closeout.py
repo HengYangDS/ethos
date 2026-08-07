@@ -213,7 +213,13 @@ def test_land_closeout_dry_run_reports_accepted_root_required(tmp_path: Path) ->
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["accepted_root_required"]
     assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
-    assert payload["data"]["closeout_bootstrap"]["required_gaps"] == ["accepted_root_required"]
+    bootstrap = payload["data"]["closeout_bootstrap"]
+    assert bootstrap["required_gaps"] == ["accepted_root_required"]
+    assert bootstrap["accepted_root"] == repo.resolve().as_posix()
+    assert f"--root {repo.resolve().as_posix()}" in bootstrap["command"]
+    assert f"--root {candidate.resolve().as_posix()}" not in bootstrap["command"]
+    assert bootstrap["accepted_head"] == accepted_head
+    assert bootstrap["candidate_head"] == accepted_head
 
 
 def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(

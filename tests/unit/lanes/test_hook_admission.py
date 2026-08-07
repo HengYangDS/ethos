@@ -19,6 +19,7 @@ from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.runtime.binding import runner_source_root
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.governed_repository import adopt_and_commit
@@ -662,6 +663,14 @@ def test_attestation_store_defaults_and_worker_override(
     assert attestation_store_dir(tmp_path) == tmp_path / ".ethos" / "state" / "attestations"
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
+    observed_common = Path(git(repo, "rev-parse", "--git-common-dir"))
+    common = (
+        (repo / observed_common).resolve() if not observed_common.is_absolute() else observed_common
+    )
+    assert state_database(repo) == common / "ethos" / "state.sqlite"
+    assert attestation_store_dir(repo) == common / "ethos" / "attestations"
+    assert state_database(repo) != repo / ".ethos" / "state" / "state.sqlite"
+    assert attestation_store_dir(repo) != repo / ".ethos" / "state" / "attestations"
     head = git(repo, "rev-parse", "HEAD")
     store = tmp_path / ".ethos" / "state" / "attestations-gw1"
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw1")

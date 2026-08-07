@@ -21,6 +21,7 @@ from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.adoption.planner import adoption_plan
@@ -259,7 +260,7 @@ def create_change_source_lane(
         f"declare {change_id}",
     )
     acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
+        state_database(repo),
         lease=exact_lease(
             repo=repo,
             branch=branch,

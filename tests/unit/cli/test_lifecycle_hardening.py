@@ -195,6 +195,40 @@ def test_lane_refresh_recovers_after_ref_cas_precedes_branch_attachment(
     assert not list(ref_intent_dir(worktree).glob("*.json"))
 
 
+def test_lane_refresh_restores_original_branch_when_ref_cas_is_rejected_after_rebase(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+    previous = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+
+    def reject_effect(*_args: object, **_kwargs: object) -> None:
+        message = "git_effect_lease_generation_stale"
+        raise ValueError(message)
+
+    monkeypatch.setattr(work_lane_refresh, "execute_git_effect", reject_effect)
+
+    payload = run_ethos_blocked(
+        "lane",
+        "refresh-base",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        previous,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
+    assert payload["data"]["stderr"] == "git_effect_lease_generation_stale"
+    assert git(worktree, "branch", "--show-current") == "work/feature"
+    assert git(worktree, "rev-parse", "HEAD") == previous
+    assert git(worktree, "rev-parse", "work/feature") == previous
+    assert git(worktree, "status", "--short") == ""
+
+
 def test_refresh_base_blocks_same_tree_identity_repair_instead_of_rebasing_back(
     tmp_path: Path,
     monkeypatch,

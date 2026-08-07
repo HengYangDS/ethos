@@ -22,7 +22,15 @@ PROJECTIONS = {
     "docs/reference/glossary.md",
     "docs/reference/command-plane.md",
 }
-PUBLIC_ROOTS = {"status", "plan", "prove", "land", "publish", "adopt"}
+PUBLIC_ROOTS = {
+    "status",
+    "plan",
+    "prove",
+    "land",
+    "publish",
+    "adopt",
+    "migrate-local-state",
+}
 HIDDEN_ROOTS = {"lane", "hook"}
 SUCCESSOR_OUTCOMES = {
     "accepted-spec-reconciliation",

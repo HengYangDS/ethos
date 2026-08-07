@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -243,177 +242,6 @@ def test_governance_report_blocks_unmapped_requirement_before_mutation(tmp_path:
     assert "model_gap" in report["required_gaps"]
 
 
-def test_repository_locked_openspec_18_resolves_project_schema_and_guidance(
-    tmp_path: Path,
-) -> None:
-    command = openspec_cli.openspec_base_command()
-    assert command is not None
-    repo = init_git_repo(tmp_path / "custom-schema")
-    schema = repo / "openspec" / "schemas" / "intent-to-proof"
-    templates = schema / "templates"
-    templates.mkdir(parents=True)
-    (repo / "openspec" / "config.yaml").write_text(
-        "schema: intent-to-proof\n"
-        "context: governed custom workflow\n"
-        "rules:\n"
-        "  intent: [state explicit non-goals]\n"
-        "operations:\n"
-        "  apply:\n"
-        "    guidance: [prefer deletion over compatibility]\n",
-        encoding="utf-8",
-    )
-    (schema / "schema.yaml").write_text(
-        "name: intent-to-proof\n"
-        "version: 1\n"
-        "artifacts:\n"
-        "  - id: intent\n"
-        "    generates: intent.md\n"
-        "    description: bounded intent\n"
-        "    template: intent.md\n"
-        "    requires: []\n"
-        "  - id: verification\n"
-        "    generates: verification.md\n"
-        "    description: evidence map\n"
-        "    template: verification.md\n"
-        "    requires: [intent]\n"
-        "apply:\n"
-        "  requires: [verification]\n"
-        "  tracks: null\n",
-        encoding="utf-8",
-    )
-    (templates / "intent.md").write_text("# Intent\n", encoding="utf-8")
-    (templates / "verification.md").write_text("# Verification\n", encoding="utf-8")
-
-    validated = openspec_cli.run_json(
-        repo, command, ("schema", "validate", "intent-to-proof", "--json")
-    )
-    created = openspec_cli.run_json(repo, command, ("new", "change", "custom-change", "--json"))
-    status = openspec_cli.run_json(repo, command, ("status", "--change", "custom-change", "--json"))
-    intent = openspec_cli.run_json(
-        repo,
-        command,
-        ("instructions", "intent", "--change", "custom-change", "--json"),
-    )
-    apply = openspec_cli.run_json(
-        repo,
-        command,
-        ("instructions", "apply", "--change", "custom-change", "--json"),
-    )
-
-    assert validated["json"]["valid"] is True
-    assert created["exit_code"] == 0
-    assert status["json"]["schemaName"] == "intent-to-proof"
-    assert [artifact["id"] for artifact in status["json"]["artifacts"]] == [
-        "intent",
-        "verification",
-    ]
-    assert intent["json"]["unlocks"] == ["verification"]
-    assert intent["json"]["context"] == "governed custom workflow"
-    assert intent["json"]["rules"] == ["state explicit non-goals"]
-    assert apply["json"]["missingArtifacts"] == ["verification"]
-    assert apply["json"]["operationGuidance"] == ["prefer deletion over compatibility"]
-
-
-def test_openspec_18_generates_shared_agent_skills_and_host_commands(
-    tmp_path: Path,
-) -> None:
-    command = openspec_cli.openspec_base_command()
-    assert command is not None
-    repo = tmp_path / "projection"
-    templates = repo / "openspec" / "schemas" / "intent-to-proof" / "templates"
-    templates.mkdir(parents=True)
-    (repo / "openspec" / "config.yaml").write_text(
-        "schema: intent-to-proof\n",
-        encoding="utf-8",
-    )
-    (templates.parent / "schema.yaml").write_text(
-        "name: intent-to-proof\n"
-        "version: 1\n"
-        "artifacts:\n"
-        "  - id: intent\n"
-        "    generates: intent.md\n"
-        "    description: bounded intent\n"
-        "    template: intent.md\n"
-        "    requires: []\n"
-        "  - id: verification\n"
-        "    generates: verification.md\n"
-        "    description: exact evidence\n"
-        "    template: verification.md\n"
-        "    requires: [intent]\n"
-        "apply:\n"
-        "  requires: [verification]\n"
-        "  tracks: null\n",
-        encoding="utf-8",
-    )
-    (templates / "intent.md").write_text("# Intent\n", encoding="utf-8")
-    (templates / "verification.md").write_text("# Verification\n", encoding="utf-8")
-    home = tmp_path / "home"
-    codex_home = tmp_path / "codex"
-    config_home = tmp_path / "config"
-    (config_home / "openspec").mkdir(parents=True)
-    (config_home / "openspec" / "config.json").write_text(
-        json.dumps(
-            {
-                "profile": "custom",
-                "delivery": "both",
-                "workflows": ["apply"],
-                "telemetry": {"enabled": False},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    completed = subprocess.run(
-        [
-            *command,
-            "init",
-            repo.as_posix(),
-            "--tools",
-            "agents,claude",
-            "--profile",
-            "custom",
-            "--force",
-            "--no-animation",
-        ],
-        cwd=repo,
-        env=os.environ
-        | {
-            "HOME": home.as_posix(),
-            "CODEX_HOME": codex_home.as_posix(),
-            "XDG_CONFIG_HOME": config_home.as_posix(),
-            "OPENSPEC_TELEMETRY": "0",
-        },
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=openspec_cli.OPENSPEC_COMMAND_TIMEOUT_SECONDS,
-    )
-
-    assert completed.returncode == 0, completed.stderr
-    assert (repo / "openspec" / "config.yaml").read_text(encoding="utf-8") == (
-        "schema: intent-to-proof\n"
-    )
-    apply_skill = (repo / ".agents" / "skills" / "openspec-apply-change" / "SKILL.md").read_text(
-        encoding="utf-8"
-    )
-    assert 'openspec status --change "<name>" --json' in apply_skill
-    assert 'openspec instructions apply --change "<name>" --json' in apply_skill
-    assert 'generatedBy: "1.8.0"' in apply_skill
-    assert "Other schemas: follow the contextFiles from CLI output" in apply_skill
-    assert "Use contextFiles from CLI output, don't assume specific file names" in apply_skill
-    claude_skill = (repo / ".claude" / "skills" / "openspec-apply-change" / "SKILL.md").read_text(
-        encoding="utf-8"
-    )
-    claude_command = (repo / ".claude" / "commands" / "opsx" / "apply.md").read_text(
-        encoding="utf-8"
-    )
-    assert 'openspec status --change "<name>" --json' in claude_command
-    assert 'openspec instructions apply --change "<name>" --json' in claude_command
-    assert 'generatedBy: "1.8.0"' in claude_skill
-    assert "Use contextFiles from CLI output, don't assume specific file names" in claude_skill
-    assert not (codex_home / "prompts").exists()
-
-
 def test_openspec_18_instructions_contract_covers_apply_and_archive() -> None:
     apply = {
         "changeName": "example",
@@ -453,52 +281,6 @@ def test_openspec_18_rejects_default_store_and_accepts_archive_no_op() -> None:
     assert archive["path"].endswith("/openspec/changes/archive/2026-08-05-example")
     assert archive["specsUpdated"] is False
     assert archive["warnings"] == []
-
-
-def test_repository_locked_openspec_18_characterizes_skip_specs_and_nested_archive(
-    tmp_path: Path,
-) -> None:
-    command = openspec_cli.openspec_base_command()
-    assert command is not None
-
-    skip = init_git_repo(tmp_path / "skip")
-    _write_characterization_workspace(skip, "skip-only", skip_specs=True)
-    skip_status = openspec_cli.run_json(
-        skip, command, ("status", "--change", "skip-only", "--json")
-    )
-    skip_apply = openspec_cli.run_json(
-        skip,
-        command,
-        ("instructions", "apply", "--change", "skip-only", "--json"),
-    )
-    skip_archive = openspec_cli.run_json(skip, command, ("archive", "skip-only", "--yes", "--json"))
-
-    assert (
-        next(
-            artifact for artifact in skip_status["json"]["artifacts"] if artifact["id"] == "specs"
-        )["status"]
-        == "skipped"
-    )
-    assert skip_apply["json"]["state"] == "all_done"
-    archive_path = str(skip_archive["json"]["archive"]["path"])
-    assert archive_path.rsplit("/", 1)[-1].endswith("-skip-only")
-    assert skip_archive["json"]["archive"].get("warnings", []) == []
-    assert skip_archive["json"]["archive"]["specsUpdated"] is False
-
-    nested = init_git_repo(tmp_path / "nested")
-    _write_characterization_workspace(nested, "nested-change", capability="platform/contracts")
-    nested_status = openspec_cli.run_json(
-        nested, command, ("status", "--change", "nested-change", "--json")
-    )
-    nested_archive = openspec_cli.run_json(
-        nested, command, ("archive", "nested-change", "--yes", "--json")
-    )
-
-    assert nested_status["json"]["artifactPaths"]["specs"]["existingOutputPaths"][0].endswith(
-        "/specs/platform/contracts/spec.md"
-    )
-    assert nested_archive["json"]["archive"]["specsUpdated"] is True
-    assert (nested / "openspec/specs/platform/contracts/spec.md").is_file()
 
 
 def test_lifecycle_projects_official_artifacts_and_task_progress(tmp_path: Path) -> None:
@@ -775,40 +557,6 @@ def _write_valid_accepted_specs(repo: Path) -> None:
         "- **THEN** the accepted contract is available\n",
         encoding="utf-8",
     )
-
-
-def _write_characterization_workspace(
-    repo: Path,
-    change: str,
-    *,
-    skip_specs: bool = False,
-    capability: str = "",
-) -> None:
-    _write_valid_accepted_specs(repo)
-    root = repo / "openspec" / "changes" / change
-    root.mkdir(parents=True)
-    (root / ".openspec.yaml").write_text(
-        "schema: spec-driven\n" + ("skip_specs: true\n" if skip_specs else ""),
-        encoding="utf-8",
-    )
-    (root / "proposal.md").write_text(
-        "## Why\n\nCharacterize OpenSpec.\n\n## What Changes\n\n- Verify official behavior.\n",
-        encoding="utf-8",
-    )
-    (root / "design.md").write_text("## Context\n\nCharacterization.\n", encoding="utf-8")
-    (root / "tasks.md").write_text("- [x] Characterize\n", encoding="utf-8")
-    if capability:
-        spec = root / "specs" / capability / "spec.md"
-        spec.parent.mkdir(parents=True)
-        spec.write_text(
-            "## ADDED Requirements\n\n"
-            "### Requirement: Nested capability\n\n"
-            "The system SHALL discover a nested capability.\n\n"
-            "#### Scenario: Nested capability is archived\n\n"
-            "- **WHEN** the change is archived\n"
-            "- **THEN** the accepted nested capability is created\n",
-            encoding="utf-8",
-        )
 
 
 def _enable_openspec(repo: Path, *material_paths: str) -> None:

@@ -123,6 +123,13 @@ def test_entrypoint_audit_allows_the_single_checkout_venv_and_rejects_the_retire
     assert report["required_gaps"] == [
         "generated_artifact_entrypoint_retired_venv_runtime:tools/ci/scripts/example.sh"
     ]
+    script.unlink()
+    script = tmp_path / "tools/ci/scripts/configure-git-checkout.sh"
+    script.write_text("python3 -c 'print(1)'\n", encoding="utf-8")
+    report = generated_artifact_entrypoint_audit(tmp_path)
+    assert report["required_gaps"] == [
+        (f"generated_artifact_entrypoint_python_runtime_unbound:{script.relative_to(tmp_path)}")
+    ]
 
 
 def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:

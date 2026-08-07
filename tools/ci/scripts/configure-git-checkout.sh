@@ -14,14 +14,19 @@ set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+runtime_root="$(cd "${script_dir}/../../.." && pwd)"
 
 IFS=$'\t' read -r name email signing_required signing_format <<EOF
-$(python3 - <<'PY'
+$(
+cd "${runtime_root}"
+"${script_dir}/with-python-runtime.sh" -- "${runtime_root}/.venv/bin/python" - "${repo_root}" <<'PY'
+import sys
 import tomllib
 from pathlib import Path
 
 policy: dict[str, object] = {}
-path = Path(".ethos/workspace.toml")
+path = Path(sys.argv[1]) / ".ethos/workspace.toml"
 if path.exists():
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     raw = data.get("commit_policy")

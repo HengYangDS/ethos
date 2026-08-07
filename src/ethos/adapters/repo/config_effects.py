@@ -45,6 +45,26 @@ def set_local_config(root: Path, values: dict[str, str]) -> Attestation:
     )
 
 
+def set_worktree_config(root: Path, values: dict[str, str]) -> None:
+    """Set one exact worktree-local Git configuration projection."""
+    completed = run_git(root, "config", "extensions.worktreeConfig", "true", check=False)
+    if completed.returncode:
+        raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
+    for key, value in values.items():
+        completed = run_git(root, "config", "--worktree", key, value, check=False)
+        if completed.returncode:
+            raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
+    after = {key: _worktree_value(root, key) for key in values}
+    if after != values:
+        message = "git_config_effect_postcondition_failed"
+        raise ValueError(message)
+
+
 def _value(root: Path, key: str) -> str:
     completed = run_git(root, "config", "--local", "--get", key, check=False)
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
+def _worktree_value(root: Path, key: str) -> str:
+    completed = run_git(root, "config", "--worktree", "--get", key, check=False)
     return completed.stdout.strip() if completed.returncode == 0 else ""

@@ -17,6 +17,7 @@ from ethos.adapters.admission.git_admission import resolve_ref_move_policy
 from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.repo.config_effects import set_worktree_config
 from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.workspace import worktree_records
@@ -66,9 +67,10 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
         target = hooks / name
         target.write_text(hook_launcher(executable, name), encoding="utf-8", newline="\n")
         target.chmod(0o755)
-    run_git(repo, "config", "extensions.worktreeConfig", "true")
-    run_git(repo, "config", "--worktree", "core.hooksPath", hooks.as_posix())
-    run_git(repo, "config", "--worktree", "gc.packRefs", "false")
+    set_worktree_config(
+        repo,
+        {"core.hooksPath": hooks.as_posix(), "gc.packRefs": "false"},
+    )
     return hook_runtime_binding(repo)
 
 
@@ -123,6 +125,9 @@ def _pre_commit(root: Path) -> dict[str, object]:
 
 
 def _scan_staged_secrets(root: Path) -> None:
+    policy = root / ".gitleaks.toml"
+    if not policy.is_file():
+        return
     executable = shutil.which("gitleaks")
     if executable is None:
         message = "staged_secret_gitleaks_missing"
@@ -134,7 +139,7 @@ def _scan_staged_secrets(root: Path) -> None:
             "git",
             "--staged",
             "--config",
-            str(root / ".gitleaks.toml"),
+            str(policy),
             "--redact=100",
             "--no-banner",
             root.as_posix(),

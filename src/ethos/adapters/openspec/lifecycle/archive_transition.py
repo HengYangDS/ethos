@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import date
 from typing import TYPE_CHECKING
@@ -10,10 +11,8 @@ from typing import Any
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import relocated_commitment_fields
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import exact_rename_target
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -95,16 +94,16 @@ def lease_bound_archive_scope_report(
     active = _active_commitments(root, tree)
     expected_active = (carrier,) if state == "completion_transition" else ()
     changed = tuple(dict.fromkeys(filter(None, changed_paths)))
-    preserved_archive_invalid = False
-    if preserved_archive is not None:
-        preserved_source, preserved_target = preserved_archive
-        preserved_archive_invalid = not _exact_preserved_archive(
-            root,
-            head=head,
-            tree=tree,
-            source=preserved_source,
-            target=preserved_target,
-        )
+    preservation_valid, inferred_preservation = _archive_preservation_binding(
+        root,
+        state=state,
+        head=head,
+        tree=tree,
+        carrier=carrier,
+    )
+    preserved_archive_invalid = not preservation_valid or (
+        preserved_archive is not None and preserved_archive != inferred_preservation
+    )
     completion_invalid = state == "completion_transition" and (
         not official_change_complete or len(changed) != 1 or changed[0] not in completion_artifacts
     )
@@ -123,6 +122,140 @@ def lease_bound_archive_scope_report(
         state=state,
         changed_paths=changed_paths,
     )
+
+
+def lease_bound_archive_transition_fields(
+    root: Path,
+    *,
+    target_head: str,
+) -> dict[str, str] | None:
+    """Return the exact Lease-bound archive target from immutable Git facts."""
+    branch = git_stdout(root, "branch", "--show-current")
+    lease = leases_by_branch(root).get(branch, {})
+    old_head = str(lease.get("expected_head") or "")
+    if lease.get("lease_state") != "valid" or not old_head:
+        return None
+    try:
+        source = load_lease_bound_commitment(root, lease=lease)
+        change = source.id.removeprefix("change:")
+        target_tree = current_tree(root, target_head)
+        carrier = _staged_archive_carrier(
+            root,
+            head=old_head,
+            tree=target_tree,
+            lease=lease,
+            change=change,
+        )
+        target = exact_commitment_fields(
+            root,
+            head=target_head,
+            carrier=carrier,
+            change_id=change,
+        )
+        archived = load_commitment(
+            root,
+            carrier=carrier,
+            change_id=change,
+            tree_ref=target_tree,
+        )
+    except ValueError:
+        return None
+    preservation_valid, _binding = _preserved_archive_binding(
+        root,
+        head=old_head,
+        tree=target_tree,
+        carrier=carrier,
+    )
+    return (
+        target
+        if archived.digest() == source.digest()
+        and _active_commitments(root, target_tree) == ()
+        and preservation_valid
+        else None
+    )
+
+
+def _archive_preservation_binding(
+    root: Path,
+    *,
+    state: str,
+    head: str,
+    tree: str,
+    carrier: str,
+) -> tuple[bool, tuple[str, str] | None]:
+    if state == "completion_transition":
+        return True, None
+    if state == "post_archive_closeout":
+        return _post_archive_preservation_binding(root, head=head, carrier=carrier)
+    return _preserved_archive_binding(root, head=head, tree=tree, carrier=carrier)
+
+
+def collision_preservation_path(path: str, tree: str, head: str) -> str:
+    """Return the sole immutable preservation path for one archive collision."""
+    suffix = hashlib.sha256(f"{tree}\0{head}".encode()).hexdigest()[:12]
+    return f"{path}-{suffix}"
+
+
+def _preserved_archive_binding(
+    root: Path,
+    *,
+    head: str,
+    tree: str,
+    carrier: str,
+) -> tuple[bool, tuple[str, str] | None]:
+    archive = carrier.removesuffix("/commitment.toml")
+    archive_tree = git_stdout(root, "rev-parse", f"{head}:{archive}")
+    if not archive_tree:
+        return True, None
+    preserved = collision_preservation_path(archive, archive_tree, head)
+    binding = (archive, preserved)
+    return (
+        _exact_preserved_archive(
+            root,
+            head=head,
+            tree=tree,
+            source=archive,
+            target=preserved,
+        ),
+        binding,
+    )
+
+
+def _post_archive_preservation_binding(
+    root: Path,
+    *,
+    head: str,
+    carrier: str,
+) -> tuple[bool, tuple[str, str] | None]:
+    """Validate collision preservation at the exact archive commit in history."""
+    source = carrier.removesuffix("/commitment.toml")
+    match = _ARCHIVE_COMMITMENT.fullmatch(carrier)
+    if match is None:
+        return False, None
+    active = f"openspec/changes/{match[2]}/commitment.toml"
+    revisions = git_stdout(root, "rev-list", head, "--", active, carrier).splitlines()
+    for revision in revisions:
+        parents = run_git(root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
+        if len(parents) != 2:
+            continue
+        parent = parents[1]
+        if not _exact_carrier_relocation(root, parent, revision, active, carrier):
+            continue
+        source_tree = git_stdout(root, "rev-parse", f"{parent}:{source}")
+        if not source_tree:
+            return True, None
+        preserved = collision_preservation_path(source, source_tree, parent)
+        return (
+            _exact_preserved_archive(
+                root,
+                head=parent,
+                tree=current_tree(root, revision),
+                source=source,
+                target=preserved,
+            ),
+            (source, preserved),
+        )
+    return False, None
 
 
 def _exact_preserved_archive(
@@ -166,15 +299,18 @@ def _archive_binding(
             }
             if all(target[name] == value for name, value in expected.items()):
                 return "completion_transition", target["expected_tree"], carrier
-        target = (
-            exact_commitment_fields(
-                root,
-                head=index_tree,
-                carrier=target_carrier,
-                change_id=change,
-            )
-            if target_carrier
-            else relocated_commitment_fields(root, old_head=head, new_head=index_tree, lease=lease)
+        inferred_carrier = target_carrier or _staged_archive_carrier(
+            root,
+            head=head,
+            tree=index_tree,
+            lease=lease,
+            change=change,
+        )
+        target = exact_commitment_fields(
+            root,
+            head=index_tree,
+            carrier=inferred_carrier,
+            change_id=change,
         )
     except ValueError:
         return None
@@ -188,6 +324,60 @@ def _archive_binding(
     ):
         return None
     return "archive_transition", target["expected_tree"], target_carrier
+
+
+def _staged_archive_carrier(
+    root: Path,
+    *,
+    head: str,
+    tree: str,
+    lease: dict[str, object],
+    change: str,
+) -> str:
+    active = f"openspec/changes/{change}/commitment.toml"
+    if git_stdout(root, "rev-parse", f"{tree}:{active}"):
+        message = "openspec_active_commitment_not_relocated"
+        raise ValueError(message)
+    listed = run_git(
+        root,
+        "ls-tree",
+        "-r",
+        "--name-only",
+        tree,
+        "--",
+        "openspec/changes/archive",
+        check=False,
+    )
+    if listed.returncode:
+        message = "openspec_archive_tree_unreadable"
+        raise ValueError(message)
+    expected = {
+        name: str(lease.get(name) or "")
+        for name in ("base_commitment_bytes_sha256", "base_commitment_digest")
+    }
+    candidates: list[str] = []
+    for carrier in listed.stdout.splitlines():
+        if not _valid_archive_carrier(carrier, change):
+            continue
+        before = git_stdout(root, "rev-parse", f"{head}:{carrier}")
+        after = git_stdout(root, "rev-parse", f"{tree}:{carrier}")
+        if before == after:
+            continue
+        try:
+            target = exact_commitment_fields(
+                root,
+                head=tree,
+                carrier=carrier,
+                change_id=change,
+            )
+        except ValueError:
+            continue
+        if all(target[name] == value for name, value in expected.items()):
+            candidates.append(carrier)
+    if len(candidates) != 1:
+        message = "lease_base_commitment_path_mismatch"
+        raise ValueError(message)
+    return candidates[0]
 
 
 def _bound_archive_binding(
@@ -207,9 +397,23 @@ def _bound_archive_binding(
             _commit, parent = parents
         except ValueError:
             continue
-        if exact_rename_target(root, parent, revision, source) == carrier:
+        if _exact_carrier_relocation(root, parent, revision, source, carrier):
             return "post_archive_closeout", current_tree(root, head), carrier
     return None
+
+
+def _exact_carrier_relocation(
+    root: Path,
+    parent: str,
+    revision: str,
+    source: str,
+    carrier: str,
+) -> bool:
+    """Recognize semantic carrier relocation without relying on Git rename heuristics."""
+    source_blob = git_stdout(root, "rev-parse", f"{parent}:{source}")
+    target_blob = git_stdout(root, "rev-parse", f"{revision}:{carrier}")
+    source_after = git_stdout(root, "rev-parse", f"{revision}:{source}")
+    return bool(source_blob and source_blob == target_blob and not source_after)
 
 
 def _valid_archive_carrier(carrier: str, change: str) -> bool:

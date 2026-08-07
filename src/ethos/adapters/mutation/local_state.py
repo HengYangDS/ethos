@@ -9,6 +9,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
@@ -304,3 +305,20 @@ def local_state_migration(
         "manifest": [{"path": path, "sha256": sha256} for path, sha256 in plan.source_manifest],
         "required_gaps": gaps,
     }
+
+
+def local_state_mutation_guard(root: Path) -> dict[str, object]:
+    """Require one reviewed migration before any legacy-backed mutation."""
+    plan = _migration_plan(root)
+    if plan.source_database_digest and not plan.target_database_digest:
+        resolved = root.resolve()
+        return {
+            "required_gaps": ["local_state_migration_required"],
+            "plan_digest": plan.digest,
+            "next_action": (
+                f"ethos migrate-local-state --root {resolved} --apply --authorize "
+                f"--expect-head {current_head(resolved)} "
+                f"--expect-plan-digest {plan.digest} --json"
+            ),
+        }
+    return {"required_gaps": [], "plan_digest": "", "next_action": ""}

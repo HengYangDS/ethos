@@ -17,6 +17,7 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     recognized_rebind_attestation,
 )
+from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -51,6 +52,24 @@ if TYPE_CHECKING:
 def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -> dict[str, object]:
     """Apply, recover, or recognize one exact Commitment/Lease transition."""
     repo = repository_root(root)
+    guard = local_state_mutation_guard(repo) if request.apply else {"required_gaps": []}
+    if guard["required_gaps"]:
+        return {
+            "verdict": "block",
+            "state": "blocked",
+            "branch": request.branch,
+            "lease": {},
+            "attestation": {},
+            "required_gaps": guard["required_gaps"],
+            "next_action": guard["next_action"],
+        }
+    return _execute_commitment_rebind(repo, request)
+
+
+def _execute_commitment_rebind(
+    repo: Path,
+    request: CommitmentRebindRequest,
+) -> dict[str, object]:
     effect = GitEffect(
         updates={
             f"refs/heads/{request.branch}": GitRefUpdate(

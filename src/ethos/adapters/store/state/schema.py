@@ -146,6 +146,18 @@ def state_database(root: Path) -> Path:
     return local_state_root(root) / "state.sqlite"
 
 
+def observed_state_database(root: Path) -> Path:
+    """Return the sole initialized Lease authority visible before migration."""
+    current = state_database(root)
+    if current.is_file() and current.stat().st_size:
+        return current
+    common = git_common_dir(root)
+    if not common:
+        return current
+    legacy = Path(common).parent / ".ethos" / "state" / "state.sqlite"
+    return legacy if legacy.is_file() and legacy.stat().st_size else current
+
+
 def initialize_state_connection(connection: sqlite3.Connection) -> None:
     """Create or validate the lease-owned subset of shared local state."""
     if not connection.in_transaction:

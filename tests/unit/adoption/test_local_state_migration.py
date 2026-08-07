@@ -5,8 +5,13 @@ from contextlib import closing
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.local_state as local_state_module
+import ethos.surface.cli.root.proof as proof_cli
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.local_state import local_state_migration
+from ethos.adapters.mutation.local_state import local_state_mutation_guard
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import initialize_state_connection
+from ethos.adapters.store.state.schema import observed_state_database
 from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -131,6 +136,170 @@ def test_local_state_migration_uses_the_accepted_root_from_a_linked_worktree(
     assert result["verdict"] == "pass"
     assert result["state"] == "ready"
     assert result["source"] == legacy.as_posix()
+
+
+def test_read_model_uses_the_only_valid_legacy_database_until_migration(
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    lane = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-source",
+        branch="work/source",
+        holder_ref="agent:test:case:source",
+    )
+    current = state_database(repo)
+    legacy = repo / ".ethos" / "state" / "state.sqlite"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    current.replace(legacy)
+    current.touch()
+
+    leases = leases_by_branch(lane)
+
+    assert observed_state_database(lane) == legacy
+    assert leases["work/source"]["lease_state"] == "valid"
+    assert leases["work/source"]["holder_ref"] == "agent:test:case:source"
+
+
+def test_mutation_guard_requires_the_exact_reviewed_migration_plan(
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    lane = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-source",
+        branch="work/source",
+        holder_ref="agent:test:case:source",
+    )
+    current = state_database(repo)
+    legacy = repo / ".ethos" / "state" / "state.sqlite"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    current.replace(legacy)
+    current.touch()
+    head = git(lane, "rev-parse", "HEAD")
+
+    guard = local_state_mutation_guard(lane)
+
+    assert guard["required_gaps"] == ["local_state_migration_required"]
+    assert guard["next_action"] == (
+        f"ethos migrate-local-state --root {lane} --apply --authorize "
+        f"--expect-head {head} --expect-plan-digest {guard['plan_digest']} --json"
+    )
+
+
+def test_reference_transaction_blocks_before_advancing_a_legacy_lease(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    lane = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-source",
+        branch="work/source",
+        holder_ref="agent:test:case:source",
+    )
+    head = git(lane, "rev-parse", "HEAD")
+    tree = git(lane, "rev-parse", "HEAD^{tree}")
+    target = git(lane, "commit-tree", tree, "-p", head, "-m", "target")
+    current = state_database(repo)
+    legacy = repo / ".ethos" / "state" / "state.sqlite"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    current.replace(legacy)
+    current.touch()
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:source")
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="prepared",
+        ref_name="refs/heads/work/source",
+        old_value=head,
+        new_value=target,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["local_state_migration_required"]
+    assert str(report["next_action"]).startswith(
+        f"ethos migrate-local-state --root {lane} --apply --authorize "
+        f"--expect-head {head} --expect-plan-digest "
+    )
+    assert git(lane, "rev-parse", "work/source") == head
+
+
+def test_executed_proof_requires_migration_before_running_any_gate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    lane = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-source",
+        branch="work/source",
+        holder_ref="agent:test:case:source",
+    )
+    current = state_database(repo)
+    legacy = repo / ".ethos" / "state" / "state.sqlite"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    current.replace(legacy)
+    current.touch()
+    head = git(lane, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:source")
+    monkeypatch.setattr(
+        proof_cli,
+        "run_plan_checks",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("gate runner reached")),
+    )
+
+    result = run_ethos_blocked(
+        "prove",
+        "--execute",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=lane,
+    )
+
+    assert result["required_gaps"] == ["local_state_migration_required"]
+    assert result["next_action"].startswith(
+        f"ethos migrate-local-state --root {lane} --apply --authorize "
+        f"--expect-head {head} --expect-plan-digest "
+    )
+
+
+def test_land_apply_requires_migration_before_repository_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    lane = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-source",
+        branch="work/source",
+        holder_ref="agent:test:case:source",
+    )
+    current = state_database(repo)
+    legacy = repo / ".ethos" / "state" / "state.sqlite"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    current.replace(legacy)
+    current.touch()
+    head = git(lane, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:source")
+
+    result = run_ethos_blocked(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=lane,
+    )
+
+    assert result["required_gaps"] == ["local_state_migration_required"]
+    assert result["next_action"].startswith(
+        f"ethos migrate-local-state --root {lane} --apply --authorize "
+        f"--expect-head {head} --expect-plan-digest "
+    )
+    assert git(lane, "rev-parse", "HEAD") == head
 
 
 def test_local_state_migration_merges_existing_target_files_and_disjoint_leases(

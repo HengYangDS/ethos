@@ -12,6 +12,7 @@ from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.lane_start_carrier import LaneStartContext
 from ethos.adapters.mutation.lane_start_carrier import create_lane_start_carrier
 from ethos.adapters.mutation.lane_start_carrier import runner_bootstrap
+from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
@@ -72,17 +73,19 @@ def start_work_lane(
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     branch, target, profile_block = lane_start_target(repo, policy, name=name, path=path)
-    if profile_block:
-        return profile_block
+    holder_block: dict[str, object] | None = None
     try:
         normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
     except ValueError:
-        return {
+        normalized_holder_ref = ""
+        holder_block = {
             "verdict": "block",
             "state": "blocked",
             "branch": branch,
             "required_gaps": ["holder_ref_invalid"],
         }
+    if block := profile_block or holder_block:
+        return block
     if not apply:
         return planned_lane_start(branch=branch, target=target)
     candidate, admission_block = admit_lane_start(repo, branch=branch, target=target)
@@ -98,6 +101,35 @@ def start_work_lane(
     )
     if commitment_block:
         return commitment_block
+    guard = local_state_mutation_guard(repo)
+    if guard["required_gaps"]:
+        commitment_block = blocked_lane_start(
+            branch,
+            target,
+            *cast("list[str]", guard["required_gaps"]),
+            next_action=guard["next_action"],
+        )
+    return commitment_block or _create_started_lane(
+        repo=repo,
+        policy=policy,
+        branch=branch,
+        target=target,
+        holder_ref=normalized_holder_ref,
+        candidate=candidate,
+        source=source,
+    )
+
+
+def _create_started_lane(
+    *,
+    repo: Path,
+    policy: BranchRolePolicy,
+    branch: str,
+    target: Path,
+    holder_ref: str,
+    candidate: dict[str, object],
+    source: tuple[Path, str, str, str, str, str],
+) -> dict[str, object]:
     source_root, source_change_id, carrier, base_digest, source_head, source_branch = source
     return create_lane_start_carrier(
         LaneStartContext(
@@ -105,7 +137,7 @@ def start_work_lane(
             policy=policy,
             branch=branch,
             target=target,
-            holder_ref=normalized_holder_ref,
+            holder_ref=holder_ref,
             base_commitment_digest=base_digest,
             candidate=candidate,
             source_root=source_root,

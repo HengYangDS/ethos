@@ -143,6 +143,26 @@ def test_nox_owns_cross_platform_python_gate_sessions() -> None:
         assert f"def {session}(" in source
 
 
+def test_nox_is_the_only_prose_orchestrator() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    declaration = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))
+    tools = {tool["concern"]: tool for tool in declaration["tool"]}
+
+    assert "def prose(" in source
+    assert '_project_script("codespell")' in source
+    assert tools["prose"]["gate"] == "uv run --frozen --offline python -m nox -s prose"
+    assert not (ROOT / "tools/ci/scripts/run-prose-check.sh").exists()
+    for relative in (
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".config/ci/templates/hosted/gitlab-ci.yml",
+        ".github/workflows/ci.yml",
+        ".gitlab-ci.yml",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "uv run --frozen --offline python -m nox -s prose" in text
+        assert "run-prose-check.sh" not in text
+
+
 def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
     source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
 

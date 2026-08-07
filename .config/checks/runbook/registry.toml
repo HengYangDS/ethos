@@ -59,7 +59,7 @@ evidence = "JSON stdout"
 
 [[entry]]
 id = "RUN-PROSE-CHECK"
-command = "tools/ci/scripts/run-prose-check.sh"
+command = "uv run --frozen --offline python -m nox -s prose"
 category = "prose"
 evidence = "exit code + codespell count"
 

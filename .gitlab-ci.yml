@@ -175,7 +175,7 @@ ethos:prose:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-prose-check.sh
+    - uv run --frozen --offline python -m nox -s prose
 
 ethos:ci-projections:
   <<: *python_setup

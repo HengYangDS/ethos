@@ -12,8 +12,9 @@ A gate is active only when all owner surfaces agree:
 2. Tool-native policy lives under the smallest stable owner, usually
    `.config/checks/<concern>/` or a root-native file when the tool requires root
    discovery.
-3. `tools/ci/scripts/` owns reusable execution commands.
-4. Hosted CI and hooks invoke owner scripts or ETHOS command surfaces; they do
+3. Nox owns reusable Python quality orchestration; `tools/ci/scripts/` retains
+   only platform adapters or installers that Nox does not subsume.
+4. Hosted CI and hooks invoke Nox sessions, retained adapters, or ETHOS command surfaces; they do
    not restate policy inline.
 5. Tests or proof commands assert the contract so drift becomes visible.
 
@@ -28,13 +29,12 @@ The product hard floor is intentionally compact:
   Nox `lint` session and root `ruff.toml`.
 - Ty policy lives in `.config/checks/ty/policy.toml`; zero-tolerance packages may
   not emit diagnostics.
-- Unit and architecture tests run with branch coverage through
-  `tools/ci/scripts/run-python-tests.sh`.
+- Unit and architecture tests run with branch coverage through the Nox `tests` session.
 - Coverage configuration lives in `.config/checks/coverage/coverage.ini`; the
   current hard floor is read from `.config/checks/coverage/policy.toml`, mirrored
   by `coverage.ini`, and branch coverage is required.
 - Public-surface docstring policy lives in `.config/checks/docstrings/policy.toml`
-  and is executed by `tools/ci/scripts/run-docstring-coverage.sh`.
+  and is executed by the Nox `docstrings` session.
 - TOML/YAML config lint, shell lint, import boundaries, security, and link checks
   are separate gates with separate owners.
 

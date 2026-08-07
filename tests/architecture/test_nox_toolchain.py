@@ -122,7 +122,9 @@ def test_nox_is_the_only_python_build_orchestrator() -> None:
 def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
 
+    assert "def prepare_install_supply(" in source
     assert gates["local-install-smoke"]["command"] == [
         "{python}",
         "-m",
@@ -264,6 +266,7 @@ def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
 
     assert "def host_conformance(" in source
     assert "_build_wheel(session)" in source
+    assert "prepare_install_supply(session)" in source
     assert "run_install_smoke(session)" in source
     assert '"tests/architecture/test_portable_toolchain.py"' in source
     assert '"tests/architecture/test_local_install_smoke.py"' in source

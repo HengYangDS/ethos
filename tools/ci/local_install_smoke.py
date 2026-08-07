@@ -23,8 +23,11 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS = ROOT / "build/artifacts/python"
+UV_CACHE = ROOT / "build/runtime/tool-cache/uv"
 WORK = ROOT / "build/runtime/work/local-install-smoke"
 EVIDENCE = ROOT / "build/evidence/local-install/smoke.json"
+CONSTRAINTS = WORK / "runtime-constraints.txt"
+SUPPLY_ENVIRONMENT = WORK / "supply-environment"
 
 
 def _venv_executable(root: Path, name: str) -> Path:
@@ -47,8 +50,51 @@ def _project_script(name: str) -> str:
 
 
 def _run(*command: str, cwd: Path = ROOT) -> str:
-    completed = run_command(cwd, command, check=True)
+    completed = run_command(cwd, command)
+    if completed.returncode:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        rendered = " ".join(command)
+        message = f"command failed ({completed.returncode}): {rendered}\n{detail}"
+        raise RuntimeError(message)
     return completed.stdout.strip()
+
+
+def _export_runtime_constraints(uv: str) -> None:
+    WORK.mkdir(parents=True, exist_ok=True)
+    _run(
+        uv,
+        "export",
+        "--frozen",
+        "--no-dev",
+        "--no-emit-project",
+        "--offline",
+        "--cache-dir",
+        str(UV_CACHE),
+        "--output-file",
+        str(CONSTRAINTS),
+    )
+
+
+def prepare_supply() -> None:
+    """Materialize the lock-bound runtime supply for later offline consumption."""
+    uv, source_python = _project_script("uv"), Path(sys.executable)
+    if SUPPLY_ENVIRONMENT.exists():
+        shutil.rmtree(SUPPLY_ENVIRONMENT)
+    _export_runtime_constraints(uv)
+    _run(uv, "venv", "--python", str(source_python), str(SUPPLY_ENVIRONMENT))
+    _run(
+        uv,
+        "pip",
+        "install",
+        "--cache-dir",
+        str(UV_CACHE),
+        "--require-hashes",
+        "--requirements",
+        str(CONSTRAINTS),
+        "--python",
+        str(_venv_executable(SUPPLY_ENVIRONMENT, "python")),
+    )
+    shutil.rmtree(SUPPLY_ENVIRONMENT)
 
 
 def _single_wheel() -> Path:
@@ -209,12 +255,17 @@ def run(session: nox.Session) -> None:
     WORK.mkdir(parents=True)
     wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
     uv, source_python = _project_script("uv"), Path(sys.executable)
+    _export_runtime_constraints(uv)
     _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
     _run(
         uv,
         "pip",
         "install",
         "--offline",
+        "--cache-dir",
+        str(UV_CACHE),
+        "--constraints",
+        str(CONSTRAINTS),
         "--python",
         str(_venv_executable(smoke, "python")),
         str(wheel),

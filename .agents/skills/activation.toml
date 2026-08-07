@@ -142,7 +142,7 @@ post_checks = [
   "ethos prove --gate playbooks-v2 --json",
   "ethos plan --changed --json",
 ]
-may_coactivate = ["ethos-repository-governance"]
+requires = ["ethos-repository-governance"]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -206,7 +206,7 @@ post_checks = [
   "ethos prove --gate repository-audit --json",
   "ethos prove --json",
 ]
-may_coactivate = ["ethos-change-lifecycle"]
+requires = ["ethos-change-lifecycle"]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -256,5 +256,5 @@ post_checks = [
   "ethos prove --root <repo> --full --json",
   "ethos status --json",
 ]
-may_coactivate = ["ethos-repository-governance"]
+requires = ["ethos-repository-governance"]
 boundary = "workflow-package-projection"

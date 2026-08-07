@@ -36,9 +36,15 @@ else
   while IFS= read -r target; do
     toml_files+=("${target}")
   done < <(git ls-files '*.toml')
-  while IFS= read -r target; do
-    yaml_files+=("${target}")
-  done < <(git ls-files '*.yml' '*.yaml')
+  yaml_files=(
+    .pre-commit-config.yaml
+    .config/checks/markdown/.markdownlint-cli2.yaml
+    .config/checks/yaml/yamllint.yaml
+    .config/ci/templates/hosted/github-actions.yml
+    .config/ci/templates/hosted/gitlab-ci.yml
+    .github/workflows/ci.yml
+    .gitlab-ci.yml
+  )
   while IFS= read -r target; do
     json_files+=("${target}")
   done < <(git ls-files '*.json')

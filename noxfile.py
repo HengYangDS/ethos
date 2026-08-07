@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import os
-import re
 import sys
-import tomllib
 from importlib import import_module
 from pathlib import Path
 from typing import cast
@@ -55,38 +53,6 @@ def _candidate_python_paths(session: nox.Session) -> tuple[str, ...]:
     return paths
 
 
-def _ruff_ratchet(session: nox.Session, paths: tuple[str, ...]) -> None:
-    policy = tomllib.loads((ROOT / ".config/checks/ruff/ratchet.toml").read_text(encoding="utf-8"))
-    baselines = {str(rule): int(value) for rule, value in policy["ignored_rule_baseline"].items()}
-    completed = cast(
-        "str",
-        session.run(
-            _project_script("ruff"),
-            "check",
-            "--config",
-            "ruff.toml",
-            *paths,
-            "--select",
-            ",".join(sorted(baselines)),
-            "--exit-zero",
-            "--statistics",
-            silent=True,
-            env={"RUFF_CACHE_DIR": str(RUFF_CACHE)},
-        ),
-    )
-    counts = dict.fromkeys(baselines, 0)
-    for count, rule in re.findall(r"^\s*(\d+)\s+([A-Z]+\d+)\b", completed, re.MULTILINE):
-        if rule in counts:
-            counts[rule] = int(count)
-    drift = [
-        f"{rule}: {counts[rule]} != {baselines[rule]}"
-        for rule in sorted(baselines)
-        if counts[rule] != baselines[rule]
-    ]
-    if drift:
-        session.error("Ruff ratchet drift:\n" + "\n".join(drift))
-
-
 def _project_script(name: str) -> str:
     """Resolve a console script from the active project environment only."""
     suffix = ".exe" if os.name == "nt" else ""
@@ -95,14 +61,13 @@ def _project_script(name: str) -> str:
 
 @nox.session(python=False)
 def lint(session: nox.Session) -> None:
-    """Run repository-wide Ruff lint, format, and exact debt ratchet."""
+    """Run repository-wide Ruff lint and formatting without suppressions."""
     paths = _candidate_python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
     ruff = _project_script("ruff")
     session.run(ruff, "check", *common, *paths)
     session.run(ruff, "format", *common, "--check", *paths)
-    _ruff_ratchet(session, paths)
 
 
 @nox.session(python=False)

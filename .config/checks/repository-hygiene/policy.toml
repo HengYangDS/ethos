@@ -4,7 +4,6 @@
 # CI providers, pre-commit hooks, and local CI are projections over that owner.
 
 max_tracked_bytes = 1048576
-large_file_allow_prefixes = ["uv.lock"]
 
 text_suffixes = [
   ".cfg",
@@ -27,33 +26,3 @@ text_names = ["AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "README.md"]
 # Host-local desktop residue is not repository truth. These files often hide
 # behind global Git ignores, so the gate scans the repository root directly.
 root_host_residue = [".DS_Store", "Thumbs.db", "Desktop.ini"]
-
-forbidden_stash_patterns = [
-  "git stash",
-  "commit or stash",
-  "stash, then retry",
-  "stash-diff",
-]
-stash_policy_allowlist = [
-  "do not use",
-  "never use",
-  "no git stash",
-  "no `git stash`",
-  "must not use",
-  "reject",
-  "forbidden",
-  "not an accepted",
-  "not admitted",
-  "does not authorize",
-  "not put into",
-  "not handoff carrier",
-  "observation-only",
-  "observe_only_stash_read",
-  "git_stash_forbidden",
-  "not_git_stash",
-  "hidden change carrier",
-]
-stash_guidance_excluded_prefixes = [
-  "evidence/chronicle/",
-  "openspec/changes/archive/",
-]

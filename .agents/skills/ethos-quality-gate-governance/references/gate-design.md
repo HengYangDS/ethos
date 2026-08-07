@@ -24,10 +24,10 @@ papering over the runner.
 
 The product hard floor is intentionally compact:
 
-- Ruff check and Ruff format check run from `tools/ci/scripts/run-python-lint.sh`.
-- The Ruff ignored-rule ratchet is part of the same Python lint proof surface.
+- Ruff check and Ruff format check run in the project environment through the
+  Nox `lint` session and root `ruff.toml`.
 - Ty policy lives in `.config/checks/ty/policy.toml`; zero-tolerance packages may
-  not emit diagnostics and ratchet packages may not exceed their baseline.
+  not emit diagnostics.
 - Unit and architecture tests run with branch coverage through
   `tools/ci/scripts/run-python-tests.sh`.
 - Coverage configuration lives in `.config/checks/coverage/coverage.ini`; the

@@ -37,10 +37,11 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
-    assert (
-        payload["next_action"]
-        == "ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head> --apply --authorize --json"
+    expected_action = (
+        "ethos lane retire landed --branch <work-branch> "
+        "--expect-head <work-lane-head> --apply --authorize --json"
     )
+    assert payload["next_action"] == expected_action
     assert payload["user_decision_required"] is True
     assert payload["continuation"] == "await-user"
     accepted_update = payload["data"]["accepted_update"]

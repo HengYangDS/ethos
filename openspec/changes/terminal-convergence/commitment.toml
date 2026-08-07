@@ -9,6 +9,7 @@ scope = [
   ".github/**",
   ".gitlab/**",
   ".gitlab-ci.yml",
+  ".gitleaks.toml",
   ".githooks/**",
   ".pre-commit-config.yaml",
   "AGENTS.md",

@@ -95,16 +95,16 @@ def lease_bound_archive_scope_report(
     active = _active_commitments(root, tree)
     expected_active = (carrier,) if state == "completion_transition" else ()
     changed = tuple(dict.fromkeys(filter(None, changed_paths)))
+    preserved_archive_invalid = False
     if preserved_archive is not None:
         preserved_source, preserved_target = preserved_archive
-        if not _exact_preserved_archive(
+        preserved_archive_invalid = not _exact_preserved_archive(
             root,
             head=head,
             tree=tree,
             source=preserved_source,
             target=preserved_target,
-        ):
-            return None
+        )
     completion_invalid = state == "completion_transition" and (
         not official_change_complete or len(changed) != 1 or changed[0] not in completion_artifacts
     )
@@ -112,6 +112,7 @@ def lease_bound_archive_scope_report(
         archived.digest() != source_commitment.digest()
         or active != expected_active
         or completion_invalid
+        or preserved_archive_invalid
     ):
         return None
     return _scope_report(
@@ -148,19 +149,7 @@ def _archive_binding(
 ) -> tuple[str, str, str] | None:
     carrier = str(lease.get("base_commitment_path") or "")
     if _valid_archive_carrier(carrier, change):
-        source = f"openspec/changes/{change}/commitment.toml"
-        if not git_stdout(root, "rev-parse", f"{head}:{source}"):
-            return "post_archive_closeout", current_tree(root, head), carrier
-        revisions = git_stdout(root, "rev-list", head, "--", source, carrier).splitlines()
-        for revision in revisions:
-            parents = run_git(root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
-            try:
-                _commit, parent = parents
-            except ValueError:
-                continue
-            if exact_rename_target(root, parent, revision, source) == carrier:
-                return "post_archive_closeout", current_tree(root, head), carrier
-        return None
+        return _bound_archive_binding(root, head=head, change=change, carrier=carrier)
     try:
         index_tree = run_git(root, "write-tree").stdout.strip()
         active_carrier = f"openspec/changes/{change}/commitment.toml"
@@ -199,6 +188,28 @@ def _archive_binding(
     ):
         return None
     return "archive_transition", target["expected_tree"], target_carrier
+
+
+def _bound_archive_binding(
+    root: Path,
+    *,
+    head: str,
+    change: str,
+    carrier: str,
+) -> tuple[str, str, str] | None:
+    source = f"openspec/changes/{change}/commitment.toml"
+    if not git_stdout(root, "rev-parse", f"{head}:{source}"):
+        return "post_archive_closeout", current_tree(root, head), carrier
+    revisions = git_stdout(root, "rev-list", head, "--", source, carrier).splitlines()
+    for revision in revisions:
+        parents = run_git(root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
+        try:
+            _commit, parent = parents
+        except ValueError:
+            continue
+        if exact_rename_target(root, parent, revision, source) == carrier:
+            return "post_archive_closeout", current_tree(root, head), carrier
+    return None
 
 
 def _valid_archive_carrier(carrier: str, change: str) -> bool:

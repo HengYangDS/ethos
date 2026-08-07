@@ -13,7 +13,7 @@ schema = "system/schemas/contracts/tools.schema.json"
 [[tool]]
 concern = "python_format_lint"
 tool = "ruff"
-config = "ruff.toml + .config/checks/ruff/ratchet.toml"
+config = "ruff.toml"
 executables = ["ruff"]
 profile = "minimal"
 gate = "uv run --frozen --offline python -m nox -s lint"

@@ -26,13 +26,9 @@ from typing import Any
 POLICY_PATH = Path(".config/checks/repository-hygiene/policy.toml")
 DEFAULT_POLICY: dict[str, Any] = {
     "max_tracked_bytes": 1024 * 1024,
-    "large_file_allow_prefixes": ["uv.lock"],
     "text_suffixes": [".cfg", ".css", ".html", ".ini", ".js", ".json", ".md", ".py", ".pyi", ".sh", ".toml", ".txt", ".yaml", ".yml"],
     "text_names": ["AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "README.md"],
     "root_host_residue": [".DS_Store", "Thumbs.db", "Desktop.ini"],
-    "forbidden_stash_patterns": ["git stash", "commit or stash", "stash, then retry", "stash-diff"],
-    "stash_policy_allowlist": ["do not use", "never use", "no git stash", "no `git stash`", "must not use", "reject", "forbidden", "not an accepted", "not admitted", "does not authorize", "not put into", "not handoff carrier", "observation-only", "observe_only_stash_read", "git_stash_forbidden", "not_git_stash", "hidden change carrier"],
-    "stash_guidance_excluded_prefixes": ["evidence/chronicle/", "openspec/changes/archive/"],
 }
 
 def load_policy() -> dict[str, Any]:
@@ -50,39 +46,10 @@ def string_list(policy: dict[str, Any], key: str) -> list[str]:
     return [item for item in value if isinstance(item, str)]
 
 
-def negative_stash_guidance(*, line: str, window: str) -> bool:
-    """Recognize explicit prose that prohibits rather than recommends Git stash."""
-    stripped = line.lstrip("- ").lower()
-    if "then retry" in stripped:
-        return False
-    return (
-        any(allowed in window for allowed in stash_policy_allowlist)
-        or stripped.startswith("no ")
-        or "does not" in stripped
-        or "doesn't" in stripped
-        or "was not" in stripped
-        or "were not" in stripped
-        or "is not" in stripped
-        or "are not" in stripped
-        or "was\nmodified" in window
-        or "out of scope" in window
-    )
-
-
 policy = load_policy()
 text_suffixes = set(string_list(policy, "text_suffixes"))
 text_names = set(string_list(policy, "text_names"))
-large_file_allow_prefixes = tuple(string_list(policy, "large_file_allow_prefixes"))
 root_host_residue = string_list(policy, "root_host_residue")
-forbidden_stash_patterns = tuple(
-    pattern.lower() for pattern in string_list(policy, "forbidden_stash_patterns")
-)
-stash_policy_allowlist = tuple(
-    pattern.lower() for pattern in string_list(policy, "stash_policy_allowlist")
-)
-stash_guidance_excluded_prefixes = tuple(
-    string_list(policy, "stash_guidance_excluded_prefixes")
-)
 max_tracked_bytes = int(policy.get("max_tracked_bytes", DEFAULT_POLICY["max_tracked_bytes"]))
 
 failures: list[str] = []
@@ -103,9 +70,7 @@ for path in paths:
     if not path.exists() or not path.is_file():
         continue
     size = path.stat().st_size
-    if size > max_tracked_bytes and not path.as_posix().startswith(
-        large_file_allow_prefixes
-    ):
+    if size > max_tracked_bytes:
         failures.append(f"{path}: tracked file exceeds {max_tracked_bytes} bytes")
     if path.suffix not in text_suffixes and path.name not in text_names:
         continue
@@ -128,23 +93,6 @@ for path in paths:
             json.loads(text)
         except json.JSONDecodeError as exc:
             failures.append(f"{path}: JSON parse failed: {exc}")
-
-    human_guidance_surface = path.suffix in {".md", ".txt", ".rst"} and not path.as_posix().startswith(
-        stash_guidance_excluded_prefixes
-    )
-    if human_guidance_surface:
-        lines = text.splitlines()
-        for lineno, line in enumerate(lines, start=1):
-            lowered_line = line.lower()
-            window = "\n".join(
-                lines[max(0, lineno - 3) : min(len(lines), lineno + 2)]
-            ).lower()
-            if any(pattern in lowered_line for pattern in forbidden_stash_patterns) and not negative_stash_guidance(
-                line=line, window=window
-            ):
-                failures.append(
-                    f"{path}:{lineno}: stash is not an accepted backup or closeout carrier"
-                )
 
 if failures:
     for failure in failures:

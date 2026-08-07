@@ -140,9 +140,13 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
 
     assert completed.returncode == 0, completed.stderr
     payload = json.loads(completed.stdout)
+    refresh_base = (
+        "ethos lane refresh-base --apply --authorize "
+        f"--expect-head {payload['data']['head']} --json"
+    )
     expected = [
         "ethos lane prewrite <path>",
-        f"ethos lane refresh-base --apply --authorize --expect-head {payload['data']['head']} --json",
+        refresh_base,
     ]
     assert payload["verdict"] == "block"
     assert "ok" not in payload

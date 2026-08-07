@@ -8,7 +8,6 @@ include = [
   "SKILL.md",
   "references/portfolio-design.md",
 ]
-exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 expected_digest = "sha256:a165bb2523020abc28f2648b62af0b2e98ffb8f208a014bbe7d7f97414088e33"
 

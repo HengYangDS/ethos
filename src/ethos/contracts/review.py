@@ -10,6 +10,8 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import TypeAdapter
+from pydantic import ValidationError
 from pydantic import model_validator
 
 from ethos._resources import declaration_text
@@ -152,6 +154,9 @@ class ReviewDecision(_ReviewModel):
     user_decision_required: bool = False
 
 
+_REVIEW_RESULTS_ADAPTER = TypeAdapter(tuple[ReviewResult, ...])
+
+
 def load_review_lens_declaration(path: Path | None = None) -> ReviewLensDeclaration:
     """Load one tracked review-lens declaration without creating runtime state."""
     source = path or DECLARATION_PATH
@@ -160,6 +165,16 @@ def load_review_lens_declaration(path: Path | None = None) -> ReviewLensDeclarat
     )
     payload["lenses"] = payload.pop("lens", ())
     return ReviewLensDeclaration.model_validate(payload)
+
+
+def load_review_results(path: str | Path) -> tuple[ReviewResult, ...]:
+    """Load one portable JSON result set without creating repository state."""
+    source = Path(path)
+    try:
+        return _REVIEW_RESULTS_ADAPTER.validate_json(source.read_bytes())
+    except (OSError, ValidationError) as error:
+        message = "review_results_invalid"
+        raise ValueError(message) from error
 
 
 def compile_review_plan(

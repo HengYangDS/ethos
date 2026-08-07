@@ -25,6 +25,8 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.review import compile_review_plan
 from ethos.contracts.review import load_review_lens_declaration
+from ethos.contracts.review import load_review_results
+from ethos.contracts.review import reduce_review_results
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.domain.plan import matching_rule_gates
@@ -68,6 +70,7 @@ def plan(
         int | None,
         Parameter(name="--proof-node-capacity", validator=_non_negative),
     ] = None,
+    review_results: Annotated[str | None, Parameter(name="--review-results")] = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -150,6 +153,16 @@ def plan(
             "requirement_edges": intent_context.get("requirement_edges", []),
         },
     )
+    review_decision = None
+    review_result_gaps: tuple[str, ...] = ()
+    if review_results is not None:
+        try:
+            review_decision = reduce_review_results(
+                review_plan,
+                load_review_results(review_results),
+            )
+        except ValueError as error:
+            review_result_gaps = (str(error),)
     facts = Facts(
         repository=repository.id,
         head=head,
@@ -211,6 +224,8 @@ def plan(
                 *rule_validation_gaps,
                 *skill_activation.required_gaps,
                 *review_plan.required_gaps,
+                *review_result_gaps,
+                *(review_decision.required_gaps if review_decision is not None else ()),
             )
         )
     )
@@ -220,6 +235,8 @@ def plan(
         and not rule_validation_gaps
         and skill_activation.verdict == "pass"
         and review_plan.verdict == "pass"
+        and not review_result_gaps
+        and (review_decision is None or review_decision.verdict == "pass")
     )
     result = EthosResult(
         command="plan",
@@ -239,6 +256,10 @@ def plan(
         else (
             "repair .ethos/rules.toml and rerun ethos plan --json"
             if rule_validation_gaps
+            else "repair the review result file and rerun ethos plan --json"
+            if review_result_gaps
+            else review_decision.next_action
+            if review_decision is not None and review_decision.verdict != "pass"
             else "repair the selected Commitment carrier"
         ),
         data={
@@ -252,6 +273,11 @@ def plan(
             "transition_plan": plan.model_dump(mode="json"),
             "skill_activation": skill_activation.model_dump(mode="json"),
             "review_plan": review_plan.model_dump(mode="json"),
+            **(
+                {"review_decision": review_decision.model_dump(mode="json")}
+                if review_decision is not None
+                else {}
+            ),
             "coordination_strategy": strategy,
             **({"profile_adapter": profile_projection} if profile_projection else {}),
         },

@@ -242,8 +242,6 @@ class PythonTestGate:
 
     def _cleanup(self) -> None:
         for path in (
-            ROOT / ".pytest_cache",
-            ROOT / ".ruff_cache",
             ROOT / ".coverage",
             ROOT / "coverage.xml",
             ROOT / "junit.xml",
@@ -263,7 +261,6 @@ class PythonTestGate:
 
     def _env(self, data: Path | None = None) -> dict[str, str | None]:
         config = [
-            ("core.hooksPath", "/dev/null"),
             ("core.fsmonitor", "false"),
             ("credential.helper", ""),
             ("init.templateDir", ""),

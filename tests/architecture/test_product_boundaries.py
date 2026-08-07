@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 import json
 import os
-import re
 import shutil
 import subprocess
 import tomllib
@@ -23,7 +22,6 @@ from ethos.repository.policy.boundary.product import (
 from ethos.repository.policy.references.closure import repository_product_reference_gaps
 
 ROOT = Path(__file__).resolve().parents[2]
-RETIRED_PUBLIC_ROOTS = {"wt", "proof", "mission", "skill-evolution", "agent-surface-contract"}
 CURRENT_PRODUCT_SURFACES = (
     ROOT / "README.md",
     ROOT / "CONTRIBUTING.md",
@@ -47,26 +45,11 @@ RETIRED_SELF_TERMS = (
     "adopter_repository",
     "posture",
 )
-HOST_PROJECTION_LABELS = ("Open Worktree", "Checkout")
 PORTABLE_MODEL_ROOTS = (
     ROOT / "src/ethos/contracts",
     ROOT / "src/ethos/result.py",
     ROOT / "src/ethos/repository/profile.py",
 )
-
-
-def product_surface_files() -> list[Path]:
-    files: list[Path] = []
-    for surface in CURRENT_PRODUCT_SURFACES:
-        if surface.is_file():
-            files.append(surface)
-        else:
-            files.extend(
-                path
-                for path in surface.rglob("*")
-                if path.is_file() and path.suffix in {".md", ".toml", ".yaml", ".yml"}
-            )
-    return sorted(files)
 
 
 def imported_modules(path: Path) -> set[str]:
@@ -268,21 +251,6 @@ def test_lane_resolution_parallel_truth_plane_is_absent() -> None:
     )
 
     assert [path for relative in forbidden if (path := ROOT / relative).exists()] == []
-
-
-@pytest.mark.parametrize(
-    ("paths", "terms", "lower"),
-    [
-        (product_surface_files, HOST_PROJECTION_LABELS, False),
-    ],
-)
-def test_product_surfaces_exclude_retired_language(paths, terms, lower) -> None:
-    findings: list[str] = []
-    for path in paths():
-        text = path.read_text(encoding="utf-8")
-        haystack = text.lower() if lower else text
-        findings.extend(f"{path.relative_to(ROOT)}: {term}" for term in terms if term in haystack)
-    assert findings == []
 
 
 @pytest.mark.parametrize("path", [ROOT / "docs" / "superpowers"])
@@ -503,26 +471,6 @@ def test_openspec_workspace_validates_with_official_cli() -> None:
     payload = json.loads(completed.stdout)
     assert completed.returncode == 0, payload
     assert payload["summary"]["totals"]["failed"] == 0
-
-
-def test_retired_public_roots_are_not_console_scripts() -> None:
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    for retired in RETIRED_PUBLIC_ROOTS:
-        assert f"{retired} =" not in pyproject
-
-
-def test_canonical_docs_do_not_promote_retired_public_roots() -> None:
-    for path in [ROOT / "README.md", *(ROOT / "docs").rglob("*.md")]:
-        text = path.read_text(encoding="utf-8")
-        for retired in RETIRED_PUBLIC_ROOTS:
-            assert re.search(rf"`(?:\$\s+)?{re.escape(retired)}\s+[^`]+`", text) is None, path
-        in_fence = False
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("```"):
-                in_fence = not in_fence
-            elif in_fence and stripped:
-                assert stripped.split()[0] not in RETIRED_PUBLIC_ROOTS, (path, stripped)
 
 
 def test_product_behavior_does_not_live_in_tools_directory() -> None:

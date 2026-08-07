@@ -108,7 +108,7 @@ tool = "python stdlib + git ls-files"
 config = ".config/checks/repository-hygiene/policy.toml"
 executables = ["git"]
 profile = "minimal"
-gate = "tools/ci/scripts/run-repository-hygiene.sh"
+gate = "uv run --frozen --offline python -m nox -s repository_hygiene"
 
 [[tool]]
 concern = "toml"

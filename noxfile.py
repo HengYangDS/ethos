@@ -21,6 +21,7 @@ run_hosted_observation = import_module("tools.ci.hosted_observation").capture_ob
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
 run_local_ci = import_module("tools.ci.local_ci").run
 run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_audit").run
+run_repository_hygiene = import_module("tools.ci.repository_hygiene").audit
 run_release_supply_chain = import_module("tools.ci.release_supply_chain").run
 run_runbook_registry = import_module("tools.ci.runbook_registry").main
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
@@ -66,7 +67,7 @@ def lint(session: nox.Session) -> None:
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
     ruff = _project_script("ruff")
-    session.run(ruff, "check", *common, *paths)
+    session.run(ruff, "check", "--ignore-noqa", *common, *paths)
     session.run(ruff, "format", *common, "--check", *paths)
 
 
@@ -159,6 +160,14 @@ def format_selection(session: nox.Session) -> None:
     """Verify every tracked extension and executable carrier is governed."""
     if run_format_selection():
         session.error("format selection policy did not pass")
+
+
+@nox.session(python=False)
+def repository_hygiene(session: nox.Session) -> None:
+    """Enforce cross-platform repository shape and zero suppressions."""
+    failures = run_repository_hygiene(ROOT)
+    if failures:
+        session.error("repository hygiene failed:\n" + "\n".join(failures))
 
 
 @nox.session(python=False)

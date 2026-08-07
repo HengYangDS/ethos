@@ -94,7 +94,7 @@ jobs:
       - name: JSON schema hygiene
         run: uv run --frozen --offline python -m nox -s schemas
       - name: Repository hygiene
-        run: tools/ci/scripts/run-repository-hygiene.sh
+        run: uv run --frozen --offline python -m nox -s repository_hygiene
       - name: Product boundary
         run: uv run --frozen --offline python -m nox -s product_boundary
       - name: Shell lint

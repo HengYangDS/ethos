@@ -201,7 +201,7 @@ during_rules = [
 ]
 post_checks = [
   "uv run --frozen --offline python -m nox -s lint",
-  "tools/ci/scripts/run-config-lint.sh",
+  "uv run --frozen --offline python -m nox -s config_quality",
   "uv run --frozen --offline python -m nox -s shell_lint",
   "ethos prove --gate repository-audit --json",
   "ethos prove --json",

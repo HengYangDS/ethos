@@ -90,7 +90,7 @@ ethos:config:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-config-lint.sh
+    - uv run --frozen --offline python -m nox -s config_quality
     - uv run --frozen --offline python -m nox -s schemas
 
 ethos:hygiene:

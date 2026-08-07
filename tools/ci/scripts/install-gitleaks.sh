@@ -6,8 +6,7 @@
 # for the runner architecture keeps the secrets gate deterministic and avoids a
 # Go build in CI.
 #
-# Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic
-# (mirrors tools/ci/scripts/install-taplo.sh).
+# Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic.
 set -euo pipefail
 
 version="${GITLEAKS_VERSION:-8.30.1}"

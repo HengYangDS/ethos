@@ -216,6 +216,32 @@ def test_nox_is_the_only_markdown_lint_orchestrator() -> None:
         assert "run-markdown-lint.sh" not in text
 
 
+def test_nox_is_the_only_configuration_quality_orchestrator() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    owner = (ROOT / "tools/ci/config_quality.py").read_text(encoding="utf-8")
+    package = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    node_package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+
+    assert "def config_quality(" in source
+    assert 'import_module("tools.ci.config_quality").run' in source
+    assert "from yamllint import linter as yamllint_linter" in owner
+    assert 'ROOT / "node_modules/@taplo/cli/dist/cli.js"' in owner
+    assert "yamllint>=1.38.0" in package["dependency-groups"]["dev"]
+    assert node_package["devDependencies"]["@taplo/cli"] == "0.7.0"
+    assert not (ROOT / "tools/ci/scripts/run-config-lint.sh").exists()
+    assert not (ROOT / "tools/ci/scripts/install-taplo.sh").exists()
+    for relative in (
+        ".pre-commit-config.yaml",
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".config/ci/templates/hosted/gitlab-ci.yml",
+        ".github/workflows/ci.yml",
+        ".gitlab-ci.yml",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "uv run --frozen --offline python -m nox -s config_quality" in text
+        assert "run-config-lint.sh" not in text
+
+
 def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
     source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
 

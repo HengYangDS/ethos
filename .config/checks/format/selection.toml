@@ -42,7 +42,7 @@ budget = [{ category = "markdown" }]
 extensions = [".toml"]
 carrier = "TOML"
 owner = ".config/checks/taplo/taplo.toml"
-execution = "tools/ci/scripts/run-config-lint.sh"
+execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "hand-authored config"
 budget = [{ category = "toml", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#"] }]
 
@@ -50,7 +50,7 @@ budget = [{ category = "toml", measure = "structured", baseline_measure = "lines
 extensions = [".yml", ".yaml"]
 carrier = "YAML"
 owner = ".config/checks/yaml/yamllint.yaml"
-execution = "tools/ci/scripts/run-config-lint.sh"
+execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "ecosystem-native projections only"
 budget = [{ category = "yaml", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#"] }]
 
@@ -58,7 +58,7 @@ budget = [{ category = "yaml", measure = "structured", baseline_measure = "lines
 extensions = [".json"]
 carrier = "JSON"
 owner = ".config/checks/json/format.toml"
-execution = "tools/ci/scripts/run-config-lint.sh"
+execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "machine output, schemas, and external standards"
 budget = [{ category = "json", measure = "structured", baseline_measure = "lines" }]
 
@@ -82,7 +82,7 @@ budget = [{ category = "shell", comment_prefixes = ["#"] }]
 extensions = [".ini", ".cfg"]
 carrier = "INI"
 owner = "tool-native config owner"
-execution = "tools/ci/scripts/run-config-lint.sh or tool-specific gate"
+execution = "tool-specific gate"
 truth_boundary = "tool-native config"
 budget = [{ category = "ini", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#", ";"] }]
 

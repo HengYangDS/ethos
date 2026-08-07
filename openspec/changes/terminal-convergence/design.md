@@ -167,6 +167,92 @@ new product ontology.
     are disposable projections, never another intent store. Impact compilation
     may later consume a proved code/spec graph, but only when it replaces search
     and mapping code with better recall and lower token/time cost.
+19. **Intent compiles through one typed functional spine.** Natural-language
+    intent and OpenSpec artifacts are declaration frontends, not executable
+    programs. The pinned OpenSpec CLI owns Change structure and lifecycle;
+    repository declarations and schemas own typed configuration; CEL owns only
+    bounded, terminating, side-effect-free predicates; pure compilers map the
+    selected Commitment, current Facts, policy, and prior Attestations into one
+    canonical `TransitionPlan`; the sole native effect owner executes only an
+    admitted exact effect; fresh observation and Attestation verify the result.
+    No DSL, template, Skill, workflow step, plugin, or model response may call
+    Git, SQLite, the filesystem, subprocesses, or a provider as part of policy
+    evaluation. CUE and OPA/Rego remain destructive-replacement candidates, not
+    additive policy layers.
+20. **Review is a compiled set of independent lenses, not two ceremonial
+    approvals.** Before implementation, workload, affected capabilities,
+    ambiguity, risk, architecture, security, migration, and reversibility facts
+    compile the minimum review set needed to prove proposal, specs, design, and
+    tasks coherent and executable. After implementation, changed paths compile
+    requirement-to-code-to-test-to-evidence coverage, reverse discovery of
+    undocumented behavior, drift, security, architecture, and release lenses.
+    Mechanical checks run first; judgment lenses remain independent; clear
+    findings are repaired and recompiled by the agent. Human review is reserved
+    for unresolved intent, conflicting valid options, irreversible high-impact
+    effects, trust-bound publication, and final product judgment. Review output
+    is exact-input, exact-HEAD evidence, never workflow state or reusable authority.
+21. **Skill activation is capability compilation.** One operation may require
+    zero, one, or several skills. Operation, subject, carrier role, changed paths,
+    risk, and lifecycle edge compile an ordered dependency-complete capability
+    set before mutation. Host-native Skills and slash commands are generated
+    projections; they cannot select themselves, weaken a required capability,
+    mark tasks complete, or authorize effects. Missing or stale required
+    projections fail at status, plan, or prewrite, while advisory capabilities
+    remain demand-loaded and token-bounded.
+22. **Admitted capabilities are used to their official depth.** Selecting a
+    tool or framework selects its coherent official model, validation, schema,
+    generation, diagnostics, extension, packaging, versioning, and lifecycle
+    capabilities that apply to ETHOS; hand-written substitutes are deleted rather
+    than retained behind wrappers. Borrowed mechanisms preserve their semantic
+    strength even when mapped onto ETHOS carriers. The ecosystem grows around a
+    small stable kernel, language-neutral contracts, capability discovery,
+    explicit declarations, demand loading, conformance suites, authority
+    isolation, version negotiation, provenance, and clean uninstall. Python
+    entry points or Pluggy may implement discovery and in-process dispatch only
+    if they replace the current manifest, code registry, and release-inventory
+    enumeration with one derived capability surface; extensions never own policy,
+    tasks, lifecycle, effects, or repository truth.
+23. **ETHOS governs autonomous engineering without becoming the agent
+    runtime.** Agent SDKs and harnesses own inference loops, sessions, tools,
+    guardrails, handoffs, sandboxes, and interaction traces. MCP owns
+    context/tool transport, A2A owns interoperable opaque-agent delegation, and
+    ACP owns editor-agent communication. ETHOS compiles repository intent and
+    current facts into the permissions, exact transitions, evidence, recovery,
+    and conformance that remain valid when any model, host, runtime, or protocol
+    is replaced. Host traces and conversations are diagnostic inputs, never
+    authority. Protocol adapters are thin, stateless projections over the same
+    kernel result; they do not introduce sessions, tasks, effects, or truth.
+
+## SDD, Policy, And DSL Evidence Ruling
+
+The 2026-08-07 review used current official repositories and language
+documentation. Its result is strong mechanism absorption into the existing
+OpenSpec and kernel owners, not a bundle of overlapping runtimes:
+
+| Source | Mechanism absorbed at full semantic strength | Boundary |
+| --- | --- | --- |
+| OpenAI Agents SDK and peer agent runtimes | Tool guardrails at the actual tool boundary, explicit handoff versus agent-as-tool ownership, resumable isolated execution, and traceable model/tool/handoff activity. | Runtime owns turns and sessions; ETHOS owns neither prompts nor the agent loop and independently re-evaluates every repository effect. |
+| MCP 2026-07-28 | Stateless core, formal extensions, cacheable discovery, hardened authorization, multi-round-trip requests, and optional Tasks. | Transport and capability projection only; MCP Task or session state never owns an OpenSpec task, Lease, transition, or evidence. |
+| A2A 1.0 | Agent Cards, capability discovery, opaque-agent delegation, task/artifact exchange, streaming, and formal extensions. | Optional remote delegation projection; ETHOS binds delegated work to exact intent, permissions, repository coordinates, and returned evidence. |
+| ACP v1 | Version/capability negotiation and local-first editor-agent JSON-RPC over stdio. | Agent-host UX projection only; host sessions and content blocks remain disposable. Draft ACP v2 features are not canonical until stable and admitted. |
+| OpenTelemetry GenAI conventions | Vendor-neutral traces, metrics, token/cost and model/tool operation diagnostics. | Observability only; sampled or mutable telemetry cannot authorize or prove a transition. |
+| SLSA 1.2, in-toto Attestation v1, and Sigstore | Standard publication provenance, supply-chain step claims, identity-bound signing, and transparency evidence. | Reuse at release and distribution boundaries after conformance mapping; do not duplicate the repository transition Attestation or require an online service for local work. |
+| OpenSpec 1.8 | Repository-local artifact DAGs, custom schemas, per-artifact instructions and rules, official JSON, strict validation, archive lifecycle, generated Skills and slash commands. | Sole mutation-capable Change lifecycle. Current `show --json` omits requirement and scenario headings, so it is not misrepresented as a lossless intent AST. |
+| GitHub Spec Kit | Explicit uncertainty markers, continuous ambiguity/contradiction analysis, requirement checklists, constitutional constraints, and review gates. | No workflow-run state, task authority, unsafe shell interpolation, or fixed approval sequence enters ETHOS. |
+| AWS AI-DLC | Greenfield/brownfield detection, adaptive requirements depth, verification questions, and phase-appropriate evidence. | No mandatory ceremony, duplicate audit/task store, role workflow, or human approval at every phase. |
+| SpecD | Compiled context, typed semantic deltas, spec/code impact graph, mandatory conformance, approval hooks, and multi-workspace routing. | Re-evaluate only as a destructive sole-owner migration; its overlapping lifecycle and plugin surfaces do not sit beside OpenSpec. |
+| BMAD | Deterministic checks before semantic review, configured reviewer floor, risk-scaled extra lenses, independent contexts, and concise finding aggregation. | Reviewer fleets and review files do not become authority or required runtime state. |
+| Agent OS | Brownfield standards discovery, concise token-aware standards, shaping against references and current product context. | Canonical rules are selected by reference; their contents are not copied into every spec or prompt. |
+| Tessl SDD | Requirement-to-target/test linkage, post-implementation drift checks, reverse discovery of undocumented behavior, and requirement-level review evidence. | Links and locations are derived evidence, not another specification language or permanent annotation regime. |
+| CEL | Typed, terminating, side-effect-free expressions with host-owned bindings. | Bounded predicates only; no workflow, IR, effects, or authority. |
+| CUE | Constraint unification across schema, validation, and generated configuration. | Admit only if an offline, portable cutover removes current schema/config validation and projection code. |
+| OPA/Rego | Rich decisions, policy/data separation, and partial evaluation. | Admit only for a real cross-language consumer that deletes a larger incumbent decision surface than CEL without requiring a policy service. |
+
+The resulting review topology is adaptive but deterministic: workload schema and
+Facts select lenses; every lens declares inputs, output schema, blocking
+semantics, cost budget, freshness, and owner; all required results reduce through
+the same closed verdict. Ecosystem extensions implement contracts and supply
+evidence but never enlarge the semantic root set.
 
 ## Carrier Disposition
 

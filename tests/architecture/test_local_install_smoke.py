@@ -16,7 +16,10 @@ def _owner_text() -> str:
 
 def test_local_install_smoke_has_one_executable_owner() -> None:
     assert OWNER.is_file()
+    supply = tool_block(ROOT, "python_runtime_supply")
     block = tool_block(ROOT, "local_install_smoke")
+    assert 'gate = "uv run --frozen python -m nox -s prepare_install_supply"' in supply
+    assert 'artifacts = "build/runtime/tool-cache/uv/"' in supply
     assert 'gate = "uv run --frozen --offline python -m nox -s install_smoke"' in block
     assert 'artifacts = "build/evidence/local-install/"' in block
 
@@ -25,6 +28,7 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     owner = _owner_text()
 
     assert "build/artifacts/python" in owner
+    assert "build/runtime/tool-cache/uv" in owner
     assert "build/runtime/work/local-install-smoke" in owner
     assert "build/evidence/local-install/smoke.json" in owner
     assert '"command": "uv run --frozen --offline python -m nox -s install_smoke"' in owner
@@ -36,8 +40,12 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "ethos" in owner
     assert "ethos.__file__" in owner
     assert "ethos.__file__" in owner
-    assert "uv cache dir" not in owner
-    assert "ETHOS_LOCAL_INSTALL_UV_CACHE_DIR" not in owner
+    for argument in ("export", "--frozen", "--no-dev", "--no-emit-project"):
+        assert f'"{argument}"' in owner
+    assert '"--cache-dir"' in owner
+    assert '"--constraints"' in owner
+    assert '"--require-hashes"' in owner
+    assert "def prepare_supply(" in owner
     assert '"--help"' in owner
     assert '"--version"' in owner
     assert '"status", "--root"' in owner
@@ -91,7 +99,9 @@ def test_local_install_smoke_validates_declared_wheel_resources() -> None:
 def test_local_ci_runs_install_smoke_before_fallback_manifest() -> None:
     local_ci = (ROOT / "tools/ci/local_ci.py").read_text(encoding="utf-8")
 
+    assert 'PREPARE_SESSIONS = ("prepare_install_supply",)' in local_ci
     assert '"install_smoke"' in local_ci
+    assert local_ci.index("PREPARE_SESSIONS") < local_ci.index("DELIVERY_SESSIONS")
     assert local_ci.index("DELIVERY_SESSIONS") < local_ci.index("EVIDENCE.write_text")
 
 

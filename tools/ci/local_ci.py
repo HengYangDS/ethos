@@ -39,6 +39,7 @@ VERIFY_SESSIONS = (
     "shell_lint",
     "markdown_lint",
     "config_quality",
+    "hosted_observation",
 )
 PARALLEL_SESSIONS = (
     "lint",
@@ -55,6 +56,7 @@ PARALLEL_SESSIONS = (
     "shell_lint",
     "markdown_lint",
     "config_quality",
+    "hosted_observation",
 )
 SERIAL_PROOF_SESSIONS = ("docstrings", "module_layout", "product_boundary")
 PLATFORM_ADAPTERS = ("tools/ci/scripts/run-secrets-scan.sh",)

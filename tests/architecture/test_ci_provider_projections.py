@@ -168,7 +168,6 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     required = {
         "bootstrap-python.sh",
         "run-secrets-scan.sh",
-        "run-hosted-provider-observation.sh",
     }
     combined = "\n".join(
         (ROOT / path).read_text(encoding="utf-8")
@@ -195,6 +194,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "shell_lint",
         "markdown_lint",
         "config_quality",
+        "hosted_observation",
     ):
         assert f"uv run --frozen --offline python -m nox -s {session}" in combined
     for text in (combined,):
@@ -880,7 +880,9 @@ def test_tool_catalog_contains_only_active_provider_gates() -> None:
         "github_workflow_syntax": "tools/ci/scripts/run-actionlint.sh",
         "github_local_emulator": "tools/ci/scripts/run-github-local-emulator.sh",
         "gitlab_local_emulator": "tools/ci/scripts/run-gitlab-local-emulator.sh",
-        "hosted_provider_observation": "tools/ci/scripts/run-hosted-provider-observation.sh",
+        "hosted_provider_observation": (
+            "uv run --frozen --offline python -m nox -s hosted_observation"
+        ),
     }
     for concern, gate in active.items():
         block = tool_block(ROOT, concern)

@@ -242,6 +242,23 @@ def test_nox_is_the_only_configuration_quality_orchestrator() -> None:
         assert "run-config-lint.sh" not in text
 
 
+def test_nox_is_the_only_hosted_observation_orchestrator() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+    assert "def hosted_observation(" in source
+    assert 'import_module("tools.ci.hosted_observation").capture_observation' in source
+    assert not (ROOT / "tools/ci/scripts/run-hosted-provider-observation.sh").exists()
+    for relative in (
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".config/ci/templates/hosted/gitlab-ci.yml",
+        ".github/workflows/ci.yml",
+        ".gitlab-ci.yml",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "uv run --frozen --offline python -m nox -s hosted_observation" in text
+        assert "run-hosted-provider-observation.sh" not in text
+
+
 def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
     source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
 

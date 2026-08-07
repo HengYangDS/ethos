@@ -346,7 +346,7 @@ concern = "hosted_provider_observation"
 tool = "gh,glab"
 config = ".config/checks/ci/hosted-observation.toml"
 artifacts = "build/evidence/hosted-ci/"
-gate = "tools/ci/scripts/run-hosted-provider-observation.sh"
+gate = "uv run --frozen --offline python -m nox -s hosted_observation"
 profile = "provider"
 
 [[tool]]

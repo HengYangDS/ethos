@@ -11,7 +11,7 @@ relations:
 
 # DR-0004: Minimal Semantic Documentation Topology Contract
 
-Status: superseded.
+Status: retired.
 
 Purpose: preserve the historical ruling that introduced a strict physical
 documentation kernel. It is no longer a current ETHOS authority and must not
@@ -33,13 +33,14 @@ See also: [Decision Index](decision-index.md) and
 | Decision ID | DR-0004 |
 | Kind | governance |
 | Decision Makers | Repository maintainers through accepted repository instruction; implemented by local ETHOS Work Lane. |
-| Status | superseded |
+| Status | retired |
 | Decision Date | 2026-07-08 |
 | Decision Version | 3 |
 | Decision Change Date | 2026-07-27 |
 | Record Review Date | 2026-10-08 |
-| Supersedes | DR-0002 |
-| Superseded By | Portable Docs Registry semantics and ETHOS repository self-audit; no replacement DR |
+| Supersedes | DR-0002, DR-0007 |
+| Superseded By | None |
+| Depends On | None |
 | Scope | The historical physical documentation topology contract used by ETHOS and selected governed repositories. |
 | Boundary | Owned one strict docs kernel and rejected lifecycle state as physical topology; did not make documentation a bootstrap prerequisite. |
 | Context | `docs/current/` and `docs/future/` encoded lifecycle state as directory structure, while full adoption scaffolding confused optional capability readiness with repository binding. |

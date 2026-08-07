@@ -308,7 +308,10 @@ See also: none.
             "Context,Invariants,Alternatives Considered,Decision,Consequences,Proof Or Evidence,"
             "Revisit Trigger,Decision Change Ledger"
         ),
-        "decision_index_missing:docs/decisions/decision-index.md",
+        (
+            "decision_record_fields_missing:docs/decisions/DR-0001-example.md:"
+            "Supersedes,Superseded By,Depends On"
+        ),
     ]
     assert report["verdict"] == "block"
 
@@ -334,7 +337,140 @@ def test_decision_index_requires_current_records_newest_first(tmp_path: Path) ->
     ]
 
 
-def _decision_record(decision_id: str, changed: str) -> str:
+def test_decision_record_name_and_status_use_the_closed_grammar(tmp_path: Path) -> None:
+    """Decision identity is semantic, portable, and closed over lifecycle states."""
+    decisions = tmp_path / "docs" / "decisions"
+    decisions.mkdir(parents=True)
+    (decisions / "DR-0001-Bad_Name.md").write_text(
+        _decision_record("DR-0001", "2026-08-06", status="draft"),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        "decision_record_name_invalid:docs/decisions/DR-0001-Bad_Name.md"
+    ]
+
+    (decisions / "DR-0001-Bad_Name.md").rename(decisions / "DR-0001-bad-name.md")
+    (decisions / "decision-index.md").write_text(
+        _decision_index(("DR-0001",)),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        "decision_record_status_invalid:docs/decisions/DR-0001-bad-name.md:draft"
+    ]
+
+
+def test_supersession_is_existing_bidirectional_record_truth(tmp_path: Path) -> None:
+    """A superseded ruling names an existing successor that names it back."""
+    decisions = tmp_path / "docs" / "decisions"
+    decisions.mkdir(parents=True)
+    (decisions / "DR-0001-first.md").write_text(
+        _decision_record("DR-0001", "2026-08-01", status="superseded", superseded_by="DR-0002"),
+        encoding="utf-8",
+    )
+    (decisions / "DR-0002-second.md").write_text(
+        _decision_record("DR-0002", "2026-08-06"),
+        encoding="utf-8",
+    )
+    (decisions / "decision-index.md").write_text(
+        _decision_index(("DR-0002", "DR-0001")),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        "decision_record_supersession_not_reciprocal:DR-0001:DR-0002"
+    ]
+
+
+def test_decision_dependencies_exist_and_are_acyclic(tmp_path: Path) -> None:
+    """Decision dependencies reuse the one canonical DAG owner."""
+    decisions = tmp_path / "docs" / "decisions"
+    decisions.mkdir(parents=True)
+    (decisions / "DR-0001-first.md").write_text(
+        _decision_record("DR-0001", "2026-08-01", depends_on="DR-0002"),
+        encoding="utf-8",
+    )
+    (decisions / "DR-0002-second.md").write_text(
+        _decision_record("DR-0002", "2026-08-06", depends_on="DR-0001, DR-0003"),
+        encoding="utf-8",
+    )
+    (decisions / "decision-index.md").write_text(
+        _decision_index(("DR-0002", "DR-0001")),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        "decision_record_dependency_cycle:DR-0001,DR-0002",
+        "decision_record_reference_missing:DR-0002:Depends On:DR-0003",
+    ]
+
+
+def test_decision_index_covers_each_record_exactly_once(tmp_path: Path) -> None:
+    """The index is a complete derived projection, not a selective authority list."""
+    decisions = tmp_path / "docs" / "decisions"
+    decisions.mkdir(parents=True)
+    for decision_id in ("DR-0001", "DR-0002"):
+        (decisions / f"{decision_id}-example.md").write_text(
+            _decision_record(decision_id, "2026-08-06"),
+            encoding="utf-8",
+        )
+    (decisions / "decision-index.md").write_text(
+        _decision_index(("DR-0001", "DR-0001")),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        (
+            "decision_index_coverage_invalid:docs/decisions/decision-index.md:"
+            "missing=DR-0002:duplicate=DR-0001:unknown="
+        )
+    ]
+
+
+def test_decision_identity_is_unique_across_semantic_filenames(tmp_path: Path) -> None:
+    """Two semantic filenames cannot mint the same durable decision identity."""
+    decisions = tmp_path / "docs" / "decisions"
+    decisions.mkdir(parents=True)
+    for slug in ("first", "second"):
+        (decisions / f"DR-0001-{slug}.md").write_text(
+            _decision_record("DR-0001", "2026-08-06"),
+            encoding="utf-8",
+        )
+    (decisions / "decision-index.md").write_text(
+        _decision_index(("DR-0001",)),
+        encoding="utf-8",
+    )
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["decision_record_gaps"] == [
+        (
+            "decision_record_id_duplicate:DR-0001:"
+            "docs/decisions/DR-0001-first.md,docs/decisions/DR-0001-second.md"
+        )
+    ]
+
+
+def _decision_record(
+    decision_id: str,
+    changed: str,
+    *,
+    status: str = "accepted",
+    supersedes: str = "None",
+    superseded_by: str = "None",
+    depends_on: str = "None",
+) -> str:
     return f"""---
 subject: example:decision:{decision_id.lower()}
 role: decision
@@ -344,7 +480,7 @@ relations: none
 
 # {decision_id}: Example
 
-Status: accepted.
+Status: {status}.
 
 Purpose: exercise decision ordering.
 
@@ -355,9 +491,12 @@ See also: none.
 | Field | Value |
 | --- | --- |
 | Decision ID | {decision_id} |
-| Status | accepted |
+| Status | {status} |
 | Decision Date | {changed} |
 | Decision Change Date | {changed} |
+| Supersedes | {supersedes} |
+| Superseded By | {superseded_by} |
+| Depends On | {depends_on} |
 
 ## Context
 

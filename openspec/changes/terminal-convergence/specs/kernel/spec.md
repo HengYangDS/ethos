@@ -37,6 +37,14 @@ Commitment and Attestation are the only persistent semantic entities. Facts is f
 - **WHEN** ETHOS receives a selected Commitment, fresh Facts, and prior Attestations
 - **THEN** it compiles a transient TransitionPlan without persisting a third semantic root
 
+#### Scenario: repository-family state stays outside checkouts
+
+- **WHEN** ETHOS resolves mutable state or local Attestations for any linked worktree
+- **THEN** it SHALL use the shared Git common directory under `ethos/`
+- **AND** no accepted, candidate, or Work Lane checkout SHALL gain untracked runtime files
+- **AND** legacy checkout-local state SHALL move only through an exact-manifest public migration
+  that compensates partial effects.
+
 ### Requirement: Semantic attestation is receipt-bound and non-authorizing
 An Attestation SHALL carry an open predicate, statement, verifier, bindings, validity, and evidence references. Unknown predicates are preserved but non-authorizing.
 

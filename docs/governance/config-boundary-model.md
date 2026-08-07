@@ -15,7 +15,8 @@ and machine contracts. No single directory owns every governance fact.
 
 | Surface | Role | Owns | Does Not Own |
 | --- | --- | --- | --- |
-| `.ethos/` | ETHOS binding layer | profile entrypoint and ignored local runtime state | tool-native config, domain truth, durable evidence, execution-substrate selection |
+| `.ethos/` | ETHOS binding layer | tracked profile and Commitment entrypoints | tool-native config, domain truth, durable evidence, mutable runtime state |
+| `<git-common-dir>/ethos/` | host-local runtime layer | leases, local Attestations, and transaction state shared by worktrees | tracked repository truth or portable configuration |
 | `.config/` | execution/config layer | tool configuration, reusable gate policy, CI scripts, boundary configs, worktree configs | ETHOS ontology, evidence truth, user decisions |
 | `rules/` | governance rule layer | human and agent rules, domain contracts, projection policies | tool implementation details, generated state |
 | `docs/` | explanation layer | canonical docs, decisions, reference material | local runtime state, durable evidence ownership |
@@ -49,8 +50,9 @@ unless the profile explicitly requires it.
 Durable evidence belongs in the repository's durable evidence root. Current
 records are Attestations; retained historical bytes remain readable without
 becoming a current owner. Generated evidence belongs in generated artifact roots,
-commonly `build/evidence/`. Host-local state belongs under ignored state roots
-such as `.ethos/state/` or `.cache/local-state/`.
+commonly `build/evidence/`. ETHOS host-local state belongs under
+`<git-common-dir>/ethos/`; repository-native tools may use declared ignored
+state roots such as `.cache/local-state/`.
 
 ETHOS must not turn generated artifacts or host-local state into durable truth.
 A proof can cite generated evidence for a current HEAD, but a durable Attestation

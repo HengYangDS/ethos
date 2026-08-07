@@ -31,6 +31,7 @@ _COMMAND_MODULES = {
     "land": "ethos.surface.cli.root.land",
     "publish": "ethos.surface.cli.root.publish",
     "adopt": "ethos.surface.cli.root.adoption",
+    "migrate-local-state": "ethos.surface.cli.root.adoption",
     "lane": "ethos.surface.cli.lane.lifecycle",
     "hook": "ethos.surface.cli.hook.commands",
 }

@@ -29,7 +29,6 @@ DEFAULT_ROOTS = {
     "durable_evidence": "evidence",
     "openspec": "openspec",
     "agent_skills": ".agents/skills",
-    "local_state": ".ethos/state",
 }
 
 PATH_TYPE_ERROR = "repository path must be a string"
@@ -80,7 +79,6 @@ class RepositoryRoots(_ProfileModel):
     durable_evidence: RepositoryPath = DEFAULT_ROOTS["durable_evidence"]
     openspec: RepositoryPath = DEFAULT_ROOTS["openspec"]
     agent_skills: RepositoryPath = DEFAULT_ROOTS["agent_skills"]
-    local_state: RepositoryPath = DEFAULT_ROOTS["local_state"]
 
 
 class EvidenceRoots(_ProfileModel):

@@ -22,6 +22,14 @@ An adapter SHALL observe external state or execute a compiled effect under exact
 - **THEN** one authoritative ETHOS guard remains the sole mutation admission path
 - **AND** the optional tool cannot install a second hook, bypass, or state owner
 
+#### Scenario: refresh-base CAS fails after local rebase
+
+- **WHEN** the candidate rebase has detached a Work Lane checkout but the exact ref or Lease CAS
+  is rejected
+- **THEN** ETHOS SHALL compensate the checkout to the original branch, HEAD, index, and worktree
+  before returning a blocked verdict
+- **AND** a failed command SHALL leave no detached partial target state.
+
 ### Requirement: Bounded External Evidence Adapters
 A successful effect SHALL be followed by fresh observation and an Attestation binding the Commitment, Facts, policy, TransitionPlan, effect, and resulting artifact. Historical re-evaluation is non-authorizing analysis only.
 

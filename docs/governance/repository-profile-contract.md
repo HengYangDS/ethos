@@ -30,9 +30,11 @@ This path is repository-level. It is not tied to monorepos, Python packages,
 polyglot repositories, documentation repositories, data repositories, and
 infrastructure repositories use the same entrypoint.
 
-The `.ethos/` tree is the ETHOS binding layer. It may also contain ignored local
-ETHOS state under `.ethos/state/`. Tool-native configuration remains outside the
-profile in the repository's configuration layer.
+The `.ethos/` tree is the tracked ETHOS binding layer. Mutable ETHOS state is
+repository identity state, not profile-configurable layout: it lives under
+`<git-common-dir>/ethos/` so no linked checkout is polluted. Tool-native
+configuration remains outside the profile in the repository's configuration
+layer.
 
 ## Responsibilities
 

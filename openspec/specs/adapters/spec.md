@@ -76,8 +76,8 @@ public lane command plane.
   <holder-ref>` runs from a clean accepted root with a valid matching Commitment
   and succeeds
 - **THEN** ETHOS creates a `work/<name>` linked worktree
-- **AND** ETHOS records an active lease in ignored local state under
-  `.ethos/state/state.sqlite`
+- **AND** ETHOS records an active lease in host-local state under
+  `<git-common-dir>/ethos/state.sqlite`, outside every checkout
 - **AND** raw Git worktree creation is not treated as standard ETHOS workflow
   state because it has no ETHOS lease or claim boundary
 

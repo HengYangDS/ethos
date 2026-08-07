@@ -132,13 +132,18 @@ def read_only_state_uri(db_path: Path) -> str:
     return f"{db_path.resolve().as_uri()}?mode=ro"
 
 
-def state_database(root: Path) -> Path:
-    """Return the one repository-local state database shared by all worktrees."""
+def local_state_root(root: Path) -> Path:
+    """Return the repository-family state root inside the Git common directory."""
     common = git_common_dir(root)
     if not common:
         message = "git_common_directory_unavailable"
         raise ValueError(message)
-    return Path(common).parent / ".ethos" / "state" / "state.sqlite"
+    return Path(common) / "ethos"
+
+
+def state_database(root: Path) -> Path:
+    """Return the one repository-local state database shared by all worktrees."""
+    return local_state_root(root) / "state.sqlite"
 
 
 def initialize_state_connection(connection: sqlite3.Connection) -> None:

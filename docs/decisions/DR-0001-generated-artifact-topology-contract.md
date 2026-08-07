@@ -58,7 +58,8 @@ and pollute closeout, proof, and judgment decisions.
 Adopt the Generated Artifact Topology Contract:
 
 - `.config/ethos/` is declarative config, policy, and adopter interface only.
-- `.cache/local-state/` and `.ethos/state/` own host-local runtime coordination state.
+- `<git-common-dir>/ethos/` owns ETHOS runtime coordination state shared by
+  worktrees; `.cache/local-state/` remains available to repository-native tools.
 - `build/runtime/tool-cache/` owns ignored tool runtime caches keyed by tool name.
 - `build/runtime/work/` owns provider emulator and scratch working state.
 - `build/artifacts/` owns ignored local build and package artifacts.

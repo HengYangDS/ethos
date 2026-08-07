@@ -163,8 +163,12 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
 
 
 def git(root: Path, *args: str) -> str:
+    """Run test Git plumbing without activating repository hook integration."""
+    command = ["git", *args]
+    if args[:1] != ("config",):
+        command[1:1] = ["-c", "core.hooksPath=.git/test-hooks"]
     completed = subprocess.run(
-        ["git", *args],
+        command,
         cwd=root,
         check=True,
         text=True,

@@ -8,6 +8,8 @@ from pathlib import Path
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.repository.hooks import hook_launcher
 from ethos.repository.hooks import hook_runtime_binding
+from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_work_lane
 
 
 def _git(root: Path, *args: str, stdin: str = "") -> subprocess.CompletedProcess[str]:
@@ -63,6 +65,27 @@ def test_hook_runtime_observation_rejects_launcher_drift(tmp_path: Path) -> None
     observed = hook_runtime_binding(repo)
 
     assert observed["required_gaps"] == ["write_admission_not_armed:pre-push_launcher_drift"]
+
+
+def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_path: Path) -> None:
+    fixture = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    readme = fixture.worktree / "README.md"
+    readme.write_text("# governed work lane\n", encoding="utf-8")
+    assert _git(fixture.worktree, "add", "README.md").returncode == 0
+
+    commit = _git(fixture.worktree, "commit", "-m", "change without secret policy")
+
+    assert commit.returncode == 0, commit.stderr
+
+
+def test_governed_repository_git_reads_real_hook_configuration(tmp_path: Path) -> None:
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    git(repository, "init", "-b", "dev")
+    git(repository, "config", "core.hooksPath", ".githooks")
+
+    assert git(repository, "config", "--get", "core.hooksPath") == ".githooks"
 
 
 def test_repository_does_not_track_host_specific_hook_launchers() -> None:

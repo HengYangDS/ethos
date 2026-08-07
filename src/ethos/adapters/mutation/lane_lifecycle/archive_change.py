@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 from collections.abc import Mapping
 from datetime import datetime
@@ -16,6 +15,7 @@ from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.archive_transition import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -280,19 +280,30 @@ def _rebuild_archive(
         issuer=str(lease["holder_ref"]),
         projection=synchronize,
     )
-    transition = work_lane_ref_transition_report(
-        root=root,
-        phase="committed",
-        ref_name=f"refs/heads/{branch}",
-        old_value=archived_head,
-        new_value=previous_head,
-    )
-    if transition.get("verdict") != "pass":
+    rebound = leases_by_branch(root).get(branch, {})
+    if not _rebuild_lease_matches(root, change=change, head=previous_head, lease=rebound):
         message = "openspec_archive_rebuild_lease_transition_failed"
         raise ValueError(message)
     rebuilt = _apply_archive(root, branch, previous_head, change)
     rebuilt["replaced_head"] = archived_head
     return rebuilt
+
+
+def _rebuild_lease_matches(
+    root: Path,
+    *,
+    change: str,
+    head: str,
+    lease: dict[str, object],
+) -> bool:
+    """Recognize the exact Lease postcondition already applied by the ref hook."""
+    if lease.get("expected_head") != head or lease.get("expected_tree") != current_tree(root, head):
+        return False
+    try:
+        load_lease_bound_commitment(root, change_id=change, lease=lease)
+    except ValueError:
+        return False
+    return lease.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml"
 
 
 def _archive_preflight(
@@ -494,8 +505,7 @@ def _archive_collision(root: Path, head: str, change: str) -> _ArchiveCollision 
     tree = git_stdout(root, "rev-parse", f"{head}:{path}")
     if not tree:
         return None
-    suffix = hashlib.sha256(f"{tree}\0{head}".encode()).hexdigest()[:12]
-    preserved = f"{path}-{suffix}"
+    preserved = collision_preservation_path(path, tree, head)
     existing = git_stdout(root, "rev-parse", f"{head}:{preserved}")
     if existing and existing != tree:
         message = "openspec_archive_collision_preservation_conflict"

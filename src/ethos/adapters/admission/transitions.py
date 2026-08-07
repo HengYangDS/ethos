@@ -8,6 +8,9 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.admission.ref_intent import claim_ref_intent
+from ethos.adapters.openspec.lifecycle.archive_transition import (
+    lease_bound_archive_transition_fields,
+)
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -472,12 +475,17 @@ def _work_lane_ref_transition_facts(
         except ValueError as exc:
             if str(exc) != "commitment_carrier_missing":
                 raise
-            target = relocated_commitment_fields(
-                root,
-                old_head=expected,
-                new_head=target_head,
-                lease=lease,
-            )
+            try:
+                target = relocated_commitment_fields(
+                    root,
+                    old_head=expected,
+                    new_head=target_head,
+                    lease=lease,
+                )
+            except ValueError:
+                target = lease_bound_archive_transition_fields(root, target_head=target_head) or {}
+                if not target:
+                    raise
         mismatch = next(
             (
                 name

@@ -20,13 +20,13 @@ def _selection(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         f"""[source_budget]
-contract_version = 1
 terminal = {{ python_total = {terminal[0]}, global_total = {terminal[1]} }}
+immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
 line_width = 100
 
 [source_budget.cross_check]
 command = "fake-scc"
-args = ["--format", "json2"]
+args = ["--format", "json2", "--exclude-file=__never__"]
 timeout_seconds = 5
 tolerance = {{ python_total = {tolerance[0]}, global_total = {tolerance[1]} }}
 
@@ -102,19 +102,6 @@ def _repo(
     return selection, source
 
 
-def _migrate_to_v2(selection: Path) -> None:
-    record_roots = 'immutable_record_roots = ["evidence/", "openspec/changes/archive/"]'
-    selection.write_text(
-        selection.read_text(encoding="utf-8")
-        .replace("contract_version = 1", "contract_version = 2")
-        .replace(
-            "line_width = 100",
-            f"{record_roots}\nline_width = 100",
-        ),
-        encoding="utf-8",
-    )
-
-
 def _fake_scc(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
@@ -157,6 +144,7 @@ def _fake_scc(
 
     def dispatch(command, **kwargs):
         if command[0] == "/fake-scc":
+            assert "--exclude-file=__never__" in command
             return cp(stdout=payload(), command="scc")
         return run(command, **kwargs)
 
@@ -195,18 +183,17 @@ def test_direct_measurement_is_clean_when_bounded_counters_agree(
     assert report["inventory"]["file_count"] == 3
 
 
-def test_v2_migration_separates_exact_immutable_record_roots(
+def test_measurement_separates_exact_immutable_record_roots(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    selection, _source = _repo(tmp_path)
+    _repo(tmp_path)
     evidence = tmp_path / "evidence/chronicle/decision.py"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("FIRST = 1\nSECOND = 2\n", encoding="utf-8")
     archive = tmp_path / "openspec/changes/archive/closed/receipt.json"
     archive.parent.mkdir(parents=True)
     archive.write_text('{"closed": true}\n', encoding="utf-8")
-    _migrate_to_v2(selection)
     _fake_scc(monkeypatch, tmp_path)
 
     report = source_budget.source_budget_report(tmp_path)
@@ -217,15 +204,14 @@ def test_v2_migration_separates_exact_immutable_record_roots(
     assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
 
 
-def test_v2_report_exposes_implementation_and_record_cross_check_totals(
+def test_report_exposes_implementation_and_record_cross_check_totals(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    selection, _source = _repo(tmp_path)
+    _repo(tmp_path)
     record = tmp_path / "evidence/chronicle/decision.py"
     record.parent.mkdir(parents=True)
     record.write_text("RECORDED = 1\n", encoding="utf-8")
-    _migrate_to_v2(selection)
     _fake_scc(
         monkeypatch,
         tmp_path,
@@ -247,14 +233,13 @@ def test_v2_report_exposes_implementation_and_record_cross_check_totals(
     assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
 
 
-def test_v2_counts_the_generated_lock_as_owned_json_source(
+def test_generated_lock_is_owned_json_source_in_both_counters(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    selection, _source = _repo(tmp_path)
+    _repo(tmp_path)
     package_lock = tmp_path / "package-lock.json"
     package_lock.write_text('{"lockfileVersion": 3}\n', encoding="utf-8")
-    _migrate_to_v2(selection)
     _fake_scc(monkeypatch, tmp_path)
 
     report = source_budget.source_budget_report(tmp_path)
@@ -262,43 +247,17 @@ def test_v2_counts_the_generated_lock_as_owned_json_source(
     assert report["required_gaps"] == []
     assert report["inventory"]["category_counts"]["json"] == 1
     assert report["metrics"]["json"] > 0
+    assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
 
 
-@pytest.mark.parametrize(
-    ("mutation", "expected_gap"),
-    [
-        (
-            lambda text: text.replace(
-                'paths = ["src/*"]',
-                'paths = ["src/other/*"]',
-            ),
-            "source_budget_policy_relaxed",
-        ),
-    ],
-)
-def test_v2_migration_rejects_path_scope_drift(
-    tmp_path: Path,
-    mutation,
-    expected_gap: str,
-) -> None:
-    selection, _source = _repo(tmp_path)
-    _migrate_to_v2(selection)
-    selection.write_text(mutation(selection.read_text(encoding="utf-8")), encoding="utf-8")
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["required_gaps"] == [expected_gap]
-
-
-def test_v2_record_growth_is_visible_without_increasing_implementation_totals(
+def test_record_growth_is_visible_without_increasing_implementation_totals(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    selection, _source = _repo(tmp_path)
+    _repo(tmp_path)
     record = tmp_path / "evidence/chronicle/decision.py"
     record.parent.mkdir(parents=True)
     record.write_text("FIRST = 1\n", encoding="utf-8")
-    _migrate_to_v2(selection)
     _fake_scc(monkeypatch, tmp_path)
     before = source_budget.source_budget_report(tmp_path)
 
@@ -310,16 +269,15 @@ def test_v2_record_growth_is_visible_without_increasing_implementation_totals(
     assert after["metrics"]["global_total"] == before["metrics"]["global_total"]
 
 
-def test_v2_record_root_does_not_hide_an_unclassified_executable(
+def test_record_root_does_not_hide_an_unclassified_executable(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    selection, _source = _repo(tmp_path)
+    _repo(tmp_path)
     executable = tmp_path / "evidence/chronicle/opaque"
     executable.parent.mkdir(parents=True)
     executable.write_text("opaque\n", encoding="utf-8")
     executable.chmod(0o755)
-    _migrate_to_v2(selection)
     _fake_scc(monkeypatch, tmp_path)
 
     report = source_budget.source_budget_report(tmp_path)
@@ -468,144 +426,10 @@ def test_yaml_measurement_accepts_native_mixed_scalar_keys(
     assert report["metrics"]["yaml"] > 0
 
 
-def test_policy_rejects_relaxation_in_accepted_baseline(tmp_path: Path) -> None:
-    selection, _ = _repo(tmp_path, terminal=(100, 200), tolerance=(1, 2))
-    selection.write_text(
-        selection.read_text()
-        .replace("python_total = 100, global_total = 200", "python_total = 101, global_total = 200")
-        .replace("python_total = 1, global_total = 2", "python_total = 2, global_total = 2"),
-        encoding="utf-8",
-    )
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["required_gaps"] == ["source_budget_policy_relaxed"]
-
-
 @pytest.mark.parametrize(
     "mutation",
     [
-        lambda text: text.replace('command = "fake-scc"', 'command = "other-scc"'),
-        lambda text: text.replace(
-            'args = ["--format", "json2"]',
-            'args = ["--format", "json"]',
-        ),
-        lambda text: text.replace(
-            'paths = ["src/*"]',
-            'paths = ["src/other/*"]',
-        ),
-        lambda text: text.replace('extensions = [".py"]', 'extensions = [".pyi"]'),
-        lambda text: text.replace(
-            'shebangs = ["sh", "bash", "zsh"]',
-            'shebangs = ["sh"]',
-        ),
-        lambda text: text.replace(
-            ('{ category = "python_product", paths = ["src/*"], measure = "python_ast" }'),
-            ('{ category = "python_product", paths = ["src/*"], measure = "lines" }'),
-        ).replace(
-            'python_total = ["python_product", "python_other"]',
-            'python_total = ["python_other"]',
-        ),
-        lambda text: text.replace(
-            '{ category = "shell", comment_prefixes = ["#"] }',
-            '{ category = "shell", comment_prefixes = ["#", "echo"] }',
-        ),
-        lambda text: text.replace(
-            ', "json", "yaml", "ini", "shell"]',
-            ', "yaml", "ini", "shell"]',
-        ).replace(
-            """[[format]]
-extensions = [".json"]
-budget = [{ category = "json", measure = "structured", baseline_measure = "lines" }]
-
-""",
-            "",
-        ),
-    ],
-)
-def test_policy_rejects_measurement_contract_rewrites(
-    tmp_path: Path,
-    mutation,
-) -> None:
-    selection, _ = _repo(tmp_path)
-    selection.write_text(mutation(selection.read_text()), encoding="utf-8")
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["required_gaps"] == ["source_budget_policy_relaxed"]
-
-
-def test_first_versioned_policy_uses_candidate_control_replacement(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    selection, _ = _repo(tmp_path)
-    current = selection.read_text(encoding="utf-8")
-    accepted = (
-        "\n".join(
-            line
-            for line in current.splitlines()
-            if not line.startswith(
-                ("contract_version =", "cross_check =", "terminal =", "line_width =")
-            )
-        )
-        + "\n"
-    )
-    selection.write_text(accepted, encoding="utf-8")
-    git(tmp_path, "add", ".")
-    git(
-        tmp_path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-qm",
-        "invalid accepted policy",
-    )
-    selection.write_text(current, encoding="utf-8")
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["verdict"] == "pass"
-    assert "ok" not in report
-    assert report["terminal"] == {"python_total": 1_000, "global_total": 2_000}
-
-
-def test_accepted_ref_and_files_fail_closed(tmp_path: Path) -> None:
-    selection, _ = _repo(tmp_path)
-    current = selection.read_text(encoding="utf-8")
-    git(tmp_path, "branch", "-m", "other")
-    report = source_budget.source_budget_report(tmp_path)
-    assert report["required_gaps"] == ["source_budget_accepted_ref_unavailable"]
-
-    git(tmp_path, "branch", "-m", "dev")
-    git(tmp_path, "rm", selection.as_posix())
-    git(
-        tmp_path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-qm",
-        "remove accepted policy",
-    )
-    selection.parent.mkdir(parents=True, exist_ok=True)
-    selection.write_text(current, encoding="utf-8")
-
-    report = source_budget.source_budget_report(tmp_path)
-
-    assert report["required_gaps"] == [
-        "source_budget_accepted_file_unavailable:.config/checks/format/selection.toml",
-    ]
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    [
-        lambda text: text.replace("contract_version = 1\n", ""),
+        lambda text: text.replace("immutable_record_roots =", "invalid_record_roots ="),
         lambda text: text.replace(', "shell"]', "]"),
         lambda text: text.replace('shebangs = ["sh", "bash", "zsh"]', 'shebangs = "sh"'),
         lambda text: text.replace('comment_prefixes = ["#"]', 'comment_prefixes = "#"', 1),

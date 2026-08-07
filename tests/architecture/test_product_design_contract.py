@@ -355,13 +355,9 @@ def test_entrypoints_do_not_resurrect_global_authority_or_retired_kernel_names()
     assert "Only Commitment and Attestation persist" in readme
 
 
-def test_runtime_owner_is_checkout_bound_through_with_python_runtime() -> None:
-    runner = read("tools/ci/scripts/run-ethos-lane.sh")
-    runtime = read("tools/ci/scripts/with-python-runtime.sh")
+def test_lane_runner_bootstrap_uses_the_checkout_bound_uv_command() -> None:
+    carrier = read("src/ethos/adapters/mutation/lane_start_carrier.py")
 
-    assert 'exec "${script_dir}/with-python-runtime.sh" --' in runner
-    assert 'uv run --group dev ethos "$@"' in runner
-    assert "git rev-parse --show-toplevel" in runtime
-    assert 'export ETHOS_RUNTIME_ROOT="${repo_root}"' in runtime
-    assert not re.search(r"(?:^|[;&|])\s*(?:command\s+)?ethos(?:\s|$)", runner, re.MULTILINE)
-    assert 'PATH="${repo_root}' not in runner
+    assert '"command": "uv run --frozen --offline ethos"' in carrier
+    assert "tools/ci/scripts/run-ethos-lane.sh" not in carrier
+    assert not re.search(r'"command": "(?:command )?ethos(?: |")', carrier)

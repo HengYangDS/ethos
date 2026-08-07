@@ -567,10 +567,10 @@ def runner_bootstrap(target: Path) -> dict[str, str]:
     """Return the non-mutating source-bound runner contract for a new lane."""
     resolved = target.resolve().as_posix()
     return {
-        "command": "tools/ci/scripts/run-ethos-lane.sh",
+        "command": "uv run --frozen --offline ethos",
         "project_environment": ".venv",
         "environment_scope": "checkout",
         "uv_cache": "host_or_ci_content_addressed",
         "cache_scope": "host_or_ci",
-        "next_action": f"cd {resolved} && tools/ci/scripts/run-ethos-lane.sh status --json",
+        "next_action": f"cd {resolved} && uv run --frozen --offline ethos status --json",
     }

@@ -152,7 +152,8 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
 def run(session: nox.Session) -> None:
     """Install the built wheel into a fresh offline environment and attest it."""
     head = current_tracked_head(ROOT)
-    shutil.rmtree(WORK, ignore_errors=True)
+    if WORK.exists():
+        shutil.rmtree(WORK)
     EVIDENCE.unlink(missing_ok=True)
     WORK.mkdir(parents=True)
     wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"

@@ -8,7 +8,6 @@ import shutil
 import time
 import tomllib
 from contextlib import contextmanager
-from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
@@ -71,8 +70,20 @@ def _process_start(pid: int) -> str:
     ).stdout.strip()
 
 
-def _remove(path: Path) -> None:
-    shutil.rmtree(path, ignore_errors=True) if path.is_dir() else path.unlink(missing_ok=True)
+def remove_generated_path(path: Path) -> None:
+    """Remove one generated path without hiding cleanup failures."""
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
+
+
+def _remove_lock(lock: Path, owner: Path) -> None:
+    owner.unlink(missing_ok=True)
+    try:
+        lock.rmdir()
+    except FileNotFoundError:
+        return
 
 
 def _chown(path: Path, uid: int, gid: int) -> None:
@@ -204,9 +215,7 @@ class PythonTestGate:
                 )
                 if reclaim:
                     invalid_reclaimed = invalid_reclaimed or not dead
-                    owner.unlink(missing_ok=True)
-                    with suppress(OSError):
-                        lock.rmdir()
+                    _remove_lock(lock, owner)
                     continue
                 if time.monotonic() >= deadline:
                     message = f"coverage evidence lock unavailable: {lock}"
@@ -220,9 +229,7 @@ class PythonTestGate:
         try:
             yield
         finally:
-            owner.unlink(missing_ok=True)
-            with suppress(OSError):
-                lock.rmdir()
+            _remove_lock(lock, owner)
 
     def _prepare(self) -> None:
         self._cleanup()
@@ -241,13 +248,13 @@ class PythonTestGate:
             ROOT / "coverage.xml",
             ROOT / "junit.xml",
         ):
-            _remove(path)
+            remove_generated_path(path)
         for path in (ROOT / "src").rglob("__pycache__"):
-            _remove(path)
+            remove_generated_path(path)
         if self.s.identity:
             _chown(ROOT / "build", 0, 0)
             _chown(self.s.basetemp, 0, 0)
-            _remove(self.identity_home)
+            remove_generated_path(self.identity_home)
 
     def _stable_head(self) -> None:
         if (current := _head()) != self.s.head:
@@ -332,7 +339,7 @@ class PythonTestGate:
 
     def _single(self, session: nox.Session) -> None:
         for path in (self.data, self.coverage / "coverage.xml", self.pytest / "junit.xml"):
-            _remove(path)
+            remove_generated_path(path)
         self._run(
             session,
             *self._args(),
@@ -357,7 +364,7 @@ class PythonTestGate:
                 *self.pytest.glob("junit*.xml"),
                 shard_dir,
             ):
-                _remove(path)
+                remove_generated_path(path)
             shard_dir.mkdir(parents=True)
             head.write_text(key + "\n", encoding="utf-8")
         nodeids_path = self.pytest / "nodeids.txt"
@@ -394,8 +401,8 @@ class PythonTestGate:
                 or not marker.is_file()
                 or marker.read_text(encoding="utf-8").strip() != key
             ):
-                _remove(data)
-                _remove(marker)
+                remove_generated_path(data)
+                remove_generated_path(marker)
                 self._run(
                     session,
                     *self._args(),

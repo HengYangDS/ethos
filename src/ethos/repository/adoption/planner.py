@@ -6,7 +6,6 @@ import stat
 import tempfile
 import tomllib
 import uuid
-from contextlib import suppress
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -221,7 +220,7 @@ def _current_binding(root: Path, target: Path) -> tuple[str | None, bool, bool]:
     except FileNotFoundError:
         return None, False, True
     except (OSError, UnicodeDecodeError):
-        pass
+        return None, True, False
     return None, True, False
 
 
@@ -249,6 +248,5 @@ def _write_atomic(target: Path, content: str) -> None:
             temporary.write(content)
         temporary_path.replace(target)
     except BaseException:
-        with suppress(FileNotFoundError):
-            temporary_path.unlink()
+        temporary_path.unlink(missing_ok=True)
         raise

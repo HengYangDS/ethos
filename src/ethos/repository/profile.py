@@ -4,7 +4,6 @@ import shutil
 import subprocess
 import tomllib
 from collections.abc import Mapping
-from contextlib import suppress
 from pathlib import Path
 from pathlib import PurePosixPath
 from types import MappingProxyType
@@ -181,8 +180,10 @@ def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> Repos
     exists, text = _profile_text(repo, tree_ref)
     declaration = None
     if exists:
-        with suppress(tomllib.TOMLDecodeError, ValidationError):
+        try:
             declaration = RepositoryProfileDeclaration.model_validate(tomllib.loads(text))
+        except (tomllib.TOMLDecodeError, ValidationError):
+            declaration = None
     return RepositoryProfile(
         root=repo,
         exists=exists,

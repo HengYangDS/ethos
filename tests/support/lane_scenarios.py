@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.schema import state_database
 from tests.support.governed_repository import commit_active_commitment
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
@@ -33,7 +34,7 @@ def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:cas
     git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
     head = git(path, "rev-parse", "HEAD")
     acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
+        state_database(repo),
         lease=exact_lease(
             repo=repo,
             branch="work/feature",
@@ -107,7 +108,7 @@ def superseded_work_lane(
     accepted = (
         absorb_obsolete_delta_in_accepted(repo) if absorbed else git(repo, "rev-parse", "dev")
     )
-    database = repo / ".ethos" / "state" / "state.sqlite"
+    database = state_database(repo)
     acquire_lease(
         database,
         lease=exact_lease(

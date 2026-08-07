@@ -31,10 +31,11 @@ ETHOS exposes exactly these public roots:
 | `ethos land --json` | Report landing readiness. | Effects require the command's explicit guarded options. |
 | `ethos publish --json` | Report local publication readiness. | Does not push. |
 | `ethos adopt --root <repo> --json` | Plan adoption for one repository. | Applying requires explicit authorization and an expected head. |
+| `ethos migrate-local-state --root <repo> --json` | Inspect misplaced legacy checkout state. | Applying requires authorization, exact HEAD, and the reviewed plan digest. |
 
-The six public root anchors are `status`, `plan`, `prove`, `land`, `publish`,
-and `adopt`. No reader, report, provider, or historical projection adds another
-public root.
+The public root anchors are `status`, `plan`, `prove`, `land`, `publish`,
+`adopt`, and the bounded recovery transition `migrate-local-state`. No reader,
+report, provider, or historical projection adds another public root.
 
 The normal repository loop is:
 

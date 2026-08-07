@@ -184,7 +184,7 @@ def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
         ),
         (
             "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[roots]\nlocal_state = '.'\n"
+            "[roots]\nlocal_state = 'runtime'\n"
         ),
         (
             "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"

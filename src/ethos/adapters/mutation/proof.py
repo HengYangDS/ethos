@@ -23,6 +23,7 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import current_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
@@ -49,10 +50,9 @@ def attestation_store_dir(root: Path) -> Path:
         if path.is_absolute():
             return path
         common = git_common_dir(root)
-        return (Path(common).parent if common else root) / path
+        return (Path(common) if common else root) / path
     common = git_common_dir(root)
-    base = Path(common).parent if common else root
-    return base / _DEFAULT_ATTESTATION_DIR
+    return local_state_root(root) / "attestations" if common else root / _DEFAULT_ATTESTATION_DIR
 
 
 def _proof_issue_values(

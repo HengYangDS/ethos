@@ -154,6 +154,14 @@ only streams and unused local event logs SHALL be absent.
 - **THEN** it SHALL create only the current lease table
 - **AND** it SHALL NOT preserve schema migration ledgers or retired local formats.
 
+#### Scenario: repository-family state stays outside checkouts
+
+- **WHEN** ETHOS resolves mutable state or local Attestations for any linked worktree
+- **THEN** it SHALL use the shared Git common directory under `ethos/`
+- **AND** no accepted, candidate, or Work Lane checkout SHALL gain untracked runtime files
+- **AND** legacy checkout-local state SHALL move only through an exact-manifest public migration
+  that compensates partial effects.
+
 #### Scenario: Chronicle remains authoritative evidence
 
 - **WHEN** a governance decision becomes durable

@@ -354,6 +354,12 @@ are proved homomorphic projections of one portable policy.
   temporary-directory, executable, encoding, line-ending, subprocess, Git-hook,
   OpenSpec, build, test, and release behavior; and reject static source checks or
   one-host emulation as platform-completion evidence.
+  Mutable ETHOS state and local Attestations live under the Git common directory,
+  never an accepted/candidate/Work Lane checkout. A public exact-head and
+  plan-digest-bound migration moves misplaced checkout state with compensation;
+  repository-family closeout resolves the canonical accepted worktree, migration
+  restores clean lane start, and refresh-base restores the original branch/HEAD
+  when post-rebase CAS fails.
 - [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
   Python SDK, subprocess JSON, permissions, determinism, authority isolation,
   versioning, errors, offline behavior, and optional MCP/A2A-style adapters.

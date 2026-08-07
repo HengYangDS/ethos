@@ -36,7 +36,8 @@ table.
 | Path family | Boundary | Generated output allowed? | Tracked? |
 | --- | --- | --- | --- |
 | `.config/ethos/` | Declarative config, policy, and adopter interface only. | No | Yes |
-| `.cache/local-state/` and `.ethos/state/` | Host-local runtime state, leases, locks, executions, sessions. | Yes | No |
+| `<git-common-dir>/ethos/` | ETHOS leases, local Attestations, and transaction state shared by worktrees. | Yes | Outside checkout |
+| `.cache/local-state/` | Repository-native host-local state. | Yes | No |
 | `build/runtime/tool-cache/` | Tool runtime caches keyed by tool name. | Yes | No |
 | `.venv/` | Repository-local Python environment selected by `uv.lock`. | Yes | No |
 | `build/runtime/work/` | Provider emulator state and scratch working state. | Yes | No |
@@ -92,7 +93,7 @@ how is it regenerated, and how is it cleaned up?
 
 | Lifecycle | Homes | Truth boundary | Cleanup / promotion rule |
 | --- | --- | --- | --- |
-| Runtime cache | `.cache/local-state/`, `.ethos/state/`, `.venv/`, `build/runtime/tool-cache/`, `build/runtime/work/` | Disposable host-local or provider-local state. | Never promote. Delete or recreate from source commands. |
+| Runtime cache | `<git-common-dir>/ethos/`, `.cache/local-state/`, `.venv/`, `build/runtime/tool-cache/`, `build/runtime/work/` | Disposable host-local or provider-local state. | Never promote. Delete or recreate from source commands. |
 | Machine evidence | `build/evidence/`, `build/ethos/` | Generated, HEAD-bound command output before review. | Regenerate on HEAD movement. Promote only by explicit review or command into curated evidence. |
 | Local artifact | `build/artifacts/` | Rebuildable package/build output. | Never treat as repository truth. Rebuild from package metadata or release commands. |
 | Curated evidence | `docs/evidence/`, `evidence/` | Durable Attestations plus immutable historical evidence. | Review or supersede current records; do not clean historical bytes as cache. |
@@ -120,7 +121,7 @@ runtime command -> build/evidence/<concern>/... or build/ethos/<concern>/...
   -> durable Attestation under evidence/attestations/ and curated summary under docs/evidence/
 ```
 
-Runtime caches under `.cache/local-state/`, `.ethos/state/`,
+Runtime caches under `<git-common-dir>/ethos/`, `.cache/local-state/`,
 `.venv/`, `build/runtime/tool-cache/`, or `build/runtime/work/`
 are outside this path and
 must never be promoted. Local artifacts under `build/artifacts/` are rebuilt

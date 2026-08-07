@@ -15,6 +15,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
@@ -218,6 +219,7 @@ def _refresh_work_lane(
             detached_branch=branch,
         )
     except (OSError, ValueError) as error:
+        restore_gap = _restore_pre_refresh_checkout(root, branch, current_head)
         return _report(
             context,
             current_tracked_head(root),
@@ -225,7 +227,8 @@ def _refresh_work_lane(
             [
                 "refresh_base_worktree_attach_failed"
                 if "attachment" in str(error)
-                else "refresh_base_snapshot_stale:work_lane"
+                else "refresh_base_snapshot_stale:work_lane",
+                *restore_gap,
             ],
             plan_digest=plan.digest,
             previous_head=current_head,
@@ -264,6 +267,20 @@ def _refresh_work_lane(
         ref_attestation=ref_attestation.model_dump(mode="json"),
         attachment_attestation=attachment.model_dump(mode="json"),
     )
+
+
+def _restore_pre_refresh_checkout(root: Path, branch: str, head: str) -> list[str]:
+    if (
+        current_tracked_head(root) == head
+        and run_git(root, "branch", "--show-current").stdout.strip() == branch
+    ):
+        return []
+    try:
+        compensate_git_worktree(root, head=head)
+        _attach_work_lane(root, branch, head)
+    except (OSError, ValueError):
+        return ["refresh_base_worktree_restore_failed"]
+    return []
 
 
 def _attach_work_lane(root: Path, branch: str, head: str) -> Attestation:

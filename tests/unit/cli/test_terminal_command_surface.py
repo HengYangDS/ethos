@@ -19,7 +19,15 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import start_adopted_work_lane
 
-PUBLIC_ROOT_COMMANDS = ("status", "plan", "prove", "land", "publish", "adopt")
+PUBLIC_ROOT_COMMANDS = (
+    "status",
+    "plan",
+    "prove",
+    "land",
+    "publish",
+    "adopt",
+    "migrate-local-state",
+)
 RETIRED_ROOT_COMMANDS = (
     "orient",
     "report",

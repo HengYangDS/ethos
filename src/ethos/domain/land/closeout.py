@@ -15,6 +15,7 @@ import ethos
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.status
 from ethos.adapters.repo.runtime.binding import runner_source_root
+from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
 
@@ -67,16 +68,17 @@ def closeout_bootstrap_package(
     required_gaps: tuple[str, ...],
 ) -> dict[str, object]:
     """Build the closeout bootstrap package (command to run against accepted_root)."""
-    policy = load_branch_role_policy(repo)
     status = workspace_status(repo, include_foreign_path_scope=False)
+    accepted_root = accepted_worktree_root(status.get("worktrees"), repo).resolve()
+    policy = load_branch_role_policy(accepted_root)
     candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
-    accepted_head = git_adapter.current_tracked_head(repo)
+    accepted_head = git_adapter.current_tracked_head(accepted_root)
     expect_head = accepted_head or "<HEAD>"
     command = (
         "ethos land --closeout --apply --authorize "
-        f"--expect-head {expect_head} --root {repo.resolve().as_posix()} --json"
+        f"--expect-head {expect_head} --root {accepted_root.as_posix()} --json"
     )
-    runner_binding = runner_binding_report(accepted_root=repo, audit_root=audit_root)
+    runner_binding = runner_binding_report(accepted_root=accepted_root, audit_root=audit_root)
     candidate_data = cast("dict[str, object]", candidate)
     candidate_head = str(candidate_data.get("head") or "")
     candidate_path = str(candidate_data.get("worktree_path") or "")
@@ -104,7 +106,7 @@ def closeout_bootstrap_package(
         "runner_matches_audit_root": runner_binding["runner_matches_audit_root"],
         "runner_advisories": runner_binding["advisory_gaps"],
         "state": "blocked" if required_gaps else "current" if already_current else "ready",
-        "accepted_root": repo.resolve().as_posix(),
+        "accepted_root": accepted_root.as_posix(),
         "audit_root": audit_root.resolve().as_posix(),
         "accepted_branch": policy.accepted_branch,
         "candidate_branch": policy.candidate_branch,

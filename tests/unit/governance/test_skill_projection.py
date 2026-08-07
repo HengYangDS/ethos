@@ -8,22 +8,223 @@ import pytest
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
+from ethos.contracts.skill import activation as skill_activation
 from ethos.contracts.skill.activation import normalize_skill_activation
+from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.policy.schema import validate_schema_instance
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tests.support.playbooks import write_v2_playbook_package
 
 
-def test_activation_metadata_does_not_duplicate_package_capabilities() -> None:
-    registry = normalize_skill_activation(
-        {
-            "meta": {"version": 2},
-            "skill": [{"id": "sample"}],
-        },
+def _registry(*skills: dict[str, object]) -> dict[str, object]:
+    return normalize_skill_activation(
+        {"meta": {"version": 2}, "skill": list(skills)},
         source="test",
     )
 
+
+def test_activation_registry_contains_only_current_v2_semantics() -> None:
+    registry = _registry({"id": "sample"})
+
     record = registry["records"][0]
     assert "commands" not in record
-    assert "commands" not in record["extensions"]
+    assert (
+        not {
+            "declared_id",
+            "declared_name",
+            "identifier_source",
+            "source_version",
+            "extensions",
+        }
+        & record.keys()
+    )
+
+
+@pytest.mark.parametrize("retired_key", ["name", "may_coactivate", "unexpected"])
+def test_skill_activation_schema_rejects_retired_or_unknown_fields(retired_key: str) -> None:
+    skill = {
+        "id": "sample",
+        "subject": "sample",
+        "operation": "plan",
+        "path": ".agents/skills/sample/SKILL.md",
+        "package_manifest": ".agents/skills/sample/package.toml",
+        "authority": "primary",
+        "lifecycle": "active",
+        "path_globs": ["src/**"],
+        "pre_reads": ["AGENTS.md"],
+        "post_checks": ["ethos status --json"],
+        retired_key: ["sample"] if retired_key == "may_coactivate" else "sample",
+    }
+
+    result = validate_schema_instance(
+        "skill-activation.schema.json",
+        {
+            "meta": {"version": 2, "source_of_truth": "repository"},
+            "coverage": {
+                "required_primary_subjects": ["sample"],
+                "single_owner_subjects": ["sample"],
+            },
+            "skill": [skill],
+        },
+    )
+
+    assert result["verdict"] == "block"
+
+
+def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
+    registry = _registry(
+        {
+            "id": "change-lifecycle",
+            "subject": "change-lifecycle",
+            "operation": "plan",
+            "path_globs": ["src/**"],
+            "pre_reads": ["AGENTS.md"],
+        },
+        {
+            "id": "python-quality",
+            "subject": "quality-gates",
+            "operation": "prove",
+            "path_globs": ["src/**/*.py"],
+            "requires": ["change-lifecycle"],
+            "pre_reads": ["ruff.toml"],
+        },
+    )
+    result = skill_activation.compile_skill_activation(
+        registry,
+        operation="plan",
+        subjects=("change-lifecycle",),
+        changed_paths=("src/ethos/result.py",),
+    )
+
+    assert result.verdict == "pass"
+    assert [skill.id for skill in result.skills] == [
+        "change-lifecycle",
+        "python-quality",
+    ]
+    assert result.context.model_dump(mode="json") == {
+        "pre_reads": ["AGENTS.md", "ruff.toml"],
+        "during_rules": [],
+        "post_checks": [],
+    }
+
+
+def test_skill_activation_fails_closed_for_missing_or_cyclic_requirements() -> None:
+    missing = _registry(
+        {
+            "id": "quality",
+            "subject": "quality",
+            "operation": "prove",
+            "path_globs": ["src/**"],
+            "requires": ["absent"],
+        },
+    )
+    cyclic = _registry(
+        {
+            "id": "first",
+            "subject": "first",
+            "operation": "plan",
+            "path_globs": ["src/**"],
+            "requires": ["second"],
+        },
+        {
+            "id": "second",
+            "subject": "second",
+            "operation": "prove",
+            "path_globs": ["tests/**"],
+            "requires": ["first"],
+        },
+    )
+
+    missing_result = skill_activation.compile_skill_activation(
+        missing, operation="plan", changed_paths=("src/a.py",)
+    )
+    cyclic_result = skill_activation.compile_skill_activation(
+        cyclic, operation="plan", changed_paths=("src/a.py",)
+    )
+
+    assert missing_result.verdict == "block"
+    assert list(missing_result.required_gaps) == [
+        "skill_activation_requirement_missing:quality:absent"
+    ]
+    assert cyclic_result.verdict == "block"
+    assert list(cyclic_result.required_gaps) == ["skill_activation_dependency_cycle"]
+
+
+def test_skill_activation_rejects_mutually_exclusive_capabilities() -> None:
+    registry = _registry(
+        {
+            "id": "fast-path",
+            "subject": "change",
+            "operation": "plan",
+            "path_globs": ["src/**"],
+            "excludes": ["deep-review"],
+        },
+        {
+            "id": "deep-review",
+            "subject": "quality",
+            "operation": "prove",
+            "path_globs": ["src/**"],
+        },
+    )
+
+    result = skill_activation.compile_skill_activation(
+        registry,
+        operation="plan",
+        changed_paths=("src/a.py",),
+    )
+
+    assert result.verdict == "block"
+    assert list(result.required_gaps) == [
+        "skill_activation_exclusion_conflict:fast-path:deep-review"
+    ]
+
+
+def test_plan_projects_the_compiled_skill_activation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, apply=True)
+    activation_path = repo / ".agents" / "skills" / "activation.toml"
+    activation_path.parent.mkdir(parents=True)
+    activation_path.write_text("[meta]\nversion = 2\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "adopt")
+    registry = _registry(
+        {
+            "id": "change-lifecycle",
+            "subject": "change-lifecycle",
+            "operation": "plan",
+            "path_globs": ["**"],
+            "pre_reads": ["AGENTS.md"],
+        },
+    )
+    monkeypatch.setattr(
+        "ethos.surface.cli.root.planning.playbooks_report",
+        lambda _root: {"registry": registry, "required_gaps": []},
+        raising=False,
+    )
+
+    payload = run_ethos("plan", "--root", repo.as_posix(), "--json", cwd=repo)
+
+    assert payload["data"]["skill_activation"] == {
+        "verdict": "pass",
+        "skills": [
+            {
+                "id": "change-lifecycle",
+                "path": ".agents/skills/change-lifecycle/SKILL.md",
+                "operation": "plan",
+            }
+        ],
+        "context": {
+            "pre_reads": ["AGENTS.md"],
+            "during_rules": [],
+            "post_checks": [],
+        },
+        "required_gaps": [],
+    }
 
 
 def test_skill_package_manifest_rejects_undeclared_eval_fields(tmp_path: Path) -> None:

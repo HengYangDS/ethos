@@ -37,6 +37,7 @@ VERIFY_SESSIONS = (
     "repository_hygiene",
     "prose",
     "shell_lint",
+    "markdown_lint",
 )
 PARALLEL_SESSIONS = (
     "lint",
@@ -51,11 +52,11 @@ PARALLEL_SESSIONS = (
     "repository_hygiene",
     "prose",
     "shell_lint",
+    "markdown_lint",
 )
 SERIAL_PROOF_SESSIONS = ("docstrings", "module_layout", "product_boundary")
 PLATFORM_ADAPTERS = (
     "tools/ci/scripts/run-config-lint.sh",
-    "tools/ci/scripts/run-markdown-lint.sh",
     "tools/ci/scripts/run-secrets-scan.sh",
 )
 DELIVERY_SESSIONS = ("build", "install_smoke", "supply_chain")

@@ -28,6 +28,8 @@ run_runbook_registry = import_module("tools.ci.runbook_registry").main
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PROJECT_SCRIPTS = Path(sys.executable).parent
 PROSE_CONFIG = ROOT / ".config/checks/prose/codespell.toml"
+NODEJS_WHEEL = Path(import_module("nodejs_wheel").__file__).resolve().parent
+NODE = NODEJS_WHEEL / "bin" / ("node.exe" if os.name == "nt" else "node")
 
 nox.options.default_venv_backend = "none"
 nox.options.error_on_external_run = True
@@ -201,6 +203,20 @@ def shell_lint(session: nox.Session) -> None:
             "--rcfile=.config/checks/shell/.shellcheckrc",
             *paths,
         )
+
+
+@nox.session(python=False)
+def markdown_lint(session: nox.Session) -> None:
+    """Check Markdown with the exact repository-locked Node dependency."""
+    executable = ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"
+    if not NODE.is_file() or not executable.is_file():
+        session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
+    session.run(
+        str(NODE),
+        str(executable),
+        "--config",
+        ".config/checks/markdown/.markdownlint-cli2.yaml",
+    )
 
 
 @nox.session(python=False)

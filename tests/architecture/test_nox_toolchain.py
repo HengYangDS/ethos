@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import sys
 import tempfile
@@ -189,6 +190,30 @@ def test_nox_is_the_only_shell_lint_orchestrator() -> None:
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert "uv run --frozen --offline python -m nox -s shell_lint" in text
         assert "run-shell-lint.sh" not in text
+
+
+def test_nox_is_the_only_markdown_lint_orchestrator() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    package = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    node_package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+
+    assert "def markdown_lint(" in source
+    assert 'NODEJS_WHEEL = Path(import_module("nodejs_wheel").__file__).resolve().parent' in source
+    assert 'NODEJS_WHEEL / "bin" / ("node.exe" if os.name == "nt" else "node")' in source
+    assert 'ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"' in source
+    assert package["project"]["requires-python"] == ">=3.12"
+    assert node_package["devDependencies"]["markdownlint-cli2"] == "0.23.2"
+    assert all("markdownlint" not in command for command in node_package["scripts"].values())
+    assert not (ROOT / "tools/ci/scripts/run-markdown-lint.sh").exists()
+    for relative in (
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".config/ci/templates/hosted/gitlab-ci.yml",
+        ".github/workflows/ci.yml",
+        ".gitlab-ci.yml",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "uv run --frozen --offline python -m nox -s markdown_lint" in text
+        assert "run-markdown-lint.sh" not in text
 
 
 def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:

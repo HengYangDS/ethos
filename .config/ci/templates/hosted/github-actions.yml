@@ -112,7 +112,7 @@ jobs:
           tools/ci/scripts/install-lychee.sh && tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
           --gate external-links --expect-head "$(git rev-parse HEAD)" --json
       - name: Markdown lint
-        run: tools/ci/scripts/run-markdown-lint.sh
+        run: uv run --frozen --offline python -m nox -s markdown_lint
       - name: Prose spelling
         run: uv run --frozen --offline python -m nox -s prose
       - name: CI projection drift

@@ -199,9 +199,8 @@ gate = "tools/ci/scripts/run-node-compatibility.sh"
 [[tool]]
 concern = "local_ci_fallback"
 tool = "ETHOS local-ci owner gate bundle"
-config = "uv run --frozen --offline python -m nox -s local_ci + tools/ci/scripts/require-stable-head.sh"
+config = "noxfile.py + tools/ci/local_ci.py"
 executables = [
-  "bash",
   "cat",
   "chmod",
   "chown",

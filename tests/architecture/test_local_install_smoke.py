@@ -53,6 +53,9 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert '"system/schemas/kernel" = "ethos/data/schemas/kernel"' in (
         ROOT / "pyproject.toml"
     ).read_text(encoding="utf-8")
+    assert '"system/review-lenses.toml" = "ethos/data/review_lenses.toml"' in (
+        ROOT / "pyproject.toml"
+    ).read_text(encoding="utf-8")
     assert "current_tracked_head(ROOT)" in owner
     assert '"hosted_ci_status_claimed": False' in owner
     assert '"remote_publication_claimed": False' in owner

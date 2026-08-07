@@ -225,6 +225,12 @@ def test_plan_projects_the_compiled_skill_activation(
         },
         "required_gaps": [],
     }
+    review_plan = payload["data"]["review_plan"]
+    transition_facts = payload["data"]["transition_plan"]["facts"]["values"]
+    assert payload["summary"]["required_review_lens_count"] == len(review_plan["lenses"])
+    assert review_plan["head"] == payload["data"]["transition_plan"]["facts"]["head"]
+    assert review_plan["tree"] == payload["data"]["transition_plan"]["facts"]["tree"]
+    assert transition_facts["review_plan"]["digest"] == review_plan["digest"]
 
 
 def test_skill_package_manifest_rejects_undeclared_eval_fields(tmp_path: Path) -> None:

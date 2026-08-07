@@ -77,7 +77,8 @@ REQUIRED_SCHEMAS = (
     "quality-asset.schema.json",
     "quality-gate-plan.schema.json",
     "quality-profile.schema.json",
-    "review-record.schema.json",
+    "review-plan.schema.json",
+    "review-result.schema.json",
     "host-capability.schema.json",
 )
 

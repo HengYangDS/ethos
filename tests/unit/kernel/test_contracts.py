@@ -21,6 +21,7 @@ from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import terminal_schema_documents
+from ethos.contracts.review import review_schema_documents
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
@@ -409,7 +410,7 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
 
 def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     schema_docs = Path("docs/architecture/schema-validation.md").read_text(encoding="utf-8")
-    generated = terminal_schema_documents()
+    generated = terminal_schema_documents() | review_schema_documents()
     assert "typed variants" not in schema_docs
     assert "open-predicate statement" in schema_docs
     assert "evidence bindings" in schema_docs
@@ -418,6 +419,8 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "attestation.schema.json",
         "facts.schema.json",
         "transition-plan.schema.json",
+        "review-plan.schema.json",
+        "review-result.schema.json",
     }
     commitment_schema = generated["commitment.schema.json"]
     assert commitment_schema["properties"]["schema_version"]["const"] == 1
@@ -578,6 +581,25 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "required_gaps",
         "digest",
     }
+
+
+def test_review_schemas_bind_inputs_and_cannot_mint_authority() -> None:
+    generated = review_schema_documents()
+    assert {
+        "declaration",
+        "inputs",
+        "head",
+        "tree",
+        "phase",
+        "lenses",
+        "escalation",
+        "verdict",
+        "required_gaps",
+        "next_action",
+        "user_decision_required",
+        "digest",
+    } <= set(generated["review-plan.schema.json"]["required"])
+    assert generated["review-result.schema.json"]["properties"]["mints_authority"]["const"] is False
 
 
 def test_result_contract_has_stable_top_level_fields() -> None:

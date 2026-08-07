@@ -8,9 +8,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import tomllib
 from datetime import UTC
 from datetime import datetime
+from importlib import import_module
 from pathlib import Path
 from typing import Annotated
 from typing import Any
@@ -19,22 +19,46 @@ from typing import Literal
 from cyclopts import App
 from cyclopts import Parameter
 
-
-def _words(value: str) -> tuple[str, ...]:
-    return tuple(value.split())
-
-
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+_projection = import_module("tools.ci.ci_projection")
+_materialization = import_module("tools.ci.provider_materialization")
+check_templates = _projection.check_templates
+_emulator_declaration = _projection.emulator_declaration
+_provider_entry = _projection.provider_entry
+materialize_emulator_source = _materialization.materialize_emulator_source
 CONFIG_RELATIVE_PATH = ".config/checks/ci/templates.toml"
-CONFIG_PATH = ROOT / CONFIG_RELATIVE_PATH
-
-
 UNTRACKED_PREVIEW_LIMIT = 12
-EMULATOR_REQUIRED_FIELDS = _words("emulator_tool emulator_event emulator_job emulator_image")
-EVIDENCE_FIELDS = _words(
-    "schema_version kind provider mode verdict dry_run head head_start head_end head_stable dirty "
-    "git_start git_end generated_at started_at finished_at tool tool_available tool_path command "
-    "returncode log_warnings stdout stderr materialization"
+EVIDENCE_FIELDS = (
+    "schema_version",
+    "kind",
+    "provider",
+    "mode",
+    "verdict",
+    "dry_run",
+    "head",
+    "head_start",
+    "head_end",
+    "head_stable",
+    "dirty",
+    "git_start",
+    "git_end",
+    "generated_at",
+    "started_at",
+    "finished_at",
+    "tool",
+    "tool_available",
+    "tool_path",
+    "command",
+    "returncode",
+    "log_warnings",
+    "stdout",
+    "stderr",
+    "materialization",
+    "timeout_seconds",
+    "timed_out",
+    "log_path",
 )
 
 
@@ -46,78 +70,6 @@ def _git_output(*args: str) -> str:
 def _git_lines(*args: str) -> list[str]:
     output = _git_output(*args)
     return [line for line in output.splitlines() if line]
-
-
-def _git(root: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
-    result = subprocess.run(
-        ["git", *args], cwd=root, input=input_bytes, capture_output=True, check=False
-    )
-    if result.returncode == 0:
-        return result.stdout
-    detail = result.stderr.decode(errors="replace").strip()
-    message = f"Local emulator source materialization failed: git {' '.join(args)}: {detail}"
-    raise RuntimeError(message)
-
-
-def _remove_path(path: Path) -> None:
-    if path.is_dir() and not path.is_symlink():
-        shutil.rmtree(path)
-    elif path.exists() or path.is_symlink():
-        path.unlink()
-
-
-def materialize_emulator_source(
-    *, source_root: Path, state_dir: Path, expected_head: str
-) -> dict[str, Any]:
-    """Create a standalone Git snapshot so Docker never sees a linked `.git` file."""
-    state_dir.mkdir(parents=True, exist_ok=True)
-    source_dir = state_dir / "source"
-    staging_dir = state_dir / "source.staging"
-    bundle_path = state_dir / "source.bundle"
-    _remove_path(staging_dir)
-    _remove_path(bundle_path)
-    tracked_diff = b""
-    source_head = _git(source_root, "rev-parse", "HEAD").decode().strip()
-    if source_head != expected_head:
-        message = (
-            "Local emulator source materialization failed: "
-            f"expected HEAD {expected_head}, observed {source_head}"
-        )
-        raise RuntimeError(message)
-    try:
-        _git(source_root, "bundle", "create", str(bundle_path), "HEAD")
-        _git(state_dir, "init", "--quiet", str(staging_dir))
-        _git(staging_dir, "fetch", "--quiet", "--no-tags", str(bundle_path), "HEAD")
-        _git(staging_dir, "checkout", "--quiet", "--detach", "FETCH_HEAD")
-        tracked_diff = _git(source_root, "diff", "--binary", expected_head)
-        if tracked_diff:
-            _git(
-                staging_dir,
-                "apply",
-                "--index",
-                "--binary",
-                "--whitespace=error-all",
-                "-",
-                input_bytes=tracked_diff,
-            )
-        _remove_path(source_dir)
-        staging_dir.replace(source_dir)
-    except Exception:
-        _remove_path(staging_dir)
-        raise
-    finally:
-        _remove_path(bundle_path)
-
-    source_head = _git(source_dir, "rev-parse", "HEAD").decode().strip()
-    return {
-        "kind": "independent_git_checkout",
-        "source_dir": str(source_dir),
-        "source_head": source_head,
-        "source_head_matches_expected": source_head == expected_head,
-        "git_directory_is_real": (source_dir / ".git").is_dir(),
-        "uses_external_object_alternates": (source_dir / ".git/objects/info/alternates").is_file(),
-        "tracked_diff_bytes": len(tracked_diff),
-    }
 
 
 def _git_summary() -> dict[str, Any]:
@@ -145,156 +97,33 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _projection_entries() -> list[dict[str, Any]]:
-    entries = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8")).get("projection", [])
-    if not isinstance(entries, list):
-        message = ".config/checks/ci/templates.toml projection must be a list"
-        raise SystemExit(message)
-    return entries
-
-
-def _surface_entries() -> list[dict[str, Any]]:
-    entries = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8")).get("forge_surface", [])
-    if not isinstance(entries, list):
-        message = ".config/checks/ci/templates.toml forge_surface must be a list"
-        raise SystemExit(message)
-    return entries
-
-
-def _provider_entry(provider: str) -> dict[str, Any]:
-    entries = [entry for entry in _projection_entries() if entry.get("provider") == provider]
-    if len(entries) != 1:
-        message = f"expected exactly one CI projection for provider: {provider}"
-        raise SystemExit(message)
-    return entries[0]
-
-
-def _emulator_declaration(entry: dict[str, Any]) -> dict[str, Any]:
-    missing = [field for field in EMULATOR_REQUIRED_FIELDS if field not in entry]
-    if missing:
-        provider = entry.get("provider", "unknown")
-        message = f"CI emulator declaration missing for {provider}: {', '.join(missing)}"
-        raise SystemExit(message)
-    return {field: entry[field] for field in EMULATOR_REQUIRED_FIELDS} | {
-        "emulator_state_dir": entry.get("emulator_state_dir", ""),
-        "forbidden_log_patterns": list(entry.get("forbidden_log_patterns", [])),
-    }
-
-
-def _forge_surface_reports() -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
-    surfaces = []
-    failures = []
-    for entry in _surface_entries():
-        projection = ROOT / str(entry["projection"])
-        required = {str(section) for section in entry.get("required_sections", [])}
-        missing = not projection.is_file()
-        headings = (
-            {
-                line.removeprefix("## ").strip().lower()
-                for line in projection.read_text(encoding="utf-8").splitlines()
-                if line.startswith("## ")
-            }
-            if not missing
-            else set()
-        )
-        absent = sorted(required - headings)
-        if missing:
-            failures.append(
-                {
-                    "provider": str(entry["provider"]),
-                    "reason": f"missing forge surface: {entry['projection']}",
-                }
-            )
-        elif absent:
-            failures.append(
-                {
-                    "provider": str(entry["provider"]),
-                    "reason": f"forge surface sections missing: {', '.join(absent)}",
-                }
-            )
-        surfaces.append(dict(entry) | {"required_sections_present": not absent and not missing})
-    return surfaces, failures
-
-
-def check_templates(*, json_output: bool) -> int:
-    failures: list[dict[str, str]] = []
-    projections: list[dict[str, Any]] = []
-    for entry in _projection_entries():
-        provider = str(entry["provider"])
-        template = ROOT / str(entry["template"])
-        projection = ROOT / str(entry["projection"])
-        try:
-            emulation = _emulator_declaration(entry)
-        except SystemExit as exc:
-            failures.append({"provider": provider, "reason": str(exc)})
-            continue
-        missing = [
-            rel
-            for rel, path in [
-                (str(entry["template"]), template),
-                (str(entry["projection"]), projection),
-            ]
-            if not path.is_file()
-        ]
-        owner_missing = [
-            script
-            for script in entry.get("required_owner_scripts", [])
-            if not (ROOT / str(script)).is_file()
-        ]
-        if missing:
-            reason = f"missing files: {', '.join(missing)}"
-            failures.append({"provider": provider, "reason": reason})
-            continue
-        if owner_missing:
-            reason = f"missing owner scripts: {', '.join(owner_missing)}"
-            failures.append({"provider": provider, "reason": reason})
-        match = template.read_bytes() == projection.read_bytes()
-        if not match:
-            reason = (
-                f"projection drift: {projection.relative_to(ROOT)} != {template.relative_to(ROOT)}"
-            )
-            failures.append({"provider": provider, "reason": reason})
-        projections.append(
-            {
-                "provider": provider,
-                "template": str(template.relative_to(ROOT)),
-                "projection": str(projection.relative_to(ROOT)),
-                "emulation": emulation,
-                "template_sha256": _sha256(template),
-                "projection_sha256": _sha256(projection),
-                "projection_matches_template": match,
-                "required_owner_scripts": list(entry.get("required_owner_scripts", [])),
-                "provider_specific_owner_scripts": dict(
-                    entry.get("provider_specific_owner_scripts", {})
-                ),
-            }
-        )
-    surfaces, surface_failures = _forge_surface_reports()
-    failures.extend(surface_failures)
-    evidence = {
-        "schema_version": 1,
-        "kind": "ethos_ci_template_consistency",
-        "verdict": "block" if failures else "pass",
-        "head": _git_output("rev-parse", "HEAD"),
-        "dirty": bool(_git_output("status", "--short")),
-        "config": str(CONFIG_PATH.relative_to(ROOT)),
-        "generated_at": datetime.now(UTC).isoformat(),
-        "projections": projections,
-        "forge_surfaces": surfaces,
-        "failures": failures,
-    }
-    if json_output:
-        sys.stdout.write(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
-    elif failures:
-        for failure in failures:
-            sys.stderr.write(f"{failure['provider']}: {failure['reason']}\n")
-    return 0 if evidence["verdict"] == "pass" else 1
-
-
 def _run_result(
-    returncode: int | None, *, ok: bool, stdout: str = "", stderr: str = ""
+    returncode: int | None,
+    *,
+    ok: bool,
+    stdout: str = "",
+    stderr: str = "",
+    timed_out: bool = False,
+    log_path: str = "",
 ) -> dict[str, Any]:
-    return {"returncode": returncode, "ok": ok, "stdout": stdout, "stderr": stderr}
+    return {
+        "returncode": returncode,
+        "ok": ok,
+        "stdout": stdout,
+        "stderr": stderr,
+        "timed_out": timed_out,
+        "log_path": log_path,
+    }
+
+
+def _log_tail(path: Path, *, limit: int = 4000) -> str:
+    if not path.is_file():
+        return ""
+    with path.open("rb") as stream:
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(max(0, size - limit))
+        return stream.read().decode(errors="replace")
 
 
 def _run_command(
@@ -304,14 +133,44 @@ def _run_command(
     tool_required: bool = True,
     env: dict[str, str] | None = None,
     cwd: Path = ROOT,
+    log_path: Path,
+    timeout_seconds: int,
 ) -> dict[str, Any]:
     if dry_run or not command:
-        return _run_result(None, ok=True)
+        return _run_result(None, ok=True, log_path=str(log_path))
     if shutil.which(command[0]) is None:
-        return _run_result(127, ok=not tool_required, stderr="tool not found")
-    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, check=False, env=env)
+        return _run_result(
+            127, ok=not tool_required, stderr="tool not found", log_path=str(log_path)
+        )
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("wb") as log:
+        process = subprocess.Popen(command, cwd=cwd, stdout=log, stderr=subprocess.STDOUT, env=env)
+        sys.stderr.write(
+            f"local emulator started: pid={process.pid} timeout={timeout_seconds}s log={log_path}\n"
+        )
+        try:
+            returncode = process.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            detail = f"emulator timed out after {timeout_seconds} seconds"
+            return _run_result(
+                124,
+                ok=False,
+                stdout=_log_tail(log_path),
+                stderr=detail,
+                timed_out=True,
+                log_path=str(log_path),
+            )
     return _run_result(
-        result.returncode, ok=result.returncode == 0, stdout=result.stdout, stderr=result.stderr
+        returncode,
+        ok=returncode == 0,
+        stdout=_log_tail(log_path),
+        log_path=str(log_path),
     )
 
 
@@ -342,8 +201,8 @@ def _docker_context_endpoint() -> str:
         return ""
 
 
-def _emulator_environment(tool: str) -> dict[str, str] | None:
-    if tool != "act" or os.environ.get("DOCKER_HOST"):
+def _emulator_environment() -> dict[str, str] | None:
+    if os.environ.get("DOCKER_HOST"):
         return None
     endpoint = _docker_context_endpoint()
     return os.environ | {"DOCKER_HOST": endpoint} if endpoint else None
@@ -375,6 +234,7 @@ def _emulator_command(
                 *command,
                 "-j",
                 str(emulation["emulator_job"]),
+                "--bind",
                 "--platform",
                 f"self-hosted={emulation['emulator_image']}",
             ]
@@ -382,12 +242,13 @@ def _emulator_command(
     command = [tool]
     runtime_state = state_dir or Path(_emulator_state_dir(provider, emulation))
     if mode == "run":
-        source_dir = str(runtime_state / "source")
-        command.extend(["--cwd", source_dir, "--file", paths["projected_file"]])
+        source_dir = runtime_state / "source"
+        relative_state = os.path.relpath(runtime_state / "state", source_dir)
+        command.extend(["--cwd", ".", "--file", paths["projected_file"]])
         return [
             *command,
             "--state-dir",
-            str(runtime_state / "state"),
+            relative_state,
             str(emulation["emulator_job"]),
         ]
     command.extend(["--file", paths["projected_file"]])
@@ -451,6 +312,12 @@ def _materialization_issue(mode: str, *, dry_run: bool, allow_untracked: bool) -
     )
 
 
+def _prepare_emulator_state(provider: str, state_dir: Path | None) -> None:
+    """Create the provider-owned transient state root before execution."""
+    if provider == "gitlab" and state_dir is not None:
+        (state_dir / "state" / "builds").mkdir(parents=True)
+
+
 def emulator_evidence(
     provider: str,
     *,
@@ -469,6 +336,8 @@ def emulator_evidence(
     }
     kind = f"local_{provider}_emulator"
     output_path = output or ROOT / "build/evidence/local-ci" / provider / f"{mode}.json"
+    run_log_path = output_path.with_suffix(".log")
+    timeout_seconds = int(emulation["emulator_timeout_seconds"])
     started_at, git_start = datetime.now(UTC), _git_summary()
     execution_root = ROOT
     issue, executable = (
@@ -498,13 +367,14 @@ def emulator_evidence(
                 source_root=ROOT,
                 state_dir=materialization_dir,
                 expected_head=str(git_start["head"]),
+                expected_branch=str(git_start["branch"]),
             )
-            if provider == "github":
-                execution_root = Path(str(materialization["source_dir"]))
+            execution_root = Path(str(materialization["source_dir"]))
         except RuntimeError as exc:
             issue = str(exc)
             materialization["issue"] = issue
     command = _emulator_command(provider, paths, emulation, mode, state_dir=state_dir)
+    _prepare_emulator_state(provider, state_dir)
     try:
         run = (
             _run_result(1, ok=False, stderr=issue)
@@ -513,8 +383,10 @@ def emulator_evidence(
                 command,
                 dry_run=dry_run,
                 tool_required=not _mode_is_observation(mode, dry_run=dry_run),
-                env=_emulator_environment(tool),
+                env=_emulator_environment(),
                 cwd=execution_root,
+                log_path=run_log_path,
+                timeout_seconds=timeout_seconds,
             )
         )
     finally:
@@ -523,6 +395,7 @@ def emulator_evidence(
             materialization["source_retained"] = Path(
                 str(materialization.get("source_dir", ""))
             ).exists()
+    run = {"timed_out": False, "log_path": str(run_log_path), **run}
     execution_observed, log_warnings = _admit_execution(
         provider,
         mode,
@@ -539,6 +412,7 @@ def emulator_evidence(
     started_at = started_at.isoformat()
     tool_available, tool_path = executable is not None, executable or ""
     returncode = run["returncode"]
+    timed_out, log_path = bool(run["timed_out"]), str(run["log_path"])
     stdout, stderr = str(run["stdout"])[-4000:], str(run["stderr"])[-4000:]
     values = locals()
     payload: dict[str, Any] = (

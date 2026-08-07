@@ -6,6 +6,11 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"
 
+if ! command -v git >/dev/null 2>&1 || ! ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then
+  apt-get update
+  apt-get install -y --no-install-recommends git libatomic1
+fi
+
 required_uv="0.12.2"
 actual_uv="$(uv --version | awk '{print $2}')"
 if [[ "${actual_uv}" != "${required_uv}" ]]; then

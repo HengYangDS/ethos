@@ -83,7 +83,7 @@ jobs:
         run: uv run --frozen --offline python -m nox -s format_check
       - name: Type policy
         run: >-
-          tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --execute
+          tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --host --execute
           --gate python-types --expect-head "$(git rev-parse HEAD)" --json
       - name: Import boundaries
         run: uv run --frozen --offline python -m nox -s import_boundaries
@@ -105,7 +105,7 @@ jobs:
         run: tools/ci/scripts/run-secrets-scan.sh
       - name: External links
         run: >-
-          tools/ci/scripts/install-lychee.sh && tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
+          tools/ci/scripts/install-lychee.sh && tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --host --execute
           --gate external-links --expect-head "$(git rev-parse HEAD)" --json
       - name: Prose spelling
         run: uv run --frozen --offline python -m nox -s prose

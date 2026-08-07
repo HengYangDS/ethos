@@ -74,7 +74,7 @@ extensions = [".sh", ".bash", ".zsh"]
 shebangs = ["sh", "bash", "zsh"]
 carrier = "Shell"
 owner = ".config/checks/shell/.shellcheckrc"
-execution = "tools/ci/scripts/run-shell-lint.sh"
+execution = "uv run --frozen --offline python -m nox -s shell_lint"
 truth_boundary = "runner adapter scripts"
 budget = [{ category = "shell", comment_prefixes = ["#"] }]
 

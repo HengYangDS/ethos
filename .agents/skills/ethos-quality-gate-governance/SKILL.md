@@ -38,7 +38,7 @@ proof output:
 ```bash
 uv run --frozen --offline python -m nox -s lint
 tools/ci/scripts/run-config-lint.sh
-tools/ci/scripts/run-shell-lint.sh
+uv run --frozen --offline python -m nox -s shell_lint
 uv run --frozen --offline python -m nox -s prose
 ethos prove --gate repository-audit --json
 ethos prove --gate python-types --json

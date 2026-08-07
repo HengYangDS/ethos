@@ -245,7 +245,7 @@ tool = "shellcheck"
 config = ".config/checks/shell/.shellcheckrc"
 executables = ["shellcheck"]
 profile = "product"
-gate = "tools/ci/scripts/run-shell-lint.sh"
+gate = "uv run --frozen --offline python -m nox -s shell_lint"
 
 [[tool]]
 concern = "secrets"

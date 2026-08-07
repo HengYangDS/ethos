@@ -188,6 +188,22 @@ def prose(session: nox.Session) -> None:
 
 
 @nox.session(python=False)
+def shell_lint(session: nox.Session) -> None:
+    """Check every tracked shell carrier with locked cross-platform ShellCheck."""
+    output = cast(
+        "str",
+        session.run("git", "ls-files", "-z", "*.sh", silent=True),
+    )
+    paths = tuple(path for path in output.split("\0") if path and (ROOT / path).is_file())
+    if paths:
+        session.run(
+            _project_script("shellcheck"),
+            "--rcfile=.config/checks/shell/.shellcheckrc",
+            *paths,
+        )
+
+
+@nox.session(python=False)
 def runbook_registry(session: nox.Session) -> None:
     """Verify the runbook projection against its declared commands."""
     if run_runbook_registry():

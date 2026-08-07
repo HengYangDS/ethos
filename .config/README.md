@@ -25,7 +25,7 @@ configuration plane, not a truth center.
   including CI, hook, and quality configurations. OpenSpec YAML remains under
   the pinned OpenSpec validator. CI invokes both owners through their existing
   lifecycle gates.
-- `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `tools/ci/scripts/run-shell-lint.sh` is the runner.
+- `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; the `shell_lint` Nox session resolves the locked cross-platform `shellcheck-py` executable.
 - `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy; `tools/ci/scripts/run-markdown-lint.sh` installs Node (via `install-node.sh`) and runs `markdownlint-cli2`. The gate is lint-only — it never rewrites files — so it is safe over the digest-pinned governance documents; `evidence/`, `openspec/`, generated projections, and local state are excluded by the config.
 - `.config/checks/prose/codespell.toml` owns report-first prose spelling policy;
   the `prose` Nox session runs locked `codespell` without rewriting files.

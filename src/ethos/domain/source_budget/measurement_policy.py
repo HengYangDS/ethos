@@ -76,7 +76,6 @@ class Policy(_Contract):
     terminal: Totals
     cross_check: CrossCheck
     aggregates: dict[str, tuple[str, ...]]
-    exclude: tuple[str, ...] = ()
     immutable_record_roots: tuple[str, ...] = ()
     line_width: Annotated[int, Field(gt=0, le=200)]
     carriers: tuple[Carrier, ...]
@@ -109,11 +108,6 @@ class Policy(_Contract):
             and self.immutable_record_roots != IMMUTABLE_RECORD_ROOTS
         ):
             msg = "source-budget v2 must declare the exact immutable record roots"
-            raise ValueError(msg)
-        if self.contract_version == CURRENT_CONTRACT_VERSION and self.exclude != (
-            "package-lock.json",
-        ):
-            msg = "source-budget v2 must declare the exact generated lock carrier"
             raise ValueError(msg)
         return self
 
@@ -227,7 +221,6 @@ def _policy_contract(payload: dict[str, object]) -> Policy | None:
                 tolerance=tolerance,
             ),
             aggregates=aggregates,
-            exclude=_strings(source.get("exclude", []), empty=True),
             immutable_record_roots=_strings(source.get("immutable_record_roots", []), empty=True),
             line_width=_integer(source.get("line_width")),
             carriers=_raw_carriers(payload),
@@ -283,9 +276,6 @@ def _relaxed(current: Policy, accepted: Policy) -> bool:
             "contract_version": accepted.contract_version,
             "terminal": accepted.terminal,
             "immutable_record_roots": accepted.immutable_record_roots,
-            "exclude": accepted.exclude
-            if accepted.contract_version == LEGACY_CONTRACT_VERSION
-            else current.exclude,
             "line_width": accepted.line_width,
             "cross_check": current.cross_check.model_copy(
                 update={"tolerance": accepted.cross_check.tolerance}

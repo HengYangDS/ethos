@@ -104,13 +104,12 @@ def _repo(
 
 def _migrate_to_v2(selection: Path) -> None:
     record_roots = 'immutable_record_roots = ["evidence/", "openspec/changes/archive/"]'
-    generated_lock = 'exclude = ["package-lock.json"]'
     selection.write_text(
         selection.read_text(encoding="utf-8")
         .replace("contract_version = 1", "contract_version = 2")
         .replace(
             "line_width = 100",
-            f"{generated_lock}\n{record_roots}\nline_width = 100",
+            f"{record_roots}\nline_width = 100",
         ),
         encoding="utf-8",
     )
@@ -231,7 +230,7 @@ def test_v2_report_exposes_implementation_and_record_cross_check_totals(
         monkeypatch,
         tmp_path,
         {
-            ".config/checks/format/selection.toml": 13,
+            ".config/checks/format/selection.toml": 12,
             ".ethos/rules.toml": 1,
             "src/ethos/demo.py": 2,
             "evidence/chronicle/decision.py": 1,
@@ -248,16 +247,26 @@ def test_v2_report_exposes_implementation_and_record_cross_check_totals(
     assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
 
 
+def test_v2_counts_the_generated_lock_as_owned_json_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selection, _source = _repo(tmp_path)
+    package_lock = tmp_path / "package-lock.json"
+    package_lock.write_text('{"lockfileVersion": 3}\n', encoding="utf-8")
+    _migrate_to_v2(selection)
+    _fake_scc(monkeypatch, tmp_path)
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["required_gaps"] == []
+    assert report["inventory"]["category_counts"]["json"] == 1
+    assert report["metrics"]["json"] > 0
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected_gap"),
     [
-        (
-            lambda text: text.replace(
-                'exclude = ["package-lock.json"]',
-                'exclude = ["src/ethos/demo.py"]',
-            ),
-            "source_budget_policy_invalid:shape",
-        ),
         (
             lambda text: text.replace(
                 'paths = ["src/*"]',
@@ -267,7 +276,7 @@ def test_v2_report_exposes_implementation_and_record_cross_check_totals(
         ),
     ],
 )
-def test_v2_migration_rejects_generated_carrier_or_path_scope_drift(
+def test_v2_migration_rejects_path_scope_drift(
     tmp_path: Path,
     mutation,
     expected_gap: str,

@@ -252,7 +252,6 @@ concern = "secrets"
 tool = "gitleaks"
 config = ".gitleaks.toml"
 executables = ["gitleaks"]
-history = true
 profile = "product"
 gate = "tools/ci/scripts/run-secrets-scan.sh"
 

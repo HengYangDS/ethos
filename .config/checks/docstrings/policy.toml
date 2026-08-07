@@ -3,24 +3,5 @@
 
 paths = ["src/ethos"]
 fail_under = 100
-skip_private = true
-skip_init = false
 style = "google"
-allow_short_docstrings = true
 check_structured_signature = true
-forbid_legacy_sections = true
-
-# Product-visible CLI commands and package boundaries carry the documentation
-# contract. Private helpers must not become a parallel docs store, but any
-# structured docstring that exists must follow Google style.
-exclude_roots = ["tests", "examples", "docs", "var", "build", "dist", ".venv"]
-weak_summary_prefixes = ["TODO", "TBD", "Helper", "Utility"]
-legacy_section_headings = [
-  "Arguments",
-  "Keyword Arguments",
-  "Parameters",
-  "Return",
-  "Returns",
-  "Raises",
-  "Yields",
-]

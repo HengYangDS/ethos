@@ -44,7 +44,6 @@ def docstring_coverage_report(root: Path) -> dict[str, object]:
     policy = _load_policy(root)
     symbols = _public_symbols(root, policy)
     style_issues = _style_issues(root, policy)
-    advisory_inventory = _advisory_public_definition_inventory(root, policy)
     public_count = len(symbols)
     documented_count = sum(1 for symbol in symbols if symbol.documented)
     coverage = 100.0 if public_count == 0 else documented_count * 100.0 / public_count
@@ -75,7 +74,6 @@ def docstring_coverage_report(root: Path) -> dict[str, object]:
         "missing": missing,
         "style_issue_count": len(style_issues),
         "style_issues": [issue.to_dict() for issue in style_issues],
-        "advisory_public_definition_inventory": advisory_inventory,
         "required_gaps": gaps,
     }
 
@@ -102,23 +100,12 @@ def _python_files(root: Path, policy: dict[str, Any]) -> list[Path]:
             candidates = sorted(base.rglob("*.py"))
         else:
             candidates = []
-        for path in candidates:
-            rel = path.relative_to(root).as_posix()
-            if not _excluded(rel, policy):
-                files.append(path)
+        files.extend(candidates)
     return files
 
 
 def _public_symbols(root: Path, policy: dict[str, Any]) -> list[PublicSurfaceSymbol]:
     return [symbol for path in _python_files(root, policy) for symbol in _file_symbols(root, path)]
-
-
-def _excluded(rel: str, policy: dict[str, Any]) -> bool:
-    for root in policy.get("exclude_roots", ()):  # policy term, not filesystem root
-        token = str(root).strip("/")
-        if rel == token or rel.startswith(f"{token}/") or f"/{token}/" in rel:
-            return True
-    return False
 
 
 def _file_symbols(root: Path, path: Path) -> list[PublicSurfaceSymbol]:
@@ -157,69 +144,6 @@ def _symbol(
         line=node.lineno,
         documented=bool(ast.get_docstring(node)),
     )
-
-
-def _advisory_public_definition_inventory(root: Path, policy: dict[str, Any]) -> dict[str, object]:
-    """Return non-blocking visibility for broader public-looking definitions."""
-    total = 0
-    documented = 0
-    missing: list[dict[str, object]] = []
-    for path in _python_files(root, policy):
-        rel = path.relative_to(root).as_posix()
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-        module_name = _module_name(rel)
-        total += 1
-        if ast.get_docstring(tree):
-            documented += 1
-        else:
-            missing.append(
-                {
-                    "path": rel,
-                    "qualified_name": module_name or "<module>",
-                    "kind": "module",
-                    "line": 1,
-                }
-            )
-        for node in tree.body:
-            if not isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-                continue
-            if node.name.startswith("_") or _is_overload(node):
-                continue
-            total += 1
-            if ast.get_docstring(node):
-                documented += 1
-            else:
-                missing.append(
-                    {
-                        "path": rel,
-                        "qualified_name": f"{module_name}.{node.name}"
-                        if module_name
-                        else node.name,
-                        "kind": "definition",
-                        "line": node.lineno,
-                    }
-                )
-    return {
-        "scope": "top_level_public_looking_definitions",
-        "blocking": False,
-        "total_count": total,
-        "documented_count": documented,
-        "missing_count": len(missing),
-        "missing_sample": missing[:50],
-    }
-
-
-def _is_overload(node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Return whether a function-like node is a typing overload declaration."""
-    if isinstance(node, ast.ClassDef):
-        return False
-    for decorator in node.decorator_list:
-        target = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(target, ast.Name) and target.id == "overload":
-            return True
-        if isinstance(target, ast.Attribute) and target.attr == "overload":
-            return True
-    return False
 
 
 def _style_issues(root: Path, policy: dict[str, Any]) -> list[DocstringStyleIssue]:

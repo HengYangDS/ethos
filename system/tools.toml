@@ -123,7 +123,7 @@ concern = "markdown_style"
 tool = "markdownlint-cli2"
 config = ".config/checks/markdown/.markdownlint-cli2.yaml"
 profile = "product"
-gate = "tools/ci/scripts/run-markdown-lint.sh"
+gate = "uv run --frozen --offline python -m nox -s markdown_lint"
 
 [[tool]]
 concern = "prose"

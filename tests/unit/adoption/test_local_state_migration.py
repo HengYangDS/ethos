@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.local_state as local_state_module
@@ -26,15 +27,16 @@ _LEASE_INSERT = (
 
 def _initialize_database(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection:
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         connection.commit()
 
 
 def _insert_lease(path: Path, *, lease_id: str, subject: str, owner: str = "agent:test") -> None:
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection:
         connection.execute(_LEASE_INSERT, (lease_id, subject, owner, "2030-01-01T00:00:00Z", "{}"))
+        connection.commit()
 
 
 def test_local_state_migration_moves_checkout_state_into_git_common_dir(tmp_path: Path) -> None:
@@ -75,7 +77,7 @@ def test_local_state_migration_moves_checkout_state_into_git_common_dir(tmp_path
     assert (state_database(repo).parent / "attestations" / "artifacts" / "artifact.json").read_text(
         encoding="utf-8"
     ) == '{"artifact": true}\n'
-    with sqlite3.connect(state_database(repo)) as connection:
+    with closing(sqlite3.connect(state_database(repo))) as connection:
         assert connection.execute("select count(*) from leases").fetchone() == (0,)
 
 
@@ -162,7 +164,7 @@ def test_local_state_migration_merges_existing_target_files_and_disjoint_leases(
     assert (target_database.parent / "attestations" / "proof.json").read_text(
         encoding="utf-8"
     ) == '{"proof": true}\n'
-    with sqlite3.connect(target_database) as connection:
+    with closing(sqlite3.connect(target_database)) as connection:
         assert connection.execute("select subject from leases order by subject").fetchall() == [
             ("work/source",),
             ("work/target",),
@@ -173,9 +175,10 @@ def test_local_state_migration_preserves_non_lease_source_tables(tmp_path: Path)
     repo = init_git_repo(tmp_path / "repo")
     source_database = repo / ".ethos" / "state" / "state.sqlite"
     _initialize_database(source_database)
-    with sqlite3.connect(source_database) as connection:
+    with closing(sqlite3.connect(source_database)) as connection:
         connection.execute("create table legacy_events (id integer primary key, payload text)")
         connection.execute("insert into legacy_events(payload) values ('preserve me')")
+        connection.commit()
     target_database = state_database(repo)
     _initialize_database(target_database)
     _insert_lease(target_database, lease_id="lease:target", subject="work/target")
@@ -188,7 +191,7 @@ def test_local_state_migration_preserves_non_lease_source_tables(tmp_path: Path)
     )
 
     assert result["verdict"] == "pass"
-    with sqlite3.connect(target_database) as connection:
+    with closing(sqlite3.connect(target_database)) as connection:
         assert connection.execute("select payload from legacy_events").fetchall() == [
             ("preserve me",)
         ]
@@ -214,8 +217,9 @@ def test_local_state_migration_rejects_file_or_lease_conflicts(tmp_path: Path) -
 
     assert lease_conflict["verdict"] == "block"
     assert lease_conflict["required_gaps"] == ["local_state_lease_conflict:work/conflict"]
-    with sqlite3.connect(target_database) as connection:
+    with closing(sqlite3.connect(target_database)) as connection:
         connection.execute("delete from leases")
+        connection.commit()
     source_file = legacy / "attestations" / "same.json"
     source_file.parent.mkdir(parents=True)
     source_file.write_text("source\n", encoding="utf-8")

@@ -72,6 +72,28 @@ def _project_script(name: str) -> str:
     return str(PROJECT_SCRIPTS / f"{name}{suffix}")
 
 
+def _run_host_gate(session: nox.Session, gate: str) -> None:
+    """Run one declared gate without repository lifecycle mutation authority."""
+    session.run(
+        sys.executable,
+        "-m",
+        "ethos.cli",
+        "prove",
+        "--host",
+        "--execute",
+        "--gate",
+        gate,
+        "--expect-head",
+        _git_head(session),
+        "--json",
+    )
+
+
+def _git_head(session: nox.Session) -> str:
+    """Return the exact checked-out commit used by a host-only gate."""
+    return cast("str", session.run("git", "rev-parse", "HEAD", silent=True)).strip()
+
+
 @nox.session(python=False, name="format")
 def format_repository(session: nox.Session) -> None:
     """Canonicalize selected mutable carriers before read-only validation."""
@@ -421,46 +443,19 @@ def hosted_observation(session: nox.Session) -> None:
 @nox.session(python=False)
 def docstrings(session: nox.Session) -> None:
     """Run the docstring contract through the repository CLI."""
-    session.run(
-        sys.executable,
-        "-m",
-        "ethos.cli",
-        "prove",
-        "--execute",
-        "--gate",
-        "docstrings",
-        "--json",
-    )
+    _run_host_gate(session, "docstrings")
 
 
 @nox.session(python=False)
 def module_layout(session: nox.Session) -> None:
     """Run the semantic module-layout contract through the repository CLI."""
-    session.run(
-        sys.executable,
-        "-m",
-        "ethos.cli",
-        "prove",
-        "--execute",
-        "--gate",
-        "module-layout",
-        "--json",
-    )
+    _run_host_gate(session, "module-layout")
 
 
 @nox.session(python=False)
 def product_boundary(session: nox.Session) -> None:
     """Run product-boundary admission through the repository CLI."""
-    session.run(
-        sys.executable,
-        "-m",
-        "ethos.cli",
-        "prove",
-        "--execute",
-        "--gate",
-        "product-boundary",
-        "--json",
-    )
+    _run_host_gate(session, "product-boundary")
 
 
 @nox.session(python=False)

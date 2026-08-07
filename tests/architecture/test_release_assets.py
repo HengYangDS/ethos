@@ -414,7 +414,7 @@ def test_docstring_gate_is_owned_by_separated_policy_and_nox_session() -> None:
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
     assert "def docstrings(" in runner
-    assert '"--gate",\n        "docstrings"' in runner
+    assert '_run_host_gate(session, "docstrings")' in runner
     assert policy == {
         "paths": ["src/ethos"],
         "fail_under": 100,
@@ -434,7 +434,7 @@ def test_module_layout_gate_is_owned_by_policy_and_nox_surfaces() -> None:
     precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
     assert "def module_layout(" in runner
-    assert '"--gate",\n        "module-layout"' in runner
+    assert '_run_host_gate(session, "module-layout")' in runner
     assert 'semantic_paths = [".agents/skills", "src/ethos", "tests", "tools"]' in policy
     assert 'package_paths = ["src/ethos"]' in policy
     assert 'concern = "python_module_layout"' in tools

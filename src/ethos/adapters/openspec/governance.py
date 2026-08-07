@@ -7,6 +7,7 @@ from typing import cast
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_facts
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.lifecycle.report import OpenSpecReportContext
@@ -215,18 +216,25 @@ def _openspec_governance_report(
             changed_paths=request.changed_paths,
             requested_change=request.change,
             official_change_complete=completed_change is not None,
-            completion_artifacts=_artifact_output_paths(root, status.get("json", {})),
+            completion_artifacts=artifact_output_paths(root, status.get("json", {})),
         )
         if official_selected is None
         and rows is not None
         and (not rows or (len(rows) == 1 and rows[0]["status"] == "complete"))
         else None
     )
+    transition_facts = archive_transition_facts(
+        root,
+        changed_paths=request.changed_paths,
+        requested_change=request.change,
+    )
     post_archive_scope = (
         lease_bound_archive_scope_report(
             root,
             changed_paths=request.changed_paths,
             requested_change=request.change,
+            official_change_complete=bool(transition_facts),
+            completion_artifacts=transition_facts[1] if transition_facts else (),
         )
         if archive_scope is None and rows == []
         else None
@@ -354,7 +362,8 @@ def _openspec_governance_report(
     }
 
 
-def _artifact_output_paths(root: Path, status: dict[str, Any]) -> tuple[str, ...]:
+def artifact_output_paths(root: Path, status: dict[str, Any]) -> tuple[str, ...]:
+    """Return official artifact outputs as repository-relative paths."""
     paths: list[str] = []
     artifact_paths = status.get("artifactPaths")
     if not isinstance(artifact_paths, dict):

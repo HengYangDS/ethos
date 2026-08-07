@@ -9,6 +9,7 @@ import pytest
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.repository.openspec.audit as openspec_audit
 import ethos.surface.cli.root.proof as proof_cli
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
@@ -33,6 +34,7 @@ from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import conformant_proof_check
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_work_lane
@@ -381,6 +383,24 @@ def test_selected_change_returns_the_only_active_commitment() -> None:
 
     assert rows is not None
     assert selected_change(rows, None) == "active"
+
+
+def test_selected_change_returns_the_only_completed_unarchived_commitment() -> None:
+    rows = official_change_rows(
+        {
+            "changes": [
+                {
+                    "name": "complete",
+                    "completedTasks": 1,
+                    "totalTasks": 1,
+                    "status": "complete",
+                }
+            ]
+        }
+    )
+
+    assert rows is not None
+    assert selected_change(rows, None) == "complete"
 
 
 def test_selected_change_fails_closed_for_multiple_active_commitments() -> None:
@@ -1461,6 +1481,53 @@ def test_prove_does_not_run_nodes_from_a_blocked_plan(monkeypatch, tmp_path: Pat
     )
 
     assert payload["required_gaps"] == ["blocked-plan"]
+
+
+def test_prove_executes_and_persists_the_only_completed_unarchived_change(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    holder = "agent:test:case:completed-proof"
+    fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
+    root = fixture.worktree
+    tasks = root / "openspec/changes/fixture-change/tasks.md"
+    tasks.write_text(tasks.read_text(encoding="utf-8").replace("- [ ]", "- [x]"), encoding="utf-8")
+    git(root, "add", tasks.relative_to(root).as_posix())
+    git(root, "commit", "-m", "complete change")
+    head = git(root, "rev-parse", "HEAD")
+    branch = git(root, "branch", "--show-current")
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    report = work_lane_ref_transition_report(
+        root=root,
+        phase="committed",
+        ref_name=f"refs/heads/{branch}",
+        old_value=git(root, "rev-parse", "HEAD^"),
+        new_value=head,
+    )
+    assert report["state"] == "lease_ref_advanced"
+    plan = proof_plan(root, head=head)
+    checks = [conformant_proof_check(node.id, root, tree_ref=head) for node in plan.nodes]
+    monkeypatch.setattr(
+        proof_cli,
+        "run_plan_checks",
+        lambda **_kwargs: (checks, True),
+    )
+
+    payload = run_ethos(
+        "prove",
+        "--execute",
+        "--expect-head",
+        head,
+        "--root",
+        root.as_posix(),
+        "--json",
+        cwd=root,
+    )
+
+    assert payload["verdict"] == "pass", payload
+    assert payload["state"] == "proven"
+    assert payload["data"]["openspec_lifecycle"]["change"] == "fixture-change"
+    assert payload["data"]["attestation"]["verdict"] == "pass"
 
 
 def test_adopt_cli_applies_the_reviewed_identity_and_plan(tmp_path: Path) -> None:

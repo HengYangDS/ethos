@@ -55,9 +55,7 @@ def test_openspec_runner_is_repository_locked_without_fallbacks(
     assert command[-1].endswith("node_modules/@fission-ai/openspec/bin/openspec.js")
     assert openspec_cli.OFFICIAL_PACKAGE == "@fission-ai/openspec"
     manifest = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-    assert (
-        manifest["devDependencies"][openspec_cli.OFFICIAL_PACKAGE] == openspec_cli.OFFICIAL_VERSION
-    )
+    assert manifest["dependencies"][openspec_cli.OFFICIAL_PACKAGE] == openspec_cli.OFFICIAL_VERSION
     assert openspec_cli.verify_official_cli(command)["verdict"] == "pass"
     assert all(token not in command for token in ("npx", "openspec", "/tmp/untrusted-openspec"))
     assert os.environ["PATH"] == "/tmp/untrusted-path"
@@ -98,7 +96,7 @@ def test_bundled_openspec_runner_requires_the_packaged_lock(
     )
     declaration.write_text(
         json.dumps(
-            {"devDependencies": {openspec_cli.OFFICIAL_PACKAGE: openspec_cli.OFFICIAL_VERSION}}
+            {"dependencies": {openspec_cli.OFFICIAL_PACKAGE: openspec_cli.OFFICIAL_VERSION}}
         ),
         encoding="utf-8",
     )

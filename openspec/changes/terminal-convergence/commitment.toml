@@ -13,6 +13,7 @@ scope = [
   ".githooks/**",
   ".pre-commit-config.yaml",
   "AGENTS.md",
+  "assets/**",
   "CHANGELOG.md",
   "CONTRIBUTING.md",
   "README.md",

@@ -32,9 +32,12 @@ elif ! command -v xz >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1; 
 fi
 
 case "$(uname -m)" in
-  x86_64|amd64) arch="x64" ;;
-  aarch64|arm64) arch="arm64" ;;
-  *) echo "Unsupported node architecture: $(uname -m)" >&2; exit 1 ;;
+  x86_64 | amd64) arch="x64" ;;
+  aarch64 | arm64) arch="arm64" ;;
+  *)
+    echo "Unsupported node architecture: $(uname -m)" >&2
+    exit 1
+    ;;
 esac
 
 if command -v python3 >/dev/null 2>&1; then

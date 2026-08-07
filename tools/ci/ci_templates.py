@@ -371,7 +371,13 @@ def _emulator_command(
             paths["projected_file"],
         ]
         if mode == "run":
-            return [*command, "-j", str(emulation["emulator_job"])]
+            return [
+                *command,
+                "-j",
+                str(emulation["emulator_job"]),
+                "--platform",
+                f"self-hosted={emulation['emulator_image']}",
+            ]
         return [*command, "--list"]
     command = [tool]
     runtime_state = state_dir or Path(_emulator_state_dir(provider, emulation))
@@ -391,6 +397,42 @@ def _emulator_command(
 
 def _mode_is_observation(mode: str, *, dry_run: bool) -> bool:
     return dry_run or mode in {"doctor", "list", "dry-run"}
+
+
+def _execution_observed(provider: str, mode: str, run: dict[str, Any]) -> bool:
+    if mode != "run" or not run["ok"]:
+        return False
+    output = f"{run['stdout']}\n{run['stderr']}"
+    if provider == "github":
+        return "Job succeeded" in output and "Skipping unsupported platform" not in output
+    return bool(output.strip())
+
+
+def _declared_image_digest(image: str) -> str:
+    _, separator, digest = image.partition("@sha256:")
+    return digest if separator else ""
+
+
+def _admit_execution(
+    provider: str,
+    mode: str,
+    *,
+    dry_run: bool,
+    run: dict[str, Any],
+    forbidden_patterns: list[str],
+) -> tuple[bool, list[str]]:
+    combined_log = f"{run['stdout']}\n{run['stderr']}"
+    executed = _execution_observed(provider, mode, run)
+    if mode == "run" and not dry_run and not executed:
+        run["ok"], run["returncode"] = False, int(run["returncode"] or 1)
+    warnings = [
+        pattern
+        for pattern in forbidden_patterns
+        if re.search(str(pattern), combined_log, flags=re.MULTILINE)
+    ]
+    if warnings:
+        run["ok"], run["returncode"] = False, int(run["returncode"] or 1)
+    return executed, warnings
 
 
 def _materialization_issue(mode: str, *, dry_run: bool, allow_untracked: bool) -> str:
@@ -481,14 +523,13 @@ def emulator_evidence(
             materialization["source_retained"] = Path(
                 str(materialization.get("source_dir", ""))
             ).exists()
-    combined_log = f"{run['stdout']}\n{run['stderr']}"
-    log_warnings = [
-        pattern
-        for pattern in emulation["forbidden_log_patterns"]
-        if re.search(str(pattern), combined_log, flags=re.MULTILINE)
-    ]
-    if log_warnings:
-        run["ok"], run["returncode"] = False, int(run["returncode"] or 1)
+    execution_observed, log_warnings = _admit_execution(
+        provider,
+        mode,
+        dry_run=dry_run,
+        run=run,
+        forbidden_patterns=emulation["forbidden_log_patterns"],
+    )
     finished_at, git_end = datetime.now(UTC), _git_summary()
     head_start, head_end = map(str, (git_start["head"], git_end["head"]))
     schema_version, head = 1, head_end
@@ -511,11 +552,12 @@ def emulator_evidence(
                 else "observation",
                 "formal_workflow": paths["projected_file"],
                 "selected_job": str(emulation["emulator_job"]),
+                "executed": execution_observed,
             },
             "execution_environment": {
                 "declared_image": str(emulation["emulator_image"]),
-                "image_digest": "",
-                "image_digest_status": "not_observed",
+                "image_digest": _declared_image_digest(str(emulation["emulator_image"])),
+                "image_digest_status": "declaration_bound",
                 "tool_version": _tool_version(tool),
             },
             "files": {

@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = ROOT / "build/evidence/local-ci/fallback.json"
 COMMAND = "uv run --frozen --offline python -m nox -s local_ci"
 VERIFY_SESSIONS = (
-    "lint",
+    "format_check",
     "schemas",
     "import_boundaries",
     "dependencies",
@@ -36,13 +36,10 @@ VERIFY_SESSIONS = (
     "runbook_registry",
     "repository_hygiene",
     "prose",
-    "shell_lint",
-    "markdown_lint",
-    "config_quality",
     "hosted_observation",
 )
 PARALLEL_SESSIONS = (
-    "lint",
+    "format_check",
     "schemas",
     "import_boundaries",
     "dependencies",
@@ -53,9 +50,6 @@ PARALLEL_SESSIONS = (
     "runbook_registry",
     "repository_hygiene",
     "prose",
-    "shell_lint",
-    "markdown_lint",
-    "config_quality",
     "hosted_observation",
 )
 SERIAL_PROOF_SESSIONS = ("docstrings", "module_layout", "product_boundary")

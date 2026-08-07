@@ -89,7 +89,7 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
             (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
             (
                 isinstance(root, dict)
-                and root.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+                and root.get("dependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
                 "openspec_root_pin_mismatch",
             ),
             (
@@ -110,12 +110,12 @@ def verify_official_cli(command: tuple[str, ...]) -> dict[str, object]:
             (package.get("name") == OFFICIAL_PACKAGE, "openspec_package_identity_mismatch"),
             (package.get("version") == OFFICIAL_VERSION, "openspec_package_version_mismatch"),
             (
-                declaration.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+                declaration.get("dependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
                 "openspec_distribution_pin_mismatch",
             ),
             (
                 isinstance(root, dict)
-                and root.get("devDependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
+                and root.get("dependencies", {}).get(OFFICIAL_PACKAGE) == OFFICIAL_VERSION,
                 "openspec_root_pin_mismatch",
             ),
             (
@@ -242,7 +242,7 @@ def _json_object(path: Path) -> dict[str, Any]:
 
 def _declared_version(path: Path) -> str:
     declaration = _json_object(path)
-    dependencies = declaration.get("devDependencies", {})
+    dependencies = declaration.get("dependencies", {})
     return str(dependencies.get(OFFICIAL_PACKAGE) or "") if isinstance(dependencies, dict) else ""
 
 

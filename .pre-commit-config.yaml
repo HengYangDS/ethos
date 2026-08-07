@@ -34,7 +34,7 @@ repos:
         pass_filenames: false
       - id: shell-lint
         name: shell lint
-        entry: tools/ci/scripts/run-shell-lint.sh
+        entry: uv run --frozen --offline python -m nox -s shell_lint
         language: system
         types: [shell]
-        pass_filenames: true
+        pass_filenames: false

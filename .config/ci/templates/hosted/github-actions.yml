@@ -98,7 +98,7 @@ jobs:
       - name: Product boundary
         run: uv run --frozen --offline python -m nox -s product_boundary
       - name: Shell lint
-        run: tools/ci/scripts/run-shell-lint.sh
+        run: uv run --frozen --offline python -m nox -s shell_lint
       - name: Docstring coverage
         run: uv run --frozen --offline python -m nox -s docstrings
       - name: Module layout

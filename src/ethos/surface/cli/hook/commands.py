@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -18,8 +19,9 @@ from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.repo.config_effects import set_local_config
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.hook_runtime import execute_hook
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
@@ -168,7 +170,7 @@ def pre_push(
 
     Pushing to an accepted/candidate ref requires an executed proof bound to the
     pushed HEAD — the same precondition `land` enforces, now bound to the push tail so
-    a raw `git push` cannot move a protected ref unproven. Called by .githooks/pre-push.
+    a raw `git push` cannot move a protected ref unproven. Called by the installed pre-push hook.
     """
     repo = resolve_root(options.root)
     reconciliation = ReconciliationObservation(
@@ -315,52 +317,45 @@ def ref_transaction(
     emit(result, json_output=json_output, enforce=True)
 
 
+@hook_app.command(name="run")
+def run_hook(
+    name: str,
+    arguments: Annotated[tuple[str, ...], Parameter(consume_multiple=True)] = (),
+) -> None:
+    """Execute one installed Git hook through the Python semantic owner."""
+    if name not in {"pre-commit", "pre-push", "reference-transaction"}:
+        raise SystemExit(1)
+    repo = resolve_root(None)
+    raise SystemExit(execute_hook(repo, name, arguments, stdin=sys.stdin))
+
+
 @hook_app.command
 def install(
     *,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Install the write-admission git hooks by wiring core.hooksPath to .githooks."""
+    """Install worktree-local Git hook launchers bound to this exact ETHOS runtime."""
     repo = resolve_root(root)
-    scripts = (
-        ".githooks/pre-commit",
-        ".githooks/pre-push",
-        ".githooks/reference-transaction",
-    )
-    gaps: list[str] = [
-        f"hook_script_missing:{path}" for path in scripts if not (repo / path).exists()
-    ]
-    attestation = None
-    if not gaps:
-        try:
-            attestation = set_local_config(
-                repo, {"core.hooksPath": ".githooks", "gc.packRefs": "false"}
-            )
-        except ValueError as error:
-            gaps.append(f"hook_config_write_failed:{error}")
-    wired = attestation is not None
+    try:
+        runtime = install_hook_launchers(repo)
+    except (OSError, ValueError) as error:
+        gaps = (f"hook_install_failed:{error}",)
+        runtime = {"hooks_path": "", "python": "", "scripts": []}
+    else:
+        gaps = ()
     result = EthosResult(
         command="hook install",
         verdict="block" if gaps else "pass",
-        state="installed" if not gaps else "blocked",
+        state="blocked" if gaps else "installed",
         summary={
-            "hooks_path": ".githooks",
-            "wired": wired,
-            "pack_refs_disabled": wired,
+            "hooks_path": runtime["hooks_path"],
+            "python": runtime["python"],
+            "wired": not gaps,
+            "pack_refs_disabled": not gaps,
         },
-        required_gaps=tuple(gaps),
-        next_action=(
-            "git commit — the pre-commit + pre-push admission gates are now active"
-            if not gaps
-            else ""
-        ),
-        data={
-            "hooks_path": ".githooks",
-            "hook_scripts": list(scripts[:2]),
-            "wired": wired,
-            "pack_refs_disabled": wired,
-            "attestation": attestation.model_dump(mode="json") if attestation else {},
-        },
+        required_gaps=gaps,
+        next_action=("git commit — portable admission hooks are active" if not gaps else ""),
+        data=runtime,
     )
     emit(result, json_output=json_output, enforce=True)

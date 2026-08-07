@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import sqlite3
-import sys
 from contextlib import closing
 from copy import deepcopy
 from datetime import datetime
@@ -22,6 +20,7 @@ from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
@@ -34,13 +33,11 @@ from tests.support.governed_repository import start_adopted_work_lane
 def _install_reference_transaction_hook(
     repository: Path,
     invocation_root: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    _monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    hooks = repository / ".githooks"
-    hooks.mkdir(parents=True, exist_ok=True)
-    source = Path(__file__).resolve().parents[4] / ".githooks/reference-transaction"
-    hook = Path(shutil.copy(source, hooks / "reference-transaction"))
-    hook.chmod(0o755)
+    install_hook_launchers(repository)
+    if invocation_root != repository:
+        install_hook_launchers(invocation_root)
     exclude = Path(
         git(
             repository,
@@ -52,12 +49,6 @@ def _install_reference_transaction_hook(
     )
     exclude.parent.mkdir(parents=True, exist_ok=True)
     exclude.write_text("tools/\n", encoding="utf-8")
-    runtime = invocation_root / "tools/ci/scripts/with-python-runtime.sh"
-    runtime.parent.mkdir(parents=True, exist_ok=True)
-    runtime.write_text('#!/bin/sh\n[ "$1" = "--" ] && shift\nexec "$@"\n', encoding="utf-8")
-    runtime.chmod(0o755)
-    git(repository, "config", "core.hooksPath", hooks.as_posix())
-    monkeypatch.setenv("ETHOS_PYTHON", sys.executable)
 
 
 def _bind_old_permissions(
@@ -77,7 +68,7 @@ def _bind_old_permissions(
         encoding="utf-8",
     )
     git(worktree, "add", carrier.as_posix())
-    git(worktree, "config", "--unset-all", "core.hooksPath")
+    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
     git(
         worktree,
         "-c",
@@ -88,7 +79,7 @@ def _bind_old_permissions(
         "-m",
         "bind minimal fixture commitment",
     )
-    git(worktree, "config", "core.hooksPath", (worktree / ".githooks").as_posix())
+    install_hook_launchers(worktree)
     old_head = git(worktree, "rev-parse", "HEAD")
     binding = exact_commitment_fields(worktree, head=old_head, carrier=carrier.as_posix())
     _replace_lease_payload(
@@ -125,7 +116,7 @@ def _case(
     if old_permissions != ("git.ref.compare-and-swap",):
         old_head, lease = _bind_old_permissions(worktree, branch, carrier, old_permissions)
     if archive_to_active:
-        git(worktree, "config", "--unset-all", "core.hooksPath")
+        git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
         archived_carrier = Path(
             "openspec/changes/archive/2026-08-06-fixture-change/commitment.toml"
         )
@@ -157,7 +148,7 @@ def _case(
         old_head = head
         carrier = archived_carrier
         commitment = archived
-        git(worktree, "config", "core.hooksPath", (worktree / ".githooks").as_posix())
+        install_hook_launchers(worktree)
     target_carrier = (
         Path("openspec/changes/fixture-change/commitment.toml")
         if archive_to_active
@@ -502,7 +493,7 @@ def test_commitment_rebind_recovers_after_hook_advanced_only_the_lease_head(
     assert isinstance(branch, str)
     assert isinstance(lease, dict)
     assert isinstance(request, CommitmentRebindRequest)
-    git(worktree, "config", "--unset-all", "core.hooksPath")
+    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
     git(worktree, "update-ref", f"refs/heads/{branch}", request.target_commit, request.expect_head)
     _replace_lease_payload(
         worktree,
@@ -528,7 +519,7 @@ def test_commitment_rebind_projects_partial_target_recovery_before_apply(
     assert isinstance(worktree, Path)
     assert isinstance(branch, str)
     assert isinstance(request, CommitmentRebindRequest)
-    git(worktree, "config", "--unset-all", "core.hooksPath")
+    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
     git(worktree, "update-ref", f"refs/heads/{branch}", request.target_commit, request.expect_head)
     _replace_lease_payload(
         worktree,
@@ -568,25 +559,20 @@ def test_commitment_rebind_retries_prepared_intent_when_git_cas_never_ran(
         .read_text(encoding="utf-8")
         .replace(
             "#!/bin/sh\n",
-            '#!/bin/sh\n[ "$1" = "aborted" ] && exit 0\n',
-            1,
-        )
-        .replace(
-            "done\nexit 0\n",
-            'done\n[ "$phase" = "prepared" ] && exit 1\nexit 0\n',
+            '#!/bin/sh\n[ "$1" = "prepared" ] && exit 1\n[ "$1" = "aborted" ] && exit 0\n',
             1,
         ),
         encoding="utf-8",
     )
     hook.chmod(0o755)
-    git(worktree, "config", "core.hooksPath", injected_hooks.as_posix())
+    git(worktree, "config", "--worktree", "core.hooksPath", injected_hooks.as_posix())
 
     interrupted = execute_commitment_rebind(root=worktree, request=request)
 
     assert interrupted["required_gaps"] == ["git_effect_cas_rejected"]
     assert git(worktree, "rev-parse", "HEAD") == request.expect_head
     assert not list(ref_intent_dir(worktree).glob("*.json"))
-    git(worktree, "config", "core.hooksPath", original_hooks.as_posix())
+    git(worktree, "config", "--worktree", "core.hooksPath", original_hooks.as_posix())
     monkeypatch.setattr(rebind, "execute_git_effect", execute)
 
     applied = execute_commitment_rebind(root=worktree, request=request)
@@ -641,7 +627,7 @@ def test_commitment_rebind_rechecks_terminal_state_before_attestation(
     issue = rebind.issue_rebind_attestation
 
     def drift_before_issue(*args, **kwargs):
-        git(worktree, "config", "--unset-all", "core.hooksPath")
+        git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
         if drift == "ref":
             git(worktree, "update-ref", f"refs/heads/{branch}", request.expect_head)
         else:
@@ -726,7 +712,7 @@ def test_commitment_rebind_recognition_rejects_ref_drift(
     assert isinstance(request, CommitmentRebindRequest)
     completed = execute_commitment_rebind(root=worktree, request=request)
     assert completed["verdict"] == "pass"
-    git(worktree, "config", "--unset-all", "core.hooksPath")
+    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
     git(worktree, "update-ref", f"refs/heads/{request.branch}", request.expect_head)
 
     recognized = execute_commitment_rebind(root=worktree, request=request)

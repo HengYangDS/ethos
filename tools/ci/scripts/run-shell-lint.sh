@@ -15,7 +15,7 @@ shell_files=("$@")
 if (($# == 0)); then
   while IFS= read -r target; do
     [[ -f "${target}" ]] && shell_files+=("${target}")
-  done < <(git ls-files '*.sh' '.githooks/*')
+  done < <(git ls-files '*.sh')
 fi
 (( ${#shell_files[@]} )) || exit 0
 

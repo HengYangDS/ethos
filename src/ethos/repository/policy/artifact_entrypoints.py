@@ -29,7 +29,6 @@ _ENTRYPOINT_GLOB_PATTERNS = (
     ".config/ci/**/*.yaml",
     ".config/ci/**/*.toml",
     "tools/ci/scripts/*",
-    ".githooks/*",
 )
 _DENIED_ENTRYPOINT_CACHE_TOKENS = (
     ".import_linter_cache",
@@ -177,7 +176,7 @@ def _denied_home_findings(rel: str, active_text: str) -> list[dict[str, str]]:
 
 
 def _tool_route_findings(rel: str, active: str, full_text: str) -> list[dict[str, str]]:
-    if rel != ".gitlab-ci.yml" and not rel.startswith(("tools/", ".github/", ".githooks/")):
+    if rel != ".gitlab-ci.yml" and not rel.startswith(("tools/", ".github/")):
         return _pytest_config_findings(rel, active)
     producer_text = "\n".join(line for line in active.splitlines() if not _is_cleanup_line(line))
     return [

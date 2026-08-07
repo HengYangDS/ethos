@@ -21,6 +21,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.repository.hooks import hook_runtime_binding
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
@@ -337,6 +338,8 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(tmp_p
     assert report["base"] == "candidate/dev"
     assert report["base_head"] == base_head
     assert report["path"] == target.resolve().as_posix()
+    assert report["hook_runtime"] == hook_runtime_binding(target)
+    assert report["hook_runtime"]["required_gaps"] == []
     assert report["holder_ref"] == _HOLDER
     assert "claim_id" not in report
     assert (

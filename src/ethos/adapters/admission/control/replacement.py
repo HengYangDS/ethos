@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 _CONTROL_PREFIXES = (
     ".ethos/",
-    ".githooks/",
     ".config/checks/",
     "system/",
     "tools/ci/",

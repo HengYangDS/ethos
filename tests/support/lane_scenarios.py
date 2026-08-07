@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from tests.support.governed_repository import commit_active_commitment
 from tests.support.governed_repository import exact_lease
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 
 def add_candidate_worktree(repo: Path, path: Path) -> Path:
     git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
+    install_hook_launchers(path)
     return path
 
 

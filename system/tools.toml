@@ -168,6 +168,7 @@ config = "tools/ci/scripts/download-file.sh"
 checksums = "pinned installer SHA-256 values"
 executables = [
   "apt-get",
+  "bash",
   "cp",
   "curl",
   "grep",

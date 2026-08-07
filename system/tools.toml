@@ -130,7 +130,7 @@ concern = "prose"
 tool = "codespell"
 config = ".config/checks/prose/codespell.toml"
 profile = "product"
-gate = "tools/ci/scripts/run-prose-check.sh"
+gate = "uv run --frozen --offline python -m nox -s prose"
 
 [[tool]]
 concern = "yaml"

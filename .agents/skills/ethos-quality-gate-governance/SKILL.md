@@ -36,13 +36,14 @@ Apply the lifecycle skill's failure-escalation rule, then use owner scripts and
 proof output:
 
 ```bash
-tools/ci/scripts/run-python-lint.sh
+uv run --frozen --offline python -m nox -s lint
 tools/ci/scripts/run-config-lint.sh
 tools/ci/scripts/run-shell-lint.sh
+uv run --frozen --offline python -m nox -s prose
 ethos prove --gate repository-audit --json
 ethos prove --gate python-types --json
 ethos prove --gate docstrings --json
-# After `tools/ci/scripts/run-python-tests.sh` has produced coverage.xml:
+# After the Nox `tests` session has produced current coverage evidence:
 ethos prove --gate unit-architecture --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ```

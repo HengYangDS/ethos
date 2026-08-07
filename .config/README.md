@@ -28,7 +28,7 @@ configuration plane, not a truth center.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `tools/ci/scripts/run-shell-lint.sh` is the runner.
 - `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy; `tools/ci/scripts/run-markdown-lint.sh` installs Node (via `install-node.sh`) and runs `markdownlint-cli2`. The gate is lint-only — it never rewrites files — so it is safe over the digest-pinned governance documents; `evidence/`, `openspec/`, generated projections, and local state are excluded by the config.
 - `.config/checks/prose/codespell.toml` owns report-first prose spelling policy;
-  `tools/ci/scripts/run-prose-check.sh` runs `codespell` without rewriting files.
+  the `prose` Nox session runs locked `codespell` without rewriting files.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy; `tools/ci/scripts/run-dependency-hygiene.sh` runs `deptry` per Python distribution so package metadata is checked without treating the workspace root as a runtime package.
 - `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `uv run --frozen --offline python -m nox -s schemas` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
 - `.config/checks/security/audit.toml` owns the Python vulnerability audit boundary. `tools/ci/scripts/run-python-vulnerability-audit.sh` runs native `uv audit --frozen` against `uv.lock` and records OSV-backed local owner-gate evidence; image/package scanning, hosted CI success, and remote publication remain explicitly unclaimed.

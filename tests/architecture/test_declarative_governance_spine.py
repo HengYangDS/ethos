@@ -324,11 +324,12 @@ def test_wheel_resources_are_native_projections_with_one_runtime_supply_hook() -
     sdist = build["targets"]["sdist"]["include"]
 
     assert build["targets"]["wheel"]["hooks"]["custom"] == {
-        "path": "src/ethos/packaging/openspec_runtime_hook.py"
+        "path": "tools/ci/openspec_runtime_hook.py"
     }
     assert "/src" in sdist
     assert "/system" in sdist
     assert "/package-lock.json" in sdist
+    assert "/tools/ci/openspec_runtime_hook.py" in sdist
     assert "force-include" not in build["targets"]["sdist"]
     for canonical, resource in WHEEL_PROJECTIONS:
         assert (ROOT / canonical).is_file()
@@ -336,7 +337,7 @@ def test_wheel_resources_are_native_projections_with_one_runtime_supply_hook() -
         assert wheel[canonical] == f"ethos/data/{resource}"
     assert wheel["system/schemas/kernel"] == "ethos/data/schemas/kernel"
     assert wheel["package-lock.json"] == "ethos/data/supply-chain/package-lock.json"
-    hook = _read("src/ethos/packaging/openspec_runtime_hook.py")
+    hook = _read("tools/ci/openspec_runtime_hook.py")
     assert '"--omit=dev"' in hook
     assert '"--offline"' in hook
     assert '"--workspaces=false"' in hook

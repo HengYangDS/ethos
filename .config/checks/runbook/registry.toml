@@ -11,13 +11,13 @@ evidence = "JSON stdout"
 
 [[entry]]
 id = "RUN-GITHUB-EMULATOR"
-command = "ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-github-local-emulator.sh doctor"
+command = "uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence github --mode doctor --dry-run"
 category = "provider-emulator"
 evidence = "build/evidence/local-ci/github/doctor.json"
 
 [[entry]]
 id = "RUN-GITLAB-EMULATOR"
-command = "ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-gitlab-local-emulator.sh doctor"
+command = "uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence gitlab --mode doctor --dry-run"
 category = "provider-emulator"
 evidence = "build/evidence/local-ci/gitlab/doctor.json"
 

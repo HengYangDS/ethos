@@ -21,8 +21,7 @@ def main() -> int:
         failures.append({"id": "registry", "reason": f"missing {config['registry']}"})
     for entry in entries:
         command = str(entry["command"])
-        parts = command.split()
-        executable = parts[1] if parts[0].startswith("ETHOS_LOCAL_EMULATOR_DRY_RUN=1") else parts[0]
+        executable = command.split(maxsplit=1)[0]
         if executable.startswith("tools/") and not (ROOT / executable).is_file():
             failures.append({"id": str(entry["id"]), "reason": f"missing command {executable}"})
         failures.extend(

@@ -138,6 +138,15 @@ post-commit/pre-rebind state; different holders, stale observations, drift, and
 unrelated replay remain fail closed. No bootstrap exception, unarchive path,
 manual state edit, or second scope-write path exists.
 
+An existing owned lane replaces an immutable Commitment through
+`ethos lane rebind-commitment`. Rebind authority belongs to that public
+operation's exact same-holder Lease transition, not to a permission that the old
+Commitment must anticipate. The operation can therefore introduce a newly
+required permission without a bootstrap cycle, while remaining bound to one
+branch ref, old/new Commitment digests, carrier bytes, Lease generation,
+HEAD/tree/index, overlay, and target commit. The authority is not inherited by
+ordinary Git effects and any coordinate drift fails closed.
+
 ## Optional Declarations
 
 The same typed contract can reference existing repository roots, proof gate

@@ -424,17 +424,31 @@ def _is_commitment_rebind_authority(effect: GitEffect, plan: TransitionPlan) -> 
         return False
     values = plan.facts.get("values")
     facts = values if isinstance(values, Mapping) else {}
-    required = {
-        "lease_generation",
-        "lease_successor",
-        "new_commitment_path",
-        "new_commitment_bytes_sha256",
-        "new_commitment_digest",
-    }
-    policy_bound = all(
-        plan.policy.get(name) for name in ("old_commitment_digest", "new_commitment_digest")
+    generation = facts.get("lease_generation")
+    successor = facts.get("lease_successor")
+    if not isinstance(generation, Mapping) or not isinstance(successor, Mapping):
+        return False
+    updates = tuple(effect.updates.items())
+    if len(updates) != 1:
+        return False
+    ref, update = updates[0]
+    expected_branch = f"refs/heads/{generation.get('branch') or ''}"
+    new_digest = str(facts.get("new_commitment_digest") or "")
+    return (
+        ref == expected_branch
+        and update.expected == generation.get("expected_head")
+        and update.desired == successor.get("expected_head")
+        and successor.get("epoch") == int(generation.get("epoch") or 0) + 1
+        and successor.get("holder_ref") == generation.get("holder_ref")
+        and successor.get("lease_id") == generation.get("lease_id")
+        and successor.get("lane_incarnation_id") == generation.get("lane_incarnation_id")
+        and facts.get("new_commitment_path") == successor.get("base_commitment_path")
+        and facts.get("new_commitment_bytes_sha256")
+        == successor.get("base_commitment_bytes_sha256")
+        and new_digest == successor.get("base_commitment_digest")
+        and plan.policy.get("old_commitment_digest") == generation.get("base_commitment_digest")
+        and plan.policy.get("new_commitment_digest") == new_digest
     )
-    return len(effect.updates) == 1 and required <= set(facts) and policy_bound
 
 
 def _require_plan_prestate(

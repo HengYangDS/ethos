@@ -15,7 +15,9 @@ from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_environment
 from ethos.adapters.openspec.lifecycle.archive_transition import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
 from ethos.adapters.repo.commitment import load_commitment
@@ -355,6 +357,24 @@ def _apply_archive(
     *,
     collision: _ArchiveCollision | None = None,
 ) -> dict[str, object]:
+    governance = openspec_governance_report(repo, change=change, lifecycle=True)
+    lifecycle = governance.get("lifecycle")
+    rows = lifecycle.get("changes", []) if isinstance(lifecycle, dict) else []
+    official_complete = (
+        isinstance(rows, list)
+        and len(rows) == 1
+        and isinstance(rows[0], dict)
+        and rows[0].get("name") == change
+        and isinstance(rows[0].get("progress"), dict)
+        and rows[0]["progress"].get("remaining") == 0
+    )
+    commands = governance.get("commands")
+    status = commands.get("status", {}) if isinstance(commands, dict) else {}
+    status_payload = status.get("json", {}) if isinstance(status, dict) else {}
+    completion_artifacts = artifact_output_paths(
+        repo,
+        status_payload if isinstance(status_payload, dict) else {},
+    )
     command = openspec_cli.openspec_base_command()
     if command is None:
         return _report(branch, head, "blocked", ["openspec_official_cli_missing"], change=change)
@@ -382,6 +402,8 @@ def _apply_archive(
         repo,
         changed_paths=changed,
         requested_change=change,
+        official_change_complete=official_complete,
+        completion_artifacts=completion_artifacts,
         preserved_archive=(collision.path, collision.preserved_path) if collision else None,
     )
     if (
@@ -406,6 +428,14 @@ def _apply_archive(
         repo,
         previous=head,
         message=f"archive OpenSpec change {change}",
+        environment=archive_transition_environment(
+            repo,
+            change=change,
+            head=head,
+            changed_paths=changed,
+            official_change_complete=official_complete,
+            completion_artifacts=completion_artifacts,
+        ),
     )
     if archive_commit["verdict"] != "pass":
         compensate_git_worktree(repo, head=head, untracked_path=archive_path)

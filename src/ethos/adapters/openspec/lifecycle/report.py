@@ -61,19 +61,22 @@ def official_change_rows(list_payload: dict[str, Any]) -> list[dict[str, str]] |
 
 
 def selected_change(rows: list[dict[str, str]], requested: str | None) -> str | None:
-    """Select one explicit or unambiguous active OpenSpec change."""
+    """Select one explicit or unambiguous unarchived OpenSpec change."""
     names = {item["name"] for item in rows}
     if requested is not None:
         return requested if requested in names else None
     active = [item["name"] for item in rows if item["status"] in _ACTIVE_STATUSES]
-    return active[0] if len(active) == 1 else None
+    if len(active) == 1:
+        return active[0]
+    unarchived = [item["name"] for item in rows]
+    return unarchived[0] if not active and len(unarchived) == 1 else None
 
 
 def selection_gaps(rows: list[dict[str, str]], requested: str | None) -> list[str]:
     selected = selected_change(rows, requested)
     if selected is not None:
         return []
-    names = [item["name"] for item in rows if item["status"] in _ACTIVE_STATUSES]
+    names = [item["name"] for item in rows]
     if requested is not None:
         return [f"openspec_requested_change_missing:{requested}"]
     if len(names) > 1:

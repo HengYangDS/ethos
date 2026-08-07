@@ -167,9 +167,7 @@ ethos:markdown:
   <<: *python_setup
   stage: quality
   script:
-    # Markdown lint via markdownlint-cli2 (Node CLI installed by the runner on
-    # the layer-cached python:3.12 image). Policy: .config/checks/markdown/.
-    - tools/ci/scripts/run-markdown-lint.sh
+    - uv run --frozen --offline python -m nox -s markdown_lint
 
 ethos:prose:
   <<: *python_setup

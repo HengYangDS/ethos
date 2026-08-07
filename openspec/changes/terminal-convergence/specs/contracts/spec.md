@@ -103,6 +103,18 @@ truth or requiring one language, provider, agent host, or carrier layout.
 - **THEN** conformance verifies the same schema and protocol version, validation
   and error taxonomy, permissions, deterministic serialization and digest,
   offline behavior, verdict, and semantic result
+
+#### Scenario: supported hosts execute the same contract
+
+- **WHEN** an isolated wheel executes the conformance kit on Windows, macOS, or
+  Linux with Python 3.12, 3.13, or 3.14
+- **THEN** CLI, Python SDK, subprocess JSON, Git hooks, OpenSpec, build, test,
+  and release surfaces SHALL preserve the same portable semantics
+- **AND** native path, temporary-directory, executable, encoding, line-ending,
+  and subprocess differences SHALL be owned by platform adapters rather than
+  shell assumptions or host-specific literals
+- **AND** static source inspection, cross-compilation, or one-host emulation
+  SHALL NOT count as host conformance evidence
 - **AND** unknown versions, fields, permissions, or required facts fail closed
   without compatibility inference
 - **AND** transport metadata, streaming, discovery, authentication, and session

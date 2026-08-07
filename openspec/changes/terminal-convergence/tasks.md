@@ -348,7 +348,12 @@ are proved homomorphic projections of one portable policy.
   isolation, native layout, complete pinned-OpenSpec lifecycle, and clean
   uninstall without a mandatory forge provider. Prove first-hour UX and DX for
   CLI, Python SDK, subprocess JSON, generated scaffolds/projections, diagnostics,
-  and recovery without cloning ETHOS's repository shape into adopters.
+  and recovery without cloning ETHOS's repository shape into adopters. Treat
+  Windows, macOS, and Linux as first-class hosts: execute the same conformance
+  surface from isolated wheels on Python 3.12, 3.13, and 3.14; prove native path,
+  temporary-directory, executable, encoding, line-ending, subprocess, Git-hook,
+  OpenSpec, build, test, and release behavior; and reject static source checks or
+  one-host emulation as platform-completion evidence.
 - [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
   Python SDK, subprocess JSON, permissions, determinism, authority isolation,
   versioning, errors, offline behavior, and optional MCP/A2A-style adapters.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import shutil
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -87,7 +88,7 @@ def _source_invalid(source: Path) -> bool:
 def _database_rows(path: Path) -> tuple[LeaseRow, ...]:
     if not path.is_file() or path.stat().st_size == 0:
         return ()
-    with sqlite3.connect(read_only_state_uri(path), uri=True) as connection:
+    with closing(sqlite3.connect(read_only_state_uri(path), uri=True)) as connection:
         if not validate_current_lease_schema(connection):
             return ()
         return tuple(
@@ -99,7 +100,7 @@ def _database_rows(path: Path) -> tuple[LeaseRow, ...]:
 def _database_digest(path: Path) -> str:
     if not path.is_file() or path.stat().st_size == 0:
         return ""
-    with sqlite3.connect(read_only_state_uri(path), uri=True) as connection:
+    with closing(sqlite3.connect(read_only_state_uri(path), uri=True)) as connection:
         dump = "\n".join(connection.iterdump())
     return hashlib.sha256(dump.encode()).hexdigest()
 
@@ -198,11 +199,11 @@ def _merge_source_files(plan: _MigrationPlan, staging: Path) -> None:
 def _write_database(path: Path, source: Path, rows: tuple[LeaseRow, ...]) -> None:
     if source.is_file() and source.stat().st_size:
         with (
-            sqlite3.connect(read_only_state_uri(source), uri=True) as origin,
-            sqlite3.connect(path) as destination,
+            closing(sqlite3.connect(read_only_state_uri(source), uri=True)) as origin,
+            closing(sqlite3.connect(path)) as destination,
         ):
             origin.backup(destination)
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection:
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         connection.execute("delete from leases")

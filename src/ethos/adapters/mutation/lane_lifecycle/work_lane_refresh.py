@@ -21,6 +21,7 @@ from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -31,6 +32,8 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ethos.contracts.semantic import Attestation
 
 
@@ -219,21 +222,24 @@ def _refresh_work_lane(
             detached_branch=branch,
         )
     except (OSError, ValueError) as error:
-        restore_gap = _restore_pre_refresh_checkout(root, branch, current_head)
-        return _report(
-            context,
-            current_tracked_head(root),
-            "blocked",
-            [
-                "refresh_base_worktree_attach_failed"
-                if "attachment" in str(error)
-                else "refresh_base_snapshot_stale:work_lane",
-                *restore_gap,
-            ],
-            plan_digest=plan.digest,
-            previous_head=current_head,
-            stderr=str(error),
-        )
+        recovered = _recover_applied_refresh(root, plan, attach, branch, rebased_head)
+        if recovered is None:
+            restore_gap = _restore_pre_refresh_checkout(root, branch, current_head)
+            return _report(
+                context,
+                current_tracked_head(root),
+                "blocked",
+                [
+                    "refresh_base_worktree_attach_failed"
+                    if "attachment" in str(error)
+                    else "refresh_base_snapshot_stale:work_lane",
+                    *restore_gap,
+                ],
+                plan_digest=plan.digest,
+                previous_head=current_head,
+                stderr=str(error),
+            )
+        ref_attestation = recovered
     refreshed_head = current_tracked_head(root)
     post_gaps = [
         gap
@@ -269,6 +275,27 @@ def _refresh_work_lane(
     )
 
 
+def _recover_applied_refresh(
+    root: Path,
+    plan: TransitionPlan,
+    attach: Callable[[], None],
+    branch: str,
+    head: str,
+) -> Attestation | None:
+    if ref_head(root, branch) != head:
+        return None
+    try:
+        return execute_git_effect(
+            root,
+            plan,
+            issuer=_actor(),
+            projection=attach,
+            detached_branch=branch,
+        )
+    except (OSError, ValueError):
+        return None
+
+
 def _restore_pre_refresh_checkout(root: Path, branch: str, head: str) -> list[str]:
     if (
         current_tracked_head(root) == head
@@ -277,7 +304,7 @@ def _restore_pre_refresh_checkout(root: Path, branch: str, head: str) -> list[st
         return []
     try:
         compensate_git_worktree(root, head=head)
-        _attach_work_lane(root, branch, head)
+        attach_worktree(root, root, branch=branch, head=head)
     except (OSError, ValueError):
         return ["refresh_base_worktree_restore_failed"]
     return []

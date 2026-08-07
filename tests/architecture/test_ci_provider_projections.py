@@ -875,11 +875,12 @@ def test_github_emulator_run_materializes_an_independent_git_source(
 
 
 def test_tool_catalog_contains_only_active_provider_gates() -> None:
+    emulator = "uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence"
     active = {
         "ci_template_consistency": "uv run --frozen --offline python -m nox -s ci_templates",
         "github_workflow_syntax": "tools/ci/scripts/run-actionlint.sh",
-        "github_local_emulator": "tools/ci/scripts/run-github-local-emulator.sh",
-        "gitlab_local_emulator": "tools/ci/scripts/run-gitlab-local-emulator.sh",
+        "github_local_emulator": f"{emulator} github",
+        "gitlab_local_emulator": f"{emulator} gitlab",
         "hosted_provider_observation": (
             "uv run --frozen --offline python -m nox -s hosted_observation"
         ),

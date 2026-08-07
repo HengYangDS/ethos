@@ -4,8 +4,8 @@ Describe the ETHOS subject, intent, contract, transition, and inscriptions.
 
 ## Evidence
 
-- [ ] `tools/ci/scripts/run-python-tests.sh`
-- [ ] `tools/ci/scripts/run-python-lint.sh`
+- [ ] `uv run --frozen --offline python -m nox -s tests`
+- [ ] `uv run --frozen --offline python -m nox -s lint`
 - [ ] `uv run ethos status --json`
 - [ ] `uv run ethos plan --changed --json`
 - [ ] `uv run ethos prove --json`

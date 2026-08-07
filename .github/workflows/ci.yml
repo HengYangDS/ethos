@@ -114,7 +114,7 @@ jobs:
       - name: Markdown lint
         run: tools/ci/scripts/run-markdown-lint.sh
       - name: Prose spelling
-        run: tools/ci/scripts/run-prose-check.sh
+        run: uv run --frozen --offline python -m nox -s prose
       - name: CI projection drift
         run: uv run --frozen --offline python -m nox -s ci_templates
       - name: GitHub workflow syntax

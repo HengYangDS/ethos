@@ -170,7 +170,6 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "run-config-lint.sh",
         "run-shell-lint.sh",
         "run-markdown-lint.sh",
-        "run-prose-check.sh",
         "run-secrets-scan.sh",
         "run-hosted-provider-observation.sh",
     }
@@ -195,6 +194,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "module_layout",
         "product_boundary",
         "repository_hygiene",
+        "prose",
     ):
         assert f"uv run --frozen --offline python -m nox -s {session}" in combined
     for text in (combined,):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tomllib
 from importlib import import_module
 from pathlib import Path
 from typing import cast
@@ -26,6 +27,7 @@ run_release_supply_chain = import_module("tools.ci.release_supply_chain").run
 run_runbook_registry = import_module("tools.ci.runbook_registry").main
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PROJECT_SCRIPTS = Path(sys.executable).parent
+PROSE_CONFIG = ROOT / ".config/checks/prose/codespell.toml"
 
 nox.options.default_venv_backend = "none"
 nox.options.error_on_external_run = True
@@ -168,6 +170,21 @@ def repository_hygiene(session: nox.Session) -> None:
     failures = run_repository_hygiene(ROOT)
     if failures:
         session.error("repository hygiene failed:\n" + "\n".join(failures))
+
+
+@nox.session(python=False)
+def prose(session: nox.Session) -> None:
+    """Check current human-facing text with the locked spelling owner."""
+    config = tomllib.loads(PROSE_CONFIG.read_text(encoding="utf-8"))
+    paths = tuple(str(ROOT / path) for path in config["paths"])
+    session.run(
+        _project_script("codespell"),
+        "--toml",
+        str(PROSE_CONFIG),
+        "--count",
+        "--quiet-level=2",
+        *paths,
+    )
 
 
 @nox.session(python=False)

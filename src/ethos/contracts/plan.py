@@ -66,6 +66,14 @@ def dependency_cycle(graph: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
     return ()
 
 
+def dependency_order(graph: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
+    """Return one stable topological order or raise on a dependency cycle."""
+    if dependency_cycle(graph):
+        message = "cycle_detected"
+        raise ValueError(message)
+    return tuple(TopologicalSorter(graph).static_order())
+
+
 class PlanInputs(_PlanModel):
     """Exact inputs bound by one public TransitionPlan projection."""
 
@@ -209,7 +217,7 @@ class TransitionPlan(_PlanModel):
         }
         if dependency_cycle(graph):
             return stable, ("cycle_detected",)
-        order = tuple(TopologicalSorter(graph).static_order())
+        order = dependency_order(graph)
         return tuple(by_id[node_id] for node_id in order), ()
 
     @classmethod

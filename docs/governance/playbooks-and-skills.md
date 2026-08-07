@@ -51,6 +51,12 @@ subject-operation routes are reported; retired entries name their reason,
 date, kill signal, and optional removed carrier; matched evaluations remain
 evidence metadata and cannot encode completion or progress.
 
+At each lifecycle node ETHOS compiles current operation, subject, and changed
+paths into zero or more Skills. Exact `requires` edges form the dependency
+closure; `excludes` conflicts and missing or cyclic requirements fail closed.
+The projection carries only the ordered Skill identities and deduplicated
+pre-reads, rules, and post-checks needed for that node.
+
 Host-native files are projections unless their host owns an official native
 artifact. Repository source, tests, schemas, docs, OpenSpec, effective
 Commitments, Attestations, and current command JSON remain authoritative.

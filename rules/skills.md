@@ -20,6 +20,9 @@ Purpose: define the canonical skill system and projection boundary.
   tests, docs, OpenSpec, or evidence.
 - Every active subject-operation route has one owner. Retirement requires a
   reason, date, kill signal, and removal of any declared live carrier.
+- Multi-skill activation is a compiled dependency closure. Declare only exact
+  `requires` and `excludes` relations; permissive co-activation hints are not a
+  lifecycle mechanism.
 - Matched skill evaluations are evidence only; they never own tasks, progress,
   status, completion, or lifecycle.
 - `.agents/skills`, `.claude/skills`, `.codex/skills`, IDE rules, and MCP

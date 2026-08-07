@@ -20,9 +20,11 @@ from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
+from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.domain.plan import matching_rule_gates
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import resolve_gate_policy
@@ -169,10 +171,29 @@ def plan(
         policy=policy.projection,
         required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps, *intent_gaps))),
     )
-    required_gaps = tuple(
-        dict.fromkeys((*plan.required_gaps, *adapter_gaps, *rule_validation_gaps))
+    playbooks = playbooks_report(repo)
+    skill_activation = compile_skill_activation(
+        cast("dict[str, object]", playbooks.get("registry") or {}),
+        operation="plan",
+        subjects=tuple(str(subject) for subject in commitment.subjects),
+        changed_paths=paths,
     )
-    ok = plan.verdict == "pass" and not adapter_gaps and not rule_validation_gaps
+    required_gaps = tuple(
+        dict.fromkeys(
+            (
+                *plan.required_gaps,
+                *adapter_gaps,
+                *rule_validation_gaps,
+                *skill_activation.required_gaps,
+            )
+        )
+    )
+    ok = (
+        plan.verdict == "pass"
+        and not adapter_gaps
+        and not rule_validation_gaps
+        and skill_activation.verdict == "pass"
+    )
     result = EthosResult(
         command="plan",
         verdict="pass" if ok else "block" if required_gaps else "unknown",
@@ -182,6 +203,7 @@ def plan(
             "plan_node_count": len(plan.nodes),
             "matched_rule_count": len(matched_rules),
             "required_gate_count": len(required_gates),
+            "required_skill_count": len(skill_activation.skills),
         },
         required_gaps=required_gaps,
         next_action="ethos prove --json"
@@ -200,6 +222,7 @@ def plan(
             "facts_digest": facts.digest(),
             "intent_context": intent_context,
             "transition_plan": plan.model_dump(mode="json"),
+            "skill_activation": skill_activation.model_dump(mode="json"),
             "coordination_strategy": strategy,
             **({"profile_adapter": profile_projection} if profile_projection else {}),
         },

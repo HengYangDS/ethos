@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import re
+import sys
+import tempfile
 import tomllib
 from pathlib import Path
+
+from tools.ci.python_test_gate import PYTHON
+from tools.ci.python_test_gate import PythonTestGate
+from tools.ci.python_test_gate import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -135,3 +141,28 @@ def test_nox_owns_cross_platform_python_gate_sessions() -> None:
     )
     for session in sessions:
         assert f"def {session}(" in source
+
+
+def test_python_test_gate_uses_portable_runtime_paths_and_lock(tmp_path: Path) -> None:
+    gate = PythonTestGate(
+        Settings(
+            head="0" * 40,
+            evidence=tmp_path / "evidence",
+            basetemp=tmp_path / "pytest",
+            workers=None,
+            shards=None,
+            durations=1,
+            timeout=None,
+            lock_wait=1,
+            identity=None,
+        )
+    )
+    source = (ROOT / "tools/ci/python_test_gate.py").read_text(encoding="utf-8")
+
+    assert Path(sys.executable) == PYTHON
+    assert gate.identity_home.parent == Path(tempfile.gettempdir())
+    assert "FileLock" in source
+    assert '"GIT_CONFIG_GLOBAL": os.devnull' in source
+    assert "_process_start" not in source
+    assert 'ROOT / ".venv/bin/python"' not in source
+    assert 'os.getenv("TMPDIR", "/tmp")' not in source

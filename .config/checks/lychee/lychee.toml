@@ -13,12 +13,3 @@ no_progress = true
 
 # Only Markdown docs carry governed cross-references.
 include_verbatim = false
-
-# Accept these as non-errors: mail links and localhost examples in docs.
-exclude = [
-  "^mailto:",
-  "^https?://(localhost|127\\.0\\.0\\.1)",
-]
-
-# Example/placeholder hosts that appear in documentation snippets, not real links.
-exclude_loopback = true

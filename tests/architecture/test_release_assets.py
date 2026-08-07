@@ -425,17 +425,16 @@ def test_ci_gitleaks_installer_uses_cached_tool_supply_with_checksum() -> None:
     assert 'checksums = "pinned installer SHA-256 values"' in tools
 
 
-def test_secrets_gate_scans_current_tree_and_git_history() -> None:
+def test_secrets_gate_scans_current_tracked_source_without_history_exceptions() -> None:
     runner = (ROOT / "tools/ci/scripts/run-secrets-scan.sh").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
     assert "gitleaks detect" in runner
     assert "--no-git" in runner
-    assert "gitleaks git" in runner
-    assert '--source "${repo_root}"' not in runner
-    assert '"${repo_root}"' in runner
-    assert "history-report.json" in runner
-    assert "history = true" in tools.split('concern = "secrets"', 1)[1].split("[[tool]]", 1)[0]
+    assert "gitleaks git" not in runner
+    assert '--source "${scan_root}"' in runner
+    assert "history-report.json" not in runner
+    assert "history = true" not in tools.split('concern = "secrets"', 1)[1].split("[[tool]]", 1)[0]
 
 
 def test_docstring_gate_is_owned_by_separated_policy_and_nox_session() -> None:
@@ -448,7 +447,9 @@ def test_docstring_gate_is_owned_by_separated_policy_and_nox_session() -> None:
     assert "--min-coverage" not in runner
     assert "fail_under = 100" in policy
     assert 'paths = ["src/ethos"]' in policy
-    assert "skip_private = true" in policy
+    assert "skip_private" not in policy
+    assert "allow_short_docstrings" not in policy
+    assert "exclude_roots" not in policy
     assert 'style = "google"' in policy
     assert "check_structured_signature = true" in policy
     assert 'concern = "python_docstrings"' in tools

@@ -19,6 +19,7 @@ from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
+from ethos.contracts.verdict import reduce_verdicts
 
 ReviewPhase = Literal["pre-implementation", "post-implementation"]
 _ALWAYS_ESCALATE = "final-product-judgment"
@@ -140,6 +141,17 @@ class ReviewResult(_ReviewModel):
     mints_authority: Literal[False] = False
 
 
+class ReviewDecision(_ReviewModel):
+    """Closed reduction over one exact review plan and its independent results."""
+
+    review_plan: str = Field(pattern=r"^[a-f0-9]{64}$")
+    verdict: Verdict
+    state: Literal["reviewed", "repair", "await-user", "gapped"]
+    required_gaps: FrozenTuple[str] = ()
+    next_action: str = Field(min_length=1)
+    user_decision_required: bool = False
+
+
 def load_review_lens_declaration(path: Path | None = None) -> ReviewLensDeclaration:
     """Load one tracked review-lens declaration without creating runtime state."""
     source = path or DECLARATION_PATH
@@ -203,6 +215,58 @@ def compile_review_plan(
         "user_decision_required": bool(ambiguities),
     }
     return ReviewPlan.model_validate(payload | {"digest": canonical_json_digest(payload)})
+
+
+def reduce_review_results(
+    plan: ReviewPlan,
+    results: tuple[ReviewResult, ...],
+) -> ReviewDecision:
+    """Reduce exact-bound lens outputs; clear repairs precede human escalation."""
+    selected_ids = {lens.id for lens in plan.lenses}
+    result_ids = [result.lens for result in results]
+    duplicates = {lens_id for lens_id in result_ids if result_ids.count(lens_id) > 1}
+    gaps = [f"review_result_duplicate:{lens_id}" for lens_id in sorted(duplicates)]
+    gaps.extend(
+        f"review_result_unselected:{lens_id}" for lens_id in sorted(set(result_ids) - selected_ids)
+    )
+    by_lens = {
+        result.lens: result
+        for result in results
+        if result.lens in selected_ids and result.lens not in duplicates
+    }
+    admitted: list[ReviewResult] = []
+    for lens in plan.lenses:
+        result = by_lens.get(lens.id)
+        if lens.id in duplicates:
+            continue
+        if result is None:
+            gaps.append(f"review_result_missing:{lens.id}")
+        elif not _result_matches(plan, result):
+            gaps.append(f"review_result_binding_mismatch:{lens.id}")
+        else:
+            admitted.append(result)
+    unknown = [result for result in admitted if result.verdict == "unknown"]
+    repairable = [result for result in admitted if _repairable(result)]
+    blocked = [result for result in admitted if result.verdict == "block"]
+    if gaps:
+        return _review_decision(
+            plan, "block", "gapped", gaps, "rerun the missing or stale review lenses"
+        )
+    if repairable:
+        return _review_decision(plan, "block", "repair", (), repairable[0].next_action)
+    if unknown:
+        return _review_decision(
+            plan,
+            "unknown",
+            "await-user",
+            (),
+            unknown[0].next_action,
+            user_decision_required=True,
+        )
+    if blocked:
+        return _review_decision(plan, "block", "gapped", (), blocked[0].next_action)
+    verdict = reduce_verdicts(*(result.verdict for result in admitted))
+    return _review_decision(plan, verdict, "reviewed", (), "continue the governed lifecycle")
 
 
 def _phase(facts: JsonObject) -> ReviewPhase:
@@ -301,6 +365,44 @@ def _next_action(gaps: list[str]) -> str:
     if gaps:
         return "repair the review-lens declaration"
     return "execute the compiled review lenses and bind each result to this plan"
+
+
+def _result_matches(plan: ReviewPlan, result: ReviewResult) -> bool:
+    return (
+        result.review_plan == plan.digest
+        and result.inputs == plan.inputs
+        and result.head == plan.head
+        and result.tree == plan.tree
+        and result.phase == plan.phase
+        and result.mints_authority is False
+    )
+
+
+def _repairable(result: ReviewResult) -> bool:
+    return (
+        result.verdict == "block"
+        and bool(result.findings)
+        and all(finding.repairable for finding in result.findings)
+    )
+
+
+def _review_decision(
+    plan: ReviewPlan,
+    verdict: Verdict,
+    state: Literal["reviewed", "repair", "await-user", "gapped"],
+    gaps: tuple[str, ...] | list[str],
+    next_action: str,
+    *,
+    user_decision_required: bool = False,
+) -> ReviewDecision:
+    return ReviewDecision(
+        review_plan=plan.digest,
+        verdict=verdict,
+        state=state,
+        required_gaps=tuple(gaps),
+        next_action=next_action,
+        user_decision_required=user_decision_required,
+    )
 
 
 def review_schema_documents() -> dict[str, dict[str, object]]:

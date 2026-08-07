@@ -45,9 +45,8 @@ folder shape. Every governed module MUST have:
 
 `core.py`, `common.py`, `shared.py`, `utils.py`, `helpers.py`, `misc.py`,
 `base.py`, `manager.py`, and `service.py` do not identify a narrow concept and
-are blocked without exception. A genuine kernel, report, registry, transition,
-adapter, or aggregator uses that exact semantic name. Configuration cannot
-exempt an ambiguous path, and a baseline cannot normalize it.
+are blocked. A genuine kernel, report, registry, transition, adapter, or
+aggregator uses that exact semantic name and location.
 
 An ambiguous or mixed module has exactly one terminal disposition:
 
@@ -123,9 +122,8 @@ architecture; these rules make the claim honest and checkable.
    module or `_helper` (ruff SLF flags private access). Depend on public surface;
    if you need a private, it is mis-placed — promote or relocate it.
 6. **Deferred/typing imports:** type-only imports belong under `if TYPE_CHECKING:`
-   (ruff TC). The one exception is a cyclopts command signature, where the
-   annotation type (`Path`, etc.) must be a runtime import so cyclopts can bind the
-   argument — mark it `# noqa: TC003` with that reason.
+   (ruff TC). Runtime-evaluated framework annotations are declared once in Ruff's
+   native configuration rather than suppressed at individual imports.
 7. **Lazy heavy imports at the surface:** a command-group module
    (`surface/cli/<group>.py`) imports only the domain/adapter deps ITS commands
    need, so a group's heavy dependencies load only when that group is imported —
@@ -163,9 +161,9 @@ architecture; these rules make the claim honest and checkable.
 
 The single effective-LOC limit for each carrier role lives in
 `.ethos/rules.toml [quality.code_size]` and is enforced by the code-size gate.
-There is no soft/hard split and no per-file exemption. A breach requires semantic
-review, but only a distinct concept, invariant, authority, or reason to change can
-justify a split; otherwise the module is simplified or absorbed.
+A breach requires semantic review, but only a distinct concept, invariant,
+authority, or reason to change can justify a split; otherwise the module is
+simplified or absorbed.
 
 ## 4. Why this matters
 

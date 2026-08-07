@@ -22,7 +22,7 @@ from pydantic import ValidationError
 from pydantic import model_validator
 
 from ethos.contracts.gates import Gate
-from ethos.contracts.openspec.models import OpenSpecPolicy  # noqa: TC001
+from ethos.contracts.openspec.models import OpenSpecPolicy
 
 DEFAULT_ROOTS = {
     "rules": "rules",

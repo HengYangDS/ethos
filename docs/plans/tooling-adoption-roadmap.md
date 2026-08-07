@@ -114,7 +114,7 @@ single tracked supply declaration rather than comments spread across runners.
 | Capability | Single owner | Boundary |
 | --- | --- | --- |
 | Change and specification semantics | OpenSpec strict plus ETHOS lifecycle | Official syntax first; ETHOS adds identity, scope, claim, and archive governance. |
-| Python format, lint, idioms, cyclomatic complexity, and fast SAST | Ruff | Includes C90, PL, FURB, SLOT, security, exception, and suppression ratchets; no Pylint/Flake8/Black/isort stack. |
+| Python format, lint, idioms, cyclomatic complexity, and process safety | Ruff plus structural contracts | Ruff owns native syntax and style rules; structural contracts own subprocess argv and shell boundaries; no parallel Pylint/Flake8/Black/isort stack. |
 | Python types | ty | One locked checker across Python 3.12-3.14; no permanent mypy/Pyright mirror. |
 | Import architecture | import-linter | Explicit layer contracts; discovery tools do not replace declared boundaries. |
 | Dependency hygiene | deptry | Distribution-local metadata truth; not vulnerability evidence. |
@@ -150,7 +150,7 @@ license boundaries. A check-only runner must never install or update its tool.
 | P0 | Gate-plane compilation | `system/gates.toml` plus native projection compiler | Delete copied commands from hooks/local/GitHub/GitLab; do not add a task runner. |
 | P0 | Repository asset closure | `git ls-files`, shebangs, and the format registry | Every tracked carrier maps to one asset class and owner or an explicit not-applicable decision; gate self-enumeration is insufficient. |
 | P0 | CI binary supply compression | Aqua, CI projection only | Replace and delete admitted download/checksum installers; local macOS remains Brew-admitted and no Aqua task/environment plane is allowed. |
-| P0 | Suppression debt | Existing Ruff, type, and coverage owners | Count `fmt`, `noqa`, type ignores, `pragma: no cover`, and coverage exclusions with exact reasons and a declining baseline; no second linter. |
+| P0 | Direct quality evaluation | Existing Ruff, type, and coverage owners | Native gates evaluate all active source directly; repair source rather than bypassing diagnostics. |
 | P0 | Dev-tool dependency reachability | Existing dependency-hygiene owner | Every root dev requirement maps to a source import, pytest plugin, owner executable, or declared tool identity; remove unmapped names rather than add a second dependency scanner. |
 | P0 | Runtime compatibility | uv-managed CPython 3.12, 3.13, and 3.14 matrix | One owner script projects identically to GitHub and GitLab; a 3.14-only sensor cannot stand in for compatibility. |
 | P0 | Dual-forge distribution parity | registry-derived provider jobs | Python and npm build/test/release capabilities must exist on both forges; provider status remains separate. |

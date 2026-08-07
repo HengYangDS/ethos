@@ -9,7 +9,6 @@ include = [
   "scripts/govern_check.py",
   "references/governance-map.md",
 ]
-exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 expected_digest = "sha256:49a91e158042e90ab2bed8b5cdc95b3569184775016dca07bf462215a383b928"
 

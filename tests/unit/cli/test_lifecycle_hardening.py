@@ -406,9 +406,13 @@ def test_repair_identity_resumes_after_accepted_cas_before_worktree_sync(
 
 def _replace_signature(worktree: Path, head: str) -> str:
     raw = git(worktree, "cat-file", "commit", head)
+    synthetic_signature = (
+        "\ngpgsig -----BEGIN SSH SIGNATURE-----\n synthetic\n "
+        "-----END SSH SIGNATURE-----\n\nfeature work"
+    )
     repaired = raw.replace(
         "\n\nfeature work",
-        "\ngpgsig -----BEGIN SSH SIGNATURE-----\n synthetic\n -----END SSH SIGNATURE-----\n\nfeature work",
+        synthetic_signature,
     )
     completed = subprocess.run(
         ["git", "hash-object", "-t", "commit", "-w", "--stdin"],

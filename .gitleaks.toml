@@ -1,23 +1,6 @@
 title = "ETHOS gitleaks configuration"
 
 # Secret-scanning policy for the governance runtime. The default gitleaks rule
-# set is extended (not replaced) so upstream rule improvements flow in; the
-# allowlist below names only exact synthetic values and schema metadata, never
-# an entire source tree or test file.
+# set is extended directly so upstream rule improvements flow in.
 [extend]
 useDefault = true
-
-[allowlist]
-description = "Exact synthetic secret fixtures and schema metadata only."
-condition = "OR"
-regexTarget = "line"
-regexes = [
-  # `key: str` and similar type annotations in kernel contracts are schema
-  # metadata, not assignments of a secret value.
-  '''key:\s*str''',
-  '''api_key:\s*abcdef1234567890''',
-  '''sk_test_1234567890abcdef''',
-  '''sk-proj-1234567890abcdef1234567890abcdef''',
-  '''ghp_1234567890abcdef1234567890abcdef123456''',
-  '''AKIA(?:IOSFODNN7EXAMPLE|1234567890ABCDEF)''',
-]

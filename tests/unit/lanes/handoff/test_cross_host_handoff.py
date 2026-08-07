@@ -536,7 +536,8 @@ def test_handoff_import_rejects_tampered_exact_commitment_coordinate(
         "openspec/changes/other/commitment.toml" if field == "base_commitment_path" else "0" * 64
     )
     body = {key: value for key, value in manifest.items() if key != "package_id"}
-    package_id = f"handoff:{hashlib.sha256(json.dumps(body, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}"
+    canonical_body = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    package_id = f"handoff:{hashlib.sha256(canonical_body).hexdigest()}"
     manifest["package_id"] = package_id
     manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
     package = package.rename(package.with_name(package_id))

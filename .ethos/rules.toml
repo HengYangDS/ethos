@@ -37,10 +37,8 @@ generated_outputs_tracked_truth = false
 #   role=surface (CLI command groups / aggregators): 800
 #   role=test    (broad contract coverage):          800
 #
-# There is NO per-file exemption and NO soft/hard split: a governance runtime that
-# forbids `# pragma: no cover` cannot ship a size-exemption table either. An
-# over-limit file is decomposed into a semantic sub-package (rules/module_layout.md
-# §1), never frozen at its current size.
+# Each role has one current limit. An over-limit file is decomposed into a
+# semantic sub-package (rules/module_layout.md §1), never frozen in place.
 default_effective_max_lines = 500
 # Surface role: CLI command modules are legitimately larger thin wiring sheets
 # (bind-args -> domain call -> emit), bounded but not held to the logic limit.

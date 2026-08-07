@@ -66,7 +66,10 @@ def _load_ci_templates_module():
                 "emulator_tool": "gitlab-ci-local",
                 "emulator_event": "pipeline",
                 "emulator_job": "ethos:lint",
-                "emulator_image": "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75",
+                "emulator_image": (
+                    "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:"
+                    "d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75"
+                ),
             },
         ),
     ],
@@ -512,11 +515,6 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
             (),
         ),
         (
-            ".config/checks/markdown/.markdownlint-cli2.yaml",
-            ('  - "build/runtime/tool-cache/uv/**"',),
-            (),
-        ),
-        (
             "tools/ci/scripts/run-actionlint.sh",
             ("github.com/rhysd/actionlint/releases/download",),
             ("npx --yes", "actionlint@"),
@@ -664,7 +662,10 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(
     ]
     images = {
         "github": "catthehacker/ubuntu:act-latest",
-        "gitlab": "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75",
+        "gitlab": (
+            "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:"
+            "d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75"
+        ),
     }
     for provider in ("github", "gitlab"):
         output = tmp_path / f"{provider}.json"

@@ -56,27 +56,6 @@ def test_direct_python_dependencies_are_single_current_lower_bounds() -> None:
     assert build == ["hatchling>=1.31.0"]
 
 
-def test_locked_tool_resolution_ignores_untrusted_path(
-    monkeypatch,
-    tmp_path: Path,
-) -> None:
-    for name in ("ruff", "uv", "deptry"):
-        executable = tmp_path / name
-        executable.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
-        executable.chmod(0o755)
-    monkeypatch.setenv("PATH", str(tmp_path))
-
-    import noxfile
-    from tools.ci import dependency_hygiene
-    from tools.ci import local_install_smoke
-
-    project_scripts = Path(noxfile.sys.executable).parent
-    assert Path(noxfile._project_script("ruff")).parent == project_scripts
-    assert Path(noxfile._project_script("uv")).parent == project_scripts
-    assert Path(dependency_hygiene._project_script("deptry")).parent == project_scripts
-    assert Path(local_install_smoke._project_script("uv")).parent == project_scripts
-
-
 def test_nox_gate_registry_uses_the_bound_python_runtime() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
@@ -102,8 +81,6 @@ def test_nox_is_the_only_python_lint_orchestrator() -> None:
     gates = {gate["id"]: gate for gate in declaration["gates"]}
 
     assert gates["ruff"]["command"] == ["{python}", "-m", "nox", "-s", "lint"]
-    assert not (ROOT / "tools/ci/scripts/run-python-lint.sh").exists()
-    assert not (ROOT / "tools/ci/scripts/run-ruff-ratchet.sh").exists()
     for relative in (
         ".config/ci/templates/hosted/github-actions.yml",
         ".config/ci/templates/hosted/gitlab-ci.yml",

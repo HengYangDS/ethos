@@ -175,7 +175,9 @@ def test_env_option_values_are_not_executables() -> None:
     observed = product_references_from_files(
         {
             "tools/check.sh": "env -u ETHOS_ACTOR python -m pytest -q\n",
-            "tools/check.py": "subprocess.run(['env', '-u', 'ETHOS_ACTOR', 'python', '-m', 'pytest'])\n",
+            "tools/check.py": (
+                "subprocess.run(['env', '-u', 'ETHOS_ACTOR', 'python', '-m', 'pytest'])\n"
+            ),
         }
     )
 

@@ -28,6 +28,7 @@ WHEEL_PROJECTIONS = (
         "generated_artifact_topology.toml",
     ),
 )
+_PROCESS_CALLS = frozenset({"run", "Popen", "call", "check_call", "check_output"})
 
 
 def _read(relative: str) -> str:
@@ -43,6 +44,28 @@ def _tracked_or_nonignored(relative: str) -> list[str]:
         text=True,
     ).stdout.splitlines()
     return [path for path in paths if (ROOT / path).exists()]
+
+
+def test_python_process_execution_uses_argv_without_a_shell() -> None:
+    findings = []
+    for root in (ROOT / "src", ROOT / "tests", ROOT / "tools", ROOT / ".agents" / "skills"):
+        for path in root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                    continue
+                if not isinstance(node.func.value, ast.Name):
+                    continue
+                if node.func.value.id != "subprocess" or node.func.attr not in _PROCESS_CALLS:
+                    continue
+                first = node.args[0] if node.args else None
+                shell = next((item.value for item in node.keywords if item.arg == "shell"), None)
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    findings.append(f"{path.relative_to(ROOT)}:{node.lineno}:string-command")
+                if isinstance(shell, ast.Constant) and shell.value is True:
+                    findings.append(f"{path.relative_to(ROOT)}:{node.lineno}:shell-true")
+
+    assert findings == []
 
 
 def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:

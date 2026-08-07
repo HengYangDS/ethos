@@ -33,9 +33,18 @@ elif ! command -v tar >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1;
 fi
 
 case "$(uname -m)" in
-  x86_64|amd64) arch="x64"; archive_sha256="${GITLEAKS_LINUX_X64_SHA256}" ;;
-  aarch64|arm64) arch="arm64"; archive_sha256="${GITLEAKS_LINUX_ARM64_SHA256}" ;;
-  *) echo "Unsupported gitleaks architecture: $(uname -m)" >&2; exit 1 ;;
+  x86_64 | amd64)
+    arch="x64"
+    archive_sha256="${GITLEAKS_LINUX_X64_SHA256}"
+    ;;
+  aarch64 | arm64)
+    arch="arm64"
+    archive_sha256="${GITLEAKS_LINUX_ARM64_SHA256}"
+    ;;
+  *)
+    echo "Unsupported gitleaks architecture: $(uname -m)" >&2
+    exit 1
+    ;;
 esac
 
 archive="gitleaks_${version}_linux_${arch}.tar.gz"

@@ -1,9 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">ETHOS</title>
-  <desc id="desc">An aperture mark with one origin, two differentiated passages, and one containing boundary.</desc>
-  <rect width="512" height="512" fill="#F6F1E8"/>
-  <path d="M399.6 150.6 A164 164 0 1 0 399.6 361.4" fill="none" stroke="#10242C" stroke-width="25" stroke-linecap="round"/>
-  <path d="M274 256 C307 243 341 216 377 178" fill="none" stroke="#10242C" stroke-width="17" stroke-linecap="round"/>
-  <path d="M274 256 C311 272 350 307 389 343" fill="none" stroke="#10242C" stroke-width="17" stroke-linecap="round"/>
-  <circle cx="274" cy="256" r="14" fill="#B5523D"/><circle cx="274" cy="256" r="4.75" fill="#F6F1E8"/>
+<svg xmlns="http://www.w3.org/2000/svg" aria-labelledby="title desc" viewBox="0 0 512 512">
+  <title>ETHOS</title>
+  <desc>
+    An aperture mark with one origin, two differentiated passages, and one containing boundary.
+  </desc>
+  <path fill="#f6f1e8" d="M0 0h512v512H0z"/>
+  <path fill="none" stroke="#10242c" stroke-linecap="round" stroke-width="25" d="M399.6 150.6a164 164 0 1 0 0 210.8"/>
+  <path fill="none" stroke="#10242c" stroke-linecap="round" stroke-width="17" d="M274 256c33-13 67-40 103-78m-103 78c37 16 76 51 115 87"/>
+  <circle cx="274" cy="256" r="14" fill="#b5523d"/>
+  <circle cx="274" cy="256" r="4.75" fill="#f6f1e8"/>
 </svg>

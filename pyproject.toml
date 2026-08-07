@@ -28,6 +28,7 @@ dev = [
   "import-linter>=2.13",
   "mutmut>=3.7.0",
   "nox>=2026.7.11",
+  "pillow>=12.3.0",
   "pre-commit>=4.6.1",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
@@ -35,6 +36,7 @@ dev = [
   "pytest-xdist>=3.8.0",
   "ruff>=0.16.1",
   "shellcheck-py>=0.11.0.1",
+  "shfmt-py>=4.0.0",
   "ty>=0.0.69",
   "uv>=0.12.2",
   "yamllint>=1.38.0",
@@ -54,8 +56,10 @@ packages = ["src/ethos"]
 "system/review-lenses.toml" = "ethos/data/review_lenses.toml"
 "package.json" = "ethos/data/supply-chain/package.json"
 "package-lock.json" = "ethos/data/supply-chain/package-lock.json"
-"node_modules" = "ethos/data/openspec-runtime/node_modules"
 "system/schemas/kernel" = "ethos/data/schemas/kernel"
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "tools/packaging/openspec_runtime_hook.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -67,9 +71,6 @@ include = [
   "/package-lock.json",
   "/pyproject.toml",
 ]
-
-[tool.hatch.build.targets.sdist.force-include]
-"node_modules" = "node_modules"
 
 [tool.pytest.ini_options]
 cache_dir = "build/runtime/tool-cache/pytest"

@@ -55,7 +55,10 @@ def _load_ci_templates_module():
                 "emulator_tool": "act",
                 "emulator_event": "workflow_dispatch",
                 "emulator_job": "quality",
-                "emulator_image": "catthehacker/ubuntu:act-latest",
+                "emulator_image": (
+                    "ghcr.io/catthehacker/ubuntu@sha256:"
+                    "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
+                ),
             },
         ),
         (
@@ -65,7 +68,7 @@ def _load_ci_templates_module():
             {
                 "emulator_tool": "gitlab-ci-local",
                 "emulator_event": "pipeline",
-                "emulator_job": "ethos:lint",
+                "emulator_job": "ethos:carrier-quality",
                 "emulator_image": (
                     "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:"
                     "d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75"
@@ -88,6 +91,7 @@ def test_hosted_provider_templates_are_projection_sources(
     assert "PYTHONWARNINGS: error" in (ROOT / projection).read_text(encoding="utf-8")
     for field, value in emulator.items():
         assert entry[field] == value
+    assert "@sha256:" in str(entry["emulator_image"])
     assert set(_providers()) == {"github", "gitlab"}
     assert 'GIT_DEPTH: "0"' in (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
@@ -191,14 +195,12 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "product_boundary",
         "repository_hygiene",
         "prose",
-        "shell_lint",
-        "markdown_lint",
-        "config_quality",
+        "format_check",
         "hosted_observation",
     ):
         assert f"uv run --frozen --offline python -m nox -s {session}" in combined
     for text in (combined,):
-        assert "uv run --frozen --offline python -m nox -s lint" in text
+        assert "uv run --frozen --offline python -m nox -s format_check" in text
         assert "uv run --frozen --offline python -m nox -s tests" in text
         assert "tools/ci/scripts/run-actionlint.sh" in text
         assert "uv run --frozen --offline python -m nox -s product_boundary" in text
@@ -656,8 +658,17 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(
         lambda command, **kw: (
             commands.append(command)
             or roots.append(kw["cwd"])
-            or {"returncode": 0, "ok": True, "stdout": "executed", "stderr": ""}
+            or {
+                "returncode": 0,
+                "ok": True,
+                "stdout": "Job succeeded" if command[0] == "act" else "PASS ethos:carrier-quality",
+                "stderr": "",
+            }
         ),
+    )
+    github_image = (
+        "ghcr.io/catthehacker/ubuntu@sha256:"
+        "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
     )
     expected_github = [
         "act",
@@ -666,14 +677,19 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(
         ".github/workflows/ci.yml",
         "-j",
         "quality",
+        "--platform",
+        f"self-hosted={github_image}",
     ]
     images = {
-        "github": "catthehacker/ubuntu:act-latest",
+        "github": github_image,
         "gitlab": (
             "ghcr.io/astral-sh/uv:0.12.2-python3.14-trixie-slim@sha256:"
             "d6e6a4de8d48bb4e64bcc2e2bd1e2291fb00ee4fd07a5dcfdc4c621afddcfe75"
         ),
     }
+    providers = _providers()
+    providers["github"] = providers["github"] | {"emulator_image": github_image}
+    monkeypatch.setattr(ci, "_provider_entry", lambda provider: providers[provider])
     for provider in ("github", "gitlab"):
         output = tmp_path / f"{provider}.json"
         assert (
@@ -688,12 +704,13 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(
             if provider == "github"
             else ".gitlab-ci.yml",
             "mode": "selected_job_execution",
-            "selected_job": "quality" if provider == "github" else "ethos:lint",
+            "selected_job": "quality" if provider == "github" else "ethos:carrier-quality",
+            "executed": True,
         }
         assert payload["execution_environment"] == {
             "declared_image": images[provider],
-            "image_digest": "",
-            "image_digest_status": "not_observed",
+            "image_digest": images[provider].partition("@sha256:")[2],
+            "image_digest_status": "declaration_bound",
             "tool_version": f"{commands[-1][0]} 1.0",
         }
     assert commands[0] == expected_github
@@ -705,7 +722,7 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(
         ".gitlab-ci.yml",
         "--state-dir",
         str(states[1] / "state"),
-        "ethos:lint",
+        "ethos:carrier-quality",
     ]
     assert roots == [states[0] / "source", ROOT]
     assert all(not state.is_relative_to(ROOT) for state in states)
@@ -713,11 +730,51 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(
 
 
 @pytest.mark.parametrize(
+    "stdout",
+    [
+        "Skipping unsupported platform -- Try running with -P self-hosted=...",
+        "",
+    ],
+)
+def test_github_emulator_rejects_a_zero_exit_run_without_executed_steps(
+    monkeypatch, tmp_path: Path, stdout: str
+) -> None:
+    ci = _load_ci_templates_module()
+    monkeypatch.setattr(ci.shutil, "which", lambda _: "/usr/local/bin/act")
+    monkeypatch.setattr(ci, "_tool_version", lambda _: "act 1.0")
+    monkeypatch.setattr(
+        ci,
+        "materialize_emulator_source",
+        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
+    )
+    monkeypatch.setattr(
+        ci,
+        "_run_command",
+        lambda _command, **_: {"returncode": 0, "ok": True, "stdout": stdout, "stderr": ""},
+    )
+    output = tmp_path / "github-run.json"
+
+    assert (
+        ci.emulator_evidence(
+            "github", mode="run", dry_run=False, allow_untracked=True, output=output
+        )
+        == 1
+    )
+    payload = json.loads(output.read_text())
+    assert payload["verdict"] == "block"
+    assert payload["execution"]["executed"] is False
+
+
+@pytest.mark.parametrize(
     ("stdout", "expected_code", "warnings"),
     [
         ("(node:1) DeprecationWarning: stale action runtime", 1, ["(?:^|[ >])DeprecationWarning:"]),
         (
-            '"forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]',
+            (
+                "Job succeeded\n"
+                '"forbidden_log_patterns": '
+                '["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]'
+            ),
             0,
             [],
         ),
@@ -734,7 +791,10 @@ def test_local_emulator_log_warning_policy(
         "emulator_tool": "act",
         "emulator_event": "workflow_dispatch",
         "emulator_job": "quality",
-        "emulator_image": "catthehacker/ubuntu:act-latest",
+        "emulator_image": (
+            "ghcr.io/catthehacker/ubuntu@sha256:"
+            "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
+        ),
         "forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"],
     }
     monkeypatch.setattr(ci, "_provider_entry", lambda _: entry)
@@ -775,7 +835,7 @@ def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
         "_run_command",
         lambda _command, **kwargs: (
             environment.update(kwargs["env"])
-            or {"returncode": 0, "ok": True, "stdout": "", "stderr": ""}
+            or {"returncode": 0, "ok": True, "stdout": "Job succeeded", "stderr": ""}
         ),
     )
     assert (
@@ -802,7 +862,10 @@ def test_github_emulator_run_materializes_an_independent_git_source(
         "emulator_tool": "act",
         "emulator_event": "workflow_dispatch",
         "emulator_job": "quality",
-        "emulator_image": "catthehacker/ubuntu:act-latest",
+        "emulator_image": (
+            "ghcr.io/catthehacker/ubuntu@sha256:"
+            "148374205122af210a8ca475111dd1a2934a10bbeea39b53850041517dccc570"
+        ),
         "emulator_state_dir": "build/runtime/work/github-act",
     }
     summary = {
@@ -848,7 +911,7 @@ def test_github_emulator_run_materializes_an_independent_git_source(
         "_run_command",
         lambda command, **kw: (
             recorded.update(command=command, run=kw)
-            or {"returncode": 0, "ok": True, "stdout": "", "stderr": ""}
+            or {"returncode": 0, "ok": True, "stdout": "Job succeeded", "stderr": ""}
         ),
     )
     assert (

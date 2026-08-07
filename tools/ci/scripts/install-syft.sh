@@ -19,9 +19,18 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 case "$(uname -m)" in
-  x86_64|amd64) arch="amd64"; sha256="bf7b29ff57f06da30918266a0e1c2885a8f99784798d1bdb1628886aa015d788" ;;
-  aarch64|arm64) arch="arm64"; sha256="887c57cbcc2d0e8c5c110a4571a3fc7150058b24d74f993ee4663516e5c8ce86" ;;
-  *) echo "unsupported syft architecture: $(uname -m)" >&2; exit 1 ;;
+  x86_64 | amd64)
+    arch="amd64"
+    sha256="bf7b29ff57f06da30918266a0e1c2885a8f99784798d1bdb1628886aa015d788"
+    ;;
+  aarch64 | arm64)
+    arch="arm64"
+    sha256="887c57cbcc2d0e8c5c110a4571a3fc7150058b24d74f993ee4663516e5c8ce86"
+    ;;
+  *)
+    echo "unsupported syft architecture: $(uname -m)" >&2
+    exit 1
+    ;;
 esac
 
 cache="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/ci-tools}/syft/${version}"

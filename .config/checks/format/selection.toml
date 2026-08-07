@@ -10,6 +10,162 @@ aggregates = { python_total = ["python_product", "python_tests", "python_tools",
 immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
 line_width = 100
 
+[[ownership]]
+id = "official-openspec"
+priority = 100
+paths = ["openspec/config.yaml", "openspec/specs/**", "openspec/changes/*/**"]
+exclude_paths = ["openspec/changes/archive/**"]
+format_owner = "official-openspec"
+format_command = "openspec owner-native mutation"
+format_check = "uv run --frozen --offline python -m nox -s format_check"
+validation_owner = "official-openspec"
+validation_command = "ethos prove --gate openspec --json"
+semantic_companions = ["markdownlint-cli2", "repository-hygiene"]
+mutation_policy = "official-owner-only"
+
+[[ownership]]
+id = "archived-openspec-yaml"
+priority = 100
+paths = ["openspec/changes/archive/**/*.yaml", "openspec/changes/archive/**/*.yml"]
+format_owner = "immutable-carrier"
+format_command = "not-applicable:immutable"
+format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+validation_owner = "repository-hygiene"
+validation_command = "uv run --frozen --offline python -m nox -s repository_hygiene"
+semantic_companions = ["official-openspec-history"]
+mutation_policy = "forbidden"
+
+[[ownership]]
+id = "ruff"
+extensions = [".py", ".pyi"]
+format_owner = "ruff"
+format_command = "uv run --frozen --offline python -m nox -s format -- python"
+format_check = "uv run --frozen --offline python -m nox -s lint"
+validation_owner = "ruff"
+validation_command = "uv run --frozen --offline python -m nox -s lint"
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "markdownlint-cli2"
+extensions = [".md"]
+format_owner = "markdownlint-cli2"
+format_command = "uv run --frozen --offline python -m nox -s format -- markdown"
+format_check = "uv run --frozen --offline python -m nox -s markdown_lint"
+validation_owner = "markdownlint-cli2"
+validation_command = "uv run --frozen --offline python -m nox -s markdown_lint"
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "taplo"
+extensions = [".toml"]
+format_owner = "taplo"
+format_command = "uv run --frozen --offline python -m nox -s format -- config"
+format_check = "uv run --frozen --offline python -m nox -s config_quality"
+validation_owner = "taplo"
+validation_command = "uv run --frozen --offline python -m nox -s config_quality"
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "yaml"
+extensions = [".yaml", ".yml"]
+format_owner = "prettier"
+format_command = "uv run --frozen --offline python -m nox -s format -- config"
+format_check = "uv run --frozen --offline python -m nox -s config_quality"
+validation_owner = "yamllint"
+validation_command = "uv run --frozen --offline python -m nox -s config_quality"
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "canonical-json"
+extensions = [".json"]
+format_owner = "python-stdlib-json"
+format_command = "uv run --frozen --offline python -m nox -s format -- config"
+format_check = "uv run --frozen --offline python -m nox -s config_quality"
+validation_owner = "python-stdlib-json"
+validation_command = "uv run --frozen --offline python -m nox -s config_quality"
+mutation_policy = "canonical-serializer"
+
+[[ownership]]
+id = "shell"
+extensions = [".sh", ".bash", ".zsh"]
+format_owner = "shfmt"
+format_command = "uv run --frozen --offline python -m nox -s format -- shell"
+format_check = "uv run --frozen --offline python -m nox -s shell_lint"
+validation_owner = "shellcheck"
+validation_command = "uv run --frozen --offline python -m nox -s shell_lint"
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "structured-ini"
+extensions = [".ini", ".cfg"]
+format_owner = "repository-canonical-text"
+format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
+format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+validation_owner = "tool-native-parser"
+validation_command = "uv run --frozen --offline python -m nox -s config_quality"
+mutation_policy = "canonical-text"
+
+[[ownership]]
+id = "uv-lock"
+paths = ["uv.lock"]
+format_owner = "uv"
+format_command = "uv lock"
+format_check = "uv lock --check"
+validation_owner = "uv"
+validation_command = "uv lock --check"
+mutation_policy = "package-manager-only"
+
+[[ownership]]
+id = "npm-distribution"
+extensions = [".js", ".mjs", ".cjs"]
+format_owner = "prettier"
+format_command = "uv run --frozen --offline python -m nox -s format -- javascript"
+format_check = "uv run --frozen --offline python -m nox -s javascript_lint"
+validation_owner = "prettier"
+validation_command = "uv run --frozen --offline python -m nox -s javascript_lint"
+semantic_companions = ["npm run test:npm"]
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "architecture-projection"
+extensions = [".c4", ".mmd"]
+format_owner = "architecture-generator"
+format_command = "uv run --frozen --offline python -m nox -s architecture_projection"
+format_check = "uv run --frozen --offline python -m nox -s architecture_projection"
+validation_owner = "architecture-generator"
+validation_command = "uv run --frozen --offline python -m nox -s architecture_projection"
+mutation_policy = "generator-only"
+
+[[ownership]]
+id = "svg-assets"
+extensions = [".svg"]
+format_owner = "svgo"
+format_command = "uv run --frozen --offline python -m nox -s format -- svg"
+format_check = "uv run --frozen --offline python -m nox -s svg_lint"
+validation_owner = "svgo"
+validation_command = "uv run --frozen --offline python -m nox -s svg_lint"
+mutation_policy = "native-formatter"
+
+[[ownership]]
+id = "png-assets"
+extensions = [".png"]
+format_owner = "source-binary"
+format_command = "not-applicable:binary-source"
+format_check = "uv run --frozen --offline python -m nox -s asset_validation"
+validation_owner = "pillow"
+validation_command = "uv run --frozen --offline python -m nox -s asset_validation"
+mutation_policy = "source-or-generator"
+
+[[ownership]]
+id = "repository-hygiene"
+paths = ["LICENSE", ".gitignore", "**/.gitignore", "**/.gitkeep", "**/.shellcheckrc"]
+format_owner = "repository-canonical-text"
+format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
+format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+validation_owner = "repository-hygiene"
+validation_command = "uv run --frozen --offline python -m nox -s repository_hygiene"
+mutation_policy = "canonical-text"
+
 [[format]]
 extensions = [".py", ".pyi"]
 carrier = "Python source"

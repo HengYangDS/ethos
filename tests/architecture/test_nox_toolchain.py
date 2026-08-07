@@ -84,7 +84,57 @@ def test_nox_is_the_only_python_lint_orchestrator() -> None:
         ".gitlab-ci.yml",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s lint" in text
+        assert "uv run --frozen --offline python -m nox -s format_check" in text
+        assert "uv run --frozen --offline python -m nox -s lint" not in text
+
+
+def test_nox_exposes_explicit_ruff_format_without_mutating_lint() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+    format_body = source[source.index("def format_repository(") : source.index("def lint(")]
+    lint_body = source[source.index("def lint(") : source.index("def tests(")]
+    assert '_project_script("ruff"), "format", *common, *paths' in format_body
+    assert 'ruff, "format", *common, "--check", *paths' in lint_body
+    assert '"--fix"' not in lint_body
+
+
+def test_nox_exposes_one_all_carrier_format_and_read_only_check() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+    format_body = source[source.index("def format_repository(") : source.index("def lint(")]
+    check_body = source[source.index("def format_check(") : source.index("def tests(")]
+    for operation in (
+        "_format_config",
+        "_format_markdown",
+        "_format_shell",
+        "_format_javascript",
+        "_format_svg",
+    ):
+        assert operation in format_body
+    for check in (
+        "lint(session)",
+        "config_quality(session)",
+        "markdown_lint(session)",
+        "shell_lint(session)",
+        "javascript_lint(session)",
+        "svg_lint(session)",
+        "asset_validation(session)",
+    ):
+        assert check in check_body
+
+
+def test_wheel_build_materializes_only_the_openspec_production_closure() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    manifest = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+
+    assert manifest["dependencies"] == {"@fission-ai/openspec": "1.8.0"}
+    assert "@fission-ai/openspec" not in manifest["devDependencies"]
+    assert '"ETHOS_BUILD_NODE": str(NODE)' in source
+    assert '"ETHOS_BUILD_NPM_CLI": str(' in source
+    hook = (ROOT / "tools/packaging/openspec_runtime_hook.py").read_text(encoding="utf-8")
+    assert '"ci"' in hook
+    assert '"--omit=dev"' in hook
+    assert '"--offline"' in hook
 
 
 def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
@@ -190,7 +240,8 @@ def test_nox_is_the_only_shell_lint_orchestrator() -> None:
         ".gitlab-ci.yml",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s shell_lint" in text
+        assert "uv run --frozen --offline python -m nox -s format_check" in text
+        assert "uv run --frozen --offline python -m nox -s shell_lint" not in text
         assert "run-shell-lint.sh" not in text
 
 
@@ -214,7 +265,8 @@ def test_nox_is_the_only_markdown_lint_orchestrator() -> None:
         ".gitlab-ci.yml",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s markdown_lint" in text
+        assert "uv run --frozen --offline python -m nox -s format_check" in text
+        assert "uv run --frozen --offline python -m nox -s markdown_lint" not in text
         assert "run-markdown-lint.sh" not in text
 
 
@@ -232,15 +284,17 @@ def test_nox_is_the_only_configuration_quality_orchestrator() -> None:
     assert node_package["devDependencies"]["@taplo/cli"] == "0.7.0"
     assert not (ROOT / "tools/ci/scripts/run-config-lint.sh").exists()
     assert not (ROOT / "tools/ci/scripts/install-taplo.sh").exists()
+    pre_commit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    assert "uv run --frozen --offline python -m nox -s config_quality" in pre_commit
     for relative in (
-        ".pre-commit-config.yaml",
         ".config/ci/templates/hosted/github-actions.yml",
         ".config/ci/templates/hosted/gitlab-ci.yml",
         ".github/workflows/ci.yml",
         ".gitlab-ci.yml",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s config_quality" in text
+        assert "uv run --frozen --offline python -m nox -s format_check" in text
+        assert "uv run --frozen --offline python -m nox -s config_quality" not in text
         assert "run-config-lint.sh" not in text
 
 

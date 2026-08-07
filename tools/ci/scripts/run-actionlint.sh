@@ -35,13 +35,19 @@ fi
 case "$(uname -s)" in
   Linux) os="linux" ;;
   Darwin) os="darwin" ;;
-  *) echo "Unsupported actionlint OS: $(uname -s)" >&2; exit 1 ;;
+  *)
+    echo "Unsupported actionlint OS: $(uname -s)" >&2
+    exit 1
+    ;;
 esac
 
 case "$(uname -m)" in
-  x86_64|amd64) arch="amd64" ;;
-  aarch64|arm64) arch="arm64" ;;
-  *) echo "Unsupported actionlint architecture: $(uname -m)" >&2; exit 1 ;;
+  x86_64 | amd64) arch="amd64" ;;
+  aarch64 | arm64) arch="arm64" ;;
+  *)
+    echo "Unsupported actionlint architecture: $(uname -m)" >&2
+    exit 1
+    ;;
 esac
 
 case "${os}-${arch}" in
@@ -49,7 +55,10 @@ case "${os}-${arch}" in
   darwin-arm64) archive_sha256="${ACTIONLINT_DARWIN_ARM64_SHA256}" ;;
   linux-amd64) archive_sha256="${ACTIONLINT_LINUX_AMD64_SHA256}" ;;
   linux-arm64) archive_sha256="${ACTIONLINT_LINUX_ARM64_SHA256}" ;;
-  *) echo "Unsupported actionlint platform: ${os}-${arch}" >&2; exit 1 ;;
+  *)
+    echo "Unsupported actionlint platform: ${os}-${arch}" >&2
+    exit 1
+    ;;
 esac
 
 archive="actionlint_${version}_${os}_${arch}.tar.gz"

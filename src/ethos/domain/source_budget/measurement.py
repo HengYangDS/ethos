@@ -217,8 +217,6 @@ def _measure(
     records: dict[str, dict[str, object]] = {}
     gaps: list[str] = []
     for relative, executable in paths:
-        if relative in policy.exclude:
-            continue
         source = contents.get(relative) if contents is not None else None
         if contents is not None and source is None:
             gaps.append(f"source_budget_carrier_unreadable:{relative}")

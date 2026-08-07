@@ -173,6 +173,36 @@ accepted through self-reported speed or quality claims.
 - **AND** evaluation results remain evidence and cannot directly mark tasks done,
   authorize land or publish, or become another progress store
 
+#### Scenario: a pre-implementation review set is compiled
+- **WHEN** proposal, specs, design, and tasks are ready for implementation
+- **THEN** ETHOS derives the required review lenses from workload kind, affected
+  capabilities, ambiguity, risk, architecture, security, migration,
+  reversibility, and current repository facts
+- **AND** deterministic structure, traceability, contradiction, and policy checks
+  run before judgment-heavy lenses
+- **AND** unresolved intent or mutually valid product choices produce
+  `await-user`, while repairable findings return one agent-executable next action
+
+#### Scenario: completed implementation is reviewed against intent
+- **WHEN** implementation and focused tests complete
+- **THEN** review binds each requirement and scenario to implementation, tests,
+  evidence, and changed paths, and searches changed behavior for requirements
+  absent from the selected Change
+- **AND** missing realization, stale specs, undocumented behavior, failing tests,
+  architecture or security drift, and incomplete evidence block completion
+- **AND** the agent repairs clear findings and recompiles the review set before
+  escalating only unresolved intent, trust, or irreversible decisions to a human
+
+#### Scenario: a policy or DSL runtime is proposed
+- **WHEN** CUE, OPA/Rego, another expression language, state-machine framework,
+  or workflow engine is proposed
+- **THEN** matched evaluation names the exact hand-written validators, compilers,
+  branches, schemas, or projections it replaces and measures terminal net deletion
+- **AND** a candidate that adds a second policy language, effect path, state
+  store, workflow authority, online service, or non-portable runtime is rejected
+- **AND** CEL remains limited to bounded side-effect-free predicates and no DSL
+  directly executes effects
+
 ### Requirement: Product Experience Is A Kernel Projection
 CLI, Python SDK, language-neutral conformance assets, optional MCP/A2A adapters,
 and CI/forge integrations SHALL project one semantic result and SHALL NOT create

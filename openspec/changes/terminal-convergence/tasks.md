@@ -386,6 +386,40 @@ are proved homomorphic projections of one portable policy.
   terminal ELOC than the pinned `spec-driven` control. OpenSpec MCP remains
   unadmitted while no official merged server exists; an optional ETHOS MCP must be stateless,
   demand-loaded, schema-conformant, and behaviorally identical to CLI/SDK JSON.
+  Prove one typed declaration-to-effect chain: OpenSpec owns Change lifecycle,
+  typed repository declarations own configuration, CEL owns only bounded pure
+  predicates, pure compilation emits canonical TransitionPlan, one native owner
+  executes exact effects, and fresh observation emits Attestation. Inventory and
+  delete parallel parsers, validators, operation dispatch, effect constructors,
+  and review state that this chain subsumes. Compare CUE and OPA/Rego against the
+  current Pydantic/TOML/CEL implementation using representative validation and
+  policy workloads; admit either only through a destructive net-deletion cutover.
+  Compile adaptive pre-implementation and post-implementation review sets from
+  workload, ambiguity, risk, changed paths, and affected capabilities; prove
+  requirement-to-code-to-test-to-evidence coverage, reverse discovery of
+  undocumented behavior, spec drift detection, deterministic-first review,
+  independent semantic lenses, agent self-repair, and human escalation only for
+  unresolved intent, trust-bound publication, irreversible effects, or final
+  product judgment. Compile zero-or-more required Skills per lifecycle node and
+  prove that host noncompliance still fails at repository-native prewrite, hook,
+  CAS, proof, or publication boundaries. Treat ETHOS as an ecosystem rather than
+  only a Python package: publish a stable minimal kernel, language-neutral
+  protocol and schemas, conformance kit, capability declaration/discovery,
+  version negotiation, provenance, demand loading, isolation, and clean uninstall
+  for method packs, schemas, review lenses, Skills, plugins, agent hosts,
+  MCP/A2A projections, forge/provider adapters, and adopter tooling. Once a
+  capability is selected, use its applicable official schema, validation,
+  generation, diagnostics, extension, packaging, and lifecycle facilities and
+  delete hand-written substitutes; borrowed mechanisms retain their full
+  semantics while mapping onto the sole ETHOS authority chain.
+  Position ETHOS as the vendor-neutral semantic control plane for autonomous
+  software engineering rather than another agent harness: preserve intent,
+  permission, exact transition, recovery, and evidence across model/runtime/host
+  replacement; project MCP 2026-07-28, A2A 1.0, and stable ACP capabilities
+  without importing their session or task state; admit OpenTelemetry GenAI only
+  as diagnostic evidence and map SLSA 1.2, in-toto Attestation v1, and Sigstore
+  only at release/provenance boundaries. Prove the same conformance case through
+  at least two host/protocol projections with no protocol-specific kernel field.
 - [ ] 6.10 Close this Change through the official owner-native OpenSpec action
   at verified version `1.8.0` as the final tracked source mutation. Bind the
   effective tool version, returned archive path, warnings, no-op state, and

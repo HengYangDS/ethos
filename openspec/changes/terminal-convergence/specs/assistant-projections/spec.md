@@ -29,6 +29,61 @@ Collaboration and handoff SHALL be vendor-neutral projections over selected Comm
   progress, status, completion, or lifecycle
 - **AND** Superpowers and other method packs remain optional procedures
 
+#### Scenario: one lifecycle node requires several skills
+- **WHEN** operation, subject, carrier role, changed paths, risk, and lifecycle
+  facts require multiple capabilities at the same node
+- **THEN** ETHOS compiles one ordered dependency-complete skill set rather than
+  selecting a single winner or relying on prompt keyword matching
+- **AND** required skills run before the earliest governed effect they protect,
+  while advisory skills are demand-loaded and token-bounded
+- **AND** a missing, stale, overlapping, or host-incompatible required projection
+  blocks status, plan, or prewrite with one repair action
+
+#### Scenario: an agent ignores projected instructions
+- **WHEN** Codex, Claude, or another host edits files or invokes Git without
+  following a generated Skill or slash command
+- **THEN** repository-native prewrite, hook, exact-CAS, proof, and publication
+  enforcement still reject the inadmissible transition
+- **AND** host instructions improve left-shifted guidance but never constitute
+  the security or authority boundary
+
+#### Scenario: an ecosystem capability is installed
+- **WHEN** a method pack, review lens, policy bundle, schema, plugin, agent-host
+  projection, protocol adapter, forge adapter, or provider integration is added
+- **THEN** it declares capability identity, contract and protocol versions,
+  operations, required permissions, provenance, compatibility, conformance tests,
+  demand-loading behavior, failure semantics, and uninstall effects
+- **AND** discovery and release inventory derive from the same declaration rather
+  than parallel manifests and code registries
+- **AND** removing the extension leaves the kernel, repository truth, and native
+  lifecycle complete
+
+#### Scenario: an agent runtime or host is replaced
+- **WHEN** a repository operation moves between models, agent SDKs, Codex,
+  Claude, another harness, an IDE, or a remote agent
+- **THEN** the same selected intent, actor and capability identity, permission
+  boundary, TransitionPlan input, verdict schema, effect identity, and
+  Attestation contract remain valid
+- **AND** prompts, conversations, turns, sessions, traces, and private memory are
+  not required to reconstruct authority or continue the repository lifecycle
+
+#### Scenario: an agent protocol projects ETHOS
+- **WHEN** MCP, A2A, ACP, or another admitted protocol exposes ETHOS capabilities
+- **THEN** the adapter negotiates the protocol and maps its native discovery,
+  request, progress, result, cancellation, and error forms onto the shared typed
+  application service and conformance cases
+- **AND** protocol Task, session, artifact, content, or extension state does not
+  own OpenSpec tasks, Leases, TransitionPlans, effects, or repository truth
+- **AND** removal of that adapter leaves CLI, SDK, subprocess JSON, and native
+  repository enforcement complete
+
+#### Scenario: agent execution is observed
+- **WHEN** a host or runtime emits OpenTelemetry-compatible model, token, tool,
+  handoff, latency, retry, or cost telemetry
+- **THEN** ETHOS may use it for matched workflow evaluation and diagnostics
+- **AND** missing, sampled, mutable, or vendor-hosted telemetry cannot authorize
+  an effect, satisfy proof, or replace a HEAD-bound Attestation
+
 #### Scenario: a different agent takes over
 - **WHEN** an agent host changes
 - **THEN** the successor consumes the same bounded handoff projection without replaying private session state

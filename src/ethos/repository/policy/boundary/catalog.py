@@ -14,7 +14,6 @@ PRODUCT_SURFACES = (
     "ruff.toml",
     "uv.lock",
     ".config",
-    ".githooks",
     ".github",
     ".gitignore",
     ".gitlab",

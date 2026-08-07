@@ -15,6 +15,7 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.repo.commit_identity import verify_commit_trust
+from ethos.repository.hooks import hook_runtime_binding
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
@@ -144,6 +145,7 @@ def test_lane_candidate_bootstrap_recovers_after_worktree_creation_precedes_inte
     recovered = run_ethos(*arguments, cwd=repo)
 
     assert recovered["state"] == "present"
+    assert hook_runtime_binding(candidate)["required_gaps"] == []
     assert not list(ref_intent_dir(repo).glob("*.json"))
 
 
@@ -199,7 +201,7 @@ def test_refresh_base_blocks_same_tree_identity_repair_instead_of_rebasing_back(
 ) -> None:
     _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    git(candidate, "reset", "--hard", old_head)
+    _set_fixture_head(candidate, old_head)
     repaired_head = _replace_signature(worktree, old_head)
     _advance_lane_lease(worktree, old_head, repaired_head)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -226,7 +228,7 @@ def test_repair_identity_requires_protected_trust_and_exact_new_head_proof(
 ) -> None:
     _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    git(candidate, "reset", "--hard", old_head)
+    _set_fixture_head(candidate, old_head)
     repaired_head = _replace_signature(worktree, old_head)
     _advance_lane_lease(worktree, old_head, repaired_head)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -274,8 +276,8 @@ def test_repair_identity_advances_candidate_and_accepted_through_exact_cas(
 ) -> None:
     repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    git(candidate, "reset", "--hard", old_head)
-    git(repo, "reset", "--hard", old_head)
+    _set_fixture_head(candidate, old_head)
+    _set_fixture_head(repo, old_head)
     repaired_head = _replace_signature(worktree, old_head)
     _advance_lane_lease(worktree, old_head, repaired_head)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -316,8 +318,8 @@ def test_repair_identity_resumes_after_candidate_cas_before_worktree_sync(
 ) -> None:
     repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    git(candidate, "reset", "--hard", old_head)
-    git(repo, "reset", "--hard", old_head)
+    _set_fixture_head(candidate, old_head)
+    _set_fixture_head(repo, old_head)
     repaired_head = _replace_signature(worktree, old_head)
     _advance_lane_lease(worktree, old_head, repaired_head)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -373,8 +375,8 @@ def test_repair_identity_resumes_after_accepted_cas_before_worktree_sync(
 ) -> None:
     repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     old_head = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
-    git(candidate, "reset", "--hard", old_head)
-    git(repo, "reset", "--hard", old_head)
+    _set_fixture_head(candidate, old_head)
+    _set_fixture_head(repo, old_head)
     repaired_head = _replace_signature(worktree, old_head)
     _advance_lane_lease(worktree, old_head, repaired_head)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -443,9 +445,32 @@ def _replace_signature(worktree: Path, head: str) -> str:
         check=True,
     )
     repaired_head = completed.stdout.strip()
-    git(worktree, "update-ref", "refs/heads/work/feature", repaired_head, head)
+    empty_hooks = worktree / ".git-test-hooks"
+    empty_hooks.mkdir(exist_ok=True)
+    git(
+        worktree,
+        "-c",
+        f"core.hooksPath={empty_hooks.as_posix()}",
+        "update-ref",
+        "refs/heads/work/feature",
+        repaired_head,
+        head,
+    )
     git(worktree, "reset", "--hard", repaired_head)
     return repaired_head
+
+
+def _set_fixture_head(worktree: Path, head: str) -> None:
+    empty_hooks = worktree / ".git-test-hooks"
+    empty_hooks.mkdir(exist_ok=True)
+    git(
+        worktree,
+        "-c",
+        f"core.hooksPath={empty_hooks.as_posix()}",
+        "reset",
+        "--hard",
+        head,
+    )
 
 
 def _advance_lane_lease(worktree: Path, previous: str, head: str) -> None:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
@@ -13,6 +12,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
+from ethos.repository.hooks import hook_runtime_binding
 from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.policy.references.closure import repository_product_reference_gaps
@@ -115,32 +115,13 @@ def release_files_report(root: Path) -> dict[str, object]:
 def _write_admission_armed_gaps(root: Path) -> list[str]:
     """Gap when the write-admission moat is NOT armed for this checkout.
 
-    ETHOS's write-admission depends on git core.hooksPath pointing at .githooks so the
-    pre-commit gate actually fires. Prior to this check the audit could report ok=True
-    while the moat was unwired — a governance runtime green about its own ungated
-    writes. Bind the moat to the always-run audit: an unarmed checkout is a blocking
-    gap, discoverable and fixable via `ethos hook install`.
+    The configured worktree-local launchers and their exact Python provenance must
+    match the sole hook runtime owner. An unarmed checkout is a blocking gap,
+    discoverable and repairable via ``ethos hook install``.
     """
-    hook_script = root / ".githooks" / "pre-commit"
-    if not hook_script.exists():
-        # Not an ETHOS-admission repo (adopter without the hook script) — nothing to arm.
+    if not (root / ".ethos/profile.toml").is_file():
         return []
-    gaps: list[str] = []
-    if not (root / ".githooks" / "pre-push").exists():
-        gaps.append("write_admission_not_armed:pre-push_script_missing")
-    if not (root / ".githooks" / "reference-transaction").exists():
-        gaps.append("write_admission_not_armed:reference-transaction_script_missing")
-    completed = subprocess.run(
-        ["git", "config", "--get", "core.hooksPath"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    hooks_path = completed.stdout.strip() if completed.returncode == 0 else ""
-    if hooks_path != ".githooks":
-        gaps.append("write_admission_not_armed:core.hooksPath")
-    return gaps
+    return [str(gap) for gap in hook_runtime_binding(root)["required_gaps"]]
 
 
 def repository_audit(

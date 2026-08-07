@@ -60,12 +60,13 @@ PARALLEL_SESSIONS = (
 )
 SERIAL_PROOF_SESSIONS = ("docstrings", "module_layout", "product_boundary")
 PLATFORM_ADAPTERS = ("tools/ci/scripts/run-secrets-scan.sh",)
+PREPARE_SESSIONS = ("prepare_install_supply",)
 DELIVERY_SESSIONS = ("build", "install_smoke", "supply_chain")
 
 
 def owner_commands() -> list[str]:
     """Return the exact local verification closure in execution order."""
-    sessions = (*VERIFY_SESSIONS, "tests", *DELIVERY_SESSIONS)
+    sessions = (*VERIFY_SESSIONS, "tests", *PREPARE_SESSIONS, *DELIVERY_SESSIONS)
     return [
         *(f"uv run --frozen --offline python -m nox -s {name}" for name in sessions),
         *PLATFORM_ADAPTERS,
@@ -116,6 +117,8 @@ def run(session: nox.Session) -> None:
     for relative in PLATFORM_ADAPTERS:
         session.run(str(ROOT / relative), env={"PYTHONWARNINGS": "error"})
     _run_session(session, "tests")
+    for name in PREPARE_SESSIONS:
+        _run_session(session, name)
     for name in DELIVERY_SESSIONS:
         _run_session(session, name)
     observed = current_tracked_head(ROOT)

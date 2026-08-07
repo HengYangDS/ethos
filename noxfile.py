@@ -21,6 +21,7 @@ run_config_quality = import_module("tools.ci.config_quality").run
 run_format_selection = import_module("tools.ci.format_selection").main
 run_hosted_observation = import_module("tools.ci.hosted_observation").capture_observation
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
+prepare_install_supply_owner = import_module("tools.ci.local_install_smoke").prepare_supply
 run_local_ci = import_module("tools.ci.local_ci").run
 run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_audit").run
 run_repository_hygiene = import_module("tools.ci.repository_hygiene").audit
@@ -108,6 +109,12 @@ def build(session: nox.Session) -> None:
 
 
 @nox.session(python=False)
+def prepare_install_supply(_session: nox.Session) -> None:
+    """Prepare the lock-bound dependency supply consumed by offline install proof."""
+    prepare_install_supply_owner()
+
+
+@nox.session(python=False)
 def install_smoke(session: nox.Session) -> None:
     """Prove offline installation from the single built wheel."""
     run_install_smoke(session)
@@ -117,6 +124,7 @@ def install_smoke(session: nox.Session) -> None:
 def host_conformance(session: nox.Session) -> None:
     """Execute the installed-wheel contract on the current real host."""
     _build_wheel(session)
+    prepare_install_supply(session)
     run_install_smoke(session)
     session.run(
         sys.executable,

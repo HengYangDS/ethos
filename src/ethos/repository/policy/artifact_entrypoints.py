@@ -48,12 +48,6 @@ _DENIED_ENTRYPOINT_HOME_TOKENS = (
 _RUNTIME_BOOTSTRAP_PATH = "tools/ci/scripts/with-python-runtime.sh"
 _RETIRED_VENV_RUNTIME_MARKER = "build/runtime/venv"
 _PYTHON_EXECUTION_PATTERN = re.compile(r"(?:^|[;&|()]|\s)(?:python(?:[0-9.]*)?)(?:\s|$)")
-_PYTHON_BOOTSTRAP_EXEMPTIONS = frozenset(
-    {
-        "tools/ci/scripts/bootstrap-python.sh",
-        "tools/ci/scripts/configure-git-checkout.sh",
-    }
-)
 _SHELL_ASSIGNMENT_PATTERN = re.compile(
     r"^\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)=(?P<value>\"[^\"]*\"|'[^']*'|\S+)\s*$"
 )
@@ -209,9 +203,7 @@ def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, 
             "uv_runtime_unbound",
         ),
         (
-            rel not in _PYTHON_BOOTSTRAP_EXEMPTIONS
-            and bool(_PYTHON_EXECUTION_PATTERN.search(producer_text))
-            and not bootstrap_bound,
+            bool(_PYTHON_EXECUTION_PATTERN.search(producer_text)) and not bootstrap_bound,
             "python-runtime-bootstrap",
             "active Python execution must route through the semantic runtime bootstrap",
             "python_runtime_unbound",

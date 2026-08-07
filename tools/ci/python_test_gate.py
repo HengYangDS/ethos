@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import time
+import sys
+import tempfile
 import tomllib
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -14,7 +15,9 @@ from typing import IO
 from typing import TYPE_CHECKING
 from typing import Self
 
-from ethos.adapters.repo.git import run_command
+from filelock import FileLock
+from filelock import Timeout
+
 from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
@@ -23,12 +26,11 @@ if TYPE_CHECKING:
     import nox
 
 ROOT = Path(__file__).resolve().parents[2]
-PYTHON = ROOT / ".venv/bin/python"
+PYTHON = Path(sys.executable)
 PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.ini"
 COVERAGE_CONFIG = ROOT / ".config/checks/coverage/coverage.ini"
 COVERAGE_POLICY = ROOT / ".config/checks/coverage/policy.toml"
 TARGETS = ("tests/unit", "tests/architecture")
-LOCK_OWNER_FIELD_COUNT = 2
 
 
 def _executable(name: str) -> str:
@@ -63,27 +65,12 @@ def _head() -> str:
     return run_git(ROOT, "rev-parse", "HEAD", observation=True).stdout.strip()
 
 
-def _process_start(pid: int) -> str:
-    return run_command(
-        ROOT,
-        (_executable("ps"), "-o", "lstart=", "-p", str(pid)),
-    ).stdout.strip()
-
-
 def remove_generated_path(path: Path) -> None:
     """Remove one generated path without hiding cleanup failures."""
     if path.is_dir():
         shutil.rmtree(path)
     else:
         path.unlink(missing_ok=True)
-
-
-def _remove_lock(lock: Path, owner: Path) -> None:
-    owner.unlink(missing_ok=True)
-    try:
-        lock.rmdir()
-    except FileNotFoundError:
-        return
 
 
 def _chown(path: Path, uid: int, gid: int) -> None:
@@ -111,12 +98,11 @@ class Settings:
     def load(cls) -> Self:
         """Read the declared execution controls once."""
         evidence = ROOT / os.getenv("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests")
-        temp_root = os.getenv("TMPDIR", "/tmp").rstrip("/")
-        default_temp = f"{temp_root}/ethos-pytest-{os.getenv('USER', 'user')}-{os.getpid()}"
+        default_temp = Path(tempfile.gettempdir()) / f"ethos-pytest-{os.getpid()}"
         return cls(
             _head(),
             evidence,
-            Path(os.getenv("ETHOS_TEST_BASETEMP", default_temp)),
+            Path(os.getenv("ETHOS_TEST_BASETEMP", str(default_temp))),
             _parallelism("ETHOS_TEST_WORKERS", 8),
             _parallelism("ETHOS_TEST_SHARDS", 1),
             _number("ETHOS_TEST_DURATIONS", 20),
@@ -158,7 +144,7 @@ class PythonTestGate:
         self.pytest = settings.evidence / "pytest"
         self.data = self.coverage / ".coverage"
         self.head_file = self.coverage / "head.txt"
-        self.identity_home = Path(os.getenv("TMPDIR", "/tmp")) / f"ethos-test-{os.getpid()}"
+        self.identity_home = Path(tempfile.gettempdir()) / f"ethos-test-{os.getpid()}"
 
     @classmethod
     def from_environment(cls) -> Self:
@@ -193,43 +179,12 @@ class PythonTestGate:
     @contextmanager
     def _coverage_lock(self) -> Iterator[None]:
         self.coverage.mkdir(parents=True, exist_ok=True)
-        lock, owner = self.coverage / ".write.lock", self.coverage / ".write.lock/owner.pid"
-        deadline, invalid_reclaimed = time.monotonic() + self.s.lock_wait, False
-        while True:
-            try:
-                lock.mkdir()
-                break
-            except FileExistsError:
-                fields = (
-                    owner.read_text(encoding="utf-8").strip().split("\t") if owner.is_file() else []
-                )
-                valid = (
-                    len(fields) == LOCK_OWNER_FIELD_COUNT
-                    and fields[0].isdigit()
-                    and int(fields[0]) > 0
-                    and fields[1]
-                )
-                dead = valid and _process_start(int(fields[0])) != fields[1]
-                reclaim = dead or (
-                    time.monotonic() >= deadline and not valid and not invalid_reclaimed
-                )
-                if reclaim:
-                    invalid_reclaimed = invalid_reclaimed or not dead
-                    _remove_lock(lock, owner)
-                    continue
-                if time.monotonic() >= deadline:
-                    message = f"coverage evidence lock unavailable: {lock}"
-                    raise RuntimeError(message) from None
-                time.sleep(1)
-        started = _process_start(os.getpid())
-        if not started:
-            message = "could not determine coverage lock process identity"
-            raise RuntimeError(message)
-        owner.write_text(f"{os.getpid()}\t{started}\n", encoding="utf-8")
         try:
-            yield
-        finally:
-            _remove_lock(lock, owner)
+            with FileLock(self.coverage / ".write.lock", timeout=self.s.lock_wait):
+                yield
+        except Timeout as error:
+            message = f"coverage evidence lock unavailable: {self.coverage / '.write.lock'}"
+            raise RuntimeError(message) from error
 
     def _prepare(self) -> None:
         self._cleanup()
@@ -273,7 +228,7 @@ class PythonTestGate:
         env: dict[str, str | None] = {
             "COVERAGE_FILE": str(data or self.data),
             "ETHOS_ACTOR": None,
-            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_COUNT": str(len(config)),
             "PYTHONDONTWRITEBYTECODE": "1",

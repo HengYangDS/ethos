@@ -11,7 +11,7 @@ from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.contracts.review import ReviewResult
-from ethos.contracts.skill import activation as skill_activation
+from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.schema import validate_schema_instance
@@ -130,7 +130,7 @@ def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
             "pre_reads": ["ruff.toml"],
         },
     )
-    result = skill_activation.compile_skill_activation(
+    result = compile_skill_activation(
         registry,
         operation="plan",
         subjects=("change-lifecycle",),
@@ -176,12 +176,10 @@ def test_skill_activation_fails_closed_for_missing_or_cyclic_requirements() -> N
         },
     )
 
-    missing_result = skill_activation.compile_skill_activation(
+    missing_result = compile_skill_activation(
         missing, operation="plan", changed_paths=("src/a.py",)
     )
-    cyclic_result = skill_activation.compile_skill_activation(
-        cyclic, operation="plan", changed_paths=("src/a.py",)
-    )
+    cyclic_result = compile_skill_activation(cyclic, operation="plan", changed_paths=("src/a.py",))
 
     assert missing_result.verdict == "block"
     assert list(missing_result.required_gaps) == [
@@ -208,7 +206,7 @@ def test_skill_activation_rejects_mutually_exclusive_capabilities() -> None:
         },
     )
 
-    result = skill_activation.compile_skill_activation(
+    result = compile_skill_activation(
         registry,
         operation="plan",
         changed_paths=("src/a.py",),

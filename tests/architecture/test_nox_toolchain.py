@@ -163,6 +163,34 @@ def test_nox_is_the_only_prose_orchestrator() -> None:
         assert "run-prose-check.sh" not in text
 
 
+def test_nox_is_the_only_shell_lint_orchestrator() -> None:
+    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    gates = {gate["id"]: gate for gate in declaration["gates"]}
+
+    assert "def shell_lint(" in source
+    assert '_project_script("shellcheck")' in source
+    assert "shellcheck-py>=0.11.0.1" in project["dependency-groups"]["dev"]
+    assert gates["shell-lint"]["command"] == [
+        "{python}",
+        "-m",
+        "nox",
+        "-s",
+        "shell_lint",
+    ]
+    assert not (ROOT / "tools/ci/scripts/run-shell-lint.sh").exists()
+    for relative in (
+        ".config/ci/templates/hosted/github-actions.yml",
+        ".config/ci/templates/hosted/gitlab-ci.yml",
+        ".github/workflows/ci.yml",
+        ".gitlab-ci.yml",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "uv run --frozen --offline python -m nox -s shell_lint" in text
+        assert "run-shell-lint.sh" not in text
+
+
 def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
     source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
 

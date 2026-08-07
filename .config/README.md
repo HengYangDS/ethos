@@ -44,7 +44,7 @@ configuration plane, not a truth center.
   `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate and
   falls back to the pinned upstream GitHub release binary when no local
   `actionlint` is installed.
-- `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; `tools/ci/scripts/run-hosted-provider-observation.sh` records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
+- `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; the `hosted_observation` Nox session records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
 - `.config/checks/format/selection.toml` owns fail-closed executable-carrier
   admission and file-format boundary checks; `uv run --frozen --offline python -m nox -s format_selection`
   is the reusable runner.

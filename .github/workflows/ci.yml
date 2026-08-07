@@ -126,7 +126,7 @@ jobs:
       - name: Runbook registry
         run: uv run --frozen --offline python -m nox -s runbook_registry
       - name: Hosted provider observation envelope
-        run: tools/ci/scripts/run-hosted-provider-observation.sh
+        run: uv run --frozen --offline python -m nox -s hosted_observation
 
   verify:
     name: repository proof

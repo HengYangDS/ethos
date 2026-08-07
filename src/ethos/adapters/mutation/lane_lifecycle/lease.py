@@ -11,6 +11,7 @@ from typing import Any
 
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.mutation.proof_artifacts import scan_attestations
@@ -43,6 +44,9 @@ if TYPE_CHECKING:
 def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> dict[str, object]:
     """Evaluate and optionally execute one declaration-owned lease transition."""
     repo = repository_root(root)
+    guard = local_state_mutation_guard(repo) if request.apply else {"required_gaps": []}
+    if guard["required_gaps"]:
+        return _blocked_state_migration(request.branch, guard)
     status = workspace_status(repo)
     database = state_database(repo)
     expected_state, holder_gaps = _lease_expected_state(repo, request)
@@ -175,6 +179,9 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
 def execute_lease_takeover(*, root: Path, request: LeaseTakeoverRequest) -> dict[str, object]:
     """Execute one accepted, exact, transcript-free Lease takeover."""
     repo = repository_root(root)
+    guard = local_state_mutation_guard(repo) if request.apply else {"required_gaps": []}
+    if guard["required_gaps"]:
+        return _blocked_state_migration(request.branch, guard)
     observed = leases_by_branch(repo).get(request.branch, {})
     expected = _takeover_expected_state(repo, request, observed)
     gaps = _takeover_gaps(repo, request, expected)
@@ -252,6 +259,19 @@ def execute_lease_takeover(*, root: Path, request: LeaseTakeoverRequest) -> dict
         "lease": lease,
         "attestation": attestation.model_dump(mode="json") if attestation else {},
         "required_gaps": list(gaps),
+    }
+
+
+def _blocked_state_migration(branch: str, guard: dict[str, object]) -> dict[str, object]:
+    return {
+        "verdict": "block",
+        "state": "blocked",
+        "branch": branch,
+        "lease": {},
+        "handoff_offer": {},
+        "attestation": {},
+        "required_gaps": guard["required_gaps"],
+        "next_action": guard["next_action"],
     }
 
 

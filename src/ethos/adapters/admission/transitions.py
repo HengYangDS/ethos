@@ -8,6 +8,7 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.admission.ref_intent import claim_ref_intent
+from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.openspec.lifecycle.archive_transition import (
     lease_bound_archive_transition_fields,
 )
@@ -60,8 +61,16 @@ def work_lane_ref_transition_report(
         )
         else ""
     )
-    if immediate_reason:
-        return _admit(phase, ref_name, old_value, new_value, immediate_reason)
+    early = _early_transition_report(
+        repo=repo,
+        phase=phase,
+        ref_name=ref_name,
+        old_value=old_value,
+        new_value=new_value,
+        immediate_reason=immediate_reason,
+    )
+    if early is not None:
+        return early
     lease = leases_by_branch(repo).get(branch, {})
     update = GitRefUpdate(expected=old_value, desired=new_value)
     if not lease:
@@ -166,6 +175,26 @@ def work_lane_ref_transition_report(
         if advance
         else base
     )
+
+
+def _early_transition_report(
+    *,
+    repo: Path,
+    phase: str,
+    ref_name: str,
+    old_value: str,
+    new_value: str,
+    immediate_reason: str,
+) -> dict[str, object] | None:
+    if immediate_reason:
+        return _admit(phase, ref_name, old_value, new_value, immediate_reason)
+    guard = local_state_mutation_guard(repo) if phase == "prepared" else {"required_gaps": []}
+    gaps = cast("list[str]", guard["required_gaps"])
+    if not gaps:
+        return None
+    report = _report(phase, ref_name, old_value, new_value, {}, gaps)
+    report["next_action"] = guard["next_action"]
+    return report
 
 
 def _advance_ref_lease(

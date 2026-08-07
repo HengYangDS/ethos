@@ -21,8 +21,8 @@ and [Forge Provider Contract](../governance/forge-provider-contract.md).
 | ID | Command | Category | Evidence |
 | --- | --- | --- | --- |
 | RUN-CI-TEMPLATES | `uv run --frozen --offline python -m nox -s ci_templates` | provider-projection | JSON stdout |
-| RUN-GITHUB-EMULATOR | `ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-github-local-emulator.sh doctor` | provider-emulator | `build/evidence/local-ci/github/doctor.json` |
-| RUN-GITLAB-EMULATOR | `ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-gitlab-local-emulator.sh doctor` | provider-emulator | `build/evidence/local-ci/gitlab/doctor.json` |
+| RUN-GITHUB-EMULATOR | `uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence github --mode doctor --dry-run` | provider-emulator | `build/evidence/local-ci/github/doctor.json` |
+| RUN-GITLAB-EMULATOR | `uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence gitlab --mode doctor --dry-run` | provider-emulator | `build/evidence/local-ci/gitlab/doctor.json` |
 | RUN-FORMAT-SELECTION | `uv run --frozen --offline python -m nox -s format_selection` | format-boundary | JSON stdout |
 | RUN-ARCHITECTURE-PROJECTION | `uv run --frozen --offline python -m nox -s architecture_projection` | architecture-projection | JSON stdout |
 | RUN-GENERATED-ARTIFACTS | `ethos prove --gate generated-artifacts --json` | generated-artifact-topology | JSON stdout |

@@ -292,7 +292,7 @@ concern = "github_local_emulator"
 tool = "act"
 config = ".config/checks/ci/templates.toml"
 artifacts = "build/evidence/local-ci/github/"
-gate = "tools/ci/scripts/run-github-local-emulator.sh"
+gate = "uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence github"
 profile = "provider"
 
 [[tool]]
@@ -300,7 +300,7 @@ concern = "gitlab_local_emulator"
 tool = "gitlab-ci-local"
 config = ".config/checks/ci/templates.toml"
 artifacts = "build/evidence/local-ci/gitlab/"
-gate = "tools/ci/scripts/run-gitlab-local-emulator.sh"
+gate = "uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence gitlab"
 profile = "provider"
 
 [[tool]]

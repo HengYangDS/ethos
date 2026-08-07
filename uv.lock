@@ -394,6 +394,7 @@ dev = [
     { name = "shellcheck-py" },
     { name = "ty" },
     { name = "uv" },
+    { name = "yamllint" },
 ]
 
 [package.metadata]
@@ -427,6 +428,7 @@ dev = [
     { name = "shellcheck-py", specifier = ">=0.11.0.1" },
     { name = "ty", specifier = ">=0.0.69" },
     { name = "uv", specifier = ">=0.12.2" },
+    { name = "yamllint", specifier = ">=1.38.0" },
 ]
 
 [[package]]
@@ -1630,4 +1632,17 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ea/fa/18004e5cb15541ad2a68ff219c755233b012b12d4ec8663d06a258082bec/virtualenv-21.7.1.tar.gz", hash = "sha256:d0dbfaa5483487baea28d7210ef8d24c9d1bd0f10f449eeb215568825a9b334e", size = 5525237, upload-time = "2026-07-30T15:40:36.36Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4b/a7/ded126c19495158a05c7202b3389139839d4cf78d622d453867778e0f7a8/virtualenv-21.7.1-py3-none-any.whl", hash = "sha256:6394973f990536e34c05157179146c020284c42fe01da1dfeb0ba16c345280d9", size = 5504576, upload-time = "2026-07-30T15:40:34.512Z" },
+]
+
+[[package]]
+name = "yamllint"
+version = "1.38.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pathspec" },
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/28/a0/8fc2d68e132cf918f18273fdc8a1b8432b60d75ac12fdae4b0ef5c9d2e8d/yamllint-1.38.0.tar.gz", hash = "sha256:09e5f29531daab93366bb061e76019d5e91691ef0a40328f04c927387d1d364d", size = 142446, upload-time = "2026-01-13T07:47:53.276Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/05/92/aed08e68de6e6a3d7c2328ce7388072cd6affc26e2917197430b646aed02/yamllint-1.38.0-py3-none-any.whl", hash = "sha256:fc394a5b3be980a4062607b8fdddc0843f4fa394152b6da21722f5d59013c220", size = 68940, upload-time = "2026-01-13T07:47:51.343Z" },
 ]

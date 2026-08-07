@@ -17,6 +17,7 @@ PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
 run_dependency_hygiene = import_module("tools.ci.dependency_hygiene").run
 run_architecture_projection = import_module("tools.ci.architecture_projection").main
 run_ci_templates = import_module("tools.ci.ci_templates").check_templates
+run_config_quality = import_module("tools.ci.config_quality").run
 run_format_selection = import_module("tools.ci.format_selection").main
 run_hosted_observation = import_module("tools.ci.hosted_observation").capture_observation
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
@@ -217,6 +218,17 @@ def markdown_lint(session: nox.Session) -> None:
         "--config",
         ".config/checks/markdown/.markdownlint-cli2.yaml",
     )
+
+
+@nox.session(python=False)
+def config_quality(session: nox.Session) -> None:
+    """Check TOML, YAML, JSON, and hook configuration without shell orchestration."""
+    paths = tuple(session.posargs)
+    failures = run_config_quality(paths, node=NODE)
+    if failures:
+        session.error("configuration quality failed:\n" + "\n".join(failures))
+    if not paths or Path(".pre-commit-config.yaml") in map(Path, paths):
+        session.run(_project_script("pre-commit"), "validate-config", ".pre-commit-config.yaml")
 
 
 @nox.session(python=False)

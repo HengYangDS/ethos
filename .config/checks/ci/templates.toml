@@ -15,7 +15,6 @@ forbidden_log_patterns = [
 ]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
-  "tools/ci/scripts/run-config-lint.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
   "tools/ci/scripts/run-secrets-scan.sh",
@@ -40,7 +39,6 @@ forbidden_log_patterns = [
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "tools/ci/scripts/run-node-compatibility.sh",
-  "tools/ci/scripts/run-config-lint.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
   "tools/ci/scripts/run-secrets-scan.sh",

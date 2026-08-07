@@ -90,7 +90,7 @@ jobs:
       - name: Dependency hygiene
         run: uv run --frozen --offline python -m nox -s dependencies
       - name: Config lint
-        run: tools/ci/scripts/run-config-lint.sh
+        run: uv run --frozen --offline python -m nox -s config_quality
       - name: JSON schema hygiene
         run: uv run --frozen --offline python -m nox -s schemas
       - name: Repository hygiene

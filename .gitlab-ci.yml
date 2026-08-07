@@ -97,7 +97,7 @@ ethos:hygiene:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-repository-hygiene.sh
+    - uv run --frozen --offline python -m nox -s repository_hygiene
 
 ethos:product-boundary:
   <<: *python_setup

@@ -32,7 +32,8 @@ See also: [Decision Records](README.md), [Decision Index](decision-index.md),
 | Class | architecture / documentation |
 | Scope | Docs required-path kernel invariance; locus and cost profile of adopter parity evidence. |
 | Supersedes | none |
-| Depends on | DR-0004 (native documentation topology contract) |
+| Superseded By | DR-0004 |
+| Depends On | DR-0004 (native documentation topology contract) |
 
 ## Context
 

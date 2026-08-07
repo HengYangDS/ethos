@@ -34,8 +34,9 @@ See also: [Decision Records](README.md), [Decision Index](decision-index.md),
 | Decision Version | 3 |
 | Decision Change Date | 2026-07-26 |
 | Record Review Date | 2026-10-10 |
-| Supersedes | DR-0005 version 1 graph-wrapper and parallel-registry choices |
+| Supersedes | None |
 | Superseded By | None |
+| Depends On | None |
 | Scope | Contract models, policy evaluation, TransitionPlan, CLI composition, serialization, projections, and anti-regression gates. |
 | Boundary | ETHOS owns repository truth and transition semantics; frameworks and tools provide replaceable mechanisms only. |
 | Decision | Use strict frozen Pydantic v2 models for persisted and external contracts, small frozen stdlib values internally, CEL for typed guard expressions after parity, direct `graphlib.TopologicalSorter` for TransitionPlan order, Cyclopts declarations as CLI truth, and checked JSON Schema for language-neutral contracts. |

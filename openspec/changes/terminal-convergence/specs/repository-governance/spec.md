@@ -655,7 +655,14 @@ Contradictions, stale projections, and model gaps SHALL promote the affected bou
 - **AND** alternatives use one comparable pros/cons/decision-basis table rather
   than prose piles or incomparable templates
 - **AND** one index lists current accepted or proposed records first by newest
-  decision-change date, followed by superseded history
+  decision-change date, followed by superseded or retired history
+- **AND** record filenames match
+  `DR-<four-digit-id>-<lower-kebab-description>.md`, each ID is unique, and the
+  index links every record exactly once
+- **AND** status is one of `proposed`, `accepted`, `superseded`, or `retired`;
+  superseded records name exactly one existing successor, the successor names
+  every predecessor it supersedes, and dependency edges reference existing DRs
+  without cycles
 - **AND** dependency maps, code-link ledgers, status directories, or other
   parallel decision owners are absent
 

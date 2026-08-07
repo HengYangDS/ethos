@@ -9,7 +9,7 @@ relations:
 
 # DR-0008: Metric-Domain Budget Contract
 
-Status: superseded by the terminal owned-source contract in
+Status: retired by the terminal owned-source contract in
 [Terminal Governance Product Design](../plans/terminal-governance-product-design.md)
 and the accepted quality capability specification.
 
@@ -28,14 +28,14 @@ See also: [Decision Records](README.md), [Decision Index](decision-index.md),
 | Decision ID | DR-0008 |
 | Kind | architecture / quality governance |
 | Decision Makers | ETHOS maintainer under the 2026-07-19 Budget Contract v2 instruction |
-| Status | superseded |
+| Status | retired |
 | Decision Date | 2026-07-19 |
 | Decision Version | 1 |
 | Decision Change Date | 2026-07-24 |
 | Record Review Date | 2026-10-19 |
 | Supersedes | none |
-| Superseded By | Terminal Governance Product Design and terminal-convergence |
-| Depends on | DR-0005 (declarative lifecycle spine) |
+| Superseded By | none |
+| Depends On | DR-0005 (declarative lifecycle spine) |
 | Scope | Repository-source measurement domains, carrier classification, metric versioning, non-compensating policy, per-file ELOC, and agent-token separation. |
 | Boundary | Does not calibrate v2 thresholds, accept DR-0009, authorize cutover, settle debt, or claim compression completion. |
 | Decision | Adopt the metric-domain vector and migration invariants defined below. |

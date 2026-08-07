@@ -110,6 +110,11 @@ class Policy(_Contract):
         ):
             msg = "source-budget v2 must declare the exact immutable record roots"
             raise ValueError(msg)
+        if self.contract_version == CURRENT_CONTRACT_VERSION and self.exclude != (
+            "package-lock.json",
+        ):
+            msg = "source-budget v2 must declare the exact generated lock carrier"
+            raise ValueError(msg)
         return self
 
 
@@ -278,6 +283,9 @@ def _relaxed(current: Policy, accepted: Policy) -> bool:
             "contract_version": accepted.contract_version,
             "terminal": accepted.terminal,
             "immutable_record_roots": accepted.immutable_record_roots,
+            "exclude": accepted.exclude
+            if accepted.contract_version == LEGACY_CONTRACT_VERSION
+            else current.exclude,
             "line_width": accepted.line_width,
             "cross_check": current.cross_check.model_copy(
                 update={"tolerance": accepted.cross_check.tolerance}

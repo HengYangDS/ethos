@@ -96,6 +96,22 @@ Routine coordination SHALL remain a local projection. Exceptional repository-sem
   mismatch, filesystem or ref drift, or unrelated replay produces no authority
   and no partial repository or Lease state
 
+#### Scenario: the current holder replaces one immutable Commitment exactly
+
+- **GIVEN** a valid same-holder Lease binds the exact old Commitment, branch,
+  HEAD, tree, index, and working overlay
+- **WHEN** `ethos lane rebind-commitment` replaces that Commitment with one
+  exact target commit and successor Lease generation
+- **THEN** the public operation authorizes only that single Lease-bound ref CAS,
+  even when the old Commitment did not already grant the permission introduced
+  by the replacement
+- **AND** old and new Commitment digests, target carrier bytes, holder, Lease ID,
+  lane incarnation, epoch successor, expected ref update, index tree, and overlay
+  remain bound by the plan and Attestation
+- **AND** a forged operation label, mismatched digest, ref, holder, Lease
+  generation, target carrier, index, overlay, or replay remains permission denied
+  or otherwise fails closed without widening ordinary Git effects.
+
 #### Scenario: routine lifecycle remains local
 
 - **WHEN** a lease is acquired, renewed, resumed, locally handed off, expires, or

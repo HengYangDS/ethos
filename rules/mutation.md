@@ -30,6 +30,13 @@ Purpose: define tracked write admission and Work Lane discipline.
   scope, and rebound with the exact digest reported by dry-run through
   `--expected-overlay-digest`; unstaged, uncovered, or drifting content blocks.
   Do not unarchive the prior Change, recreate the lane, or edit Lease state.
+- Replace the immutable Commitment bound to an existing owned lane only with
+  `ethos lane rebind-commitment`. The command's operation policy may authorize
+  its one exact same-holder Lease-bound ref CAS when the old Commitment lacks
+  `git.ref.compare-and-swap`; this does not grant that permission to any other
+  effect. Old/new digests, target carrier bytes, branch/ref, holder, Lease ID,
+  lane incarnation, epoch successor, HEAD/tree/index, and overlay must all
+  match. Any mismatch fails closed.
 - Replace a same-payload commit OID only with `ethos lane repair-identity`; the
   command requires exact old/new commit observations, the current holder and
   Lease, fresh proof, verified external signature trust, and exact-CAS train

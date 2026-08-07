@@ -21,7 +21,6 @@ required_owner_scripts = [
   "tools/ci/scripts/install-lychee.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
   "tools/ci/scripts/run-actionlint.sh",
-  "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
 [[projection]]
 provider = "gitlab"
@@ -44,7 +43,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-secrets-scan.sh",
   "tools/ci/scripts/install-lychee.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
-  "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
 [evidence]
 local_github_emulator_dir = "build/evidence/local-ci/github"

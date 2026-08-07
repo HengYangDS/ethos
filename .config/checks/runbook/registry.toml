@@ -65,7 +65,7 @@ evidence = "exit code + codespell count"
 
 [[entry]]
 id = "RUN-HOSTED-PROVIDER-OBSERVATION"
-command = "tools/ci/scripts/run-hosted-provider-observation.sh"
+command = "uv run --frozen --offline python -m nox -s hosted_observation"
 category = "hosted-provider-observation"
 evidence = "build/evidence/hosted-ci/observation.json"
 

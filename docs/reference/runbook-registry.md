@@ -32,4 +32,4 @@ and [Forge Provider Contract](../governance/forge-provider-contract.md).
 | RUN-PYTHON-VULNERABILITY-AUDIT | `uv run --frozen --offline python -m nox -s vulnerabilities` | security-vulnerability | `build/evidence/quality/security/python-vulnerability-audit.json` |
 | RUN-JSON-SCHEMA | `uv run --frozen --offline python -m nox -s schemas` | schema-hygiene | JSON stdout |
 | RUN-PROSE-CHECK | `uv run --frozen --offline python -m nox -s prose` | prose | exit code + codespell count |
-| RUN-HOSTED-PROVIDER-OBSERVATION | `tools/ci/scripts/run-hosted-provider-observation.sh` | hosted-provider-observation | `build/evidence/hosted-ci/observation.json` |
+| RUN-HOSTED-PROVIDER-OBSERVATION | `uv run --frozen --offline python -m nox -s hosted_observation` | hosted-provider-observation | `build/evidence/hosted-ci/observation.json` |

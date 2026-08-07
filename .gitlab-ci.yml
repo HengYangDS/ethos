@@ -209,7 +209,7 @@ ethos:hosted-provider-observation:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-hosted-provider-observation.sh
+    - uv run --frozen --offline python -m nox -s hosted_observation
 
 ethos:verify:
   <<: *python_setup

@@ -1,7 +1,7 @@
 schema = "ethos-hosted-provider-observation-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Capture hosted provider observation envelopes without converting them into repository proof."
-runner = "tools/ci/scripts/run-hosted-provider-observation.sh"
+runner = "uv run --frozen --offline python -m nox -s hosted_observation"
 output = "build/evidence/hosted-ci/observation.json"
 providers = ["github", "gitlab"]
 

@@ -17,9 +17,12 @@ elif ! command -v tar >/dev/null 2>&1; then
 fi
 
 case "$(uname -m)" in
-  x86_64|amd64) target="x86_64-unknown-linux-gnu" ;;
-  aarch64|arm64) target="aarch64-unknown-linux-gnu" ;;
-  *) echo "Unsupported lychee architecture: $(uname -m)" >&2; exit 1 ;;
+  x86_64 | amd64) target="x86_64-unknown-linux-gnu" ;;
+  aarch64 | arm64) target="aarch64-unknown-linux-gnu" ;;
+  *)
+    echo "Unsupported lychee architecture: $(uname -m)" >&2
+    exit 1
+    ;;
 esac
 
 version="lychee-v0.24.2"

@@ -57,11 +57,11 @@ default:
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
 
-ethos:lint:
+ethos:carrier-quality:
   <<: *python_setup
   stage: quality
   script:
-    - uv run --frozen --offline python -m nox -s lint
+    - uv run --frozen --offline python -m nox -s format_check
 
 ethos:types:
   <<: *python_setup
@@ -90,7 +90,6 @@ ethos:config:
   <<: *python_setup
   stage: quality
   script:
-    - uv run --frozen --offline python -m nox -s config_quality
     - uv run --frozen --offline python -m nox -s schemas
 
 ethos:hygiene:
@@ -104,12 +103,6 @@ ethos:product-boundary:
   stage: quality
   script:
     - uv run --frozen --offline python -m nox -s product_boundary
-
-ethos:shell:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s shell_lint
 
 ethos:docstrings:
   <<: *python_setup
@@ -162,12 +155,6 @@ ethos:external-links:
     - >-
       tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
       --gate external-links --expect-head "$(git rev-parse HEAD)" --json
-
-ethos:markdown:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s markdown_lint
 
 ethos:prose:
   <<: *python_setup

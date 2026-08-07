@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import configparser
 import fnmatch
 import json
 import subprocess
@@ -30,7 +31,7 @@ DEFAULT_YAML_PATHS = (
     Path(".github/workflows/ci.yml"),
     Path(".gitlab-ci.yml"),
 )
-SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json"})
+SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"})
 EXTERNAL_YAML_ROOTS = (Path("openspec"),)
 
 
@@ -50,7 +51,10 @@ def _candidate_paths(raw_paths: Iterable[str]) -> dict[str, tuple[Path, ...]]:
         names = ", ".join(path.as_posix() for path in unsupported)
         message = f"unsupported config lint targets: {names}"
         raise ValueError(message)
-    paths = requested or (*_tracked_paths("*.toml", "*.json"), *DEFAULT_YAML_PATHS)
+    paths = requested or (
+        *_tracked_paths("*.toml", "*.json", "*.ini", "*.cfg"),
+        *DEFAULT_YAML_PATHS,
+    )
     existing = tuple(
         dict.fromkeys(
             path
@@ -65,6 +69,7 @@ def _candidate_paths(raw_paths: Iterable[str]) -> dict[str, tuple[Path, ...]]:
             "toml": {".toml"},
             "yaml": {".yaml", ".yml"},
             "json": {".json"},
+            "ini": {".ini", ".cfg"},
         }.items()
     }
 
@@ -112,6 +117,17 @@ def _toml_failures(paths: tuple[Path, ...], node: Path) -> list[str]:
     return failures
 
 
+def _run_taplo(paths: tuple[Path, ...], node: Path, *arguments: str) -> None:
+    if not node.is_file() or not TAPLO.is_file():
+        message = "locked Taplo runtime is missing; run npm ci --ignore-scripts"
+        raise RuntimeError(message)
+    subprocess.run(
+        (str(node), str(TAPLO), *arguments, *(str(path) for path in paths)),
+        cwd=ROOT,
+        check=True,
+    )
+
+
 def _json_rendering(policy: dict[str, Any], relative: str, parsed: Any) -> bytes:
     rules = policy.get("rule", [])
     mode = next(
@@ -144,6 +160,14 @@ def _json_failures(paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
+def _format_json(paths: tuple[Path, ...]) -> None:
+    policy = tomllib.loads(JSON_CONFIG.read_text(encoding="utf-8"))
+    for path in paths:
+        target = ROOT / path
+        parsed = json.loads(target.read_text(encoding="utf-8"))
+        target.write_bytes(_json_rendering(policy, path.as_posix(), parsed))
+
+
 def _yaml_failures(paths: tuple[Path, ...]) -> list[str]:
     policy = yamllint_config.YamlLintConfig(YAML_CONFIG.read_text(encoding="utf-8"))
     failures = []
@@ -156,6 +180,18 @@ def _yaml_failures(paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
+def _ini_failures(paths: tuple[Path, ...]) -> list[str]:
+    failures = []
+    for path in paths:
+        parser = configparser.ConfigParser(interpolation=None, strict=True)
+        try:
+            with (ROOT / path).open(encoding="utf-8") as stream:
+                parser.read_file(stream)
+        except (UnicodeDecodeError, configparser.Error) as error:
+            failures.append(f"{path}: INI parse failed: {error}")
+    return failures
+
+
 def run(paths: Iterable[str], *, node: Path) -> tuple[str, ...]:
     """Return deterministic configuration-quality failures."""
     candidates = _candidate_paths(paths)
@@ -163,4 +199,37 @@ def run(paths: Iterable[str], *, node: Path) -> tuple[str, ...]:
         *_toml_failures(candidates["toml"], node),
         *_json_failures(candidates["json"]),
         *_yaml_failures(candidates["yaml"]),
+        *_ini_failures(candidates["ini"]),
     )
+
+
+def format_configs(paths: Iterable[str], *, node: Path, prettier: Path) -> None:
+    """Canonicalize mutable TOML, YAML, and JSON carriers with their native owners."""
+    candidates = _candidate_paths(paths)
+    immutable_or_official = (Path("evidence"), Path("openspec"))
+    selected = {
+        kind: tuple(
+            path
+            for path in values
+            if not any(path.is_relative_to(root) for root in immutable_or_official)
+        )
+        for kind, values in candidates.items()
+    }
+    _run_taplo(selected["toml"], node, "format", "--config", str(TAPLO_CONFIG))
+    if selected["yaml"]:
+        subprocess.run(
+            (
+                str(node),
+                str(prettier),
+                "--write",
+                "--no-config",
+                "--print-width",
+                "100",
+                "--prose-wrap",
+                "preserve",
+                *(str(path) for path in selected["yaml"]),
+            ),
+            cwd=ROOT,
+            check=True,
+        )
+    _format_json(selected["json"])

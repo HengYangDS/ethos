@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tomllib
 from importlib import import_module
@@ -10,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 import nox
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -18,6 +20,7 @@ run_dependency_hygiene = import_module("tools.ci.dependency_hygiene").run
 run_architecture_projection = import_module("tools.ci.architecture_projection").main
 run_ci_templates = import_module("tools.ci.ci_templates").check_templates
 run_config_quality = import_module("tools.ci.config_quality").run
+format_config_quality = import_module("tools.ci.config_quality").format_configs
 run_format_selection = import_module("tools.ci.format_selection").main
 run_hosted_observation = import_module("tools.ci.hosted_observation").capture_observation
 run_install_smoke = import_module("tools.ci.local_install_smoke").run
@@ -32,6 +35,9 @@ PROJECT_SCRIPTS = Path(sys.executable).parent
 PROSE_CONFIG = ROOT / ".config/checks/prose/codespell.toml"
 NODEJS_WHEEL = Path(import_module("nodejs_wheel").__file__).resolve().parent
 NODE = NODEJS_WHEEL / "bin" / ("node.exe" if os.name == "nt" else "node")
+MARKDOWNLINT = ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"
+PRETTIER = ROOT / "node_modules/prettier/bin/prettier.cjs"
+SVGO = ROOT / "node_modules/svgo/bin/svgo.js"
 
 nox.options.default_venv_backend = "none"
 nox.options.error_on_external_run = True
@@ -66,15 +72,168 @@ def _project_script(name: str) -> str:
     return str(PROJECT_SCRIPTS / f"{name}{suffix}")
 
 
+@nox.session(python=False, name="format")
+def format_repository(session: nox.Session) -> None:
+    """Canonicalize selected mutable carriers before read-only validation."""
+    operations = {
+        "python": _format_python,
+        "config": _format_config,
+        "markdown": _format_markdown,
+        "shell": _format_shell,
+        "javascript": _format_javascript,
+        "svg": _format_svg,
+        "hygiene": _format_hygiene,
+    }
+    selected = frozenset(session.posargs or operations)
+    unknown = selected - operations.keys()
+    if unknown:
+        session.error("unknown format carrier: " + ", ".join(sorted(unknown)))
+    for name, operation in operations.items():
+        if name in selected:
+            operation(session)
+
+
+def _format_python(session: nox.Session) -> None:
+    paths = _candidate_python_paths(session)
+    common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
+    session.run(_project_script("ruff"), "format", *common, *paths)
+
+
+def _format_config(_session: nox.Session) -> None:
+    format_config_quality((), node=NODE, prettier=PRETTIER)
+
+
+def _format_markdown(session: nox.Session) -> None:
+    paths = tuple(
+        f":{path}"
+        for path in _tracked_paths("*.md")
+        if not path.startswith(("evidence/", "openspec/"))
+    )
+    if not paths:
+        return
+    session.run(
+        str(NODE),
+        str(MARKDOWNLINT),
+        "--fix",
+        "--config",
+        ".config/checks/markdown/.markdownlint-cli2.yaml",
+        "--no-globs",
+        *paths,
+    )
+
+
+def _format_shell(session: nox.Session) -> None:
+    paths = _tracked_paths("*.sh", "*.bash", "*.zsh")
+    if paths:
+        session.run(_project_script("shfmt"), "-w", "-i", "2", "-ci", "-bn", *paths)
+
+
+def _format_javascript(session: nox.Session) -> None:
+    paths = _tracked_paths("*.js", "*.mjs", "*.cjs")
+    if paths:
+        session.run(
+            str(NODE), str(PRETTIER), "--write", "--no-config", "--print-width", "100", *paths
+        )
+
+
+def _format_svg(session: nox.Session) -> None:
+    paths = _tracked_paths("*.svg")
+    if paths:
+        session.run(
+            str(NODE),
+            str(SVGO),
+            "--multipass",
+            "--pretty",
+            "--indent",
+            "2",
+            "--eol",
+            "lf",
+            "--final-newline",
+            *paths,
+        )
+
+
+def _format_hygiene(_session: nox.Session) -> None:
+    selected = (*_tracked_paths("*.ini", "*.cfg"), "LICENSE")
+    for relative in selected:
+        path = ROOT / relative
+        lines = path.read_text(encoding="utf-8").replace("\r\n", "\n").splitlines()
+        path.write_text("\n".join(line.rstrip() for line in lines) + "\n", encoding="utf-8")
+
+
 @nox.session(python=False)
 def lint(session: nox.Session) -> None:
-    """Run repository-wide Ruff lint and formatting without suppressions."""
+    """Run repository-wide Ruff lint and formatting checks without mutation."""
     paths = _candidate_python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
     ruff = _project_script("ruff")
     session.run(ruff, "check", "--ignore-noqa", *common, *paths)
     session.run(ruff, "format", *common, "--check", *paths)
+
+
+def _tracked_paths(*patterns: str) -> tuple[str, ...]:
+    output = subprocess.check_output(("git", "ls-files", "-z", *patterns), cwd=ROOT)
+    return tuple(item.decode() for item in output.split(b"\0") if item)
+
+
+@nox.session(python=False)
+def javascript_lint(session: nox.Session) -> None:
+    """Check JavaScript distribution carriers with repository-locked Prettier."""
+    paths = _tracked_paths("*.js", "*.mjs", "*.cjs")
+    if paths:
+        session.run(
+            str(NODE), str(PRETTIER), "--check", "--no-config", "--print-width", "100", *paths
+        )
+
+
+@nox.session(python=False)
+def svg_lint(session: nox.Session) -> None:
+    """Require SVG sources to equal the repository-locked SVGO canonical form."""
+    for relative in _tracked_paths("*.svg"):
+        completed = subprocess.run(
+            (
+                str(NODE),
+                str(SVGO),
+                "--multipass",
+                "--pretty",
+                "--indent",
+                "2",
+                "--eol",
+                "lf",
+                "--final-newline",
+                "--input",
+                relative,
+                "--output",
+                "-",
+            ),
+            cwd=ROOT,
+            capture_output=True,
+            check=True,
+        )
+        if completed.stdout != (ROOT / relative).read_bytes():
+            session.error(f"{relative}: SVG format drift")
+
+
+@nox.session(python=False)
+def asset_validation(session: nox.Session) -> None:
+    """Validate tracked raster assets without inventing a lossy formatter."""
+    for relative in _tracked_paths("*.png"):
+        with Image.open(ROOT / relative) as image:
+            image.verify()
+        session.log(f"{relative}: valid PNG")
+
+
+@nox.session(python=False)
+def format_check(session: nox.Session) -> None:
+    """Run the all-carrier read-only format and validation closure."""
+    lint(session)
+    config_quality(session)
+    markdown_lint(session)
+    shell_lint(session)
+    javascript_lint(session)
+    svg_lint(session)
+    asset_validation(session)
 
 
 @nox.session(python=False)
@@ -99,6 +258,10 @@ def _build_wheel(session: nox.Session) -> None:
         "build/artifacts/python",
         "--clear",
         "--no-create-gitignore",
+        env={
+            "ETHOS_BUILD_NODE": str(NODE),
+            "ETHOS_BUILD_NPM_CLI": str(NODEJS_WHEEL / "lib/node_modules/npm/bin/npm-cli.js"),
+        },
     )
 
 

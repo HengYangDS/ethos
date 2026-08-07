@@ -3,23 +3,65 @@ globs:
   - "*.md"
   - ".config/README.md"
   - ".config/checks/secrets/README.md"
+  - ".agents/**/*.md"
   - ".github/**/*.md"
   - ".gitlab/**/*.md"
   - "distributions/**/*.md"
   - "docs/**/*.md"
+  - "evidence/**/*.md"
+  - "openspec/**/*.md"
   - "rules/**/*.md"
   - "system/**/*.md"
+
+noInlineConfig: true
+
+overrides:
+  - filter:
+      - "evidence/**/*.md"
+      - "openspec/**/*.md"
+    combine: replace
+    config:
+      default: false
+      MD003: { style: atx }
+      MD004: { style: dash }
+      MD005: true
+      MD009: true
+      MD011: true
+      MD014: true
+      MD018: true
+      MD019: true
+      MD020: true
+      MD021: true
+      MD023: true
+      MD027: true
+      MD034: true
+      MD037: true
+      MD039: true
+      MD042: true
+      MD044: true
+      MD045: true
+      MD047: true
+      MD048: { style: backtick }
+      MD049: { style: asterisk }
+      MD051: true
+      MD052: true
+      MD053: true
+      MD054: true
+      MD055: true
+      MD056: true
+      MD058: true
+      MD059: true
 
 config:
   default: false
   MD001: true
-  MD003: {style: atx}
-  MD004: {style: dash}
+  MD003: { style: atx }
+  MD004: { style: dash }
   MD005: true
   MD009: true
   MD010: true
   MD011: true
-  MD012: {maximum: 1}
+  MD012: { maximum: 1 }
   MD014: true
   MD018: true
   MD019: true
@@ -29,7 +71,7 @@ config:
   MD023: true
   MD027: true
   MD028: true
-  MD029: {style: one_or_ordered}
+  MD029: { style: one_or_ordered }
   MD030: true
   MD031: true
   MD032: true
@@ -40,11 +82,11 @@ config:
   MD042: true
   MD044: true
   MD045: true
-  MD046: {style: fenced}
+  MD046: { style: fenced }
   MD047: true
-  MD048: {style: backtick}
-  MD049: {style: asterisk}
-  MD050: {style: asterisk}
+  MD048: { style: backtick }
+  MD049: { style: asterisk }
+  MD050: { style: asterisk }
   MD051: true
   MD052: true
   MD053: true

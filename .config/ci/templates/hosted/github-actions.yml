@@ -7,7 +7,7 @@ on:
     branches:
       - dev
       - main
-      - 'proposal/**'
+      - "proposal/**"
   workflow_dispatch:
 
 permissions:
@@ -79,8 +79,8 @@ jobs:
           version: "0.12.2"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
-      - name: Python lint
-        run: uv run --frozen --offline python -m nox -s lint
+      - name: Carrier format and syntax
+        run: uv run --frozen --offline python -m nox -s format_check
       - name: Type policy
         run: >-
           tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos prove --execute
@@ -89,16 +89,12 @@ jobs:
         run: uv run --frozen --offline python -m nox -s import_boundaries
       - name: Dependency hygiene
         run: uv run --frozen --offline python -m nox -s dependencies
-      - name: Config lint
-        run: uv run --frozen --offline python -m nox -s config_quality
       - name: JSON schema hygiene
         run: uv run --frozen --offline python -m nox -s schemas
       - name: Repository hygiene
         run: uv run --frozen --offline python -m nox -s repository_hygiene
       - name: Product boundary
         run: uv run --frozen --offline python -m nox -s product_boundary
-      - name: Shell lint
-        run: uv run --frozen --offline python -m nox -s shell_lint
       - name: Docstring coverage
         run: uv run --frozen --offline python -m nox -s docstrings
       - name: Module layout
@@ -111,8 +107,6 @@ jobs:
         run: >-
           tools/ci/scripts/install-lychee.sh && tools/ci/scripts/with-python-runtime.sh -- uv run ethos prove --execute
           --gate external-links --expect-head "$(git rev-parse HEAD)" --json
-      - name: Markdown lint
-        run: uv run --frozen --offline python -m nox -s markdown_lint
       - name: Prose spelling
         run: uv run --frozen --offline python -m nox -s prose
       - name: CI projection drift

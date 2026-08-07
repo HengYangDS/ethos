@@ -19,8 +19,8 @@ runtime_root="$(cd "${script_dir}/../../.." && pwd)"
 
 IFS=$'\t' read -r name email signing_required signing_format <<EOF
 $(
-cd "${runtime_root}"
-"${script_dir}/with-python-runtime.sh" -- "${runtime_root}/.venv/bin/python" - "${repo_root}" <<'PY'
+  cd "${runtime_root}"
+  "${script_dir}/with-python-runtime.sh" -- "${runtime_root}/.venv/bin/python" - "${repo_root}" <<'PY'
 import sys
 import tomllib
 from pathlib import Path

@@ -4,7 +4,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url)), ARGS = process.argv.slice(2);
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url)),
+  ARGS = process.argv.slice(2);
 
 function parentOf(path) {
   const parent = dirname(path);
@@ -64,7 +65,7 @@ function pythonHasEthos(command) {
       env: process.env,
       stdio: "ignore",
       encoding: "utf8",
-    }
+    },
   );
   return probe.status === 0;
 }
@@ -91,6 +92,6 @@ console.error(
     "ETHOS Python command plane was not found.",
     "Run this launcher from an ETHOS source checkout with uv installed,",
     "or install the Python package that provides `python -m ethos.cli`.",
-  ].join(" ")
+  ].join(" "),
 );
 process.exit(127);

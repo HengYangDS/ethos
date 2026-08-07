@@ -317,25 +317,30 @@ def test_playbooks_provider_publishes_closed_verdict() -> None:
     assert "ok" not in report
 
 
-def test_wheel_resources_are_native_projections_without_a_build_hook() -> None:
+def test_wheel_resources_are_native_projections_with_one_runtime_supply_hook() -> None:
     package_config = tomllib.loads(_read("pyproject.toml"))
     build = package_config["tool"]["hatch"]["build"]
     wheel = build["targets"]["wheel"]["force-include"]
     sdist = build["targets"]["sdist"]["include"]
-    sdist_forced = build["targets"]["sdist"]["force-include"]
 
-    assert "hooks" not in build
+    assert build["targets"]["wheel"]["hooks"]["custom"] == {
+        "path": "tools/packaging/openspec_runtime_hook.py"
+    }
     assert "/src" in sdist
     assert "/system" in sdist
     assert "/package-lock.json" in sdist
-    assert sdist_forced == {"node_modules": "node_modules"}
+    assert "force-include" not in build["targets"]["sdist"]
     for canonical, resource in WHEEL_PROJECTIONS:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
         assert wheel[canonical] == f"ethos/data/{resource}"
     assert wheel["system/schemas/kernel"] == "ethos/data/schemas/kernel"
     assert wheel["package-lock.json"] == "ethos/data/supply-chain/package-lock.json"
-    assert wheel["node_modules"] == "ethos/data/openspec-runtime/node_modules"
+    hook = _read("tools/packaging/openspec_runtime_hook.py")
+    assert '"--omit=dev"' in hook
+    assert '"--offline"' in hook
+    assert '"--workspaces=false"' in hook
+    assert 'build_data["force_include"]' in hook
 
 
 def test_declaration_backed_policies_are_first_class() -> None:

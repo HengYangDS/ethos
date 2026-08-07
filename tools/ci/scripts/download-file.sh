@@ -23,7 +23,7 @@ require_positive_integer() {
   local name="$1"
   local value="$2"
   case "${value}" in
-    ''|*[!0-9]*)
+    '' | *[!0-9]*)
       echo "${name} must be a positive integer" >&2
       exit 2
       ;;

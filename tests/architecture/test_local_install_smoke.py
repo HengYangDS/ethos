@@ -61,6 +61,25 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert '"remote_publication_claimed": False' in owner
 
 
+def test_local_install_smoke_records_executed_host_and_python_evidence() -> None:
+    owner = _owner_text()
+
+    assert '"platform": platform.system().lower()' in owner
+    assert '"python": platform.python_version()' in owner
+    assert '"implementation": platform.python_implementation()' in owner
+    assert '"path_style": "windows" if os.name == "nt" else "posix"' in owner
+    assert '"line_endings": line_endings' in owner
+    assert "git_blob" in owner
+    assert "portable UTF-8" in owner
+    assert '"subprocess_json": True' in owner
+    assert '"python_sdk": True' in owner
+    assert '"openspec": True' in owner
+    for argument in ('"-I"', '"-c"'):
+        assert argument in owner
+    assert "EthosResult.from_payload" in owner
+    assert "Commitment(" in owner
+
+
 def test_local_install_smoke_validates_declared_wheel_resources() -> None:
     owner = _owner_text()
 

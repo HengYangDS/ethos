@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import platform
 import shutil
 import sys
 import tomllib
@@ -84,6 +85,41 @@ permissions = ["repository.read", "work-lane.write", "git.ref.compare-and-swap"]
     return _run(git, "rev-parse", "HEAD", cwd=root)
 
 
+def _line_ending_conformance(adopter: Path) -> list[str]:
+    """Round-trip LF, CRLF, and UTF-8 through Git without text-mode inference."""
+    fixtures = {
+        "lf": b"portable UTF-8: \xe9\x81\x93\n",
+        "crlf": b"portable UTF-8: \xe9\x81\x93\r\n",
+    }
+    observed: list[str] = []
+    for style, payload in fixtures.items():
+        relative = f"line-ending-{style}.txt"
+        path = adopter / relative
+        path.write_bytes(payload)
+        _run(_executable("git"), "add", "--", relative, cwd=adopter)
+        git_blob = run_command(
+            adopter,
+            (_executable("git"), "show", f":{relative}"),
+            text=False,
+            check=True,
+        ).stdout
+        if git_blob != payload or path.read_bytes() != payload:
+            message = f"portable line-ending round-trip failed: {style}"
+            raise RuntimeError(message)
+        observed.append(style)
+    _run(
+        _executable("git"),
+        "reset",
+        "--quiet",
+        "--",
+        *[f"line-ending-{s}.txt" for s in observed],
+        cwd=adopter,
+    )
+    for style in observed:
+        (adopter / f"line-ending-{style}.txt").unlink()
+    return observed
+
+
 def _verify_resources(wheel: Path) -> list[str]:
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     declared = project["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
@@ -105,7 +141,7 @@ def _verify_resources(wheel: Path) -> list[str]:
     return sorted(declared.values())
 
 
-def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, str]:
+def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, str, str]:
     python, ethos = _venv_executable(smoke, "python"), _venv_executable(smoke, "ethos")
     _run(str(ethos), "--help", cwd=WORK)
     version = _run(str(ethos), "--version", cwd=WORK)
@@ -137,6 +173,21 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
     )
     run_command(adopter, archive)
     run_command(adopter, (*archive[:-1], "--rebuild-from", head, "--json"))
+    status_json = _run(str(ethos), "status", "--root", str(adopter), "--json", cwd=adopter)
+    sdk_digest = _run(
+        str(python),
+        "-I",
+        "-c",
+        "import json,sys; from ethos.contracts.semantic import Commitment; "
+        "from ethos.result import EthosResult; "
+        "result=EthosResult.from_payload(json.loads(sys.argv[1])); "
+        "assert result.command=='status' and result.verdict in {'pass','block','unknown'}; "
+        "print(Commitment(id='change:conformance', "
+        "intent='Prove the installed Python SDK boundary.', "
+        "subjects=('repository:self',), scope=('README.md',)).digest())",
+        status_json,
+        cwd=adopter,
+    )
     _run(
         str(python),
         "-c",
@@ -146,7 +197,7 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
         "assert r['verdict']=='pass' and r['package']==OFFICIAL_PACKAGE_SPEC",
         cwd=adopter,
     )
-    return origin, version
+    return origin, version, sdk_digest
 
 
 def run(session: nox.Session) -> None:
@@ -169,7 +220,8 @@ def run(session: nox.Session) -> None:
         str(wheel),
     )
     adopter_head = _initialize_adopter(adopter)
-    origin, version = _installed_cli_checks(smoke, adopter, adopter_head)
+    line_endings = _line_ending_conformance(adopter)
+    origin, version, sdk_digest = _installed_cli_checks(smoke, adopter, adopter_head)
     _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
     resources = _verify_resources(wheel)
     if current_tracked_head(ROOT) != head:
@@ -185,6 +237,19 @@ def run(session: nox.Session) -> None:
         "head_stability": "verified_before_evidence_write",
         "offline": True,
         "fresh_environment": True,
+        "host": {
+            "platform": platform.system().lower(),
+            "python": platform.python_version(),
+            "implementation": platform.python_implementation(),
+            "path_style": "windows" if os.name == "nt" else "posix",
+            "line_endings": line_endings,
+        },
+        "conformance": {
+            "subprocess_json": True,
+            "python_sdk": True,
+            "openspec": True,
+            "sdk_commitment_digest": sdk_digest,
+        },
         "dependencies": "locked_project_environment_projection",
         "module_origins": {"ethos": origin},
         "cli_checks": [

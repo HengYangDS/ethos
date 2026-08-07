@@ -257,6 +257,37 @@ def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
     assert "npm run test:npm" in package["script"]
 
 
+def test_github_host_conformance_executes_the_installed_wheel_on_every_supported_host() -> None:
+    github = _yaml(".github/workflows/ci.yml")
+    job = github["jobs"]["host-conformance"]
+
+    assert job["strategy"] == {
+        "fail-fast": False,
+        "matrix": {
+            "os": ["ubuntu-latest", "windows-latest", "macos-latest"],
+            "python": ["3.12", "3.13", "3.14"],
+        },
+    }
+    assert job["runs-on"] == "${{ matrix.os }}"
+    steps = job["steps"]
+    assert next(step for step in steps if step.get("uses", "").startswith("actions/setup-python@"))[
+        "with"
+    ] == {"python-version": "${{ matrix.python }}"}
+    assert next(step for step in steps if step.get("uses", "").startswith("actions/setup-node@"))[
+        "with"
+    ] == {"node-version": "26.7.0", "cache": "npm"}
+    commands = [str(step.get("run", "")) for step in steps]
+    assert "npm ci --ignore-scripts" in commands
+    assert "uv sync --locked --group dev" in commands
+    assert "uv run --frozen python -m nox -s host_conformance" in commands
+    assert not any(".sh" in command or "bash" in command for command in commands)
+    upload = next(
+        step for step in steps if step.get("uses", "").startswith("actions/upload-artifact@")
+    )
+    assert upload["with"]["name"] == "host-conformance-${{ matrix.os }}-py${{ matrix.python }}"
+    assert upload["with"]["path"] == "build/evidence/local-install/smoke.json"
+
+
 def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     github, gitlab = _yaml(".github/workflows/ci.yml"), _yaml(".gitlab-ci.yml")
     runner = ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]

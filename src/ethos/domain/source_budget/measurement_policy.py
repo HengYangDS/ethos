@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 import tomllib
 from pathlib import Path
 from typing import Annotated
@@ -15,12 +14,7 @@ from pydantic import Field
 from pydantic import ValidationError
 from pydantic import model_validator
 
-import ethos.adapters.repo.git as git_adapter
-from ethos.contracts.branch.roles import load_branch_role_policy
-
 POLICY_PATH = Path(".config/checks/format/selection.toml")
-LEGACY_CONTRACT_VERSION = 1
-CURRENT_CONTRACT_VERSION = 2
 TERMINAL_TOTALS = ("python_total", "global_total")
 IMMUTABLE_RECORD_ROOTS = ("evidence/", "openspec/changes/archive/")
 
@@ -72,7 +66,6 @@ class Carrier(_Contract):
 
 
 class Policy(_Contract):
-    contract_version: Literal[1, 2]
     terminal: Totals
     cross_check: CrossCheck
     aggregates: dict[str, tuple[str, ...]]
@@ -100,14 +93,8 @@ class Policy(_Contract):
         ):
             msg = "aggregate members must be non-empty and unique"
             raise ValueError(msg)
-        if self.contract_version == LEGACY_CONTRACT_VERSION and self.immutable_record_roots:
-            msg = "source-budget v1 cannot declare immutable record roots"
-            raise ValueError(msg)
-        if (
-            self.contract_version == CURRENT_CONTRACT_VERSION
-            and self.immutable_record_roots != IMMUTABLE_RECORD_ROOTS
-        ):
-            msg = "source-budget v2 must declare the exact immutable record roots"
+        if self.immutable_record_roots != IMMUTABLE_RECORD_ROOTS:
+            msg = "source-budget must declare the exact immutable record roots"
             raise ValueError(msg)
         return self
 
@@ -120,11 +107,6 @@ def policy_for_root(root: Path) -> tuple[Policy | None, tuple[str, ...]]:
     current = _policy_contract(payload)
     if current is None:
         return None, ("source_budget_policy_invalid:shape",)
-    accepted, gaps = _accepted_policy(root, current)
-    if gaps:
-        return None, gaps
-    if accepted is not None and _relaxed(current, accepted):
-        return None, ("source_budget_policy_relaxed",)
     return current, ()
 
 
@@ -212,7 +194,6 @@ def _policy_contract(payload: dict[str, object]) -> Policy | None:
             name: _strings(value) for name, value in _table(source.get("aggregates")).items()
         }
         return Policy(
-            contract_version=cast("Literal[1, 2]", _integer(source.get("contract_version"))),
             terminal=terminal,
             cross_check=CrossCheck(
                 command=_string(cross.get("command")),
@@ -227,68 +208,3 @@ def _policy_contract(payload: dict[str, object]) -> Policy | None:
         )
     except (TypeError, ValidationError, ValueError):
         return None
-
-
-def _accepted_policy(root: Path, current: Policy) -> tuple[Policy | None, tuple[str, ...]]:
-    head, gaps = _accepted_head(root)
-    if gaps:
-        return None, gaps
-    try:
-        payload = tomllib.loads(
-            git_adapter.git_stdout_checked(root, "show", f"{head}:{POLICY_PATH}")
-        )
-    except tomllib.TOMLDecodeError:
-        return None, ("source_budget_accepted_policy_invalid",)
-    except (OSError, subprocess.CalledProcessError):
-        return None, (f"source_budget_accepted_file_unavailable:{POLICY_PATH}",)
-    source = payload.get("source_budget")
-    if isinstance(source, dict) and "contract_version" not in source:
-        return current, ()
-    policy = _policy_contract(payload)
-    if not isinstance(source, dict) or policy is None:
-        return None, ("source_budget_accepted_policy_invalid",)
-    return policy, ()
-
-
-def _accepted_head(root: Path) -> tuple[str, tuple[str, ...]]:
-    branch = load_branch_role_policy(root).accepted_branch
-    try:
-        head = git_adapter.git_stdout_checked(
-            root, "rev-parse", "--verify", f"refs/heads/{branch}^{{commit}}"
-        )
-    except (OSError, subprocess.CalledProcessError):
-        head = ""
-    return (head, ()) if head else ("", ("source_budget_accepted_ref_unavailable",))
-
-
-def _relaxed(current: Policy, accepted: Policy) -> bool:
-    if (
-        accepted.contract_version,
-        current.contract_version,
-    ) not in {
-        (LEGACY_CONTRACT_VERSION, LEGACY_CONTRACT_VERSION),
-        (LEGACY_CONTRACT_VERSION, CURRENT_CONTRACT_VERSION),
-        (CURRENT_CONTRACT_VERSION, CURRENT_CONTRACT_VERSION),
-    }:
-        return True
-    fixed = current.model_copy(
-        update={
-            "contract_version": accepted.contract_version,
-            "terminal": accepted.terminal,
-            "immutable_record_roots": accepted.immutable_record_roots,
-            "line_width": accepted.line_width,
-            "cross_check": current.cross_check.model_copy(
-                update={"tolerance": accepted.cross_check.tolerance}
-            ),
-        }
-    )
-    return (
-        fixed != accepted
-        or any(
-            getattr(current.terminal, name) > getattr(accepted.terminal, name)
-            or getattr(current.cross_check.tolerance, name)
-            > getattr(accepted.cross_check.tolerance, name)
-            for name in TERMINAL_TOTALS
-        )
-        or current.line_width > accepted.line_width
-    )

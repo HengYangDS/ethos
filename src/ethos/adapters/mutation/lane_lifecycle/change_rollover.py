@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from typing import NamedTuple
+from typing import cast
 
 import tomli_w
 
@@ -14,6 +15,7 @@ import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import ChangeOverlay
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import change_overlay_report
+from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
@@ -98,10 +100,14 @@ def start_change(
         return recognized
     recovery = _recoverable(repo, change, expect_head, lease)
     if recovery is not None:
-        return _recover(
-            repo,
-            _RecoveryRequest(branch, change, expect_head, head, lease, recovery, apply),
-        )
+        guard = local_state_mutation_guard(repo) if apply else {"required_gaps": []}
+        if guard["required_gaps"]:
+            recovery = None
+        else:
+            return _recover(
+                repo,
+                _RecoveryRequest(branch, change, expect_head, head, lease, recovery, apply),
+            )
     request = _StartRequest(
         branch,
         head,
@@ -114,6 +120,9 @@ def start_change(
         lease,
     )
     gaps, overlay = _preflight(repo, request)
+    guard = local_state_mutation_guard(repo) if apply and not gaps else {"required_gaps": []}
+    if guard["required_gaps"]:
+        gaps = cast("list[str]", guard["required_gaps"])
     if gaps or not apply:
         return _report(
             branch,
@@ -122,6 +131,7 @@ def start_change(
             gaps,
             change=change,
             overlay=overlay,
+            **({"next_action": guard["next_action"]} if guard["required_gaps"] else {}),
         )
     try:
         return _apply(repo, request, overlay)

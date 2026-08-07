@@ -16,6 +16,7 @@ from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.store.state.schema import state_database
 from ethos.cli import main
 from ethos.normalization.coercion import repository_path_matches
 from tests.support.governed_repository import commit_fixture_file
@@ -137,6 +138,46 @@ def test_archive_change_rejects_stale_head_without_mutation(
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["expect_head_mismatch"]
     assert git(worktree, "rev-parse", "HEAD") == completed_head
+    assert (worktree / "openspec/changes/fixture-change").is_dir()
+
+
+def test_archive_change_requires_local_state_migration_before_apply(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+    current = state_database(repo)
+    legacy = repo / ".ethos" / "state" / "state.sqlite"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    current.replace(legacy)
+    current.touch()
+
+    dry_run = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed_head,
+    )
+    applied = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed_head,
+        apply=True,
+    )
+
+    assert dry_run["state"] == "ready_to_archive"
+    assert applied["verdict"] == "block"
+    assert applied["required_gaps"] == ["local_state_migration_required"]
+    assert str(applied["next_action"]).startswith(
+        f"ethos migrate-local-state --root {worktree} --apply --authorize "
+        f"--expect-head {completed_head} --expect-plan-digest "
+    )
+    assert git(worktree, "rev-parse", "HEAD") == completed_head
+    assert git(worktree, "status", "--short") == ""
     assert (worktree / "openspec/changes/fixture-change").is_dir()
 
 

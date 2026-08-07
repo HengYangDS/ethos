@@ -11,6 +11,7 @@ from typing import NamedTuple
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.mutation.proof import proof_gaps
@@ -109,6 +110,9 @@ def archive_change(
             )
     gaps = _archive_preflight(repo, branch, head, expect_head, lease, change)
     collision = _archive_collision(repo, head, change) if not gaps else None
+    guard = local_state_mutation_guard(repo) if apply and not gaps else {"required_gaps": []}
+    if guard["required_gaps"]:
+        gaps = ["local_state_migration_required"]
     if gaps or not apply:
         return _report(
             branch,
@@ -116,6 +120,7 @@ def archive_change(
             "blocked" if gaps else "ready_to_archive",
             gaps,
             change=change,
+            **({"next_action": guard["next_action"]} if guard["required_gaps"] else {}),
             **({"archive_collision": _collision_payload(collision)} if collision else {}),
         )
     try:

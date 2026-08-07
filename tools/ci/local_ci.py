@@ -34,6 +34,7 @@ VERIFY_SESSIONS = (
     "format_selection",
     "architecture_projection",
     "runbook_registry",
+    "repository_hygiene",
 )
 PARALLEL_SESSIONS = (
     "lint",
@@ -45,6 +46,7 @@ PARALLEL_SESSIONS = (
     "format_selection",
     "architecture_projection",
     "runbook_registry",
+    "repository_hygiene",
 )
 SERIAL_PROOF_SESSIONS = ("docstrings", "module_layout", "product_boundary")
 PLATFORM_ADAPTERS = (
@@ -52,7 +54,6 @@ PLATFORM_ADAPTERS = (
     "tools/ci/scripts/run-shell-lint.sh",
     "tools/ci/scripts/run-markdown-lint.sh",
     "tools/ci/scripts/run-prose-check.sh",
-    "tools/ci/scripts/run-repository-hygiene.sh",
     "tools/ci/scripts/run-secrets-scan.sh",
 )
 DELIVERY_SESSIONS = ("build", "install_smoke", "supply_chain")

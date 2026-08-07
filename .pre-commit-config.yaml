@@ -24,7 +24,7 @@ repos:
         files: \.(toml|ya?ml|json)$
       - id: repository-hygiene
         name: repository hygiene
-        entry: tools/ci/scripts/run-repository-hygiene.sh
+        entry: uv run --frozen --offline python -m nox -s repository_hygiene
         language: system
         pass_filenames: false
       - id: product-boundary

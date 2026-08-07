@@ -131,7 +131,7 @@ def test_wheel_build_materializes_only_the_openspec_production_closure() -> None
     assert "@fission-ai/openspec" not in manifest["devDependencies"]
     assert '"ETHOS_BUILD_NODE": str(NODE)' in source
     assert '"ETHOS_BUILD_NPM_CLI": str(' in source
-    hook = (ROOT / "tools/packaging/openspec_runtime_hook.py").read_text(encoding="utf-8")
+    hook = (ROOT / "src/ethos/packaging/openspec_runtime_hook.py").read_text(encoding="utf-8")
     assert '"ci"' in hook
     assert '"--omit=dev"' in hook
     assert '"--offline"' in hook

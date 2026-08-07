@@ -175,6 +175,7 @@ executables = [
   "gunzip",
   "gzip",
   "install",
+  "ldconfig",
   "ln",
   "mkdir",
   "mv",
@@ -227,6 +228,7 @@ concern = "python_build"
 tool = "Nox + uv + Hatchling"
 config = "noxfile.py + pyproject.toml + uv.lock"
 executables = ["nox", "uv"]
+runtime_inputs = ["ETHOS_BUILD_NODE", "ETHOS_BUILD_NPM_CLI"]
 artifacts = "build/artifacts/python/"
 profile = "product-toolchain"
 gate = "uv run --frozen --offline python -m nox -s build"

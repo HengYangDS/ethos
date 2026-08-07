@@ -171,6 +171,21 @@ def test_shell_scan_observes_commands_in_single_line_functions() -> None:
     assert "ps" in observed["executable"]
 
 
+def test_shell_scan_does_not_treat_case_patterns_as_executables() -> None:
+    observed = product_references_from_files(
+        {
+            "tools/check.sh": """case "$(uname -m)" in
+  x86_64 | amd64) target="x64" ;;
+  aarch64 | arm64) target="arm64" ;;
+esac
+printf '%s\\n' "${target}"
+"""
+        }
+    )
+
+    assert observed["executable"] == set()
+
+
 def test_env_option_values_are_not_executables() -> None:
     observed = product_references_from_files(
         {

@@ -49,9 +49,11 @@ def _worker_attestation_dir() -> Path:
 def _isolate_attestations(monkeypatch: pytest.MonkeyPatch) -> object:
     store = _worker_attestation_dir()
     monkeypatch.setenv(_TEST_ATTESTATION_STATE_DIR_ENV, store.as_posix())
-    shutil.rmtree(store, ignore_errors=True)
+    if store.exists():
+        shutil.rmtree(store)
     yield
-    shutil.rmtree(store, ignore_errors=True)
+    if store.exists():
+        shutil.rmtree(store)
 
 
 @pytest.fixture(autouse=True)

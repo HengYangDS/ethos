@@ -7,9 +7,29 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+import pytest
+
+import tools.ci.python_test_gate as python_test_gate
 from tests.support.architecture import tool_block
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_python_test_evidence_cleanup_propagates_removal_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "evidence"
+    target.mkdir()
+
+    def denied(_path: Path) -> None:
+        message = "cleanup denied"
+        raise OSError(message)
+
+    monkeypatch.setattr(python_test_gate.shutil, "rmtree", denied)
+
+    with pytest.raises(OSError, match="cleanup denied"):
+        python_test_gate.remove_generated_path(target)
 
 
 def _write_fake_executable(path: Path, body: str) -> None:

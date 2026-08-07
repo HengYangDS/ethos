@@ -104,12 +104,13 @@ def _repo(
 
 def _migrate_to_v2(selection: Path) -> None:
     record_roots = 'immutable_record_roots = ["evidence/", "openspec/changes/archive/"]'
+    generated_lock = 'exclude = ["package-lock.json"]'
     selection.write_text(
         selection.read_text(encoding="utf-8")
         .replace("contract_version = 1", "contract_version = 2")
         .replace(
             "line_width = 100",
-            f"{record_roots}\nline_width = 100",
+            f"{generated_lock}\n{record_roots}\nline_width = 100",
         ),
         encoding="utf-8",
     )
@@ -230,7 +231,7 @@ def test_v2_report_exposes_implementation_and_record_cross_check_totals(
         monkeypatch,
         tmp_path,
         {
-            ".config/checks/format/selection.toml": 12,
+            ".config/checks/format/selection.toml": 13,
             ".ethos/rules.toml": 1,
             "src/ethos/demo.py": 2,
             "evidence/chronicle/decision.py": 1,
@@ -248,21 +249,28 @@ def test_v2_report_exposes_implementation_and_record_cross_check_totals(
 
 
 @pytest.mark.parametrize(
-    "mutation",
+    ("mutation", "expected_gap"),
     [
-        lambda text: text.replace(
-            "line_width = 100",
-            'exclude = ["src/ethos/demo.py"]\nline_width = 100',
+        (
+            lambda text: text.replace(
+                'exclude = ["package-lock.json"]',
+                'exclude = ["src/ethos/demo.py"]',
+            ),
+            "source_budget_policy_invalid:shape",
         ),
-        lambda text: text.replace(
-            'paths = ["src/*"]',
-            'paths = ["src/other/*"]',
+        (
+            lambda text: text.replace(
+                'paths = ["src/*"]',
+                'paths = ["src/other/*"]',
+            ),
+            "source_budget_policy_relaxed",
         ),
     ],
 )
-def test_v2_migration_rejects_arbitrary_excludes_and_path_moves(
+def test_v2_migration_rejects_generated_carrier_or_path_scope_drift(
     tmp_path: Path,
     mutation,
+    expected_gap: str,
 ) -> None:
     selection, _source = _repo(tmp_path)
     _migrate_to_v2(selection)
@@ -270,7 +278,7 @@ def test_v2_migration_rejects_arbitrary_excludes_and_path_moves(
 
     report = source_budget.source_budget_report(tmp_path)
 
-    assert report["required_gaps"] == ["source_budget_policy_relaxed"]
+    assert report["required_gaps"] == [expected_gap]
 
 
 def test_v2_record_growth_is_visible_without_increasing_implementation_totals(

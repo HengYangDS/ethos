@@ -217,7 +217,7 @@ def _measure(
     records: dict[str, dict[str, object]] = {}
     gaps: list[str] = []
     for relative, executable in paths:
-        if any(fnmatch.fnmatchcase(relative, pattern) for pattern in policy.exclude):
+        if relative in policy.exclude:
             continue
         source = contents.get(relative) if contents is not None else None
         if contents is not None and source is None:

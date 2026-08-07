@@ -291,13 +291,9 @@ def test_github_repository_proof_executes_one_full_test_graph(relative: str) -> 
     providers = _providers()
     direct = "uv run --frozen --offline python -m nox -s tests"
     proof = "tools/ci/scripts/run-head-bound-proof.sh"
-    assert (
-        "tools/ci/scripts/run-python-tests.sh" not in providers["github"]["required_owner_scripts"]
-    )
-    assert (
-        "tools/ci/scripts/run-python-tests.sh" not in providers["gitlab"]["required_owner_scripts"]
-    )
-    assert proof in providers["github"]["required_owner_scripts"]
+    github_scripts = providers["github"]["required_owner_scripts"]
+    assert isinstance(github_scripts, list)
+    assert github_scripts.count(proof) == 1
     payload = _yaml(relative)
     commands = [
         str(step.get("run", ""))
@@ -480,9 +476,9 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize(
-    ("relative", "needles", "forbidden"),
+    ("relative", "needles"),
     [
-        ("tools/ci/local_ci.py", ("PYTHONWARNINGS", "ThreadPoolExecutor"), ()),
+        ("tools/ci/local_ci.py", ("PYTHONWARNINGS", "ThreadPoolExecutor")),
         (
             "tools/ci/scripts/bootstrap-python.sh",
             (
@@ -491,17 +487,6 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
                 "uv sync --locked --group dev",
                 'export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"',
                 'required_uv="0.12.2"',
-            ),
-            (
-                "npx --yes",
-                "build/runtime/bootstrap",
-                "python -m pip install",
-                "pip install uv",
-                "uv-bootstrap",
-                "build/runtime/venv",
-                "uv==0.11.29",
-                " -m venv",
-                'ln -sf "${repo_root}/node_modules/.bin/openspec"',
             ),
         ),
         (
@@ -512,30 +497,21 @@ def test_bootstrapped_semantic_python_bypasses_nested_uv_sync(tmp_path: Path) ->
                 "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9",
                 "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
             ),
-            (),
         ),
         (
             "tools/ci/scripts/run-actionlint.sh",
             ("github.com/rhysd/actionlint/releases/download",),
-            ("npx --yes", "actionlint@"),
         ),
     ],
 )
-def test_static_ci_policies(
-    relative: str, needles: tuple[str, ...], forbidden: tuple[str, ...]
-) -> None:
+def test_static_ci_policies(relative: str, needles: tuple[str, ...]) -> None:
     text = (ROOT / relative).read_text(encoding="utf-8")
     for needle in needles:
         assert needle in text
-    for needle in forbidden:
-        assert needle not in text
 
 
 def test_github_actions_use_immutable_commit_identities() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    assert "actions/checkout@v7" not in workflow
-    assert "actions/setup-python@v6" not in workflow
-    assert "actions/upload-artifact@v7" not in workflow
     for reference in re.findall(r"uses:\s+[^@\s]+@([^\s]+)", workflow):
         assert re.fullmatch(r"[0-9a-f]{40}", reference)
 

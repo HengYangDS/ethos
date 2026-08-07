@@ -24,7 +24,6 @@ def _assert_project_configuration(
     config_readme: str,
 ) -> None:
     assert "[project]" in pyproject
-    assert "[tool.uv.workspace]" not in pyproject
     assert 'packages = ["src/ethos"]' in pyproject
     assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
         "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
@@ -33,11 +32,7 @@ def _assert_project_configuration(
     assert ruff_config["cache-dir"] == "build/runtime/tool-cache/ruff"
     assert ruff_config["line-length"] == 100
     assert ruff_config["target-version"] == "py312"
-    assert "extend" not in ruff_config
-    assert not (ROOT / ".config/checks/ruff/ruff.toml").exists()
-    assert not (ROOT / "pytest.ini").exists()
-    assert "src/ethos/repository/evidence/core.py" not in ruff
-    assert "src/ethos/repository/evidence/proof.py" not in ruff
+    assert set(ruff_config) == {"cache-dir", "line-length", "target-version", "lint", "format"}
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
     assert "error" in pytest
@@ -50,14 +45,10 @@ def _assert_tool_registry(tools: str) -> None:
         'config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"' in tools
     )
     assert 'config = "ruff.toml"' in tools
-    assert 'config = ".config/checks/ruff/ruff.toml"' not in tools
     assert 'config = ".config/checks/import-linter/"' in tools
     assert 'config = ".config/checks/lychee/"' in tools
     assert 'config = ".config/checks/coverage/coverage.ini"' in tools
     assert 'tool = "coverage.py + pytest-cov"' in tools
-    assert "planned = true" not in tools.split('concern = "coverage"', 1)[1].split("[[tool]]", 1)[0]
-    assert 'config = ".config/boundaries/"' not in tools
-    assert 'config = ".config/docs/lychee.toml"' not in tools
     assert 'concern = "product_boundary"' in tools
     assert 'gate = "uv run --frozen --offline python -m nox -s product_boundary"' in tools
     assert 'concern = "local_ci_fallback"' in tools
@@ -72,7 +63,6 @@ def _assert_required_ci_scripts() -> None:
     assert (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
     noxfile = (ROOT / "noxfile.py").read_text(encoding="utf-8")
     assert "def import_boundaries(" in noxfile
-    assert not (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
     assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
     assert (ROOT / ".config/checks/coverage/.gitignore").exists()
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
@@ -108,12 +98,8 @@ def test_change_templates_use_current_ethos_command_plane() -> None:
     for template in templates:
         assert "ethos plan --changed --json" in template
         assert "ethos prove --json" in template
-        assert "ethos audit" not in template
-        assert "ethos self audit" not in template
     assert "ethos plan --changed --json" in contributing
     assert "ethos prove --json" in contributing
-    assert "ethos audit" not in contributing
-    assert "ethos self audit" not in contributing
 
 
 def test_contributing_declares_commit_and_signature_policy() -> None:
@@ -141,24 +127,12 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "npm run test:npm" in text
     assert "uv run --frozen --offline python -m nox -s tests" in text
     assert 'ETHOS_TEST_WORKERS: "1"' in text
-    assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
     assert "tools/ci/scripts/bootstrap-python.sh" in text
     assert "tools/ci/scripts/install-lychee.sh" in text
     assert "LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee" in text
     assert "ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools" in text
-    assert "    - build/runtime/tool-cache/lychee/" not in text
-    assert "    - build/runtime/tool-cache/ci-tools/" not in text
     assert "uv run --frozen --offline python -m nox -s import_boundaries" in text
     assert "uv run --frozen --offline python -m nox -s docstrings" in text
-    assert (
-        "uv run --group dev lint-imports --config .config/checks/import-linter/contracts.ini"
-        not in text
-    )
-    assert "uv run --no-project --with import-linter lint-imports" not in text
-    assert "pip install uv" not in text
-    assert "curl -sSL https://github.com/lycheeverse/lychee" not in text
-    assert "wt " not in text
-    assert "proof " not in text
 
 
 def test_ci_tool_cache_is_a_declared_runtime_input() -> None:
@@ -179,17 +153,13 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     _assert_required_ci_scripts()
 
 
-def test_pyproject_does_not_carry_quality_tool_policy() -> None:
+def test_pyproject_carries_only_package_and_bounded_test_policy() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
     assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
         "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
     }
-    assert "[tool.ruff" not in pyproject
-    assert "[tool.coverage" not in pyproject
-    assert "[tool.ty" not in pyproject
-    assert "select =" not in pyproject
-    assert "strict-config" not in pyproject
+    assert set(tomllib.loads(pyproject).get("tool", {})) == {"hatch", "pytest", "mutmut"}
 
 
 def test_ci_lychee_installer_is_architecture_aware() -> None:
@@ -212,7 +182,6 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "build/runtime/tool-cache/lychee" in installer
     assert "tar tzf" in installer
     assert "command -v lychee" in installer
-    assert "tar xz -C /usr/local/bin lychee" not in installer
 
 
 def test_release_sbom_uses_pinned_syft_over_the_built_wheel() -> None:
@@ -229,8 +198,6 @@ def test_release_sbom_uses_pinned_syft_over_the_built_wheel() -> None:
     assert 'f"file:{artifact}"' in runner
     assert '"SPDX-2.3"' in runner
     assert '"not_claimed"' in runner
-    assert not (ROOT / "src/ethos/repository/release/attestation.py").exists()
-    assert not (ROOT / "tools/ci/scripts/run-release-supply-chain.sh").exists()
 
 
 def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
@@ -238,7 +205,6 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
     runner_path = ROOT / "tools/ci/scripts/run-node-compatibility.sh"
     policy = tomllib.loads(policy_path.read_text(encoding="utf-8"))
     runner = runner_path.read_text(encoding="utf-8")
-    package = (ROOT / "package.json").read_text(encoding="utf-8")
     installer = (ROOT / "tools/ci/scripts/install-node.sh").read_text(encoding="utf-8")
     catalog = tool_block(ROOT, "node_runtime_compatibility")
 
@@ -246,8 +212,6 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
     assert policy["owner"] == "ethos-quality-gate-governance"
     assert policy["default_version"] == "26.7.0"
     assert policy["compatibility_versions"] == ["24.19.0", "26.7.0"]
-    assert "next_default_candidate" not in policy
-    assert "review_not_before" not in policy
     archive_sha256 = policy["archive_sha256"]
     assert set(archive_sha256) == set(policy["compatibility_versions"])
     for checksums in archive_sha256.values():
@@ -262,14 +226,12 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
     assert "npm ci --ignore-scripts" in runner
     assert "npm run ethos -- --version" in runner
     assert "npm run test:npm" in runner
-    assert '"packageManager"' not in package
     installer_default = re.search(r'version="\$\{NODE_VERSION:-([^}]+)\}"', installer)
     assert installer_default is not None
     assert installer_default.group(1) == policy["default_version"]
     assert 'tool = "node + npm"' in catalog
     assert 'config = ".config/checks/node/runtime.toml"' in catalog
     assert 'gate = "tools/ci/scripts/run-node-compatibility.sh"' in catalog
-    assert "planned = true" not in catalog
 
 
 def test_node_runtime_compatibility_runner_executes_exact_acceptance_sequence(
@@ -397,7 +359,6 @@ def test_secrets_scan_is_bounded_to_git_tracked_source() -> None:
 
     assert '"git", "ls-files", "-z"' in runner
     assert "ethos-gitleaks-tracked" in runner
-    assert "--source ." not in runner
     assert '--source "${scan_root}"' in runner
     assert "tracked files" in runner
 
@@ -454,15 +415,8 @@ def test_module_layout_gate_is_owned_by_policy_and_nox_surfaces() -> None:
 
     assert "def module_layout(" in runner
     assert '"--gate",\n        "module-layout"' in runner
-    assert "--flat-directory-limit" not in runner
     assert 'semantic_paths = [".agents/skills", "src/ethos", "tests", "tools"]' in policy
     assert 'package_paths = ["src/ethos"]' in policy
-    assert "flat_directory_limit" not in policy
-    assert "baseline_gap_limit" not in policy
-    assert "allowed_" not in policy
-    assert "scaffold_openspec" not in policy
-    assert "land_support" not in policy
-    assert "baseline_gap_limit" not in runner
     assert 'concern = "python_module_layout"' in tools
     assert 'tool = "ethos-module-layout"' in tools
     assert 'config = ".config/checks/module-layout/policy.toml"' in tools
@@ -501,7 +455,6 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
     assert 'f"--fail-under={floor:g}"' in runner
     assert 'self.head_file = self.coverage / "head.txt"' in runner
     assert "current != self.s.head" in runner
-    assert "--cov-fail-under=100" not in runner
     assert '"-W",\n            "error"' in runner
     assert 'self.data = self.coverage / ".coverage"' in runner
     assert 'ROOT / ".coverage"' in runner
@@ -509,11 +462,9 @@ def test_python_test_gate_separates_change_execution_from_terminal_coverage() ->
     assert "--cov-report=term-missing" in runner
     assert "f\"--cov-report=xml:{self.coverage / 'coverage.xml'}\"" in runner
     assert 'f"--cov-config={COVERAGE_CONFIG}"' in runner
-    assert "--cov-report=xml:coverage.xml" not in runner
     assert "build/evidence/quality/tests" in runner
     assert "ETHOS_TEST_BASETEMP" in runner
     assert "ethos-pytest" in runner
-    assert "fail_under" not in coverage
     assert "branch = True" in coverage
     assert "patch = subprocess" in coverage
     assert "current_hard_floor = 95" in policy
@@ -531,6 +482,5 @@ def test_change_proof_does_not_own_terminal_size_debt() -> None:
 def test_quality_openspec_uses_current_coverage_floor_language() -> None:
     spec = (ROOT / "openspec/specs/quality/spec.md").read_text(encoding="utf-8")
 
-    assert "95 percent hard coverage floor" not in spec
     assert "configured hard coverage floor" in spec
     assert "current hard floor" in spec

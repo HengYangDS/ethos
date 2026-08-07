@@ -20,7 +20,7 @@ class OpenSpecRuntimeHook(BuildHookInterface):
         if version == "editable":
             return
         root = Path(self.root)
-        supply = root / "build/runtime/openspec-supply"
+        supply = root / "build/runtime/work/openspec-supply"
         supply.mkdir(parents=True, exist_ok=True)
         for relative in ("package.json", "package-lock.json"):
             shutil.copy2(root / relative, supply / relative)

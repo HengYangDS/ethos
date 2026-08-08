@@ -20,6 +20,7 @@ from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.runtime.binding import runner_source_root
+from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.repository.policy.gates import resolve_gate_policy
@@ -500,11 +501,41 @@ def test_runner_source_root_treats_an_installed_distribution_as_external(
     assert runner_source_root(module) == module.parent
 
 
-def test_prewrite_accepts_exact_package_hook_transaction_root(
+def test_runtime_binding_recognizes_the_exact_repository_family_hook_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    monkeypatch.setenv("ETHOS_HOOK_TRANSACTION_ROOT", repo.resolve().as_posix())
+    python = tmp_path / "common" / "ethos" / "runtime" / "digest" / "venv" / "bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    monkeypatch.setattr("ethos.adapters.repo.runtime.binding.sys.executable", python.as_posix())
+    monkeypatch.setattr(
+        "ethos.adapters.repo.runtime.binding._schema_source_root",
+        lambda audit_root, _runner_root: audit_root,
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.repo.runtime.binding.hook_runtime_binding",
+        lambda _root: {
+            "python": python.as_posix(),
+            "required_gaps": [],
+            "hooks_path": "",
+            "runtime_manifest_path": "",
+            "runtime_digest": "digest",
+            "wheel_sha256": "0" * 64,
+            "scripts": [],
+        },
+    )
+
+    report = runtime_binding(repo)
+
+    assert report["runner_matches_repository_family"] is True
+    assert report["state"] == "bound_to_repository_family"
+
+
+def test_prewrite_accepts_exact_repository_family_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
     monkeypatch.setattr(
         "ethos.adapters.admission.prewrite.profile_gate_registry",
         lambda _root: {"quality": object()},
@@ -517,15 +548,15 @@ def test_prewrite_accepts_exact_package_hook_transaction_root(
                 "runner_source_root": "/external/package/ethos",
                 "schema_source_root": repo.resolve().as_posix(),
                 "runner_matches_audit_root": False,
+                "runner_matches_repository_family": True,
                 "schema_matches_audit_root": True,
             }
         }
     )
 
     assert report["verdict"] == "pass"
-    assert report["package_transaction_matches_audit_root"] is True
+    assert report["runner_matches_repository_family"] is True
 
-    monkeypatch.setenv("ETHOS_HOOK_TRANSACTION_ROOT", (tmp_path / "other").as_posix())
     rejected = _runtime_binding_check(
         {
             "runtime_binding": {
@@ -533,12 +564,13 @@ def test_prewrite_accepts_exact_package_hook_transaction_root(
                 "runner_source_root": "/external/package/ethos",
                 "schema_source_root": repo.resolve().as_posix(),
                 "runner_matches_audit_root": False,
+                "runner_matches_repository_family": False,
                 "schema_matches_audit_root": True,
             }
         }
     )
     assert rejected["verdict"] == "block"
-    assert rejected["package_transaction_matches_audit_root"] is False
+    assert rejected["runner_matches_repository_family"] is False
 
 
 @pytest.mark.parametrize(

@@ -93,11 +93,11 @@ without claiming mutation authority over separately managed runtime owners.
 
 #### Scenario: Managed runtimes remain outside repository mutation
 
-- **WHEN** workstation, IDE, desktop, application, and hosted Node runtimes are
+- **WHEN** host, IDE, desktop, application, and hosted Node runtimes are
   inventoried
 - **THEN** the repository compatibility policy governs only declared launcher
   proof and hosted projection behavior
-- **AND** workstation software supply remains workstation-owned
+- **AND** host software supply remains host-owned
 - **AND** IDE-, desktop-, and application-managed runtimes remain owned by their
   respective applications
 - **AND** repository compatibility work does not rewrite those managed runtimes

@@ -34,7 +34,7 @@ ETHOS command plane.
 
 Node runtime ownership remains layered rather than mechanically unified:
 
-- A maintainer workstation runtime is owned by the workstation software
+- A maintainer host runtime is owned by host software
   supply chain, not by this repository.
 - `.config/checks/node/runtime.toml` owns the exact releases used to prove the
   npm launcher and the pinned Linux archive SHA-256 values. The current set is
@@ -58,7 +58,7 @@ runtime identity rather than declaring a second independently provisioned npm.
 Published package scope is intentionally narrower than repository history.
 Distribution manifests must use explicit allowlists for neutral launcher assets
 and package documentation. They must not publish historical evidence, archived
-change records, ignored local state, tests, adopter-private records, workstation
+change records, ignored local state, tests, adopter-private records, host
 paths, or person attribution metadata as product defaults. Contributor identity
 for enterprises is declared through repository role policy and review evidence,
 not through a single built-in package author.

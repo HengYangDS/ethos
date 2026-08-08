@@ -17,6 +17,7 @@ from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_environment
@@ -26,6 +27,7 @@ from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.commitment import relocated_commitment_fields_to
+from ethos.adapters.repo.dirty.change_provenance import changed_paths as dirty_changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import exact_rename_target
@@ -404,6 +406,10 @@ def _apply_archive(
             **({"archive_collision": _collision_payload(collision)} if collision else {}),
         )
 
+    normalize_projected_specs(
+        repo,
+        paths=dirty_changed_paths(repo),
+    )
     stage_git_worktree(repo, previous=head)
     changed = tuple(
         git_stdout(repo, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD").splitlines()

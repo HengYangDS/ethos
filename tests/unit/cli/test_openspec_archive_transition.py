@@ -43,6 +43,29 @@ def test_archive_change_owns_official_archive_commit_and_lease_transition(
         scope=("openspec/changes/fixture-change/**",),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    new_delta = worktree / "openspec/changes/fixture-change/specs/projected-text/spec.md"
+    new_delta.parent.mkdir(parents=True)
+    new_delta.write_text(
+        "## ADDED Requirements\n\n"
+        "### Requirement: Project canonical text\n\n"
+        "The archive effect SHALL project repository-canonical text.\n\n"
+        "#### Scenario: New canonical spec is projected\n\n"
+        "- **WHEN** the completed Change is archived\n"
+        "- **THEN** the projected spec has one terminal newline\n",
+        encoding="utf-8",
+    )
+    git(worktree, "add", new_delta.relative_to(worktree).as_posix())
+    previous_head = git(worktree, "rev-parse", "HEAD")
+    git(worktree, "commit", "-m", "declare new projected capability")
+    declared_head = git(worktree, "rev-parse", "HEAD")
+    transition = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=previous_head,
+        new_value=declared_head,
+    )
+    assert transition["state"] == "lease_ref_advanced"
     completed_head = _complete_change(worktree)
     monkeypatch.setattr(
         "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
@@ -66,6 +89,13 @@ def test_archive_change_owns_official_archive_commit_and_lease_transition(
     assert report["required_gaps"] == []
     assert not (worktree / "openspec/changes/fixture-change").exists()
     assert (worktree / report["archive_path"] / "commitment.toml").is_file()
+    for projected_spec in (
+        worktree / "openspec/specs/contracts/spec.md",
+        worktree / "openspec/specs/projected-text/spec.md",
+    ):
+        projected_bytes = projected_spec.read_bytes()
+        assert projected_bytes.endswith(b"\n")
+        assert not projected_bytes.endswith(b"\n\n")
     assert git(worktree, "status", "--short") == ""
     assert openspec_governance_report(worktree, lifecycle=True)["verdict"] == "pass"
     changed_paths = change_scope_paths_from_status(worktree, workspace_status(worktree))

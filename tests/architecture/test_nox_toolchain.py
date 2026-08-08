@@ -7,6 +7,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from ethos.repository.policy.gates import resolve_gate_policy
 from tools.ci.python_test_gate import PYTHON
 from tools.ci.python_test_gate import PythonTestGate
 from tools.ci.python_test_gate import Settings
@@ -63,6 +64,23 @@ def test_nox_gate_registry_uses_the_bound_python_runtime() -> None:
         "-s",
         "import_boundaries",
     ]
+
+
+def test_self_hosted_nox_gates_bind_the_repository_locked_python(monkeypatch) -> None:
+    package_python = ROOT / "build/runtime/package-only/bin/python"
+    monkeypatch.setattr("ethos.repository.policy.gates.sys.executable", package_python.as_posix())
+    policy = resolve_gate_policy(ROOT, tree_ref="HEAD", gate_ids=("ruff",))
+
+    assert policy.registry["ruff"].command[:3] == (
+        (ROOT / ".venv/bin/python").as_posix(),
+        "-m",
+        "nox",
+    )
+    assert {path for path, _digest in policy.sources[0][1]} == {
+        "noxfile.py",
+        "pyproject.toml",
+        "uv.lock",
+    }
 
 
 def test_nox_lint_includes_new_candidate_python_files() -> None:

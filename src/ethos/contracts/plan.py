@@ -1,6 +1,7 @@
 """Transient, deterministic TransitionPlan compiled from repository declarations."""
 
 import hashlib
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from graphlib import CycleError
@@ -402,7 +403,7 @@ def compile_plan(
     archive = attestations.get("openspec_archive")
     effect_authorized_paths = (
         tuple(str(path) for path in archive.get("authorized_paths", ()))
-        if isinstance(archive, dict)
+        if isinstance(archive, Mapping)
         else ()
     )
     if commitment.subjects and facts.repository not in commitment.subjects:

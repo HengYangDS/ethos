@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import subprocess
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -327,7 +328,7 @@ def test_land_readiness_and_apply_share_narrow_candidate_effect_authority(
     head = git(fixture.worktree, "rev-parse", "HEAD")
     binding = exact_commitment_fields(fixture.worktree, head=head, carrier=carrier)
     state = state_database(fixture.worktree)
-    with sqlite3.connect(state) as connection:
+    with closing(sqlite3.connect(state)) as connection, connection:
         row = connection.execute(
             "select payload_json from leases where subject = ?",
             (branch,),

@@ -5,6 +5,7 @@ import sqlite3
 import subprocess
 import tempfile
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -290,6 +291,58 @@ def _install_reference_transaction_hook(
 
 def _apply_lease(database: Path, request: LeaseOperationRequest) -> dict[str, object]:
     return apply_lease_operation(database, request=request)
+
+
+@dataclass
+class LeaseCase:
+    worktree: Path
+    database: Path
+    branch: str
+    holder: str
+
+    @classmethod
+    def start(cls, tmp_path: Path, name: str, holder: str) -> LeaseCase:
+        fixture = start_adopted_work_lane(tmp_path / name, name=name, holder_ref=holder)
+        return cls(fixture.worktree, state_database(fixture.worktree), f"work/{name}", holder)
+
+    def snapshot(self) -> dict[str, object]:
+        return _lease_snapshot(self.worktree, self.branch)
+
+    def request(
+        self,
+        operation: str,
+        lease: dict[str, object],
+        *,
+        apply: bool = True,
+        holder: str | None = None,
+        **values: object,
+    ) -> LeaseOperationRequest:
+        return _lease_request(
+            operation=operation,
+            branch=self.branch,
+            holder_ref=holder or self.holder,
+            lease=lease,
+            apply=apply,
+            **values,
+        )
+
+    def apply(
+        self, operation: str, lease: dict[str, object], **values: object
+    ) -> dict[str, object]:
+        return _apply_lease(self.database, self.request(operation, lease, **values))
+
+    def execute(
+        self,
+        operation: str,
+        lease: dict[str, object],
+        *,
+        apply: bool = True,
+        **values: object,
+    ) -> dict[str, object]:
+        return execute_lease_operation(
+            root=self.worktree,
+            request=self.request(operation, lease, apply=apply, **values),
+        )
 
 
 def _insert_lease_row(
@@ -980,56 +1033,29 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
 ) -> None:
     holder_ref = "agent:test:case:source"
     target_holder_ref = "agent:test:case:target"
-    branch = "work/reissue"
-    fixture = start_adopted_work_lane(tmp_path / "reissue", name="reissue", holder_ref=holder_ref)
-    database = state_database(fixture.worktree)
-    initial = _lease_snapshot(fixture.worktree, branch)
+    case = LeaseCase.start(tmp_path, "reissue", holder_ref)
+    initial = case.snapshot()
     initial_payload = dict(initial["payload"])
     initial_payload["path_scope"] = ["src/**", "tests/**"]
-    with closing(sqlite3.connect(database)) as connection, connection:
+    with closing(sqlite3.connect(case.database)) as connection, connection:
         connection.execute(
             "update leases set payload_json = ? where subject = ?",
-            (json.dumps(initial_payload, sort_keys=True), branch),
+            (json.dumps(initial_payload, sort_keys=True), case.branch),
         )
-    initial = observe_lease(database, branch).record()
+    initial = observe_lease(case.database, case.branch).record()
 
-    renewed = _apply_lease(
-        database,
-        _lease_request(
-            operation="renew",
-            branch=branch,
-            holder_ref=holder_ref,
-            lease=initial,
-            apply=True,
-        ),
-    )
+    renewed = case.apply("renew", initial)
     _assert_reissue_changes(initial, renewed, "renewed_at", "expires_at")
 
-    offered = _apply_lease(
-        database,
-        _lease_request(
-            operation="handoff_offer",
-            branch=branch,
-            holder_ref=holder_ref,
-            lease=renewed,
-            apply=True,
-            target_holder_ref=target_holder_ref,
-        ),
-    )
+    offered = case.apply("handoff_offer", renewed, target_holder_ref=target_holder_ref)
     _assert_reissue_changes(renewed, offered, "handoff")
 
-    accepted = _apply_lease(
-        database,
-        _lease_request(
-            operation="handoff_accept",
-            branch=branch,
-            holder_ref=holder_ref,
-            lease=offered,
-            apply=True,
-            target_holder_ref=target_holder_ref,
-            offer_id=str(offered["offer_id"]),
-            holder_quiesced=True,
-        ),
+    accepted = case.apply(
+        "handoff_accept",
+        offered,
+        target_holder_ref=target_holder_ref,
+        offer_id=str(offered["offer_id"]),
+        holder_quiesced=True,
     )
     _assert_reissue_changes(
         offered,
@@ -1042,14 +1068,8 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
     )
 
     advanced = advance_lease_ref(
-        database,
-        request=_lease_request(
-            operation="advance",
-            branch=branch,
-            holder_ref=target_holder_ref,
-            lease=accepted,
-            apply=True,
-        ),
+        case.database,
+        request=case.request("advance", accepted, holder=target_holder_ref),
         binding={
             "expected_head": "c" * 40,
             "expected_tree": "d" * 40,
@@ -1079,14 +1099,8 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
         )
         with pytest.raises(ValueError, match="expected_head"):
             advance_lease_ref(
-                database,
-                request=_lease_request(
-                    operation="advance",
-                    branch=branch,
-                    holder_ref=target_holder_ref,
-                    lease=advanced,
-                    apply=True,
-                ),
+                case.database,
+                request=case.request("advance", advanced, holder=target_holder_ref),
                 binding={
                     "expected_head": "invalid-head",
                     "expected_tree": "d" * 40,
@@ -1095,14 +1109,10 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
                     "base_commitment_digest": advanced["base_commitment_digest"],
                 },
             )
-    assert observe_lease(database, branch).record() == advanced
+    assert observe_lease(case.database, case.branch).record() == advanced
 
-    resume_fixture = start_adopted_work_lane(
-        tmp_path / "resume-reissue", name="resume-reissue", holder_ref=holder_ref
-    )
-    resume_branch = "work/resume-reissue"
-    resume_database = state_database(resume_fixture.worktree)
-    expired = _lease_snapshot(resume_fixture.worktree, resume_branch)
+    resume = LeaseCase.start(tmp_path, "resume-reissue", holder_ref)
+    expired = resume.snapshot()
     expired_at = datetime.now(UTC) - timedelta(seconds=1)
     expired_payload = dict(expired["payload"])
     expired_payload.update(
@@ -1111,22 +1121,13 @@ def test_full_lease_reissues_preserve_every_undeclared_field(
         expires_at=expired_at.isoformat(),
         path_scope=["src/**", "tests/**"],
     )
-    with closing(sqlite3.connect(resume_database)) as connection, connection:
+    with closing(sqlite3.connect(resume.database)) as connection, connection:
         connection.execute(
             "update leases set expires_at = ?, payload_json = ? where subject = ?",
-            (expired_at.isoformat(), json.dumps(expired_payload, sort_keys=True), resume_branch),
+            (expired_at.isoformat(), json.dumps(expired_payload, sort_keys=True), resume.branch),
         )
-    expired = observe_lease(resume_database, resume_branch).record()
-    resumed = _apply_lease(
-        resume_database,
-        _lease_request(
-            operation="resume",
-            branch=resume_branch,
-            holder_ref=holder_ref,
-            lease=expired,
-            apply=True,
-        ),
-    )
+    expired = observe_lease(resume.database, resume.branch).record()
+    resumed = resume.apply("resume", expired)
     _assert_reissue_changes(expired, resumed, "renewed_at", "expires_at")
 
 
@@ -1195,45 +1196,24 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
 ) -> None:
     source_holder = "agent:test:case:source"
     target_holder = "agent:test:case:target"
-    branch = "work/lease"
-    fixture = start_adopted_work_lane(tmp_path / "lease", name="lease", holder_ref=source_holder)
-    initial = leases_by_branch(fixture.worktree)[branch]
+    case = LeaseCase.start(tmp_path, "lease", source_holder)
+    initial = case.snapshot()
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:wrong")
-    wrong_actor = execute_lease_operation(
-        root=fixture.worktree,
-        request=_lease_request(
-            operation="renew", branch=branch, holder_ref=source_holder, lease=initial, apply=True
-        ),
-    )
+    wrong_actor = case.execute("renew", initial)
     assert wrong_actor["verdict"] == "block"
     assert "ok" not in wrong_actor
     assert wrong_actor["mutation"]["decision"]["verdict"] == wrong_actor["verdict"]
     assert "lease_actor_mismatch" in wrong_actor["required_gaps"]
 
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
-    renewed = execute_lease_operation(
-        root=fixture.worktree,
-        request=_lease_request(
-            operation="renew", branch=branch, holder_ref=source_holder, lease=initial, apply=True
-        ),
-    )
+    renewed = case.execute("renew", initial)
     assert renewed["verdict"] == "pass"
     assert "ok" not in renewed
     assert renewed["mutation"]["decision"]["verdict"] == renewed["verdict"]
     renewed_lease = renewed["lease"]
     assert isinstance(renewed_lease, dict)
-    offered = execute_lease_operation(
-        root=fixture.worktree,
-        request=_lease_request(
-            operation="handoff_offer",
-            branch=branch,
-            holder_ref=source_holder,
-            lease=renewed_lease,
-            apply=True,
-            target_holder_ref=target_holder,
-        ),
-    )
+    offered = case.execute("handoff_offer", renewed_lease, target_holder_ref=target_holder)
     assert offered["verdict"] == "pass"
     assert "ok" not in offered
     assert offered["mutation"]["decision"]["verdict"] == offered["verdict"]
@@ -1241,36 +1221,21 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
     assert isinstance(offer, dict)
 
     monkeypatch.setenv("ETHOS_ACTOR", target_holder)
-    not_quiesced = execute_lease_operation(
-        root=fixture.worktree,
-        request=_lease_request(
-            operation="handoff_accept",
-            branch=branch,
-            holder_ref=source_holder,
-            lease=offer,
-            apply=True,
-            target_holder_ref=target_holder,
-            offer_id=str(offer["offer_id"]),
-            holder_quiesced=False,
-        ),
+    accept = {
+        "target_holder_ref": target_holder,
+        "offer_id": str(offer["offer_id"]),
+    }
+    not_quiesced = case.execute(
+        "handoff_accept",
+        offer,
+        **accept,
+        holder_quiesced=False,
     )
     assert not_quiesced["verdict"] == "block"
     assert "ok" not in not_quiesced
     assert not_quiesced["mutation"]["decision"]["verdict"] == not_quiesced["verdict"]
     assert "holder_quiescence_confirmation_required" in not_quiesced["required_gaps"]
-    accepted = execute_lease_operation(
-        root=fixture.worktree,
-        request=_lease_request(
-            operation="handoff_accept",
-            branch=branch,
-            holder_ref=source_holder,
-            lease=offer,
-            apply=True,
-            target_holder_ref=target_holder,
-            offer_id=str(offer["offer_id"]),
-            holder_quiesced=True,
-        ),
-    )
+    accepted = case.execute("handoff_accept", offer, **accept, holder_quiesced=True)
     assert accepted["verdict"] == "pass"
     assert "ok" not in accepted
     assert accepted["mutation"]["decision"]["verdict"] == accepted["verdict"]
@@ -1280,61 +1245,64 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
         target_holder,
         int(offer["epoch"]) + 1,
     )
-    repeated = execute_lease_operation(
-        root=fixture.worktree,
-        request=_lease_request(
-            operation="handoff_accept",
-            branch=branch,
-            holder_ref=source_holder,
-            lease=offer,
-            apply=True,
-            target_holder_ref=target_holder,
-            offer_id=str(offer["offer_id"]),
-            holder_quiesced=True,
-        ),
-    )
+    repeated = case.execute("handoff_accept", offer, **accept, holder_quiesced=True)
     assert repeated["verdict"] == "block"
     assert "ok" not in repeated
     assert repeated["mutation"]["decision"]["verdict"] == repeated["verdict"]
     assert any("lease_holder_mismatch" in gap for gap in repeated["required_gaps"])
 
 
-def test_exact_takeover_changes_only_holder_generation_and_emits_attestation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _takeover_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    *,
+    source_state: str,
+    persist: bool = True,
+) -> tuple[LeaseCase, dict[str, object], Attestation, LeaseTakeoverRequest]:
     source = "agent:test:case:source"
     target = "agent:test:case:target"
-    branch = "work/takeover"
-    fixture = start_adopted_work_lane(tmp_path / "takeover", name="takeover", holder_ref=source)
-    before = _lease_snapshot(fixture.worktree, branch)
-    dirty_digest = dirty_content_sha256(fixture.worktree)
+    case = LeaseCase.start(tmp_path, name, source)
+    before = case.snapshot()
     authorization = _takeover_authorization(
         before,
-        branch=branch,
+        branch=case.branch,
         source=source,
         target=target,
-        dirty_digest=dirty_digest,
-        source_state="source_lost",
+        dirty_digest=dirty_content_sha256(case.worktree),
+        source_state=source_state,
     )
-    persist_attestation(fixture.worktree, authorization)
+    if persist:
+        persist_attestation(case.worktree, authorization)
     monkeypatch.setenv("ETHOS_ACTOR", target)
-
-    report = execute_lease_takeover(
-        root=fixture.worktree,
-        request=_takeover_request(
+    return (
+        case,
+        before,
+        authorization,
+        _takeover_request(
             before,
-            branch=branch,
-            source_state="source_lost",
+            branch=case.branch,
+            source_state=source_state,
             authorization=authorization,
             apply=True,
         ),
     )
 
+
+def test_exact_takeover_changes_only_holder_generation_and_emits_attestation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case, before, _authorization, request = _takeover_case(
+        tmp_path, monkeypatch, "takeover", source_state="source_lost"
+    )
+
+    report = execute_lease_takeover(root=case.worktree, request=request)
+
     assert report["verdict"] == "pass"
     assert report["state"] == "taken_over"
     assert report["source_state"] == "source_lost"
     after = cast("dict[str, object]", report["lease"])
-    assert after["holder_ref"] == target
+    assert after["holder_ref"] == "agent:test:case:target"
     assert after["epoch"] == int(before["epoch"]) + 1
     assert after["expected_head"] == before["expected_head"]
     assert after["expected_tree"] == before["expected_tree"]
@@ -1347,24 +1315,9 @@ def test_exact_takeover_changes_only_holder_generation_and_emits_attestation(
 def test_exact_takeover_drift_has_zero_lease_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    source = "agent:test:case:source"
-    target = "agent:test:case:target"
-    branch = "work/takeover-drift"
-    fixture = start_adopted_work_lane(
-        tmp_path / "takeover-drift", name="takeover-drift", holder_ref=source
+    case, before, _authorization, request = _takeover_case(
+        tmp_path, monkeypatch, "takeover-drift", source_state="quiesced"
     )
-    before = _lease_snapshot(fixture.worktree, branch)
-    dirty_digest = dirty_content_sha256(fixture.worktree)
-    authorization = _takeover_authorization(
-        before,
-        branch=branch,
-        source=source,
-        target=target,
-        dirty_digest=dirty_digest,
-        source_state="quiesced",
-    )
-    persist_attestation(fixture.worktree, authorization)
-    monkeypatch.setenv("ETHOS_ACTOR", target)
 
     for changed in (
         {"expect_head": "f" * 40},
@@ -1374,45 +1327,20 @@ def test_exact_takeover_drift_has_zero_lease_effect(
         {"target_holder_ref": "agent:test:case:other"},
         {"source_state": "source_lost"},
     ):
-        request = _takeover_request(
-            before,
-            branch=branch,
-            source_state="quiesced",
-            authorization=authorization,
-            apply=True,
-        ).model_copy(update=changed)
-        report = execute_lease_takeover(root=fixture.worktree, request=request)
+        report = execute_lease_takeover(
+            root=case.worktree,
+            request=request.model_copy(update=changed),
+        )
         assert report["verdict"] in {"block", "unknown"}
-        assert _lease_snapshot(fixture.worktree, branch) == before
+        assert case.snapshot() == before
 
 
 def test_exact_takeover_recovers_receipt_after_post_cas_persistence_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    source = "agent:test:case:source"
-    target = "agent:test:case:target"
-    branch = "work/takeover-recovery"
-    fixture = start_adopted_work_lane(
-        tmp_path / "takeover-recovery", name="takeover-recovery", holder_ref=source
+    case, before, _authorization, request = _takeover_case(
+        tmp_path, monkeypatch, "takeover-recovery", source_state="source_lost"
     )
-    before = _lease_snapshot(fixture.worktree, branch)
-    authorization = _takeover_authorization(
-        before,
-        branch=branch,
-        source=source,
-        target=target,
-        dirty_digest=dirty_content_sha256(fixture.worktree),
-        source_state="source_lost",
-    )
-    persist_attestation(fixture.worktree, authorization)
-    request = _takeover_request(
-        before,
-        branch=branch,
-        source_state="source_lost",
-        authorization=authorization,
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", target)
     original_persist = persist_attestation
     monkeypatch.setattr(
         "ethos.adapters.mutation.lane_lifecycle.lease.persist_attestation",
@@ -1420,17 +1348,17 @@ def test_exact_takeover_recovers_receipt_after_post_cas_persistence_failure(
     )
 
     with pytest.raises(OSError, match="simulated crash"):
-        execute_lease_takeover(root=fixture.worktree, request=request)
+        execute_lease_takeover(root=case.worktree, request=request)
 
     monkeypatch.setattr(
         "ethos.adapters.mutation.lane_lifecycle.lease.persist_attestation",
         original_persist,
     )
-    recovered = execute_lease_takeover(root=fixture.worktree, request=request)
+    recovered = execute_lease_takeover(root=case.worktree, request=request)
 
     assert recovered["verdict"] == "pass", recovered["required_gaps"]
     assert recovered["state"] == "taken_over"
-    assert recovered["lease"]["holder_ref"] == target
+    assert recovered["lease"]["holder_ref"] == "agent:test:case:target"
     assert recovered["lease"]["epoch"] == int(before["epoch"]) + 1
     assert recovered["attestation"]
 
@@ -1438,39 +1366,21 @@ def test_exact_takeover_recovers_receipt_after_post_cas_persistence_failure(
 def test_exact_takeover_rejects_authorization_store_content_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    source = "agent:test:case:source"
-    target = "agent:test:case:target"
-    branch = "work/takeover-authorization"
-    fixture = start_adopted_work_lane(
-        tmp_path / "takeover-authorization", name="takeover-authorization", holder_ref=source
-    )
-    before = _lease_snapshot(fixture.worktree, branch)
-    authorization = _takeover_authorization(
-        before,
-        branch=branch,
-        source=source,
-        target=target,
-        dirty_digest=dirty_content_sha256(fixture.worktree),
+    case, before, authorization, request = _takeover_case(
+        tmp_path,
+        monkeypatch,
+        "takeover-authorization",
         source_state="quiesced",
+        persist=False,
     )
-    path = persist_attestation(fixture.worktree, authorization)
+    path = persist_attestation(case.worktree, authorization)
     path.write_text("{}", encoding="utf-8")
-    monkeypatch.setenv("ETHOS_ACTOR", target)
 
-    report = execute_lease_takeover(
-        root=fixture.worktree,
-        request=_takeover_request(
-            before,
-            branch=branch,
-            source_state="quiesced",
-            authorization=authorization,
-            apply=True,
-        ),
-    )
+    report = execute_lease_takeover(root=case.worktree, request=request)
 
     assert report["verdict"] == "block"
     assert "lease_takeover_authorization_unaccepted" in report["required_gaps"]
-    assert _lease_snapshot(fixture.worktree, branch) == before
+    assert case.snapshot() == before
 
 
 @pytest.mark.parametrize(
@@ -1487,36 +1397,25 @@ def test_exact_takeover_rejects_wrong_or_stale_authorization(
     monkeypatch: pytest.MonkeyPatch,
     authorization_update: dict[str, object],
 ) -> None:
-    source = "agent:test:case:source"
-    target = "agent:test:case:target"
-    branch = "work/takeover-wrong-authorization"
-    fixture = start_adopted_work_lane(
-        tmp_path / "takeover-wrong-authorization",
-        name="takeover-wrong-authorization",
-        holder_ref=source,
-    )
-    before = _lease_snapshot(fixture.worktree, branch)
-    original = _takeover_authorization(
-        before,
-        branch=branch,
-        source=source,
-        target=target,
-        dirty_digest=dirty_content_sha256(fixture.worktree),
+    case, before, original, _request = _takeover_case(
+        tmp_path,
+        monkeypatch,
+        "takeover-wrong-authorization",
         source_state="source_lost",
+        persist=False,
     )
     payload = original.model_dump(
         exclude={"id", "statement_digest", "schema_version", *authorization_update}
     )
     payload.update(authorization_update)
     authorization = Attestation.issue(payload)
-    persist_attestation(fixture.worktree, authorization)
-    monkeypatch.setenv("ETHOS_ACTOR", target)
+    persist_attestation(case.worktree, authorization)
 
     report = execute_lease_takeover(
-        root=fixture.worktree,
+        root=case.worktree,
         request=_takeover_request(
             before,
-            branch=branch,
+            branch=case.branch,
             source_state="source_lost",
             authorization=authorization,
             apply=True,
@@ -1524,7 +1423,7 @@ def test_exact_takeover_rejects_wrong_or_stale_authorization(
     )
 
     assert report["verdict"] == "block"
-    assert _lease_snapshot(fixture.worktree, branch) == before
+    assert case.snapshot() == before
 
 
 def _takeover_authorization(
@@ -1637,22 +1536,11 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
 ) -> None:
     holder_ref = "agent:test:case:source"
     target_holder_ref = "agent:test:case:target"
-    branch = "work/effect-cas"
-    fixture = start_adopted_work_lane(
-        tmp_path / "effect-cas", name="effect-cas", holder_ref=holder_ref
-    )
-    database = state_database(fixture.worktree)
-    initial = _lease_snapshot(fixture.worktree, branch)
+    case = LeaseCase.start(tmp_path, "effect-cas", holder_ref)
+    initial = case.snapshot()
 
-    active_resume = _lease_request(
-        operation="resume",
-        branch=branch,
-        holder_ref=holder_ref,
-        lease=initial,
-        apply=True,
-    )
-    with pytest.raises(ValueError, match=f"^lease_not_expired:{branch}$"):
-        _apply_lease(database, active_resume)
+    with pytest.raises(ValueError, match=f"^lease_not_expired:{case.branch}$"):
+        case.apply("resume", initial)
 
     expired = datetime.now(UTC) - timedelta(seconds=1)
     expired_payload = dict(initial["payload"])
@@ -1661,92 +1549,47 @@ def test_lease_effect_enforces_expiry_cas_handoff_tokens_and_transient_output(
         renewed_at=(expired - timedelta(seconds=1)).isoformat(),
         expires_at=expired.isoformat(),
     )
-    with closing(sqlite3.connect(database)) as connection, connection:
+    with closing(sqlite3.connect(case.database)) as connection, connection:
         connection.execute(
             "update leases set expires_at = ?, payload_json = ? where subject = ?",
-            (expired.isoformat(), json.dumps(expired_payload, sort_keys=True), branch),
+            (expired.isoformat(), json.dumps(expired_payload, sort_keys=True), case.branch),
         )
-    expired_lease = observe_lease(database, branch).record()
-    expired_renew = _lease_request(
-        operation="renew",
-        branch=branch,
-        holder_ref=holder_ref,
-        lease=expired_lease,
-        apply=True,
-    )
-    with pytest.raises(ValueError, match=f"^lease_expired:{branch}$"):
-        _apply_lease(database, expired_renew)
-    resumed = _apply_lease(
-        database,
-        _lease_request(
-            operation="resume",
-            branch=branch,
-            holder_ref=holder_ref,
-            lease=expired_lease,
-            apply=True,
-        ),
-    )
+    expired_lease = observe_lease(case.database, case.branch).record()
+    with pytest.raises(ValueError, match=f"^lease_expired:{case.branch}$"):
+        case.apply("renew", expired_lease)
+    resumed = case.apply("resume", expired_lease)
     assert resumed["expires_at"] > expired.isoformat()
 
-    _assert_stale_lease_dimensions(database, branch, holder_ref, resumed)
+    _assert_stale_lease_dimensions(case.database, case.branch, holder_ref, resumed)
 
-    invalid_holder = _lease_request(
-        operation="renew",
-        branch=branch,
-        holder_ref="invalid-holder",
-        lease=resumed,
-        apply=True,
-    )
     with pytest.raises(ValueError, match=r"^holder_ref must have four non-empty segments$"):
-        _apply_lease(database, invalid_holder)
+        _apply_lease(case.database, case.request("renew", resumed, holder="invalid-holder"))
 
-    offer = _apply_lease(
-        database,
-        _lease_request(
-            operation="handoff_offer",
-            branch=branch,
-            holder_ref=holder_ref,
-            lease=resumed,
-            apply=True,
-            target_holder_ref=target_holder_ref,
-        ),
-    )
-    unquiesced = _lease_request(
-        operation="handoff_accept",
-        branch=branch,
-        holder_ref=holder_ref,
-        lease=offer,
-        apply=True,
+    offer = case.apply("handoff_offer", resumed, target_holder_ref=target_holder_ref)
+    unquiesced = case.request(
+        "handoff_accept",
+        offer,
         target_holder_ref=target_holder_ref,
         offer_id=str(offer["offer_id"]),
     )
-    with pytest.raises(ValueError, match=f"^lease_handoff_holder_not_quiesced:{branch}$"):
-        _apply_lease(database, unquiesced)
+    with pytest.raises(ValueError, match=f"^lease_handoff_holder_not_quiesced:{case.branch}$"):
+        _apply_lease(case.database, unquiesced)
 
     _assert_stale_handoff_tokens(
-        database,
-        branch,
+        case.database,
+        case.branch,
         holder_ref,
         target_holder_ref,
         offer,
     )
 
     monkeypatch.setenv("ETHOS_ACTOR", holder_ref)
-    public = execute_lease_operation(
-        root=fixture.worktree,
-        request=_lease_request(
-            operation="renew",
-            branch=branch,
-            holder_ref=holder_ref,
-            lease=offer,
-            apply=True,
-        ),
-    )
+    public = case.execute("renew", offer)
     assert "receipt" not in public
     assert (public["verdict"], public["state"], public["branch"]) == (
         "pass",
         "renewed",
-        branch,
+        case.branch,
     )
     assert "ok" not in public
     assert public["mutation"]["decision"]["verdict"] == public["verdict"]

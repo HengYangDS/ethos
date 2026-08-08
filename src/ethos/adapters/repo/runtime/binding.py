@@ -93,7 +93,6 @@ def runtime_binding(root: Path) -> dict[str, object]:
         "runner_source_root": source_root.as_posix(),
         "schema_source_root": schema_source_root.as_posix(),
         "runner_matches_audit_root": runner_matches_audit_root,
-        "runner_matches_repository_family": runner_matches_family_runtime,
         "schema_matches_audit_root": schema_matches_audit_root,
         "advisory_gaps": advisory_gaps,
         "next_action": next_action,

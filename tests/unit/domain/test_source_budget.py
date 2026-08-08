@@ -35,6 +35,17 @@ python_total = ["python_product", "python_other"]
 global_total = ["python_product", "python_other", "toml", "json", "yaml", "ini", "shell"]
 
 [[format]]
+extensions = [".lock", ".json", ".yaml", ".yml"]
+[[format.budget]]
+category = "dependency_resolution"
+paths = [
+  "*.lock", "**/*.lock", "*-lock.json", "**/*-lock.json",
+  "*-lock.yaml", "**/*-lock.yaml", "*-lock.yml", "**/*-lock.yml",
+  "npm-shrinkwrap.json", "**/npm-shrinkwrap.json",
+]
+accounting = "generated_evidence"
+
+[[format]]
 extensions = [".py"]
 budget = [
   {{ category = "python_product", paths = ["src/*"], measure = "python_ast" }},
@@ -216,7 +227,7 @@ def test_report_exposes_implementation_and_record_cross_check_totals(
         monkeypatch,
         tmp_path,
         {
-            ".config/checks/format/selection.toml": 12,
+            ".config/checks/format/selection.toml": 15,
             ".ethos/rules.toml": 1,
             "src/ethos/demo.py": 2,
             "evidence/chronicle/decision.py": 1,
@@ -233,21 +244,72 @@ def test_report_exposes_implementation_and_record_cross_check_totals(
     assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
 
 
-def test_generated_lock_is_owned_json_source_in_both_counters(
+def test_generated_lock_is_dependency_evidence_not_owned_source(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    package_lock = tmp_path / "package-lock.json"
-    package_lock.write_text('{"lockfileVersion": 3}\n', encoding="utf-8")
     _fake_scc(monkeypatch, tmp_path)
+    before = source_budget.source_budget_report(tmp_path)
+    package_lock = tmp_path / "package-lock.json"
+    package_lock.write_text('{\n  "lockfileVersion": 3\n}\n', encoding="utf-8")
+    git(tmp_path, "add", package_lock.as_posix())
 
     report = source_budget.source_budget_report(tmp_path)
 
     assert report["required_gaps"] == []
-    assert report["inventory"]["category_counts"]["json"] == 1
-    assert report["metrics"]["json"] > 0
+    assert report["inventory"]["category_counts"]["dependency_resolution"] == 1
+    assert report["metrics"]["global_total"] == before["metrics"]["global_total"]
+    assert report["cross_check"]["global_total"] == before["cross_check"]["global_total"]
+    assert report["metrics"]["generated_evidence_total"] > 0
     assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "uv.lock",
+        "Cargo.lock",
+        "Gemfile.lock",
+        "composer.lock",
+        "yarn.lock",
+        "package-lock.json",
+        "nested/pnpm-lock.yaml",
+        "nested/npm-shrinkwrap.json",
+    ],
+)
+def test_ecosystem_lockfile_patterns_share_one_evidence_class(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative: str,
+) -> None:
+    _repo(tmp_path)
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("resolved dependency graph\n", encoding="utf-8")
+    git(tmp_path, "add", path.as_posix())
+    _fake_scc(monkeypatch, tmp_path)
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["inventory"]["category_counts"]["dependency_resolution"] == 1
+
+
+def test_ordinary_structured_files_cannot_impersonate_lockfile_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo(tmp_path)
+    path = tmp_path / "system/clock.json"
+    path.parent.mkdir()
+    path.write_text('{"source": true}\n', encoding="utf-8")
+    git(tmp_path, "add", path.as_posix())
+    _fake_scc(monkeypatch, tmp_path)
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["inventory"]["category_counts"].get("dependency_resolution", 0) == 0
+    assert report["inventory"]["category_counts"]["json"] == 1
 
 
 def test_record_growth_is_visible_without_increasing_implementation_totals(

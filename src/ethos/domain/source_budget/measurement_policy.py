@@ -46,6 +46,7 @@ class Carrier(_Contract):
     baseline_measure: Literal["", "lines"] = ""
     baseline_comment_prefixes: tuple[str, ...] = ()
     baseline_comment_wrappers: tuple[tuple[str, str], ...] = ()
+    accounting: Literal["source", "generated_evidence"] = "source"
 
     @model_validator(mode="after")
     def validate_shape(self) -> Carrier:
@@ -75,9 +76,13 @@ class Policy(_Contract):
 
     @model_validator(mode="after")
     def validate_ownership(self) -> Policy:
-        categories = {carrier.category for carrier in self.carriers}
+        categories = {
+            carrier.category for carrier in self.carriers if carrier.accounting == "source"
+        }
         python_categories = {
-            carrier.category for carrier in self.carriers if carrier.measure == "python_ast"
+            carrier.category
+            for carrier in self.carriers
+            if carrier.measure == "python_ast" and carrier.accounting == "source"
         }
         if set(self.aggregates) != set(TERMINAL_TOTALS):
             msg = "source-budget aggregates must contain exactly the terminal totals"
@@ -179,6 +184,10 @@ def _raw_carriers(payload: dict[str, object]) -> tuple[Carrier, ...]:
                         budget.get("baseline_comment_prefixes", []), empty=True
                     ),
                     baseline_comment_wrappers=_pairs(budget.get("baseline_comment_wrappers", [])),
+                    accounting=cast(
+                        'Literal["source", "generated_evidence"]',
+                        budget.get("accounting", "source"),
+                    ),
                 )
             )
     return tuple(carriers)

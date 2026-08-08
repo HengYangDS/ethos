@@ -501,7 +501,7 @@ def test_runner_source_root_treats_an_installed_distribution_as_external(
     assert runner_source_root(module) == module.parent
 
 
-def test_runtime_binding_recognizes_the_exact_repository_family_hook_runtime(
+def test_runtime_binding_recognizes_the_exact_common_hook_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -528,10 +528,10 @@ def test_runtime_binding_recognizes_the_exact_repository_family_hook_runtime(
 
     report = runtime_binding(repo)
 
-    assert report["state"] == "bound_to_repository_family"
+    assert report["state"] == "bound_to_common_runtime"
 
 
-def test_prewrite_accepts_exact_repository_family_runtime(
+def test_prewrite_accepts_exact_common_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -547,14 +547,14 @@ def test_prewrite_accepts_exact_repository_family_runtime(
                 "runner_source_root": "/external/package/ethos",
                 "schema_source_root": repo.resolve().as_posix(),
                 "runner_matches_audit_root": False,
-                "state": "bound_to_repository_family",
+                "state": "bound_to_common_runtime",
                 "schema_matches_audit_root": True,
             }
         }
     )
 
     assert report["verdict"] == "pass"
-    assert report["runner_matches_repository_family"] is True
+    assert report["runner_matches_common_runtime"] is True
 
     rejected = runtime_binding_check(
         {
@@ -569,7 +569,7 @@ def test_prewrite_accepts_exact_repository_family_runtime(
         }
     )
     assert rejected["verdict"] == "block"
-    assert rejected["runner_matches_repository_family"] is False
+    assert rejected["runner_matches_common_runtime"] is False
 
 
 @pytest.mark.parametrize(

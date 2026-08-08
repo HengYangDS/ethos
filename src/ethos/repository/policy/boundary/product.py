@@ -317,7 +317,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
             "release_visible_historical_boundary": (
                 "release-visible chronicles, comparison evidence, archived changes, "
                 "history, and superseded decisions preserve judged provenance "
-                "without raw workstation paths, personal attribution, named "
+                "without raw host-local paths, personal attribution, named "
                 "private adopters, or private project dependency literals"
             ),
             "boundary": (

@@ -3043,7 +3043,7 @@ revision against isolated adopter clones using the one binding contract.
 #### Scenario: Current observation is promoted without private coupling
 
 - **WHEN** the raw bundle is promoted into product evidence
-- **THEN** the tracked record SHALL omit workstation paths, adopter-private
+- **THEN** the tracked record SHALL omit host-local paths, adopter-private
   identity, credentials, accounts, keys, and provider-local configuration
 - **AND** it SHALL bind the product and adopter revisions, one-binding create and
   conflict outcomes, raw-bundle digest, and whether a push occurred

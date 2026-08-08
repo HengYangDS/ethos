@@ -20,7 +20,7 @@ RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
 _STRICT_BRANCH_ROLE_TABLE_ERROR = "branch_roles table must be complete and exact"
 _STRICT_BRANCH_ROLE_TEXT_ERROR = "branch_roles text fields must be canonical strings"
 _STRICT_BRANCH_ROLE_MIRROR_ERROR = "branch_roles release_mirror is invalid"
-_STRICT_BRANCH_ROLE_FAMILY_ERROR = "branch_roles repository_family_worktrees must be boolean"
+_STRICT_BRANCH_ROLE_SIBLING_ERROR = "branch_roles canonical_sibling_worktrees must be boolean"
 _STRICT_BRANCH_ROLE_FIELDS = {
     "release_branch",
     "accepted_branch",
@@ -28,7 +28,7 @@ _STRICT_BRANCH_ROLE_FIELDS = {
     "work_branch_prefix",
     "proposal_branch_prefix",
     "release_mirror",
-    "repository_family_worktrees",
+    "canonical_sibling_worktrees",
 }
 
 PROTECTED_WRITE_ROLES = frozenset(
@@ -51,7 +51,7 @@ class BranchRolePolicy:
     work_branch_prefix: str = "work/"
     proposal_branch_prefix: str = "proposal/"
     release_mirror: str = "independent"
-    repository_family_worktrees: bool = False
+    canonical_sibling_worktrees: bool = False
 
     def role_for_branch(self, branch: str) -> str:
         exact_roles = (
@@ -160,7 +160,7 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
         release_mirror=RELEASE_MIRROR_ACCEPTED_FF
         if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF
         else "independent",
-        repository_family_worktrees=raw_policy.get("repository_family_worktrees") is True,
+        canonical_sibling_worktrees=raw_policy.get("canonical_sibling_worktrees") is True,
     )
 
 
@@ -170,7 +170,7 @@ def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     raw_policy = payload.get("branch_roles")
     if type(raw_policy) is not dict or set(raw_policy) != _STRICT_BRANCH_ROLE_FIELDS:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
-    text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"repository_family_worktrees"}
+    text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}
     if any(
         type(raw_policy[field]) is not str
         or not raw_policy[field]
@@ -180,8 +180,8 @@ def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
         raise ValueError(_STRICT_BRANCH_ROLE_TEXT_ERROR)
     if raw_policy["release_mirror"] not in {"independent", RELEASE_MIRROR_ACCEPTED_FF}:
         raise ValueError(_STRICT_BRANCH_ROLE_MIRROR_ERROR)
-    if type(raw_policy["repository_family_worktrees"]) is not bool:
-        raise ValueError(_STRICT_BRANCH_ROLE_FAMILY_ERROR)
+    if type(raw_policy["canonical_sibling_worktrees"]) is not bool:
+        raise ValueError(_STRICT_BRANCH_ROLE_SIBLING_ERROR)
     return BranchRolePolicy(**raw_policy)
 
 

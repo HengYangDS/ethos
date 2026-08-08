@@ -49,8 +49,12 @@ def _project_script(name: str) -> str:
     return str(_venv_executable(Path(sys.executable).parent.parent, name))
 
 
-def _run(*command: str, cwd: Path = ROOT) -> str:
-    completed = run_command(cwd, command)
+def _run(
+    *command: str,
+    cwd: Path = ROOT,
+    env: dict[str, str] | None = None,
+) -> str:
+    completed = run_command(cwd, command, env=env)
     if completed.returncode:
         detail = completed.stderr.strip() or completed.stdout.strip()
         rendered = " ".join(command)
@@ -113,7 +117,22 @@ def _initialize_adopter(root: Path) -> str:
     (root / ".ethos").mkdir()
     change = root / "openspec/changes/smoke-change"
     change.mkdir(parents=True)
-    shutil.copy2(ROOT / ".ethos/profile.toml", root / ".ethos/profile.toml")
+    (root / ".ethos/profile.toml").write_text(
+        """profile_id = "installed-cli-adopter"
+
+[openspec]
+material_paths = ["**"]
+""",
+        encoding="utf-8",
+    )
+    (root / ".ethos/commitment.toml").write_text(
+        """schema_version = 1
+id = "repository:installed-cli-adopter"
+intent = "Govern the installed CLI adopter."
+subjects = ["repository:installed-cli-adopter"]
+""",
+        encoding="utf-8",
+    )
     shutil.copy2(ROOT / "openspec/config.yaml", root / "openspec/config.yaml")
     (change / "commitment.toml").write_text(
         """schema_version = 1
@@ -164,6 +183,113 @@ def _line_ending_conformance(adopter: Path) -> list[str]:
     for style in observed:
         (adopter / f"line-ending-{style}.txt").unlink()
     return observed
+
+
+def _independent_host_environment() -> tuple[dict[str, str], str]:
+    """Return the smallest host environment that supplies Git but no host control plane."""
+    git = Path(_executable("git")).resolve()
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        in {
+            "COMSPEC",
+            "HOME",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "PATHEXT",
+            "SYSTEMROOT",
+            "TEMP",
+            "TMP",
+            "TMPDIR",
+            "USER",
+            "USERNAME",
+        }
+    }
+    env["PATH"] = str(git.parent)
+    if shutil.which("git", path=env["PATH"]) is None:
+        message = "minimal host environment cannot resolve Git"
+        raise RuntimeError(message)
+    unavailable = [name for name in ("workstation", "wcp") if shutil.which(name, path=env["PATH"])]
+    if unavailable:
+        raise RuntimeError(
+            "external governance executable leaked into package smoke: " + ", ".join(unavailable)
+        )
+    return env, git.as_posix()
+
+
+def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
+    """Run the installed reader and lane admission surface without a host control plane."""
+    env, git = _independent_host_environment()
+    holder = "agent:test:package-only:independence"
+    commands = (
+        ("status", "--root", str(adopter), "--json"),
+        ("plan", "--changed", "--root", str(adopter), "--json"),
+        (
+            "lane",
+            "prewrite",
+            "README.md",
+            "--root",
+            str(adopter),
+            "--editor-root",
+            str(adopter),
+            "--require-editor-root",
+            "--json",
+        ),
+        (
+            "lane",
+            "start",
+            "smoke-change",
+            "--source-root",
+            str(adopter),
+            "--holder-ref",
+            holder,
+            "--root",
+            str(adopter),
+            "--json",
+        ),
+        ("prove", "--root", str(adopter), "--json"),
+        ("land", "--root", str(adopter), "--json"),
+        (
+            "lane",
+            "retire",
+            "absorbed-ref",
+            "--branch",
+            "work/absent",
+            "--expect-head",
+            "0" * 40,
+            "--accepted-head",
+            "0" * 40,
+            "--root",
+            str(adopter),
+            "--json",
+        ),
+    )
+    checked = []
+    for args in commands:
+        executed_args = args
+        completed = run_command(adopter, (str(ethos), *executed_args), env=env)
+        if args[:2] == ("plan", "--changed") and completed.returncode != 0:
+            executed_args = ("plan", "--root", str(adopter), "--json")
+            completed = run_command(adopter, (str(ethos), *executed_args), env=env)
+        if "Traceback" in completed.stderr or "Traceback" in completed.stdout:
+            message = "installed CLI emitted traceback without a host control plane"
+            raise RuntimeError(message)
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            message = f"installed CLI did not emit JSON for {args[:2]}"
+            raise RuntimeError(message) from exc
+        if payload.get("verdict") not in {"pass", "block", "unknown"}:
+            message = f"installed CLI emitted an invalid verdict for {args[:2]}"
+            raise RuntimeError(message)
+        checked.append(" ".join(executed_args[:2]))
+    return {
+        "git": git,
+        "path": env["PATH"],
+        "external_governance_available": False,
+        "commands": checked,
+    }
 
 
 def _verify_resources(wheel: Path) -> list[str]:
@@ -273,6 +399,7 @@ def run(session: nox.Session) -> None:
     adopter_head = _initialize_adopter(adopter)
     line_endings = _line_ending_conformance(adopter)
     origin, version, sdk_digest = _installed_cli_checks(smoke, adopter, adopter_head)
+    independent_host = _independent_cli_checks(_venv_executable(smoke, "ethos"), adopter)
     _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
     resources = _verify_resources(wheel)
     if current_tracked_head(ROOT) != head:
@@ -297,6 +424,7 @@ def run(session: nox.Session) -> None:
         },
         "conformance": {
             "subprocess_json": True,
+            "host_product_independence": independent_host,
             "python_sdk": True,
             "openspec": True,
             "sdk_commitment_digest": sdk_digest,
@@ -305,7 +433,10 @@ def run(session: nox.Session) -> None:
         "module_origins": {"ethos": origin},
         "cli_checks": [
             "ethos --help and --version",
-            "installed status and plan dry-run in an adopter repository",
+            (
+                "installed lifecycle commands run without a host control plane: "
+                "status, plan, prewrite, lane start, prove, land, retire"
+            ),
             "installed archive-change and rebuild dry-runs",
             "repository-declared OpenSpec package identity",
             "declared wheel resources match canonical sources",

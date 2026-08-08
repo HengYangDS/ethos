@@ -37,7 +37,7 @@ Commitment and Attestation are the only persistent semantic entities. Facts is f
 - **WHEN** ETHOS receives a selected Commitment, fresh Facts, and prior Attestations
 - **THEN** it compiles a transient TransitionPlan without persisting a third semantic root
 
-#### Scenario: repository-family state stays outside checkouts
+#### Scenario: Git-common state stays outside checkouts
 
 - **WHEN** ETHOS resolves mutable state or local Attestations for any linked worktree
 - **THEN** it SHALL use the shared Git common directory under `ethos/`

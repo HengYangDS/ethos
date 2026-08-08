@@ -12,7 +12,7 @@ contradicting evidence rather than hidden behind a successor ledger.
 
 - [x] F.1 Replace the private source-budget worker, replay, and shadow stack
   with direct deterministic measurement (`351e026fab`).
-- [x] F.2 Remove active workstation-specific product coupling while retaining native
+- [x] F.2 Remove active host-product coupling while retaining native
   fail-closed lane admission (`9e794bcc22`; active product scan is empty).
 - [x] F.3 Collapse to one top-level `src/ethos` distribution and remove the
   superseded package topology (`5388fe581f`; one root `pyproject.toml`).
@@ -157,7 +157,7 @@ changing intent cannot deadlock or mutate an existing Commitment.
   admitted generic tools and removable adapters remain positive declared owners,
   not forbidden names. Product code, docs, tests, schemas, templates, fixtures,
   examples, and generated projections contain no private-product vocabulary,
-  personal identity, private host, workstation path, fixed key/fingerprint, or
+  personal identity, private host, host-local path, fixed key/fingerprint, or
   deployment-specific literal unless its positive owner explicitly declares it.
 - [x] 3.6 Prove reducer, Lease, handoff, takeover, candidate CAS, retirement, and
   crash invariants with stateful property tests, selected mutation operators,
@@ -257,9 +257,9 @@ throughput, and lane housekeeping are implemented and proved.
 
 - [x] 5.1 Rebuild canonical docs, flat DRs, rules, skills, OpenSpec, schemas,
   CI/forge files, evidence, records, and indexes around one native owner each.
-  Repository-family records use only `evidence/` or `recovery/`, contain
-  `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS`, and pass
-  admit → verify → index without rewriting history.
+  Immutable record effects bind path and manifest digests in Attestations; indexes
+  remain derived and historical bytes are never rewritten. No unimplemented record
+  command is presented as a current public capability.
 - [x] 5.2 Promote contradictions and taxonomy/model gaps at the earliest
   admission point; recompile dependents before retiring stale carriers. Before
   implementation, derive explicit ambiguities, assumptions, negative scope,
@@ -367,7 +367,7 @@ are proved homomorphic projections of one portable policy.
   Mutable ETHOS state and local Attestations live under the Git common directory,
   never an accepted/candidate/Work Lane checkout. A public exact-head and
   plan-digest-bound migration moves misplaced checkout state with compensation;
-  repository-family closeout resolves the canonical accepted worktree, migration
+  repository closeout resolves the canonical accepted worktree, migration
   restores clean lane start, and refresh-base restores the original branch/HEAD
   when post-rebase CAS fails.
 - [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,

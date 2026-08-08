@@ -48,8 +48,14 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "def prepare_supply(" in owner
     assert '"--help"' in owner
     assert '"--version"' in owner
+    assert '".ethos/commitment.toml"' in owner
     assert '"status", "--root"' in owner
     assert '"plan", "--changed"' in owner
+    for command in ("prewrite", "start", "prove", "land", "retire"):
+        assert f'"{command}"' in owner
+    assert '"external_governance_available": False' in owner
+    assert '("workstation", "wcp")' in owner
+    assert 'shutil.which(name, path=env["PATH"])' in owner
     assert '"archive-change"' in owner
     assert '"--rebuild-from"' in owner
     assert "/Users/" not in owner

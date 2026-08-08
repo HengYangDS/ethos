@@ -251,6 +251,47 @@ def test_native_owner_closure_rejects_an_unowned_reference(tmp_path: Path) -> No
     ]
 
 
+def test_product_reference_closure_rejects_an_external_governance_executable(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "src/example").mkdir(parents=True)
+    (tmp_path / "src/example/application.py").write_text(
+        """from cyclopts import App
+
+app = App(name="example")
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "src/example/runtime.py").write_text(
+        """import subprocess
+
+subprocess.run(["foreign-governance", "inspect"], check=True)
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        """[project]
+name = "example"
+version = "1"
+dependencies = ["cyclopts>=1"]
+
+[project.scripts]
+example = "example.application:app"
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "system").mkdir()
+    (tmp_path / "system/surfaces.toml").write_text(
+        'schema = "system/schemas/contracts/surfaces.schema.json"\n\n'
+        '[[surface]]\nname = "cli"\ncarrier = "src/example"\n',
+        encoding="utf-8",
+    )
+
+    assert repository_product_reference_gaps(tmp_path) == [
+        "product_reference_not_admitted_at_baseline:executable:foreign-governance"
+    ]
+
+
 def test_native_owner_closure_compiles_only_explicit_native_declarations(
     tmp_path: Path,
 ) -> None:

@@ -599,18 +599,18 @@ Collaboration and competition SHALL derive from scope conflict, capacity, risk, 
 ### Requirement: External Retirement Readiness
 A carrier SHALL be retired only when it is non-current, has no active inbound or runtime consumer, has an absorbed or void semantic delta, and has required preservation.
 
-#### Scenario: a repository-family record enters immutable history
+#### Scenario: an immutable repository record enters history
 
 - **WHEN** ETHOS materializes a preservation or closeout record
-- **THEN** `record-admit` accepts only an exact repository-family path under
-  `evidence/<timestamp>-<purpose>/` or `recovery/<timestamp>-<purpose>/`
-- **AND** the record contains `README.md`, `closeout.json`, `MANIFEST.json`, and
-  `SHA256SUMS` with a complete integrity inventory
-- **AND** `record-verify` passes before `records-index --write` changes the derived
-  index
-- **AND** indexed historical bytes are immutable; a later state adds a new record
-  and superseding index entry rather than rewriting or deleting history
-- **AND** the index remains a projection and mints no lifecycle authority.
+- **THEN** the effect Attestation SHALL bind its exact path, manifest digest,
+  subject, predicate, and repository coordinates
+- **AND** integrity verification SHALL consume the declared manifest before any
+  derived index changes
+- **AND** indexed historical bytes remain immutable; a later state adds a new
+  record and superseding index entry rather than rewriting or deleting history
+- **AND** record storage and indexes remain projections and mint no lifecycle authority
+- **AND** this contract SHALL NOT claim a public record command until that command
+  is implemented and package-only conformance proves it.
 
 #### Scenario: Retirement readiness is inspected
 - **WHEN** a target carrier is evaluated for retirement

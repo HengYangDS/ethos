@@ -40,7 +40,7 @@ profile-selected carrier but cannot make that carrier globally mandatory.
 - Reusable agent procedures: `.agents/skills/`, as optional adapters.
 - Native host/forge files: their host directories, as projections or narrow
   declarations.
-- Immutable recovery and forensic bytes: repository-family records; their
+- Immutable recovery and forensic bytes: immutable repository records; their
   manifests prove package integrity, not current authority.
 
 ## Upstream Enforcement

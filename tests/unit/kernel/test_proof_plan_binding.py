@@ -1188,6 +1188,10 @@ def test_repository_admission_prefers_full_when_default_and_full_coexist(tmp_pat
         },
     )
     persist_proof_attestation(repo, default_attestation)
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["full_proof_required"]
+
     plan = proof_plan(repo, head=head, full=True)
     policy = resolve_gate_policy(repo, tree_ref=head, full=True)
     checks = tuple(

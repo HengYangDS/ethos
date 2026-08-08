@@ -712,14 +712,18 @@ def test_push_identity_helpers_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_
     git(repo, "config", "user.name", "Test User")
     git(repo, "config", "user.email", "test@example.com")
     head = git(repo, "rev-parse", "HEAD")
-    run = admission_identity.subprocess.run
+    run_git = admission_identity.run_git
 
-    def fail_rev_list(args, **kwargs):
-        if args[:2] == ["git", "rev-list"]:
-            return admission_identity.subprocess.CompletedProcess(args, 1, "", "fatal")
-        return run(args, **kwargs)
+    def fail_rev_list(root, *args, **kwargs):
+        if args[:1] == ("rev-list",):
+            return type(
+                "FailedProcess",
+                (),
+                {"returncode": 1, "stdout": "", "stderr": "fatal"},
+            )()
+        return run_git(root, *args, **kwargs)
 
-    monkeypatch.setattr(admission_identity.subprocess, "run", fail_rev_list)
+    monkeypatch.setattr(admission_identity, "run_git", fail_rev_list)
 
     report = push_identity_policy_report(repo, head)
 

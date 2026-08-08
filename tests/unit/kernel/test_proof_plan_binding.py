@@ -21,6 +21,7 @@ from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
@@ -33,7 +34,6 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_work_lane

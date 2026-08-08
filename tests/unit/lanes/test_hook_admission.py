@@ -19,11 +19,11 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import HookAdmissionRequest
-from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import conformant_proof_check
 from tests.support.governed_repository import git

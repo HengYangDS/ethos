@@ -20,6 +20,7 @@ from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -35,7 +36,6 @@ from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
-from ethos.repository.policy.gates import resolve_gate_policy
 
 if TYPE_CHECKING:
     from pathlib import Path

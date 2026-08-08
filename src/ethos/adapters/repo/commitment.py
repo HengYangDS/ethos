@@ -12,6 +12,7 @@ from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import exact_rename_target
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
 from ethos.normalization.coercion import object_sequence
@@ -110,7 +111,11 @@ def load_repository_commitment(
 def _selected_carrier(repo: Path, *, tree_ref: str | None, carrier: str | None) -> str:
     if carrier is not None:
         return _relative_carrier(carrier)
-    profile = load_repository_profile(repo, tree_ref=tree_ref)
+    profile = (
+        load_committed_repository_profile(repo, tree_ref)
+        if tree_ref
+        else load_repository_profile(repo)
+    )
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
     return (

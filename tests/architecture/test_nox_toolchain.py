@@ -7,7 +7,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-from ethos.repository.policy.gates import resolve_gate_policy
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from tools.ci.python_test_gate import PYTHON
 from tools.ci.python_test_gate import PythonTestGate
 from tools.ci.python_test_gate import Settings

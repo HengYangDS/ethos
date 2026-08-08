@@ -8,6 +8,7 @@ from typing import cast
 
 from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import scan_attestations
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
@@ -86,13 +87,22 @@ def _start_authority(
     previous_head = str(input_data.get("head") or "")
     change = commitment.id.removeprefix("change:")
     before, after = _generation(input_data.get("lease")), _generation(output.get("lease"))
+    try:
+        started_commitment = (
+            load_lease_bound_commitment(root, lease=after, change_id=change)
+            if after is not None
+            else None
+        )
+    except ValueError:
+        started_commitment = None
     actual_paths = tuple(
         git_stdout(root, "diff", "--name-only", f"{previous_head}...{head}").splitlines()
     )
     valid = (
         attestation.predicate == "effect:openspec-change-start"
         and attestation.verdict == "pass"
-        and attestation.commitment_digest == commitment.digest()
+        and started_commitment is not None
+        and attestation.commitment_digest == started_commitment.digest()
         and statement.get("repository") == repository_id
         and claim == {"operation": "openspec.change.start", "effect": attestation.effect_digest}
         and result == {"state": "applied", "executed": True, "exit_code": 0}

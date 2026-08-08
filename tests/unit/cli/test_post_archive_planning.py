@@ -6,6 +6,7 @@ from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.surface.cli.root.proof import _generation_scope
 from tests.support.ethos_cli_runner import run_ethos
@@ -104,7 +105,20 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(
         apply=True,
     )
     assert started["verdict"] == "pass", started
+    carrier = "openspec/changes/hosted-verification-fix/commitment.toml"
+    before_commitment = load_commitment(
+        worktree, carrier=carrier, change_id="hosted-verification-fix"
+    )
     overlay.write_text("forward fix, dirty now\n", encoding="utf-8")
+    commitment = worktree / carrier
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace("risks = []", 'risks = ["overlay"]'),
+        encoding="utf-8",
+    )
+    after_commitment = load_commitment(
+        worktree, carrier=carrier, change_id="hosted-verification-fix"
+    )
+    assert after_commitment.digest() != before_commitment.digest()
     expected = {
         "README.md",
         "openspec/changes/hosted-verification-fix/.openspec.yaml",

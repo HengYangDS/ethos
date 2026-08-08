@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.root.proof import resolve_generation_scope
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
@@ -72,13 +75,143 @@ def test_plan_admits_the_exact_post_archive_effect(
         expect_head=completed,
         apply=True,
     )
-    assert archived["verdict"] == "pass", archived
+    assert archived["verdict"] == "pass", json.dumps(archived, indent=2, default=str)
 
     payload = run_ethos("plan", "--changed", "--root", worktree.as_posix(), "--json", cwd=worktree)
 
     assert payload["verdict"] == "pass", payload
     authority = payload["data"]["transition_plan"]["prior_attestations"]["openspec_archive"]
     assert authority["predicate"] == "effect:openspec-archive"
+
+
+def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = start_adopted_work_lane(
+        tmp_path,
+        scope=(
+            "openspec/changes/fixture-change/**",
+            "openspec/specs/contracts/spec.md",
+        ),
+    )
+    worktree = fixture.worktree
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    metadata = worktree / "openspec/changes/fixture-change/.openspec.yaml"
+    metadata.write_text(
+        "schema: spec-driven\ncreated: 2026-08-08\nskip_specs: true\n", encoding="utf-8"
+    )
+    delta_specs = worktree / "openspec/changes/fixture-change/specs"
+    git(worktree, "rm", "-r", delta_specs.relative_to(worktree).as_posix())
+    git(worktree, "add", metadata.relative_to(worktree).as_posix())
+    metadata_previous = git(worktree, "rev-parse", "HEAD")
+    git(worktree, "commit", "-m", "declare formatting-only fixture change")
+    metadata_head = git(worktree, "rev-parse", "HEAD")
+    metadata_advanced = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=metadata_previous,
+        new_value=metadata_head,
+    )
+    assert metadata_advanced["state"] == "lease_ref_advanced"
+    previous = git(worktree, "rev-parse", "HEAD")
+    tasks = worktree / "openspec/changes/fixture-change/tasks.md"
+    tasks.write_text(tasks.read_text().replace("- [ ]", "- [x]"))
+    git(worktree, "add", tasks.relative_to(worktree).as_posix())
+    git(worktree, "commit", "-m", "complete formatting-only fixture change")
+    completed = git(worktree, "rev-parse", "HEAD")
+    advanced = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
+        old_value=previous,
+        new_value=completed,
+    )
+    assert advanced["state"] == "lease_ref_advanced"
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, _head: [],
+    )
+    archived = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed,
+        apply=True,
+    )
+    assert archived["verdict"] == "pass", json.dumps(archived, indent=2, default=str)
+    assert archived["no_op"] is True
+    archived_head = str(archived["head"])
+    archive_paths = tuple(str(path) for path in archived["changed_paths"])
+
+    scope = current_generation_scope(
+        worktree,
+        head=archived_head,
+        repository_id=load_repository_commitment(worktree).id,
+        commitment=load_commitment(
+            worktree,
+            carrier=str(leases_by_branch(worktree)["work/feature"]["base_commitment_path"]),
+            change_id="fixture-change",
+            tree_ref=archived_head,
+        ),
+        lease=leases_by_branch(worktree)["work/feature"],
+        fallback_paths=("openspec/specs/contracts/spec.md", *archive_paths),
+    )
+
+    assert scope.paths == archive_paths
+    assert scope.archive_authority["predicate"] == "effect:openspec-archive"
+    plan = proof_plan(
+        worktree,
+        head=archived_head,
+        change_id="fixture-change",
+        changed_paths=scope.paths,
+        generation_scope=scope,
+    )
+    assert plan.verdict == "pass"
+
+    unrelated = proof_plan(
+        worktree,
+        head=archived_head,
+        change_id="fixture-change",
+        changed_paths=(*scope.paths, "README.md"),
+        generation_scope=scope.__class__(
+            paths=(*scope.paths, "README.md"),
+            start_authority=scope.start_authority,
+            archive_authority=scope.archive_authority,
+        ),
+    )
+    assert unrelated.required_gaps == ("change_scope_exceeded",)
+
+    receipt_path = attestation_store_dir(worktree) / f"{archived['attestation']['id']}.json"
+    receipt = Attestation.model_validate_json(receipt_path.read_text(encoding="utf-8"))
+    forged = Attestation.issue(
+        receipt.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "statement": receipt.statement
+            | {
+                "output": receipt.statement["output"]
+                | {"changed_paths": [*archive_paths, "README.md"]}
+            }
+        }
+    )
+    receipt_path.unlink()
+    (attestation_store_dir(worktree) / f"{forged.id}.json").write_text(
+        forged.canonical_json(), encoding="utf-8"
+    )
+    tampered = current_generation_scope(
+        worktree,
+        head=archived_head,
+        repository_id=load_repository_commitment(worktree).id,
+        commitment=load_commitment(
+            worktree,
+            carrier=str(leases_by_branch(worktree)["work/feature"]["base_commitment_path"]),
+            change_id="fixture-change",
+            tree_ref=archived_head,
+        ),
+        lease=leases_by_branch(worktree)["work/feature"],
+        fallback_paths=("README.md", *archive_paths),
+    )
+    assert tampered.archive_authority == {}
+    assert tampered.paths == ("README.md", *archive_paths)
 
 
 def test_clean_accepted_root_without_active_change_uses_repository_proof(

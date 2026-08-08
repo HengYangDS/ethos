@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -302,6 +303,8 @@ def resolve_ref_move_policy(
                     policy = BranchRolePolicy()
                     break
     if policy is None:
+        policy = _absorbed_ref_deletion_policy(repo, branch, old_value, new_value)
+    if policy is None:
         message = "ref_move_policy_unavailable"
         raise ValueError(message)
     if branch != policy.release_branch:
@@ -313,6 +316,32 @@ def resolve_ref_move_policy(
     return (
         accepted_policy if accepted_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF else policy
     )
+
+
+def _absorbed_ref_deletion_policy(
+    repo: Path, branch: str, old_value: str, new_value: str
+) -> BranchRolePolicy | None:
+    """Resolve current strict policy for one exact legacy absorbed-ref deletion."""
+    if new_value not in _ZERO_OIDS or old_value in _ZERO_OIDS:
+        return None
+    current_policy = load_branch_role_policy(repo)
+    accepted_head = git_stdout(repo, "rev-parse", current_policy.accepted_branch)
+    accepted_policy = _strict_ref_policy(repo, accepted_head)
+    if (
+        accepted_policy is None
+        or git_stdout(repo, "rev-parse", "HEAD") != accepted_head
+        or accepted_policy.role_for_branch(branch) != "work_lane"
+        or not is_ancestor(repo, old_value, accepted_head)
+    ):
+        return None
+    intent = claim_ref_intent(
+        root=repo,
+        ref_name=f"refs/heads/{branch}",
+        update=GitRefUpdate(expected=old_value, desired=new_value),
+        operation="lane.retire",
+        phase="prepared",
+    )
+    return accepted_policy if intent.get("present") and not intent.get("gap") else None
 
 
 def _strict_ref_policy(repo: Path, revision: str) -> BranchRolePolicy | None:

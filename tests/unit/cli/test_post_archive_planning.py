@@ -14,6 +14,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.surface.cli.root.proof import _generation_scope
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 
 if TYPE_CHECKING:
@@ -78,6 +79,46 @@ def test_plan_admits_the_exact_post_archive_effect(
     assert payload["verdict"] == "pass", payload
     authority = payload["data"]["transition_plan"]["prior_attestations"]["openspec_archive"]
     assert authority["predicate"] == "effect:openspec-archive"
+
+
+def test_clean_accepted_root_without_active_change_uses_repository_proof(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repository, _candidate = start_adopted_candidate(tmp_path)
+    monkeypatch.setattr(
+        "ethos.adapters.openspec.cli.openspec_base_command",
+        lambda: ("openspec",),
+    )
+
+    def run_json(_root: Path, _base: tuple[str, ...], args: tuple[str, ...]):
+        payload = (
+            {"root": {"healthy": True}}
+            if args[0] == "doctor"
+            else {"changes": []}
+            if args[0] == "list"
+            else {"items": [], "summary": {}}
+        )
+        return {
+            "command": [*_base, *args],
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr("ethos.adapters.openspec.cli.run_json", run_json)
+
+    plan = run_ethos(
+        "plan", "--changed", "--root", repository.as_posix(), "--json", cwd=repository
+    )
+    proof = run_ethos("prove", "--root", repository.as_posix(), "--json", cwd=repository)
+
+    assert plan["verdict"] == "pass", plan
+    assert plan["data"]["changed_paths"] == []
+    assert "openspec_active_change_missing" not in plan["required_gaps"]
+    assert proof["verdict"] == "pass", proof
+    assert "openspec_active_change_missing" not in proof["required_gaps"]
 
 
 def test_plan_and_prove_bind_only_the_current_post_start_generation(

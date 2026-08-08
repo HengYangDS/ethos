@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.git import run_git
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter
@@ -85,15 +84,10 @@ def _current_carrier(relative: str, registry: dict[str, dict[str, str]]) -> bool
 def _documents(
     root: Path,
     registry: dict[str, dict[str, str]],
+    tracked_documents: tuple[str, ...],
 ) -> dict[str, tuple[Path, str, frozenset[str]]]:
-    tracked = run_git(root, "ls-files", "*.md", check=False)
-    relatives = (
-        tracked.stdout.splitlines()
-        if tracked.returncode == 0
-        else [path.relative_to(root).as_posix() for path in root.rglob("*.md")]
-    )
     documents: dict[str, tuple[Path, str, frozenset[str]]] = {}
-    for relative in sorted(set(relatives)):
+    for relative in sorted(set(tracked_documents)):
         path = root / relative
         if path.is_file() and _current_carrier(relative, registry):
             text = path.read_text(encoding="utf-8")
@@ -202,12 +196,16 @@ def _axiom_gaps(root: Path, documents: dict[str, tuple[Path, str, frozenset[str]
     return gaps
 
 
-def design_integrity_report(root: Path) -> dict[str, object]:
+def design_integrity_report(
+    root: Path,
+    *,
+    tracked_documents: tuple[str, ...] = (),
+) -> dict[str, object]:
     """Audit design ownership, relation grammar, and derivation boundaries."""
     forbidden_paths = [path for path in FORBIDDEN_ROOT_PATHS if (root / path).exists()]
     gaps = [f"design_integrity_forbidden_projection_path:{path}" for path in forbidden_paths]
     registry = {entry["path"]: entry for entry in build_docs_registry(root)}
-    documents = _documents(root, registry)
+    documents = _documents(root, registry, tracked_documents)
     references, reference_gaps = _reference_gaps(root, documents)
     gaps.extend(_owner_gaps(documents, registry))
     gaps.extend(_projection_gaps(root, documents, registry))

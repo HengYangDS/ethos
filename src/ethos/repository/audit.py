@@ -117,6 +117,7 @@ def repository_audit(
     openspec_mode: str = "deep",
     openspec_reporter: OpenSpecReporter | None = None,
     write_admission_gaps: list[str] | None = None,
+    tracked_documents: tuple[str, ...] = (),
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -141,7 +142,7 @@ def repository_audit(
         "verdict": observation_verdict(ok=not reference_gaps),
         "required_gaps": reference_gaps,
     }
-    design_integrity = design_integrity_report(root)
+    design_integrity = design_integrity_report(root, tracked_documents=tracked_documents)
     if openspec_mode == "shape":
         openspec = openspec_shape_report(root)
     elif openspec_reporter is None:

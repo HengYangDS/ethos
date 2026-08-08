@@ -55,6 +55,10 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
+def tracked_markdown(root: Path) -> tuple[str, ...]:
+    return tuple(path.relative_to(root).as_posix() for path in root.rglob("*.md"))
+
+
 def headings(text: str) -> set[str]:
     return {
         re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", match.group(2).lower())).strip("-")
@@ -82,11 +86,33 @@ def design_tree(tmp_path: Path) -> Path:
 
 
 def test_design_integrity_uses_owner_relations_not_prose_equivalence() -> None:
-    report = design_integrity_report(ROOT)
+    report = design_integrity_report(
+        ROOT,
+        tracked_documents=tracked_markdown(ROOT),
+    )
 
     assert report["verdict"] == "pass", report["required_gaps"]
     assert report["semantic_equivalence"] == "not_evaluated"
     assert PLAN in report["references"]
+
+
+def test_design_integrity_uses_supplied_tracked_document_facts(design_tree: Path) -> None:
+    """Filesystem visibility must not create a second tracked-document truth."""
+    rogue = design_tree / "docs/rogue.md"
+    rogue.parent.mkdir(parents=True, exist_ok=True)
+    rogue.write_text(
+        "[Owner](governance/product-design-contract.md#semantic-kernel)\n",
+        encoding="utf-8",
+    )
+    tracked = tuple(
+        path.relative_to(design_tree).as_posix()
+        for path in design_tree.rglob("*.md")
+        if path != rogue
+    )
+
+    report = design_integrity_report(design_tree, tracked_documents=tracked)
+
+    assert "docs/rogue.md" not in report["references"]
 
 
 @pytest.mark.parametrize(
@@ -151,7 +177,7 @@ def test_design_integrity_rejects_missing_owner_anchor(design_tree: Path) -> Non
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree)
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
 
     assert (
         "design_canonical_owner_anchor_missing:projection-homomorphism" in report["required_gaps"]
@@ -168,7 +194,7 @@ def test_design_integrity_rejects_unlinked_projection(design_tree: Path) -> None
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree)
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
 
     assert (
         "design_projection_owner_link_missing:docs/concepts/kernel-model.md"
@@ -186,7 +212,7 @@ def test_design_integrity_rejects_non_derived_axioms(design_tree: Path) -> None:
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree)
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
 
     assert "design_axioms_derivation_metadata_invalid" in report["required_gaps"]
 
@@ -203,7 +229,7 @@ def test_design_integrity_rejects_duplicated_root_text(design_tree: Path) -> Non
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree)
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
 
     assert "design_axioms_duplicates_root_verse" in report["required_gaps"]
 

@@ -12,7 +12,6 @@ from pathlib import Path
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
-from ethos.adapters.repo.hook.transaction import initiating_hook_transaction
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
@@ -139,21 +138,6 @@ def test_hook_launcher_uses_a_validated_git_for_windows_sh_runtime() -> None:
     assert 'HOOK_DIR=$(CDPATH= cd "$HOOK_DIR" && pwd)' in text
     assert f'exec "$HOOK_DIR/{runtime}" -I -m ethos.cli hook run pre-commit' in text
     assert len(text.splitlines()) == 5
-
-
-def test_initiating_hook_transaction_binds_package_runtime_to_audit_root(
-    tmp_path: Path,
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-
-    with initiating_hook_transaction(repo) as environment:
-        hooks = Path(environment["GIT_CONFIG_VALUE_0"])
-        launcher = (hooks / "pre-commit").read_text(encoding="utf-8")
-
-    assert f'ETHOS_HOOK_TRANSACTION_ROOT="{repo.resolve().as_posix()}"' in launcher
-    assert "export ETHOS_HOOK_TRANSACTION_ROOT" in launcher
 
 
 def test_hook_runtime_observation_rejects_launcher_drift(tmp_path: Path) -> None:

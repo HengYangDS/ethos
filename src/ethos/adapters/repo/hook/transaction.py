@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import shutil
 import sys
 import uuid
@@ -41,32 +39,9 @@ def initiating_hook_transaction(root: Path) -> Iterator[dict[str, str]]:
         raise ValueError(message)
     hooks = Path(git_common_dir(root)) / "ethos" / "transactions" / uuid.uuid4().hex / "hooks"
     hooks.mkdir(parents=True)
-    try:
-        executable_name = executable.relative_to(prefix).as_posix()
-    except ValueError:
-        executable_name = executable.name
-    manifest = hooks.parent / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "distribution": "ethos",
-                "version": package.version,
-                "python_executable": executable_name,
-                "python_prefix": prefix.as_posix(),
-                "runtime_files": {executable_name: _sha256(executable)},
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        + "\n",
-        encoding="utf-8",
-    )
     launcher = (
         "#!/bin/sh\n"
         "# Generated for one ETHOS Git transaction.\n"
-        f'ETHOS_HOOK_TRANSACTION_ROOT="{root.resolve().as_posix()}"; '
-        "export ETHOS_HOOK_TRANSACTION_ROOT\n"
         f'exec "{executable.as_posix()}" -I -m ethos.cli hook run "$0" "$@"\n'
     )
     try:
@@ -81,7 +56,3 @@ def initiating_hook_transaction(root: Path) -> Iterator[dict[str, str]]:
         }
     finally:
         shutil.rmtree(hooks.parent, ignore_errors=True)
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()

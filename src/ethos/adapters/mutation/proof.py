@@ -6,24 +6,24 @@ import os
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.proof_admission
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.openspec.archive_effect import archive_effect_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import current_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
-from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
@@ -31,28 +31,12 @@ from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.repository.policy.gates import resolve_gate_policy
 
-_DEFAULT_ATTESTATION_DIR = Path(".ethos") / "state" / "attestations"
-_TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
-
-
-def _pytest_state_active() -> bool:
-    return bool(os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYTEST_XDIST_WORKER"))
-
-
-def attestation_store_dir(root: Path) -> Path:
-    """Return the one ignored content-addressed local Attestation store."""
-    override = os.environ.get(_TEST_ATTESTATION_STATE_DIR_ENV, "").strip()
-    if override and _pytest_state_active():
-        path = Path(override).expanduser()
-        if path.is_absolute():
-            return path
-        common = git_common_dir(root)
-        return (Path(common) if common else root) / path
-    common = git_common_dir(root)
-    return local_state_root(root) / "attestations" if common else root / _DEFAULT_ATTESTATION_DIR
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _proof_issue_values(
@@ -174,6 +158,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         not head
         or commitment.digest() != plan.inputs.commitment
         or policy.digest != plan.inputs.policy
+        or plan.inputs.prior_attestations != canonical_json_digest(plan.prior_attestations)
         or plan.inputs.effect
         != proof_effect_digest(
             commitment=plan.inputs.commitment,
@@ -355,11 +340,24 @@ def proof_plan(
             *(("lease:current-generation",) if work_lane else ()),
         ),
     )
+    archive_authority = (
+        archive_effect_authority(
+            root,
+            head=head,
+            repository_id=repository.id,
+            commitment=commitment,
+            lease=lease,
+            changed_paths=changed_paths,
+        )
+        if work_lane and changed_paths
+        else {}
+    )
     return compile_plan(
         commitment,
         facts,
         nodes,
         policy=policy.projection,
+        prior_attestations=({"openspec_archive": archive_authority} if archive_authority else {}),
         required_gaps=policy.gaps,
     )
 

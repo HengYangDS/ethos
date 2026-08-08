@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from typing import NamedTuple
 
+import yaml
+
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
@@ -381,7 +383,14 @@ def _apply_archive(
         return _report(branch, head, "blocked", ["openspec_official_cli_missing"], change=change)
     if collision is not None:
         move_tracked_tree(repo, collision.path, collision.preserved_path)
-    result = openspec_cli.run_json(repo, command, ("archive", change, "--yes", "--json"))
+    archive_args = (
+        "archive",
+        change,
+        "--yes",
+        *(("--skip-specs",) if _skip_specs_change(repo, change) else ()),
+        "--json",
+    )
+    result = openspec_cli.run_json(repo, command, archive_args)
     mutation_gaps, archive_path = _official_result_gaps(repo, change, result)
     if mutation_gaps:
         compensate_git_worktree(repo, head=head, untracked_path=archive_path)
@@ -458,6 +467,16 @@ def _apply_archive(
         repo,
         _ArchiveFinish(branch, head, change, result, archive_path, changed, collision),
     )
+
+
+def _skip_specs_change(root: Path, change: str) -> bool:
+    """Return the exact official archive mode declared by one Change carrier."""
+    path = root / "openspec" / "changes" / change / ".openspec.yaml"
+    try:
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return False
+    return isinstance(payload, dict) and payload.get("skip_specs") is True
 
 
 def _finish_archive(

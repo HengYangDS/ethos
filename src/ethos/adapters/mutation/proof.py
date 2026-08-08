@@ -338,7 +338,11 @@ def proof_plan(
         if work_lane and changed_paths
         else None
     )
-    effective_paths = observed_scope.paths if observed_scope is not None else changed_paths
+    effective_paths = (
+        observed_scope.paths
+        if generation_scope is not None and observed_scope is not None
+        else changed_paths
+    )
     facts = Facts(
         repository=repository.id,
         head=head,
@@ -356,8 +360,17 @@ def proof_plan(
             *(("lease:current-generation",) if work_lane else ()),
         ),
     )
+    observed_archive_authority = (
+        observed_scope.archive_authority
+        if generation_scope is not None
+        and observed_scope is not None
+        and observed_scope.archive_authority
+        and effective_paths == observed_scope.paths
+        else {}
+    )
     archive_authority = (
-        archive_effect_authority(
+        observed_archive_authority
+        or archive_effect_authority(
             root,
             head=head,
             repository_id=repository.id,

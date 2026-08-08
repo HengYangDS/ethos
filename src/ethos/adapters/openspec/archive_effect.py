@@ -33,6 +33,33 @@ def archive_effect_authority(
     changed_paths: tuple[str, ...],
 ) -> JsonObject:
     """Return the sole exact archive effect that authorizes current paths."""
+    authority = archive_generation_authority(
+        root,
+        head=head,
+        repository_id=repository_id,
+        commitment=commitment,
+        lease=lease,
+    )
+    if not authority:
+        return {}
+    authority_paths = tuple(string_sequence(authority.get("authorized_paths")))
+    outside_commitment = tuple(
+        path
+        for path in changed_paths
+        if not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
+    )
+    return authority if set(outside_commitment).issubset(authority_paths) else {}
+
+
+def archive_generation_authority(
+    root: Path,
+    *,
+    head: str,
+    repository_id: str,
+    commitment: Commitment,
+    lease: dict[str, object],
+) -> JsonObject:
+    """Return the sole exact archive transition that produced the current HEAD."""
     matches = tuple(
         projection
         for attestation in scan_attestations(attestation_store_dir(root))[0]
@@ -44,7 +71,6 @@ def archive_effect_authority(
                 repository_id=repository_id,
                 commitment=commitment,
                 lease=lease,
-                changed_paths=changed_paths,
             )
         )
     )
@@ -59,7 +85,6 @@ def _archive_projection(
     repository_id: str,
     commitment: Commitment,
     lease: dict[str, object],
-    changed_paths: tuple[str, ...],
 ) -> JsonObject:
     statement = attestation.statement
     output = statement.get("output")
@@ -77,11 +102,6 @@ def _archive_projection(
         if isinstance(item, dict)
     )
     authority_paths = tuple(string_sequence(output.get("changed_paths")))
-    outside_commitment = tuple(
-        path
-        for path in changed_paths
-        if not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
-    )
     archive_path = str(output.get("archive_path") or "")
     effect = {
         "predicate": attestation.predicate,
@@ -123,8 +143,6 @@ def _archive_projection(
                 "after": output,
             }
         )
-        and bool(outside_commitment)
-        and set(outside_commitment).issubset(authority_paths)
         and _archive_paths_are_exact(root, head, archive_path, authority_paths)
     )
     return effect | {"authorized_paths": list(authority_paths)} if valid else {}

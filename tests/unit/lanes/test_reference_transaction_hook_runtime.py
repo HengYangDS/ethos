@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
-from ethos.repository.hooks import hook_launcher
 from ethos.repository.hooks import hook_runtime_binding
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -27,7 +26,9 @@ def _unavailable_runtime_repo(tmp_path: Path):
     hooks.mkdir(exist_ok=True)
     hook = hooks / "reference-transaction"
     hook.write_text(
-        hook_launcher("/missing/ethos/python", "reference-transaction"),
+        "#!/bin/sh\n"
+        "# Deliberately unavailable runtime: fail closed before policy execution.\n"
+        'exec "/missing/ethos/python" -I -m ethos.cli hook run reference-transaction "$@"\n',
         encoding="utf-8",
     )
     hook.chmod(0o755)
@@ -110,10 +111,7 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     with exclude.open("a", encoding="utf-8") as excluded:
         excluded.write("build/\nsrc/\ntools/\n")
     install_hook_launchers(repo)
-    runtime = candidate / "candidate-python"
-    runtime.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
-    runtime.chmod(0o755)
-    install_hook_launchers(candidate, python=runtime)
+    install_hook_launchers(candidate)
     package = candidate / "src/ethos"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -138,8 +136,8 @@ def test_reference_transaction_hook_uses_the_candidate_project_environment() -> 
     text = owner.read_text(encoding="utf-8")
 
     assert "def _candidate_python(" in text
-    assert '"ethos-runtime-python"' in text
-    assert 'Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")' in text
+    assert "binding = hook_runtime_binding(candidate)" in text
+    assert 'if binding["required_gaps"]:' in text
     assert '"-I",' in text
     assert '"ethos.cli",' in text
     assert '"ref-transaction",' in text

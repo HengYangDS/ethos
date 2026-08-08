@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
+import sys
 from pathlib import Path
 
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.repository.hooks import hook_launcher
 from ethos.repository.hooks import hook_runtime_binding
@@ -23,35 +26,43 @@ def _git(root: Path, *args: str, stdin: str = "") -> subprocess.CompletedProcess
     )
 
 
-def test_hook_install_materializes_thin_launchers_bound_to_the_current_python(
-    tmp_path: Path,
-) -> None:
+def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    checkout_python = tmp_path / "stale-checkout" / ".venv" / "bin" / "python"
+    checkout_python.parent.mkdir(parents=True)
+    checkout_python.symlink_to(Path(sys.executable))
 
-    runtime = tmp_path / "runtime" / "python"
-    runtime.parent.mkdir()
-    runtime.write_text("", encoding="utf-8")
+    report = install_hook_launchers(repo, python=checkout_python)
+    common_runtime = Path(git_common_dir(repo)) / "ethos" / "runtime"
 
-    report = install_hook_launchers(repo, python=runtime)
-
-    assert report["hooks_path"].endswith("/.git/ethos-hooks")
-    assert report["python"] == runtime.as_posix()
+    assert Path(str(report["python"])).is_relative_to(common_runtime)
+    manifest = Path(str(report["runtime_manifest_path"]))
+    assert manifest.is_file()
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["runtime_digest"] == report["runtime_digest"]
+    assert payload["wheel_sha256"] == report["wheel_sha256"]
+    assert len(payload["wheel_sha256"]) == 64
     assert report["scripts"] == ["pre-commit", "pre-push", "reference-transaction"]
     assert report["required_gaps"] == []
     for name in report["scripts"]:
         text = (Path(str(report["hooks_path"])) / name).read_text(encoding="utf-8")
         assert text.startswith("#!/bin/sh\n")
-        assert f"exec {runtime.as_posix()} -I -m ethos.cli hook run" in text
-        assert len(text.splitlines()) == 3
+        assert checkout_python.as_posix() not in text
+        assert 'exec "$HOOK_DIR/../ethos/runtime/' in text
 
 
-def test_hook_launcher_quotes_a_windows_runtime_without_shell_policy() -> None:
-    text = hook_launcher("C:/Program Files/ETHOS/python.exe", "pre-commit")
+def test_hook_launcher_uses_a_validated_git_for_windows_sh_runtime() -> None:
+    """Git-for-Windows invokes hooks through sh; this is not a PowerShell launcher."""
+    runtime = "../ethos/runtime/" + "a" * 64 + "/venv/Scripts/python.exe"
 
-    assert "exec 'C:/Program Files/ETHOS/python.exe' -I -m ethos.cli hook run pre-commit" in text
-    assert len(text.splitlines()) == 3
+    text = hook_launcher(runtime, "pre-commit")
+
+    assert 'HOOK_DIR=${0%/*}; [ "$HOOK_DIR" = "$0" ] && HOOK_DIR=.' in text
+    assert 'HOOK_DIR=$(CDPATH= cd "$HOOK_DIR" && pwd)' in text
+    assert f'exec "$HOOK_DIR/{runtime}" -I -m ethos.cli hook run pre-commit' in text
+    assert len(text.splitlines()) == 5
 
 
 def test_hook_runtime_observation_rejects_launcher_drift(tmp_path: Path) -> None:

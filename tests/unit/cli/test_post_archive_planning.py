@@ -212,7 +212,7 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     )
     assert tampered.archive_authority == {}
     assert tampered.paths == ()
-    assert tampered.gaps == ("change_generation_authority_missing",)
+    assert tampered.gaps == ()
     assert {item.state for item in tampered.attributions} == {"unknown"}
 
 

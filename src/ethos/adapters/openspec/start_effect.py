@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import scan_attestations
+from ethos.adapters.openspec.archive_effect import archive_generation_authority
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tree
@@ -18,6 +20,7 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import repository_path_matches
+from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -33,6 +36,7 @@ class CurrentGenerationScope:
 
     paths: tuple[str, ...]
     start_authority: JsonObject
+    archive_authority: JsonObject = field(default_factory=dict)
 
 
 def current_generation_scope(
@@ -59,12 +63,27 @@ def current_generation_scope(
             )
         )
     )
-    if len(matches) != 1:
-        return CurrentGenerationScope(fallback_paths, {})
-    authority = matches[0]
-    previous_head = str(authority["previous_head"])
-    paths = git_stdout(root, "diff", "--name-only", f"{previous_head}...{head}").splitlines()
-    return CurrentGenerationScope(tuple(dict.fromkeys((*paths, *changed_paths(root)))), authority)
+    if len(matches) == 1:
+        authority = matches[0]
+        previous_head = str(authority["previous_head"])
+        paths = git_stdout(root, "diff", "--name-only", f"{previous_head}...{head}").splitlines()
+        return CurrentGenerationScope(
+            tuple(dict.fromkeys((*paths, *changed_paths(root)))), authority
+        )
+    archive = archive_generation_authority(
+        root,
+        head=head,
+        repository_id=repository_id,
+        commitment=commitment,
+        lease=lease,
+    )
+    if archive:
+        return CurrentGenerationScope(
+            tuple(string_sequence(archive.get("authorized_paths"))),
+            {},
+            archive,
+        )
+    return CurrentGenerationScope(fallback_paths, {})
 
 
 def _start_authority(

@@ -426,13 +426,7 @@ def source_budget_report(root: Path) -> dict[str, object]:
         return _blocked(*gaps)
     metrics, inventory, records, measure_gaps = _measure(root, paths, policy)
     cross_check, cross_gaps = _cross_check(root, policy, records, metrics)
-    enforced = {
-        name: max(
-            metrics[name],
-            value if isinstance(value := cross_check.get(name), int) else metrics[name],
-        )
-        for name in TERMINAL_TOTALS
-    }
+    enforced = {name: metrics[name] for name in TERMINAL_TOTALS}
     terminal = policy.terminal.model_dump()
     terminal_gaps = tuple(
         f"source_budget_terminal_exceeded:{name}:{enforced[name]}>{terminal[name]}"

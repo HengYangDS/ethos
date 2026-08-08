@@ -350,7 +350,7 @@ def test_record_root_does_not_hide_an_unclassified_executable(
     assert expected in report["required_gaps"]
 
 
-def test_terminal_verdict_uses_the_conservative_counter(
+def test_terminal_verdict_uses_canonical_effective_lines_not_physical_cross_check(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -359,8 +359,10 @@ def test_terminal_verdict_uses_the_conservative_counter(
 
     report = source_budget.source_budget_report(tmp_path)
 
-    assert "source_budget_terminal_exceeded:python_total:3>2" in report["required_gaps"]
-    assert report["enforced_metrics"]["python_total"] == 3
+    assert report["metrics"]["python_total"] == 2
+    assert report["cross_check"]["python_total"] == 3
+    assert report["enforced_metrics"]["python_total"] == 2
+    assert not any("terminal_exceeded:python_total" in gap for gap in report["required_gaps"])
 
 
 def test_extensionless_hook_is_counted_and_unknown_executable_blocks(

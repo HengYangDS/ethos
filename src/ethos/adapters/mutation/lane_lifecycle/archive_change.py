@@ -49,7 +49,7 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
-from ethos.repository.hooks import hook_runtime_transaction_environment
+from ethos.repository.hooks import initiating_hook_transaction
 
 
 class _ArchiveTransition(NamedTuple):
@@ -379,10 +379,6 @@ def _apply_archive(
     command = openspec_cli.openspec_base_command()
     if command is None:
         return _report(branch, head, "blocked", ["openspec_official_cli_missing"], change=change)
-    try:
-        hook_environment = hook_runtime_transaction_environment(repo)
-    except ValueError as error:
-        return _report(branch, head, "blocked", [str(error)], change=change)
     if collision is not None:
         move_tracked_tree(repo, collision.path, collision.preserved_path)
     result = openspec_cli.run_json(repo, command, ("archive", change, "--yes", "--json"))
@@ -429,20 +425,25 @@ def _apply_archive(
             change=change,
             changed_paths=list(changed),
         )
-    archive_commit = commit_git_worktree(
-        repo,
-        previous=head,
-        message=f"archive OpenSpec change {change}",
-        environment=hook_environment
-        | archive_transition_environment(
-            repo,
-            change=change,
-            head=head,
-            changed_paths=changed,
-            official_change_complete=official_complete,
-            completion_artifacts=completion_artifacts,
-        ),
-    )
+    try:
+        with initiating_hook_transaction(repo) as hook_environment:
+            archive_commit = commit_git_worktree(
+                repo,
+                previous=head,
+                message=f"archive OpenSpec change {change}",
+                environment=hook_environment
+                | archive_transition_environment(
+                    repo,
+                    change=change,
+                    head=head,
+                    changed_paths=changed,
+                    official_change_complete=official_complete,
+                    completion_artifacts=completion_artifacts,
+                ),
+            )
+    except ValueError as error:
+        compensate_git_worktree(repo, head=head, untracked_path=archive_path)
+        return _report(branch, head, "blocked", [str(error)], change=change)
     if archive_commit["verdict"] != "pass":
         compensate_git_worktree(repo, head=head, untracked_path=archive_path)
         return _report(

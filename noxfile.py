@@ -13,6 +13,9 @@ from typing import cast
 import nox
 from PIL import Image
 
+from tools.ci.delivery.pipeline import DeliveryPipeline
+from tools.ci.toolchain.environment import ProjectRuntime
+
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 PythonTestGate = import_module("tools.ci.python_test_gate").PythonTestGate
@@ -23,18 +26,16 @@ run_config_quality = import_module("tools.ci.config_quality").run
 format_config_quality = import_module("tools.ci.config_quality").format_configs
 run_format_selection = import_module("tools.ci.format_selection").main
 run_hosted_observation = import_module("tools.ci.hosted_observation").capture_observation
-run_install_smoke = import_module("tools.ci.local_install_smoke").run
-prepare_install_supply_owner = import_module("tools.ci.local_install_smoke").prepare_supply
 run_local_ci = import_module("tools.ci.local_ci").run
 run_python_vulnerability_audit = import_module("tools.ci.python_vulnerability_audit").run
 run_repository_hygiene = import_module("tools.ci.repository_hygiene").audit
 run_release_supply_chain = import_module("tools.ci.release_supply_chain").run
 run_runbook_registry = import_module("tools.ci.runbook_registry").main
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
-PROJECT_SCRIPTS = Path(sys.executable).parent
 PROSE_CONFIG = ROOT / ".config/checks/prose/codespell.toml"
-NODEJS_WHEEL = Path(import_module("nodejs_wheel").__file__).resolve().parent
-NODE = NODEJS_WHEEL / "bin" / ("node.exe" if os.name == "nt" else "node")
+RUNTIME = ProjectRuntime.discover(ROOT)
+DELIVERY = DeliveryPipeline.from_runtime(RUNTIME)
+NODE = DELIVERY.node
 MARKDOWNLINT = ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"
 PRETTIER = ROOT / "node_modules/prettier/bin/prettier.cjs"
 SVGO = ROOT / "node_modules/svgo/bin/svgo.js"
@@ -64,12 +65,6 @@ def _candidate_python_paths(session: nox.Session) -> tuple[str, ...]:
         msg = "no candidate Python files found for Ruff"
         raise RuntimeError(msg)
     return paths
-
-
-def _project_script(name: str) -> str:
-    """Resolve a console script from the active project environment only."""
-    suffix = ".exe" if os.name == "nt" else ""
-    return str(PROJECT_SCRIPTS / f"{name}{suffix}")
 
 
 def _run_host_gate(session: nox.Session, gate: str) -> None:
@@ -118,7 +113,7 @@ def format_repository(session: nox.Session) -> None:
 def _format_python(session: nox.Session) -> None:
     paths = _candidate_python_paths(session)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
-    session.run(_project_script("ruff"), "format", *common, *paths)
+    session.run(RUNTIME.script("ruff"), "format", *common, *paths)
 
 
 def _format_config(_session: nox.Session) -> None:
@@ -147,7 +142,7 @@ def _format_markdown(session: nox.Session) -> None:
 def _format_shell(session: nox.Session) -> None:
     paths = _tracked_paths("*.sh", "*.bash", "*.zsh")
     if paths:
-        session.run(_project_script("shfmt"), "-w", "-i", "2", "-ci", "-bn", *paths)
+        session.run(RUNTIME.script("shfmt"), "-w", "-i", "2", "-ci", "-bn", *paths)
 
 
 def _format_javascript(session: nox.Session) -> None:
@@ -189,7 +184,7 @@ def lint(session: nox.Session) -> None:
     paths = _candidate_python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
-    ruff = _project_script("ruff")
+    ruff = RUNTIME.script("ruff")
     session.run(ruff, "check", "--ignore-noqa", *common, *paths)
     session.run(ruff, "format", *common, "--check", *paths)
 
@@ -270,55 +265,28 @@ def coverage_floor(session: nox.Session) -> None:
     PythonTestGate.from_environment().enforce_floor(session)
 
 
-def _build_wheel(session: nox.Session) -> None:
-    session.run(
-        _project_script("uv"),
-        "build",
-        "--offline",
-        "--wheel",
-        "--out-dir",
-        "build/artifacts/python",
-        "--clear",
-        "--no-create-gitignore",
-        env={
-            "ETHOS_BUILD_NODE": str(NODE),
-            "ETHOS_BUILD_NPM_CLI": str(NODEJS_WHEEL / "lib/node_modules/npm/bin/npm-cli.js"),
-        },
-    )
-
-
 @nox.session(python=False)
 def build(session: nox.Session) -> None:
     """Build the Hatchling wheel through the locked uv project environment."""
-    _build_wheel(session)
+    DELIVERY.build(session)
 
 
 @nox.session(python=False)
 def prepare_install_supply(_session: nox.Session) -> None:
     """Prepare the lock-bound dependency supply consumed by offline install proof."""
-    prepare_install_supply_owner()
+    DELIVERY.prepare_supply()
 
 
 @nox.session(python=False)
 def install_smoke(session: nox.Session) -> None:
     """Prove offline installation from the single built wheel."""
-    run_install_smoke(session)
+    DELIVERY.prove_install(session)
 
 
 @nox.session(python=False)
 def host_conformance(session: nox.Session) -> None:
     """Execute the installed-wheel contract on the current real host."""
-    _build_wheel(session)
-    prepare_install_supply(session)
-    run_install_smoke(session)
-    session.run(
-        sys.executable,
-        "-m",
-        "pytest",
-        "-q",
-        "tests/architecture/test_portable_toolchain.py",
-        "tests/architecture/test_local_install_smoke.py",
-    )
+    DELIVERY.prove_host(session)
 
 
 @nox.session(python=False)
@@ -374,7 +342,7 @@ def prose(session: nox.Session) -> None:
     config = tomllib.loads(PROSE_CONFIG.read_text(encoding="utf-8"))
     paths = tuple(str(ROOT / path) for path in config["paths"])
     session.run(
-        _project_script("codespell"),
+        RUNTIME.script("codespell"),
         "--toml",
         str(PROSE_CONFIG),
         "--count",
@@ -393,7 +361,7 @@ def shell_lint(session: nox.Session) -> None:
     paths = tuple(path for path in output.split("\0") if path and (ROOT / path).is_file())
     if paths:
         session.run(
-            _project_script("shellcheck"),
+            RUNTIME.script("shellcheck"),
             "--rcfile=.config/checks/shell/.shellcheckrc",
             *paths,
         )
@@ -421,7 +389,7 @@ def config_quality(session: nox.Session) -> None:
     if failures:
         session.error("configuration quality failed:\n" + "\n".join(failures))
     if not paths or Path(".pre-commit-config.yaml") in map(Path, paths):
-        session.run(_project_script("pre-commit"), "validate-config", ".pre-commit-config.yaml")
+        session.run(RUNTIME.script("pre-commit"), "validate-config", ".pre-commit-config.yaml")
 
 
 @nox.session(python=False)
@@ -467,7 +435,7 @@ def import_boundaries(session: nox.Session) -> None:
     if inherited := os.environ.get("PYTHONPATH"):
         pythonpath = f"{pythonpath}{os.pathsep}{inherited}"
     session.run(
-        _project_script("lint-imports"),
+        RUNTIME.script("lint-imports"),
         "--cache-dir",
         str(cache),
         "--config",

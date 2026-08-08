@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_command
+from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     import nox
@@ -28,6 +29,7 @@ WORK = ROOT / "build/runtime/work/local-install-smoke"
 EVIDENCE = ROOT / "build/evidence/local-install/smoke.json"
 CONSTRAINTS = WORK / "runtime-constraints.txt"
 SUPPLY_ENVIRONMENT = WORK / "supply-environment"
+RUNTIME = ProjectRuntime.discover(ROOT)
 
 
 def _venv_executable(root: Path, name: str) -> Path:
@@ -43,10 +45,6 @@ def _executable(name: str) -> str:
         message = f"required executable is unavailable: {name}"
         raise RuntimeError(message)
     return executable
-
-
-def _project_script(name: str) -> str:
-    return str(_venv_executable(Path(sys.executable).parent.parent, name))
 
 
 def _run(
@@ -81,7 +79,7 @@ def _export_runtime_constraints(uv: str) -> None:
 
 def prepare_supply() -> None:
     """Materialize the lock-bound runtime supply for later offline consumption."""
-    uv, source_python = _project_script("uv"), Path(sys.executable)
+    uv, source_python = RUNTIME.script("uv"), Path(sys.executable)
     if SUPPLY_ENVIRONMENT.exists():
         shutil.rmtree(SUPPLY_ENVIRONMENT)
     _export_runtime_constraints(uv)
@@ -380,7 +378,7 @@ def run(session: nox.Session) -> None:
     EVIDENCE.unlink(missing_ok=True)
     WORK.mkdir(parents=True)
     wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
-    uv, source_python = _project_script("uv"), Path(sys.executable)
+    uv, source_python = RUNTIME.script("uv"), Path(sys.executable)
     _export_runtime_constraints(uv)
     _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
     _run(

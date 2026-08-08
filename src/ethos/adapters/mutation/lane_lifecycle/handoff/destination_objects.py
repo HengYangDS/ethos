@@ -13,8 +13,8 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.native_effect_attestation import NativeEffect
-from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.git_effect_attestation import NativeEffect
+from ethos.adapters.repo.git_effect_attestation import issue_native_effect
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

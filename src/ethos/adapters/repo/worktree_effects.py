@@ -10,8 +10,8 @@ from typing import Any
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.native_effect_attestation import NativeEffect
-from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.git_effect_attestation import NativeEffect
+from ethos.adapters.repo.git_effect_attestation import issue_native_effect
 
 if TYPE_CHECKING:
     from collections.abc import Callable

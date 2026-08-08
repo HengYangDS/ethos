@@ -15,6 +15,9 @@ import yaml
 import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.python_syntax as python_references
 from ethos.repository.policy.boundary.product import product_surface_files
+from ethos.repository.policy.references.carriers import REFERENCE_KINDS
+from ethos.repository.policy.references.carriers import reference_carrier
+from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.commands import normalize_command
 
 if TYPE_CHECKING:
@@ -29,19 +32,8 @@ def repository_product_references(root: Path) -> dict[str, set[str]]:
 
 def repository_reference_files(root: Path) -> dict[str, str]:
     """Read active carriers that may declare or consume product references."""
-    paths = set(product_surface_files(root))
-    for relative in (".agents/skills", "src/ethos", "tests", "tools"):
-        base = root / relative
-        if base.exists():
-            paths.update(
-                path
-                for path in base.rglob("*")
-                if path.is_file()
-                and "__pycache__" not in path.parts
-                and path.suffix in REFERENCE_FILE_SUFFIXES
-            )
     files = {}
-    for path in sorted(paths):
+    for path in reference_paths(root, product_surface_files(root)):
         try:
             files[path.relative_to(root).as_posix()] = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError):
@@ -109,22 +101,22 @@ def _file_references(
     *,
     include_declarations: bool,
 ) -> None:
-    suffix = path.rpartition(".")[2].lower()
-    if suffix == "py":
+    carrier = reference_carrier(path).name
+    if carrier == "python":
         _python_file_references(path, text, prefixes, npm_scripts, observed)
         return
-    if path.endswith("pyproject.toml"):
+    if carrier == "pyproject":
         if include_declarations:
             pyproject_references(text, observed)
         return
-    if path.endswith("package.json"):
+    if carrier == "package-json":
         package_json_references(text, npm_scripts, observed, declarations=include_declarations)
         return
-    if suffix in {"yaml", "yml"}:
+    if carrier == "yaml":
         _yaml_references(path, text, npm_scripts, observed)
-    elif suffix == "sh":
+    elif carrier == "shell":
         observed["executable"].update(command_references.shell_executables(text, npm_scripts))
-    elif suffix == "md":
+    elif carrier == "markdown":
         _markdown_references(path, text, known_commands, npm_scripts, observed)
     if text.startswith("#!") and (
         executable := command_references.shebang_executable(text.splitlines()[0])
@@ -193,7 +185,13 @@ def npm_script_commands(files: dict[str, str], *, root: Path | None) -> dict[str
                 manifests[path.relative_to(root).as_posix()] = path.read_text(encoding="utf-8")
             except (OSError, UnicodeError):
                 continue
-    manifests.update({path: text for path, text in files.items() if path.endswith("package.json")})
+    manifests.update(
+        {
+            path: text
+            for path, text in files.items()
+            if reference_carrier(path).name == "package-json"
+        }
+    )
     scripts: dict[str, set[str]] = defaultdict(set)
     for text in manifests.values():
         try:
@@ -381,8 +379,6 @@ def reference_gaps(
     return gaps
 
 
-REFERENCE_KINDS = ("import", "distribution", "executable", "reference", "command", "value")
-REFERENCE_FILE_SUFFIXES = {".json", ".md", ".mjs", ".py", ".sh", ".toml", ".yaml", ".yml"}
 _MARKDOWN_FENCE = re.compile(
     r"^```(?P<language>[A-Za-z0-9_-]+)[^\n]*\n(?P<body>.*?)^```\s*$",
     re.IGNORECASE | re.MULTILINE | re.DOTALL,

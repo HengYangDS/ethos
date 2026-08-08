@@ -60,7 +60,7 @@ def prewrite_guard(
     status_role, status_branch = str(status["role"]), str(status["branch"])
     effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
     role = effective["role"]
-    runtime_check = _runtime_binding_check(status)
+    runtime_check = runtime_binding_check(status)
     checked = [_check_path(root=root, path=path, role=role) for path in paths]
     tracked = any(path["tracked_candidate"] for path in checked)
     requested = tuple(
@@ -338,7 +338,7 @@ def _prewrite_decision(
     )
 
 
-def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
+def runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
     binding = status.get("runtime_binding")
     available = isinstance(binding, dict)
     binding = binding if available else {}

@@ -11,7 +11,7 @@ from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.surface.cli.root.proof import _generation_scope
+from ethos.surface.cli.root.proof import resolve_generation_scope
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
@@ -209,7 +209,7 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(
     assert rejected.paths == ("archive-history",)
     assert rejected.start_authority == {}
 
-    scope = _generation_scope(worktree)
+    scope = resolve_generation_scope(worktree)
     proof = proof_plan(
         worktree,
         head=git(worktree, "rev-parse", "HEAD"),

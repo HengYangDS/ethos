@@ -34,7 +34,6 @@ from tests.support.governed_repository import conformant_proof_check
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import render_branch_policy
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
@@ -204,64 +203,36 @@ def _advance_candidate(repo: Path, name: str) -> str:
     return git(repo, "rev-parse", "HEAD")
 
 
-def test_ref_move_admission_blocks_accepted_bypass(tmp_path: Path) -> None:
-    """The candidate-train invariant is un-bypassable: advancing the accepted branch to
-    a commit that candidate has not validated is blocked, so a raw `git merge --ff-only
-    work/x dev` cannot skip candidate. A candidate-contained advance passes containment
-    (proof is still separately required)."""
-
-    def g(*a: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["git", *a], cwd=tmp_path, capture_output=True, text=True, check=False
-        )
-
-    g("init", "-b", "dev")
-    g("config", "user.name", "t")
-    g("config", "user.email", "t@e.x")
-    workspace = tmp_path / ".ethos/workspace.toml"
-    workspace.parent.mkdir()
-    workspace.write_text(
-        render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
-            release_mirror="independent",
+@pytest.mark.parametrize(
+    ("containment", "expected_verdict", "expected_gap"),
+    [
+        pytest.param(
+            "off_train", "block", "accepted_advance_not_candidate_validated", id="off-train"
         ),
-        encoding="utf-8",
-    )
-    (tmp_path / "a").write_text("1", encoding="utf-8")
-    g("add", ".")
-    g("commit", "-m", "base")
-    base = g("rev-parse", "HEAD").stdout.strip()
-    g("branch", "candidate/dev")
-    g("checkout", "-b", "work/x")
-    (tmp_path / "b").write_text("2", encoding="utf-8")
-    g("add", ".")
-    g("commit", "-m", "work")
-    work = g("rev-parse", "HEAD").stdout.strip()
+        pytest.param("candidate", "block", "proof_not_proven", id="candidate-contained"),
+    ],
+)
+def test_accepted_ref_requires_candidate_containment_and_intent(
+    tmp_path: Path, containment: str, expected_verdict: str, expected_gap: str
+) -> None:
+    repo, base = _accepted_boundary_repo(tmp_path)
+    git(repo, "checkout", "-b", "work/x")
+    work = _advance_candidate(repo, "work")
+    if containment == "candidate":
+        git(repo, "branch", "-f", "candidate/dev", work)
 
-    # bypass: move dev to a work commit candidate never validated -> blocked
-    blocked = ref_move_admission_report(
-        root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
+    report = ref_move_admission_report(
+        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=work
     )
-    assert blocked["verdict"] == "block"
-    assert "accepted_advance_not_candidate_validated" in blocked["required_gaps"]
 
-    # a move of a non-accepted (work) ref is admitted untouched
-    lane = ref_move_admission_report(
-        root=tmp_path, ref_name="refs/heads/work/x", old_value=base, new_value=work
+    assert report["verdict"] == expected_verdict
+    assert expected_gap in report["required_gaps"]
+    assert (
+        ref_move_admission_report(
+            root=repo, ref_name="refs/heads/work/x", old_value=base, new_value=work
+        )["verdict"]
+        == "pass"
     )
-    assert lane["verdict"] == "pass"
-
-    # candidate-first: once candidate contains the commit, containment passes
-    g("checkout", "candidate/dev")
-    g("merge", "--ff-only", "work/x")
-    advanced = ref_move_admission_report(
-        root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
-    )
-    assert "accepted_advance_not_candidate_validated" not in advanced["required_gaps"]
 
 
 def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -> None:
@@ -367,37 +338,28 @@ def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_pa
     assert report["verdict"] == "pass"
 
 
-def test_ref_move_admission_blocks_rollback_to_old_proven_commit(tmp_path: Path) -> None:
-    """B2: a raw rollback of dev to an older, still-proven, still-candidate-contained
-    commit is a non-fast-forward and must block — accepted history only advances."""
-    repo, _base = _accepted_boundary_repo(tmp_path)
-    c1 = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, c1)
-    c2 = _advance_candidate(repo, "c2")
-
-    report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=c2, new_value=c1
-    )
-
-    assert report["verdict"] == "block"
-    assert "accepted_ref_move_not_fast_forward" in report["required_gaps"]
-
-
-def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Path) -> None:
-    """B3: advancing dev to a candidate-CONTAINED but non-head intermediate commit
-    (fast-forward, proven) still bypasses closeout — only the live candidate head may
-    be promoted, so it must block."""
+@pytest.mark.parametrize(
+    ("relation", "expected_gap"),
+    [
+        pytest.param("rollback", "accepted_ref_move_not_fast_forward", id="rollback"),
+        pytest.param("intermediate", "accepted_ref_move_not_candidate_head", id="intermediate"),
+    ],
+)
+def test_accepted_ref_rejects_invalid_candidate_relation(
+    tmp_path: Path, relation: str, expected_gap: str
+) -> None:
     repo, base = _accepted_boundary_repo(tmp_path)
-    c1 = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, c1)
-    _c2 = _advance_candidate(repo, "c2")  # live candidate head is now c2
+    first = _advance_candidate(repo, "c1")
+    _record_complete_proof(repo, first)
+    second = _advance_candidate(repo, "c2")
+    old_value, new_value = (second, first) if relation == "rollback" else (base, first)
 
     report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=c1
+        root=repo, ref_name="refs/heads/dev", old_value=old_value, new_value=new_value
     )
 
     assert report["verdict"] == "block"
-    assert "accepted_ref_move_not_candidate_head" in report["required_gaps"]
+    assert expected_gap in report["required_gaps"]
 
 
 def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
@@ -461,103 +423,56 @@ def test_distinct_proof_closures_block_ref_move_admission(
     assert report["required_gaps"] == ["stale_binding"]
 
 
-def test_ref_move_admission_admits_official_closeout_with_intent_marker(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("intent", "expected_verdict", "expected_gap"),
+    [
+        pytest.param("matching", "pass", None, id="official-closeout"),
+        pytest.param("missing", "block", "accepted_ref_move_no_ref_intent", id="raw-move"),
+        pytest.param("mismatch", "block", "ref_intent_mismatch", id="mismatched-intent"),
+        pytest.param("stale", "block", "ref_intent_stale", id="stale-intent"),
+    ],
+)
+def test_accepted_ref_intent_contract(
+    tmp_path: Path, intent: str, expected_verdict: str, expected_gap: str | None
 ) -> None:
-    """B7 happy path (self-harm guard): a fast-forward of dev to the live candidate head
-    carrying a complete executed proof AND a matching ref-intent marker is exactly
-    what official closeout produces — it must be admitted with no boundary gaps, or the
-    moat would deadlock the sanctioned path."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")  # c1 IS the live candidate head
-    _record_complete_proof(repo, candidate_head)
-    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
-
-    report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
-    )
-
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
-
-
-def test_ref_move_admission_blocks_raw_move_without_ref_intent(tmp_path: Path) -> None:
-    """B1 (the load-bearing nail): a raw `git update-ref refs/heads/dev <candidate_head>
-    <old>` is byte-identical to official closeout's CAS — fast-forward, == live candidate
-    head, complete proof — yet carries NO ref-intent marker. Without the marker it
-    must block, or raw git could promote a proven candidate head bypassing closeout."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
     _record_complete_proof(repo, candidate_head)
+    if intent != "missing":
+        old_value = "0" * 40 if intent == "mismatch" else base
+        _write_matching_intent(repo, old_value=old_value, new_value=candidate_head)
+    if intent == "stale":
+        _backdate_markers(repo)
 
     report = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
     )
 
-    assert report["verdict"] == "block"
-    assert "accepted_ref_move_no_ref_intent" in report["required_gaps"]
+    assert report["verdict"] == expected_verdict
+    if expected_gap is None:
+        assert report["required_gaps"] == []
+    else:
+        assert expected_gap in report["required_gaps"]
 
 
-def test_ref_move_admission_blocks_reused_ref_intent(tmp_path: Path) -> None:
-    """B6: the marker is one-shot. Once admission consumes it, a second identical move
-    finds no marker and blocks — a nonce cannot authorize two promotions."""
+def test_ref_intent_is_consumed_once(tmp_path: Path) -> None:
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
     _record_complete_proof(repo, candidate_head)
     _write_matching_intent(repo, old_value=base, new_value=candidate_head)
+    move = {
+        "root": repo,
+        "ref_name": "refs/heads/dev",
+        "old_value": base,
+        "new_value": candidate_head,
+    }
 
-    first = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
-    )
-    committed = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/dev",
-        old_value=base,
-        new_value=candidate_head,
-        phase="committed",
-    )
-    second = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
-    )
+    assert ref_move_admission_report(**move)["verdict"] == "pass"
+    assert ref_move_admission_report(**move, phase="committed")["verdict"] == "pass"
+    replay = ref_move_admission_report(**move)
 
-    assert first["verdict"] == "pass"
-    assert committed["verdict"] == "pass"
-    assert second["verdict"] == "block"
-    assert second["required_gaps"] == ["ref_intent_reused"]
-
-
-def test_ref_move_admission_blocks_mismatched_ref_intent(tmp_path: Path) -> None:
-    """B4: a marker whose old/new binding does not match the actual ref move is refused
-    (a marker minted for a different transition cannot authorize this one)."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-    # Marker binds a different old_value than the actual move.
-    _write_matching_intent(repo, old_value="0" * 40, new_value=candidate_head)
-
-    report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
-    )
-
-    assert report["verdict"] == "block"
-    assert "ref_intent_mismatch" in report["required_gaps"]
-
-
-def test_ref_move_admission_blocks_stale_ref_intent(tmp_path: Path) -> None:
-    """B5: an expired marker is refused (TTL bounds how long a written intent stays
-    admissible, so a crashed closeout's residue cannot be reused later)."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
-    _backdate_markers(repo)
-
-    report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
-    )
-
-    assert report["verdict"] == "block"
-    assert "ref_intent_stale" in report["required_gaps"]
+    assert replay["verdict"] == "block"
+    assert replay["required_gaps"] == ["ref_intent_reused"]
 
 
 def _backdate_markers(repo: Path) -> None:

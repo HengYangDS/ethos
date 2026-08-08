@@ -47,12 +47,7 @@ def apply_land_to_candidate(
     expect_head: str | None,
     admitted_decision: AdmissionDecision | None = None,
 ) -> dict[str, object]:
-    policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
-
-    def fail(gaps, **extra):
-        return _blocked(policy, current_head, gaps, **extra)
-
     decision = admitted_decision or evaluate_mutation(
         command="land",
         apply=True,
@@ -62,46 +57,48 @@ def apply_land_to_candidate(
         current_head=current_head,
     )
     if decision.verdict != "pass":
-        return fail(
+        return _blocked(
+            load_branch_role_policy(root),
+            current_head,
             list(decision.required_gaps),
             remediation=remediation.remediation_for_gaps(decision.required_gaps),
         )
-    base_report = candidate_base_report(root=root)
-    if report_verdict(base_report) != "pass":
-        return base_report
-    candidate_path = Path(str(base_report["path"]))
-    candidate_head = str(base_report["candidate_head"])
-    status = workspace_status(root, include_foreign_path_scope=False)
-    branch = str(status["branch"])
-    proof = proof_attestation(candidate_path, current_head)
-    if proof is None:
-        return fail(
-            proof_gaps(candidate_path, current_head),
-            path=candidate_path.as_posix(),
+    try:
+        blocked, transition = _candidate_plan(root)
+    except (TypeError, ValueError) as error:
+        gap = _candidate_admission_gap(error)
+        return _blocked(
+            load_branch_role_policy(root),
+            current_head,
+            [gap],
+            **({"stderr": str(error)} if gap != str(error) else {}),
         )
-    lease = leases_by_branch(root).get(branch, {})
+    if blocked:
+        return blocked
+    policy, _base_report, candidate_path, candidate_head, plan = transition
     failure: tuple[str, str] | None = None
     attestation: Attestation | None = None
     observed_candidate_head = ""
     cas_attempts = 0
-    try:
-        attestation, failure, observed_candidate_head, cas_attempts = _candidate_transition(
-            root=root,
-            policy=policy,
-            refs=(branch, current_head, candidate_head),
-            candidate_path=candidate_path,
-            lease=lease,
-            proof=proof,
-        )
-    except (TypeError, ValueError) as error:
-        failure = ("candidate_update_failed", str(error))
+    if plan is not None:
+        try:
+            attestation, failure, observed_candidate_head, cas_attempts = _candidate_cas(
+                root=root,
+                policy=policy,
+                plan=plan,
+                candidate_head=candidate_head,
+            )
+        except (TypeError, ValueError) as error:
+            failure = (_candidate_admission_gap(error), str(error))
     if failure is not None or (cas_attempts and attestation is None):
         gap, stderr = failure or ("candidate_update_failed", "candidate attestation missing")
         extra = {"stderr": stderr} if stderr else {}
         if gap.startswith("candidate_cas_"):
             extra["candidate_head"] = observed_candidate_head
             extra["cas_attempts"] = cas_attempts
-        return fail(
+        return _blocked(
+            policy,
+            current_head,
             [gap],
             path=candidate_path.as_posix(),
             remediation=remediation.remediation_for_gaps([gap]),
@@ -116,7 +113,9 @@ def apply_land_to_candidate(
             head=current_head,
         )
     except ValueError as error:
-        return fail(
+        return _blocked(
+            policy,
+            current_head,
             ["candidate_worktree_sync_failed"],
             path=candidate_path.as_posix(),
             stderr=str(error),
@@ -137,22 +136,22 @@ def apply_land_to_candidate(
 
 def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, object]:
     """Compile and admit the exact candidate CAS without performing its effect."""
-    policy = load_branch_role_policy(root)
-    current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
-    base_report = candidate_base_report(root=root, status=status)
-    if report_verdict(base_report) != "pass":
-        return base_report
-    candidate_path = Path(str(base_report["path"]))
-    candidate_head = str(base_report["candidate_head"])
-    proof = proof_attestation(candidate_path, current_head)
-    if proof is None:
+    try:
+        blocked, transition = _candidate_plan(root, status=status)
+    except (TypeError, ValueError) as error:
+        policy = load_branch_role_policy(root)
+        current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+        gap = _candidate_admission_gap(error)
         return _blocked(
             policy,
             current_head,
-            proof_gaps(candidate_path, current_head),
-            path=candidate_path.as_posix(),
+            [gap],
+            **({"stderr": str(error)} if gap != str(error) else {}),
         )
-    if candidate_head == current_head:
+    if blocked:
+        return blocked
+    policy, base_report, candidate_path, _candidate_head, plan = transition
+    if plan is None:
         return {
             **base_report,
             "state": "candidate_current",
@@ -161,31 +160,13 @@ def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, obje
             "permissions": [],
             "cas_attempts": 0,
         }
-    branch = str(workspace_status(root, include_foreign_path_scope=False)["branch"])
-    lease = leases_by_branch(root).get(branch, {})
     try:
-        authority = _proof_bound_candidate_authority(root, lease=lease, proof=proof)
-        effect = _candidate_effect(
-            policy=policy,
-            branch=branch,
-            current_head=current_head,
-            candidate_head=candidate_head,
-        )
-        plan = _candidate_transition_plan(
-            root=root,
-            authority=authority,
-            effect=effect,
-            head=current_head,
-            lease=lease,
-            prior_attestations={"proof": proof.model_dump(mode="json")},
-            policy=policy,
-        )
         admit_git_effect(root, plan)
     except (TypeError, ValueError) as error:
         gap = _candidate_admission_gap(error)
         return _blocked(
             policy,
-            current_head,
+            str(base_report["head"]),
             [gap],
             path=candidate_path.as_posix(),
             **({"stderr": str(error)} if gap != str(error) else {}),
@@ -193,99 +174,77 @@ def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, obje
     return {
         **base_report,
         "state": "candidate_transition_admitted",
-        "effect": effect.model_dump(mode="json"),
+        "effect": plan.effect,
         "plan_digest": plan.digest,
         "permissions": list(plan.permissions),
         "cas_attempts": 0,
     }
 
 
-def _proof_bound_candidate_authority(
-    root: Path, *, lease: dict[str, object], proof: Attestation
-) -> Commitment:
-    """Resolve the exact Commitment authorized by one candidate proof."""
+def _candidate_plan(root: Path, *, status=None):
+    policy = load_branch_role_policy(root)
+    current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    base_report = candidate_base_report(root=root, status=status)
+    if report_verdict(base_report) != "pass":
+        return base_report, None
+    candidate_path = Path(str(base_report["path"]))
+    candidate_head = str(base_report["candidate_head"])
+    proof = proof_attestation(candidate_path, current_head)
+    if proof is None:
+        return (
+            _blocked(
+                policy,
+                current_head,
+                proof_gaps(candidate_path, current_head),
+                path=candidate_path.as_posix(),
+            ),
+            None,
+        )
+    branch = str(workspace_status(root, include_foreign_path_scope=False)["branch"])
+    lease = leases_by_branch(root).get(branch, {})
     authority = load_lease_bound_commitment(root, lease=lease)
     if proof.commitment_digest != authority.digest():
         message = "proof_attestation_authority_binding_mismatch"
         raise ValueError(message)
-    return authority
-
-
-def _candidate_transition(
-    *,
-    root: Path,
-    policy: BranchRolePolicy,
-    refs: tuple[str, str, str],
-    candidate_path: Path,
-    lease: dict[str, object],
-    proof: Attestation,
-) -> tuple[Attestation | None, tuple[str, str] | None, str, int]:
-    branch, current_head, candidate_head = refs
-    authority = load_lease_bound_commitment(root, lease=lease)
-    if proof.commitment_digest != authority.digest():
-        return None, ("proof_attestation_authority_binding_mismatch", ""), "", 0
-    if candidate_head == current_head:
-        return None, None, "", 0
-    return _candidate_cas(
-        root=root,
-        authority=authority,
-        policy=policy,
-        refs=(branch, current_head, candidate_head),
-        candidate_path=candidate_path,
-        lease=lease,
-        proof=proof,
+    plan = (
+        None
+        if candidate_head == current_head
+        else _candidate_transition_plan(
+            root=root,
+            authority=authority,
+            effect=_candidate_effect(
+                policy=policy,
+                branch=branch,
+                current_head=current_head,
+                candidate_head=candidate_head,
+            ),
+            head=current_head,
+            lease=lease,
+            prior_attestations={"proof": proof.model_dump(mode="json")},
+            policy=policy,
+        )
     )
+    return None, (policy, base_report, candidate_path, candidate_head, plan)
 
 
 def _candidate_cas(
     *,
     root: Path,
-    authority: Commitment,
     policy: BranchRolePolicy,
-    refs: tuple[str, str, str],
-    candidate_path: Path,
-    lease: dict[str, object],
-    proof: Attestation,
+    plan: TransitionPlan,
+    candidate_head: str,
 ) -> tuple[Attestation | None, tuple[str, str] | None, str, int]:
-    branch, current_head, candidate_head = refs
-    effect = _candidate_effect(
-        policy=policy,
-        branch=branch,
-        current_head=current_head,
-        candidate_head=candidate_head,
-    )
-    plan = _candidate_transition_plan(
-        root=root,
-        authority=authority,
-        effect=effect,
-        head=current_head,
-        lease=lease,
-        prior_attestations={"proof": proof.model_dump(mode="json")},
-        policy=policy,
-    )
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
     try:
-        return execute_git_effect(root, plan, issuer=issuer), None, "", 1
+        return execute_candidate_plan(root, plan, issuer=issuer), None, "", 1
     except ValueError as error:
         if str(error) not in {"git_effect_cas_mismatch", "git_effect_cas_rejected"}:
             raise
         observed = run_git(root, "rev-parse", policy.candidate_branch, check=False).stdout.strip()
         if observed != candidate_head:
             return None, ("candidate_cas_stale", str(error)), observed, 1
-        current_proof = proof_attestation(candidate_path, current_head)
-        if current_proof is None:
-            return None, ("candidate_retry_proof_stale", str(error)), observed, 1
-        retry = _candidate_transition_plan(
-            root=root,
-            authority=authority,
-            effect=effect,
-            head=current_head,
-            lease=lease,
-            prior_attestations={"proof": current_proof.model_dump(mode="json")},
-            policy=policy,
-        )
         try:
-            return execute_git_effect(root, retry, issuer=issuer), None, observed, 2
+            return execute_candidate_plan(root, plan, issuer=issuer), None, observed, 2
         except ValueError as retry_error:
             if str(retry_error) in {"git_effect_cas_mismatch", "git_effect_cas_rejected"}:
                 current = run_git(
@@ -329,6 +288,10 @@ def _candidate_admission_gap(error: Exception) -> str:
         }
         else "candidate_update_failed"
     )
+
+
+def execute_candidate_plan(root: Path, plan: TransitionPlan, *, issuer: str) -> Attestation:
+    return execute_git_effect(root, plan, issuer=issuer)
 
 
 def _candidate_transition_plan(

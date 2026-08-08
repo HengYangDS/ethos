@@ -15,6 +15,7 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import records
+from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -533,7 +534,9 @@ def test_git_effect_requires_explicit_permission_admission(tmp_path: Path) -> No
         execute_git_effect(repo, _plan(repo, effect, permissions=()), issuer=_ISSUER)
 
 
-def test_candidate_integration_has_narrow_lease_bound_cas_authority(tmp_path: Path) -> None:
+def test_candidate_integration_has_narrow_lease_bound_cas_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo, old, new, _effect = _effect_fixture(tmp_path)
     branch = "work/example"
     candidate = "candidate/dev"
@@ -566,7 +569,12 @@ def test_candidate_integration_has_narrow_lease_bound_cas_authority(tmp_path: Pa
         prior_attestations={"proof": proof.model_dump(mode="json")},
     )
 
-    ethos.adapters.repo.git_effects._require_effect_permission(effect, plan)  # noqa: SLF001
+    monkeypatch.setattr(
+        "ethos.adapters.repo.git_effects._admit_git_effect",
+        lambda *_args, **_kwargs: None,
+    )
+
+    admit_git_effect(repo, plan)
 
 
 @pytest.mark.parametrize(
@@ -614,7 +622,7 @@ def test_candidate_integration_rejects_inexact_command_authority(
     )
 
     with pytest.raises(ValueError, match="git_effect_permission_denied"):
-        ethos.adapters.repo.git_effects._require_effect_permission(effect, plan)  # noqa: SLF001
+        admit_git_effect(repo, plan)
 
 
 def test_git_effect_blocks_assertion_drift_before_recovery(tmp_path: Path) -> None:

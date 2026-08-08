@@ -254,9 +254,10 @@ def test_clean_accepted_root_without_active_change_uses_repository_proof(
     assert "openspec_active_change_missing" not in proof["required_gaps"]
 
 
-def test_plan_and_prove_bind_only_the_current_post_start_generation(  # noqa: PLR0915
+def _start_forward_fix_generation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+) -> tuple[Path, str, object]:
+    """Archive the fixture and start one exact successor generation."""
     fixture = start_adopted_work_lane(tmp_path, scope=("openspec/changes/fixture-change/**",))
     worktree = fixture.worktree
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -313,6 +314,13 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(  # noqa: PL
         worktree, carrier=carrier, change_id="hosted-verification-fix"
     )
     assert after_commitment.digest() != before_commitment.digest()
+    return worktree, carrier, after_commitment
+
+
+def test_plan_and_prove_bind_only_the_current_post_start_generation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    worktree, carrier, after_commitment = _start_forward_fix_generation(monkeypatch, tmp_path)
     expected = {
         "README.md",
         "openspec/changes/hosted-verification-fix/.openspec.yaml",

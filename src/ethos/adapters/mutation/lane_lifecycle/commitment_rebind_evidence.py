@@ -11,10 +11,10 @@ from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.semantic import Attestation

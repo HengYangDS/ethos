@@ -6,7 +6,8 @@ from pathlib import Path
 
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import git_stdout_checked
-from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import lease_observations
 from ethos.adapters.store.state.schema import observed_state_database
@@ -167,11 +168,6 @@ def unbound_ref_next_action(relation: str) -> str:
             "preserve unbound Work Lane ref; bind a recovery contract before action"
         ),
     }.get(relation, "preserve and block on unbound Work Lane ref")
-
-
-def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
-    """Return whether one ref is an ancestor of another ref."""
-    return _git(root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
 def _binding(fields: _BindingFields) -> dict[str, object]:
@@ -421,13 +417,3 @@ def _closeout_lease_gaps(
     else:
         return []
     return [gap]
-
-
-def _git(root: Path, *args: str):
-    return run_git(root, *args, check=False)
-
-
-def ref_head(root: Path, ref: str) -> str:
-    """Resolve a ref to its head, or return an empty string when absent."""
-    completed = _git(root, "rev-parse", "--verify", ref)
-    return completed.stdout.strip() if completed.returncode == 0 else ""

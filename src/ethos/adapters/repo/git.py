@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 _GIT = shutil.which("git") or "git"
+_GIT_CONFIG_SOURCE_ENV = ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM")
 
 
 @overload
@@ -133,6 +134,23 @@ def run_command(
         timeout=timeout,
         env=effective_env,
     )
+
+
+def effective_git_config_value(root: Path, name: str) -> str:
+    """Read one effective Git config value without inheriting command overlays."""
+    effective_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    effective_env.update(
+        {key: os.environ[key] for key in _GIT_CONFIG_SOURCE_ENV if key in os.environ}
+    )
+    effective_env.update({"LC_ALL": "C", "GIT_NO_REPLACE_OBJECTS": "1"})
+    completed = _execute(
+        root,
+        (_GIT, "config", "--get", name),
+        text=True,
+        check=False,
+        env=effective_env,
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
 def repository_root(root: Path) -> Path:

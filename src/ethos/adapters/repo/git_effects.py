@@ -17,6 +17,7 @@ from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import effective_git_config_value
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
@@ -120,8 +121,22 @@ def _commit_environment(root: Path, environment: Mapping[str, str] | None) -> di
     if not public_key.startswith(("ssh-ed25519 ", "ssh-rsa ", "ecdsa-sha2-")):
         message = "git_effect_signing_key_invalid"
         raise ValueError(message)
+    signer_value = effective_git_config_value(root, "gpg.ssh.program")
+    signing_value = f"key::{public_key}"
+    signing_inputs: tuple[tuple[str, str], ...] = ()
+    if signer_value:
+        signer = Path(signer_value)
+        if not signer.is_absolute() or not signer.is_file() or not os.access(signer, os.X_OK):
+            message = "git_effect_signing_program_invalid"
+            raise ValueError(message)
+        signing_value = key.as_posix()
+        signing_inputs = (("gpg.ssh.program", signer.as_posix()),)
     count = int(bound.get("GIT_CONFIG_COUNT", "0"))
-    for name, value in (("gpg.format", "ssh"), ("user.signingkey", f"key::{public_key}")):
+    for name, value in (
+        ("gpg.format", "ssh"),
+        *signing_inputs,
+        ("user.signingkey", signing_value),
+    ):
         bound[f"GIT_CONFIG_KEY_{count}"] = name
         bound[f"GIT_CONFIG_VALUE_{count}"] = value
         count += 1

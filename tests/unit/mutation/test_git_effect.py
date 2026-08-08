@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -85,6 +86,58 @@ def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
             "GIT_CONFIG_VALUE_2": "key::ssh-ed25519 AAAATEST exact-signing-key",
         }
     ]
+
+
+def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    key = tmp_path / "signing-key"
+    subprocess.run(
+        ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    public_key = key.with_suffix(".pub")
+    signer_record = tmp_path / "signer-record"
+    signer = tmp_path / "ssh-signer"
+    signer.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        "previous=''\n"
+        'for argument in "$@"; do\n'
+        '  if [ "$previous" = "-f" ]; then\n'
+        '    printf "%s\\n" "$argument" > "$ETHOS_TEST_SIGNER_RECORD"\n'
+        "  fi\n"
+        '  previous="$argument"\n'
+        "done\n"
+        'exec /usr/bin/ssh-keygen "$@"\n',
+        encoding="utf-8",
+    )
+    signer.chmod(0o755)
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".gitconfig").write_text(
+        f'[gpg "ssh"]\n\tprogram = {signer}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(home / ".gitconfig"))
+    monkeypatch.setenv("ETHOS_TEST_SIGNER_RECORD", str(signer_record))
+    monkeypatch.delenv("SSH_AUTH_SOCK", raising=False)
+    git(repo, "config", "commit.gpgsign", "true")
+    git(repo, "config", "gpg.format", "ssh")
+    git(repo, "config", "user.signingkey", str(public_key))
+    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
+    git(repo, "add", "README.md")
+    previous = git(repo, "rev-parse", "HEAD")
+
+    result = commit_git_worktree(repo, previous=previous, message="fix: signed effect")
+
+    assert result == {"verdict": "pass", "error": ""}
+    assert git(repo, "rev-parse", "HEAD") != previous
+    assert signer_record.read_text(encoding="utf-8").strip() == str(public_key)
 
 
 def _declare_repository(repo: Path, repository_id: str | None = None) -> str:

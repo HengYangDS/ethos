@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import shutil
-import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass
@@ -10,6 +8,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from ethos.adapters.repo.git import run_git
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -22,7 +21,6 @@ from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import load_repository_profile
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
-_GIT = shutil.which("git") or "git"
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,10 +93,13 @@ def _owner_projection(
 
 
 def _git_blob(root: Path, tree_ref: str, path: str) -> bytes | None:
-    completed = subprocess.run(
-        [_GIT, "-C", str(root), "cat-file", "blob", f"{tree_ref}:{path}"],
-        capture_output=True,
+    completed = run_git(
+        root,
+        "cat-file",
+        "blob",
+        f"{tree_ref}:{path}",
         check=False,
+        text=False,
     )
     return completed.stdout if completed.returncode == 0 else None
 
@@ -177,9 +178,7 @@ def _source_paths(gate: Gate) -> tuple[str, ...]:
     command = canonical_gate_command(gate.command)
     noxfile = (
         ("noxfile.py", "pyproject.toml", "uv.lock")
-        if len(command) >= 3
-        and command[0] == "python"
-        and command[1:3] == ("-m", "nox")
+        if len(command) >= 3 and command[0] == "python" and command[1:3] == ("-m", "nox")
         else ()
     )
     script = (
@@ -239,8 +238,10 @@ def resolve_gate_policy(
     )
     source_root = root if profile is not None and profile.declaration is not None else None
     sources, gaps = _bind_sources(source_root, tree_ref, gates)
-    if profile is not None and repository_python is None and any(
-        canonical_gate_command(gate.command)[1:3] == ("-m", "nox") for gate in gates
+    if (
+        profile is not None
+        and repository_python is None
+        and any(canonical_gate_command(gate.command)[1:3] == ("-m", "nox") for gate in gates)
     ):
         gaps = (*gaps, "gate_runtime_missing:repository-python")
     if profile is not None and profile.declaration is not None and not gates:

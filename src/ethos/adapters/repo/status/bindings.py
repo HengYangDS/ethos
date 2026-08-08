@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import git_stdout_checked
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import lease_observations
 from ethos.adapters.store.state.schema import observed_state_database
@@ -422,8 +423,8 @@ def _closeout_lease_gaps(
     return [gap]
 
 
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=root, check=False, text=True, capture_output=True)
+def _git(root: Path, *args: str):
+    return run_git(root, *args, check=False)
 
 
 def ref_head(root: Path, ref: str) -> str:

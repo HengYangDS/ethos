@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
 import yaml
 
+from ethos.adapters.repo.git import run_git
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
@@ -173,11 +173,12 @@ def protected_branch_active_change_required_gaps(
 
 
 def _branch_report(root: Path, branch: str) -> dict[str, object]:
-    completed = subprocess.run(
-        ["git", "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}"],
-        cwd=root,
-        text=True,
-        capture_output=True,
+    completed = run_git(
+        root,
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        f"{branch}^{{commit}}",
         check=False,
     )
     if completed.returncode == 0:
@@ -194,11 +195,14 @@ def _branch_report(root: Path, branch: str) -> dict[str, object]:
 
 def active_change_names_in_ref(root: Path, ref: str) -> dict[str, object]:
     """Report active OpenSpec change names in one exact Git tree."""
-    completed = subprocess.run(
-        ["git", "ls-tree", "-r", "--name-only", ref, "--", "openspec/changes"],
-        cwd=root,
-        text=True,
-        capture_output=True,
+    completed = run_git(
+        root,
+        "ls-tree",
+        "-r",
+        "--name-only",
+        ref,
+        "--",
+        "openspec/changes",
         check=False,
     )
     if completed.returncode != 0:
@@ -242,13 +246,7 @@ def active_change_violations_for_role(openspec_root: Path, role: str) -> list[st
 
 
 def _current_branch(root: Path) -> str:
-    branch = subprocess.run(
-        ["git", "branch", "--show-current"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    branch = run_git(root, "branch", "--show-current", check=False)
     if branch.returncode != 0:
         return ""
     return branch.stdout.strip()
@@ -268,11 +266,12 @@ def _changed_openspec_spec_obligation_removal_gaps(root: Path) -> list[str]:
     humans/agents must either restore/fuse them or carry an explicit removal
     decision in a separate semantic change.
     """
-    completed = subprocess.run(
-        ["git", "diff", "--unified=0", "--", "openspec/specs/**/*.md"],
-        cwd=root,
-        text=True,
-        capture_output=True,
+    completed = run_git(
+        root,
+        "diff",
+        "--unified=0",
+        "--",
+        "openspec/specs/**/*.md",
         check=False,
     )
     if completed.returncode not in {0, 1}:

@@ -13,6 +13,7 @@ from typing import Any
 import nodejs_wheel
 
 from ethos.adapters.repo.git import run_command
+from ethos.adapters.repo.git import run_git
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OFFICIAL_VERSION = ""
@@ -37,7 +38,6 @@ _PACKAGE = _SOURCE_ROOT / "node_modules" / "@fission-ai" / "openspec" / "package
 _ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"
 _SOURCE_NODE = shutil.which("node")
-_GIT = shutil.which("git") or "/usr/bin/git"
 
 
 def _packaged_node() -> str | None:
@@ -49,13 +49,7 @@ def _packaged_node() -> str | None:
 
 
 def current_branch(root: Path) -> str:
-    completed = run_command(
-        root,
-        (_GIT, "branch", "--show-current"),
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    completed = run_git(root, "branch", "--show-current", check=False)
     return "" if completed.returncode else completed.stdout.strip()
 
 

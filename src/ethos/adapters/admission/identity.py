@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
+from ethos.adapters.repo.git import run_git
 
 _ZERO = "0" * 40
 _IDENTITY_FIELDS = ("author_name", "author_email", "committer_name", "committer_email")
@@ -33,8 +34,8 @@ class ReconciliationObservation:
 _NO_RECONCILIATION = ReconciliationObservation()
 
 
-def _git(root: Path, *args: str, text: bool = False) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=root, check=False, text=text, capture_output=True)
+def _git(root: Path, *args: str, text: bool = False):
+    return run_git(root, *args, check=False, text=text)
 
 
 def commit_contained_in(root: Path, commit: str, branch: str) -> bool:

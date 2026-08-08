@@ -7,7 +7,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import uuid
 from contextlib import contextmanager
@@ -17,11 +16,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
+from ethos.adapters.repo.git import run_git
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 HOOK_NAMES = ("pre-commit", "pre-push", "reference-transaction")
-_GIT = shutil.which("git") or "git"
 _RUNTIME_LOCATOR = (
     r"\.\./ethos/runtime/(?P<digest>[a-f0-9]{64})/venv/(?P<python>bin/python|Scripts/python\.exe)"
 )
@@ -224,22 +224,5 @@ def _configured_hooks_path(root: Path) -> Path | None:
     return configured if configured.is_absolute() else (root / configured).resolve()
 
 
-def _git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-    environment.update(
-        {
-            "GIT_NO_REPLACE_OBJECTS": "1",
-            "GIT_OPTIONAL_LOCKS": "0",
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_ATTR_NOSYSTEM": "1",
-        }
-    )
-    return subprocess.run(
-        (_GIT, *args),
-        cwd=root,
-        capture_output=True,
-        check=check,
-        text=True,
-        env=environment,
-    )
+def _git(root: Path, *args: str, check: bool = True):
+    return run_git(root, *args, check=check)

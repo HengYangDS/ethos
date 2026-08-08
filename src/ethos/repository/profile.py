@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import shutil
-import subprocess
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
@@ -20,6 +18,7 @@ from pydantic import PlainSerializer
 from pydantic import ValidationError
 from pydantic import model_validator
 
+from ethos.adapters.repo.git import run_git
 from ethos.contracts.gates import Gate
 from ethos.contracts.openspec.models import OpenSpecPolicy
 
@@ -34,7 +33,6 @@ DEFAULT_ROOTS = {
 PATH_TYPE_ERROR = "repository path must be a string"
 PATH_VALUE_ERROR = "repository path must be relative POSIX without dot segments"
 INVALID_PROFILE_ERROR = "repository_profile_invalid:.ethos/profile.toml"
-_GIT = shutil.which("git") or "git"
 
 
 def _repository_path(value: object) -> str:
@@ -211,8 +209,8 @@ def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
         return path.exists() or path.is_symlink(), ""
 
 
-def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([_GIT, *args], cwd=repo, capture_output=True, check=False, text=True)
+def _git(repo: Path, *args: str):
+    return run_git(repo, *args, check=False)
 
 
 def profile_root(root: Path, key: str) -> Path:

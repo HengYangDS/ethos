@@ -54,3 +54,23 @@ def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce:
         json_output=json_output,
         enforce=enforce,
     )
+
+
+def emit_git_execution_failure(*, command: str, code: str, reason: str, json_output: bool) -> None:
+    """Emit one stable fail-closed envelope for Git execution infrastructure."""
+    emit(
+        EthosResult(
+            command=command,
+            verdict="block",
+            state="gapped",
+            required_gaps=(code,),
+            next_action=(
+                "install Git on the effective PATH and rerun the command"
+                if code == "git_executable_unavailable"
+                else "verify the repository root and rerun the command"
+            ),
+            data={"error_boundary": "git_execution", "reason": reason},
+        ),
+        json_output=json_output,
+        enforce=True,
+    )

@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -134,6 +135,74 @@ def apply_land_to_candidate(
     }
 
 
+def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, object]:
+    """Compile and admit the exact candidate CAS without performing its effect."""
+    policy = load_branch_role_policy(root)
+    current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    base_report = candidate_base_report(root=root, status=status)
+    if report_verdict(base_report) != "pass":
+        return base_report
+    candidate_path = Path(str(base_report["path"]))
+    candidate_head = str(base_report["candidate_head"])
+    proof = proof_attestation(candidate_path, current_head)
+    if proof is None:
+        return _blocked(
+            policy,
+            current_head,
+            proof_gaps(candidate_path, current_head),
+            path=candidate_path.as_posix(),
+        )
+    if candidate_head == current_head:
+        return {
+            **base_report,
+            "state": "candidate_current",
+            "effect": {},
+            "plan_digest": "",
+            "permissions": [],
+            "cas_attempts": 0,
+        }
+    branch = str(workspace_status(root, include_foreign_path_scope=False)["branch"])
+    lease = leases_by_branch(root).get(branch, {})
+    try:
+        authority = load_lease_bound_commitment(root, lease=lease)
+        if proof.commitment_digest != authority.digest():
+            message = "proof_attestation_authority_binding_mismatch"
+            raise ValueError(message)  # noqa: TRY301
+        effect = _candidate_effect(
+            policy=policy,
+            branch=branch,
+            current_head=current_head,
+            candidate_head=candidate_head,
+        )
+        plan = _candidate_transition_plan(
+            root=root,
+            authority=authority,
+            effect=effect,
+            head=current_head,
+            lease=lease,
+            prior_attestations={"proof": proof.model_dump(mode="json")},
+            policy=policy,
+        )
+        admit_git_effect(root, plan)
+    except (TypeError, ValueError) as error:
+        gap = _candidate_admission_gap(error)
+        return _blocked(
+            policy,
+            current_head,
+            [gap],
+            path=candidate_path.as_posix(),
+            **({"stderr": str(error)} if gap != str(error) else {}),
+        )
+    return {
+        **base_report,
+        "state": "candidate_transition_admitted",
+        "effect": effect.model_dump(mode="json"),
+        "plan_digest": plan.digest,
+        "permissions": list(plan.permissions),
+        "cas_attempts": 0,
+    }
+
+
 def _candidate_transition(
     *,
     root: Path,
@@ -171,13 +240,11 @@ def _candidate_cas(
     proof: Attestation,
 ) -> tuple[Attestation | None, tuple[str, str] | None, str, int]:
     branch, current_head, candidate_head = refs
-    effect = GitEffect(
-        updates={
-            f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
-                expected=candidate_head, desired=current_head
-            )
-        },
-        assertions={f"refs/heads/{branch}": current_head},
+    effect = _candidate_effect(
+        policy=policy,
+        branch=branch,
+        current_head=current_head,
+        candidate_head=candidate_head,
     )
     plan = _candidate_transition_plan(
         root=root,
@@ -218,6 +285,42 @@ def _candidate_cas(
                 ).stdout.strip()
                 return None, ("candidate_cas_retry_exhausted", str(retry_error)), current, 2
             raise
+
+
+def _candidate_effect(
+    *,
+    policy: BranchRolePolicy,
+    branch: str,
+    current_head: str,
+    candidate_head: str,
+) -> GitEffect:
+    return GitEffect(
+        updates={
+            f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
+                expected=candidate_head,
+                desired=current_head,
+            )
+        },
+        assertions={f"refs/heads/{branch}": current_head},
+    )
+
+
+def _candidate_admission_gap(error: Exception) -> str:
+    gap = str(error)
+    return (
+        gap
+        if gap
+        in {
+            "git_effect_permission_denied",
+            "git_effect_lease_generation_stale",
+            "git_effect_plan_prestate_mismatch",
+            "git_effect_plan_prestate_stale",
+            "git_effect_repository_identity_mismatch",
+            "lease_actor_mismatch",
+            "proof_attestation_authority_binding_mismatch",
+        }
+        else "candidate_update_failed"
+    )
 
 
 def _candidate_transition_plan(

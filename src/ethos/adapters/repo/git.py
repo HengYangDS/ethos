@@ -210,12 +210,7 @@ def current_branch(root: Path) -> str:
 
 def current_head(root: Path) -> str:
     """Return the current HEAD sha, or 'untracked' if not a resolvable ref."""
-    try:
-        completed = run_git(root, "rev-parse", "HEAD", check=False)
-    except (FileNotFoundError, NotADirectoryError):
-        # root does not exist (e.g. a stale or foreign target path): treat as untracked
-        # rather than crashing — the caller reports a gap, not an exception.
-        return "untracked"
+    completed = run_git(root, "rev-parse", "HEAD", check=False)
     if completed.returncode != 0:
         return "untracked"
     return completed.stdout.strip()
@@ -266,11 +261,7 @@ def git_stdout_checked(root: Path, *args: str) -> str:
 
 def git_stdout(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stripped stdout, or '' on failure."""
-    try:
-        completed = run_git(root, *args, check=False)
-    except (FileNotFoundError, NotADirectoryError):
-        # root does not exist: no git facts to read, same as a failed command.
-        return ""
+    completed = run_git(root, *args, check=False)
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
@@ -326,17 +317,14 @@ def committed_file_bytes(
     """Return exact tracked bytes from one committed tree, or ``b''`` on failure."""
     if not ref:
         return b""
-    try:
-        completed = run_git(
-            root,
-            "show",
-            f"{ref}:{path}",
-            check=False,
-            env=environment,
-            text=False,
-        )
-    except (FileNotFoundError, NotADirectoryError):
-        return b""
+    completed = run_git(
+        root,
+        "show",
+        f"{ref}:{path}",
+        check=False,
+        env=environment,
+        text=False,
+    )
     return completed.stdout if completed.returncode == 0 else b""
 
 
@@ -500,17 +488,9 @@ def remote_availability(
     root: Path, remote: str = "origin", *, timeout_seconds: float = 3.0
 ) -> dict[str, object]:
     """Probe whether a configured Git remote is reachable without mutating state."""
-    url = git_stdout(root, "remote", "get-url", remote)
-    if not url:
-        return {
-            "kind": "git_remote_availability",
-            "remote": remote,
-            "state": "unconfigured",
-            "available": False,
-            "blocking": False,
-            "required_gaps": [],
-            "advisory_gaps": [f"remote_unconfigured:{remote}"],
-        }
+    result = remote_availability_not_probed(root, remote)
+    if result["state"] == "unconfigured":
+        return result
     try:
         effective_env = {
             key: value for key, value in os.environ.items() if not key.startswith("GIT_")
@@ -524,40 +504,23 @@ def remote_availability(
             timeout=timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:
-        return {
-            "kind": "git_remote_availability",
-            "remote": remote,
-            "url": url,
+        return result | {
             "state": "unavailable",
-            "available": False,
-            "blocking": False,
             "reason": "timeout",
             "stderr": str(exc),
-            "required_gaps": [],
             "advisory_gaps": [f"remote_unavailable:{remote}"],
         }
     if completed.returncode == 0:
-        return {
-            "kind": "git_remote_availability",
-            "remote": remote,
-            "url": url,
+        return result | {
             "state": "available",
             "available": True,
-            "blocking": False,
-            "required_gaps": [],
             "advisory_gaps": [],
         }
-    return {
-        "kind": "git_remote_availability",
-        "remote": remote,
-        "url": url,
+    return result | {
         "state": "unavailable",
-        "available": False,
-        "blocking": False,
         "reason": "ls_remote_failed",
         "exit_code": completed.returncode,
         "stderr": completed.stderr.strip(),
-        "required_gaps": [],
         "advisory_gaps": [f"remote_unavailable:{remote}"],
     }
 

@@ -157,6 +157,7 @@ def _semantic_gaps(
         facts,
         nodes,
         policy=dict(policy),
+        prior_attestations=dict(plan.prior_attestations),
         required_gaps=policy_gaps,
     )
     if canonical.inputs.effect != plan.inputs.effect:

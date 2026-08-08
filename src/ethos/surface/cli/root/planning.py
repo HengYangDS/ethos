@@ -10,6 +10,7 @@ from typing import cast
 
 from cyclopts import Parameter
 
+from ethos.adapters.openspec.archive_effect import archive_effect_authority
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.profile import load_profile_commitment
@@ -59,6 +60,30 @@ def _peer_proof_cost(repo: Path, lane: dict[str, object]) -> int | None:
         return None
     gate_ids = tuple(str(gate.get("id") or "") for gate in gates)
     return len(resolve_gate_policy(repo, gate_ids=gate_ids).nodes)
+
+
+def _archive_plan_authority(
+    repo: Path,
+    *,
+    head: str,
+    repository_id: str,
+    commitment,
+    lease: dict[str, object],
+    paths: tuple[str, ...],
+    work_lane: bool,
+) -> dict[str, object]:
+    return (
+        archive_effect_authority(
+            repo,
+            head=head,
+            repository_id=repository_id,
+            commitment=commitment,
+            lease=lease,
+            changed_paths=paths,
+        )
+        if work_lane and paths
+        else {}
+    )
 
 
 @app.command
@@ -187,7 +212,15 @@ def plan(
     profile_projection = {key: value for key, value in profile_adapter.items() if key != "commands"}
     gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
     policy = resolve_gate_policy(repo, gate_ids=gate_ids)
-    nodes = policy.nodes
+    archive_authority = _archive_plan_authority(
+        repo,
+        head=head,
+        repository_id=repository.id,
+        commitment=commitment,
+        lease=lease,
+        paths=paths,
+        work_lane=status_payload.get("role") == ROLE_WORK_LANE,
+    )
     foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])
     peers = [lane | {"proof_cost": _peer_proof_cost(repo, lane)} for lane in foreign]
     candidate = cast("dict[str, object]", status_payload.get("candidate") or {})
@@ -196,7 +229,7 @@ def plan(
         peers,
         commitment_digest=commitment.digest(),
         risks=commitment.risks,
-        proof_cost=len(nodes),
+        proof_cost=len(policy.nodes),
         proof_capacity=proof_node_capacity,
         observed_at=facts.observed_at,
         candidate=ref_progress(repo, candidate_branch, observed_at=facts.observed_at)
@@ -205,8 +238,9 @@ def plan(
     plan = compile_plan(
         commitment,
         facts,
-        nodes,
+        policy.nodes,
         policy=policy.projection,
+        prior_attestations=({"openspec_archive": archive_authority} if archive_authority else {}),
         required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps, *intent_gaps))),
     )
     playbooks = playbooks_report(repo)

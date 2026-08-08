@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.content_addressed import write_content_addressed
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.semantic import Attestation
 from ethos.repository.policy.gates import canonical_gate_command
 
@@ -19,6 +22,22 @@ _ARTIFACT_CONTENT_MISMATCH = "proof_attestation_artifact_content_mismatch"
 _ARTIFACT_INVALID = "proof_attestation_artifact_invalid"
 _CHECK_INVALID = "proof_attestation_check_invalid"
 _CHECKS_REQUIRED = "proof_attestation_checks_required"
+_DEFAULT_ATTESTATION_DIR = Path(".ethos") / "state" / "attestations"
+_TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
+
+
+def attestation_store_dir(root: Path) -> Path:
+    """Return the one ignored content-addressed local Attestation store."""
+    override = os.environ.get(_TEST_ATTESTATION_STATE_DIR_ENV, "").strip()
+    pytest_active = os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYTEST_XDIST_WORKER")
+    if override and pytest_active:
+        path = Path(override).expanduser()
+        if path.is_absolute():
+            return path
+        common = git_common_dir(root)
+        return (Path(common) if common else root) / path
+    common = git_common_dir(root)
+    return local_state_root(root) / "attestations" if common else root / _DEFAULT_ATTESTATION_DIR
 
 
 def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]:

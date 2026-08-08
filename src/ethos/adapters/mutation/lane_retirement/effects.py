@@ -175,7 +175,14 @@ def remove_linked_lane(
                     "operation": "lane.retire",
                     "execution_branch": execution_branch,
                 },
-                values={"lease_generation": lease_generation(authority_lease)},
+                values={
+                    "lease_generation": lease_generation(authority_lease),
+                    **(
+                        {"archive_absorption": lane["archive_absorption"]}
+                        if lane.get("archive_absorption")
+                        else {}
+                    ),
+                },
             ),
             issuer=actor_ref(),
         )
@@ -274,6 +281,70 @@ def absorbed(repo: Path, head: str, accepted_head: str) -> bool:
     )
 
 
+def archived_carrier_absorption(
+    repo: Path,
+    *,
+    head: str,
+    accepted_head: str,
+    carrier: str,
+) -> dict[str, object]:
+    """Return exact active-to-archive blob mapping for one reconstructed carrier."""
+    active_root = carrier.removesuffix("/commitment.toml")
+    prefix = "openspec/changes/"
+    if (
+        not carrier.startswith(prefix)
+        or "/archive/" in carrier
+        or not carrier.endswith("/commitment.toml")
+        or not is_ancestor(repo, accepted_head, head)
+    ):
+        return {}
+    change = active_root.removeprefix(prefix)
+    source_paths = _carrier_delta_paths(repo, accepted_head, head)
+    if not source_paths or any(
+        path != active_root and not path.startswith(f"{active_root}/") for path in source_paths
+    ):
+        return {}
+    candidates = _archive_roots(repo, accepted_head, change)
+    if len(candidates) != 1:
+        return {}
+    archive_root = candidates[0]
+    mapping: dict[str, dict[str, str]] = {}
+    for source in source_paths:
+        target = archive_root + source.removeprefix(active_root)
+        source_blob = output(repo, "rev-parse", f"{head}:{source}") or ""
+        target_blob = output(repo, "rev-parse", f"{accepted_head}:{target}") or ""
+        if not source_blob or source_blob != target_blob:
+            return {}
+        mapping[source] = {"target": target, "blob": source_blob}
+    return {"change": change, "archive_root": archive_root, "paths": mapping}
+
+
+def _carrier_delta_paths(repo: Path, accepted_head: str, head: str) -> tuple[str, ...]:
+    changed = output(repo, "diff", "--name-only", "--no-renames", "-z", accepted_head, head)
+    return tuple(path for path in (changed or "").split("\0") if path)
+
+
+def _archive_roots(repo: Path, accepted_head: str, change: str) -> tuple[str, ...]:
+    archives = run_git(
+        repo,
+        "ls-tree",
+        "-d",
+        "--name-only",
+        accepted_head,
+        "openspec/changes/archive/",
+        check=False,
+    )
+    return (
+        tuple(
+            path
+            for path in archives.stdout.splitlines()
+            if path.rsplit("/", 1)[-1].endswith(f"-{change}")
+        )
+        if archives.returncode == 0
+        else ()
+    )
+
+
 def output(root: Path, *args: str) -> str | None:
     completed = run_git(root, *args, check=False)
     return completed.stdout.rstrip("\n") if completed.returncode == 0 else None
@@ -358,28 +429,40 @@ def effect_gaps(
     authority_lane: dict[str, object],
     accepted_head: str,
 ) -> list[str]:
+    gaps: list[str] = []
     if output(control_root, "symbolic-ref", "--short", "HEAD") != policy.accepted_branch:
-        return ["retirement_control_root_stale"]
+        gaps.append("retirement_control_root_stale")
     current_accepted = output(control_root, "rev-parse", policy.accepted_branch) or ""
-    if current_accepted != accepted_head:
-        return ["accepted_ref_stale"]
-    if authority_lane.get("branch") != lane.get("branch"):
+    if not gaps and current_accepted != accepted_head:
+        gaps.append("accepted_ref_stale")
+    if not gaps and authority_lane.get("branch") != lane.get("branch"):
         authority_path = Path(str(authority_lane.get("path") or ""))
         authority_branch = str(authority_lane.get("branch") or "")
         if (
             invocation_root.resolve() != authority_path.resolve()
             or output(invocation_root, "symbolic-ref", "--short", "HEAD") != authority_branch
         ):
-            return ["retirement_authority_checkout_stale"]
-        if gaps := reobservation_gaps(
+            gaps.append("retirement_authority_checkout_stale")
+        elif observed_gaps := reobservation_gaps(
             str(authority_lane.get("branch") or ""),
             str(authority_lane.get("path") or ""),
             str(authority_lane.get("head") or ""),
         ):
-            return gaps
-    if actor_ref() != holder_ref(authority_lane):
-        return ["foreign_work_lane_retire_authority_required"]
-    return []
+            gaps.extend(observed_gaps)
+    if not gaps and actor_ref() != holder_ref(authority_lane):
+        gaps.append("foreign_work_lane_retire_authority_required")
+    archive_absorption = cast("dict[str, object]", lane.get("archive_absorption") or {})
+    if not gaps and archive_absorption:
+        lease = cast("dict[str, object]", lane.get("lease") or {})
+        observed = archived_carrier_absorption(
+            control_root,
+            head=str(lane.get("head") or ""),
+            accepted_head=accepted_head,
+            carrier=str(lease.get("base_commitment_path") or ""),
+        )
+        if observed != archive_absorption:
+            gaps.append("retirement_archive_absorption_stale")
+    return gaps
 
 
 def lease_request(lane: dict[str, object]) -> LeaseOperationRequest:

@@ -42,6 +42,7 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.semantic import Attestation
 from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lane_scenarios import superseded_work_lane
@@ -97,6 +98,139 @@ def _successor_retirement(
             authorize=True,
         ),
     )
+
+
+def test_linked_leased_archive_equivalent_carrier_retires_atomically(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    holder = "agent:test:case:archive-equivalent"
+    repo, lane, _source_head, _accepted, database = superseded_work_lane(
+        tmp_path / "archive-equivalent",
+        holder_ref=holder,
+        absorbed=False,
+    )
+    active_root = lane / "openspec/changes/fixture-change"
+    archive_root = repo / "openspec/changes/archive/2026-08-08-fixture-change"
+    archive_root.parent.mkdir(parents=True, exist_ok=True)
+    archive_root.mkdir()
+    for name in ("proposal.md", "commitment.toml"):
+        (archive_root / name).write_bytes((active_root / name).read_bytes())
+    git(repo, "rm", "-r", "openspec/changes/fixture-change")
+    git(repo, "add", archive_root.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "archive fixture carrier")
+    accepted = git(repo, "rev-parse", "HEAD")
+    git(lane, "reset", "--hard", accepted)
+    active_root.mkdir(parents=True)
+    for name in ("proposal.md", "commitment.toml"):
+        (active_root / name).write_bytes((archive_root / name).read_bytes())
+    git(lane, "add", active_root.relative_to(lane).as_posix())
+    git(lane, "commit", "-m", "reconstruct active carrier")
+    source_head = git(lane, "rev-parse", "HEAD")
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("delete from leases where subject = ?", ("work/superseded",))
+    acquire_lease(
+        database,
+        lease=exact_lease(
+            repo=lane,
+            branch="work/superseded",
+            holder_ref=holder,
+            expected_head=source_head,
+            carrier="openspec/changes/fixture-change/commitment.toml",
+            change_id="fixture-change",
+        ),
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    request = LinkedRetirementRequest(
+        branch="work/superseded",
+        expect_head=source_head,
+        absorbed_by=accepted,
+        reason="accepted archive contains the exact active carrier",
+        authorize=True,
+    )
+
+    planned = retire_linked_work_lane(root=repo, mode="superseded", request=request)
+    mapping = planned["lane"]["archive_absorption"]
+    commitment_blob = git(
+        repo,
+        "rev-parse",
+        f"{source_head}:openspec/changes/fixture-change/commitment.toml",
+    )
+    proposal_blob = git(
+        repo,
+        "rev-parse",
+        f"{source_head}:openspec/changes/fixture-change/proposal.md",
+    )
+    applied = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=request.model_copy(update={"apply": True}),
+    )
+
+    assert (planned["verdict"], planned["state"], planned["required_gaps"]) == (
+        "pass",
+        "ready_to_retire_superseded",
+        [],
+    )
+    assert mapping == {
+        "change": "fixture-change",
+        "archive_root": "openspec/changes/archive/2026-08-08-fixture-change",
+        "paths": {
+            "openspec/changes/fixture-change/commitment.toml": {
+                "target": "openspec/changes/archive/2026-08-08-fixture-change/commitment.toml",
+                "blob": commitment_blob,
+            },
+            "openspec/changes/fixture-change/proposal.md": {
+                "target": "openspec/changes/archive/2026-08-08-fixture-change/proposal.md",
+                "blob": proposal_blob,
+            },
+        },
+    }
+    assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
+        "pass",
+        "retired_superseded",
+        [],
+    )
+    assert not lane.exists()
+    assert git(repo, "branch", "--list", "work/superseded") == ""
+    assert observe_lease(database, "work/superseded").state == "missing"
+
+
+def test_archive_equivalent_retirement_rejects_extra_source_delta(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    holder = "agent:test:case:archive-extra"
+    repo, lane, source_head, accepted, database = superseded_work_lane(
+        tmp_path / "archive-extra",
+        holder_ref=holder,
+        absorbed=False,
+    )
+    archive_root = repo / "openspec/changes/archive/2026-08-08-fixture-change"
+    archive_root.parent.mkdir(parents=True, exist_ok=True)
+    archive_root.mkdir()
+    active_root = lane / "openspec/changes/fixture-change"
+    for name in ("proposal.md", "commitment.toml"):
+        (archive_root / name).write_bytes((active_root / name).read_bytes())
+    git(repo, "add", archive_root.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "archive fixture carrier")
+    accepted = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+
+    planned = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch="work/superseded",
+            expect_head=source_head,
+            absorbed_by=accepted,
+            reason="archive omits the extra obsolete delta",
+            authorize=True,
+        ),
+    )
+
+    assert planned["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
+    assert lane.exists()
+    assert git(repo, "rev-parse", "work/superseded") == source_head
+    assert observe_lease(database, "work/superseded").state == "valid"
 
 
 def _lease_request(

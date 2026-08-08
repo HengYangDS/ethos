@@ -126,7 +126,7 @@ def _log_tail(path: Path, *, limit: int = 4000) -> str:
         return stream.read().decode(errors="replace")
 
 
-def _run_command(
+def run_command(
     command: list[str],
     *,
     dry_run: bool,
@@ -379,7 +379,7 @@ def emulator_evidence(
         run = (
             _run_result(1, ok=False, stderr=issue)
             if issue
-            else _run_command(
+            else run_command(
                 command,
                 dry_run=dry_run,
                 tool_required=not _mode_is_observation(mode, dry_run=dry_run),

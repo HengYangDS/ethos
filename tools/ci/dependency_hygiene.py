@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import sys
 import tomllib
 from datetime import UTC
 from datetime import datetime
@@ -14,6 +12,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.repo.git import current_tracked_head
+from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     import nox
@@ -22,12 +21,8 @@ ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "build/evidence/quality/dependency/deptry-ethos.json"
 SUMMARY = ROOT / "build/evidence/quality/dependency/summary.json"
 PROJECT = ROOT / "pyproject.toml"
+RUNTIME = ProjectRuntime.discover(ROOT)
 LOWER_BOUND = re.compile(r"^(?P<name>[A-Za-z0-9_.-]+)>=(?P<version>[^,;\s]+)$")
-
-
-def _project_script(name: str) -> str:
-    suffix = ".exe" if os.name == "nt" else ""
-    return str(Path(sys.executable).parent / f"{name}{suffix}")
 
 
 def _declared_requirements() -> list[str]:
@@ -71,7 +66,7 @@ def run(session: nox.Session) -> None:
     result = cast(
         "str",
         session.run(
-            _project_script("deptry"),
+            RUNTIME.script("deptry"),
             "src/ethos",
             "--config",
             "pyproject.toml",

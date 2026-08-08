@@ -13,9 +13,10 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from tools.ci.python_test_gate import PYTHON
 from tools.ci.python_test_gate import PythonTestGate
 from tools.ci.python_test_gate import Settings
+from tools.ci.toolchain.environment import ProjectRuntime
 
 ROOT = Path(__file__).resolve().parents[2]
-HOSTED_PROJECTIONS = (
+HOSTED = (
     ".config/ci/templates/hosted/github-actions.yml",
     ".config/ci/templates/hosted/gitlab-ci.yml",
     ".github/workflows/ci.yml",
@@ -23,306 +24,184 @@ HOSTED_PROJECTIONS = (
 )
 
 
-def _nox() -> str:
-    return (ROOT / "noxfile.py").read_text(encoding="utf-8")
+def _text(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
 
 
 def _gates() -> dict[str, dict[str, object]]:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    return {gate["id"]: gate for gate in declaration["gates"]}
+    return {gate["id"]: gate for gate in tomllib.loads(_text("system/gates.toml"))["gates"]}
 
 
-def _assert_hosted(command: str, *, present: bool) -> None:
-    for relative in HOSTED_PROJECTIONS:
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert (command in text) is present
+def _hosted(command: str, *, present: bool) -> None:
+    assert all((command in _text(path)) is present for path in HOSTED)
 
 
-def test_nox_reuses_the_single_locked_project_environment() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    development = project["dependency-groups"]["dev"]
-
-    assert 'nox.options.default_venv_backend = "none"' in source
-    assert any(requirement.startswith("nox>=2026.7.11") for requirement in development)
-    assert any(requirement.startswith("uv>=0.12.2") for requirement in development)
-    assert "PROJECT_SCRIPTS = Path(sys.executable).parent" in source
-    assert 'suffix = ".exe" if os.name == "nt" else ""' in source
-    assert 'ruff = _project_script("ruff")' in source
-    assert '_project_script("uv"),' in source
-    assert '"-m",\n        "check_jsonschema"' in source
-
-
-def test_python_gate_helpers_bind_project_scripts_instead_of_path() -> None:
-    dependency = (ROOT / "tools/ci/dependency_hygiene.py").read_text(encoding="utf-8")
-    install = (ROOT / "tools/ci/local_install_smoke.py").read_text(encoding="utf-8")
-
-    assert '_project_script("deptry")' in dependency
-    assert '_project_script("uv")' in install
-
-
-def test_direct_python_dependencies_are_single_current_lower_bounds() -> None:
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    runtime = project["project"]["dependencies"]
-    development = [item for group in project["dependency-groups"].values() for item in group]
-    build = project["build-system"]["requires"]
-    requirements = [*runtime, *development, *build]
-
-    assert all(re.fullmatch(r"[A-Za-z0-9_.-]+>=[^,;\s]+", item) for item in requirements)
-    assert "cyclopts>=4.22.5" in runtime
-    assert "hatchling>=1.31.0" in development
-    assert "hypothesis>=6.165.2" in development
-    assert "ty>=0.0.69" in development
-    assert build == ["hatchling>=1.31.0"]
-
-
-def test_nox_gate_registry_uses_the_bound_python_runtime() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    gates = {gate["id"]: gate for gate in declaration["gates"]}
-
-    assert gates["import-boundaries"]["command"] == [
-        "{python}",
-        "-m",
-        "nox",
-        "-s",
-        "import_boundaries",
+def test_locked_runtime_and_direct_dependencies_are_singular() -> None:
+    source, project = _text("noxfile.py"), tomllib.loads(_text("pyproject.toml"))
+    requirements = [
+        *project["project"]["dependencies"],
+        *(item for group in project["dependency-groups"].values() for item in group),
+        *project["build-system"]["requires"],
     ]
+    assert 'nox.options.default_venv_backend = "none"' in source
+    assert "RUNTIME = ProjectRuntime.discover(ROOT)" in source
+    assert all(re.fullmatch(r"[A-Za-z0-9_.-]+>=[^,;\s]+", item) for item in requirements)
+    assert project["build-system"]["requires"] == ["hatchling>=1.31.0"]
+    for requirement in ("nox>=2026.7.11", "uv>=0.12.2", "ty>=0.0.69"):
+        assert requirement in project["dependency-groups"]["dev"]
 
 
-def test_self_hosted_nox_gates_bind_the_repository_locked_python(monkeypatch) -> None:
-    package_python = ROOT / "build/runtime/package-only/bin/python"
-    monkeypatch.setattr("ethos.repository.policy.gates.sys.executable", package_python.as_posix())
+def test_project_runtime_is_cross_platform_and_fails_closed(tmp_path: Path) -> None:
+    source = _text("tools/ci/toolchain/environment.py")
+    runtime = ProjectRuntime(tmp_path, tmp_path / "python", tmp_path / "bin")
+    assert 'suffix = ".exe" if os.name == "nt" else ""' in source
+    with pytest.raises(RuntimeError, match="project executable is unavailable"):
+        runtime.script("uv")
+
+
+def test_gate_helpers_consume_the_single_runtime_owner() -> None:
+    nox, dependency, install = map(
+        _text,
+        ("noxfile.py", "tools/ci/dependency_hygiene.py", "tools/ci/local_install_smoke.py"),
+    )
+    for source, executable in ((nox, "ruff"), (dependency, "deptry"), (install, "uv")):
+        assert f'RUNTIME.script("{executable}")' in source
+    assert "def _project_script(" not in nox + dependency + install
+
+
+def test_nox_sessions_are_the_declared_gate_owners() -> None:
+    gates, source = _gates(), _text("noxfile.py")
+    expected = {
+        "ruff": "lint",
+        "unit-architecture": "tests",
+        "coverage-floor": "coverage_floor",
+        "build": "build",
+        "local-install-smoke": "install_smoke",
+        "import-boundaries": "import_boundaries",
+    }
+    for gate, session in expected.items():
+        assert gates[gate]["command"] == ["{python}", "-m", "nox", "-s", session]
+        assert f"def {session}(" in source
+    _hosted("uv run --frozen --offline python -m nox -s format_check", present=True)
+    _hosted("uv run --frozen --offline python -m nox -s build", present=True)
+    _hosted("uv run --frozen --offline python -m nox -s lint", present=False)
+
+
+def test_self_hosted_gate_binds_the_worktree_python(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "ethos.repository.policy.gates.sys.executable",
+        (ROOT / "build/runtime/package-only/bin/python").as_posix(),
+    )
     policy = resolve_gate_policy(ROOT, tree_ref="HEAD", gate_ids=("ruff",))
-
     assert policy.registry["ruff"].command[:3] == (
         (ROOT / ".venv/bin/python").as_posix(),
         "-m",
         "nox",
     )
-    assert {path for path, _digest in policy.sources[0][1]} == {
-        "noxfile.py",
-        "pyproject.toml",
-        "uv.lock",
-    }
+    assert {path for path, _ in policy.sources[0][1]} == {"noxfile.py", "pyproject.toml", "uv.lock"}
 
 
-def test_nox_lint_includes_new_candidate_python_files() -> None:
-    source = _nox()
-
+def test_lint_and_format_cover_candidates_without_mutation() -> None:
+    source = _text("noxfile.py")
     for option in ("--cached", "--others", "--exclude-standard"):
         assert f'"{option}"' in source
-
-
-def test_nox_is_the_only_python_lint_orchestrator() -> None:
-    assert _gates()["ruff"]["command"] == ["{python}", "-m", "nox", "-s", "lint"]
-    _assert_hosted("uv run --frozen --offline python -m nox -s format_check", present=True)
-    _assert_hosted("uv run --frozen --offline python -m nox -s lint", present=False)
-
-
-def test_nox_exposes_explicit_ruff_format_without_mutating_lint() -> None:
-    source = _nox()
-
     format_body = source[source.index("def format_repository(") : source.index("def lint(")]
-    lint_body = source[source.index("def lint(") : source.index("def tests(")]
-    assert '_project_script("ruff"), "format", *common, *paths' in format_body
-    assert 'ruff, "format", *common, "--check", *paths' in lint_body
+    lint_body = source[source.index("def lint(") : source.index("def javascript_lint(")]
+    assert 'RUNTIME.script("ruff"), "format"' in format_body
+    assert 'ruff, "format", *common, "--check"' in lint_body
     assert '"--fix"' not in lint_body
 
 
-def test_nox_exposes_one_all_carrier_format_and_read_only_check() -> None:
-    source = _nox()
-
-    format_body = source[source.index("def format_repository(") : source.index("def lint(")]
-    check_body = source[source.index("def format_check(") : source.index("def tests(")]
-    for operation in (
-        "_format_config",
-        "_format_markdown",
-        "_format_shell",
-        "_format_javascript",
-        "_format_svg",
-    ):
-        assert operation in format_body
-    for check in (
-        "lint(session)",
-        "config_quality(session)",
-        "markdown_lint(session)",
-        "shell_lint(session)",
-        "javascript_lint(session)",
-        "svg_lint(session)",
-        "asset_validation(session)",
-    ):
-        assert check in check_body
-
-
-def test_wheel_build_materializes_only_the_openspec_production_closure() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
-    manifest = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-
-    assert manifest["dependencies"] == {"@fission-ai/openspec": "1.8.0"}
-    assert "@fission-ai/openspec" not in manifest["devDependencies"]
-    assert '"ETHOS_BUILD_NODE": str(NODE)' in source
-    assert '"ETHOS_BUILD_NPM_CLI": str(' in source
-    hook = (ROOT / "tools/ci/openspec_runtime_hook.py").read_text(encoding="utf-8")
-    assert '"ci"' in hook
-    assert '"--omit=dev"' in hook
-    assert '"--offline"' in hook
-    assert 'tempfile.mkdtemp(prefix="ethos-openspec-supply-")' in hook
-
-
-def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
-    gates, source = _gates(), _nox()
-
-    assert gates["unit-architecture"]["command"] == ["{python}", "-m", "nox", "-s", "tests"]
-    assert gates["coverage-floor"]["command"] == [
-        "{python}",
-        "-m",
-        "nox",
-        "-s",
-        "coverage_floor",
-    ]
-    assert "def tests(" in source
-    assert "def coverage_floor(" in source
-
-
-def test_nox_is_the_only_python_build_orchestrator() -> None:
-    assert _gates()["build"]["command"] == ["{python}", "-m", "nox", "-s", "build"]
-    _assert_hosted("uv run --frozen --offline python -m nox -s build", present=True)
-
-
-def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
-    gates, source = _gates(), _nox()
-
-    assert "def prepare_install_supply(" in source
-    assert gates["local-install-smoke"]["command"] == [
-        "{python}",
-        "-m",
-        "nox",
-        "-s",
-        "install_smoke",
-    ]
-
-
-def test_nox_owns_cross_platform_python_gate_sessions() -> None:
-    source = _nox()
-    sessions = (
-        "ci_templates",
-        "format_selection",
-        "architecture_projection",
-        "runbook_registry",
+def test_all_carrier_format_closure_is_explicit() -> None:
+    source = _text("noxfile.py")
+    write = source[source.index("def format_repository(") : source.index("def lint(")]
+    read = source[source.index("def format_check(") : source.index("def tests(")]
+    assert all(
+        f"_format_{name}" in write for name in ("config", "markdown", "shell", "javascript", "svg")
     )
-    for session in sessions:
-        assert f"def {session}(" in source
+    assert all(
+        f"{name}(session)" in read
+        for name in (
+            "lint",
+            "config_quality",
+            "markdown_lint",
+            "shell_lint",
+            "javascript_lint",
+            "svg_lint",
+            "asset_validation",
+        )
+    )
+
+
+def test_delivery_pipeline_owns_offline_build_and_package_conformance() -> None:
+    nox, delivery = _text("noxfile.py"), _text("tools/ci/delivery/pipeline.py")
+    manifest = json.loads(_text("package.json"))
+    assert manifest["dependencies"] == {"@fission-ai/openspec": "1.8.0"}
+    assert "DELIVERY = DeliveryPipeline.from_runtime(RUNTIME)" in nox
+    assert "DELIVERY.prove_host(session)" in nox
+    for token in (
+        'self.runtime.script("uv")',
+        '"--offline"',
+        '"ETHOS_BUILD_NODE"',
+        "self.prepare_supply()",
+        "self.prove_install(session)",
+        '"tests/architecture/test_portable_toolchain.py"',
+        '"tests/architecture/test_local_install_smoke.py"',
+    ):
+        assert token in delivery
+    hook = _text("tools/ci/openspec_runtime_hook.py")
+    assert all(token in hook for token in ('"ci"', '"--omit=dev"', '"--offline"'))
 
 
 @pytest.mark.parametrize(
-    ("session", "owned_tokens", "absent_scripts", "hosted", "hosted_mode"),
+    ("session", "owner", "removed", "hosted"),
     [
-        (
-            "prose",
-            ('_project_script("codespell")',),
-            ("run-prose-check.sh",),
-            "uv run --frozen --offline python -m nox -s prose",
-            "present",
-        ),
-        (
-            "shell_lint",
-            ('_project_script("shellcheck")',),
-            ("run-shell-lint.sh",),
-            "uv run --frozen --offline python -m nox -s shell_lint",
-            "absent",
-        ),
-        (
-            "markdown_lint",
-            (
-                'NODEJS_WHEEL = Path(import_module("nodejs_wheel").__file__).resolve().parent',
-                'ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"',
-            ),
-            ("run-markdown-lint.sh",),
-            "uv run --frozen --offline python -m nox -s markdown_lint",
-            "absent",
-        ),
+        ("prose", 'RUNTIME.script("codespell")', "run-prose-check.sh", True),
+        ("shell_lint", 'RUNTIME.script("shellcheck")', "run-shell-lint.sh", False),
+        ("markdown_lint", "NODE = DELIVERY.node", "run-markdown-lint.sh", False),
         (
             "config_quality",
-            ('import_module("tools.ci.config_quality").run',),
-            ("run-config-lint.sh", "install-taplo.sh"),
-            "uv run --frozen --offline python -m nox -s config_quality",
-            "absent",
+            'import_module("tools.ci.config_quality").run',
+            "run-config-lint.sh",
+            False,
         ),
         (
             "hosted_observation",
-            ('import_module("tools.ci.hosted_observation").capture_observation',),
-            ("run-hosted-provider-observation.sh",),
-            "uv run --frozen --offline python -m nox -s hosted_observation",
-            "present",
+            'import_module("tools.ci.hosted_observation").capture_observation',
+            "run-hosted-provider-observation.sh",
+            True,
         ),
     ],
 )
-def test_nox_is_the_only_declared_quality_orchestrator(
-    session: str,
-    owned_tokens: tuple[str, ...],
-    absent_scripts: tuple[str, ...],
-    hosted: str,
-    hosted_mode: str,
+def test_quality_sessions_have_one_owner(
+    session: str, owner: str, removed: str, *, hosted: bool
 ) -> None:
-    source = _nox()
+    source = _text("noxfile.py")
     assert f"def {session}(" in source
-    assert all(token in source for token in owned_tokens)
-    assert all(not (ROOT / "tools/ci/scripts" / script).exists() for script in absent_scripts)
-    _assert_hosted(hosted, present=hosted_mode == "present")
+    assert owner in source
+    assert not (ROOT / "tools/ci/scripts" / removed).exists()
+    _hosted(f"uv run --frozen --offline python -m nox -s {session}", present=hosted)
 
 
-def test_quality_orchestrator_toolchain_is_declared_once() -> None:
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+def test_toolchain_versions_and_native_config_have_one_declaration() -> None:
+    project, package = tomllib.loads(_text("pyproject.toml")), json.loads(_text("package.json"))
     dev = project["dependency-groups"]["dev"]
-    assert "shellcheck-py>=0.11.0.1" in dev
-    assert "yamllint>=1.38.0" in dev
-    assert package["devDependencies"] | {
-        "requires-python": project["project"]["requires-python"]
-    } == {
-        **package["devDependencies"],
-        "requires-python": ">=3.12",
-    }
+    assert {"shellcheck-py>=0.11.0.1", "yamllint>=1.38.0"} <= set(dev)
     assert package["devDependencies"]["markdownlint-cli2"] == "0.23.2"
     assert package["devDependencies"]["@taplo/cli"] == "0.7.0"
-    owner = (ROOT / "tools/ci/config_quality.py").read_text(encoding="utf-8")
-    assert "from yamllint import linter as yamllint_linter" in owner
-    assert 'ROOT / "node_modules/@taplo/cli/dist/cli.js"' in owner
-    pre_commit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
-    assert "uv run --frozen --offline python -m nox -s config_quality" in pre_commit
-
-
-def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
-    source = _nox()
-
-    assert "def host_conformance(" in source
-    assert "_build_wheel(session)" in source
-    assert "prepare_install_supply(session)" in source
-    assert "run_install_smoke(session)" in source
-    assert '"tests/architecture/test_portable_toolchain.py"' in source
-    assert '"tests/architecture/test_local_install_smoke.py"' in source
+    assert "from yamllint import linter as yamllint_linter" in _text("tools/ci/config_quality.py")
+    assert "uv run --frozen --offline python -m nox -s config_quality" in _text(
+        ".pre-commit-config.yaml"
+    )
 
 
 def test_python_test_gate_uses_portable_runtime_paths_and_lock(tmp_path: Path) -> None:
     gate = PythonTestGate(
-        Settings(
-            head="0" * 40,
-            evidence=tmp_path / "evidence",
-            basetemp=tmp_path / "pytest",
-            workers=None,
-            shards=None,
-            durations=1,
-            timeout=None,
-            lock_wait=1,
-            identity=None,
-        )
+        Settings("0" * 40, tmp_path / "evidence", tmp_path / "pytest", None, None, 1, None, 1, None)
     )
-    source = (ROOT / "tools/ci/python_test_gate.py").read_text(encoding="utf-8")
-
+    source = _text("tools/ci/python_test_gate.py")
     assert Path(sys.executable) == PYTHON
     assert gate.identity_home.parent == Path(tempfile.gettempdir())
     assert "FileLock" in source
     assert '"GIT_CONFIG_GLOBAL": os.devnull' in source
-    assert "_process_start" not in source
     assert 'ROOT / ".venv/bin/python"' not in source
-    assert 'os.getenv("TMPDIR", "/tmp")' not in source

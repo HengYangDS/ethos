@@ -1317,7 +1317,9 @@ def test_complete_adopter_commands_require_openspec_layout(tmp_path: Path) -> No
         )
         for payload in payloads
     )
-    assert any("openspec_active_change_missing" in payload["required_gaps"] for payload in payloads)
+    assert all(
+        "openspec_active_change_missing" not in payload["required_gaps"] for payload in payloads
+    )
 
 
 def test_plan_surfaces_transition_plan_block_as_top_level_block(tmp_path: Path) -> None:

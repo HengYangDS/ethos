@@ -22,8 +22,14 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.profile import load_work_lane_commitment
+from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+from ethos.adapters.openspec.start_effect import current_generation_scope
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -193,32 +199,48 @@ def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_outp
     return True
 
 
-def _changed_paths(repo: Path) -> tuple[str, ...]:
-    """Return the current tracked change scope for proof planning."""
-    return change_scope_paths_from_status(
-        repo, workspace_status(repo, include_foreign_path_scope=False)
+def _generation_scope(repo: Path) -> CurrentGenerationScope:
+    """Observe one current Change generation scope for this proof invocation."""
+    status = workspace_status(repo, include_foreign_path_scope=False)
+    fallback = change_scope_paths_from_status(repo, status)
+    if status.get("role") != ROLE_WORK_LANE:
+        return CurrentGenerationScope(fallback, {})
+    try:
+        branch = str(status.get("branch") or "")
+        lease = leases_by_branch(repo).get(branch, {})
+        commitment = load_work_lane_commitment(repo, lease=lease)
+        repository = load_repository_commitment(repo)
+    except ValueError:
+        return CurrentGenerationScope(fallback, {})
+    return current_generation_scope(
+        repo,
+        head=str(status.get("head") or ""),
+        repository_id=repository.id,
+        commitment=commitment,
+        lease=lease,
+        fallback_paths=fallback,
     )
 
 
 def _proof_context(
     repo: Path, options: _ProofOptions
-) -> tuple[str, dict[str, object], tuple[str, ...], dict[str, object]]:
+) -> tuple[str, dict[str, object], CurrentGenerationScope, dict[str, object]]:
     """Observe the repository and OpenSpec lifecycle once for governed proof."""
     current_head = git.current_head(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
-    changed_paths = _changed_paths(repo)
+    generation_scope = _generation_scope(repo)
     openspec_lifecycle = (
         openspec_governance_report(
             repo,
             change=options.change,
             lifecycle=True,
-            changed_paths=changed_paths,
+            changed_paths=generation_scope.paths,
             require_workspace=False,
         )
         if openspec_profile_enabled(repo, tree_ref=current_head)
         else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
     )
-    return current_head, audit, changed_paths, openspec_lifecycle
+    return current_head, audit, generation_scope, openspec_lifecycle
 
 
 def run_plan_checks(
@@ -318,7 +340,8 @@ def prove(
         json_output=json_output,
     ):
         return
-    current_head, audit, changed_paths, openspec_lifecycle = _proof_context(repo, options)
+    current_head, audit, generation_scope, openspec_lifecycle = _proof_context(repo, options)
+    changed_paths = generation_scope.paths
     try:
         plan = proof_plan(
             repo,
@@ -326,7 +349,8 @@ def prove(
             change_id=options.change,
             gate_ids=options.gate,
             full=options.full,
-            changed_paths=changed_paths,
+            changed_paths=generation_scope.paths,
+            generation_scope=generation_scope,
         )
     except ValueError as exc:
         emit(

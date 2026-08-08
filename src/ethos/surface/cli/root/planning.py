@@ -15,6 +15,8 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
+from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
@@ -29,6 +31,7 @@ from ethos.contracts.review import compile_review_plan
 from ethos.contracts.review import load_review_lens_declaration
 from ethos.contracts.review import load_review_results
 from ethos.contracts.review import reduce_review_results
+from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.domain.plan import matching_rule_gates
@@ -87,6 +90,39 @@ def _archive_plan_authority(
     )
 
 
+def _plan_binding(
+    repo: Path,
+    *,
+    status: dict[str, object],
+    head: str,
+    repository_id: str,
+    change: str | None,
+    changed: bool,
+) -> tuple[dict[str, object], Commitment, CurrentGenerationScope]:
+    """Bind one commitment, Lease, and observed Change generation."""
+    work_lane = status.get("role") == ROLE_WORK_LANE
+    lease = leases_by_branch(repo).get(str(status.get("branch") or ""), {}) if work_lane else {}
+    commitment = (
+        load_work_lane_commitment(repo, change_id=change, lease=lease)
+        if work_lane
+        else load_profile_commitment(repo, change_id=change)
+    )
+    fallback = change_scope_paths_from_status(repo, status) if changed else ()
+    scope = (
+        current_generation_scope(
+            repo,
+            head=head,
+            repository_id=repository_id,
+            commitment=commitment,
+            lease=lease,
+            fallback_paths=fallback,
+        )
+        if changed and work_lane
+        else CurrentGenerationScope(fallback, {})
+    )
+    return lease, commitment, scope
+
+
 @app.command
 def plan(
     *,
@@ -103,21 +139,16 @@ def plan(
     """Compile deterministic TransitionPlan."""
     repo = resolve_root(root)
     status_payload = workspace_status(repo)
-    paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
+    head = str(status_payload.get("head") or "")
+    repository = load_repository_commitment(repo)
     try:
-        lease = (
-            leases_by_branch(repo).get(str(status_payload.get("branch") or ""), {})
-            if status_payload.get("role") == ROLE_WORK_LANE
-            else {}
-        )
-        commitment = (
-            load_work_lane_commitment(
-                repo,
-                change_id=change,
-                lease=lease,
-            )
-            if status_payload.get("role") == ROLE_WORK_LANE
-            else load_profile_commitment(repo, change_id=change)
+        lease, commitment, generation_scope = _plan_binding(
+            repo,
+            status=status_payload,
+            head=head,
+            repository_id=repository.id,
+            change=change,
+            changed=changed,
         )
     except ValueError as exc:
         gap = str(exc)
@@ -135,8 +166,7 @@ def plan(
             enforce=False,
         )
         return
-    head = str(status_payload.get("head") or "")
-    repository = load_repository_commitment(repo)
+    paths = generation_scope.paths
     matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
     profile_adapter: dict[str, object] = {}
     intent_context: dict[str, object] = {}
@@ -215,6 +245,11 @@ def plan(
         paths=paths,
         work_lane=status_payload.get("role") == ROLE_WORK_LANE,
     )
+    prior_attestations = ({"openspec_archive": archive_authority} if archive_authority else {}) | (
+        {"openspec_change_start": generation_scope.start_authority}
+        if generation_scope.start_authority
+        else {}
+    )
     foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])
     peers = [lane | {"proof_cost": _peer_proof_cost(repo, lane)} for lane in foreign]
     candidate = cast("dict[str, object]", status_payload.get("candidate") or {})
@@ -234,7 +269,7 @@ def plan(
         facts,
         policy.nodes,
         policy=policy.projection,
-        prior_attestations=({"openspec_archive": archive_authority} if archive_authority else {}),
+        prior_attestations=prior_attestations,
         required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps, *intent_gaps))),
     )
     playbooks = playbooks_report(repo)

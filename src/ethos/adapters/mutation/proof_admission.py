@@ -77,10 +77,22 @@ def _admitted_proofs(
         )
         for floor in ("full", "default")
     }
-    valid = next((items for items in valid_by_floor.values() if items), ())
+    full_required = (
+        resolve_gate_policy(root, tree_ref=head, full=True).digest
+        != resolve_gate_policy(root, tree_ref=head).digest
+    )
+    valid = (
+        valid_by_floor["full"]
+        if full_required
+        else next((items for items in valid_by_floor.values() if items), ())
+    )
     if not valid:
-        set_gaps = list(
-            dict.fromkeys(gap for _item, _floor, item_gaps in evaluated for gap in item_gaps)
+        set_gaps = (
+            ["full_proof_required"]
+            if full_required and valid_by_floor["default"]
+            else list(
+                dict.fromkeys(gap for _item, _floor, item_gaps in evaluated for gap in item_gaps)
+            )
         )
     elif len({_bindings(item) for item in valid}) > 1:
         set_gaps = ["stale_binding"]

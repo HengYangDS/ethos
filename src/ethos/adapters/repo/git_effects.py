@@ -250,45 +250,20 @@ def execute_git_effect(
         )
         _project_and_clear(root, intents, projection)
         return attestation
-    observed = observe_git_effect(root, effect, environment=environment)
-    refs = cast("dict[str, str]", observed["refs"])
-    expected = {name: update.expected for name, update in effect.updates.items()}
+    observed, recovering, repository = _admit_git_effect(
+        root,
+        plan,
+        effect,
+        environment=environment,
+        detached_branch=detached_branch,
+    )
     desired = {name: update.desired for name, update in effect.updates.items()}
-    recovering = refs == desired
-    if observed["assertions"] != effect.assertions:
-        msg = "git_effect_cas_mismatch"
-        raise ValueError(msg)
-    if recovering:
-        _require_live_lease(
-            root,
-            plan,
-            environment=environment,
-            detached_branch=detached_branch,
-            recovering=True,
-        )
     intents: list[dict[str, object]] = []
     applied = False
     try:
         if recovering:
             intents = _claim_effect_intents(root, plan, effect, phase="recover")
         else:
-            _require_plan_prestate(
-                root,
-                plan,
-                effect,
-                environment=environment,
-                detached_branch=detached_branch,
-            )
-            repository = resolve_git_effect_repository(
-                root,
-                effect,
-                observed,
-                environment=environment,
-                allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
-            )
-            if refs != expected:
-                msg = "git_effect_cas_mismatch"
-                raise ValueError(msg)
             intents = _claim_effect_intents(root, plan, effect, phase="prepared")
             completed = run_git(
                 root,
@@ -326,6 +301,71 @@ def execute_git_effect(
     finally:
         if not applied and not recovering:
             _abort_effect_intents(root, effect, intents)
+
+
+def admit_git_effect(
+    root: Path,
+    plan: TransitionPlan,
+    *,
+    environment: Mapping[str, str] | None = None,
+    detached_branch: str = "",
+) -> None:
+    """Validate the exact Git effect plan without claiming intents or mutating refs."""
+    effect = git_effect_from_plan(plan)
+    _require_effect_permission(effect, plan)
+    _admit_git_effect(
+        root,
+        plan,
+        effect,
+        environment=environment,
+        detached_branch=detached_branch,
+    )
+
+
+def _admit_git_effect(
+    root: Path,
+    plan: TransitionPlan,
+    effect: GitEffect,
+    *,
+    environment: Mapping[str, str] | None,
+    detached_branch: str,
+) -> tuple[dict[str, object], bool, str]:
+    """Return one fully admitted current observation shared by dry-run and apply."""
+    observed = observe_git_effect(root, effect, environment=environment)
+    refs = cast("dict[str, str]", observed["refs"])
+    expected = {name: update.expected for name, update in effect.updates.items()}
+    desired = {name: update.desired for name, update in effect.updates.items()}
+    recovering = refs == desired
+    if observed["assertions"] != effect.assertions:
+        message = "git_effect_cas_mismatch"
+        raise ValueError(message)
+    if recovering:
+        _require_live_lease(
+            root,
+            plan,
+            environment=environment,
+            detached_branch=detached_branch,
+            recovering=True,
+        )
+        return observed, True, ""
+    _require_plan_prestate(
+        root,
+        plan,
+        effect,
+        environment=environment,
+        detached_branch=detached_branch,
+    )
+    repository = resolve_git_effect_repository(
+        root,
+        effect,
+        observed,
+        environment=environment,
+        allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
+    )
+    if refs != expected:
+        message = "git_effect_cas_mismatch"
+        raise ValueError(message)
+    return observed, False, repository
 
 
 def _claim_effect_intents(
@@ -459,7 +499,9 @@ def _require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
     admitted = set(plan.permissions)
     if "git.ref.compare-and-swap" in admitted or set(effect.permissions) <= admitted:
         return
-    if _is_commitment_rebind_authority(effect, plan):
+    if _is_commitment_rebind_authority(effect, plan) or _is_candidate_integration_authority(
+        effect, plan
+    ):
         return
     msg = "git_effect_permission_denied"
     raise ValueError(msg)
@@ -495,6 +537,40 @@ def _is_commitment_rebind_authority(effect: GitEffect, plan: TransitionPlan) -> 
         and new_digest == successor.get("base_commitment_digest")
         and plan.policy.get("old_commitment_digest") == generation.get("base_commitment_digest")
         and plan.policy.get("new_commitment_digest") == new_digest
+    )
+
+
+def _is_candidate_integration_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
+    """Recognize one exact proof- and Lease-bound candidate integration CAS."""
+    if plan.policy.get("operation") != "candidate.integrate":
+        return False
+    values = plan.facts.get("values")
+    facts = values if isinstance(values, Mapping) else {}
+    generation = facts.get("lease_generation")
+    proof = plan.prior_attestations.get("proof")
+    if not isinstance(generation, Mapping) or not isinstance(proof, Mapping):
+        return False
+    updates, assertions = tuple(effect.updates.items()), tuple(effect.assertions.items())
+    if len(updates) != 1 or len(assertions) != 1:
+        return False
+    ref, update = updates[0]
+    source_ref, source_head = assertions[0]
+    candidate = str(plan.policy.get("candidate_branch") or "")
+    proof_statement = proof.get("statement")
+    statement = proof_statement if isinstance(proof_statement, Mapping) else {}
+    return (
+        bool(candidate)
+        and ref == f"refs/heads/{candidate}"
+        and source_ref == f"refs/heads/{generation.get('branch') or ''}"
+        and source_head == update.desired == plan.facts.get("head")
+        and update.expected != update.desired
+        and generation.get("expected_head") == update.desired
+        and proof.get("predicate") == "proof:execution"
+        and proof.get("verdict") == "pass"
+        and proof.get("subject") == f"git:commit:{update.desired}"
+        and statement.get("head", update.desired) == update.desired
+        and proof.get("commitment_digest") == generation.get("base_commitment_digest")
+        and proof.get("commitment_digest") == plan.inputs.commitment
     )
 
 

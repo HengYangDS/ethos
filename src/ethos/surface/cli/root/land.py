@@ -17,9 +17,8 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.landing import apply_candidate_to_accepted
 from ethos.adapters.mutation.landing import apply_land_to_candidate
-from ethos.adapters.mutation.landing import candidate_base_report
+from ethos.adapters.mutation.landing import candidate_transition_readiness
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.profile import active_change_names
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -389,13 +388,9 @@ def _candidate_land_result(
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
     elif verdict == "pass":
-        update = candidate_base_report(root=repo, status=status_payload)
+        update = candidate_transition_readiness(root=repo, status=status_payload)
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
-    if verdict == "pass" and not apply:
-        current_proof_gaps = tuple(proof_gaps(repo, current_head))
-        gaps = tuple(dict.fromkeys((*gaps, *current_proof_gaps)))
-        verdict = reduce_verdicts(verdict, required_gaps=gaps)
     state = (
         "ready_to_land"
         if verdict == "pass" and not apply

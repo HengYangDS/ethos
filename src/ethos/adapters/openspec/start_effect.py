@@ -12,9 +12,11 @@ from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
+from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import repository_path_matches
 
 if TYPE_CHECKING:
@@ -85,8 +87,10 @@ def _start_authority(
         "tuple[JsonObject, JsonObject, JsonObject, JsonObject, JsonObject]", values
     )
     previous_head = str(input_data.get("head") or "")
+    start_head = str(output.get("head") or "")
     change = commitment.id.removeprefix("change:")
     before, after = _generation(input_data.get("lease")), _generation(output.get("lease"))
+    current = lease_generation(lease)
     try:
         started_commitment = (
             load_lease_bound_commitment(root, lease=after, change_id=change)
@@ -106,10 +110,18 @@ def _start_authority(
         and statement.get("repository") == repository_id
         and claim == {"operation": "openspec.change.start", "effect": attestation.effect_digest}
         and result == {"state": "applied", "executed": True, "exit_code": 0}
-        and output.get("head") == head
+        and output.get("head") == start_head
         and before is not None
         and after is not None
-        and after == lease_generation(lease)
+        and after.get("branch") == current.get("branch")
+        and after.get("lane_incarnation_id") == current.get("lane_incarnation_id")
+        and after.get("lease_id") == current.get("lease_id")
+        and integer(after.get("epoch"), default=-1) <= integer(current.get("epoch"), default=-1)
+        and after.get("expected_head") == start_head
+        and after.get("expected_tree") == current_tree(root, start_head)
+        and current.get("expected_head") == head
+        and current.get("expected_tree") == current_tree(root, head)
+        and current.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml"
         and before.get("expected_head") == previous_head
         and before.get("expected_tree") == current_tree(root, previous_head)
         and before.get("branch") == after.get("branch")
@@ -119,14 +131,14 @@ def _start_authority(
         and before.get("epoch") == after.get("epoch", 0) - 1
         and str(before.get("base_commitment_path") or "").startswith("openspec/changes/archive/")
         and after.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml"
-        and current_tree(root, head) == str(after.get("expected_tree") or "")
-        and git_stdout(root, "rev-parse", f"{head}^") == previous_head
+        and git_stdout(root, "rev-parse", f"{start_head}^") == previous_head
+        and is_ancestor(root, start_head, head)
         and freshness.get("repository") == repository_id
         and freshness.get("subject")
-        == {"change": change, "previous_head": previous_head, "head": head}
+        == {"change": change, "previous_head": previous_head, "head": start_head}
         and freshness.get("change") == change
         and freshness.get("previous_head") == previous_head
-        and freshness.get("head") == head
+        and freshness.get("head") == start_head
         and freshness.get("output_digest") == canonical_json_digest(output)
         and statement.get("input_digest") == canonical_json_digest(input_data)
         and statement.get("output_digest")

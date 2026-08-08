@@ -212,7 +212,13 @@ def _measure(
     classify_executables: bool = True,
 ) -> tuple[dict[str, int], dict[str, object], dict[str, dict[str, object]], tuple[str, ...]]:
     metrics: Counter[str] = Counter(
-        {**{carrier.category: 0 for carrier in policy.carriers}, "record_total": 0}
+        {
+            **{
+                carrier.category: 0 for carrier in policy.carriers if carrier.accounting == "source"
+            },
+            "record_total": 0,
+            "generated_evidence_total": 0,
+        }
     )
     records: dict[str, dict[str, object]] = {}
     gaps: list[str] = []
@@ -257,11 +263,20 @@ def _measure(
             gaps.append(f"source_budget_carrier_unreadable:{relative}")
             continue
         record = relative.startswith(policy.immutable_record_roots)
-        metrics["record_total" if record else carrier.category] += count
+        accounting = "record" if record else carrier.accounting
+        metric = (
+            "record_total"
+            if record
+            else "generated_evidence_total"
+            if carrier.accounting == "generated_evidence"
+            else carrier.category
+        )
+        metrics[metric] += count
         records[relative] = {
             "category": carrier.category,
             "effective_lines": count,
             "record": record,
+            "accounting": accounting,
         }
     for name, members in policy.aggregates.items():
         metrics[name] = sum(metrics[member] for member in members)
@@ -336,10 +351,15 @@ def _cross_check(
     canonical: dict[str, int],
 ) -> tuple[dict[str, object], tuple[str, ...]]:
     implementation_records = {
-        relative: record for relative, record in records.items() if not record["record"]
+        relative: record for relative, record in records.items() if record["accounting"] == "source"
     }
     immutable_records = {
-        relative: record for relative, record in records.items() if record["record"]
+        relative: record for relative, record in records.items() if record["accounting"] == "record"
+    }
+    generated_records = {
+        relative: record
+        for relative, record in records.items()
+        if record["accounting"] == "generated_evidence"
     }
     implementation_counts, invalid = _scc_counts(root, policy, implementation_records)
     if implementation_counts is None:
@@ -350,6 +370,9 @@ def _cross_check(
         if measured_records is None:
             return {}, invalid
         record_counts = measured_records
+    generated_counts = {
+        relative: int(record["effective_lines"]) for relative, record in generated_records.items()
+    }
     python_categories = set(policy.aggregates["python_total"])
     python_total = sum(
         count
@@ -363,13 +386,15 @@ def _cross_check(
         "python_total": python_total,
         "global_total": global_total,
         "record_total": record_total,
-        "file_count": len(implementation_counts) + len(record_counts),
+        "generated_evidence_total": sum(generated_counts.values()),
+        "file_count": len(implementation_counts) + len(record_counts) + len(generated_counts),
     }
     gaps = [
         f"source_budget_scc_file_missing:{relative}"
         for relative in sorted(
             (set(implementation_records) - set(implementation_counts))
             | (set(immutable_records) - set(record_counts))
+            | (set(generated_records) - set(generated_counts))
         )
     ]
     comparisons = {

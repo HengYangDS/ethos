@@ -10,6 +10,21 @@ aggregates = { python_total = ["python_product", "python_tests", "python_tools",
 immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
 line_width = 100
 
+[[format]]
+extensions = [".lock", ".json", ".yaml", ".yml"]
+carrier = "Dependency resolution evidence"
+owner = "ecosystem-native package manager"
+execution = "package-manager-specific verification"
+truth_boundary = "generated dependency resolution, not hand-authored source"
+[[format.budget]]
+category = "dependency_resolution"
+paths = [
+  "*.lock", "**/*.lock", "*-lock.json", "**/*-lock.json",
+  "*-lock.yaml", "**/*-lock.yaml", "*-lock.yml", "**/*-lock.yml",
+  "npm-shrinkwrap.json", "**/npm-shrinkwrap.json",
+]
+accounting = "generated_evidence"
+
 [[ownership]]
 id = "official-openspec"
 priority = 100
@@ -241,13 +256,6 @@ owner = "tool-native config owner"
 execution = "tool-specific gate"
 truth_boundary = "tool-native config"
 budget = [{ category = "ini", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#", ";"] }]
-
-[[format]]
-extensions = [".lock"]
-carrier = "Lockfile"
-owner = "ecosystem-native package manager"
-execution = "package-manager-specific verification"
-truth_boundary = "dependency resolution evidence"
 
 [[format]]
 extensions = [".js", ".mjs", ".cjs"]

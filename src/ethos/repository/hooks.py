@@ -154,6 +154,8 @@ def initiating_hook_transaction(root: Path) -> Iterator[dict[str, str]]:
     launcher = (
         "#!/bin/sh\n"
         "# Generated for one ETHOS Git transaction.\n"
+        f'ETHOS_HOOK_TRANSACTION_ROOT="{root.resolve().as_posix()}"; '
+        "export ETHOS_HOOK_TRANSACTION_ROOT\n"
         f'exec "{executable.as_posix()}" -I -m ethos.cli hook run "$0" "$@"\n'
     )
     try:

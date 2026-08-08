@@ -144,6 +144,14 @@ def _completion_transition_gap(
     )
 
 
+def _selection_required(request: OpenSpecRequest, root: Path) -> bool:
+    return (
+        request.change is not None
+        or bool(request.changed_paths)
+        or bool(git_stdout(root, "diff", "--cached", "--name-only"))
+    )
+
+
 def _openspec_governance_report(
     root: Path,
     *,
@@ -308,7 +316,7 @@ def _openspec_governance_report(
         required_gaps.extend(openspec_cli.status_contract_gaps(status["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("apply", apply["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("archive", archive["json"]))
-    if archive_scope is None:
+    if archive_scope is None and (rows is None or rows or _selection_required(request, root)):
         required_gaps.extend(
             ["openspec_list_unreadable"] if rows is None else selection_gaps(rows, request.change)
         )

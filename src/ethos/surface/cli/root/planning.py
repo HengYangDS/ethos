@@ -20,6 +20,7 @@ from ethos.adapters.repo.coordination import collaboration_competition_projectio
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -104,16 +105,9 @@ def plan(
     status_payload = workspace_status(repo)
     paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     try:
-        support = status_payload.get("closeout_support")
         lease = (
-            {
-                "expected_head": support.get("lease_expected_head"),
-                "expected_tree": support.get("lease_expected_tree"),
-                "base_commitment_path": support.get("lease_base_commitment_path"),
-                "base_commitment_bytes_sha256": support.get("lease_base_commitment_bytes_sha256"),
-                "base_commitment_digest": support.get("base_commitment_digest"),
-            }
-            if isinstance(support, dict)
+            leases_by_branch(repo).get(str(status_payload.get("branch") or ""), {})
+            if status_payload.get("role") == ROLE_WORK_LANE
             else {}
         )
         commitment = (

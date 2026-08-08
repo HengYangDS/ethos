@@ -135,6 +135,7 @@ def test_wheel_build_materializes_only_the_openspec_production_closure() -> None
     assert '"ci"' in hook
     assert '"--omit=dev"' in hook
     assert '"--offline"' in hook
+    assert 'tempfile.mkdtemp(prefix="ethos-openspec-supply-")' in hook
 
 
 def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:

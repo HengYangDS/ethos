@@ -808,8 +808,8 @@ def test_fresh_adopter_without_material_change_does_not_require_openspec_workspa
 
     report = openspec_governance_report(repo, lifecycle=True, require_workspace=False)
 
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["openspec_active_change_missing"]
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
 
 
 def test_fresh_adopter_material_change_requires_explicit_openspec_change(tmp_path: Path) -> None:

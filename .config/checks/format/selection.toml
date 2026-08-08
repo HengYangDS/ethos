@@ -19,9 +19,16 @@ truth_boundary = "generated dependency resolution, not hand-authored source"
 [[format.budget]]
 category = "dependency_resolution"
 paths = [
-  "*.lock", "**/*.lock", "*-lock.json", "**/*-lock.json",
-  "*-lock.yaml", "**/*-lock.yaml", "*-lock.yml", "**/*-lock.yml",
-  "npm-shrinkwrap.json", "**/npm-shrinkwrap.json",
+  "*.lock",
+  "**/*.lock",
+  "*-lock.json",
+  "**/*-lock.json",
+  "*-lock.yaml",
+  "**/*-lock.yaml",
+  "*-lock.yml",
+  "**/*-lock.yml",
+  "npm-shrinkwrap.json",
+  "**/npm-shrinkwrap.json",
 ]
 accounting = "generated_evidence"
 

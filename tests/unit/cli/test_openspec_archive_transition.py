@@ -4,7 +4,7 @@ import json
 import shutil
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -26,9 +26,6 @@ from ethos.normalization.coercion import repository_path_matches
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_scope_glob_matches_archive_directory_descendants() -> None:
@@ -132,6 +129,7 @@ def test_archive_commit_uses_the_initiating_runtime_not_poisoned_hooks_path(
         lambda _root, head: [] if head == completed_head else ["proof_not_proven"],
     )
     installed = install_hook_launchers(worktree)
+    shutil.rmtree(Path(str(installed["runtime_manifest_path"])).parent)
     poisoned = tmp_path / "stale-checkout-hooks"
     poisoned.mkdir()
     (poisoned / "pre-commit").write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")

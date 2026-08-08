@@ -84,6 +84,22 @@ def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
     }
 
 
+def hook_runtime_transaction_environment(root: Path) -> dict[str, str]:
+    """Bind one Git transaction to the already validated package hook runtime."""
+    binding = hook_runtime_binding(root)
+    runtime_gaps = [
+        gap for gap in binding["required_gaps"] if gap != "write_admission_not_armed:core.hooksPath"
+    ]
+    if runtime_gaps:
+        message = runtime_gaps[0]
+        raise ValueError(message)
+    return {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "core.hooksPath",
+        "GIT_CONFIG_VALUE_0": binding["hooks_path"],
+    }
+
+
 def _runtime_from_launcher(launcher: Path) -> tuple[Path | None, Path | None, str, str]:
     if not launcher.is_file():
         return None, None, "", ""

@@ -49,6 +49,7 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
+from ethos.repository.hooks import hook_runtime_transaction_environment
 
 
 class _ArchiveTransition(NamedTuple):
@@ -378,6 +379,10 @@ def _apply_archive(
     command = openspec_cli.openspec_base_command()
     if command is None:
         return _report(branch, head, "blocked", ["openspec_official_cli_missing"], change=change)
+    try:
+        hook_environment = hook_runtime_transaction_environment(repo)
+    except ValueError as error:
+        return _report(branch, head, "blocked", [str(error)], change=change)
     if collision is not None:
         move_tracked_tree(repo, collision.path, collision.preserved_path)
     result = openspec_cli.run_json(repo, command, ("archive", change, "--yes", "--json"))
@@ -428,7 +433,8 @@ def _apply_archive(
         repo,
         previous=head,
         message=f"archive OpenSpec change {change}",
-        environment=archive_transition_environment(
+        environment=hook_environment
+        | archive_transition_environment(
             repo,
             change=change,
             head=head,

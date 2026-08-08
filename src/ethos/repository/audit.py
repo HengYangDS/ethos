@@ -12,8 +12,6 @@ from ethos.contracts.verdict import report_verdict
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
-from ethos.repository.openspec.audit import openspec_provider_missing_report
-from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.policy.references.closure import repository_product_reference_gaps
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
@@ -118,6 +116,7 @@ def repository_audit(
     openspec_reporter: OpenSpecReporter | None = None,
     write_admission_gaps: list[str] | None = None,
     tracked_documents: tuple[str, ...] = (),
+    openspec_shape: dict[str, object] | None = None,
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -144,9 +143,14 @@ def repository_audit(
     }
     design_integrity = design_integrity_report(root, tracked_documents=tracked_documents)
     if openspec_mode == "shape":
-        openspec = openspec_shape_report(root)
+        openspec = openspec_shape or {}
     elif openspec_reporter is None:
-        openspec = openspec_provider_missing_report(root)
+        openspec = {
+            "verdict": "block",
+            "mode": "deep",
+            "shape": openspec_shape or {},
+            "required_gaps": ["openspec_reporter_not_configured"],
+        }
     else:
         openspec = openspec_reporter(root)
     schema_gaps = [str(gap) for gap in cast("list[str]", schema_report["required_gaps"])]

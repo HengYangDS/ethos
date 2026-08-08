@@ -202,6 +202,12 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     return completed.returncode == 0
 
 
+def current_branch(root: Path) -> str:
+    """Return the current branch, or an empty string when HEAD is detached."""
+    completed = run_git(root, "branch", "--show-current", check=False)
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
 def current_head(root: Path) -> str:
     """Return the current HEAD sha, or 'untracked' if not a resolvable ref."""
     try:

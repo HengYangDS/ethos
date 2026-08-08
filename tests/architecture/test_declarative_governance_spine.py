@@ -56,6 +56,36 @@ def test_python_process_execution_uses_argv_without_a_shell() -> None:
     assert findings == []
 
 
+def test_git_executable_resolution_and_process_spawn_have_one_owner() -> None:
+    owner = CORE_SOURCE / "adapters" / "repo" / "git.py"
+    findings = []
+    for path in CORE_SOURCE.rglob("*.py"):
+        if path == owner:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = ast.unparse(node.func)
+            if function in {"shutil.which", "which"} and any(
+                isinstance(argument, ast.Constant) and argument.value == "git"
+                for argument in node.args
+            ):
+                findings.append(f"{path.relative_to(ROOT)}:{node.lineno}:git-resolver")
+            if function != "subprocess.run":
+                continue
+            literals = {
+                descendant.value
+                for argument in node.args
+                for descendant in ast.walk(argument)
+                if isinstance(descendant, ast.Constant) and isinstance(descendant.value, str)
+            }
+            if "git" in literals:
+                findings.append(f"{path.relative_to(ROOT)}:{node.lineno}:git-spawn")
+
+    assert findings == []
+
+
 def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:
     source = _read("src/ethos/contracts/plan.py")
     assert "from graphlib import" in source

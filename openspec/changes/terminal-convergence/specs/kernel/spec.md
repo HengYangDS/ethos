@@ -114,6 +114,15 @@ A valid requirement that cannot be represented losslessly by the roots and carri
 - **AND** post-effect observation and Attestation remain separate from policy
   evaluation
 
+#### Scenario: an adapter executes Git
+- **WHEN** an ETHOS reader, admission path, hook, or mutation adapter executes Git
+- **THEN** the sole Git IO owner SHALL resolve an absolute executable from the
+  exact execution environment and use that same environment for process creation
+- **AND** import-time PATH state, hard-coded host paths, and parallel Git
+  subprocess owners SHALL NOT influence execution
+- **AND** an unavailable executable or invalid process root SHALL produce a
+  structured fail-closed result without a traceback
+
 #### Scenario: a new requirement does not fit the model
 - **WHEN** carrier extraction cannot map the requirement without an exception or parallel truth owner
 - **THEN** ETHOS preserves the distinction for model promotion and blocks the effect

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -98,12 +97,13 @@ def control_replacement_report(
 
 
 def _changed_paths(root: Path, accepted_head: str, candidate_head: str) -> tuple[str, ...] | None:
-    completed = subprocess.run(
-        ["git", "diff", "--no-renames", "--name-only", f"{accepted_head}..{candidate_head}"],
-        cwd=root,
+    completed = git.run_git(
+        root,
+        "diff",
+        "--no-renames",
+        "--name-only",
+        f"{accepted_head}..{candidate_head}",
         check=False,
-        text=True,
-        capture_output=True,
     )
     return (
         tuple(path for path in completed.stdout.splitlines() if path)
@@ -206,20 +206,25 @@ def _control_digest(root: Path, head: str, paths: tuple[str, ...]) -> str | None
     """Return the content-addressed control snapshot for one immutable Git tree."""
     records = []
     for path in paths:
-        probe = subprocess.run(
-            ["git", "ls-tree", "-z", head, "--", path],
-            cwd=root,
+        probe = git.run_git(
+            root,
+            "ls-tree",
+            "-z",
+            head,
+            "--",
+            path,
             check=False,
-            capture_output=True,
+            text=False,
         )
         if probe.returncode != 0:
             return None
         content = (
-            subprocess.run(
-                ["git", "show", f"{head}:{path}"],
-                cwd=root,
+            git.run_git(
+                root,
+                "show",
+                f"{head}:{path}",
                 check=False,
-                capture_output=True,
+                text=False,
             )
             if probe.stdout
             else None

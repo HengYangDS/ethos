@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.cli import main
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
@@ -123,3 +124,38 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
     assert payload["command"] == command
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
+
+
+@pytest.mark.parametrize(
+    ("code", "reason"),
+    [
+        ("git_executable_unavailable", "not_found_on_effective_path"),
+        ("git_process_spawn_failed", "working_directory_unavailable"),
+    ],
+)
+def test_git_execution_failures_emit_structured_json_without_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    code: str,
+    reason: str,
+) -> None:
+    def fail(_root: Path | None) -> Path:
+        raise GitExecutionError(code, reason=reason)
+
+    monkeypatch.setattr("ethos.surface.cli.root.inspection.resolve_root", fail)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["ethos", "status", "--root", tmp_path.as_posix(), "--json"],
+    )
+
+    with pytest.raises(SystemExit, match="1"):
+        main()
+
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err + captured.out
+    payload = json.loads(captured.out)
+    assert payload["verdict"] == "block"
+    assert payload["required_gaps"] == [code]
+    assert payload["data"]["reason"] == reason

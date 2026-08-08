@@ -91,6 +91,20 @@ def test_transition_plan_uses_stdlib_graphlib_without_parallel_graph_owners() ->
     ] == []
 
 
+def test_reference_and_entrypoint_scanners_share_one_carrier_declaration_owner() -> None:
+    owner = _read("src/ethos/repository/policy/references/carriers.py")
+    observation = _read("src/ethos/repository/policy/references/observation.py")
+    entrypoints = _read("src/ethos/repository/policy/artifact_entrypoints.py")
+
+    assert "REFERENCE_CARRIERS" in owner
+    assert "reference_carrier" in observation
+    assert "declaration_files" in _read("src/ethos/repository/policy/references/declarations.py")
+    assert "entrypoint_files" in entrypoints
+    assert "REFERENCE_FILE_SUFFIXES" not in observation
+    assert "_ENTRYPOINT_EXPLICIT_FILES" not in entrypoints
+    assert "_ENTRYPOINT_GLOB_PATTERNS" not in entrypoints
+
+
 def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
     references, executions, intents = set(), [], []
     for _path, relative, tree in _sources():

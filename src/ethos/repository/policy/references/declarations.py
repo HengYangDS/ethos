@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 
 import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.python_syntax as python_references
-from ethos.repository.policy.references.observation import REFERENCE_KINDS
+from ethos.repository.policy.references.carriers import REFERENCE_KINDS
+from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.observation import normalized_distribution
 from ethos.repository.policy.references.observation import npm_script_commands
 from ethos.repository.policy.references.observation import package_json_references
@@ -30,17 +31,16 @@ def native_owned_references_from_files(
     owned = {kind: set() for kind in REFERENCE_KINDS}
     npm_scripts = npm_script_commands(files, root=None)
     mappings, first_party = _python_import_owners(files)
-    for path, text in files.items():
-        if path.endswith("pyproject.toml"):
-            before = set(owned["distribution"])
-            pyproject_references(text, owned)
-            owned["import"].update(
-                mappings.get(name, name.replace("-", "_"))
-                for name in owned["distribution"] - before
-                if not name.startswith("@")
-            )
-        elif path.endswith("package.json"):
-            package_json_references(text, npm_scripts, owned, declarations=True)
+    before = set(owned["distribution"])
+    for text in declaration_files(files, "python-project").values():
+        pyproject_references(text, owned)
+    owned["import"].update(
+        mappings.get(name, name.replace("-", "_"))
+        for name in owned["distribution"] - before
+        if not name.startswith("@")
+    )
+    for text in declaration_files(files, "node-package").values():
+        package_json_references(text, npm_scripts, owned, declarations=True)
     owned["import"].update(first_party)
     _declared_commands(files, owned)
     _declared_gates(files, npm_scripts, owned)
@@ -50,7 +50,7 @@ def native_owned_references_from_files(
 
 
 def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, str], set[str]]:
-    payload = _toml(files.get(".config/checks/deptry/policy.toml", ""))
+    payload = _toml(_declaration_text(files, "python-import-policy"))
     mappings: dict[str, str] = {}
     first_party = set()
     for package in _table_items(payload.get("package")):
@@ -63,7 +63,7 @@ def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, str], set[st
 
 
 def _declared_commands(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    sources = {path: text for path, text in files.items() if path.endswith(".py")}
+    sources = declaration_files(files, "commands")
     prefixes = python_references.cyclopts_prefixes(sources)
     owned["command"].update(prefixes.values())
     for path, text in sources.items():
@@ -76,14 +76,14 @@ def _declared_gates(
     npm_scripts: dict[str, set[str]],
     owned: dict[str, set[str]],
 ) -> None:
-    payload = _toml(files.get("system/gates.toml", ""))
+    payload = _toml(_declaration_text(files, "gates"))
     for gate in _table_items(payload.get("gates")):
         command = tuple(_string_items(gate.get("command")))
         owned["executable"].update(command_references.command_executables(command, npm_scripts))
 
 
 def _declared_tools(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    payload = _toml(files.get("system/tools.toml", ""))
+    payload = _toml(_declaration_text(files, "tools"))
     for tool in _table_items(payload.get("tool")):
         for field, kind in (
             ("executables", "executable"),
@@ -101,20 +101,20 @@ def _declared_profiles(files: dict[str, str], owned: dict[str, set[str]]) -> Non
 
 
 def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    profile = _toml(files.get(".ethos/profile.toml", ""))
+    profile = _toml(_declaration_text(files, "profile"))
     if isinstance(profile.get("openspec"), dict):
         owned["executable"].add("openspec")
 
 
 def _declared_surface_inputs(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    surfaces = _toml(files.get("system/surfaces.toml", ""))
+    surfaces = _toml(_declaration_text(files, "surfaces"))
     runtime = surfaces.get("runtime", {}) if isinstance(surfaces, dict) else {}
     if isinstance(runtime, dict):
         owned["value"].update(_string_items(runtime.get("inputs")))
 
 
 def _declared_release_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    release = _toml(files.get(".ethos/release.toml", ""))
+    release = _toml(_declaration_text(files, "release"))
     host = release.get("host_profile", {}) if isinstance(release, dict) else {}
     if isinstance(host, dict) and isinstance(provider := host.get("provider"), str):
         owned["reference"].add(provider)
@@ -128,7 +128,7 @@ def _declared_release_references(files: dict[str, str], owned: dict[str, set[str
 
 
 def _declared_provider_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    templates = _toml(files.get(".config/checks/ci/templates.toml", ""))
+    templates = _toml(_declaration_text(files, "providers"))
     for section in ("projection", "forge_surface"):
         for entry in _table_items(templates.get(section)):
             if isinstance(provider := entry.get("provider"), str):
@@ -138,6 +138,10 @@ def _declared_provider_references(files: dict[str, str], owned: dict[str, set[st
             if entry.get("emulator_image"):
                 owned["executable"].add("docker")
                 owned["reference"].add("docker")
+
+
+def _declaration_text(files: dict[str, str], declaration: str) -> str:
+    return "\n".join(declaration_files(files, declaration).values())
 
 
 def _toml(text: str) -> dict[str, object]:

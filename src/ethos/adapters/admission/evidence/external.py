@@ -18,9 +18,9 @@ from typing import cast
 from pydantic import ValidationError
 
 import ethos.adapters.repo.git as git
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.rules import stable_digest
-from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import IndependentVerificationPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps

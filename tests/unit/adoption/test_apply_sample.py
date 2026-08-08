@@ -7,7 +7,7 @@ import pytest
 
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.policy.gates import resolve_gate_policy
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.repository.profile import load_repository_profile
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo

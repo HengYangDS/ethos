@@ -18,6 +18,7 @@ from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -29,7 +30,6 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
@@ -298,7 +298,7 @@ def resolve_ref_move_policy(
     if policy is None:
         for revision in (old_value, new_value):
             if revision not in _ZERO_OIDS:
-                profile = load_repository_profile(repo, tree_ref=revision)
+                profile = load_committed_repository_profile(repo, revision)
                 if profile.state == "valid" and profile.declaration is not None:
                     policy = BranchRolePolicy()
                     break

@@ -19,6 +19,7 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
@@ -28,7 +29,6 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.policy.gates import resolve_gate_policy
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import conformant_proof_check
 from tests.support.governed_repository import exact_lease

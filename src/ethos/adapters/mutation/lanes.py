@@ -39,7 +39,7 @@ def slug(name: str) -> str:
 
 
 def canonical_lane_identity(name: str, *, observed_at: datetime) -> tuple[str, str]:
-    """Return the repository-family lane id and Work Lane branch."""
+    """Return the canonical sibling lane id and Work Lane branch."""
     lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{slug(name)}"
     return lane_id, f"work/{lane_id}"
 
@@ -55,7 +55,7 @@ def default_candidate_path(repo: Path, candidate_branch: str) -> Path:
 
 
 def utc_now() -> datetime:
-    """Return the current UTC timestamp for repository-family lane identities."""
+    """Return the current UTC timestamp for canonical sibling lane identities."""
     return datetime.now(UTC)
 
 
@@ -206,7 +206,7 @@ def lane_start_target(
     repo: Path, policy: BranchRolePolicy, *, name: str, path: Path | None
 ) -> tuple[str, Path, dict[str, object] | None]:
     """Resolve the only branch and target path admitted for a lane start."""
-    if not getattr(policy, "repository_family_worktrees", False):
+    if not getattr(policy, "canonical_sibling_worktrees", False):
         branch = policy.work_branch(slug(name))
         return branch, (path or default_candidate_path(repo, branch)).resolve(), None
     lane_id, branch = canonical_lane_identity(name, observed_at=utc_now())

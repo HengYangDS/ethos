@@ -269,10 +269,10 @@ def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:
 def _enable(repo: Path) -> None:
     workspace = repo / ".ethos/workspace.toml"
     workspace.parent.mkdir(parents=True, exist_ok=True)
-    workspace.write_text("[branch_roles]\nrepository_family_worktrees = true\n", encoding="utf-8")
+    workspace.write_text("[branch_roles]\ncanonical_sibling_worktrees = true\n", encoding="utf-8")
 
 
-def test_family_profile_uses_date_bound_identity(
+def test_canonical_sibling_profile_uses_date_bound_identity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -289,7 +289,7 @@ def test_family_profile_uses_date_bound_identity(
     assert report["path"] == (tmp_path / "repo-worktrees" / lane_id).as_posix()
 
 
-def test_family_profile_rejects_noncanonical_path(tmp_path: Path) -> None:
+def test_canonical_sibling_profile_rejects_noncanonical_path(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     _enable(repo)
     report = start_work_lane(
@@ -304,10 +304,10 @@ def test_family_profile_rejects_noncanonical_path(tmp_path: Path) -> None:
     assert report["required_gaps"] == ["work_lane_path_not_canonical"]
 
 
-def test_family_profile_requires_the_canonical_work_branch_prefix(tmp_path: Path) -> None:
+def test_canonical_sibling_profile_requires_configured_work_branch_prefix(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos/workspace.toml").write_text(
-        '[branch_roles]\nrepository_family_worktrees = true\nwork_branch_prefix = "lane/"\n',
+        '[branch_roles]\ncanonical_sibling_worktrees = true\nwork_branch_prefix = "lane/"\n',
         encoding="utf-8",
     )
 

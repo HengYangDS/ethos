@@ -51,7 +51,7 @@ def runtime_binding(root: Path) -> dict[str, object]:
     runner_matches_audit_root = source_root == audit_root
     schema_matches_audit_root = schema_source_root == audit_root
     hook_binding = hook_runtime_binding(audit_root)
-    runner_matches_family_runtime = (
+    runner_matches_common_runtime = (
         not hook_binding["required_gaps"]
         and Path(hook_binding["python"]).resolve() == Path(sys.executable).resolve()
     )
@@ -66,15 +66,15 @@ def runtime_binding(root: Path) -> dict[str, object]:
     state = (
         "bound_to_audit_root"
         if runner_matches_audit_root and schema_matches_audit_root
-        else "bound_to_repository_family"
-        if runner_matches_family_runtime and schema_matches_audit_root
+        else "bound_to_common_runtime"
+        if runner_matches_common_runtime and schema_matches_audit_root
         else "external_declared_runner"
         if declared_external_runner
         else "external_current_runner"
     )
     next_action = (
         "runner, schema, and audit root are aligned"
-        if state in {"bound_to_audit_root", "bound_to_repository_family"}
+        if state in {"bound_to_audit_root", "bound_to_common_runtime"}
         else (
             "declared external runner is active; use a checkout-bound runner "
             "when changing command or schema surfaces"

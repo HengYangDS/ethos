@@ -1147,7 +1147,7 @@ candidate_branch = "candidate/dev"
 work_branch_prefix = "work/"
 proposal_branch_prefix = "proposal/"
 release_mirror = "independent"
-repository_family_worktrees = false
+canonical_sibling_worktrees = false
 """,
         encoding="utf-8",
     )

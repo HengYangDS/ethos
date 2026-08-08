@@ -133,7 +133,7 @@ def read_only_state_uri(db_path: Path) -> str:
 
 
 def local_state_root(root: Path) -> Path:
-    """Return the repository-family state root inside the Git common directory."""
+    """Return the Git-common state root inside the Git common directory."""
     common = git_common_dir(root)
     if not common:
         message = "git_common_directory_unavailable"

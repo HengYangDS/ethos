@@ -109,9 +109,7 @@ def test_clean_accepted_root_without_active_change_uses_repository_proof(
 
     monkeypatch.setattr("ethos.adapters.openspec.cli.run_json", run_json)
 
-    plan = run_ethos(
-        "plan", "--changed", "--root", repository.as_posix(), "--json", cwd=repository
-    )
+    plan = run_ethos("plan", "--changed", "--root", repository.as_posix(), "--json", cwd=repository)
     proof = run_ethos("prove", "--root", repository.as_posix(), "--json", cwd=repository)
 
     assert plan["verdict"] == "pass", plan

@@ -140,7 +140,8 @@ def retire_absorbed_ref(
             head=current_tracked_head(repo),
             prior_attestations={},
             policy={
-                "operation": "lane.retire.absorbed-ref",
+                "operation": "lane.retire",
+                "retirement_kind": "absorbed-ref",
                 "branch": branch,
                 "accepted_branch": policy.accepted_branch,
                 "accepted_head": accepted_head,

@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from ethos.repository.policy.gates import resolve_gate_policy
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_evidence_roots
@@ -321,4 +322,4 @@ def test_profile_loader_never_falls_back_from_an_invalid_tree_ref(tmp_path: Path
     profile.write_text("profile_id = 'working-tree'\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="repository_tree_ref_invalid"):
-        load_repository_profile(tmp_path, tree_ref="deadbeef" * 5)
+        load_committed_repository_profile(tmp_path, "deadbeef" * 5)

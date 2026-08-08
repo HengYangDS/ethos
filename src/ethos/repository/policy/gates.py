@@ -8,7 +8,6 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from ethos.adapters.repo.git import run_git
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -18,7 +17,6 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
-from ethos.repository.profile import load_repository_profile
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 
@@ -92,36 +90,6 @@ def _owner_projection(
     }
 
 
-def _git_blob(root: Path, tree_ref: str, path: str) -> bytes | None:
-    completed = run_git(
-        root,
-        "cat-file",
-        "blob",
-        f"{tree_ref}:{path}",
-        check=False,
-        text=False,
-    )
-    return completed.stdout if completed.returncode == 0 else None
-
-
-def _local_blob(root: Path, relative: str) -> bytes | None:
-    path = root / relative
-    if path.is_symlink():
-        return None
-    try:
-        resolved = path.resolve(strict=True)
-        resolved.relative_to(root.resolve())
-    except (OSError, RuntimeError, ValueError):
-        return None
-    return resolved.read_bytes() if resolved.is_file() else None
-
-
-def _blob(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
-    return (
-        _git_blob(root, tree_ref, relative) if tree_ref is not None else _local_blob(root, relative)
-    )
-
-
 def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
     declaration = profile.declaration
     if declaration is None:
@@ -148,11 +116,12 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
 
 
 def _gate_declaration(
-    root: Path | None, *, tree_ref: str | None = None
+    profile: RepositoryProfile | None,
+    *,
+    gate_registry_source: bytes | None = None,
 ) -> tuple[GateRegistryDeclaration, RepositoryProfile | None]:
-    if root is None:
+    if profile is None:
         return _PACKAGED_GATE_DECLARATION, None
-    profile = load_repository_profile(root, tree_ref=tree_ref)
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
     if profile.declaration is None:
@@ -160,18 +129,19 @@ def _gate_declaration(
     proof = profile.declaration.proof
     if not proof.gate_registry:
         return _profile_declaration(profile), profile
-    source = _blob(root, tree_ref, proof.gate_registry)
     try:
-        if source is None:
+        if gate_registry_source is None:
             raise FileNotFoundError(proof.gate_registry)
-        declaration = GateRegistryDeclaration.model_validate(tomllib.loads(source.decode()))
+        declaration = GateRegistryDeclaration.model_validate(
+            tomllib.loads(gate_registry_source.decode())
+        )
     except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValidationError, ValueError) as error:
         message = f"gate_registry_invalid:{proof.gate_registry}"
         raise ValueError(message) from error
     return declaration, profile
 
 
-def _source_paths(gate: Gate) -> tuple[str, ...]:
+def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
     providers = tuple(
         f"src/{reference.partition(':')[0].replace('.', '/')}.py" for reference in gate.providers
     )
@@ -194,19 +164,22 @@ def _source_paths(gate: Gate) -> tuple[str, ...]:
     return (*providers, *noxfile, *script)
 
 
-def _bind_sources(
-    root: Path | None,
-    tree_ref: str | None,
+def source_paths_for_gates(gates: tuple[Gate, ...]) -> tuple[str, ...]:
+    """Return the unique repository materials needed by a gate closure."""
+    return tuple(dict.fromkeys(path for gate in gates for path in source_paths_for_gate(gate)))
+
+
+def bind_gate_source_digests(
     gates: tuple[Gate, ...],
+    materials: dict[str, bytes | None],
 ) -> tuple[tuple[tuple[str, tuple[tuple[str, str], ...]], ...], tuple[str, ...]]:
-    if root is None:
-        return (), ()
+    """Bind gate sources from already-observed repository materials."""
     bound: list[tuple[str, tuple[tuple[str, str], ...]]] = []
     gaps: list[str] = []
     for gate in gates:
         sources: list[tuple[str, str]] = []
-        for relative in _source_paths(gate):
-            source = _blob(root, tree_ref, relative)
+        for relative in source_paths_for_gate(gate):
+            source = materials.get(relative)
             if source is None:
                 gaps.append(f"gate_policy_source_missing:{gate.id}:{relative}")
             else:
@@ -216,28 +189,35 @@ def _bind_sources(
 
 
 def resolve_gate_policy(
-    root: Path | None = None,
     *,
-    tree_ref: str | None = None,
+    profile: RepositoryProfile | None = None,
+    gate_registry_source: bytes | None = None,
+    source_materials: dict[str, bytes | None] | None = None,
+    repository_python: str | None = None,
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
 ) -> ResolvedGatePolicy:
-    declaration, profile = _gate_declaration(root, tree_ref=tree_ref)
+    declaration, profile = _gate_declaration(
+        profile,
+        gate_registry_source=gate_registry_source,
+    )
     if gate_ids:
         requested = set(gate_ids)
         owned = declaration.registry("runtime").keys()
         packaged = _PACKAGED_GATE_DECLARATION.registry("runtime").keys()
         if requested.isdisjoint(owned) and requested <= packaged:
             declaration, profile = _PACKAGED_GATE_DECLARATION, None
-    repository_python = _repository_python(root) if profile is not None else None
     python_executable = repository_python or sys.executable
     gates = declaration.proof_gates(
         gate_ids,
         full=full,
         python_executable=python_executable,
     )
-    source_root = root if profile is not None and profile.declaration is not None else None
-    sources, gaps = _bind_sources(source_root, tree_ref, gates)
+    sources, gaps = (
+        bind_gate_source_digests(gates, source_materials or {})
+        if profile is not None and profile.declaration is not None
+        else ((), ())
+    )
     if (
         profile is not None
         and repository_python is None
@@ -254,14 +234,6 @@ def resolve_gate_policy(
         sources,
         tuple(dict.fromkeys(gaps)),
     )
-
-
-def _repository_python(root: Path | None) -> str | None:
-    """Resolve the checkout-owned locked Python without binding the control-plane runtime."""
-    if root is None:
-        return None
-    candidates = (root / ".venv/bin/python", root / ".venv/Scripts/python.exe")
-    return next((path.as_posix() for path in candidates if path.is_file()), None)
 
 
 def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:

@@ -18,7 +18,6 @@ from pydantic import PlainSerializer
 from pydantic import ValidationError
 from pydantic import model_validator
 
-from ethos.adapters.repo.git import run_git
 from ethos.contracts.gates import Gate
 from ethos.contracts.openspec.models import OpenSpecPolicy
 
@@ -171,9 +170,9 @@ def render_repository_profile(declaration: RepositoryProfileDeclaration) -> str:
     return tomli_w.dumps(declaration.model_dump(mode="json", exclude_defaults=True))
 
 
-def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> RepositoryProfile:
+def repository_profile_from_text(root: Path, *, exists: bool, text: str) -> RepositoryProfile:
+    """Parse one already-observed repository profile material."""
     repo = root.resolve()
-    exists, text = _profile_text(repo, tree_ref)
     declaration = None
     if exists:
         try:
@@ -188,29 +187,19 @@ def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> Repos
     )
 
 
-def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
-    if tree_ref:
-        result = _git(repo, "show", f"{tree_ref}:.ethos/profile.toml")
-        if result.returncode == 0:
-            return True, result.stdout
-        commit = _git(repo, "rev-parse", "--verify", f"{tree_ref}^{{commit}}")
-        if commit.returncode == 0:
-            return False, ""
-        msg = "repository_tree_ref_invalid"
-        raise ValueError(msg)
+def load_repository_profile(root: Path) -> RepositoryProfile:
+    """Load and parse the worktree repository profile."""
+    repo = root.resolve()
     path = repo / ".ethos" / "profile.toml"
     try:
         resolved = path.resolve(strict=True)
         resolved.relative_to(repo)
-        return True, resolved.read_text(encoding="utf-8") if resolved.is_file() else ""
+        exists, text = True, resolved.read_text(encoding="utf-8") if resolved.is_file() else ""
     except FileNotFoundError:
-        return path.is_symlink(), ""
+        exists, text = path.is_symlink(), ""
     except (OSError, RuntimeError, UnicodeDecodeError, ValueError):
-        return path.exists() or path.is_symlink(), ""
-
-
-def _git(repo: Path, *args: str):
-    return run_git(repo, *args, check=False)
+        exists, text = path.exists() or path.is_symlink(), ""
+    return repository_profile_from_text(repo, exists=exists, text=text)
 
 
 def profile_root(root: Path, key: str) -> Path:
@@ -246,9 +235,9 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
     return tuple(dict.fromkeys(item for item in candidates if item))
 
 
-def profile_gate_registry(root: Path, *, tree_ref: str | None = None) -> str:
+def profile_gate_registry(root: Path) -> str:
     """Return the repository-declared gate registry, if any."""
-    profile = load_repository_profile(root, tree_ref=tree_ref)
+    profile = load_repository_profile(root)
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
     return profile.declaration.proof.gate_registry or "" if profile.declaration else ""

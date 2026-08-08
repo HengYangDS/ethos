@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -15,7 +16,11 @@ _CHANGES = "openspec/changes"
 
 def openspec_profile_enabled(repo: Path, *, tree_ref: str | None = None) -> bool:
     """Return whether the explicit self-profile OpenSpec adapter is selected."""
-    profile = load_repository_profile(repo, tree_ref=tree_ref)
+    profile = (
+        load_committed_repository_profile(repo, tree_ref)
+        if tree_ref
+        else load_repository_profile(repo)
+    )
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
     return profile.declaration is not None and profile.declaration.openspec is not None

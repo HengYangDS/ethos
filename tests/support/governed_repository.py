@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -26,7 +27,6 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos

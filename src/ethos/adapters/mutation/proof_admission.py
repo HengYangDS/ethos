@@ -11,12 +11,12 @@ from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
-from ethos.repository.policy.gates import resolve_gate_policy
 
 if TYPE_CHECKING:
     from pathlib import Path

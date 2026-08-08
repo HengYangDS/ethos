@@ -32,12 +32,13 @@ class ResolvedGatePolicy:
     declaration: GateRegistryDeclaration
     profile: RepositoryProfile | None
     gates: tuple[Gate, ...]
+    python_executable: str = sys.executable
     sources: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = ()
     gaps: tuple[str, ...] = ()
 
     @property
     def registry(self) -> dict[str, Gate]:
-        return self.declaration.registry("runtime", python_executable=sys.executable)
+        return self.declaration.registry("runtime", python_executable=self.python_executable)
 
     @property
     def gate_ids(self) -> tuple[str, ...]:
@@ -175,8 +176,10 @@ def _source_paths(gate: Gate) -> tuple[str, ...]:
     )
     command = canonical_gate_command(gate.command)
     noxfile = (
-        ("noxfile.py",)
-        if command and command[0].rsplit("/", maxsplit=1)[-1] == "nox" and "-s" in command
+        ("noxfile.py", "pyproject.toml", "uv.lock")
+        if len(command) >= 3
+        and command[0] == "python"
+        and command[1:3] == ("-m", "nox")
         else ()
     )
     script = (
@@ -227,16 +230,37 @@ def resolve_gate_policy(
         packaged = _PACKAGED_GATE_DECLARATION.registry("runtime").keys()
         if requested.isdisjoint(owned) and requested <= packaged:
             declaration, profile = _PACKAGED_GATE_DECLARATION, None
+    repository_python = _repository_python(root) if profile is not None else None
+    python_executable = repository_python or sys.executable
     gates = declaration.proof_gates(
         gate_ids,
         full=full,
-        python_executable=sys.executable,
+        python_executable=python_executable,
     )
     source_root = root if profile is not None and profile.declaration is not None else None
     sources, gaps = _bind_sources(source_root, tree_ref, gates)
+    if profile is not None and repository_python is None and any(
+        canonical_gate_command(gate.command)[1:3] == ("-m", "nox") for gate in gates
+    ):
+        gaps = (*gaps, "gate_runtime_missing:repository-python")
     if profile is not None and profile.declaration is not None and not gates:
         gaps = (*gaps, "proof_floor_empty")
-    return ResolvedGatePolicy(declaration, profile, gates, sources, tuple(dict.fromkeys(gaps)))
+    return ResolvedGatePolicy(
+        declaration,
+        profile,
+        gates,
+        python_executable,
+        sources,
+        tuple(dict.fromkeys(gaps)),
+    )
+
+
+def _repository_python(root: Path | None) -> str | None:
+    """Resolve the checkout-owned locked Python without binding the control-plane runtime."""
+    if root is None:
+        return None
+    candidates = (root / ".venv/bin/python", root / ".venv/Scripts/python.exe")
+    return next((path.as_posix() for path in candidates if path.is_file()), None)
 
 
 def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:

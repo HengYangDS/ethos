@@ -416,17 +416,51 @@ def test_nox_gate_policy_binds_the_repository_noxfile_not_the_generated_venv(
     policy.write_text(
         policy.read_text(encoding="utf-8").replace(
             'command = ["tools/check.sh"]',
-            'command = [".venv/bin/nox", "-s", "check"]',
+            'command = ["{python}", "-m", "nox", "-s", "check"]',
         ),
         encoding="utf-8",
     )
     (repo / "noxfile.py").write_text("def check(): pass\n", encoding="utf-8")
+    (repo / "pyproject.toml").write_text(
+        "[project]\nname='fixture'\nversion='0'\n", encoding="utf-8"
+    )
+    (repo / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    runtime = repo / ".venv/bin/python"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_text("", encoding="utf-8")
     head = _commit(repo, "nox policy")
 
     resolved = resolve_gate_policy(repo, tree_ref=head)
 
     assert resolved.gaps == ()
-    assert resolved.sources[0][1][0][0] == "noxfile.py"
+    assert {path for path, _digest in resolved.sources[0][1]} == {
+        "noxfile.py",
+        "pyproject.toml",
+        "uv.lock",
+    }
+
+
+def test_nox_gate_policy_fails_closed_without_repository_runtime(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _write_script_gate_policy(repo)
+    policy = repo / "system/gates.toml"
+    policy.write_text(
+        policy.read_text(encoding="utf-8").replace(
+            'command = ["tools/check.sh"]',
+            'command = ["{python}", "-m", "nox", "-s", "check"]',
+        ),
+        encoding="utf-8",
+    )
+    (repo / "noxfile.py").write_text("def check(): pass\n", encoding="utf-8")
+    (repo / "pyproject.toml").write_text(
+        "[project]\nname='fixture'\nversion='0'\n", encoding="utf-8"
+    )
+    (repo / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    head = _commit(repo, "nox policy without runtime")
+
+    resolved = resolve_gate_policy(repo, tree_ref=head)
+
+    assert resolved.gaps == ("gate_runtime_missing:repository-python",)
 
 
 def test_gate_policy_digest_binds_profile_correctness_semantics(tmp_path: Path) -> None:

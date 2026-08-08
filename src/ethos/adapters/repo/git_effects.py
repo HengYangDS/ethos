@@ -93,11 +93,40 @@ def commit_git_worktree(
     if current_tracked_head(root) != previous:
         message = "git_effect_head_stale"
         raise ValueError(message)
-    completed = run_git(root, "commit", "-m", message, check=False, env=environment)
+    completed = run_git(
+        root,
+        "commit",
+        "-m",
+        message,
+        check=False,
+        env=_commit_environment(root, environment),
+    )
     return {
         "verdict": "pass" if completed.returncode == 0 else "block",
         "error": completed.stderr.strip(),
     }
+
+
+def _commit_environment(root: Path, environment: Mapping[str, str] | None) -> dict[str, str] | None:
+    bound = dict(environment or {})
+    signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
+    if signing.returncode:
+        return bound or None
+    key = Path(signing.stdout.strip())
+    if not key.is_absolute() or not key.is_file():
+        message = "git_effect_signing_key_invalid"
+        raise ValueError(message)
+    public_key = key.read_text(encoding="utf-8").strip()
+    if not public_key.startswith(("ssh-ed25519 ", "ssh-rsa ", "ecdsa-sha2-")):
+        message = "git_effect_signing_key_invalid"
+        raise ValueError(message)
+    count = int(bound.get("GIT_CONFIG_COUNT", "0"))
+    for name, value in (("gpg.format", "ssh"), ("user.signingkey", f"key::{public_key}")):
+        bound[f"GIT_CONFIG_KEY_{count}"] = name
+        bound[f"GIT_CONFIG_VALUE_{count}"] = value
+        count += 1
+    bound["GIT_CONFIG_COUNT"] = str(count)
+    return bound
 
 
 def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") -> None:

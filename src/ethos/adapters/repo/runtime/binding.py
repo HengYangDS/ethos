@@ -7,7 +7,7 @@ from pathlib import Path
 import ethos
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
-from ethos.repository.hooks import hook_runtime_binding
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.repository.profile import load_repository_profile
 
 

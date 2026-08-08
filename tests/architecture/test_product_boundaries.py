@@ -116,6 +116,16 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
             assert imported_modules(path).isdisjoint(forbidden), path
 
 
+def test_hook_runtime_authority_is_owned_by_one_adapter_semantic_package() -> None:
+    """Hook runtime IO must not be projected through repository policy."""
+    old_owner = ROOT / "src/ethos/repository/hooks.py"
+    owner = ROOT / "src/ethos/adapters/repo/hook"
+
+    assert not old_owner.exists()
+    assert (owner / "binding.py").is_file()
+    assert (owner / "transaction.py").is_file()
+
+
 @pytest.mark.parametrize("report_factory", [product_boundary_report])
 def test_product_reports_are_clean(report_factory) -> None:
     report = report_factory(ROOT)

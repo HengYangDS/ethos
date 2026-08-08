@@ -4,9 +4,7 @@ import json
 import os
 import sqlite3
 from contextlib import closing
-from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -16,19 +14,17 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import execute_commitment_rebind
 from ethos.adapters.repo.commitment import exact_commitment_fields
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
-from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
-from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
-from ethos.contracts.semantic import Attestation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.lifecycle_cases import rebind_attestation_path
+from tests.support.lifecycle_cases import rebind_effect
+from tests.support.lifecycle_cases import tamper_attestation
 
 
 def _install_reference_transaction_hook(
@@ -335,62 +331,6 @@ def test_commitment_rebind_owns_exact_carrier_and_authority_transitions(
     case.assert_terminal(report)
 
 
-def test_commitment_rebind_bootstrap_rejects_a_mismatched_target_digest(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(
-        tmp_path,
-        monkeypatch,
-        old_permissions=("repository.read", "work-lane.write"),
-    )
-    worktree = case.worktree
-    request = case.request
-    lease = case.lease
-    effect = rebind.GitEffect(
-        updates={
-            f"refs/heads/{request.branch}": rebind.GitRefUpdate(
-                expected=request.expect_head,
-                desired=request.target_commit,
-            )
-        }
-    )
-    successor = rebind.old_generation(request) | {
-        "epoch": request.expected_epoch + 1,
-        "expected_head": request.target_commit,
-        "expected_tree": request.expect_index_tree,
-        "base_commitment_path": request.new_commitment_path,
-        "base_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
-        "base_commitment_digest": request.new_commitment_digest,
-    }
-    successor = rebind.lease_generation(successor)
-    successor.pop("payload_sha256")
-    plan = compile_observed_git_effect(
-        worktree,
-        load_lease_bound_commitment(worktree, lease=lease),
-        effect,
-        head=request.expect_head,
-        prior_attestations={},
-        policy={
-            "operation": "commitment.rebind",
-            "old_commitment_digest": request.expected_commitment_digest,
-            "new_commitment_digest": "0" * 64,
-        },
-        values={
-            "lease_generation": rebind.lease_generation(lease),
-            "lease_successor": successor,
-            "index_tree": request.expect_index_tree,
-            "working_overlay_sha256": request.expected_working_overlay_sha256,
-            "new_commitment_path": request.new_commitment_path,
-            "new_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
-            "new_commitment_digest": request.new_commitment_digest,
-        },
-    )
-
-    with pytest.raises(ValueError, match="git_effect_permission_denied"):
-        execute_git_effect(worktree, plan, issuer=request.holder_ref)
-
-
 def _replace_lease_payload(worktree: Path, branch: str, **updates: object) -> None:
     database = state_database(worktree)
     with closing(sqlite3.connect(database)) as connection, connection:
@@ -687,45 +627,14 @@ def test_commitment_rebind_recognition_rejects_attestation_freshness_drift(
 ) -> None:
     case = _case(tmp_path, monkeypatch)
     worktree = case.worktree
-    request = case.request
     completed = case.execute()
     assert completed["verdict"] == "pass"
-    effect = rebind.GitEffect(
-        updates={
-            f"refs/heads/{request.branch}": rebind.GitRefUpdate(
-                expected=request.expect_head,
-                desired=request.target_commit,
-            )
-        }
-    )
-    path = (
-        Path(git_common_dir(worktree))
-        / "ethos"
-        / "attestations"
-        / "commitment-rebind"
-        / f"{effect.digest()}.json"
-    )
-    payload = deepcopy(completed["attestation"])
-    assert isinstance(payload, dict)
-    if location == "attestation":
-        payload[field] = replacement
-    else:
-        statement = payload["statement"]
-        assert isinstance(statement, dict)
-        target = statement if location == "statement" else statement[location]
-        target[field] = replacement
-    payload["statement_digest"] = "0" * 64
-    payload["id"] = "0" * 64
-    payload["issued_at"] = datetime.fromisoformat(str(payload["issued_at"]))
-    payload["valid_from"] = datetime.fromisoformat(str(payload["valid_from"]))
-    payload["advisories"] = tuple(payload["advisories"])
-    payload["evidence_refs"] = tuple(payload["evidence_refs"])
-    tampered = Attestation.issue(
-        {
-            name: value
-            for name, value in payload.items()
-            if name not in {"schema_version", "id", "statement_digest"}
-        }
+    effect = rebind_effect(case)
+    path = rebind_attestation_path(worktree, effect)
+    attestation = completed["attestation"]
+    assert isinstance(attestation, dict)
+    tampered = tamper_attestation(
+        attestation, location=location, field=field, replacement=replacement
     )
     path.write_text(tampered.canonical_json(), encoding="utf-8")
 

@@ -5,6 +5,7 @@ import os
 import sqlite3
 from contextlib import closing
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -93,6 +94,68 @@ def _bind_old_permissions(
     return old_head, leases_by_branch(worktree)[branch]
 
 
+@dataclass
+class RebindCase:
+    worktree: Path
+    branch: str
+    lease: dict[str, object]
+    request: CommitmentRebindRequest
+    target: dict[str, object]
+    tracked_overlay: Path
+    untracked_overlay: Path
+
+    def execute(self, **request_updates: object) -> dict[str, object]:
+        request = (
+            self.request.model_copy(update=request_updates) if request_updates else self.request
+        )
+        return execute_commitment_rebind(root=self.worktree, request=request)
+
+    def replace_lease(self, **updates: object) -> None:
+        _replace_lease_payload(self.worktree, self.branch, **updates)
+
+    def assert_terminal(self, report: dict[str, object]) -> None:
+        updated = leases_by_branch(self.worktree)[self.branch]
+        assert git(self.worktree, "rev-parse", "HEAD") == self.request.target_commit
+        assert updated["epoch"] == int(self.lease["epoch"]) + 1
+        assert {
+            name: updated[name]
+            for name in (
+                "expected_head",
+                "expected_tree",
+                "base_commitment_path",
+                "base_commitment_bytes_sha256",
+                "base_commitment_digest",
+            )
+        } == self.target
+        for name in (
+            "holder_ref",
+            "lease_id",
+            "lane_incarnation_id",
+            "expires_at",
+            "path_scope",
+        ):
+            assert updated[name] == self.lease[name]
+        attestation = report["attestation"]
+        assert isinstance(attestation, dict)
+        assert attestation["predicate"] == "effect:commitment-rebind"
+        assert attestation["commitment_digest"] == self.lease["base_commitment_digest"]
+        assert not list(ref_intent_dir(self.worktree).glob("*.json"))
+
+    def cli_arguments(self) -> list[str]:
+        arguments = ["lane", "rebind-commitment", "--root", self.worktree.as_posix()]
+        for name, value in self.request.model_dump().items():
+            option = "--" + name.replace("_", "-")
+            if isinstance(value, bool):
+                if value:
+                    arguments.append(option)
+            elif isinstance(value, tuple):
+                for item in value:
+                    arguments.extend((option, str(item)))
+            else:
+                arguments.extend((option, str(value)))
+        return [*arguments, "--json"]
+
+
 def _case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -101,7 +164,7 @@ def _case(
     archive_to_active: bool = False,
     old_permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
     new_permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
-) -> dict[str, object]:
+) -> RebindCase:
     holder = "agent:test:case:commitment-rebind"
     fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
     worktree = fixture.worktree
@@ -222,80 +285,54 @@ def _case(
         apply=True,
     )
     monkeypatch.setenv("ETHOS_ACTOR", holder)
-    return {
-        "fixture": fixture,
-        "worktree": worktree,
-        "branch": branch,
-        "lease": lease,
-        "request": request,
-        "target": target,
-        "target_commit": target_commit,
-        "tracked_overlay": tracked_overlay,
-        "untracked_overlay": untracked_overlay,
-        "overlay": overlay,
-    }
-
-
-def test_commitment_rebind_owns_one_exact_carrier_relocation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch, relocate_carrier=True)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-
-    raw_move = work_lane_ref_transition_report(
-        root=worktree,
-        phase="prepared",
-        ref_name=f"refs/heads/{request.branch}",
-        old_value=request.expect_head,
-        new_value=request.target_commit,
+    return RebindCase(
+        worktree=worktree,
+        branch=branch,
+        lease=lease,
+        request=request,
+        target=target,
+        tracked_overlay=tracked_overlay,
+        untracked_overlay=untracked_overlay,
     )
-    report = execute_commitment_rebind(root=worktree, request=request)
-
-    assert raw_move["required_gaps"] == ["lease_base_commitment_path_mismatch"]
-    assert report["required_gaps"] == [], report
-    assert report["verdict"] == "pass", report
-    _assert_terminal(case, report)
 
 
-def test_commitment_rebind_owns_one_archive_to_active_carrier_rollover(
+@pytest.mark.parametrize(
+    ("case_options", "raw_transition_gap"),
+    [
+        pytest.param(
+            {"relocate_carrier": True},
+            "lease_base_commitment_path_mismatch",
+            id="active-carrier-relocation",
+        ),
+        pytest.param({"archive_to_active": True}, None, id="archive-to-active-rollover"),
+        pytest.param(
+            {"old_permissions": ("repository.read", "work-lane.write")},
+            None,
+            id="minimal-old-authority-bootstrap",
+        ),
+    ],
+)
+def test_commitment_rebind_owns_exact_carrier_and_authority_transitions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    case_options: dict[str, object],
+    raw_transition_gap: str | None,
 ) -> None:
-    case = _case(tmp_path, monkeypatch, archive_to_active=True)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
+    case = _case(tmp_path, monkeypatch, **case_options)
+    if raw_transition_gap:
+        raw_move = work_lane_ref_transition_report(
+            root=case.worktree,
+            phase="prepared",
+            ref_name=f"refs/heads/{case.request.branch}",
+            old_value=case.request.expect_head,
+            new_value=case.request.target_commit,
+        )
+        assert raw_move["required_gaps"] == [raw_transition_gap]
 
-    report = execute_commitment_rebind(root=worktree, request=request)
-
-    assert report["required_gaps"] == [], report
+    report = case.execute()
     assert report["verdict"] == "pass", report
-    _assert_terminal(case, report)
-
-
-def test_commitment_rebind_bootstraps_exact_cas_from_the_old_minimal_commitment(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(
-        tmp_path,
-        monkeypatch,
-        old_permissions=("repository.read", "work-lane.write"),
-    )
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-
-    report = execute_commitment_rebind(root=worktree, request=request)
-
-    assert report["verdict"] == "pass", report
-    _assert_terminal(case, report)
+    assert report["required_gaps"] == []
+    case.assert_terminal(report)
 
 
 def test_commitment_rebind_bootstrap_rejects_a_mismatched_target_digest(
@@ -307,12 +344,9 @@ def test_commitment_rebind_bootstrap_rejects_a_mismatched_target_digest(
         monkeypatch,
         old_permissions=("repository.read", "work-lane.write"),
     )
-    worktree = case["worktree"]
-    request = case["request"]
-    lease = case["lease"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    assert isinstance(lease, dict)
+    worktree = case.worktree
+    request = case.request
+    lease = case.lease
     effect = rebind.GitEffect(
         updates={
             f"refs/heads/{request.branch}": rebind.GitRefUpdate(
@@ -357,40 +391,6 @@ def test_commitment_rebind_bootstrap_rejects_a_mismatched_target_digest(
         execute_git_effect(worktree, plan, issuer=request.holder_ref)
 
 
-def _assert_terminal(case: dict[str, object], report: dict[str, object]) -> None:
-    worktree = case["worktree"]
-    branch = case["branch"]
-    lease = case["lease"]
-    target = case["target"]
-    assert isinstance(worktree, Path)
-    assert isinstance(branch, str)
-    assert isinstance(lease, dict)
-    assert isinstance(target, dict)
-    updated = leases_by_branch(worktree)[branch]
-    assert git(worktree, "rev-parse", "HEAD") == case["target_commit"]
-    assert updated["epoch"] == int(lease["epoch"]) + 1
-    assert {
-        name: updated[name]
-        for name in (
-            "expected_head",
-            "expected_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    } == target
-    assert updated["holder_ref"] == lease["holder_ref"]
-    assert updated["lease_id"] == lease["lease_id"]
-    assert updated["lane_incarnation_id"] == lease["lane_incarnation_id"]
-    assert updated["expires_at"] == lease["expires_at"]
-    assert updated["path_scope"] == lease["path_scope"]
-    attestation = report["attestation"]
-    assert isinstance(attestation, dict)
-    assert attestation["predicate"] == "effect:commitment-rebind"
-    assert attestation["commitment_digest"] == lease["base_commitment_digest"]
-    assert not list(ref_intent_dir(worktree).glob("*.json"))
-
-
 def _replace_lease_payload(worktree: Path, branch: str, **updates: object) -> None:
     database = state_database(worktree)
     with closing(sqlite3.connect(database)) as connection, connection:
@@ -414,10 +414,7 @@ def test_commitment_rebind_preserves_overlay_and_recognizes_the_terminal_attesta
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
+    worktree = case.worktree
     captured = []
     execute = rebind.execute_git_effect
 
@@ -430,24 +427,24 @@ def test_commitment_rebind_preserves_overlay_and_recognizes_the_terminal_attesta
     before = (
         git(worktree, "diff", "--binary"),
         git(worktree, "ls-files", "--others", "--exclude-standard"),
-        case["untracked_overlay"].read_bytes(),
+        case.untracked_overlay.read_bytes(),
     )
 
-    applied = execute_commitment_rebind(root=worktree, request=request)
-    recognized = execute_commitment_rebind(root=worktree, request=request)
+    applied = case.execute()
+    recognized = case.execute()
 
-    _assert_terminal(case, applied)
+    case.assert_terminal(applied)
     assert applied["state"] == "applied"
     assert recognized["state"] == "recognized"
     assert applied["attestation"] == recognized["attestation"]
-    assert captured[0].inputs.commitment == case["lease"]["base_commitment_digest"]
+    assert captured[0].inputs.commitment == case.lease["base_commitment_digest"]
     assert (
         git(worktree, "diff", "--binary"),
         git(worktree, "ls-files", "--others", "--exclude-standard"),
-        case["untracked_overlay"].read_bytes(),
+        case.untracked_overlay.read_bytes(),
     ) == before
-    assert case["tracked_overlay"].read_text(encoding="utf-8") == "# sample\n\nlocal overlay\n"
-    assert os.environ["ETHOS_ACTOR"] == request.holder_ref
+    assert case.tracked_overlay.read_text(encoding="utf-8") == "# sample\n\nlocal overlay\n"
+    assert os.environ["ETHOS_ACTOR"] == case.request.holder_ref
 
 
 def test_commitment_rebind_recovers_after_git_cas_before_lease_cas(
@@ -455,10 +452,7 @@ def test_commitment_rebind_recovers_after_git_cas_before_lease_cas(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
+    worktree = case.worktree
     apply_lease = rebind.rebind_lease_commitment
     monkeypatch.setattr(
         rebind,
@@ -466,78 +460,50 @@ def test_commitment_rebind_recovers_after_git_cas_before_lease_cas(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("injected_after_git_cas")),
     )
 
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
+    interrupted = case.execute()
 
     assert interrupted["verdict"] == "block"
-    assert git(worktree, "rev-parse", "HEAD") == case["target_commit"]
-    assert leases_by_branch(worktree)[case["branch"]]["epoch"] == case["lease"]["epoch"]
+    assert git(worktree, "rev-parse", "HEAD") == case.request.target_commit
+    assert leases_by_branch(worktree)[case.branch]["epoch"] == case.lease["epoch"]
     assert not list(ref_intent_dir(worktree).glob("*.json"))
 
     monkeypatch.setattr(rebind, "rebind_lease_commitment", apply_lease)
-    recovered = execute_commitment_rebind(root=worktree, request=request)
+    recovered = case.execute()
 
     assert recovered["state"] == "recovered"
-    _assert_terminal(case, recovered)
+    case.assert_terminal(recovered)
 
 
-def test_commitment_rebind_recovers_after_hook_advanced_only_the_lease_head(
+@pytest.mark.parametrize("apply_mode", [False, True], ids=["readiness", "apply"])
+def test_commitment_rebind_recovers_hook_advanced_partial_target(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    apply_mode: bool,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    branch = case["branch"]
-    lease = case["lease"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(branch, str)
-    assert isinstance(lease, dict)
-    assert isinstance(request, CommitmentRebindRequest)
-    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-    git(worktree, "update-ref", f"refs/heads/{branch}", request.target_commit, request.expect_head)
-    _replace_lease_payload(
-        worktree,
-        branch,
-        expected_head=request.target_commit,
-        expected_tree=request.expect_index_tree,
+    git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
+    git(
+        case.worktree,
+        "update-ref",
+        f"refs/heads/{case.branch}",
+        case.request.target_commit,
+        case.request.expect_head,
+    )
+    case.replace_lease(
+        expected_head=case.request.target_commit,
+        expected_tree=case.request.expect_index_tree,
     )
 
-    recovered = execute_commitment_rebind(root=worktree, request=request)
-
-    assert recovered["state"] == "recovered"
-    _assert_terminal(case, recovered)
-
-
-def test_commitment_rebind_projects_partial_target_recovery_before_apply(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    branch = case["branch"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(branch, str)
-    assert isinstance(request, CommitmentRebindRequest)
-    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-    git(worktree, "update-ref", f"refs/heads/{branch}", request.target_commit, request.expect_head)
-    _replace_lease_payload(
-        worktree,
-        branch,
-        expected_head=request.target_commit,
-        expected_tree=request.expect_index_tree,
-    )
-
-    ready = execute_commitment_rebind(
-        root=worktree,
-        request=request.model_copy(update={"apply": False}),
-    )
-
-    assert ready["verdict"] == "pass"
-    assert ready["state"] == "ready_to_recover"
-    assert ready["required_gaps"] == []
-    assert ready["lease"]["epoch"] == request.expected_epoch
-    assert leases_by_branch(worktree)[branch]["epoch"] == request.expected_epoch
+    report = case.execute(apply=apply_mode)
+    assert report["verdict"] == "pass"
+    assert report["state"] == ("recovered" if apply_mode else "ready_to_recover")
+    if apply_mode:
+        case.assert_terminal(report)
+    else:
+        assert report["required_gaps"] == []
+        assert report["lease"]["epoch"] == case.request.expected_epoch
+        assert leases_by_branch(case.worktree)[case.branch]["epoch"] == case.request.expected_epoch
 
 
 def test_commitment_rebind_retries_prepared_intent_when_git_cas_never_ran(
@@ -545,10 +511,7 @@ def test_commitment_rebind_retries_prepared_intent_when_git_cas_never_ran(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
+    worktree = case.worktree
     execute = rebind.execute_git_effect
     original_hooks = Path(git(worktree, "config", "core.hooksPath"))
     injected_hooks = tmp_path / "prepared-without-cas-hooks"
@@ -567,18 +530,18 @@ def test_commitment_rebind_retries_prepared_intent_when_git_cas_never_ran(
     hook.chmod(0o755)
     git(worktree, "config", "--worktree", "core.hooksPath", injected_hooks.as_posix())
 
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
+    interrupted = case.execute()
 
     assert interrupted["required_gaps"] == ["git_effect_cas_rejected"]
-    assert git(worktree, "rev-parse", "HEAD") == request.expect_head
+    assert git(worktree, "rev-parse", "HEAD") == case.request.expect_head
     assert not list(ref_intent_dir(worktree).glob("*.json"))
     git(worktree, "config", "--worktree", "core.hooksPath", original_hooks.as_posix())
     monkeypatch.setattr(rebind, "execute_git_effect", execute)
 
-    applied = execute_commitment_rebind(root=worktree, request=request)
+    applied = case.execute()
 
     assert applied["state"] == "applied"
-    _assert_terminal(case, applied)
+    case.assert_terminal(applied)
 
 
 def test_commitment_rebind_attests_after_lease_cas_without_reapplying_effects(
@@ -586,10 +549,7 @@ def test_commitment_rebind_attests_after_lease_cas_without_reapplying_effects(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
+    worktree = case.worktree
     persist = rebind.persist_rebind_attestation
     monkeypatch.setattr(
         rebind,
@@ -597,18 +557,18 @@ def test_commitment_rebind_attests_after_lease_cas_without_reapplying_effects(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("injected_after_lease_cas")),
     )
 
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
+    interrupted = case.execute()
 
     assert interrupted["verdict"] == "block"
-    assert git(worktree, "rev-parse", "HEAD") == case["target_commit"]
-    assert leases_by_branch(worktree)[case["branch"]]["epoch"] == int(case["lease"]["epoch"]) + 1
+    assert git(worktree, "rev-parse", "HEAD") == case.request.target_commit
+    assert leases_by_branch(worktree)[case.branch]["epoch"] == int(case.lease["epoch"]) + 1
     assert not list(ref_intent_dir(worktree).glob("*.json"))
 
     monkeypatch.setattr(rebind, "persist_rebind_attestation", persist)
-    attested = execute_commitment_rebind(root=worktree, request=request)
+    attested = case.execute()
 
     assert attested["state"] == "attested"
-    _assert_terminal(case, attested)
+    case.assert_terminal(attested)
 
 
 @pytest.mark.parametrize("drift", ["ref", "lease"])
@@ -618,12 +578,9 @@ def test_commitment_rebind_rechecks_terminal_state_before_attestation(
     drift: str,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    branch = case["branch"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    assert isinstance(branch, str)
+    worktree = case.worktree
+    request = case.request
+    branch = case.branch
     issue = rebind.issue_rebind_attestation
 
     def drift_before_issue(*args, **kwargs):
@@ -631,12 +588,12 @@ def test_commitment_rebind_rechecks_terminal_state_before_attestation(
         if drift == "ref":
             git(worktree, "update-ref", f"refs/heads/{branch}", request.expect_head)
         else:
-            _replace_lease_payload(worktree, branch, path_scope=["drift/**"])
+            case.replace_lease(path_scope=["drift/**"])
         return issue(*args, **kwargs)
 
     monkeypatch.setattr(rebind, "issue_rebind_attestation", drift_before_issue)
 
-    report = execute_commitment_rebind(root=worktree, request=request)
+    report = case.execute()
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == [
@@ -651,24 +608,18 @@ def test_commitment_rebind_recovery_rejects_complete_target_lease_drift(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    branch = case["branch"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(branch, str)
-    assert isinstance(request, CommitmentRebindRequest)
     persist = rebind.persist_rebind_attestation
     monkeypatch.setattr(
         rebind,
         "persist_rebind_attestation",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("injected_after_lease_cas")),
     )
-    interrupted = execute_commitment_rebind(root=worktree, request=request)
+    interrupted = case.execute()
     assert interrupted["required_gaps"] == ["injected_after_lease_cas"]
-    _replace_lease_payload(worktree, branch, path_scope=["other/**"])
+    case.replace_lease(path_scope=["other/**"])
     monkeypatch.setattr(rebind, "persist_rebind_attestation", persist)
 
-    report = execute_commitment_rebind(root=worktree, request=request)
+    report = case.execute()
 
     assert report["state"] == "repair_required"
     assert report["required_gaps"] == ["commitment_rebind_state_inconsistent"]
@@ -679,22 +630,16 @@ def test_commitment_rebind_recognition_rechecks_apply_actor_and_overlay(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    completed = execute_commitment_rebind(root=worktree, request=request)
+    request = case.request
+    completed = case.execute()
     assert completed["verdict"] == "pass"
 
-    dry_run = execute_commitment_rebind(
-        root=worktree,
-        request=request.model_copy(update={"apply": False}),
-    )
+    dry_run = case.execute(apply=False)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
-    wrong_actor = execute_commitment_rebind(root=worktree, request=request)
+    wrong_actor = case.execute()
     monkeypatch.setenv("ETHOS_ACTOR", request.holder_ref)
-    Path(case["untracked_overlay"]).write_bytes(b"drifted overlay\n")
-    drifted = execute_commitment_rebind(root=worktree, request=request)
+    Path(case.untracked_overlay).write_bytes(b"drifted overlay\n")
+    drifted = case.execute()
 
     assert dry_run["required_gaps"] == ["commitment_rebind_apply_required"]
     assert wrong_actor["required_gaps"] == ["lease_actor_mismatch"]
@@ -706,16 +651,14 @@ def test_commitment_rebind_recognition_rejects_ref_drift(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    completed = execute_commitment_rebind(root=worktree, request=request)
+    worktree = case.worktree
+    request = case.request
+    completed = case.execute()
     assert completed["verdict"] == "pass"
     git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
     git(worktree, "update-ref", f"refs/heads/{request.branch}", request.expect_head)
 
-    recognized = execute_commitment_rebind(root=worktree, request=request)
+    recognized = case.execute()
 
     assert recognized["state"] == "blocked"
     assert recognized["required_gaps"] == ["commitment_rebind_terminal_mismatch"]
@@ -743,11 +686,9 @@ def test_commitment_rebind_recognition_rejects_attestation_freshness_drift(
     replacement: str,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    completed = execute_commitment_rebind(root=worktree, request=request)
+    worktree = case.worktree
+    request = case.request
+    completed = case.execute()
     assert completed["verdict"] == "pass"
     effect = rebind.GitEffect(
         updates={
@@ -772,7 +713,6 @@ def test_commitment_rebind_recognition_rejects_attestation_freshness_drift(
         statement = payload["statement"]
         assert isinstance(statement, dict)
         target = statement if location == "statement" else statement[location]
-        assert isinstance(target, dict)
         target[field] = replacement
     payload["statement_digest"] = "0" * 64
     payload["id"] = "0" * 64
@@ -789,129 +729,74 @@ def test_commitment_rebind_recognition_rejects_attestation_freshness_drift(
     )
     path.write_text(tampered.canonical_json(), encoding="utf-8")
 
-    recognized = execute_commitment_rebind(root=worktree, request=request)
+    recognized = case.execute()
 
     assert recognized["state"] == "repair_required"
     assert recognized["required_gaps"] == ["commitment_rebind_terminal_mismatch"]
 
 
-def test_commitment_rebind_cli_projects_the_same_terminal_transaction(
+@pytest.mark.parametrize(
+    "carrier_mode",
+    ["stable", "relocated"],
+    ids=["stable-carrier", "relocated"],
+)
+def test_commitment_rebind_cli_projects_terminal_transaction_and_carrier(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    carrier_mode: str,
 ) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    arguments = ["lane", "rebind-commitment", "--root", worktree.as_posix()]
-    for name, value in request.model_dump().items():
-        option = "--" + name.replace("_", "-")
-        if isinstance(value, bool):
-            if value:
-                arguments.append(option)
-        elif isinstance(value, tuple):
-            for item in value:
-                arguments.extend((option, str(item)))
-        else:
-            arguments.extend((option, str(value)))
-    arguments.append("--json")
+    relocate_carrier = carrier_mode == "relocated"
+    case = _case(tmp_path, monkeypatch, relocate_carrier=relocate_carrier)
+    arguments = case.cli_arguments()
 
-    applied = run_ethos(*arguments, cwd=worktree)
-    recognized = run_ethos(*arguments, cwd=worktree)
-
-    assert applied["data"]["state"] == "applied"
-    assert recognized["data"]["state"] == "recognized"
-    assert applied["data"]["attestation"] == recognized["data"]["attestation"]
-
-
-def test_commitment_rebind_cli_preserves_carrier_coordinates(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = _case(tmp_path, monkeypatch, relocate_carrier=True)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-    arguments = ["lane", "rebind-commitment", "--root", worktree.as_posix()]
-    for name, value in request.model_dump().items():
-        option = "--" + name.replace("_", "-")
-        if isinstance(value, bool):
-            if value:
-                arguments.append(option)
-        elif isinstance(value, tuple):
-            for item in value:
-                arguments.extend((option, str(item)))
-        else:
-            arguments.extend((option, str(value)))
-    arguments.append("--json")
-
-    applied = run_ethos(*arguments, cwd=worktree)
-
+    applied = run_ethos(*arguments, cwd=case.worktree)
     assert applied["data"]["verdict"] == "pass"
-    assert applied["data"]["lease"]["base_commitment_path"] == request.new_commitment_path
+    assert applied["data"]["lease"]["base_commitment_path"] == case.request.new_commitment_path
+
+    if not relocate_carrier:
+        recognized = run_ethos(*arguments, cwd=case.worktree)
+        assert (applied["data"]["state"], recognized["data"]["state"]) == (
+            "applied",
+            "recognized",
+        )
+        assert applied["data"]["attestation"] == recognized["data"]["attestation"]
 
 
 @pytest.mark.parametrize(
-    ("lease_updates", "expected_gap"),
+    ("mutation", "updates", "expected_gap"),
     [
-        ({"lane_incarnation_id": "lane-incarnation:other"}, "lease_lane_incarnation_id_stale"),
-        ({"expected_tree": "0" * 40}, "lease_expected_tree_stale"),
         (
+            "lease",
+            {"lane_incarnation_id": "lane-incarnation:other"},
+            "lease_lane_incarnation_id_stale",
+        ),
+        ("lease", {"expected_tree": "0" * 40}, "lease_expected_tree_stale"),
+        (
+            "lease",
             {"base_commitment_path": "openspec/changes/other/commitment.toml"},
             "lease_commitment_path_stale",
         ),
+        ("request", {"expected_issued_at": "2026-01-01T00:00:00+00:00"}, "lease_issued_at_stale"),
+        ("request", {"expected_renewed_at": "2026-01-01T00:00:00+00:00"}, "lease_renewed_at_stale"),
+        ("request", {"expected_path_scope": ("other/**",)}, "lease_path_scope_stale"),
     ],
 )
-def test_commitment_rebind_rejects_stale_old_generation_coordinates(
+def test_commitment_rebind_rejects_inexact_old_generation_coordinates(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    lease_updates: dict[str, object],
+    mutation: str,
+    updates: dict[str, object],
     expected_gap: str,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    branch = case["branch"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(branch, str)
-    assert isinstance(request, CommitmentRebindRequest)
-    _replace_lease_payload(worktree, branch, **lease_updates)
-
-    report = execute_commitment_rebind(root=worktree, request=request)
+    if mutation == "lease":
+        case.replace_lease(**updates)
+        report = case.execute()
+    else:
+        report = case.execute(**updates)
 
     assert report["required_gaps"] == [expected_gap]
-    assert git(worktree, "rev-parse", "HEAD") == request.expect_head
-
-
-@pytest.mark.parametrize(
-    ("request_updates", "expected_gap"),
-    [
-        ({"expected_issued_at": "2026-01-01T00:00:00+00:00"}, "lease_issued_at_stale"),
-        ({"expected_renewed_at": "2026-01-01T00:00:00+00:00"}, "lease_renewed_at_stale"),
-        ({"expected_path_scope": ("other/**",)}, "lease_path_scope_stale"),
-    ],
-)
-def test_commitment_rebind_rejects_inexact_old_generation_request(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    request_updates: dict[str, object],
-    expected_gap: str,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    request = case["request"]
-    assert isinstance(worktree, Path)
-    assert isinstance(request, CommitmentRebindRequest)
-
-    report = execute_commitment_rebind(
-        root=worktree,
-        request=request.model_copy(update=request_updates),
-    )
-
-    assert report["required_gaps"] == [expected_gap]
-    assert git(worktree, "rev-parse", "HEAD") == request.expect_head
+    assert git(case.worktree, "rev-parse", "HEAD") == case.request.expect_head
 
 
 def test_commitment_rebind_blocks_impossible_lease_ahead_of_ref(
@@ -919,16 +804,10 @@ def test_commitment_rebind_blocks_impossible_lease_ahead_of_ref(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    worktree = case["worktree"]
-    branch = case["branch"]
-    lease = case["lease"]
-    request = case["request"]
-    target = case["target"]
-    assert isinstance(worktree, Path)
-    assert isinstance(branch, str)
-    assert isinstance(lease, dict)
-    assert isinstance(request, CommitmentRebindRequest)
-    assert isinstance(target, dict)
+    worktree = case.worktree
+    branch = case.branch
+    lease = case.lease
+    target = case.target
     _replace_lease_payload(
         worktree,
         branch,
@@ -936,7 +815,7 @@ def test_commitment_rebind_blocks_impossible_lease_ahead_of_ref(
         **target,
     )
 
-    report = execute_commitment_rebind(root=worktree, request=request)
+    report = case.execute()
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["commitment_rebind_state_inconsistent"]

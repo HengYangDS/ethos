@@ -176,7 +176,7 @@ def test_prewrite_preserves_unknown_component_without_synthetic_gap(
 ) -> None:
     monkeypatch.setattr(
         admission_prewrite,
-        "_runtime_binding_check",
+        "runtime_binding_check",
         lambda _status: {"verdict": "unknown", "reason": ""},
     )
 

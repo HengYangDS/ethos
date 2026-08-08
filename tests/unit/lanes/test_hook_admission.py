@@ -10,7 +10,7 @@ import ethos.adapters.admission.identity as admission_identity
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.identity import push_identity_policy_report
-from ethos.adapters.admission.prewrite import _runtime_binding_check
+from ethos.adapters.admission.prewrite import runtime_binding_check
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import attestation_store_dir
@@ -540,7 +540,7 @@ def test_prewrite_accepts_exact_repository_family_runtime(
         lambda _root: {"quality": object()},
     )
 
-    report = _runtime_binding_check(
+    report = runtime_binding_check(
         {
             "runtime_binding": {
                 "audit_root": repo.resolve().as_posix(),
@@ -556,7 +556,7 @@ def test_prewrite_accepts_exact_repository_family_runtime(
     assert report["verdict"] == "pass"
     assert report["runner_matches_repository_family"] is True
 
-    rejected = _runtime_binding_check(
+    rejected = runtime_binding_check(
         {
             "runtime_binding": {
                 "audit_root": repo.resolve().as_posix(),

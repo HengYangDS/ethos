@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.plan import TransitionPlan
+    from ethos.contracts.semantic import Attestation
 KNOWN_PROOF_SCOPES = frozenset(
     {"repository", "change", "proof-kernel", "code", "docs", "openspec", "quality"}
 )
@@ -323,6 +324,47 @@ def _proof_next_action(
     return "ethos plan --changed --json"
 
 
+def _issue_proof_or_emit_gap(
+    repo: Path,
+    *,
+    plan: TransitionPlan,
+    checks: list[dict[str, object]],
+    verdict: Verdict,
+    options: _ProofOptions,
+    scope: str,
+    boundary: str,
+    required_gaps: tuple[str, ...],
+    json_output: bool,
+) -> Attestation | None:
+    """Issue one proof or project its semantic mismatch at the CLI boundary."""
+    try:
+        return issue_proof_attestation(
+            repo,
+            {
+                "plan": plan,
+                "checks": tuple(checks),
+                "verdict": verdict,
+                "issuer": os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+                "scope": scope,
+                "boundary": boundary,
+                "objective": options.objective,
+                "required_gaps": required_gaps,
+            },
+        )
+    except ValueError as error:
+        emit(
+            EthosResult(
+                command="prove",
+                verdict="block",
+                state="gapped",
+                required_gaps=(str(error),),
+                next_action="ethos plan --changed --json",
+            ),
+            json_output=json_output,
+        )
+        return None
+
+
 @app.command
 def prove(
     options: Annotated[_ProofOptions, Parameter(name="*")] = _DEFAULT_PROOF_OPTIONS,
@@ -449,43 +491,45 @@ def prove(
         required_gaps=required_gaps,
     )
     boundary = "focused" if focused else "repository"
-    attestation = None
-    if options.execute:
-        attestation = issue_proof_attestation(
+    attestation = (
+        _issue_proof_or_emit_gap(
             repo,
-            {
-                "plan": plan,
-                "checks": tuple(checks),
-                "verdict": verdict,
-                "issuer": os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
-                "scope": str(scope_binding["scope"]),
-                "boundary": boundary,
-                "objective": options.objective,
-                "required_gaps": required_gaps,
-            },
+            plan=plan,
+            checks=checks,
+            verdict=verdict,
+            options=options,
+            scope=str(scope_binding["scope"]),
+            boundary=boundary,
+            required_gaps=required_gaps,
+            json_output=json_output,
         )
-        if attestation.verdict == "pass":
-            try:
-                persist_proof_attestation(repo, attestation)
-            except ValueError as error:
-                required_gaps = tuple(
-                    dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
-                )
-                verdict = "block"
-                attestation = issue_proof_attestation(
-                    repo,
-                    {
-                        "plan": plan,
-                        "checks": tuple(checks),
-                        "verdict": "block",
-                        "issuer": os.environ.get("ETHOS_ACTOR", "").strip()
-                        or "agent:local:process:ethos",
-                        "scope": str(scope_binding["scope"]),
-                        "boundary": boundary,
-                        "objective": options.objective,
-                        "required_gaps": required_gaps,
-                    },
-                )
+        if options.execute
+        else None
+    )
+    if options.execute and attestation is None:
+        return
+    if attestation is not None and attestation.verdict == "pass":
+        try:
+            persist_proof_attestation(repo, attestation)
+        except ValueError as error:
+            required_gaps = tuple(
+                dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
+            )
+            verdict = "block"
+            attestation = issue_proof_attestation(
+                repo,
+                {
+                    "plan": plan,
+                    "checks": tuple(checks),
+                    "verdict": "block",
+                    "issuer": os.environ.get("ETHOS_ACTOR", "").strip()
+                    or "agent:local:process:ethos",
+                    "scope": str(scope_binding["scope"]),
+                    "boundary": boundary,
+                    "objective": options.objective,
+                    "required_gaps": required_gaps,
+                },
+            )
     result_state = (
         "proven"
         if verdict == "pass" and options.execute

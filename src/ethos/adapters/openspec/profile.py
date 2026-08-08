@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import ethos.adapters.openspec.cli as openspec_cli
-import ethos.repository.openspec.audit
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
+from ethos.adapters.openspec.observation import (
+    protected_branch_active_change_required_gaps as observed_protected_branch_gaps,
+)
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 
@@ -103,18 +105,21 @@ def completed_active_changes_report(root: Path) -> dict[str, object]:
 def active_change_names(root: Path) -> list[str]:
     """Discover active changes only inside the selected OpenSpec profile."""
     repo = root.parent if root.name == "openspec" else root
-    return (
-        ethos.repository.openspec.audit.active_change_names(repo / "openspec")
-        if openspec_profile_enabled(repo)
-        else []
-    )
+    if not openspec_profile_enabled(repo):
+        return []
+    changes = repo / "openspec" / "changes"
+    if not changes.is_dir():
+        return []
+    return [
+        path.name for path in sorted(changes.iterdir()) if path.is_dir() and path.name != "archive"
+    ]
 
 
 def protected_branch_active_change_required_gaps(root: Path, *, current_branch: str) -> list[str]:
     """Return protected-branch residue only for the selected OpenSpec profile."""
     if not openspec_profile_enabled(root):
         return []
-    return ethos.repository.openspec.audit.protected_branch_active_change_required_gaps(
+    return observed_protected_branch_gaps(
         root,
         current_branch=current_branch,
     )

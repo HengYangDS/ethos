@@ -528,7 +528,6 @@ def test_runtime_binding_recognizes_the_exact_repository_family_hook_runtime(
 
     report = runtime_binding(repo)
 
-    assert report["runner_matches_repository_family"] is True
     assert report["state"] == "bound_to_repository_family"
 
 
@@ -548,7 +547,7 @@ def test_prewrite_accepts_exact_repository_family_runtime(
                 "runner_source_root": "/external/package/ethos",
                 "schema_source_root": repo.resolve().as_posix(),
                 "runner_matches_audit_root": False,
-                "runner_matches_repository_family": True,
+                "state": "bound_to_repository_family",
                 "schema_matches_audit_root": True,
             }
         }
@@ -564,7 +563,7 @@ def test_prewrite_accepts_exact_repository_family_runtime(
                 "runner_source_root": "/external/package/ethos",
                 "schema_source_root": repo.resolve().as_posix(),
                 "runner_matches_audit_root": False,
-                "runner_matches_repository_family": False,
+                "state": "external_declared_runner",
                 "schema_matches_audit_root": True,
             }
         }

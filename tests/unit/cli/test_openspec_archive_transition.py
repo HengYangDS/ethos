@@ -13,12 +13,14 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_environment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.schema import state_database
 from ethos.cli import main
+from ethos.contracts.semantic import Attestation
 from ethos.normalization.coercion import repository_path_matches
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -78,9 +80,44 @@ def test_archive_change_owns_official_archive_commit_and_lease_transition(
     assert changed_plan["verdict"] == "pass", changed_plan
     assert changed_plan["required_gaps"] == []
     assert changed_plan["lifecycle"]["scope_binding"]["state"] == "post_archive_closeout"
-    plan = proof_plan(worktree, head=archived_head)
+    plan = proof_plan(
+        worktree,
+        head=archived_head,
+        changed_paths=changed_paths,
+    )
     assert plan.verdict == "pass"
     assert plan.facts["values"]["change_id"] == "fixture-change"
+    assert plan.prior_attestations["openspec_archive"]["predicate"] == ("effect:openspec-archive")
+
+    unrelated = proof_plan(
+        worktree,
+        head=archived_head,
+        changed_paths=(*changed_paths, "README.md"),
+    )
+    assert unrelated.required_gaps == ("change_scope_exceeded",)
+
+    store = attestation_store_dir(worktree)
+    receipt_path = store / f"{report['attestation']['id']}.json"
+    receipt = Attestation.model_validate_json(receipt_path.read_text(encoding="utf-8"))
+    forged = Attestation.issue(
+        receipt.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+        | {
+            "statement": receipt.statement
+            | {
+                "output": receipt.statement["output"]
+                | {"changed_paths": [*report["changed_paths"], "README.md"]}
+            }
+        }
+    )
+    receipt_path.unlink()
+    (store / f"{forged.id}.json").write_text(forged.canonical_json(), encoding="utf-8")
+
+    tampered = proof_plan(
+        worktree,
+        head=archived_head,
+        changed_paths=changed_paths,
+    )
+    assert tampered.required_gaps == ("change_scope_exceeded",)
 
 
 def test_archive_change_is_exposed_through_installed_cli_projection(

@@ -393,10 +393,18 @@ def compile_plan(
     nodes: tuple[PlanNode, ...],
     *,
     policy: JsonObject,
+    prior_attestations: JsonObject | None = None,
     required_gaps: tuple[str, ...] = (),
 ) -> TransitionPlan:
     """Compile one effective commitment and current fact snapshot into TransitionPlan."""
     gaps = list(required_gaps)
+    attestations = prior_attestations or {}
+    archive = attestations.get("openspec_archive")
+    effect_authorized_paths = (
+        tuple(str(path) for path in archive.get("authorized_paths", ()))
+        if isinstance(archive, dict)
+        else ()
+    )
     if commitment.subjects and facts.repository not in commitment.subjects:
         gaps.append("repository_subject_mismatch")
     if commitment.scope:
@@ -406,7 +414,8 @@ def compile_plan(
         ):
             gaps.append("changed_paths_invalid")
         elif any(
-            not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
+            path not in effect_authorized_paths
+            and not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
             for path in changed_paths
             if isinstance(path, str)
         ):
@@ -415,7 +424,7 @@ def compile_plan(
         inputs=PlanInputs(
             commitment=commitment.digest(),
             facts=facts.digest(),
-            prior_attestations=EMPTY_ATTESTATION_SET_DIGEST,
+            prior_attestations=canonical_json_digest(attestations),
             policy=canonical_json_digest(policy),
             effect=proof_effect_digest(
                 commitment=commitment.digest(),
@@ -426,7 +435,7 @@ def compile_plan(
         ),
         closure={
             "commitment": commitment.identity_projection(),
-            "prior_attestations": {},
+            "prior_attestations": attestations,
             "policy": policy,
             "effect": proof_effect_projection(
                 commitment=commitment.digest(),

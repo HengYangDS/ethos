@@ -22,6 +22,7 @@ from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.lifecycle.report import selection_gaps
+from ethos.adapters.repo.git import git_stdout
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import protected_branch_active_change_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
@@ -121,13 +122,34 @@ def _active_identifier_rejected_report(
     }
 
 
+def _completed_change(rows: list[dict[str, str]] | None) -> str | None:
+    return (
+        rows[0]["name"]
+        if rows is not None and len(rows) == 1 and rows[0]["status"] == "complete"
+        else None
+    )
+
+
+def _completion_transition_gap(
+    root: Path,
+    completed_change: str | None,
+    changed_paths: tuple[str, ...],
+    archive_scope: dict[str, object] | None,
+) -> list[str]:
+    staged = git_stdout(root, "diff", "--cached", "--name-only")
+    return (
+        ["openspec_active_change_missing"]
+        if completed_change is not None and bool(staged) and changed_paths and archive_scope is None
+        else []
+    )
+
+
 def _openspec_governance_report(
     root: Path,
     *,
     request: OpenSpecRequest,
     base_command: tuple[str, ...] | None,
 ) -> dict[str, Any]:
-    openspec_root = root / "openspec"
     official_config = official_config_report(root)
     current_branch = openspec_cli.current_branch(root)
     protected_branch_residue = protected_branch_active_change_report(
@@ -146,7 +168,7 @@ def _openspec_governance_report(
     if (
         not request.require_workspace
         and request.change is None
-        and not openspec_root.exists()
+        and not (root / "openspec").exists()
         and scope_binding["state"] == "no_material_paths"
     ):
         return {
@@ -170,7 +192,7 @@ def _openspec_governance_report(
             },
             "commands": {},
         }
-    required_gaps = openspec_root_gaps(openspec_root, official_config)
+    required_gaps = openspec_root_gaps(root / "openspec", official_config)
     context = OpenSpecReportContext(
         request=request,
         official_config=official_config,
@@ -198,12 +220,9 @@ def _openspec_governance_report(
         )
     list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
     rows = official_change_rows(list_result["json"])
-    official_selected = selected_change(rows, request.change) if rows is not None else None
-    completed_change = (
-        rows[0]["name"]
-        if rows is not None and len(rows) == 1 and rows[0]["status"] == "complete"
-        else None
-    )
+    selected = selected_change(rows, request.change) if rows is not None else None
+    completed_change = _completed_change(rows)
+    official_selected = selected if selected != completed_change else None
     status = openspec_status_result(
         root,
         base_command,
@@ -239,20 +258,26 @@ def _openspec_governance_report(
         if archive_scope is None and rows == []
         else None
     )
+    required_gaps += _completion_transition_gap(
+        root,
+        completed_change,
+        request.changed_paths,
+        post_archive_scope or archive_scope,
+    )
     archive_scope = post_archive_scope or archive_scope
     archived_change = (
         str(archive_scope["changes"][0]["name"])
         if archive_scope and archive_scope.get("changes")
         else None
     )
-    selected = official_selected or archived_change
+    selected = selected or archived_change
     apply = (
         openspec_cli.run_json(
             root,
             base_command,
-            ("instructions", "apply", "--change", official_selected, "--json"),
+            ("instructions", "apply", "--change", selected, "--json"),
         )
-        if official_selected
+        if selected
         else {}
     )
     archive = (
@@ -300,10 +325,10 @@ def _openspec_governance_report(
             request=request,
             list_payload=list_result["json"],
             status_payload=status["json"],
-            apply_payload=apply["json"],
+            apply_payload=apply.get("json", {}),
             protected_branch_residue=protected_branch_residue,
         )
-        if official_selected is not None or not request.lifecycle
+        if selected is not None or not request.lifecycle
         else lifecycle_report(
             root,
             request=request._replace(lifecycle=False),

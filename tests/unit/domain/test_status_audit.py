@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from ethos.domain import status
+import ethos.domain.status as status
 
 
 def test_product_audit_receives_observed_hook_runtime_gaps(monkeypatch, tmp_path: Path) -> None:

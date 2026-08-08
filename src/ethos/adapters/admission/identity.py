@@ -34,8 +34,8 @@ class ReconciliationObservation:
 _NO_RECONCILIATION = ReconciliationObservation()
 
 
-def _git(root: Path, *args: str, text: bool = False):
-    return run_git(root, *args, check=False, text=text)
+def _git(root: Path, *args: str):
+    return run_git(root, *args, check=False)
 
 
 def commit_contained_in(root: Path, commit: str, branch: str) -> bool:
@@ -56,7 +56,7 @@ def _pushed_commit_range(
     if not _exists(root, pushed_head):
         return [], False
     revision = f"{remote_head}..{pushed_head}" if _exists(root, remote_head) else pushed_head
-    result = _git(root, "rev-list", revision, text=True)
+    result = _git(root, "rev-list", revision)
     return (result.stdout.splitlines(), True) if result.returncode == 0 else ([], False)
 
 
@@ -65,12 +65,12 @@ def _pushed_commit_range_excluding(
 ) -> tuple[list[str], bool]:
     if not _exists(root, pushed_head):
         return [], False
-    result = _git(root, "rev-list", pushed_head, "--not", *trusted_baselines, text=True)
+    result = _git(root, "rev-list", pushed_head, "--not", *trusted_baselines)
     return (result.stdout.splitlines(), True) if result.returncode == 0 else ([], False)
 
 
 def _commit_identity(root: Path, revision: str) -> dict[str, str]:
-    result = _git(root, "show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", revision, text=True)
+    result = _git(root, "show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", revision)
     parts = result.stdout.rstrip("\n").split("\x00")
     return (
         dict(zip(_IDENTITY_FIELDS, parts, strict=True))
@@ -188,7 +188,7 @@ def push_identity_policy_report(
     reconciliation: ReconciliationObservation = _NO_RECONCILIATION,
 ) -> dict[str, object]:
     """Require configured author and committer identity for newly pushed commits."""
-    mode = _git(root, "config", "--get", "ethos.pushIdentityPolicy", text=True).stdout.strip()
+    mode = _git(root, "config", "--get", "ethos.pushIdentityPolicy").stdout.strip()
     if mode != "configured-user":
         return {
             "verdict": "pass",
@@ -198,8 +198,8 @@ def push_identity_policy_report(
             "violations": [],
             "required_gaps": [],
         }
-    name = _git(root, "config", "--get", "user.name", text=True).stdout.strip()
-    email = _git(root, "config", "--get", "user.email", text=True).stdout.strip()
+    name = _git(root, "config", "--get", "user.name").stdout.strip()
+    email = _git(root, "config", "--get", "user.email").stdout.strip()
     gaps = [
         gap
         for value, gap in (

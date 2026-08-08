@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.openspec.cli as openspec_cli
-import ethos.repository.openspec.audit as openspec_audit
+import ethos.adapters.openspec.observation as openspec_audit
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import proof_plan
@@ -17,6 +17,10 @@ from ethos.adapters.openspec.lifecycle.report import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.report import lifecycle_report
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.openspec.lifecycle.report import selected_change
+from ethos.adapters.openspec.observation import active_change_names_in_ref
+from ethos.adapters.openspec.observation import openspec_shape_report
+from ethos.adapters.openspec.observation import protected_branch_active_change_report
+from ethos.adapters.openspec.observation import protected_branch_active_change_required_gaps
 from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -24,11 +28,7 @@ from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import Commitment
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.openspec.audit import active_change_names_in_ref
 from ethos.repository.openspec.audit import official_config_report
-from ethos.repository.openspec.audit import openspec_shape_report
-from ethos.repository.openspec.audit import protected_branch_active_change_report
-from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
@@ -748,13 +748,16 @@ def test_shape_report_preserves_unknown_protected_branch_observation(
     _write_valid_accepted_specs(repo)
     monkeypatch.setattr(
         openspec_audit,
-        "_branch_report",
-        lambda _root, branch: {
-            "verdict": "unknown",
-            "state": "unknown",
-            "branch": branch,
-            "required_gaps": [f"openspec_branch_unavailable:{branch}"],
-        },
+        "_branch_observation",
+        lambda _root, branch: (
+            {
+                "verdict": "unknown",
+                "state": "unknown",
+                "branch": branch,
+                "required_gaps": [f"openspec_branch_unavailable:{branch}"],
+            },
+            None,
+        ),
     )
 
     report = openspec_shape_report(repo)

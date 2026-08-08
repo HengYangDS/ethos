@@ -22,11 +22,11 @@ from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.lifecycle.report import selection_gaps
+from ethos.adapters.openspec.observation import protected_branch_active_change_report
 from ethos.adapters.repo.git import git_stdout
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.openspec.audit import official_config_report
-from ethos.repository.openspec.audit import protected_branch_active_change_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:

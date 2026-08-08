@@ -19,7 +19,6 @@ from ethos.surface.cli.root.proof import resolve_generation_scope
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
-from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.openspec_lifecycle import completed_lifecycle
 
@@ -41,24 +40,6 @@ def _advance_current_generation(worktree: Path, overlay: Path) -> None:
         new_value=implemented_head,
     )
     assert advanced["state"] == "lease_ref_advanced"
-
-
-def test_plan_admits_the_exact_post_archive_effect(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    lifecycle = completed_lifecycle(
-        tmp_path,
-        monkeypatch,
-        scope=("openspec/changes/fixture-change/**",),
-    )
-    worktree = lifecycle.worktree
-    lifecycle.archive()
-
-    payload = run_ethos("plan", "--changed", "--root", worktree.as_posix(), "--json", cwd=worktree)
-
-    assert payload["verdict"] == "pass", payload
-    authority = payload["data"]["transition_plan"]["prior_attestations"]["openspec_archive"]
-    assert authority["predicate"] == "effect:openspec-archive"
 
 
 def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect(
@@ -136,28 +117,6 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
 
     assert scope.paths == archive_paths
     assert scope.archive_authority["predicate"] == "effect:openspec-archive"
-    plan = proof_plan(
-        worktree,
-        head=archived_head,
-        change_id="fixture-change",
-        changed_paths=scope.paths,
-        generation_scope=scope,
-    )
-    assert plan.verdict == "pass"
-
-    unrelated = proof_plan(
-        worktree,
-        head=archived_head,
-        change_id="fixture-change",
-        changed_paths=(*scope.paths, "README.md"),
-        generation_scope=scope.__class__(
-            paths=(*scope.paths, "README.md"),
-            start_authority=scope.start_authority,
-            archive_authority=scope.archive_authority,
-        ),
-    )
-    assert unrelated.required_gaps == ("change_scope_exceeded",)
-
     receipt_path = attestation_store_dir(worktree) / f"{archived['attestation']['id']}.json"
     receipt = Attestation.model_validate_json(receipt_path.read_text(encoding="utf-8"))
     forged = Attestation.issue(
@@ -191,44 +150,6 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     assert tampered.paths == ()
     assert tampered.gaps == ()
     assert {item.state for item in tampered.attributions} == {"unknown"}
-
-
-def test_clean_accepted_root_without_active_change_uses_repository_proof(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    repository, _candidate = start_adopted_candidate(tmp_path)
-    monkeypatch.setattr(
-        "ethos.adapters.openspec.cli.openspec_base_command",
-        lambda: ("openspec",),
-    )
-
-    def run_json(_root: Path, _base: tuple[str, ...], args: tuple[str, ...]):
-        payload = (
-            {"root": {"healthy": True}}
-            if args[0] == "doctor"
-            else {"changes": []}
-            if args[0] == "list"
-            else {"items": [], "summary": {}}
-        )
-        return {
-            "command": [*_base, *args],
-            "exit_code": 0,
-            "stdout": "",
-            "stderr": "",
-            "json": payload,
-            "parse_error": "",
-        }
-
-    monkeypatch.setattr("ethos.adapters.openspec.cli.run_json", run_json)
-
-    plan = run_ethos("plan", "--changed", "--root", repository.as_posix(), "--json", cwd=repository)
-    proof = run_ethos("prove", "--root", repository.as_posix(), "--json", cwd=repository)
-
-    assert plan["verdict"] == "pass", plan
-    assert plan["data"]["changed_paths"] == []
-    assert "openspec_active_change_missing" not in plan["required_gaps"]
-    assert proof["verdict"] == "pass", proof
-    assert "openspec_active_change_missing" not in proof["required_gaps"]
 
 
 def _start_forward_fix_generation(

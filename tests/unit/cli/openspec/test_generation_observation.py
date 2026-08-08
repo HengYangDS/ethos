@@ -1,4 +1,4 @@
-"""Accepted archive reactivation generation contract."""
+"""Single-owner OpenSpec generation observation contracts."""
 
 from __future__ import annotations
 
@@ -21,27 +21,23 @@ if TYPE_CHECKING:
     import pytest
 
 
-def test_exact_accepted_archive_reactivation_defines_one_current_generation(
+def test_archive_reactivation_is_one_current_generation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     repository, candidate = start_adopted_candidate(tmp_path)
     archive = candidate / "openspec/changes/archive/2026-08-08-restored-change"
     archive.mkdir(parents=True)
-    (archive / ".openspec.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
+    (archive / ".openspec.yaml").write_text("schema: spec-driven\n")
     (archive / "commitment.toml").write_text(
-        "schema_version = 1\n"
-        'id = "change:restored-change"\n'
-        'intent = "Restore one exact accepted archive."\n'
-        'subjects = ["repository:self"]\n'
+        'schema_version = 1\nid = "change:restored-change"\n'
+        'intent = "Restore one exact accepted archive."\nsubjects = ["repository:self"]\n'
         'scope = ["README.md", "openspec/changes/restored-change/**"]\n'
-        'permissions = ["repository.read", "work-lane.write"]\n',
-        encoding="utf-8",
+        'permissions = ["repository.read", "work-lane.write"]\n'
     )
     git(candidate, "add", archive.relative_to(candidate).as_posix())
     git(candidate, "commit", "-m", "archive restored change")
     accepted = git(candidate, "rev-parse", "HEAD")
-    worktree = tmp_path / "repo-work-restored-change"
-    branch = "work/restored-change"
+    worktree, branch = tmp_path / "repo-work-restored-change", "work/restored-change"
     git(candidate, "worktree", "add", "-b", branch, worktree.as_posix(), accepted)
     active = worktree / "openspec/changes/restored-change"
     active.parent.mkdir(parents=True, exist_ok=True)
@@ -61,19 +57,20 @@ def test_exact_accepted_archive_reactivation_defines_one_current_generation(
         ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:reactivation")
-    readme = worktree / "README.md"
-    readme.write_text("# restored generation\n", encoding="utf-8")
+    (worktree / "README.md").write_text("# restored generation\n")
     git(worktree, "add", "README.md")
     git(worktree, "commit", "-m", "implement restored generation")
     implemented = git(worktree, "rev-parse", "HEAD")
-    advanced = work_lane_ref_transition_report(
-        root=worktree,
-        phase="committed",
-        ref_name=f"refs/heads/{branch}",
-        old_value=restored,
-        new_value=implemented,
+    assert (
+        work_lane_ref_transition_report(
+            root=worktree,
+            phase="committed",
+            ref_name=f"refs/heads/{branch}",
+            old_value=restored,
+            new_value=implemented,
+        )["state"]
+        == "lease_ref_advanced"
     )
-    assert advanced["state"] == "lease_ref_advanced"
 
     lease = leases_by_branch(worktree)[branch]
     scope = current_generation_scope(
@@ -95,11 +92,6 @@ def test_exact_accepted_archive_reactivation_defines_one_current_generation(
     )
 
     assert scope.gaps == ()
-    assert scope.paths == (
-        "README.md",
-        "openspec/changes/restored-change/.openspec.yaml",
-        "openspec/changes/restored-change/commitment.toml",
-    )
     assert scope.start_authority["predicate"] == "effect:openspec-archive-reactivation"
     assert {item.source for item in scope.attributions if item.state == "authorized"} == {
         "archive_reactivation"

@@ -14,8 +14,8 @@ from typing import NamedTuple
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from ethos.adapters.repo.hook.binding import HookRuntimeBinding
     from ethos.contracts.semantic import Attestation
-    from ethos.repository.hooks import HookRuntimeBinding
 
 import ethos.adapters.mutation.lane_start_rollback as rollback
 from ethos.adapters.openspec.cli import openspec_base_command

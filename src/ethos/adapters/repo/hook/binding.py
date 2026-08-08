@@ -6,20 +6,11 @@ import hashlib
 import json
 import os
 import re
-import shutil
-import sys
-import uuid
-from contextlib import contextmanager
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import distribution
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import TypedDict
 
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 HOOK_NAMES = ("pre-commit", "pre-push", "reference-transaction")
 _RUNTIME_LOCATOR = (
@@ -27,11 +18,6 @@ _RUNTIME_LOCATOR = (
 )
 _RUNTIME_RELATIVE = re.compile(f"^{_RUNTIME_LOCATOR}$")
 _RUNTIME_IN_LAUNCHER = re.compile(_RUNTIME_LOCATOR)
-
-
-def _git_common_dir(root: Path) -> Path:
-    common = Path(_git(root, "rev-parse", "--git-common-dir").stdout.strip())
-    return common.resolve() if common.is_absolute() else (root / common).resolve()
 
 
 class HookRuntimeBinding(TypedDict):
@@ -66,7 +52,7 @@ def hook_launcher(runtime: str, name: str) -> str:
 def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
     """Observe the configured common-dir runtime and its generated launchers."""
     repo = root.resolve()
-    common = _git_common_dir(repo)
+    common = Path(git_common_dir(repo))
     hooks = common / "ethos-hooks"
     configured = _configured_hooks_path(repo)
     runtime, manifest, digest, wheel = _runtime_from_launcher(hooks / "pre-commit")
@@ -94,85 +80,6 @@ def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
         "scripts": list(HOOK_NAMES),
         "required_gaps": gaps,
     }
-
-
-def hook_runtime_transaction_environment(root: Path) -> dict[str, str]:
-    """Bind one Git transaction to the already validated package hook runtime."""
-    binding = hook_runtime_binding(root)
-    runtime_gaps = [
-        gap for gap in binding["required_gaps"] if gap != "write_admission_not_armed:core.hooksPath"
-    ]
-    if runtime_gaps:
-        message = runtime_gaps[0]
-        raise ValueError(message)
-    return {
-        "GIT_CONFIG_COUNT": "1",
-        "GIT_CONFIG_KEY_0": "core.hooksPath",
-        "GIT_CONFIG_VALUE_0": binding["hooks_path"],
-    }
-
-
-@contextmanager
-def initiating_hook_transaction(root: Path) -> Iterator[dict[str, str]]:
-    """Create one exact current-process hook projection for a bounded Git transaction."""
-    executable = Path(sys.executable)
-    try:
-        package = distribution("ethos")
-    except PackageNotFoundError as error:
-        message = "hook_transaction_distribution_missing"
-        raise ValueError(message) from error
-    prefix = Path(sys.prefix).resolve()
-    location = Path(str(package.locate_file(""))).resolve()
-    if (
-        not executable.is_absolute()
-        or not executable.is_file()
-        or not location.is_relative_to(prefix)
-        or not package.version
-    ):
-        message = "hook_transaction_runtime_invalid"
-        raise ValueError(message)
-    hooks = _git_common_dir(root) / "ethos" / "transactions" / uuid.uuid4().hex / "hooks"
-    hooks.mkdir(parents=True)
-    try:
-        executable_name = executable.relative_to(prefix).as_posix()
-    except ValueError:
-        executable_name = executable.name
-    manifest = hooks.parent / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "distribution": "ethos",
-                "version": package.version,
-                "python_executable": executable_name,
-                "python_prefix": prefix.as_posix(),
-                "runtime_files": {executable_name: _sha256(executable)},
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    launcher = (
-        "#!/bin/sh\n"
-        "# Generated for one ETHOS Git transaction.\n"
-        f'ETHOS_HOOK_TRANSACTION_ROOT="{root.resolve().as_posix()}"; '
-        "export ETHOS_HOOK_TRANSACTION_ROOT\n"
-        f'exec "{executable.as_posix()}" -I -m ethos.cli hook run "$0" "$@"\n'
-    )
-    try:
-        for name in HOOK_NAMES:
-            target = hooks / name
-            target.write_text(launcher.replace('"$0"', name), encoding="utf-8", newline="\n")
-            target.chmod(0o755)
-        yield {
-            "GIT_CONFIG_COUNT": "1",
-            "GIT_CONFIG_KEY_0": "core.hooksPath",
-            "GIT_CONFIG_VALUE_0": hooks.as_posix(),
-        }
-    finally:
-        shutil.rmtree(hooks.parent, ignore_errors=True)
 
 
 def _runtime_from_launcher(launcher: Path) -> tuple[Path | None, Path | None, str, str]:
@@ -217,12 +124,8 @@ def _sha256(path: Path) -> str:
 
 
 def _configured_hooks_path(root: Path) -> Path | None:
-    completed = _git(root, "config", "--path", "--get", "core.hooksPath", check=False)
+    completed = run_git(root, "config", "--path", "--get", "core.hooksPath", check=False)
     if completed.returncode or not completed.stdout.strip():
         return None
     configured = Path(completed.stdout.strip())
     return configured if configured.is_absolute() else (root / configured).resolve()
-
-
-def _git(root: Path, *args: str, check: bool = True):
-    return run_git(root, *args, check=check)

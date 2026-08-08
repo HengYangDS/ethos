@@ -12,7 +12,6 @@ from ethos.contracts.verdict import report_verdict
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
-from ethos.repository.hooks import hook_runtime_binding
 from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.policy.references.closure import repository_product_reference_gaps
@@ -112,23 +111,12 @@ def release_files_report(root: Path) -> dict[str, object]:
     }
 
 
-def _write_admission_armed_gaps(root: Path) -> list[str]:
-    """Gap when the write-admission moat is NOT armed for this checkout.
-
-    The configured worktree-local launchers and their exact Python provenance must
-    match the sole hook runtime owner. An unarmed checkout is a blocking gap,
-    discoverable and repairable via ``ethos hook install``.
-    """
-    if not (root / ".ethos/profile.toml").is_file():
-        return []
-    return [str(gap) for gap in hook_runtime_binding(root)["required_gaps"]]
-
-
 def repository_audit(
     root: Path,
     *,
     openspec_mode: str = "deep",
     openspec_reporter: OpenSpecReporter | None = None,
+    write_admission_gaps: list[str] | None = None,
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -171,7 +159,7 @@ def repository_audit(
     system_contract_gaps = [
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
     ]
-    write_admission_gaps = _write_admission_armed_gaps(root)
+    write_admission_gaps = list(write_admission_gaps or [])
     docs = {
         "verdict": observation_verdict(ok=not docs_missing and not docs_without_front_matter),
         "missing": docs_missing,

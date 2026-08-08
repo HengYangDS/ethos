@@ -6,8 +6,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
-from ethos.repository.hooks import hook_runtime_binding
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import render_branch_policy

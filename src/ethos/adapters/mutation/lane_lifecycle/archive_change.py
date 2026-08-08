@@ -39,6 +39,7 @@ from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import move_tracked_tree
 from ethos.adapters.repo.git_effects import stage_git_worktree
+from ethos.adapters.repo.hook.transaction import initiating_hook_transaction
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -53,7 +54,6 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
-from ethos.repository.hooks import initiating_hook_transaction
 
 
 class _ArchiveTransition(NamedTuple):

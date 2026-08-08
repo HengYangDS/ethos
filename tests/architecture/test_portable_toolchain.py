@@ -55,7 +55,7 @@ def test_git_hooks_are_untracked_runtime_projections_over_the_python_owner() -> 
     ).stdout
     assert tracked == ""
     owner = (ROOT / "src/ethos/adapters/repo/hook_runtime.py").read_text(encoding="utf-8")
-    renderer = (ROOT / "src/ethos/repository/hooks.py").read_text(encoding="utf-8")
+    renderer = (ROOT / "src/ethos/adapters/repo/hook/binding.py").read_text(encoding="utf-8")
 
     assert "def execute_hook(" in owner
     assert "def hook_launcher(" in renderer

@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING
 from typing import NamedTuple
 
 from ethos.adapters.admission.ref_intent import committed_ref_intent
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import TransitionPlan
@@ -224,11 +224,12 @@ def validate(
         attestation.valid_until and now > attestation.valid_until
     ):
         raise ValueError(_STALE)
-    repository = _repository_identity(
+    allow_missing_prestate = plan.policy.get("repository_commitment_bootstrap") is True
+    repository = resolve_git_effect_repository(
         root,
+        effect,
         before,
-        after,
-        allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
+        allow_missing_prestate=allow_missing_prestate,
     )
     evidence = (
         repository,
@@ -248,7 +249,7 @@ def validate(
         evidence,
         observed_at,
         _object_mapping(statement.get("freshness")),
-        allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
+        allow_missing_prestate=allow_missing_prestate,
     ):
         raise ValueError(_CONTENT_MISMATCH)
 
@@ -353,30 +354,6 @@ def records(
     return (record,)
 
 
-def _repository_identity(
-    root: Path,
-    before: object,
-    after: object,
-    *,
-    allow_missing_prestate: bool = False,
-) -> str:
-    if not isinstance(before, Mapping) or not isinstance(after, Mapping):
-        return ""
-    try:
-        identities = set()
-        for index, observation in enumerate((before, after)):
-            try:
-                identities.add(
-                    load_repository_commitment(root, tree_ref=str(observation.get("head") or "")).id
-                )
-            except ValueError:
-                if not (allow_missing_prestate and index == 0):
-                    raise
-    except ValueError:
-        return ""
-    return identities.pop() if len(identities) == 1 else ""
-
-
 def _matches(
     root: Path,
     effect: GitEffect,
@@ -406,9 +383,17 @@ def _matches(
     except ValueError:
         return False
     current_head = current_tracked_head(root)
+    try:
+        repository_matches = repository == resolve_git_effect_repository(
+            root,
+            effect,
+            before,
+            allow_missing_prestate=allow_missing_prestate,
+        )
+    except ValueError:
+        return False
     return bool(
-        repository
-        == _repository_identity(root, before, after, allow_missing_prestate=allow_missing_prestate)
+        repository_matches
         and current_refs == desired
         and before.get("refs") == expected_before
         and before.get("assertions") == effect.assertions

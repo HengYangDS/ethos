@@ -17,14 +17,11 @@ if TYPE_CHECKING:
 
 def set_local_config(root: Path, values: dict[str, str]) -> Attestation:
     """Set or recognize one exact local configuration projection."""
-    before = {key: _value(root, key) for key in values}
+    before = _values(root, values, scope="local")
     state = "recognized" if before == values else "applied"
     if state == "applied":
-        for key, value in values.items():
-            completed = run_git(root, "config", "--local", key, value, check=False)
-            if completed.returncode:
-                raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
-    after = {key: _value(root, key) for key in values}
+        _set_values(root, values, scope="local")
+    after = _values(root, values, scope="local")
     if after != values:
         message = "git_config_effect_postcondition_failed"
         raise ValueError(message)
@@ -50,21 +47,22 @@ def set_worktree_config(root: Path, values: dict[str, str]) -> None:
     completed = run_git(root, "config", "extensions.worktreeConfig", "true", check=False)
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
-    for key, value in values.items():
-        completed = run_git(root, "config", "--worktree", key, value, check=False)
-        if completed.returncode:
-            raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
-    after = {key: _worktree_value(root, key) for key in values}
-    if after != values:
+    _set_values(root, values, scope="worktree")
+    if _values(root, values, scope="worktree") != values:
         message = "git_config_effect_postcondition_failed"
         raise ValueError(message)
 
 
-def _value(root: Path, key: str) -> str:
-    completed = run_git(root, "config", "--local", "--get", key, check=False)
-    return completed.stdout.strip() if completed.returncode == 0 else ""
+def _set_values(root: Path, values: dict[str, str], *, scope: str) -> None:
+    for key, value in values.items():
+        completed = run_git(root, "config", f"--{scope}", key, value, check=False)
+        if completed.returncode:
+            raise ValueError(completed.stderr.strip() or "git_config_effect_failed")
 
 
-def _worktree_value(root: Path, key: str) -> str:
-    completed = run_git(root, "config", "--worktree", "--get", key, check=False)
-    return completed.stdout.strip() if completed.returncode == 0 else ""
+def _values(root: Path, values: dict[str, str], *, scope: str) -> dict[str, str]:
+    observed = {}
+    for key in values:
+        completed = run_git(root, "config", f"--{scope}", "--get", key, check=False)
+        observed[key] = completed.stdout.strip() if completed.returncode == 0 else ""
+    return observed

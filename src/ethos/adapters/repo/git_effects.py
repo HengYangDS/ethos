@@ -158,19 +158,8 @@ def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") 
     )
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "git_effect_compensation_failed")
-    if not untracked_path:
-        return
-    target = (root / untracked_path).resolve()
-    try:
-        target.relative_to(root.resolve())
-    except ValueError as error:
-        message = "git_effect_compensation_path_outside_root"
-        raise ValueError(message) from error
-    if target.is_symlink() or (target.exists() and not target.is_dir()):
-        message = "git_effect_compensation_path_unsafe"
-        raise ValueError(message)
-    if target.exists():
-        shutil.rmtree(target, ignore_errors=False)
+    if untracked_path:
+        _remove_tree(root, untracked_path)
 
 
 def compensate_created_paths(
@@ -193,21 +182,16 @@ def compensate_created_paths(
     )
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "git_effect_compensation_failed")
-    target = (root / untracked_root).resolve()
-    try:
-        target.relative_to(root.resolve())
-    except ValueError as error:
-        msg = "git_effect_compensation_path_outside_root"
-        raise ValueError(msg) from error
-    if target.is_symlink() or (target.exists() and not target.is_dir()):
-        msg = "git_effect_compensation_path_unsafe"
-        raise ValueError(msg)
-    if target.exists():
-        shutil.rmtree(target, ignore_errors=False)
+    _remove_tree(root, untracked_root)
 
 
 def remove_untracked_tree(root: Path, path: str) -> None:
     """Remove one newly created untracked directory through the Git effect owner."""
+    _remove_tree(root, path)
+
+
+def _remove_tree(root: Path, path: str) -> None:
+    """Apply the sole containment and type check for effect-owned tree removal."""
     target = (root / path).resolve()
     try:
         target.relative_to(root.resolve())

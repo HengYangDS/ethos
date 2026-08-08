@@ -27,12 +27,11 @@ def initiating_hook_transaction(root: Path) -> Iterator[dict[str, str]]:
     except PackageNotFoundError as error:
         message = "hook_transaction_distribution_missing"
         raise ValueError(message) from error
-    prefix = Path(sys.prefix).resolve()
     location = Path(str(package.locate_file(""))).resolve()
     if (
         not executable.is_absolute()
         or not executable.is_file()
-        or not location.is_relative_to(prefix)
+        or not location.is_relative_to(Path(sys.prefix).resolve())
         or not package.version
     ):
         message = "hook_transaction_runtime_invalid"

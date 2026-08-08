@@ -138,6 +138,18 @@ def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
     assert intent_writers == ["adapters/repo/git_effects.py"]
 
 
+def test_effect_attestation_has_one_semantic_owner() -> None:
+    parallel_owner = CORE_SOURCE / "adapters/repo/native_effect_attestation.py"
+    assert not parallel_owner.exists()
+
+    imports = {
+        path.relative_to(CORE_SOURCE).as_posix()
+        for path in CORE_SOURCE.rglob("*.py")
+        if "native_effect_attestation" in path.read_text(encoding="utf-8")
+    }
+    assert imports == set()
+
+
 def test_git_worktree_mutation_has_one_declared_execution_owner() -> None:
     owner = "adapters/repo/worktree_effects.py"
     executions: set[str] = set()

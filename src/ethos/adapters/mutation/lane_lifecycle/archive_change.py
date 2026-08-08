@@ -33,6 +33,8 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import exact_rename_target
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_attestation import NativeEffect
+from ethos.adapters.repo.git_effect_attestation import issue_native_effect
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import compensate_git_worktree
@@ -40,8 +42,6 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import move_tracked_tree
 from ethos.adapters.repo.git_effects import stage_git_worktree
 from ethos.adapters.repo.hook.transaction import initiating_hook_transaction
-from ethos.adapters.repo.native_effect_attestation import NativeEffect
-from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_effects import sync_worktree

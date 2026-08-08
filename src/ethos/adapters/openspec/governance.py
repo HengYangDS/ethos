@@ -23,6 +23,8 @@ from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.lifecycle.report import selection_gaps
 from ethos.adapters.repo.git import git_stdout
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import protected_branch_active_change_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
@@ -145,8 +147,10 @@ def _completion_transition_gap(
 
 
 def _selection_required(request: OpenSpecRequest, root: Path) -> bool:
+    branch = openspec_cli.current_branch(root)
     return (
-        request.change is not None
+        load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
+        or request.change is not None
         or bool(request.changed_paths)
         or bool(git_stdout(root, "diff", "--cached", "--name-only"))
     )

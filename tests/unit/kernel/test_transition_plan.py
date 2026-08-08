@@ -388,6 +388,58 @@ def test_compile_plan_matches_recursive_glob_with_wildcard_directory() -> None:
     assert plan.required_gaps == ()
 
 
+def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
+    commitment = Commitment(
+        id="change:test",
+        intent="admit only the exact archived projection",
+        subjects=("repository:test",),
+        scope=("openspec/changes/archive/**",),
+    )
+    facts = Facts(
+        repository="repository:test",
+        head="a" * 40,
+        tree="b" * 40,
+        observed_at=datetime(2026, 8, 8, tzinfo=UTC),
+        values={"changed_paths": ("openspec/specs/product/spec.md",)},
+    )
+    authority = {
+        "openspec_archive": {
+            "predicate": "effect:openspec-archive",
+            "authorized_paths": ["openspec/specs/product/spec.md"],
+        }
+    }
+    ready = compile_plan(
+        commitment=commitment,
+        facts=facts,
+        nodes=(),
+        policy={},
+        prior_attestations=authority,
+    )
+    rehydrated = TransitionPlan.model_validate(ready.model_dump(mode="json"))
+
+    executed = compile_plan(
+        commitment=commitment,
+        facts=facts,
+        nodes=(),
+        policy={},
+        prior_attestations=dict(rehydrated.prior_attestations),
+    )
+
+    assert ready.verdict == "pass"
+    assert executed == rehydrated
+
+    tampered = compile_plan(
+        commitment=commitment,
+        facts=facts.model_copy(
+            update={"values": {"changed_paths": ("openspec/specs/other/spec.md",)}}
+        ),
+        nodes=(),
+        policy={},
+        prior_attestations=dict(rehydrated.prior_attestations),
+    )
+    assert tampered.required_gaps == ("change_scope_exceeded",)
+
+
 def test_repository_wide_scope_matches_root_and_nested_paths() -> None:
     commitment = Commitment(
         id="repository:test",

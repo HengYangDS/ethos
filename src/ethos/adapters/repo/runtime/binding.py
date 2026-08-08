@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import ethos
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.repository.hooks import hook_runtime_binding
 from ethos.repository.profile import load_repository_profile
 
 
@@ -48,6 +50,11 @@ def runtime_binding(root: Path) -> dict[str, object]:
     schema_source_root = _schema_source_root(audit_root, source_root).resolve()
     runner_matches_audit_root = source_root == audit_root
     schema_matches_audit_root = schema_source_root == audit_root
+    hook_binding = hook_runtime_binding(audit_root)
+    runner_matches_family_runtime = (
+        not hook_binding["required_gaps"]
+        and Path(hook_binding["python"]).resolve() == Path(sys.executable).resolve()
+    )
     declared_external_runner = (
         not runner_matches_audit_root and load_repository_profile(audit_root).state == "valid"
     )
@@ -59,13 +66,15 @@ def runtime_binding(root: Path) -> dict[str, object]:
     state = (
         "bound_to_audit_root"
         if runner_matches_audit_root and schema_matches_audit_root
+        else "bound_to_repository_family"
+        if runner_matches_family_runtime and schema_matches_audit_root
         else "external_declared_runner"
         if declared_external_runner
         else "external_current_runner"
     )
     next_action = (
         "runner, schema, and audit root are aligned"
-        if state == "bound_to_audit_root"
+        if state in {"bound_to_audit_root", "bound_to_repository_family"}
         else (
             "declared external runner is active; use a checkout-bound runner "
             "when changing command or schema surfaces"
@@ -84,6 +93,7 @@ def runtime_binding(root: Path) -> dict[str, object]:
         "runner_source_root": source_root.as_posix(),
         "schema_source_root": schema_source_root.as_posix(),
         "runner_matches_audit_root": runner_matches_audit_root,
+        "runner_matches_repository_family": runner_matches_family_runtime,
         "schema_matches_audit_root": schema_matches_audit_root,
         "advisory_gaps": advisory_gaps,
         "next_action": next_action,

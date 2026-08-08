@@ -31,6 +31,8 @@ from pathlib import Path
 import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
+from tests.support.hook_runtime_cache import install_session_hook_runtime_cache
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
 set_hypothesis_home_dir(
@@ -43,6 +45,20 @@ set_hypothesis_home_dir(
 def _worker_attestation_dir() -> Path:
     worker = os.environ.get("PYTEST_XDIST_WORKER", "local")
     return Path(".ethos") / "state" / f"attestations-{worker}"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _cache_immutable_hook_runtime(tmp_path_factory: pytest.TempPathFactory) -> object:
+    """Build package bytes once; copy them into each repository's common-dir."""
+    if os.environ.get("ETHOS_TEST_DISABLE_RUNTIME_CACHE") == "1":
+        yield
+        return
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        install_session_hook_runtime_cache(
+            monkeypatch,
+            tmp_path_factory.mktemp("ethos-hook-runtime-cache"),
+        )
+        yield
 
 
 @pytest.fixture(autouse=True)

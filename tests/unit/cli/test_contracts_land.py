@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import subprocess
 from datetime import UTC
 from datetime import datetime
@@ -18,6 +19,7 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -293,6 +295,104 @@ def test_land_allows_officially_archived_work_lane_head(monkeypatch, tmp_path: P
         "prior_attestations"
     ] == {"proof": proof.model_dump(mode="json")}
     assert git(candidate, "rev-parse", "HEAD") == archived_head
+
+
+def test_land_readiness_and_apply_share_narrow_candidate_effect_authority(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = start_adopted_work_lane(tmp_path)
+    branch = git(fixture.worktree, "branch", "--show-current")
+    lease = leases_by_branch(fixture.worktree)[branch]
+    carrier = str(lease["base_commitment_path"])
+    commitment = fixture.worktree / carrier
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace(
+            'permissions = ["git.ref.compare-and-swap"]',
+            'permissions = ["repository.read", "work-lane.write"]',
+        ),
+        encoding="utf-8",
+    )
+    git(fixture.worktree, "add", carrier)
+    previous = git(fixture.worktree, "rev-parse", "HEAD")
+    git(
+        fixture.worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "bind minimal landing commitment",
+    )
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    binding = exact_commitment_fields(fixture.worktree, head=head, carrier=carrier)
+    state = state_database(fixture.worktree)
+    with sqlite3.connect(state) as connection:
+        row = connection.execute(
+            "select payload_json from leases where subject = ?",
+            (branch,),
+        ).fetchone()
+        assert row is not None
+        payload = json.loads(row[0])
+        assert payload["expected_head"] == previous
+        payload.update(
+            expected_head=head,
+            expected_tree=binding["expected_tree"],
+            base_commitment_bytes_sha256=binding["base_commitment_bytes_sha256"],
+            base_commitment_digest=binding["base_commitment_digest"],
+        )
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (json.dumps(payload, sort_keys=True, separators=(",", ":")), branch),
+        )
+    commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
+    archived_head = _archive_fixture_change(monkeypatch, fixture.worktree)
+    seed_executed_proof(fixture.worktree, archived_head)
+
+    readiness = run_ethos("land", "--json", cwd=fixture.worktree)
+
+    assert readiness["verdict"] == "pass", readiness
+    candidate_plan = readiness["data"]["candidate_update"]
+    assert candidate_plan["state"] == "candidate_transition_admitted"
+    assert candidate_plan["effect"]["updates"] == {
+        "refs/heads/candidate/dev": {
+            "expected": git(fixture.candidate, "rev-parse", "HEAD"),
+            "desired": archived_head,
+        }
+    }
+    assert candidate_plan["permissions"] == ["repository.read", "work-lane.write"]
+
+    applied = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        archived_head,
+        "--json",
+        cwd=fixture.worktree,
+    )
+
+    assert applied["verdict"] == "pass", applied
+    attested_plan = applied["data"]["candidate_update"]["attestation"]["statement"]["plan"]
+    assert attested_plan["digest"] == candidate_plan["plan_digest"]
+    assert attested_plan["effect"] == candidate_plan["effect"]
+    assert git(fixture.candidate, "rev-parse", "HEAD") == archived_head
+
+
+def test_land_readiness_rejects_wrong_actor_before_candidate_effect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
+    archived_head = _archive_fixture_change(monkeypatch, fixture.worktree)
+    seed_executed_proof(fixture.worktree, archived_head)
+    candidate_head = git(fixture.candidate, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:wrong-holder")
+
+    payload = run_ethos("land", "--json", cwd=fixture.worktree)
+
+    assert payload["required_gaps"] == ["lease_actor_mismatch"]
+    assert git(fixture.candidate, "rev-parse", "HEAD") == candidate_head
 
 
 def test_work_lane_proof_is_invalid_after_same_head_lease_handoff(

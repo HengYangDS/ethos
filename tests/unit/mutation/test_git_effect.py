@@ -533,6 +533,90 @@ def test_git_effect_requires_explicit_permission_admission(tmp_path: Path) -> No
         execute_git_effect(repo, _plan(repo, effect, permissions=()), issuer=_ISSUER)
 
 
+def test_candidate_integration_has_narrow_lease_bound_cas_authority(tmp_path: Path) -> None:
+    repo, old, new, _effect = _effect_fixture(tmp_path)
+    branch = "work/example"
+    candidate = "candidate/dev"
+    git(repo, "reset", "--hard", new)
+    generation = _lease_generation(repo, new, branch)
+    effect = GitEffect(
+        updates={f"refs/heads/{candidate}": GitRefUpdate(expected=old, desired=new)},
+        assertions={f"refs/heads/{branch}": new},
+    )
+    authority_digest = _plan(repo, effect, permissions=()).inputs.commitment
+    generation["base_commitment_digest"] = authority_digest
+    proof = Attestation.issue(
+        {
+            "predicate": "proof:execution",
+            "verifier": _ISSUER,
+            "subject": f"git:commit:{new}",
+            "issued_at": datetime(2026, 8, 8, tzinfo=UTC),
+            "valid_from": datetime(2026, 8, 8, tzinfo=UTC),
+            "verdict": "pass",
+            "statement": {"head": new},
+            "commitment_digest": generation["base_commitment_digest"],
+        }
+    )
+    plan = _plan(
+        repo,
+        effect,
+        permissions=(),
+        facts_values={"lease_generation": generation},
+        policy={"operation": "candidate.integrate", "candidate_branch": candidate},
+        prior_attestations={"proof": proof.model_dump(mode="json")},
+    )
+
+    ethos.adapters.repo.git_effects._require_effect_permission(effect, plan)  # noqa: SLF001
+
+
+@pytest.mark.parametrize(
+    "defect",
+    ["wrong_ref", "wrong_source", "wrong_head", "wrong_proof", "missing_generation"],
+)
+def test_candidate_integration_rejects_inexact_command_authority(
+    tmp_path: Path, defect: str
+) -> None:
+    repo, old, new, _effect = _effect_fixture(tmp_path)
+    branch = "work/example"
+    candidate = "candidate/dev"
+    git(repo, "reset", "--hard", new)
+    generation = _lease_generation(repo, new, branch)
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{'other' if defect == 'wrong_ref' else candidate}": GitRefUpdate(
+                expected=old,
+                desired=old if defect == "wrong_head" else new,
+            )
+        },
+        assertions={f"refs/heads/{'other' if defect == 'wrong_source' else branch}": new},
+    )
+    authority_digest = _plan(repo, effect, permissions=()).inputs.commitment
+    generation["base_commitment_digest"] = authority_digest
+    proof = Attestation.issue(
+        {
+            "predicate": "proof:execution",
+            "verifier": _ISSUER,
+            "subject": f"git:commit:{old if defect == 'wrong_proof' else new}",
+            "issued_at": datetime(2026, 8, 8, tzinfo=UTC),
+            "valid_from": datetime(2026, 8, 8, tzinfo=UTC),
+            "verdict": "pass",
+            "statement": {"head": old if defect == "wrong_proof" else new},
+            "commitment_digest": generation["base_commitment_digest"],
+        }
+    )
+    plan = _plan(
+        repo,
+        effect,
+        permissions=(),
+        facts_values={} if defect == "missing_generation" else {"lease_generation": generation},
+        policy={"operation": "candidate.integrate", "candidate_branch": candidate},
+        prior_attestations={"proof": proof.model_dump(mode="json")},
+    )
+
+    with pytest.raises(ValueError, match="git_effect_permission_denied"):
+        ethos.adapters.repo.git_effects._require_effect_permission(effect, plan)  # noqa: SLF001
+
+
 def test_git_effect_blocks_assertion_drift_before_recovery(tmp_path: Path) -> None:
     repo, old, new, _ = _effect_fixture(tmp_path)
     git(repo, "branch", "candidate/dev", old)

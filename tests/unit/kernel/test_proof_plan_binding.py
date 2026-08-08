@@ -23,9 +23,11 @@ from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.plan import proof_effect_projection
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.adoption.planner import adoption_plan
@@ -1379,6 +1381,104 @@ def test_equivalent_proofs_with_different_artifacts_share_closure(tmp_path: Path
     assert first.evidence_refs != second.evidence_refs
     assert proof_attestation(repo, head) is not None
     assert proof_gaps(repo, head) == []
+
+
+def _archive_bound_plan(
+    repo: Path,
+    head: str,
+    *,
+    changed_paths: tuple[str, ...],
+    authorized_paths: tuple[str, ...],
+) -> TransitionPlan:
+    base = proof_plan(repo, head=head, changed_paths=changed_paths)
+    values = dict(base.facts["values"])
+    values["changed_paths"] = changed_paths
+    facts = Facts(
+        repository=str(base.facts["repository"]),
+        head=head,
+        tree=str(base.facts["tree"]),
+        observed_at=datetime.now(UTC),
+        values=values,
+        source_refs=tuple(base.facts["source_refs"]),
+    )
+    return compile_plan(
+        Commitment.model_validate(dict(base.commitment)),
+        facts,
+        base.nodes,
+        policy=dict(base.policy),
+        prior_attestations={"openspec_archive": {"authorized_paths": list(authorized_paths)}},
+    )
+
+
+def test_archive_authority_supersedes_a_proof_with_historical_changed_paths(
+    tmp_path: Path,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    current_plan = _archive_bound_plan(
+        repo,
+        head,
+        changed_paths=("current.py",),
+        authorized_paths=("current.py",),
+    )
+    historical_plan = _archive_bound_plan(
+        repo,
+        head,
+        changed_paths=("historical.py", "current.py"),
+        authorized_paths=("current.py",),
+    )
+    historical = issue_proof_attestation(
+        repo,
+        {
+            "plan": historical_plan,
+            "checks": _proof_checks(repo, head=head),
+            "verdict": "pass",
+            "issuer": "agent:test:case:proof",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    current = issue_proof_attestation(
+        repo,
+        {
+            "plan": current_plan,
+            "checks": _proof_checks(repo, head=head),
+            "verdict": "pass",
+            "issuer": "agent:test:case:proof",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(repo, historical)
+    persist_proof_attestation(repo, current)
+
+    assert proof_attestation(repo, head) == current
+    assert proof_gaps(repo, head) == []
+
+
+def test_archive_authority_requires_reproof_when_only_historical_scope_exists(
+    tmp_path: Path,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    historical = issue_proof_attestation(
+        repo,
+        {
+            "plan": _archive_bound_plan(
+                repo,
+                head,
+                changed_paths=("historical.py", "current.py"),
+                authorized_paths=("current.py",),
+            ),
+            "checks": _proof_checks(repo, head=head),
+            "verdict": "pass",
+            "issuer": "agent:test:case:proof",
+            "scope": "repository",
+            "boundary": "repository",
+        },
+    )
+    persist_proof_attestation(repo, historical)
+
+    assert proof_attestation(repo, head) is None
+    assert proof_gaps(repo, head) == ["proof_archive_scope_stale"]
 
 
 @pytest.mark.parametrize("novel", [False, True])

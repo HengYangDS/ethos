@@ -149,6 +149,23 @@ def _bindings(attestation: Attestation) -> tuple[str, ...]:
     return tuple(getattr(attestation, name) for name in _BINDINGS)
 
 
+def _archive_scope_gaps(plan) -> list[str]:
+    """Reject Facts that disagree with their own exact archive authority."""
+    archive = plan.prior_attestations.get("openspec_archive")
+    if not isinstance(archive, Mapping):
+        return []
+    authorized = archive.get("authorized_paths")
+    values = plan.facts.get("values")
+    facts = values if isinstance(values, Mapping) else {}
+    changed = facts.get("changed_paths")
+    current = (
+        isinstance(authorized, tuple | list)
+        and isinstance(changed, tuple | list)
+        and tuple(str(path) for path in changed) == tuple(str(path) for path in authorized)
+    )
+    return [] if current else ["proof_archive_scope_stale"]
+
+
 def _assertion_digest(attestation: Attestation) -> str:
     statement = attestation.statement
     return canonical_json_digest(
@@ -194,6 +211,9 @@ def _candidate_evaluation(
             or mutable_json(generation) != mutable_json(lease_generation(current_lease))
         ):
             gaps.append("proof_lease_generation_stale")
+    if gaps:
+        return "", gaps
+    gaps.extend(_archive_scope_gaps(plan))
     if gaps:
         return "", gaps
     checks, gaps = artifact_checks(store, attestation)

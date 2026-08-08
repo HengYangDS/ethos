@@ -12,15 +12,18 @@ from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.openspec.archive_effect import archive_generation_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
+from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import integer
@@ -190,6 +193,44 @@ def current_generation_scope(
             ),
             carrier,
         )
+    reactivation = _archive_reactivation_authority(
+        root,
+        head=head,
+        commitment=commitment,
+        carrier=carrier,
+    )
+    if reactivation:
+        base_head = str(reactivation["previous_head"])
+        source_prefix = str(reactivation["source_prefix"])
+        paths = tuple(
+            dict.fromkeys(
+                (
+                    *(
+                        path
+                        for path in git_stdout(
+                            root, "diff", "--name-only", f"{base_head}...{head}"
+                        ).splitlines()
+                        if not path.startswith(source_prefix)
+                    ),
+                    *dirty,
+                )
+            )
+        )
+        return CurrentGenerationScope(
+            paths,
+            reactivation,
+            attributions=_path_attributions(
+                paths=tuple(dict.fromkeys((*fallback_paths, *paths))),
+                selected=set(paths),
+                dirty=set(dirty),
+                commitment=commitment,
+                change=change,
+                base_head=base_head,
+                authority_id=str(reactivation["attestation_id"]),
+                selected_source="archive_reactivation",
+            ),
+            selected_carrier=carrier,
+        )
     return CurrentGenerationScope(
         (),
         {},
@@ -209,6 +250,121 @@ def current_generation_scope(
             if fallback_paths and str(lease.get("expected_head") or "") == head
             else ()
         ),
+    )
+
+
+def _archive_reactivation_authority(
+    root: Path,
+    *,
+    head: str,
+    commitment: Commitment,
+    carrier: str,
+) -> JsonObject:
+    """Recognize one exact accepted archive restored by the first lane commit."""
+    policy = load_branch_role_policy(root)
+    role_heads = tuple(
+        candidate_head
+        for branch in (policy.candidate_branch, policy.accepted_branch)
+        if (candidate_head := git_stdout(root, "rev-parse", "--verify", branch))
+        and is_ancestor(root, candidate_head, head)
+    )
+    role_commits = tuple(
+        (candidate_head, commits)
+        for candidate_head in role_heads
+        if (
+            commits := git_stdout(
+                root, "rev-list", "--reverse", f"{candidate_head}..{head}"
+            ).splitlines()
+        )
+    )
+    if not role_commits:
+        return {}
+    generation_base, commits = min(role_commits, key=lambda item: len(item[1]))
+    restored_head = commits[0]
+    if git_stdout(root, "rev-parse", f"{restored_head}^") != generation_base:
+        return {}
+    change = commitment.id.removeprefix("change:")
+    candidates = _archived_commitment_carriers(root, head=generation_base, change=change)
+    if len(candidates) != 1:
+        return {}
+    source = candidates[0]
+    source_prefix = source.removesuffix("commitment.toml")
+    target_prefix = carrier.removesuffix("commitment.toml")
+    carrier_transitioned = not (
+        not carrier
+        or committed_file_bytes(root, generation_base, carrier)
+        or committed_file_bytes(root, restored_head, source)
+        or not committed_file_bytes(root, restored_head, carrier)
+    )
+    stable_relocation = carrier_transitioned and _has_stable_archive_relocation(
+        root,
+        candidate_head=generation_base,
+        restored_head=restored_head,
+        source_prefix=source_prefix,
+        target_prefix=target_prefix,
+    )
+    if not stable_relocation:
+        return {}
+    return {
+        "predicate": "effect:openspec-archive-reactivation",
+        "attestation_id": canonical_json_digest(
+            {
+                "generation_base": generation_base,
+                "restored_head": restored_head,
+                "source": source,
+                "target": carrier,
+            }
+        ),
+        "previous_head": generation_base,
+        "restored_head": restored_head,
+        "source_carrier": source,
+        "source_prefix": source_prefix,
+        "target_carrier": carrier,
+    }
+
+
+def _archived_commitment_carriers(root: Path, *, head: str, change: str) -> tuple[str, ...]:
+    """Return archived carriers at one tree whose Commitment has the exact identity."""
+    matches: list[str] = []
+    for path in git_stdout(root, "ls-tree", "-r", "--name-only", head).splitlines():
+        if not (path.startswith("openspec/changes/archive/") and path.endswith("/commitment.toml")):
+            continue
+        try:
+            load_commitment(root, carrier=path, change_id=change, tree_ref=head)
+        except ValueError:
+            continue
+        matches.append(path)
+    return tuple(matches)
+
+
+def _has_stable_archive_relocation(
+    root: Path,
+    *,
+    candidate_head: str,
+    restored_head: str,
+    source_prefix: str,
+    target_prefix: str,
+) -> bool:
+    """Prove that the first lane commit removed the archive and restored stable bytes."""
+    source_paths = tuple(
+        path
+        for path in git_stdout(root, "ls-tree", "-r", "--name-only", candidate_head).splitlines()
+        if path.startswith(source_prefix)
+    )
+    if any(committed_file_bytes(root, restored_head, path) for path in source_paths):
+        return False
+    stable_paths = tuple(
+        path for path in source_paths if path.endswith("/.openspec.yaml") or "/specs/" in path
+    )
+    return any(
+        committed_file_bytes(root, candidate_head, source_path)
+        == committed_file_bytes(
+            root,
+            restored_head,
+            f"{target_prefix}{source_path.removeprefix(source_prefix)}",
+        )
+        != b""
+        for source_path in stable_paths
     )
 
 

@@ -76,7 +76,7 @@ def _subject_unique_indexes(connection: sqlite3.Connection) -> list[tuple[bool, 
     return indexes
 
 
-def _require_canonical_lease_objects(connection: sqlite3.Connection) -> None:
+def _validate_lease_schema(connection: sqlite3.Connection) -> None:
     table = connection.execute(
         "select sql from sqlite_master where type = 'table' and name = 'leases'"
     ).fetchone()
@@ -93,16 +93,10 @@ def _require_canonical_lease_objects(connection: sqlite3.Connection) -> None:
     ):
         message = "state_schema_lease_subject_unique_missing"
         raise RuntimeError(message)
-
-
-def _require_exact_subject_uniqueness(connection: sqlite3.Connection) -> None:
     indexes = _subject_unique_indexes(connection)
     if indexes != [(False, "BINARY", False)]:
         message = "state_schema_lease_subject_unique_missing"
         raise RuntimeError(message)
-
-
-def _require_exact_lease_table(connection: sqlite3.Connection) -> None:
     actual = tuple(
         (
             str(row[1]),
@@ -117,9 +111,6 @@ def _require_exact_lease_table(connection: sqlite3.Connection) -> None:
     if actual != _TABLE_COLUMNS["leases"]:
         message = "state_schema_lease_table_definition_mismatch"
         raise RuntimeError(message)
-
-
-def _require_no_lease_triggers(connection: sqlite3.Connection) -> None:
     if connection.execute(
         "select 1 from sqlite_master where type = 'trigger' and tbl_name = 'leases'"
     ).fetchone():
@@ -167,18 +158,12 @@ def initialize_state_connection(connection: sqlite3.Connection) -> None:
         for statement in SCHEMA:
             connection.execute(statement)
         return
-    _require_exact_lease_table(connection)
-    _require_canonical_lease_objects(connection)
-    _require_exact_subject_uniqueness(connection)
-    _require_no_lease_triggers(connection)
+    _validate_lease_schema(connection)
 
 
 def validate_current_lease_schema(connection: sqlite3.Connection) -> bool:
     """Validate an existing lease table; report absence as an empty projection."""
     if not _lease_table_exists(connection):
         return False
-    _require_exact_lease_table(connection)
-    _require_canonical_lease_objects(connection)
-    _require_exact_subject_uniqueness(connection)
-    _require_no_lease_triggers(connection)
+    _validate_lease_schema(connection)
     return True

@@ -72,6 +72,10 @@ def test_local_state_migration_moves_checkout_state_into_git_common_dir(tmp_path
 
     assert result["verdict"] == "pass"
     assert result["state"] == "migrated"
+    assert [item["path"] for item in result["manifest"]] == [
+        "attestations/artifacts/artifact.json",
+        "attestations/proof.json",
+    ]
     assert sorted(
         path.relative_to(legacy).as_posix() for path in legacy.rglob("*") if path.is_file()
     ) == [".gitignore"]

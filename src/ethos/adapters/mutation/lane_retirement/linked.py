@@ -73,6 +73,7 @@ def retire_linked_work_lane(
         )
         for lane in candidates
     ]
+    lanes = [_with_archive_absorption(repo, lane, accepted_head) for lane in lanes]
     lane = lanes[0] if lanes else {}
     successor = (
         _leased_successor(
@@ -215,6 +216,19 @@ def _retirement_verdict(gaps: list[str] | tuple[str, ...]) -> Verdict:
     return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"
 
 
+def _with_archive_absorption(
+    repo: Path, lane: dict[str, object], accepted_head: str
+) -> dict[str, object]:
+    lease = cast("dict[str, object]", lane.get("lease") or {})
+    mapping = effects.archived_carrier_absorption(
+        repo,
+        head=str(lane.get("head") or ""),
+        accepted_head=accepted_head,
+        carrier=str(lease.get("base_commitment_path") or ""),
+    )
+    return {**lane, **({"archive_absorption": mapping} if mapping else {})}
+
+
 def _landed_gaps(
     *,
     branch: str,
@@ -280,6 +294,7 @@ def _superseded_gaps(
         absorbed_by=absorbed_by,
         accepted_head=accepted_head,
         successor=successor,
+        lane=lane,
     ):
         gaps.append(gap)
     expected = (request.expect_head or "").strip()
@@ -327,13 +342,14 @@ def _absorption_gap(
     absorbed_by: str,
     accepted_head: str,
     successor: dict[str, object],
+    lane: dict[str, object],
 ) -> str:
     if not source_head or not absorbed_by:
         return ""
     if absorbed_by == accepted_head:
         return (
             ""
-            if effects.absorbed(repo, source_head, accepted_head)
+            if effects.absorbed(repo, source_head, accepted_head) or lane.get("archive_absorption")
             else "superseded_lane_not_absorbed_by_accepted"
         )
     if successor and not is_ancestor(repo, source_head, absorbed_by):

@@ -187,6 +187,72 @@ def test_absorbed_ref_retires_through_installed_reference_transaction_hook(
     assert git(repo, "rev-parse", "work/wrong-operation") == source
 
 
+def test_absorbed_ref_retires_legacy_source_without_branch_policy_through_current_policy(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    source = git(repo, "rev-parse", "HEAD")
+    missing_policy = subprocess.run(
+        ("git", "show", f"{source}:.ethos/workspace.toml"),
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert missing_policy.returncode != 0
+    adopt_and_commit(repo)
+    accepted = git(repo, "rev-parse", "HEAD")
+    git(repo, "branch", "work/legacy-absorbed", source)
+    install_hook_launchers(repo)
+
+    applied = run_ethos(
+        "lane",
+        "retire",
+        "absorbed-ref",
+        "--branch",
+        "work/legacy-absorbed",
+        "--expect-head",
+        source,
+        "--accepted-head",
+        accepted,
+        "--root",
+        repo.as_posix(),
+        "--authorize",
+        "--confirm-irreversible",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
+        "pass",
+        "retired_absorbed_ref",
+        [],
+    )
+    assert git(repo, "branch", "--list", "work/legacy-absorbed") == ""
+
+
+def test_legacy_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    source = git(repo, "rev-parse", "HEAD")
+    adopt_and_commit(repo)
+    git(repo, "branch", "work/legacy-unintended", source)
+    install_hook_launchers(repo)
+
+    deleted = subprocess.run(
+        ("git", "update-ref", "-d", "refs/heads/work/legacy-unintended", source),
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert deleted.returncode != 0
+    assert git(repo, "rev-parse", "work/legacy-unintended") == source
+
+
 def test_absorbed_ref_fails_closed_when_ref_is_not_an_accepted_ancestor(tmp_path: Path) -> None:
     repo, source, accepted = _absorbed_ref(tmp_path)
     git(repo, "branch", "-f", "work/absorbed", accepted)

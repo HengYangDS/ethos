@@ -10,10 +10,10 @@ from importlib import import_module
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.transaction import initiating_hook_transaction
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
-from ethos.repository.hooks import hook_launcher
-from ethos.repository.hooks import hook_runtime_binding
-from ethos.repository.hooks import initiating_hook_transaction
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
 

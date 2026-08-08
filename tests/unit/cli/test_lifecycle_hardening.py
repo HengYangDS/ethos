@@ -15,7 +15,7 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.repo.commit_identity import verify_commit_trust
-from ethos.repository.hooks import hook_runtime_binding
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit

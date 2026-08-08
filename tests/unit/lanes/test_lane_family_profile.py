@@ -15,13 +15,13 @@ from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.coordination import foreign_work_lane
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.bindings import closeout_support
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.repository.hooks import hook_runtime_binding
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane

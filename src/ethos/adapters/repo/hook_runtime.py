@@ -30,15 +30,15 @@ from ethos.adapters.repo.config_effects import set_worktree_config
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.hook.binding import HOOK_NAMES
+from ethos.adapters.repo.hook.binding import HookRuntimeBinding
+from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import report_verdict
-from ethos.repository.hooks import HOOK_NAMES
-from ethos.repository.hooks import HookRuntimeBinding
-from ethos.repository.hooks import hook_launcher
-from ethos.repository.hooks import hook_runtime_binding
 
 HookName = Literal["pre-commit", "pre-push", "reference-transaction"]
 _ZERO_OIDS = {"0" * 40, "0" * 64}

@@ -5,55 +5,39 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.normalization.coercion import integer
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.openspec_lifecycle import HOLDER
+from tests.support.openspec_lifecycle import OpenSpecLifecycle
+from tests.support.openspec_lifecycle import completed_lifecycle
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     import pytest
 
-_HOLDER = "agent:test:case:agent-test"
-
 
 def _archived_lane(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[Path, str, dict[str, object]]:
-    fixture = start_adopted_work_lane(tmp_path, holder_ref=_HOLDER)
-    worktree = fixture.worktree
-    monkeypatch.setenv("ETHOS_ACTOR", _HOLDER)
-    tasks = worktree / "openspec/changes/fixture-change/tasks.md"
-    completed = tasks.read_text(encoding="utf-8").replace("- [ ]", "- [x]")
-    head = commit_fixture_file(worktree, tasks.relative_to(worktree).as_posix(), completed, "done")
-    monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
-        lambda _root, candidate: [] if candidate == head else ["proof_not_proven"],
-    )
-    archived = archive_change(
-        root=worktree,
-        change="fixture-change",
-        expect_head=head,
-        apply=True,
-    )
+) -> OpenSpecLifecycle:
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    archived = lifecycle.apply_archive()
     assert archived["verdict"] == "pass", archived
-    branch = git(worktree, "branch", "--show-current")
-    return worktree, branch, leases_by_branch(worktree)[branch]
+    return lifecycle
 
 
 def test_start_change_rolls_an_archived_owned_lane_to_a_new_commitment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    worktree, branch, previous_lease = _archived_lane(tmp_path, monkeypatch)
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree, branch, previous_lease = lifecycle.worktree, lifecycle.branch, lifecycle.lease
     archived_head = current_tracked_head(worktree)
 
     report = start_change(
@@ -93,7 +77,7 @@ def test_start_change_rejects_a_different_holder_without_mutation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    worktree, _branch, _lease = _archived_lane(tmp_path, monkeypatch)
+    worktree = _archived_lane(tmp_path, monkeypatch).worktree
     archived_head = current_tracked_head(worktree)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:different")
 
@@ -116,7 +100,7 @@ def test_start_change_rejects_an_unsafe_scope_before_official_mutation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    worktree, _branch, _lease = _archived_lane(tmp_path, monkeypatch)
+    worktree = _archived_lane(tmp_path, monkeypatch).worktree
     archived_head = current_tracked_head(worktree)
 
     report = start_change(
@@ -138,7 +122,8 @@ def test_start_change_commits_an_exact_staged_overlay_with_the_new_commitment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    worktree, branch, previous_lease = _archived_lane(tmp_path, monkeypatch)
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree, branch, previous_lease = lifecycle.worktree, lifecycle.branch, lifecycle.lease
     archived_head = current_tracked_head(worktree)
     target = worktree / "tests/governance/test_repository.py"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -170,7 +155,7 @@ def test_start_change_rejects_a_dirty_overlay_without_an_exact_digest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    worktree, _branch, _lease = _archived_lane(tmp_path, monkeypatch)
+    worktree = _archived_lane(tmp_path, monkeypatch).worktree
     archived_head = current_tracked_head(worktree)
     target = worktree / "tests/governance/test_repository.py"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -196,7 +181,7 @@ def test_start_change_cli_is_idempotent_and_returns_the_same_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    worktree, _branch, _lease = _archived_lane(tmp_path, monkeypatch)
+    worktree = _archived_lane(tmp_path, monkeypatch).worktree
     archived_head = current_tracked_head(worktree)
     arguments = (
         "lane",
@@ -220,14 +205,15 @@ def test_start_change_cli_is_idempotent_and_returns_the_same_receipt(
     assert started["data"]["state"] == "started"
     assert recognized["data"]["state"] == "recognized"
     assert started["data"]["attestation"] == recognized["data"]["attestation"]
-    assert os.environ["ETHOS_ACTOR"] == _HOLDER
+    assert os.environ["ETHOS_ACTOR"] == HOLDER
 
 
 def test_start_change_recovers_after_commit_before_commitment_rebind(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    worktree, branch, previous_lease = _archived_lane(tmp_path, monkeypatch)
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree, branch, previous_lease = lifecycle.worktree, lifecycle.branch, lifecycle.lease
     archived_head = current_tracked_head(worktree)
     apply_rebind = rollover.rebind_lease_commitment
     monkeypatch.setattr(

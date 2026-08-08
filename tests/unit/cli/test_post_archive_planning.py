@@ -21,6 +21,7 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.openspec_lifecycle import completed_lifecycle
 
 if TYPE_CHECKING:
     import pytest
@@ -45,37 +46,13 @@ def _advance_current_generation(worktree: Path, overlay: Path) -> None:
 def test_plan_admits_the_exact_post_archive_effect(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    fixture = start_adopted_work_lane(
+    lifecycle = completed_lifecycle(
         tmp_path,
+        monkeypatch,
         scope=("openspec/changes/fixture-change/**",),
     )
-    worktree = fixture.worktree
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    previous = git(worktree, "rev-parse", "HEAD")
-    tasks = worktree / "openspec/changes/fixture-change/tasks.md"
-    tasks.write_text(tasks.read_text().replace("- [ ]", "- [x]"))
-    git(worktree, "add", tasks.relative_to(worktree).as_posix())
-    git(worktree, "commit", "-m", "complete fixture change")
-    completed = git(worktree, "rev-parse", "HEAD")
-    advanced = work_lane_ref_transition_report(
-        root=worktree,
-        phase="committed",
-        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
-        old_value=previous,
-        new_value=completed,
-    )
-    assert advanced["state"] == "lease_ref_advanced"
-    monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
-        lambda _root, _head: [],
-    )
-    archived = archive_change(
-        root=worktree,
-        change="fixture-change",
-        expect_head=completed,
-        apply=True,
-    )
-    assert archived["verdict"] == "pass", json.dumps(archived, indent=2, default=str)
+    worktree = lifecycle.worktree
+    lifecycle.archive()
 
     payload = run_ethos("plan", "--changed", "--root", worktree.as_posix(), "--json", cwd=worktree)
 
@@ -258,34 +235,11 @@ def _start_forward_fix_generation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> tuple[Path, str, object]:
     """Archive the fixture and start one exact successor generation."""
-    fixture = start_adopted_work_lane(tmp_path, scope=("openspec/changes/fixture-change/**",))
-    worktree = fixture.worktree
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    previous = git(worktree, "rev-parse", "HEAD")
-    tasks = worktree / "openspec/changes/fixture-change/tasks.md"
-    tasks.write_text(tasks.read_text().replace("- [ ]", "- [x]"))
-    git(worktree, "add", tasks.relative_to(worktree).as_posix())
-    git(worktree, "commit", "-m", "complete fixture change")
-    completed = git(worktree, "rev-parse", "HEAD")
-    advanced = work_lane_ref_transition_report(
-        root=worktree,
-        phase="committed",
-        ref_name=f"refs/heads/{git(worktree, 'branch', '--show-current')}",
-        old_value=previous,
-        new_value=completed,
+    lifecycle = completed_lifecycle(
+        tmp_path, monkeypatch, scope=("openspec/changes/fixture-change/**",)
     )
-    assert advanced["state"] == "lease_ref_advanced"
-    monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
-        lambda _root, _head: [],
-    )
-    archived = archive_change(
-        root=worktree,
-        change="fixture-change",
-        expect_head=completed,
-        apply=True,
-    )
-    assert archived["verdict"] == "pass", archived
+    worktree = lifecycle.worktree
+    lifecycle.archive()
     overlay = worktree / "README.md"
     overlay.write_text("forward fix\n", encoding="utf-8")
     git(worktree, "add", "README.md")

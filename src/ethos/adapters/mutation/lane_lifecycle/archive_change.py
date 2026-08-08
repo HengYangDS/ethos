@@ -13,6 +13,8 @@ import yaml
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
+from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
@@ -96,7 +98,7 @@ def archive_change(
     if rebuild_from:
         gaps = _rebuild_preflight(repo, branch, head, expect_head, rebuild_from, lease, change)
         if gaps or not apply:
-            return _report(
+            return lifecycle_report(
                 branch,
                 head,
                 "blocked" if gaps else "ready_to_rebuild",
@@ -107,7 +109,7 @@ def archive_change(
         try:
             return _rebuild_archive(repo, branch, head, rebuild_from, change, lease)
         except (OSError, TypeError, ValueError) as error:
-            return _report(
+            return lifecycle_report(
                 branch,
                 current_tracked_head(repo),
                 "repair_required",
@@ -121,7 +123,7 @@ def archive_change(
     if guard["required_gaps"]:
         gaps = ["local_state_migration_required"]
     if gaps or not apply:
-        return _report(
+        return lifecycle_report(
             branch,
             head,
             "blocked" if gaps else "ready_to_archive",
@@ -139,7 +141,7 @@ def archive_change(
                 head=head,
                 untracked_path=collision.preserved_path if collision else "",
             )
-        return _report(
+        return lifecycle_report(
             branch,
             current_tracked_head(repo),
             "repair_required",
@@ -382,7 +384,9 @@ def _apply_archive(
     )
     command = openspec_cli.openspec_base_command()
     if command is None:
-        return _report(branch, head, "blocked", ["openspec_official_cli_missing"], change=change)
+        return lifecycle_report(
+            branch, head, "blocked", ["openspec_official_cli_missing"], change=change
+        )
     if collision is not None:
         move_tracked_tree(repo, collision.path, collision.preserved_path)
     archive_args = (
@@ -396,7 +400,7 @@ def _apply_archive(
     mutation_gaps, archive_path = _official_result_gaps(repo, change, result)
     if mutation_gaps:
         compensate_git_worktree(repo, head=head, untracked_path=archive_path)
-        return _report(
+        return lifecycle_report(
             branch,
             head,
             "blocked",
@@ -432,7 +436,7 @@ def _apply_archive(
             head=head,
             untracked_path=collision.preserved_path if collision else archive_path,
         )
-        return _report(
+        return lifecycle_report(
             branch,
             head,
             "blocked",
@@ -458,10 +462,10 @@ def _apply_archive(
             )
     except ValueError as error:
         compensate_git_worktree(repo, head=head, untracked_path=archive_path)
-        return _report(branch, head, "blocked", [str(error)], change=change)
+        return lifecycle_report(branch, head, "blocked", [str(error)], change=change)
     if archive_commit["verdict"] != "pass":
         compensate_git_worktree(repo, head=head, untracked_path=archive_path)
-        return _report(
+        return lifecycle_report(
             branch,
             head,
             "blocked",
@@ -528,7 +532,7 @@ def _finish_archive(
     if archived_lease.get("base_commitment_path") != f"{archive_path}/commitment.toml":
         post_gaps.append("openspec_archive_commitment_not_relocated")
     if post_gaps:
-        return _report(
+        return lifecycle_report(
             branch,
             archived_head,
             "repair_required",
@@ -545,7 +549,7 @@ def _finish_archive(
         lease=archived_lease,
     )
     persist_attestation(repo, receipt)
-    return _report(
+    return lifecycle_report(
         branch,
         archived_head,
         "archived",
@@ -673,22 +677,18 @@ def _precondition_gaps(
     actor: str,
     change: str,
 ) -> list[str]:
-    gaps: list[str] = []
-    role = load_branch_role_policy(root).role_for_branch(branch)
-    checks = (
-        (role == ROLE_WORK_LANE, "archive_requires_work_lane"),
-        (head == expect_head, "expect_head_mismatch"),
-        (not git_stdout(root, "status", "--short"), "work_lane_dirty"),
-        (lease.get("lease_state") == "valid", f"work_lane_lease_invalid:{branch}"),
-        (lease.get("holder_ref") == actor, "lease_actor_mismatch"),
-        (lease.get("expected_head") == head, "lease_head_stale"),
-        (lease.get("expected_tree") == current_tree(root, head), "lease_tree_stale"),
-        (
-            lease.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml",
-            f"openspec_active_change_missing:{change}",
-        ),
+    gaps = work_lane_transition_gaps(
+        root,
+        branch=branch,
+        head=head,
+        expect_head=expect_head,
+        lease=lease,
+        actor=actor,
+        role_gap="archive_requires_work_lane",
+        require_clean=True,
     )
-    gaps.extend(gap for valid, gap in checks if not valid)
+    if lease.get("base_commitment_path") != f"openspec/changes/{change}/commitment.toml":
+        gaps.append(f"openspec_active_change_missing:{change}")
     if not gaps:
         gaps.extend(proof_gaps(root, head))
     return list(dict.fromkeys(gaps))
@@ -713,20 +713,3 @@ def _official_result_gaps(root: Path, change: str, result: dict[str, Any]) -> tu
         and archive_path.endswith(f"-{change}")
     )
     return ([] if valid else ["openspec_archive_result_invalid"], archive_path)
-
-
-def _report(
-    branch: str,
-    head: str,
-    state: str,
-    gaps: list[str],
-    **details: object,
-) -> dict[str, object]:
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": state,
-        "branch": branch,
-        "head": head,
-        "required_gaps": list(dict.fromkeys(gaps)),
-        **details,
-    }

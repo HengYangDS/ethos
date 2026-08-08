@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.openspec.lifecycle.archive_transition import archive_generation_authority
+from ethos.adapters.openspec.start_effect import archive_generation_authority
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
 

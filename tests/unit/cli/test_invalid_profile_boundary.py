@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,9 +12,6 @@ from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.governed_repository import init_repo_with_candidate
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.mark.parametrize(
@@ -49,7 +45,7 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
     assert bounded.required_gaps == result.required_gaps
     assert bounded.next_action == result.next_action
     reference = bounded.data["artifact_reference"]
-    artifact = tmp_path / reference["path"]
+    artifact = Path(reference["path"])
     assert artifact.is_file()
     assert reference["sha256"].startswith("sha256:")
     assert reference["size_bytes"] == artifact.stat().st_size

@@ -10,29 +10,21 @@ from typing import cast
 
 from cyclopts import Parameter
 
-from ethos.adapters.openspec.archive_effect import archive_effect_authority
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.profile import load_profile_commitment
-from ethos.adapters.openspec.profile import load_work_lane_commitment
-from ethos.adapters.openspec.start_effect import CurrentGenerationScope
-from ethos.adapters.openspec.start_effect import current_generation_scope
+from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import collaboration_competition_projection
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.assistants.playbooks import playbooks_report
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.review import compile_review_plan
 from ethos.contracts.review import load_review_lens_declaration
 from ethos.contracts.review import load_review_results
 from ethos.contracts.review import reduce_review_results
-from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.domain.plan import matching_rule_gates
@@ -66,63 +58,6 @@ def _peer_proof_cost(repo: Path, lane: dict[str, object]) -> int | None:
     return len(resolve_gate_policy(repo, gate_ids=gate_ids).nodes)
 
 
-def _archive_plan_authority(
-    repo: Path,
-    *,
-    head: str,
-    repository_id: str,
-    commitment,
-    lease: dict[str, object],
-    paths: tuple[str, ...],
-    work_lane: bool,
-) -> dict[str, object]:
-    return (
-        archive_effect_authority(
-            repo,
-            head=head,
-            repository_id=repository_id,
-            commitment=commitment,
-            lease=lease,
-            changed_paths=paths,
-        )
-        if work_lane and paths
-        else {}
-    )
-
-
-def _plan_binding(
-    repo: Path,
-    *,
-    status: dict[str, object],
-    head: str,
-    repository_id: str,
-    change: str | None,
-    changed: bool,
-) -> tuple[dict[str, object], Commitment, CurrentGenerationScope]:
-    """Bind one commitment, Lease, and observed Change generation."""
-    work_lane = status.get("role") == ROLE_WORK_LANE
-    lease = leases_by_branch(repo).get(str(status.get("branch") or ""), {}) if work_lane else {}
-    commitment = (
-        load_work_lane_commitment(repo, change_id=change, lease=lease)
-        if work_lane
-        else load_profile_commitment(repo, change_id=change)
-    )
-    fallback = change_scope_paths_from_status(repo, status) if changed else ()
-    scope = (
-        current_generation_scope(
-            repo,
-            head=head,
-            repository_id=repository_id,
-            commitment=commitment,
-            lease=lease,
-            fallback_paths=fallback,
-        )
-        if changed and work_lane
-        else CurrentGenerationScope(fallback, {})
-    )
-    return lease, commitment, scope
-
-
 @app.command
 def plan(
     *,
@@ -142,10 +77,9 @@ def plan(
     head = str(status_payload.get("head") or "")
     repository = load_repository_commitment(repo)
     try:
-        lease, commitment, generation_scope = _plan_binding(
+        generation = current_generation_binding(
             repo,
             status=status_payload,
-            head=head,
             repository_id=repository.id,
             change=change,
             changed=changed,
@@ -166,6 +100,7 @@ def plan(
             enforce=False,
         )
         return
+    commitment, generation_scope = generation.commitment, generation.scope
     paths = generation_scope.paths
     matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
     profile_adapter: dict[str, object] = {}
@@ -224,6 +159,8 @@ def plan(
             "changed_paths": paths,
             "intent_context": intent_context,
             "review_plan": review_plan.model_dump(mode="json"),
+            "selected_carrier": generation_scope.selected_carrier,
+            "path_attributions": generation_scope.attribution_projection(),
         },
         source_refs=(
             "git:HEAD",
@@ -236,15 +173,7 @@ def plan(
     profile_projection = {key: value for key, value in profile_adapter.items() if key != "commands"}
     gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
     policy = resolve_gate_policy(repo, gate_ids=gate_ids)
-    archive_authority = _archive_plan_authority(
-        repo,
-        head=head,
-        repository_id=repository.id,
-        commitment=commitment,
-        lease=lease,
-        paths=paths,
-        work_lane=status_payload.get("role") == ROLE_WORK_LANE,
-    )
+    archive_authority = generation_scope.archive_authority
     prior_attestations = ({"openspec_archive": archive_authority} if archive_authority else {}) | (
         {"openspec_change_start": generation_scope.start_authority}
         if generation_scope.start_authority
@@ -270,7 +199,11 @@ def plan(
         policy.nodes,
         policy=policy.projection,
         prior_attestations=prior_attestations,
-        required_gaps=tuple(dict.fromkeys((*rule_validation_gaps, *policy.gaps, *intent_gaps))),
+        required_gaps=tuple(
+            dict.fromkeys(
+                (*generation_scope.gaps, *rule_validation_gaps, *policy.gaps, *intent_gaps)
+            )
+        ),
     )
     playbooks = playbooks_report(repo)
     skill_activation = compile_skill_activation(
@@ -327,6 +260,8 @@ def plan(
         ),
         data={
             "changed_paths": list(paths),
+            "selected_carrier": generation_scope.selected_carrier,
+            "path_attributions": list(generation_scope.attribution_projection()),
             "matched_rules": matched_rules,
             "required_gates": required_gates,
             "rule_validation_gaps": rule_validation_gaps,

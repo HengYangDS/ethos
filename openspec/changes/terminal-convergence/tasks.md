@@ -54,6 +54,12 @@ contradicting evidence rather than hidden behind a successor ledger.
 - [x] F.20 Bind Git executable resolution and process creation to one execution-
   time adapter; remove parallel production Git subprocess owners and project
   unavailable executable/root failures as structured CLI gaps.
+- [x] F.21 Bind `status`, `plan`, and `prove` to one current-generation
+  resolver: exact start/archive authority selects current paths, historical lane
+  deltas remain attributed but non-authorizing, missing or tampered authority
+  fails closed without candidate-baseline expansion, and oversized read payloads
+  are content-addressed beneath Git common-dir state rather than dirtying the
+  observed worktree.
 
 ## 0. Restore Campaign Control And Intent Closure
 

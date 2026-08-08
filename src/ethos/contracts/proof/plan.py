@@ -20,6 +20,8 @@ _FACT_FIELDS = {
     "changed_paths",
     "gate_ids",
     "lease_generation",
+    "path_attributions",
+    "selected_carrier",
 }
 
 
@@ -62,7 +64,7 @@ def validate_proof_plan(
     policy = mutable_json(plan.policy)
     gates = policy.get("gates") if isinstance(policy, dict) else None
     fact_gate_ids = facts.values.get("gate_ids")
-    if gates is None and fact_gate_ids is None:
+    if fact_gate_ids is None:
         return
     effect = mutable_json(plan.effect)
     expected_effect = {

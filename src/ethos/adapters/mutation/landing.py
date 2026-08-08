@@ -164,10 +164,7 @@ def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, obje
     branch = str(workspace_status(root, include_foreign_path_scope=False)["branch"])
     lease = leases_by_branch(root).get(branch, {})
     try:
-        authority = load_lease_bound_commitment(root, lease=lease)
-        if proof.commitment_digest != authority.digest():
-            message = "proof_attestation_authority_binding_mismatch"
-            raise ValueError(message)  # noqa: TRY301
+        authority = _proof_bound_candidate_authority(root, lease=lease, proof=proof)
         effect = _candidate_effect(
             policy=policy,
             branch=branch,
@@ -201,6 +198,17 @@ def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, obje
         "permissions": list(plan.permissions),
         "cas_attempts": 0,
     }
+
+
+def _proof_bound_candidate_authority(
+    root: Path, *, lease: dict[str, object], proof: Attestation
+) -> Commitment:
+    """Resolve the exact Commitment authorized by one candidate proof."""
+    authority = load_lease_bound_commitment(root, lease=lease)
+    if proof.commitment_digest != authority.digest():
+        message = "proof_attestation_authority_binding_mismatch"
+        raise ValueError(message)
+    return authority
 
 
 def _candidate_transition(

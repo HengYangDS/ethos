@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.gates.generated_artifacts import generated_artifact_gate_report
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from tests.support.governed_repository import git
@@ -140,7 +141,11 @@ def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    report = generated_artifact_topology_report(tmp_path)
+    report = generated_artifact_topology_report(
+        tmp_path,
+        ignored_local_paths=frozenset(),
+        tracked_untracked_paths=(),
+    )
 
     assert report["verdict"] == "block"
     assert report["summary"]["entrypoint_blocker_count"] == 2
@@ -161,9 +166,22 @@ def test_topology_report_blocks_tracked_untracked_lifecycle_home(
     git(repo, "add", "-f", path.relative_to(repo).as_posix())
     monkeypatch.setenv("GIT_DIR", git(foreign, "rev-parse", "--absolute-git-dir"))
 
-    report = generated_artifact_topology_report(repo)
+    report = generated_artifact_gate_report(repo)
 
     assert report["verdict"] == "block"
+    assert report["required_gaps"] == [
+        "generated_artifact_tracked_untracked_home:build/evidence/proof.json"
+    ]
+
+
+def test_topology_report_interprets_supplied_git_classification(tmp_path: Path) -> None:
+    """Repository policy consumes facts without observing Git itself."""
+    report = generated_artifact_topology_report(
+        tmp_path,
+        ignored_local_paths=frozenset(),
+        tracked_untracked_paths=("build/evidence/proof.json",),
+    )
+
     assert report["required_gaps"] == [
         "generated_artifact_tracked_untracked_home:build/evidence/proof.json"
     ]

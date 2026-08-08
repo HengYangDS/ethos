@@ -6,19 +6,21 @@ from os import walk
 from pathlib import Path
 from typing import Any
 
-from ethos.adapters.repo.git import run_git
 from ethos.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos.contracts.artifacts.topology import generated_artifact_contract
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
 
-_ROOT_TEST_RESIDUE_FILENAMES = frozenset({".coverage", "coverage.xml", "junit.xml"})
-_ROOT_TEST_RESIDUE_PREFIXES = (".coverage.",)
 _PRUNE_DIRS = frozenset({".git", ".pixi", ".venv", "__pycache__", "node_modules"})
 
 
-def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
+def generated_artifact_topology_report(
+    root: Path,
+    *,
+    ignored_local_paths: frozenset[str],
+    tracked_untracked_paths: tuple[str, ...],
+) -> dict[str, Any]:
     """Report generated artifact placement drift without mutating the repository."""
     declaration = load_generated_artifact_topology_declaration(
         root / "system/policies/generated-artifact-topology.toml"
@@ -27,13 +29,13 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
     denied_paths: list[str] = []
     review_paths: list[str] = []
     ignored_local_paths: list[str] = []
-    tracked_untracked_paths = _tracked_untracked_paths(root, declaration)
+    tracked_untracked = list(tracked_untracked_paths)
     review_gaps: list[str] = []
     path_blockers: list[str] = []
 
     for path in _candidate_paths(root, declaration):
         rel = path.relative_to(root).as_posix()
-        if _is_ignored_local_test_residue(root, rel):
+        if rel in ignored_local_paths:
             ignored_local_paths.append(rel)
             continue
 
@@ -55,7 +57,7 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
     entrypoint_audit = generated_artifact_entrypoint_audit(root)
     entrypoint_blockers = [str(gap) for gap in entrypoint_audit["required_gaps"]]
     path_blockers.extend(
-        f"generated_artifact_tracked_untracked_home:{path}" for path in tracked_untracked_paths
+        f"generated_artifact_tracked_untracked_home:{path}" for path in tracked_untracked
     )
     required_gaps = sorted({*path_blockers, *entrypoint_blockers})
 
@@ -63,7 +65,7 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
     denied_paths.sort()
     review_paths.sort()
     ignored_local_paths.sort()
-    tracked_untracked_paths.sort()
+    tracked_untracked.sort()
     review_gaps.sort()
     path_blockers.sort()
     return {
@@ -75,7 +77,7 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
             "denied_path_count": len(denied_paths),
             "review_path_count": len(review_paths),
             "ignored_local_path_count": len(ignored_local_paths),
-            "tracked_untracked_path_count": len(tracked_untracked_paths),
+            "tracked_untracked_path_count": len(tracked_untracked),
             "review_gap_count": len(review_gaps),
             "path_blocker_count": len(path_blockers),
             "entrypoint_checked_file_count": entrypoint_audit["summary"]["checked_file_count"],
@@ -86,7 +88,7 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
         "denied_paths": denied_paths,
         "review_paths": review_paths,
         "ignored_local_paths": ignored_local_paths,
-        "tracked_untracked_paths": tracked_untracked_paths,
+        "tracked_untracked_paths": tracked_untracked,
         "review_gaps": review_gaps,
         "path_blockers": path_blockers,
         "entrypoint_audit": entrypoint_audit,
@@ -166,36 +168,3 @@ def _explicit_denied_roots(declaration: GeneratedArtifactTopologyDeclaration) ->
         for item in contract[group]
         if (prefix := str(item["prefix"]).rstrip("/"))
     ]
-
-
-def _is_ignored_local_test_residue(root: Path, rel: str) -> bool:
-    return (
-        "/" not in rel
-        and (rel in _ROOT_TEST_RESIDUE_FILENAMES or rel.startswith(_ROOT_TEST_RESIDUE_PREFIXES))
-        and _git_status_check(root, "check-ignore", "--quiet", "--", rel)
-        and not _git_status_check(root, "ls-files", "--error-unmatch", "--", rel)
-    )
-
-
-def _tracked_untracked_paths(
-    root: Path, declaration: GeneratedArtifactTopologyDeclaration
-) -> list[str]:
-    homes = tuple(
-        home.rstrip("/")
-        for lifecycle in declaration.lifecycle_class
-        if not lifecycle.tracked
-        for home in lifecycle.homes
-    )
-    completed = _git_observation(root, "ls-files", "--", *homes)
-    return sorted(
-        path for path in completed.stdout.splitlines() if path and path != ".ethos/state/.gitignore"
-    )
-
-
-def _git_status_check(root: Path, *args: str) -> bool:
-    return _git_observation(root, *args).returncode == 0
-
-
-def _git_observation(root: Path, *args: str):
-    """Read Git facts without inheriting a caller hook's repository binding."""
-    return run_git(root, *args, check=False, observation=True)

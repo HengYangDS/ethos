@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -20,8 +21,7 @@ class OpenSpecRuntimeHook(BuildHookInterface):
         if version == "editable":
             return
         root = Path(self.root)
-        supply = root / "build/runtime/work/openspec-supply"
-        supply.mkdir(parents=True, exist_ok=True)
+        supply = Path(tempfile.mkdtemp(prefix="ethos-openspec-supply-"))
         for relative in ("package.json", "package-lock.json"):
             shutil.copy2(root / relative, supply / relative)
         node = os.environ.get("ETHOS_BUILD_NODE", "")

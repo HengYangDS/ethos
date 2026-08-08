@@ -1599,6 +1599,36 @@ def test_land_reobserves_and_retries_one_transient_candidate_cas_failure(
     assert git(candidate, "rev-parse", "HEAD") == work_head
 
 
+def test_land_exact_equal_candidate_is_an_idempotent_noop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    work_head = _archive_fixture_change(monkeypatch, worktree)
+    git(candidate, "reset", "--hard", work_head)
+    seed_executed_proof(worktree, work_head)
+
+    def mutation_is_a_bug(*_args, **_kwargs):
+        message = "equal candidate must not compile a Git mutation"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(landing_mutation, "execute_git_effect", mutation_is_a_bug)
+    payload = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        work_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["verdict"] == "pass"
+    assert payload["state"] == "candidate_current"
+    assert payload["data"]["candidate_update"]["attestation"] == {}
+    assert payload["data"]["candidate_update"]["cas_attempts"] == 0
+    assert git(candidate, "rev-parse", "HEAD") == work_head
+
+
 def test_land_bounds_repeated_candidate_cas_failure_to_two_attempts(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

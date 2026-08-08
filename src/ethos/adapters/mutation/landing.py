@@ -78,28 +78,23 @@ def apply_land_to_candidate(
             proof_gaps(candidate_path, current_head),
             path=candidate_path.as_posix(),
         )
+    lease = leases_by_branch(root).get(branch, {})
     failure: tuple[str, str] | None = None
     attestation: Attestation | None = None
     observed_candidate_head = ""
-    cas_attempts = 1
+    cas_attempts = 0
     try:
-        lease = leases_by_branch(root).get(branch, {})
-        authority = load_lease_bound_commitment(root, lease=lease)
-        if proof.commitment_digest != authority.digest():
-            failure = ("proof_attestation_authority_binding_mismatch", "")
-        else:
-            attestation, failure, observed_candidate_head, cas_attempts = _candidate_cas(
-                root=root,
-                authority=authority,
-                policy=policy,
-                refs=(branch, current_head, candidate_head),
-                candidate_path=candidate_path,
-                lease=lease,
-                proof=proof,
-            )
+        attestation, failure, observed_candidate_head, cas_attempts = _candidate_transition(
+            root=root,
+            policy=policy,
+            refs=(branch, current_head, candidate_head),
+            candidate_path=candidate_path,
+            lease=lease,
+            proof=proof,
+        )
     except (TypeError, ValueError) as error:
         failure = ("candidate_update_failed", str(error))
-    if failure is not None or attestation is None:
+    if failure is not None or (cas_attempts and attestation is None):
         gap, stderr = failure or ("candidate_update_failed", "candidate attestation missing")
         extra = {"stderr": stderr} if stderr else {}
         if gap.startswith("candidate_cas_"):
@@ -124,19 +119,45 @@ def apply_land_to_candidate(
             ["candidate_worktree_sync_failed"],
             path=candidate_path.as_posix(),
             stderr=str(error),
-            attestation=attestation.model_dump(mode="json"),
+            attestation=attestation.model_dump(mode="json") if attestation is not None else {},
         )
     return {
         "verdict": "pass",
-        "state": "candidate_validated",
+        "state": "candidate_validated" if attestation is not None else "candidate_current",
         "branch": policy.candidate_branch,
         "head": current_head,
         "path": candidate_path.as_posix(),
-        "attestation": attestation.model_dump(mode="json"),
+        "attestation": attestation.model_dump(mode="json") if attestation is not None else {},
         "worktree_attestation": worktree_attestation.model_dump(mode="json"),
         "cas_attempts": cas_attempts,
         "required_gaps": [],
     }
+
+
+def _candidate_transition(
+    *,
+    root: Path,
+    policy: BranchRolePolicy,
+    refs: tuple[str, str, str],
+    candidate_path: Path,
+    lease: dict[str, object],
+    proof: Attestation,
+) -> tuple[Attestation | None, tuple[str, str] | None, str, int]:
+    branch, current_head, candidate_head = refs
+    authority = load_lease_bound_commitment(root, lease=lease)
+    if proof.commitment_digest != authority.digest():
+        return None, ("proof_attestation_authority_binding_mismatch", ""), "", 0
+    if candidate_head == current_head:
+        return None, None, "", 0
+    return _candidate_cas(
+        root=root,
+        authority=authority,
+        policy=policy,
+        refs=(branch, current_head, candidate_head),
+        candidate_path=candidate_path,
+        lease=lease,
+        proof=proof,
+    )
 
 
 def _candidate_cas(

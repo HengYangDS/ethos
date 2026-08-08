@@ -238,6 +238,10 @@ invariants are implemented and proved without parallel mutation owners.
   patch-equivalent at committed HEAD; its 200408-byte dirty patch was preserved
   by exact digest and rejected because it restored the deleted coupling runtime,
   legacy package tree, replay state, and ownerless-preservation control plane.
+  Legacy unbound refs absorbed by accepted truth now have one deletion-only
+  fallback: exact retirement intent plus accepted-ancestor proof may resolve the
+  current accepted strict policy when the retired commit predates branch policy;
+  raw deletion, non-ancestor movement, creation, and update remain blocked.
   No compatibility branch, reader, wrapper, or parallel lane ledger remains.
 
 **Exit 4:** OpenSpec ownership, coordination reconstruction, integration

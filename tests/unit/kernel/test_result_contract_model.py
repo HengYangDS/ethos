@@ -297,3 +297,4 @@ def test_payload_budget_preserves_deep_immutability(tmp_path) -> None:
 
     with pytest.raises(TypeError):
         bounded.data["artifact_reference"]["path"] = "changed"
+    assert Path(bounded.data["artifact_reference"]["path"]).is_file()

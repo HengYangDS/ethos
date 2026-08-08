@@ -328,6 +328,14 @@ def proof_plan(
             "changed_paths": effective_paths,
             "change_id": selected_change_id,
             "gate_ids": tuple(node.id for node in nodes),
+            **(
+                {
+                    "selected_carrier": observed_scope.selected_carrier,
+                    "path_attributions": observed_scope.attribution_projection(),
+                }
+                if observed_scope is not None
+                else {}
+            ),
             **({"lease_generation": lease_generation(lease)} if work_lane else {}),
         },
         source_refs=(
@@ -366,7 +374,11 @@ def proof_plan(
         nodes,
         policy=policy.projection,
         prior_attestations=prior_attestations,
-        required_gaps=policy.gaps,
+        required_gaps=tuple(
+            dict.fromkeys(
+                (*policy.gaps, *(observed_scope.gaps if observed_scope is not None else ()))
+            )
+        ),
     )
 
 

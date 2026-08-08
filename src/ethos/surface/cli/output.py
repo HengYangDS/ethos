@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Annotated
 
 from cyclopts import Parameter
 
+from ethos.adapters.repo.git import git_common_dir
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
 
@@ -26,7 +24,9 @@ def emit(
 ) -> None:
     """Render a result and fail closed when an enforced verdict is not okay."""
     if json_output and artifact_root is not None:
-        result = apply_payload_budget(result, root=artifact_root)
+        common_dir = git_common_dir(artifact_root)
+        receipt_root = Path(common_dir) / "ethos" if common_dir else artifact_root / ".ethos"
+        result = apply_payload_budget(result, root=receipt_root)
     try:
         if json_output:
             sys.stdout.write(f"{result.to_json()}\n")

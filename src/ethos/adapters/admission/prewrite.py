@@ -348,7 +348,7 @@ def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
     checkout_binding_required = bool(audit and profile_gate_registry(Path(audit)))
     runner_matches = binding.get("runner_matches_audit_root") is True
     schema_matches = binding.get("schema_matches_audit_root") is True
-    family_runtime = binding.get("runner_matches_repository_family") is True
+    family_runtime = binding.get("state") == "bound_to_repository_family"
     verdict: Verdict = (
         "unknown"
         if not available

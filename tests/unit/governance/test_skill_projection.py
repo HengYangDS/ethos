@@ -28,6 +28,15 @@ def _registry(*skills: dict[str, object]) -> dict[str, Any]:
     )
 
 
+def _skill(skill_id: str, **updates: object) -> dict[str, object]:
+    return {
+        "id": skill_id,
+        "subject": skill_id,
+        "operation": "plan",
+        "path_globs": ["src/**"],
+    } | updates
+
+
 def _review_results(
     plan: dict[str, Any],
     *,
@@ -62,6 +71,21 @@ def _review_plan_fixture(
     )
     first = run_ethos("plan", "--root", repo.as_posix(), "--json", cwd=repo)
     return repo, first, first["data"]["review_plan"]
+
+
+def _plan_with_review_results(repo: Path, results_path: Path, results: object) -> dict[str, Any]:
+    results_path.write_text(
+        results if isinstance(results, str) else json.dumps(results), encoding="utf-8"
+    )
+    return run_ethos(
+        "plan",
+        "--root",
+        repo.as_posix(),
+        "--review-results",
+        results_path.as_posix(),
+        "--json",
+        cwd=repo,
+    )
 
 
 def test_activation_registry_contains_only_current_v2_semantics() -> None:
@@ -114,21 +138,15 @@ def test_skill_activation_schema_rejects_retired_or_unknown_fields(retired_key: 
 
 def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
     registry = _registry(
-        {
-            "id": "change-lifecycle",
-            "subject": "change-lifecycle",
-            "operation": "plan",
-            "path_globs": ["src/**"],
-            "pre_reads": ["AGENTS.md"],
-        },
-        {
-            "id": "python-quality",
-            "subject": "quality-gates",
-            "operation": "prove",
-            "path_globs": ["src/**/*.py"],
-            "requires": ["change-lifecycle"],
-            "pre_reads": ["ruff.toml"],
-        },
+        _skill("change-lifecycle", pre_reads=["AGENTS.md"]),
+        _skill(
+            "python-quality",
+            subject="quality-gates",
+            operation="prove",
+            path_globs=["src/**/*.py"],
+            requires=["change-lifecycle"],
+            pre_reads=["ruff.toml"],
+        ),
     )
     result = compile_skill_activation(
         registry,
@@ -151,29 +169,11 @@ def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
 
 def test_skill_activation_fails_closed_for_missing_or_cyclic_requirements() -> None:
     missing = _registry(
-        {
-            "id": "quality",
-            "subject": "quality",
-            "operation": "prove",
-            "path_globs": ["src/**"],
-            "requires": ["absent"],
-        },
+        _skill("quality", operation="prove", requires=["absent"]),
     )
     cyclic = _registry(
-        {
-            "id": "first",
-            "subject": "first",
-            "operation": "plan",
-            "path_globs": ["src/**"],
-            "requires": ["second"],
-        },
-        {
-            "id": "second",
-            "subject": "second",
-            "operation": "prove",
-            "path_globs": ["tests/**"],
-            "requires": ["first"],
-        },
+        _skill("first", requires=["second"]),
+        _skill("second", operation="prove", path_globs=["tests/**"], requires=["first"]),
     )
 
     missing_result = compile_skill_activation(
@@ -191,19 +191,8 @@ def test_skill_activation_fails_closed_for_missing_or_cyclic_requirements() -> N
 
 def test_skill_activation_rejects_mutually_exclusive_capabilities() -> None:
     registry = _registry(
-        {
-            "id": "fast-path",
-            "subject": "change",
-            "operation": "plan",
-            "path_globs": ["src/**"],
-            "excludes": ["deep-review"],
-        },
-        {
-            "id": "deep-review",
-            "subject": "quality",
-            "operation": "prove",
-            "path_globs": ["src/**"],
-        },
+        _skill("fast-path", subject="change", excludes=["deep-review"]),
+        _skill("deep-review", subject="quality", operation="prove"),
     )
 
     result = compile_skill_activation(
@@ -230,13 +219,7 @@ def test_plan_projects_the_compiled_skill_activation(
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt")
     registry = _registry(
-        {
-            "id": "change-lifecycle",
-            "subject": "change-lifecycle",
-            "operation": "plan",
-            "path_globs": ["**"],
-            "pre_reads": ["AGENTS.md"],
-        },
+        _skill("change-lifecycle", path_globs=["**"], pre_reads=["AGENTS.md"]),
     )
     monkeypatch.setattr(
         "ethos.surface.cli.root.planning.playbooks_report",
@@ -275,17 +258,8 @@ def test_plan_reduces_external_review_results_through_the_same_bound_plan(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, first, plan = _review_plan_fixture(tmp_path, monkeypatch)
-    results_path = tmp_path / "review-results.json"
-    results_path.write_text(json.dumps(_review_results(plan)), encoding="utf-8")
-
-    reviewed = run_ethos(
-        "plan",
-        "--root",
-        repo.as_posix(),
-        "--review-results",
-        results_path.as_posix(),
-        "--json",
-        cwd=repo,
+    reviewed = _plan_with_review_results(
+        repo, tmp_path / "review-results.json", _review_results(plan)
     )
 
     assert reviewed["required_gaps"] == first["required_gaps"]
@@ -304,20 +278,10 @@ def test_plan_fails_closed_for_stale_review_results(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, _, plan = _review_plan_fixture(tmp_path, monkeypatch)
-    stale_path = tmp_path / "stale-review-results.json"
-    stale_path.write_text(
-        json.dumps(_review_results(plan, head="0" * 40)),
-        encoding="utf-8",
-    )
-
-    stale_result = run_ethos(
-        "plan",
-        "--root",
-        repo.as_posix(),
-        "--review-results",
-        stale_path.as_posix(),
-        "--json",
-        cwd=repo,
+    stale_result = _plan_with_review_results(
+        repo,
+        tmp_path / "stale-review-results.json",
+        _review_results(plan, head="0" * 40),
     )
 
     assert stale_result["data"]["review_decision"]["state"] == "gapped"
@@ -332,18 +296,7 @@ def test_plan_fails_closed_without_traceback_for_malformed_review_results(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, first, _ = _review_plan_fixture(tmp_path, monkeypatch)
-    malformed_path = tmp_path / "malformed-review-results.json"
-    malformed_path.write_text("{", encoding="utf-8")
-
-    result = run_ethos(
-        "plan",
-        "--root",
-        repo.as_posix(),
-        "--review-results",
-        malformed_path.as_posix(),
-        "--json",
-        cwd=repo,
-    )
+    result = _plan_with_review_results(repo, tmp_path / "malformed-review-results.json", "{")
 
     assert result["verdict"] == "block"
     assert result["required_gaps"] == [

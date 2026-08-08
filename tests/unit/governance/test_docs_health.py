@@ -6,6 +6,8 @@ import tomllib
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 from ethos.surface.cli.root.reference import docs_registry_report
 
 
@@ -38,35 +40,26 @@ See also: none.
     )
 
 
-def test_docs_health_rejects_deleted_quality_provenance_command(tmp_path: Path) -> None:
-    """Deleted quality commands cannot persist in canonical examples."""
-    write_active_doc(tmp_path, "ethos quality provenance --json")
+@pytest.mark.parametrize(
+    ("command", "invalid"),
+    [
+        ("ethos quality provenance --json", "ethos quality provenance"),
+        ("ethos lane lease migrate --json", "ethos lane lease migrate"),
+        ("uv run --no-sync ethos lane lease renew --json", None),
+    ],
+)
+def test_docs_health_resolves_commands_through_the_live_command_tree(
+    tmp_path: Path, command: str, invalid: str | None
+) -> None:
+    write_active_doc(tmp_path, command)
 
     report = docs_registry_report(tmp_path)
 
-    assert report["invalid_command_examples"] == [
-        "unknown_ethos_command_example:docs/reference/example.md:17:ethos quality provenance"
-    ]
-
-
-def test_docs_health_rejects_unregistered_nested_command(tmp_path: Path) -> None:
-    """A nested example must resolve through the live Cyclopts command tree."""
-    write_active_doc(tmp_path, "ethos lane lease migrate --json")
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["invalid_command_examples"] == [
-        "unknown_ethos_command_example:docs/reference/example.md:17:ethos lane lease migrate"
-    ]
-
-
-def test_docs_health_accepts_registered_nested_command(tmp_path: Path) -> None:
-    """A live nested Cyclopts operation remains an admitted documentation example."""
-    write_active_doc(tmp_path, "uv run --no-sync ethos lane lease renew --json")
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["invalid_command_examples"] == []
+    assert report["invalid_command_examples"] == (
+        []
+        if invalid is None
+        else [f"unknown_ethos_command_example:docs/reference/example.md:17:{invalid}"]
+    )
 
 
 def test_docs_health_rejects_unindexed_plan(tmp_path: Path) -> None:
@@ -74,30 +67,10 @@ def test_docs_health_rejects_unindexed_plan(tmp_path: Path) -> None:
     plans = tmp_path / "docs" / "plans"
     plans.mkdir(parents=True)
     (plans / "README.md").write_text(
-        """\
----
-subject: docs:plans
-role: index
-state: planned
-relations: none
----
-
-# Plans
-""",
-        encoding="utf-8",
+        _document("docs:plans", "index", "planned", "Plans"), encoding="utf-8"
     )
     (plans / "orphan.md").write_text(
-        """\
----
-subject: ethos:orphan-plan
-role: plan
-state: active
-relations: none
----
-
-# Orphan Plan
-""",
-        encoding="utf-8",
+        _document("ethos:orphan-plan", "plan", "active", "Orphan Plan"), encoding="utf-8"
     )
 
     report = docs_registry_report(tmp_path)
@@ -105,28 +78,23 @@ relations: none
     assert report["unindexed_plans"] == ["unindexed_plan:docs/plans/orphan.md"]
 
 
+def _write_guide(root: Path, relative: str = "docs/native/guide.md") -> Path:
+    path = root / relative
+    path.parent.mkdir(parents=True)
+    path.write_text(_document("adopter:guide", "how-to", "active", "Guide"), encoding="utf-8")
+    return path
+
+
+def _document(subject: str, role: str, state: str, title: str) -> str:
+    return (
+        f"---\nsubject: {subject}\nrole: {role}\nstate: {state}\nrelations: none\n---\n\n"
+        f"# {title}\n\nStatus: {state}.\n\nPurpose: exercise docs health.\n\nSee also: none.\n"
+    )
+
+
 def test_docs_health_is_portable_without_ethos_physical_layout(tmp_path: Path) -> None:
     """Adopter docs health validates semantics without imposing ETHOS paths."""
-    path = tmp_path / "docs" / "native" / "guide.md"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        """---
-subject: adopter:guide
-role: how-to
-state: active
-relations: none
----
-
-# Guide
-
-Status: active.
-
-Purpose: exercise portable documentation health.
-
-See also: none.
-""",
-        encoding="utf-8",
-    )
+    _write_guide(tmp_path)
 
     report = docs_registry_report(tmp_path)
 
@@ -146,26 +114,7 @@ def test_docs_health_uses_the_profile_declared_docs_root(tmp_path: Path) -> None
         "material_paths = ['openspec/**']\n",
         encoding="utf-8",
     )
-    path = tmp_path / "handbook" / "guide.md"
-    path.parent.mkdir()
-    path.write_text(
-        """---
-subject: adopter:guide
-role: how-to
-state: active
-relations: none
----
-
-# Guide
-
-Status: active.
-
-Purpose: prove profile-relative discovery.
-
-See also: none.
-""",
-        encoding="utf-8",
-    )
+    _write_guide(tmp_path, "handbook/guide.md")
 
     report = docs_registry_report(tmp_path)
 
@@ -220,16 +169,7 @@ def test_observational_roles_do_not_require_reader_sections(tmp_path: Path) -> N
     path = tmp_path / "docs" / "native" / "observation.md"
     path.parent.mkdir(parents=True)
     path.write_text(
-        """---
-subject: adopter:observation
-role: evidence
-state: active
-relations: none
----
-
-# Observation
-""",
-        encoding="utf-8",
+        _document("adopter:observation", "evidence", "active", "Observation"), encoding="utf-8"
     )
 
     report = docs_registry_report(tmp_path)
@@ -316,149 +256,84 @@ See also: none.
     assert report["verdict"] == "block"
 
 
-def test_decision_index_requires_current_records_newest_first(tmp_path: Path) -> None:
-    """The decision index leads with accepted rulings ordered by latest change date."""
+@pytest.mark.parametrize(
+    ("records", "index", "expected"),
+    [
+        (
+            (("DR-0001", "example", {"changed": "2026-08-01"}), ("DR-0002", "example", {})),
+            ("DR-0001", "DR-0002"),
+            ["decision_index_order_invalid:docs/decisions/decision-index.md:DR-0002,DR-0001"],
+        ),
+        (
+            (
+                (
+                    "DR-0001",
+                    "first",
+                    {"changed": "2026-08-01", "status": "superseded", "superseded_by": "DR-0002"},
+                ),
+                ("DR-0002", "second", {}),
+            ),
+            ("DR-0002", "DR-0001"),
+            ["decision_record_supersession_not_reciprocal:DR-0001:DR-0002"],
+        ),
+        (
+            (
+                ("DR-0001", "first", {"changed": "2026-08-01", "depends_on": "DR-0002"}),
+                ("DR-0002", "second", {"depends_on": "DR-0001, DR-0003"}),
+            ),
+            ("DR-0002", "DR-0001"),
+            [
+                "decision_record_dependency_cycle:DR-0001,DR-0002",
+                "decision_record_reference_missing:DR-0002:Depends On:DR-0003",
+            ],
+        ),
+        (
+            (("DR-0001", "example", {}), ("DR-0002", "example", {})),
+            ("DR-0001", "DR-0001"),
+            [
+                "decision_index_coverage_invalid:docs/decisions/decision-index.md:missing=DR-0002:duplicate=DR-0001:unknown="
+            ],
+        ),
+        (
+            (("DR-0001", "first", {}), ("DR-0001", "second", {})),
+            ("DR-0001",),
+            [
+                "decision_record_id_duplicate:DR-0001:docs/decisions/DR-0001-first.md,docs/decisions/DR-0001-second.md"
+            ],
+        ),
+    ],
+)
+def test_decision_graph_and_index_negatives(
+    tmp_path: Path,
+    records: tuple[tuple[str, str, dict[str, str]], ...],
+    index: tuple[str, ...],
+    expected: list[str],
+) -> None:
     decisions = tmp_path / "docs" / "decisions"
     decisions.mkdir(parents=True)
-    for decision_id, changed in (("DR-0001", "2026-08-01"), ("DR-0002", "2026-08-06")):
-        (decisions / f"{decision_id}-example.md").write_text(
-            _decision_record(decision_id, changed),
-            encoding="utf-8",
+    for decision_id, slug, fields in records:
+        record_fields = dict(fields)
+        changed = record_fields.pop("changed", "2026-08-06")
+        (decisions / f"{decision_id}-{slug}.md").write_text(
+            _decision_record(decision_id, changed, **record_fields), encoding="utf-8"
         )
-    (decisions / "decision-index.md").write_text(
-        _decision_index(("DR-0001", "DR-0002")),
-        encoding="utf-8",
-    )
+    (decisions / "decision-index.md").write_text(_decision_index(index), encoding="utf-8")
 
-    report = docs_registry_report(tmp_path)
-
-    assert report["decision_record_gaps"] == [
-        "decision_index_order_invalid:docs/decisions/decision-index.md:DR-0002,DR-0001"
-    ]
+    assert docs_registry_report(tmp_path)["decision_record_gaps"] == expected
 
 
 def test_decision_record_name_and_status_use_the_closed_grammar(tmp_path: Path) -> None:
-    """Decision identity is semantic, portable, and closed over lifecycle states."""
     decisions = tmp_path / "docs" / "decisions"
     decisions.mkdir(parents=True)
-    (decisions / "DR-0001-Bad_Name.md").write_text(
-        _decision_record("DR-0001", "2026-08-06", status="draft"),
-        encoding="utf-8",
-    )
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["decision_record_gaps"] == [
+    invalid = decisions / "DR-0001-Bad_Name.md"
+    invalid.write_text(_decision_record("DR-0001", "2026-08-06", status="draft"), encoding="utf-8")
+    assert docs_registry_report(tmp_path)["decision_record_gaps"] == [
         "decision_record_name_invalid:docs/decisions/DR-0001-Bad_Name.md"
     ]
-
-    (decisions / "DR-0001-Bad_Name.md").rename(decisions / "DR-0001-bad-name.md")
-    (decisions / "decision-index.md").write_text(
-        _decision_index(("DR-0001",)),
-        encoding="utf-8",
-    )
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["decision_record_gaps"] == [
+    invalid.rename(decisions / "DR-0001-bad-name.md")
+    (decisions / "decision-index.md").write_text(_decision_index(("DR-0001",)), encoding="utf-8")
+    assert docs_registry_report(tmp_path)["decision_record_gaps"] == [
         "decision_record_status_invalid:docs/decisions/DR-0001-bad-name.md:draft"
-    ]
-
-
-def test_supersession_is_existing_bidirectional_record_truth(tmp_path: Path) -> None:
-    """A superseded ruling names an existing successor that names it back."""
-    decisions = tmp_path / "docs" / "decisions"
-    decisions.mkdir(parents=True)
-    (decisions / "DR-0001-first.md").write_text(
-        _decision_record("DR-0001", "2026-08-01", status="superseded", superseded_by="DR-0002"),
-        encoding="utf-8",
-    )
-    (decisions / "DR-0002-second.md").write_text(
-        _decision_record("DR-0002", "2026-08-06"),
-        encoding="utf-8",
-    )
-    (decisions / "decision-index.md").write_text(
-        _decision_index(("DR-0002", "DR-0001")),
-        encoding="utf-8",
-    )
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["decision_record_gaps"] == [
-        "decision_record_supersession_not_reciprocal:DR-0001:DR-0002"
-    ]
-
-
-def test_decision_dependencies_exist_and_are_acyclic(tmp_path: Path) -> None:
-    """Decision dependencies reuse the one canonical DAG owner."""
-    decisions = tmp_path / "docs" / "decisions"
-    decisions.mkdir(parents=True)
-    (decisions / "DR-0001-first.md").write_text(
-        _decision_record("DR-0001", "2026-08-01", depends_on="DR-0002"),
-        encoding="utf-8",
-    )
-    (decisions / "DR-0002-second.md").write_text(
-        _decision_record("DR-0002", "2026-08-06", depends_on="DR-0001, DR-0003"),
-        encoding="utf-8",
-    )
-    (decisions / "decision-index.md").write_text(
-        _decision_index(("DR-0002", "DR-0001")),
-        encoding="utf-8",
-    )
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["decision_record_gaps"] == [
-        "decision_record_dependency_cycle:DR-0001,DR-0002",
-        "decision_record_reference_missing:DR-0002:Depends On:DR-0003",
-    ]
-
-
-def test_decision_index_covers_each_record_exactly_once(tmp_path: Path) -> None:
-    """The index is a complete derived projection, not a selective authority list."""
-    decisions = tmp_path / "docs" / "decisions"
-    decisions.mkdir(parents=True)
-    for decision_id in ("DR-0001", "DR-0002"):
-        (decisions / f"{decision_id}-example.md").write_text(
-            _decision_record(decision_id, "2026-08-06"),
-            encoding="utf-8",
-        )
-    (decisions / "decision-index.md").write_text(
-        _decision_index(("DR-0001", "DR-0001")),
-        encoding="utf-8",
-    )
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["decision_record_gaps"] == [
-        (
-            "decision_index_coverage_invalid:docs/decisions/decision-index.md:"
-            "missing=DR-0002:duplicate=DR-0001:unknown="
-        )
-    ]
-
-
-def test_decision_identity_is_unique_across_semantic_filenames(tmp_path: Path) -> None:
-    """Two semantic filenames cannot mint the same durable decision identity."""
-    decisions = tmp_path / "docs" / "decisions"
-    decisions.mkdir(parents=True)
-    for slug in ("first", "second"):
-        (decisions / f"DR-0001-{slug}.md").write_text(
-            _decision_record("DR-0001", "2026-08-06"),
-            encoding="utf-8",
-        )
-    (decisions / "decision-index.md").write_text(
-        _decision_index(("DR-0001",)),
-        encoding="utf-8",
-    )
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["decision_record_gaps"] == [
-        (
-            "decision_record_id_duplicate:DR-0001:"
-            "docs/decisions/DR-0001-first.md,docs/decisions/DR-0001-second.md"
-        )
     ]
 
 
@@ -471,70 +346,44 @@ def _decision_record(
     superseded_by: str = "None",
     depends_on: str = "None",
 ) -> str:
-    return f"""---
-subject: example:decision:{decision_id.lower()}
-role: decision
-state: canonical
-relations: none
----
-
-# {decision_id}: Example
-
-Status: {status}.
-
-Purpose: exercise decision ordering.
-
-See also: none.
-
-## Record
-
-| Field | Value |
-| --- | --- |
-| Decision ID | {decision_id} |
-| Status | {status} |
-| Decision Date | {changed} |
-| Decision Change Date | {changed} |
-| Supersedes | {supersedes} |
-| Superseded By | {superseded_by} |
-| Depends On | {depends_on} |
-
-## Context
-
-Context.
-
-## Invariants
-
-- One invariant.
-
-## Alternatives Considered
-
-| Option | Verdict | Pros | Cons | Decision basis |
-| --- | --- | --- | --- | --- |
-| One | selected | Clear. | Cost. | Best fit. |
-| Two | rejected | Familiar. | Breaks invariant. | Inferior. |
-
-## Decision
-
-Select one.
-
-## Consequences
-
-One consequence.
-
-## Proof Or Evidence
-
-- One check.
-
-## Revisit Trigger
-
-One falsifiable trigger.
-
-## Decision Change Ledger
-
-| Version | Date | Change | Reason | Evidence |
-| --- | --- | --- | --- | --- |
-| 1 | {changed} | Initial ruling | Select | Check |
-"""
+    fields = {
+        "Decision ID": decision_id,
+        "Status": status,
+        "Decision Date": changed,
+        "Decision Change Date": changed,
+        "Supersedes": supersedes,
+        "Superseded By": superseded_by,
+        "Depends On": depends_on,
+    }
+    record = "\n".join(f"| {name} | {value} |" for name, value in fields.items())
+    sections = {
+        "Context": "Context.",
+        "Invariants": "- One invariant.",
+        "Alternatives Considered": (
+            "| Option | Verdict | Pros | Cons | Decision basis |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            "| One | selected | Clear. | Cost. | Best fit. |"
+        ),
+        "Decision": "Select one.",
+        "Consequences": "One consequence.",
+        "Proof Or Evidence": "- One check.",
+        "Revisit Trigger": "One falsifiable trigger.",
+        "Decision Change Ledger": (
+            "| Version | Date | Change | Reason | Evidence |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            f"| 1 | {changed} | Initial ruling | Select | Check |"
+        ),
+    }
+    body = "\n\n".join(f"## {heading}\n\n{content}" for heading, content in sections.items())
+    return (
+        _document(
+            f"example:decision:{decision_id.lower()}",
+            "decision",
+            "canonical",
+            f"{decision_id}: Example",
+        )
+        + f"\n## Record\n\n| Field | Value |\n| --- | --- |\n{record}\n\n{body}\n"
+    )
 
 
 def _decision_index(decision_ids: tuple[str, ...]) -> str:
@@ -542,22 +391,6 @@ def _decision_index(decision_ids: tuple[str, ...]) -> str:
         f"| [{decision_id}]({decision_id}-example.md) | Example | accepted | 2026-08-06 |"
         for decision_id in decision_ids
     )
-    return f"""---
-subject: example:decision:index
-role: index
-state: canonical
-relations: none
----
-
-# Decision Index
-
-Status: canonical.
-
-Purpose: route decisions.
-
-See also: none.
-
-| ID | Title | Status | Changed |
-| --- | --- | --- | --- |
-{rows}
-"""
+    return _document("example:decision:index", "index", "canonical", "Decision Index") + (
+        "\n| ID | Title | Status | Changed |\n| --- | --- | --- | --- |\n" + rows + "\n"
+    )

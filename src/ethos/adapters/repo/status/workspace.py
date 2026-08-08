@@ -14,13 +14,14 @@ from ethos.adapters.repo.coordination import foreign_work_lane_deferred
 from ethos.adapters.repo.coordination import workspace_required_gaps
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
+from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout_checked
+from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.status.bindings import branch_bindings
 from ethos.adapters.repo.status.bindings import closeout_support
-from ethos.adapters.repo.status.bindings import is_ancestor
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.bindings import ref_relation
 from ethos.adapters.repo.status.bindings import unbound_work_lane_refs
 from ethos.adapters.repo.status.bindings import worktree_binding
@@ -102,10 +103,6 @@ def _safe_ref(root: Path, ref: str) -> str:
         return ""
 
 
-def current_branch(root: Path) -> str:
-    return git_stdout_checked(root, "branch", "--show-current") or "detached"
-
-
 def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> dict[str, object]:
     """Return workspace truth, optionally deferring foreign path-scope expansion."""
     try:
@@ -115,7 +112,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
     provenance = dirty_provenance(root)
     paths = tuple(str(item["path"]) for item in cast("list[dict[str, str]]", provenance["entries"]))
     branch, head, policy = (
-        current_branch(root),
+        current_branch(root) or "detached",
         _safe_ref(root, "HEAD"),
         load_branch_role_policy(repo),
     )

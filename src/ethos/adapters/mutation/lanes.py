@@ -16,10 +16,10 @@ from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git import same_git_repository
-from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease

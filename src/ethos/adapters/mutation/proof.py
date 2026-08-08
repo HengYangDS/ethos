@@ -21,11 +21,11 @@ from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.workspace import current_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy

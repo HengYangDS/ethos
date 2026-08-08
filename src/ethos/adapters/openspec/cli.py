@@ -13,7 +13,6 @@ from typing import Any
 import nodejs_wheel
 
 from ethos.adapters.repo.git import run_command
-from ethos.adapters.repo.git import run_git
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OFFICIAL_VERSION = ""
@@ -46,11 +45,6 @@ def _packaged_node() -> str | None:
     relative = ("node.exe",) if os.name == "nt" else ("bin", "node")
     executable = Path(str(package.joinpath(*relative)))
     return executable.as_posix() if executable.is_file() else None
-
-
-def current_branch(root: Path) -> str:
-    completed = run_git(root, "branch", "--show-current", check=False)
-    return "" if completed.returncode else completed.stdout.strip()
 
 
 def openspec_base_command() -> tuple[str, ...] | None:

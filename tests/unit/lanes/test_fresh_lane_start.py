@@ -8,8 +8,8 @@ import pytest
 
 import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.bindings import ref_head
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate

@@ -25,6 +25,7 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.verdict import Verdict
@@ -199,6 +200,8 @@ def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_outp
 def resolve_generation_scope(repo: Path) -> CurrentGenerationScope:
     """Observe one current Change generation scope for this proof invocation."""
     status = workspace_status(repo, include_foreign_path_scope=False)
+    status = dict(status)
+    status["changed_paths"] = list(change_scope_paths_from_status(repo, status))
     try:
         repository = load_repository_commitment(repo)
         return current_generation_binding(

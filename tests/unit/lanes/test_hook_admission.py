@@ -10,6 +10,7 @@ import ethos.adapters.admission.identity as admission_identity
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.identity import push_identity_policy_report
+from ethos.adapters.admission.prewrite import _runtime_binding_check
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import attestation_store_dir
@@ -497,6 +498,47 @@ def test_runner_source_root_treats_an_installed_distribution_as_external(
     module.write_text("", encoding="utf-8")
 
     assert runner_source_root(module) == module.parent
+
+
+def test_prewrite_accepts_exact_package_hook_transaction_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    monkeypatch.setenv("ETHOS_HOOK_TRANSACTION_ROOT", repo.resolve().as_posix())
+    monkeypatch.setattr(
+        "ethos.adapters.admission.prewrite.profile_gate_registry",
+        lambda _root: {"quality": object()},
+    )
+
+    report = _runtime_binding_check(
+        {
+            "runtime_binding": {
+                "audit_root": repo.resolve().as_posix(),
+                "runner_source_root": "/external/package/ethos",
+                "schema_source_root": repo.resolve().as_posix(),
+                "runner_matches_audit_root": False,
+                "schema_matches_audit_root": True,
+            }
+        }
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["package_transaction_matches_audit_root"] is True
+
+    monkeypatch.setenv("ETHOS_HOOK_TRANSACTION_ROOT", (tmp_path / "other").as_posix())
+    rejected = _runtime_binding_check(
+        {
+            "runtime_binding": {
+                "audit_root": repo.resolve().as_posix(),
+                "runner_source_root": "/external/package/ethos",
+                "schema_source_root": repo.resolve().as_posix(),
+                "runner_matches_audit_root": False,
+                "schema_matches_audit_root": True,
+            }
+        }
+    )
+    assert rejected["verdict"] == "block"
+    assert rejected["package_transaction_matches_audit_root"] is False
 
 
 @pytest.mark.parametrize(

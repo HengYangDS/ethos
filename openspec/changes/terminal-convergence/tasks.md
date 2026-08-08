@@ -242,6 +242,12 @@ invariants are implemented and proved without parallel mutation owners.
   fallback: exact retirement intent plus accepted-ancestor proof may resolve the
   current accepted strict policy when the retired commit predates branch policy;
   raw deletion, non-ancestor movement, creation, and update remain blocked.
+  A linked clean leased carrier reconstructed after official archive is now
+  retired through the same exact transaction only when its complete delta is
+  confined to one active Change root and maps one-to-one by identical blob OID
+  into the sole dated accepted archive for that Change. The derived mapping is
+  rebound immediately before Lease revocation, worktree removal, and ref CAS;
+  extra source paths, missing or ambiguous archives, and changed blobs block.
   No compatibility branch, reader, wrapper, or parallel lane ledger remains.
 
 **Exit 4:** OpenSpec ownership, coordination reconstruction, integration

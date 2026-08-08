@@ -1416,6 +1416,52 @@ def test_prove_reports_plan_compile_and_admission_failures_as_public_gaps(
     assert missing["next_action"] == "ethos adopt"
 
 
+def test_prove_reports_attestation_semantic_mismatch_as_structured_json(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    admitted = proof_cli.proof_plan(repo, head=git(repo, "rev-parse", "HEAD"))
+    gap = "proof_attestation_plan_semantics_mismatch:change_scope_exceeded"
+    monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: admitted)
+    monkeypatch.setattr(
+        proof_cli,
+        "run_plan_checks",
+        lambda **_kwargs: (
+            [
+                {
+                    "action_id": "proof-boundary",
+                    "command": [],
+                    "exit_code": 0,
+                    "stdout": "",
+                    "stderr": "",
+                    "verdict": "pass",
+                    "evidence_class": "test",
+                    "trust_bearing": True,
+                    "diagnostics": [],
+                }
+            ],
+            True,
+        ),
+    )
+    monkeypatch.setattr(
+        proof_cli,
+        "issue_proof_attestation",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError(gap)),
+    )
+
+    completed = run_ethos_raw("prove", "--execute", "--json", cwd=repo)
+
+    assert completed.returncode != 0
+    payload = json.loads(completed.stdout)
+    assert payload["verdict"] == "block"
+    assert payload["state"] == "gapped"
+    assert payload["required_gaps"] == [gap]
+    assert payload["next_action"] == "ethos plan --changed --json"
+    assert "Traceback" not in completed.stderr
+
+
 def test_prove_empty_focused_plan_keeps_host_probe_separate_without_claiming_readiness(
     monkeypatch, tmp_path: Path
 ) -> None:

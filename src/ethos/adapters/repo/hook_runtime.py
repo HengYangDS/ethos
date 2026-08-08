@@ -88,6 +88,7 @@ def _materialize_runtime(repo: Path, source_python: Path) -> Path:
                 source,
                 "venv",
                 "--offline",
+                "--relocatable",
                 "--python",
                 source_python.as_posix(),
                 (staging / "venv").as_posix(),

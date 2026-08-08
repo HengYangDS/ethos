@@ -20,8 +20,35 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import datetime
 
-_GIT = shutil.which("git") or "git"
 _GIT_CONFIG_SOURCE_ENV = ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM")
+GIT_EXECUTABLE_UNAVAILABLE = "git_executable_unavailable"
+GIT_PROCESS_SPAWN_FAILED = "git_process_spawn_failed"
+
+
+class GitExecutionError(ValueError):
+    """Stable failure boundary for resolving or spawning the Git executable."""
+
+    def __init__(self, code: str, *, reason: str) -> None:
+        super().__init__(code)
+        self.code = code
+        self.reason = reason
+
+
+def git_executable(environment: Mapping[str, str]) -> str:
+    """Resolve one absolute Git executable from the exact execution environment."""
+    executable = shutil.which("git", path=environment.get("PATH"))
+    if executable is None:
+        raise GitExecutionError(
+            GIT_EXECUTABLE_UNAVAILABLE,
+            reason="not_found_on_effective_path",
+        )
+    resolved = Path(executable).resolve()
+    if not resolved.is_file():
+        raise GitExecutionError(
+            GIT_EXECUTABLE_UNAVAILABLE,
+            reason="resolved_executable_invalid",
+        )
+    return resolved.as_posix()
 
 
 @overload
@@ -79,7 +106,7 @@ def run_git(
     )
     return _execute(
         root,
-        (_GIT, *args),
+        (git_executable(effective_env), *args),
         text=text,
         check=check,
         env=effective_env,
@@ -95,19 +122,30 @@ def _execute(
     check: bool,
     env: Mapping[str, str],
     stdin: str | bytes | None = None,
-    timeout: int | None = None,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[Any]:
-    return subprocess.run(
-        command,
-        cwd=root,
-        check=check,
-        text=text,
-        capture_output=True,
-        env=env,
-        input=stdin,
-        timeout=timeout,
-        shell=False,
-    )
+    if not root.is_dir():
+        raise GitExecutionError(
+            GIT_PROCESS_SPAWN_FAILED,
+            reason="working_directory_unavailable",
+        )
+    try:
+        return subprocess.run(
+            command,
+            cwd=root,
+            check=check,
+            text=text,
+            capture_output=True,
+            env=env,
+            input=stdin,
+            timeout=timeout,
+            shell=False,
+        )
+    except OSError as error:
+        raise GitExecutionError(
+            GIT_PROCESS_SPAWN_FAILED,
+            reason="process_creation_failed",
+        ) from error
 
 
 def run_command(
@@ -117,7 +155,7 @@ def run_command(
     text: bool = True,
     capture_output: bool = True,
     check: bool = False,
-    timeout: int | None = None,
+    timeout: float | None = None,
     env: Mapping[str, str] | None = None,
 ) -> subprocess.CompletedProcess[Any]:
     """Run one exact argv command without a shell or inherited Git overrides."""
@@ -145,7 +183,7 @@ def effective_git_config_value(root: Path, name: str) -> str:
     effective_env.update({"LC_ALL": "C", "GIT_NO_REPLACE_OBJECTS": "1"})
     completed = _execute(
         root,
-        (_GIT, "config", "--get", name),
+        (git_executable(effective_env), "config", "--get", name),
         text=True,
         check=False,
         env=effective_env,
@@ -468,12 +506,15 @@ def remote_availability(
             "advisory_gaps": [f"remote_unconfigured:{remote}"],
         }
     try:
-        completed = subprocess.run(
-            [_GIT, "ls-remote", "--exit-code", remote],
-            cwd=root,
+        effective_env = {
+            key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+        }
+        completed = _execute(
+            root,
+            (git_executable(effective_env), "ls-remote", "--exit-code", remote),
             text=True,
-            capture_output=True,
             check=False,
+            env=effective_env,
             timeout=timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:

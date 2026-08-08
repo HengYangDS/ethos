@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from fnmatch import fnmatchcase
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import current_branch
@@ -453,8 +453,7 @@ def _path_report(path: str, *, reason: str, **details: object) -> dict[str, obje
 
 
 def _is_ignored(root: Path, relative_path: str) -> bool:
-    command = ["git", "check-ignore", "-q", "--", relative_path]
-    return subprocess.run(command, cwd=root, check=False).returncode == 0
+    return run_git(root, "check-ignore", "-q", "--", relative_path, check=False).returncode == 0
 
 
 def _gaps(

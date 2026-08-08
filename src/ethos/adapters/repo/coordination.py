@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -28,12 +28,12 @@ def branch_path_scope(
 ) -> tuple[tuple[str, ...], str]:
     if not branch or branch == "detached":
         return (), "unknown"
-    completed = subprocess.run(
-        ["git", "diff", "--name-only", f"{candidate_branch}...{branch}"],
-        cwd=root,
+    completed = run_git(
+        root,
+        "diff",
+        "--name-only",
+        f"{candidate_branch}...{branch}",
         check=False,
-        text=True,
-        capture_output=True,
     )
     if completed.returncode:
         return (), "unknown"

@@ -222,12 +222,12 @@ def committed_change_paths(root: Path, base_ref: str) -> tuple[str, ...]:
     """
     if not base_ref:
         return ()
-    completed = subprocess.run(
-        ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
-        cwd=root,
+    completed = run_git(
+        root,
+        "diff",
+        "--name-only",
+        f"{base_ref}...HEAD",
         check=False,
-        text=True,
-        capture_output=True,
     )
     if completed.returncode != 0:
         return ()

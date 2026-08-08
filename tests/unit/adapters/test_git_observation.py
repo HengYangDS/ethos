@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import importlib
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
 
+import pytest
+
+import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.git import ref_progress
+from ethos.adapters.repo.git import run_git
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_ref_progress_projects_reflog_advances_without_persisting_metrics(
@@ -59,3 +61,41 @@ def test_ref_progress_preserves_unknown_when_reflog_is_unavailable(tmp_path: Pat
         "latest_advance_age_seconds": None,
         "advances_per_hour": None,
     }
+
+
+def test_run_git_resolves_git_from_the_execution_environment_not_import_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git = git_adapter.shutil.which("git")
+    assert git is not None
+    git_directory = str(Path(git).resolve().parent)
+
+    monkeypatch.setenv("PATH", "")
+    importlib.reload(git_adapter)
+    monkeypatch.setenv("PATH", git_directory)
+
+    completed = git_adapter.run_git(repo, "rev-parse", "HEAD")
+
+    assert completed.returncode == 0
+
+
+def test_run_git_fails_closed_when_effective_path_has_no_git(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    monkeypatch.setenv("PATH", str(tmp_path / "empty-bin"))
+
+    with pytest.raises(ValueError, match=r"^git_executable_unavailable$"):
+        run_git(repo, "rev-parse", "HEAD")
+
+
+def test_run_git_distinguishes_an_invalid_working_directory(
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "missing"
+
+    with pytest.raises(ValueError, match=r"^git_process_spawn_failed$") as error:
+        run_git(missing, "rev-parse", "HEAD")
+
+    assert getattr(error.value, "reason", "") == "working_directory_unavailable"

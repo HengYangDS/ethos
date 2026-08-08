@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import shlex
 import shutil
-import subprocess
 import tempfile
 import tomllib
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import run_git
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.observation import product_references_from_files
@@ -80,20 +80,10 @@ def patch_admission(
 
 
 def _patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> bool:
-    command = ["git", "apply", "--whitespace=error-all", "-"]
+    command = ["apply", "--whitespace=error-all", "-"]
     if check_preimage:
         command.insert(2, "--check")
-    return (
-        subprocess.run(
-            command,
-            cwd=root,
-            input=patch,
-            text=True,
-            capture_output=True,
-            check=False,
-        ).returncode
-        == 0
-    )
+    return run_git(root, *command, stdin=patch, text=True, check=False).returncode == 0
 
 
 def _baseline_product_references(root: Path, head: str) -> dict[str, frozenset[str]]:

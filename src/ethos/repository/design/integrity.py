@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.git import run_git
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter
@@ -86,19 +86,10 @@ def _documents(
     root: Path,
     registry: dict[str, dict[str, str]],
 ) -> dict[str, tuple[Path, str, frozenset[str]]]:
-    try:
-        tracked = subprocess.run(
-            ("git", "ls-files", "*.md"),
-            cwd=root,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except OSError:
-        tracked = None
+    tracked = run_git(root, "ls-files", "*.md", check=False)
     relatives = (
         tracked.stdout.splitlines()
-        if tracked is not None and tracked.returncode == 0
+        if tracked.returncode == 0
         else [path.relative_to(root).as_posix() for path in root.rglob("*.md")]
     )
     documents: dict[str, tuple[Path, str, frozenset[str]]] = {}

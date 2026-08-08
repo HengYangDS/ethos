@@ -51,6 +51,9 @@ contradicting evidence rather than hidden behind a successor ledger.
   Lease at lane creation (`db210a46c8`; formerly task 3.3.5).
 - [x] F.19 Delete the closeout-residue currentness model and retain unknown
   Work Lane state as observation only (`ceb40e38f1`; formerly task 1.6.1).
+- [x] F.20 Bind Git executable resolution and process creation to one execution-
+  time adapter; remove parallel production Git subprocess owners and project
+  unavailable executable/root failures as structured CLI gaps.
 
 ## 0. Restore Campaign Control And Intent Closure
 

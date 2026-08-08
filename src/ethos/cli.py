@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import sys
 
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.contracts.admission import root_command
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import dispatch_arguments
 from ethos.surface.cli.application import load_command_groups
+from ethos.surface.cli.output import emit_git_execution_failure
 from ethos.surface.cli.output import emit_invalid_repository_profile
 
 
@@ -17,6 +19,13 @@ def main() -> None:
     load_command_groups(argv)
     try:
         app(dispatch_arguments(argv))
+    except GitExecutionError as exc:
+        emit_git_execution_failure(
+            command=root_command(argv) or "ethos",
+            code=exc.code,
+            reason=exc.reason,
+            json_output="--json" in argv,
+        )
     except ValueError as exc:
         if str(exc) != "repository_profile_invalid:.ethos/profile.toml":
             raise

@@ -348,13 +348,12 @@ def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
     checkout_binding_required = bool(audit and profile_gate_registry(Path(audit)))
     runner_matches = binding.get("runner_matches_audit_root") is True
     schema_matches = binding.get("schema_matches_audit_root") is True
-    package_transaction = os.environ.get("ETHOS_HOOK_TRANSACTION_ROOT", "") == audit
+    family_runtime = binding.get("runner_matches_repository_family") is True
     verdict: Verdict = (
         "unknown"
         if not available
         else "pass"
-        if not checkout_binding_required
-        or (schema_matches and (runner_matches or package_transaction))
+        if not checkout_binding_required or (schema_matches and (runner_matches or family_runtime))
         else "block"
     )
     return {
@@ -372,7 +371,7 @@ def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
         "checkout_binding_required": checkout_binding_required,
         "runner_matches_audit_root": runner_matches,
         "schema_matches_audit_root": schema_matches,
-        "package_transaction_matches_audit_root": package_transaction,
+        "runner_matches_repository_family": family_runtime,
     }
 
 

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from importlib import import_module
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_common_dir
@@ -25,6 +27,12 @@ def _git(root: Path, *args: str, stdin: str = "") -> subprocess.CompletedProcess
         text=True,
         check=False,
     )
+
+
+def _venv_executable(venv: Path, name: str) -> Path:
+    directory = "Scripts" if os.name == "nt" else "bin"
+    suffix = ".exe" if os.name == "nt" else ""
+    return venv / directory / f"{name}{suffix}"
 
 
 def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) -> None:
@@ -63,6 +71,62 @@ def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) 
         assert text.startswith("#!/bin/sh\n")
         assert checkout_python.as_posix() not in text
         assert 'exec "$HOOK_DIR/../ethos/runtime/' in text
+
+
+def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[3]
+    uv = Path(sys.executable).with_name("uv.exe" if os.name == "nt" else "uv")
+    node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
+    environment = {
+        **os.environ,
+        "ETHOS_BUILD_NODE": (
+            node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
+        ).as_posix(),
+        "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
+    }
+    dist = tmp_path / "dist"
+    subprocess.run(
+        (uv, "build", "--offline", "--wheel", "--out-dir", dist),
+        cwd=root,
+        env=environment,
+        check=True,
+    )
+    wheel = next(dist.glob("ethos-*.whl"))
+    package_venv = tmp_path / "package-venv"
+    subprocess.run(
+        (uv, "venv", "--relocatable", "--python", sys.executable, package_venv),
+        check=True,
+    )
+    package_python = _venv_executable(package_venv, "python")
+    subprocess.run(
+        (uv, "pip", "install", "--offline", "--python", package_python, wheel),
+        check=True,
+    )
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+
+    installed = subprocess.run(
+        (_venv_executable(package_venv, "ethos"), "hook", "install", "--root", repo, "--json"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert installed.returncode == 0, installed.stderr
+    report = json.loads(installed.stdout)
+    assert report["verdict"] == "pass", report
+    runtime_python = Path(report["data"]["python"])
+    package_venv.rename(tmp_path / "retired-package-venv")
+    runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
+    version = subprocess.run(
+        (runtime_ethos, "--version"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert version.returncode == 0, version.stderr
+    assert version.stdout.strip()
 
 
 def test_hook_launcher_uses_a_validated_git_for_windows_sh_runtime() -> None:

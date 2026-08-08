@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_environment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
+from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.schema import state_database
 from ethos.cli import main
@@ -118,6 +119,37 @@ def test_archive_change_owns_official_archive_commit_and_lease_transition(
         changed_paths=changed_paths,
     )
     assert tampered.required_gaps == ("change_scope_exceeded",)
+
+
+def test_archive_commit_uses_the_initiating_runtime_not_poisoned_hooks_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _repo, _candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    completed_head = _complete_change(worktree)
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.archive_change.proof_gaps",
+        lambda _root, head: [] if head == completed_head else ["proof_not_proven"],
+    )
+    installed = install_hook_launchers(worktree)
+    poisoned = tmp_path / "stale-checkout-hooks"
+    poisoned.mkdir()
+    (poisoned / "pre-commit").write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
+    (poisoned / "pre-commit").chmod(0o755)
+    git(worktree, "config", "--worktree", "core.hooksPath", poisoned.as_posix())
+    assert git(worktree, "config", "--worktree", "--get", "core.hooksPath") == (poisoned.as_posix())
+
+    report = archive_change(
+        root=worktree,
+        change="fixture-change",
+        expect_head=completed_head,
+        apply=True,
+    )
+
+    assert report["verdict"] == "pass", json.dumps(report, indent=2, default=str)
+    assert report["state"] == "archived"
+    assert installed["required_gaps"] == []
+    assert git(worktree, "status", "--short") == ""
 
 
 def test_archive_change_is_exposed_through_installed_cli_projection(

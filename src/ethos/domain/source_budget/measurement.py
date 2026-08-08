@@ -370,9 +370,12 @@ def _cross_check(
         if measured_records is None:
             return {}, invalid
         record_counts = measured_records
-    generated_counts = {
-        relative: int(record["effective_lines"]) for relative, record in generated_records.items()
-    }
+    generated_counts: dict[str, int] = {}
+    for relative, record in generated_records.items():
+        effective_lines = record["effective_lines"]
+        if not isinstance(effective_lines, int) or isinstance(effective_lines, bool):
+            return {}, ("source_budget_scc_invalid",)
+        generated_counts[relative] = effective_lines
     python_categories = set(policy.aggregates["python_total"])
     python_total = sum(
         count

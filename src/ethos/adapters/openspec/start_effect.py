@@ -268,7 +268,11 @@ def current_generation_scope(
         selected_carrier=carrier,
         gaps=(
             ("change_generation_authority_missing",)
-            if fallback_paths and str(lease.get("expected_head") or "") == head
+            if fallback_paths
+            and str(lease.get("expected_head") or "") == head
+            and not str(lease.get("base_commitment_path") or "").startswith(
+                "openspec/changes/archive/"
+            )
             else ()
         ),
     )

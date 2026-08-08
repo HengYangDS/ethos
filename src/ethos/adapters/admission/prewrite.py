@@ -139,10 +139,11 @@ def _prewrite_status(root: Path) -> dict[str, object]:
         }
     policy = load_branch_role_policy(repo := Path(top).resolve())
     branch = current_branch(repo)
+    role = policy.role_for_branch(branch) if branch else ROLE_DETACHED
     return {
         "root": str(root),
         "branch": branch,
-        "role": policy.role_for_branch(branch),
+        "role": role,
         "runtime_binding": runtime_binding(repo),
         "worktrees": worktree_records(repo, current_path=repo, policy=policy),
     }

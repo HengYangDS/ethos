@@ -21,7 +21,7 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
 PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024}
-_ARTIFACT_HOME = Path("build/ethos/payloads")
+_ARTIFACT_HOME = Path("payloads")
 
 
 class EthosResult(BaseModel):
@@ -147,7 +147,7 @@ def apply_payload_budget(result: EthosResult, *, root: Path) -> EthosResult:
         | {
             "data": {
                 "artifact_reference": {
-                    "path": relative.as_posix(),
+                    "path": artifact.resolve().as_posix(),
                     "sha256": f"sha256:{digest}",
                     "size_bytes": len(payload),
                     "media_type": "application/json",

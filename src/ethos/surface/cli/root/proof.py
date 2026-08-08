@@ -22,15 +22,11 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
-from ethos.adapters.openspec.start_effect import current_generation_scope
+from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import observation_verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -203,24 +199,15 @@ def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_outp
 def resolve_generation_scope(repo: Path) -> CurrentGenerationScope:
     """Observe one current Change generation scope for this proof invocation."""
     status = workspace_status(repo, include_foreign_path_scope=False)
-    fallback = change_scope_paths_from_status(repo, status)
-    if status.get("role") != ROLE_WORK_LANE:
-        return CurrentGenerationScope(fallback, {})
     try:
-        branch = str(status.get("branch") or "")
-        lease = leases_by_branch(repo).get(branch, {})
-        commitment = load_work_lane_commitment(repo, lease=lease)
         repository = load_repository_commitment(repo)
+        return current_generation_binding(
+            repo,
+            status=status,
+            repository_id=repository.id,
+        ).scope
     except ValueError:
-        return CurrentGenerationScope(fallback, {})
-    return current_generation_scope(
-        repo,
-        head=str(status.get("head") or ""),
-        repository_id=repository.id,
-        commitment=commitment,
-        lease=lease,
-        fallback_paths=fallback,
-    )
+        return CurrentGenerationScope((), {}, gaps=("change_generation_binding_invalid",))
 
 
 def _proof_context(

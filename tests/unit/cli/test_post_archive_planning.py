@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -16,13 +17,12 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.root.proof import resolve_generation_scope
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     import pytest
 
 
@@ -211,7 +211,9 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
         fallback_paths=("README.md", *archive_paths),
     )
     assert tampered.archive_authority == {}
-    assert tampered.paths == ("README.md", *archive_paths)
+    assert tampered.paths == ()
+    assert tampered.gaps == ("change_generation_authority_missing",)
+    assert {item.state for item in tampered.attributions} == {"unknown"}
 
 
 def test_clean_accepted_root_without_active_change_uses_repository_proof(
@@ -252,7 +254,7 @@ def test_clean_accepted_root_without_active_change_uses_repository_proof(
     assert "openspec_active_change_missing" not in proof["required_gaps"]
 
 
-def test_plan_and_prove_bind_only_the_current_post_start_generation(
+def test_plan_and_prove_bind_only_the_current_post_start_generation(  # noqa: PLR0915
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     fixture = start_adopted_work_lane(tmp_path, scope=("openspec/changes/fixture-change/**",))
@@ -319,12 +321,27 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(
     plan_payload = run_ethos(
         "plan", "--changed", "--root", worktree.as_posix(), "--json", cwd=worktree
     )
-    assert plan_payload["verdict"] == "block", plan_payload
+    assert plan_payload["verdict"] == "block", json.dumps(plan_payload, indent=2)
     assert "change_scope_exceeded" not in plan_payload["required_gaps"], plan_payload
     assert not any("archive/" in gap for gap in plan_payload["required_gaps"]), plan_payload
-    assert set(plan_payload["data"]["changed_paths"]) == expected
-    plan = plan_payload["data"]["transition_plan"]
+    detail = plan_payload
+    if reference := plan_payload["data"].get("artifact_reference"):
+        detail = json.loads(Path(reference["path"]).read_text(encoding="utf-8"))
+    assert set(detail["data"]["changed_paths"]) == expected
+    assert detail["data"]["selected_carrier"] == carrier
+    attributions = {item["path"]: item for item in detail["data"]["path_attributions"]}
+    assert set(expected) <= set(attributions)
+    assert {item["state"] for path, item in attributions.items() if path in expected} == {
+        "authorized"
+    }
+    assert any(
+        item["state"] == "historical" and "/archive/" in item["path"]
+        for item in attributions.values()
+    )
+    plan = detail["data"]["transition_plan"]
     assert set(plan["facts"]["values"]["changed_paths"]) == expected
+    assert plan["facts"]["values"]["selected_carrier"] == carrier
+    assert plan["facts"]["values"]["path_attributions"] == list(attributions.values())
     prior = plan["prior_attestations"]
     assert prior["openspec_change_start"]["predicate"] == "effect:openspec-change-start"
 
@@ -339,8 +356,10 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(
         lease=wrong_generation,
         fallback_paths=("archive-history",),
     )
-    assert rejected.paths == ("archive-history",)
+    assert rejected.paths == ()
     assert rejected.start_authority == {}
+    assert rejected.gaps == ("change_generation_authority_missing",)
+    assert rejected.attributions[0].state == "unknown"
 
     scope = resolve_generation_scope(worktree)
     proof = proof_plan(
@@ -354,3 +373,19 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(
     assert proof.prior_attestations["openspec_change_start"]["predicate"] == (
         "effect:openspec-change-start"
     )
+
+    outside = worktree / "outside-current-scope.txt"
+    outside.write_text("uncovered\n", encoding="utf-8")
+    status_payload = run_ethos("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
+    assert status_payload["verdict"] == "block"
+    assert status_payload["required_gaps"][0] == "change_scope_exceeded"
+    assert status_payload["data"]["selected_carrier"] == carrier
+    assert status_payload["next_action"] == (
+        "repair the selected Commitment scope for the uncovered current-generation paths"
+    )
+    blocked = run_ethos_raw("prove", "--root", worktree.as_posix(), "--json", cwd=worktree)
+    assert blocked.returncode == 1
+    assert blocked.stderr == ""
+    blocked_payload = json.loads(blocked.stdout)
+    assert blocked_payload["verdict"] == "block"
+    assert blocked_payload["required_gaps"][0] == "change_scope_exceeded"

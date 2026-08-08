@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import cast
 
+from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+from ethos.adapters.openspec.start_effect import current_generation_binding
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.prove import workspace_status_validation
@@ -28,19 +32,44 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = resolve_root(root)
     observed = workspace_status(repo, include_foreign_path_scope=False)
+    try:
+        generation_scope = (
+            current_generation_binding(
+                repo,
+                status=observed,
+                repository_id=load_repository_commitment(repo).id,
+            ).scope
+            if observed.get("role") == ROLE_WORK_LANE
+            else CurrentGenerationScope((), {})
+        )
+    except ValueError:
+        generation_scope = CurrentGenerationScope(
+            (), {}, gaps=("change_generation_binding_invalid",)
+        )
     validation = workspace_status_validation(repo, observed)
+    landing = cast("dict[str, object]", observed.get("landing_readiness") or {})
+    generation_gaps = (
+        ()
+        if "candidate_base_stale" in string_sequence(landing.get("required_gaps"))
+        else generation_scope.gaps
+    )
     gaps = tuple(
         dict.fromkeys(
             (
                 *string_sequence(observed.get("required_gaps")),
                 *workspace_status_validation_gaps(validation),
+                *generation_gaps,
+                *(
+                    ("change_scope_exceeded",)
+                    if any(item.state == "uncovered" for item in generation_scope.attributions)
+                    else ()
+                ),
             )
         )
     )
     foreign = cast("list[dict[str, object]]", observed.get("foreign_work_lanes") or [])
     unbound = cast("list[dict[str, object]]", observed.get("unbound_work_lane_refs") or [])
     coordination_gaps = string_sequence(observed.get("coordination_gaps"))
-    landing = cast("dict[str, object]", observed.get("landing_readiness") or {})
     data = {
         "root": observed.get("root", ""),
         "branch": observed.get("branch", ""),
@@ -48,6 +77,8 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         "role": observed.get("role", ""),
         "dirty": bool(observed.get("dirty")),
         "changed_path_count": _count(observed.get("changed_paths")),
+        "selected_carrier": generation_scope.selected_carrier,
+        "path_attributions": list(generation_scope.attribution_projection()),
         "authority": cast("dict[str, object]", observed.get("stage_gates") or {}),
         "landing_readiness": {
             "state": landing.get("state", ""),
@@ -91,8 +122,13 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
         },
         diagnostics=(validation,),
         required_gaps=gaps,
-        next_action=str(
-            cast("dict[str, object]", observed.get("stage_gates") or {}).get("next_action") or ""
+        next_action=(
+            "repair the selected Commitment scope for the uncovered current-generation paths"
+            if any(item.state == "uncovered" for item in generation_scope.attributions)
+            else str(
+                cast("dict[str, object]", observed.get("stage_gates") or {}).get("next_action")
+                or ""
+            )
         ),
         governance_context=repository_context(repo),
         data=data,

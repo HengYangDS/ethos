@@ -10,12 +10,17 @@ from typing import cast
 from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.openspec.archive_effect import archive_generation_authority
+from ethos.adapters.openspec.profile import load_profile_commitment
+from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import integer
@@ -31,12 +36,85 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
+class PathAttribution:
+    """Explain why one observed path does or does not belong to this generation."""
+
+    path: str
+    source: str
+    state: str
+    change_id: str
+    generation_base_head: str
+    authority_id: str = ""
+    matched_pattern: str = ""
+
+    def projection(self) -> JsonObject:
+        """Return the stable machine projection carried by plans and receipts."""
+        return {
+            "path": self.path,
+            "source": self.source,
+            "state": self.state,
+            "change_id": self.change_id,
+            "generation_base_head": self.generation_base_head,
+            "authority_id": self.authority_id,
+            "matched_pattern": self.matched_pattern,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class CurrentGenerationScope:
     """One current Change generation scope and its exact start receipt."""
 
     paths: tuple[str, ...]
     start_authority: JsonObject
     archive_authority: JsonObject = field(default_factory=dict)
+    attributions: tuple[PathAttribution, ...] = ()
+    selected_carrier: str = ""
+    gaps: tuple[str, ...] = ()
+
+    def attribution_projection(self) -> tuple[JsonObject, ...]:
+        """Return deterministic path provenance for public planning surfaces."""
+        return tuple(item.projection() for item in self.attributions)
+
+
+@dataclass(frozen=True, slots=True)
+class CurrentGenerationBinding:
+    """One selected Commitment, its Lease, and its observed generation scope."""
+
+    lease: JsonObject
+    commitment: Commitment
+    scope: CurrentGenerationScope
+
+
+def current_generation_binding(
+    root: Path,
+    *,
+    status: JsonObject,
+    repository_id: str,
+    change: str | None = None,
+    changed: bool = True,
+) -> CurrentGenerationBinding:
+    """Bind readers to one shared current-generation observation."""
+    work_lane = status.get("role") == ROLE_WORK_LANE
+    lease = leases_by_branch(root).get(str(status.get("branch") or ""), {}) if work_lane else {}
+    commitment = (
+        load_work_lane_commitment(root, change_id=change, lease=lease)
+        if work_lane
+        else load_profile_commitment(root, change_id=change)
+    )
+    observed = change_scope_paths_from_status(root, status) if changed else ()
+    scope = (
+        current_generation_scope(
+            root,
+            head=str(status.get("head") or ""),
+            repository_id=repository_id,
+            commitment=commitment,
+            lease=lease,
+            fallback_paths=observed,
+        )
+        if changed and work_lane
+        else CurrentGenerationScope(observed, {})
+    )
+    return CurrentGenerationBinding(lease, commitment, scope)
 
 
 def current_generation_scope(
@@ -48,7 +126,10 @@ def current_generation_scope(
     lease: dict[str, object],
     fallback_paths: tuple[str, ...],
 ) -> CurrentGenerationScope:
-    """Prefer the sole exact current start generation over the candidate baseline."""
+    """Resolve current paths from exact generation authority, never a train baseline."""
+    change = commitment.id.removeprefix("change:")
+    carrier = str(lease.get("base_commitment_path") or "")
+    dirty = changed_paths(root)
     matches = tuple(
         authority
         for attestation in scan_attestations(attestation_store_dir(root))[0]
@@ -66,9 +147,23 @@ def current_generation_scope(
     if len(matches) == 1:
         authority = matches[0]
         previous_head = str(authority["previous_head"])
-        paths = git_stdout(root, "diff", "--name-only", f"{previous_head}...{head}").splitlines()
+        committed = tuple(
+            git_stdout(root, "diff", "--name-only", f"{previous_head}...{head}").splitlines()
+        )
+        paths = tuple(dict.fromkeys((*committed, *dirty)))
         return CurrentGenerationScope(
-            tuple(dict.fromkeys((*paths, *changed_paths(root)))), authority
+            paths,
+            authority,
+            attributions=_path_attributions(
+                paths=tuple(dict.fromkeys((*fallback_paths, *paths))),
+                selected=set(paths),
+                dirty=set(dirty),
+                commitment=commitment,
+                change=change,
+                base_head=previous_head,
+                authority_id=str(authority.get("attestation_id") or ""),
+            ),
+            selected_carrier=carrier,
         )
     archive = archive_generation_authority(
         root,
@@ -78,12 +173,81 @@ def current_generation_scope(
         lease=lease,
     )
     if archive:
+        authorized = tuple(string_sequence(archive.get("authorized_paths")))
         return CurrentGenerationScope(
-            tuple(string_sequence(archive.get("authorized_paths"))),
+            authorized,
             {},
             archive,
+            _path_attributions(
+                paths=tuple(dict.fromkeys((*fallback_paths, *authorized))),
+                selected=set(authorized),
+                dirty=set(),
+                commitment=commitment,
+                change=change,
+                base_head=head,
+                authority_id=str(archive.get("attestation_id") or ""),
+                selected_source="archive_effect",
+            ),
+            carrier,
         )
-    return CurrentGenerationScope(fallback_paths, {})
+    return CurrentGenerationScope(
+        (),
+        {},
+        attributions=tuple(
+            PathAttribution(
+                path=path,
+                source="unresolved_lane_delta",
+                state="unknown",
+                change_id=change,
+                generation_base_head="",
+            )
+            for path in fallback_paths
+        ),
+        selected_carrier=carrier,
+        gaps=(
+            ("change_generation_authority_missing",)
+            if fallback_paths and str(lease.get("expected_head") or "") == head
+            else ()
+        ),
+    )
+
+
+def _path_attributions(
+    *,
+    paths: tuple[str, ...],
+    selected: set[str],
+    dirty: set[str],
+    commitment: Commitment,
+    change: str,
+    base_head: str,
+    authority_id: str,
+    selected_source: str = "generation_commit",
+) -> tuple[PathAttribution, ...]:
+    projections: list[PathAttribution] = []
+    for path in paths:
+        pattern = next(
+            (
+                candidate
+                for candidate in commitment.scope
+                if repository_path_matches(path, candidate)
+            ),
+            "",
+        )
+        current = path in selected
+        projections.append(
+            PathAttribution(
+                path=path,
+                source=("dirty_overlay" if path in dirty else selected_source)
+                if current
+                else "historical_lane_delta",
+                state=("authorized" if pattern else "uncovered") if current else "historical",
+                change_id=change,
+                generation_base_head=base_head,
+                authority_id=authority_id if current else "",
+                matched_pattern=pattern if current else "",
+            )
+        )
+    return tuple(projections)
 
 
 def _start_authority(
@@ -118,9 +282,6 @@ def _start_authority(
         )
     except ValueError:
         started_commitment = None
-    actual_paths = tuple(
-        git_stdout(root, "diff", "--name-only", f"{previous_head}...{head}").splitlines()
-    )
     valid = (
         attestation.predicate == "effect:openspec-change-start"
         and attestation.verdict == "pass"
@@ -172,11 +333,6 @@ def _start_authority(
                 "before": input_data,
                 "after": output,
             }
-        )
-        and bool(actual_paths)
-        and all(
-            any(repository_path_matches(path, pattern) for pattern in commitment.scope)
-            for path in actual_paths
         )
     )
     if not valid:

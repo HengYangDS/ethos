@@ -193,7 +193,10 @@ def artifact_checks(
     if gap:
         return None, [gap]
     try:
-        checks = _decode_artifact(payload, attestation.statement.get("head"))
+        plan = attestation.statement.get("plan")
+        facts = plan.get("facts") if isinstance(plan, Mapping) else None
+        head = facts.get("head") if isinstance(facts, Mapping) else None
+        checks = _decode_artifact(payload, head)
     except (TypeError, ValueError) as error:
         return None, [str(error)]
     return checks, []

@@ -1,12 +1,10 @@
 """Transient, deterministic TransitionPlan compiled from repository declarations."""
 
 import hashlib
-from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from graphlib import CycleError
 from graphlib import TopologicalSorter
-from pathlib import PurePosixPath
 from typing import Annotated
 from typing import Any
 from typing import Literal
@@ -17,6 +15,8 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.proof.plan import commitment_fact_gaps
+from ethos.contracts.proof.plan import validate_proof_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
@@ -27,7 +27,6 @@ from ethos.contracts.value import JsonObject
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
-from ethos.normalization.coercion import repository_path_matches
 
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 EMPTY_ATTESTATION_SET_DIGEST = canonical_json_digest({})
@@ -309,6 +308,7 @@ class TransitionPlan(_PlanModel):
         except (TypeError, ValueError) as error:
             message = "transition_plan_closure_invalid"
             raise ValueError(message) from error
+        validate_proof_plan(self, commitment, facts)
         if self.inputs != PlanInputs(
             commitment=commitment.digest(),
             facts=facts.digest(),
@@ -398,29 +398,8 @@ def compile_plan(
     required_gaps: tuple[str, ...] = (),
 ) -> TransitionPlan:
     """Compile one effective commitment and current fact snapshot into TransitionPlan."""
-    gaps = list(required_gaps)
     attestations = prior_attestations or {}
-    archive = attestations.get("openspec_archive")
-    effect_authorized_paths = (
-        tuple(str(path) for path in archive.get("authorized_paths", ()))
-        if isinstance(archive, Mapping)
-        else ()
-    )
-    if commitment.subjects and facts.repository not in commitment.subjects:
-        gaps.append("repository_subject_mismatch")
-    if commitment.scope:
-        changed_paths = facts.values.get("changed_paths", ())
-        if not isinstance(changed_paths, tuple | list) or any(
-            not _valid_relative_path(path) for path in changed_paths
-        ):
-            gaps.append("changed_paths_invalid")
-        elif any(
-            path not in effect_authorized_paths
-            and not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
-            for path in changed_paths
-            if isinstance(path, str)
-        ):
-            gaps.append("change_scope_exceeded")
+    gaps = [*required_gaps, *commitment_fact_gaps(commitment, facts, attestations)]
     return TransitionPlan.compile(
         inputs=PlanInputs(
             commitment=commitment.digest(),
@@ -496,13 +475,3 @@ def terminal_schema_documents() -> dict[str, dict[str, Any]]:
         schema["title"] = f"ETHOS {model.__name__.removesuffix('Document')}"
         schemas[name] = schema
     return schemas
-
-
-def _valid_relative_path(path: object) -> bool:
-    return (
-        isinstance(path, str)
-        and bool(path)
-        and "\\" not in path
-        and not PurePosixPath(path).is_absolute()
-        and ".." not in PurePosixPath(path).parts
-    )

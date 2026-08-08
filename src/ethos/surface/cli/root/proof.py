@@ -200,7 +200,7 @@ def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_outp
     return True
 
 
-def _generation_scope(repo: Path) -> CurrentGenerationScope:
+def resolve_generation_scope(repo: Path) -> CurrentGenerationScope:
     """Observe one current Change generation scope for this proof invocation."""
     status = workspace_status(repo, include_foreign_path_scope=False)
     fallback = change_scope_paths_from_status(repo, status)
@@ -229,7 +229,7 @@ def _proof_context(
     """Observe the repository and OpenSpec lifecycle once for governed proof."""
     current_head = git.current_head(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode="deep" if options.full else "shape")
-    generation_scope = _generation_scope(repo)
+    generation_scope = resolve_generation_scope(repo)
     openspec_lifecycle = (
         openspec_governance_report(
             repo,

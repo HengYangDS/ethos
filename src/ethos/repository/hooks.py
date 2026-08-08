@@ -17,8 +17,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
-from ethos.adapters.repo.git import git_common_dir
-
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -29,6 +27,11 @@ _RUNTIME_LOCATOR = (
 )
 _RUNTIME_RELATIVE = re.compile(f"^{_RUNTIME_LOCATOR}$")
 _RUNTIME_IN_LAUNCHER = re.compile(_RUNTIME_LOCATOR)
+
+
+def _git_common_dir(root: Path) -> Path:
+    common = Path(_git(root, "rev-parse", "--git-common-dir").stdout.strip())
+    return common.resolve() if common.is_absolute() else (root / common).resolve()
 
 
 class HookRuntimeBinding(TypedDict):
@@ -63,7 +66,7 @@ def hook_launcher(runtime: str, name: str) -> str:
 def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
     """Observe the configured common-dir runtime and its generated launchers."""
     repo = root.resolve()
-    common = Path(git_common_dir(repo))
+    common = _git_common_dir(repo)
     hooks = common / "ethos-hooks"
     configured = _configured_hooks_path(repo)
     runtime, manifest, digest, wheel = _runtime_from_launcher(hooks / "pre-commit")
@@ -128,7 +131,7 @@ def initiating_hook_transaction(root: Path) -> Iterator[dict[str, str]]:
     ):
         message = "hook_transaction_runtime_invalid"
         raise ValueError(message)
-    hooks = Path(git_common_dir(root)) / "ethos" / "transactions" / uuid.uuid4().hex / "hooks"
+    hooks = _git_common_dir(root) / "ethos" / "transactions" / uuid.uuid4().hex / "hooks"
     hooks.mkdir(parents=True)
     try:
         executable_name = executable.relative_to(prefix).as_posix()

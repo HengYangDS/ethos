@@ -10,6 +10,8 @@ from datetime import date
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
+from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -21,6 +23,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -29,6 +32,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.semantic import Commitment
+    from ethos.contracts.value import JsonObject
 
 _ARCHIVE_COMMITMENT = re.compile(
     r"^openspec/changes/archive/(20\d{2}-\d{2}-\d{2})-"
@@ -111,6 +115,138 @@ def archive_transition_facts(
         and payload.get("nonce") == canonical_json_digest(identity)
     )
     return (True, tuple(artifacts)) if valid else None
+
+
+def archive_generation_authority(
+    root: Path,
+    *,
+    head: str,
+    repository_id: str,
+    commitment: Commitment,
+    lease: dict[str, object],
+) -> JsonObject:
+    """Return the sole exact archive transition that produced the current HEAD."""
+    matches = tuple(
+        projection
+        for attestation in scan_attestations(attestation_store_dir(root))[0]
+        if (
+            projection := _archive_effect_projection(
+                root,
+                attestation=attestation,
+                head=head,
+                repository_id=repository_id,
+                commitment=commitment,
+                lease=lease,
+            )
+        )
+    )
+    return matches[0] if len(matches) == 1 else {}
+
+
+def _archive_effect_projection(
+    root: Path,
+    *,
+    attestation: Any,
+    head: str,
+    repository_id: str,
+    commitment: Commitment,
+    lease: dict[str, object],
+) -> JsonObject:
+    statement = attestation.statement
+    output = _json_mapping(statement.get("output"))
+    claim = _json_mapping(statement.get("claim"))
+    result = _json_mapping(statement.get("result"))
+    freshness = _json_mapping(statement.get("freshness"))
+    if None in (output, claim, result, freshness):
+        return {}
+    archive_path = str(output.get("archive_path") or "")
+    authority_paths = tuple(str(path) for path in output.get("changed_paths", ()) if path)
+    effect = {
+        "predicate": attestation.predicate,
+        "attestation_id": attestation.id,
+        "commitment_digest": attestation.commitment_digest,
+        "effect_digest": attestation.effect_digest,
+        "repository": statement.get("repository"),
+        "claim": claim,
+        "result": result,
+        "input": statement.get("input"),
+        "output": output,
+        "freshness": freshness,
+    }
+    valid = (
+        attestation.predicate == "effect:openspec-archive"
+        and attestation.verdict == "pass"
+        and attestation.commitment_digest == commitment.digest()
+        and statement.get("repository") == repository_id
+        and claim.get("operation") == "openspec.archive"
+        and claim.get("effect") == attestation.effect_digest
+        and result == {"state": "applied", "executed": True, "exit_code": 0}
+        and output.get("head") == head
+        and output.get("tree") == current_tree(root, head)
+        and _lease_binding(output.get("lease")) == _lease_binding(lease)
+        and freshness.get("repository") == repository_id
+        and freshness.get("archive_path") == archive_path
+        and freshness.get("output_digest") == canonical_json_digest(output)
+        and statement.get("input_digest") == canonical_json_digest(statement.get("input"))
+        and statement.get("output_digest")
+        == canonical_json_digest({"result": result, "output": output})
+        and attestation.effect_digest
+        == canonical_json_digest(
+            {
+                "predicate": attestation.predicate,
+                "operation": claim.get("operation"),
+                "command": statement.get("command"),
+                "subject": freshness.get("subject"),
+                "before": statement.get("input"),
+                "after": output,
+            }
+        )
+        and _archive_paths_are_exact(root, head, archive_path, authority_paths)
+    )
+    return effect | {"authorized_paths": list(authority_paths)} if valid else {}
+
+
+def _json_mapping(value: object) -> JsonObject | None:
+    normalized = mutable_json(value)
+    return normalized if isinstance(normalized, dict) else None
+
+
+def _lease_binding(value: object) -> dict[str, object]:
+    lease = dict(value) if isinstance(value, dict) else {}
+    return {
+        name: lease.get(name)
+        for name in (
+            "lease_id",
+            "lane_incarnation_id",
+            "lane_ref",
+            "holder_ref",
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    }
+
+
+def _archive_paths_are_exact(
+    root: Path,
+    head: str,
+    archive_path: str,
+    authority_paths: tuple[str, ...],
+) -> bool:
+    parent = git_stdout(root, "rev-parse", f"{head}^")
+    actual = tuple(
+        git_stdout(root, "diff", "--name-only", "--diff-filter=ACMRTD", parent, head).splitlines()
+    )
+    return (
+        archive_path.startswith("openspec/changes/archive/")
+        and bool(parent and actual)
+        and actual == authority_paths
+        and all(
+            path.startswith((f"{archive_path}/", "openspec/specs/")) for path in authority_paths
+        )
+    )
 
 
 def _archive_context(root: Path) -> tuple[str, dict[str, object], Commitment] | None:

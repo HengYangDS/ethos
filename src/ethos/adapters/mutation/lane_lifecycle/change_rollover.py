@@ -12,9 +12,11 @@ from typing import cast
 import tomli_w
 
 import ethos.adapters.openspec.cli as openspec_cli
-from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import ChangeOverlay
+from ethos.adapters.mutation.lane_lifecycle.change_overlay import advance_committed_lease
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import change_overlay_report
+from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
+from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_attestation
@@ -24,7 +26,6 @@ from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import NativeEffect
@@ -38,8 +39,6 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import rebind_lease_commitment
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
@@ -124,7 +123,7 @@ def start_change(
     if guard["required_gaps"]:
         gaps = cast("list[str]", guard["required_gaps"])
     if gaps or not apply:
-        return _report(
+        return lifecycle_report(
             branch,
             head,
             "blocked" if gaps else "ready_to_start",
@@ -136,7 +135,7 @@ def start_change(
     try:
         return _apply(repo, request, overlay)
     except (OSError, TypeError, ValueError) as error:
-        return _report(
+        return lifecycle_report(
             branch,
             current_tracked_head(repo),
             "repair_required",
@@ -151,7 +150,7 @@ def _recover(
 ) -> dict[str, object]:
     branch, change, previous_head, head, lease, command, apply = request
     if not apply:
-        return _report(
+        return lifecycle_report(
             branch,
             head,
             "ready_to_recover",
@@ -173,7 +172,7 @@ def _recover(
             ),
         )
     except (OSError, TypeError, ValueError) as error:
-        return _report(
+        return lifecycle_report(
             branch,
             head,
             "repair_required",
@@ -189,16 +188,16 @@ def _preflight(
     branch, head, change, intent, scope, expect_head, expected_digest, apply, lease = request
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     carrier = str(lease.get("base_commitment_path") or "")
+    gaps = work_lane_transition_gaps(
+        root,
+        branch=branch,
+        head=head,
+        expect_head=expect_head,
+        lease=lease,
+        actor=actor,
+        role_gap="work_lane_required",
+    )
     checks = (
-        (
-            load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE,
-            "work_lane_required",
-        ),
-        (head == expect_head, "expect_head_mismatch"),
-        (lease.get("lease_state") == "valid", f"work_lane_lease_invalid:{branch}"),
-        (lease.get("holder_ref") == actor, "lease_actor_mismatch"),
-        (lease.get("expected_head") == head, "lease_head_stale"),
-        (lease.get("expected_tree") == current_tree(root, head), "lease_tree_stale"),
         (carrier.startswith(_ARCHIVE_PREFIX), "openspec_archived_commitment_required"),
         (
             not logical_change_identifier_issue(change),
@@ -208,7 +207,7 @@ def _preflight(
         (bool(scope), "openspec_change_scope_missing"),
         (not (root / "openspec" / "changes" / change).exists(), f"openspec_change_exists:{change}"),
     )
-    gaps = [gap for valid, gap in checks if not valid]
+    gaps.extend(gap for valid, gap in checks if not valid)
     overlay = _empty_overlay()
     if gaps:
         return gaps, overlay
@@ -283,7 +282,13 @@ def _apply(
         msg = "openspec_change_commit_failed"
         raise ValueError(msg)
     head = current_tracked_head(root)
-    _advance_lease_head(root, branch, previous_head, head)
+    advance_committed_lease(
+        root,
+        branch=branch,
+        previous_head=previous_head,
+        head=head,
+        failure_gap="openspec_change_lease_head_transition_failed",
+    )
     return _finish(
         root,
         _FinishRequest(
@@ -321,7 +326,7 @@ def _finish(
         new_lease=updated,
     )
     persist_attestation(root, attestation)
-    return _report(
+    return lifecycle_report(
         branch,
         head,
         state,
@@ -337,28 +342,6 @@ def _finish(
 
 def _empty_overlay() -> ChangeOverlay:
     return {"paths": (), "digest": "", "required_gaps": []}
-
-
-def _advance_lease_head(
-    root: Path,
-    branch: str,
-    previous_head: str,
-    head: str,
-) -> dict[str, object]:
-    lease = leases_by_branch(root).get(branch, {})
-    if lease.get("expected_head") == head:
-        return lease
-    transition = work_lane_ref_transition_report(
-        root=root,
-        phase="committed",
-        ref_name=f"refs/heads/{branch}",
-        old_value=previous_head,
-        new_value=head,
-    )
-    if transition.get("verdict") != "pass":
-        msg = "openspec_change_lease_head_transition_failed"
-        raise ValueError(msg)
-    return leases_by_branch(root).get(branch, {})
 
 
 def _lease_request(
@@ -479,7 +462,7 @@ def _recognized(
             and freshness.get("previous_head") == previous_head
             and freshness.get("head") == head
         ):
-            return _report(
+            return lifecycle_report(
                 branch,
                 head,
                 "recognized",
@@ -518,20 +501,3 @@ def _recoverable(
         return None
     command = openspec_cli.openspec_base_command()
     return (*command, "new", "change", change, "--json") if command else None
-
-
-def _report(
-    branch: str,
-    head: str,
-    state: str,
-    gaps: list[str],
-    **details: object,
-) -> dict[str, object]:
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": state,
-        "branch": branch,
-        "head": head,
-        "required_gaps": list(dict.fromkeys(gaps)),
-        **details,
-    }

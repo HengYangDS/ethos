@@ -14,6 +14,7 @@ from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import records
+from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.plan import GitEffect
@@ -33,6 +34,57 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _ISSUER = "agent:test:case:one"
+
+
+def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    public_key = repo / "signing-key.pub"
+    public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")
+    git(repo, "config", "commit.gpgsign", "true")
+    git(repo, "config", "gpg.format", "ssh")
+    git(repo, "config", "user.signingkey", public_key.as_posix())
+    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
+    git(repo, "add", "README.md")
+    previous = git(repo, "rev-parse", "HEAD")
+    calls: list[dict[str, str]] = []
+    original = ethos.adapters.repo.git_effects.run_git
+
+    def capture(_root: Path, *args: str, **kwargs: object) -> object:
+        if args[:1] == ("config",):
+            return original(_root, *args, **kwargs)
+        assert args == ("commit", "-m", "fix: signed effect")
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        calls.append(environment)
+        return type("Result", (), {"returncode": 0, "stderr": ""})()
+
+    monkeypatch.setattr(ethos.adapters.repo.git_effects, "run_git", capture)
+
+    result = commit_git_worktree(
+        repo,
+        previous=previous,
+        message="fix: signed effect",
+        environment={
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "core.hooksPath",
+            "GIT_CONFIG_VALUE_0": "/exact/hooks",
+        },
+    )
+
+    assert result["verdict"] == "pass"
+    assert calls == [
+        {
+            "GIT_CONFIG_COUNT": "3",
+            "GIT_CONFIG_KEY_0": "core.hooksPath",
+            "GIT_CONFIG_VALUE_0": "/exact/hooks",
+            "GIT_CONFIG_KEY_1": "gpg.format",
+            "GIT_CONFIG_VALUE_1": "ssh",
+            "GIT_CONFIG_KEY_2": "user.signingkey",
+            "GIT_CONFIG_VALUE_2": "key::ssh-ed25519 AAAATEST exact-signing-key",
+        }
+    ]
 
 
 def _declare_repository(repo: Path, repository_id: str | None = None) -> str:

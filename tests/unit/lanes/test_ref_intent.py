@@ -282,6 +282,7 @@ def test_intent_reports_absence_transition_and_operation_mismatch(tmp_path: Path
     assert _claim(tmp_path, "prepared")["gap"] == "ref_intent_mismatch"
 
     root = tmp_path / "operation"
+    root.mkdir()
     write_ref_intent(
         root=root,
         ref_name="refs/heads/dev",
@@ -291,6 +292,7 @@ def test_intent_reports_absence_transition_and_operation_mismatch(tmp_path: Path
     )
     assert _claim(root, "prepared")["gap"] == "ref_intent_operation_mismatch"
     plan_root = tmp_path / "plan"
+    plan_root.mkdir()
     _write(plan_root)
     assert (
         _claim(

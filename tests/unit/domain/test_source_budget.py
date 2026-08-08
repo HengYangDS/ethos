@@ -162,7 +162,9 @@ def _fake_scc(
     monkeypatch.setattr(
         source_budget.shutil,
         "which",
-        lambda command: "/fake-scc" if command == "fake-scc" else which(command),
+        lambda command, **kwargs: (
+            "/fake-scc" if command == "fake-scc" else which(command, **kwargs)
+        ),
     )
     monkeypatch.setattr(source_budget.subprocess, "run", dispatch)
 

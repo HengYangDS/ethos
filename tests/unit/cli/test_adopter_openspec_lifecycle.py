@@ -688,9 +688,7 @@ def test_protected_branch_report_preserves_unknown_git_observation(
         stdout = ""
         stderr = "fatal: cannot read ref"
 
-    monkeypatch.setattr(
-        "ethos.repository.openspec.audit.subprocess.run", lambda *_a, **_k: FailedProcess()
-    )
+    monkeypatch.setattr(openspec_audit, "run_git", lambda *_a, **_k: FailedProcess())
 
     report = protected_branch_active_change_report(repo, current_branch="work/change")
 
@@ -775,9 +773,7 @@ def test_active_change_ref_report_preserves_unknown_git_observation(
         stdout = ""
         stderr = "fatal: cannot read tree"
 
-    monkeypatch.setattr(
-        "ethos.repository.openspec.audit.subprocess.run", lambda *_a, **_k: FailedProcess()
-    )
+    monkeypatch.setattr(openspec_audit, "run_git", lambda *_a, **_k: FailedProcess())
 
     report = active_change_names_in_ref(repo, "candidate/dev")
 

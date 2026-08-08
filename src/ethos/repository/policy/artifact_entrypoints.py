@@ -8,28 +8,11 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.policy.references.carriers import entrypoint_files
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-_ENTRYPOINT_EXPLICIT_FILES = (
-    ".gitlab-ci.yml",
-    "package.json",
-    "pyproject.toml",
-    "system/tools.toml",
-    ".config/checks/pytest/pytest.ini",
-    "tools/ci/ci_templates.py",
-    "tools/ci/architecture_projection.py",
-    "tools/ci/python_test_gate.py",
-)
-_ENTRYPOINT_GLOB_PATTERNS = (
-    ".github/workflows/*.yml",
-    ".github/workflows/*.yaml",
-    ".config/ci/**/*.yml",
-    ".config/ci/**/*.yaml",
-    ".config/ci/**/*.toml",
-    "tools/ci/scripts/*",
-)
 _DENIED_ENTRYPOINT_CACHE_TOKENS = (
     ".import_linter_cache",
     ".import-linter-cache",
@@ -62,7 +45,7 @@ def generated_artifact_entrypoint_audit(root: Path) -> dict[str, Any]:
     """Report whether active producer entrypoints route generated state semantically."""
     audits = [
         (rel, _entrypoint_findings(rel, path.read_text(encoding="utf-8", errors="replace")))
-        for rel, path in _entrypoint_files(root)
+        for rel, path in entrypoint_files(root)
     ]
     checked_files = [rel for rel, _ in audits]
     findings = sorted(
@@ -82,17 +65,6 @@ def generated_artifact_entrypoint_audit(root: Path) -> dict[str, Any]:
         "findings": findings,
         "required_gaps": required_gaps,
     }
-
-
-def _entrypoint_files(root: Path) -> list[tuple[str, Path]]:
-    candidates = {rel: path for rel in _ENTRYPOINT_EXPLICIT_FILES if (path := root / rel).is_file()}
-    candidates.update(
-        (path.relative_to(root).as_posix(), path)
-        for pattern in _ENTRYPOINT_GLOB_PATTERNS
-        for path in root.glob(pattern)
-        if path.is_file()
-    )
-    return sorted(candidates.items())
 
 
 def _entrypoint_findings(rel: str, text: str) -> list[dict[str, str]]:

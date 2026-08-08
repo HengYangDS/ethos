@@ -17,6 +17,8 @@ from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.archive_effect import archive_effect_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
+from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -294,6 +296,7 @@ def proof_plan(
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
     changed_paths: tuple[str, ...] = (),
+    generation_scope: CurrentGenerationScope | None = None,
 ) -> TransitionPlan:
     """Compile the exact commitment-, fact-, and policy-bound proof plan."""
     branch = binding_branch if binding_branch is not None else current_branch(root)
@@ -323,13 +326,26 @@ def proof_plan(
     )
     policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
     nodes = policy.nodes
+    observed_scope = generation_scope or (
+        current_generation_scope(
+            root,
+            head=head,
+            repository_id=repository.id,
+            commitment=commitment,
+            lease=lease,
+            fallback_paths=changed_paths,
+        )
+        if work_lane and changed_paths
+        else None
+    )
+    effective_paths = observed_scope.paths if observed_scope is not None else changed_paths
     facts = Facts(
         repository=repository.id,
         head=head,
         tree=current_tree(root, head),
         observed_at=datetime.now().astimezone(),
         values={
-            "changed_paths": changed_paths,
+            "changed_paths": effective_paths,
             "change_id": selected_change_id,
             "gate_ids": tuple(node.id for node in nodes),
             **({"lease_generation": lease_generation(lease)} if work_lane else {}),
@@ -347,17 +363,20 @@ def proof_plan(
             repository_id=repository.id,
             commitment=commitment,
             lease=lease,
-            changed_paths=changed_paths,
+            changed_paths=effective_paths,
         )
-        if work_lane and changed_paths
+        if work_lane and effective_paths
         else {}
     )
+    prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
+    if observed_scope is not None and observed_scope.start_authority:
+        prior_attestations["openspec_change_start"] = observed_scope.start_authority
     return compile_plan(
         commitment,
         facts,
         nodes,
         policy=policy.projection,
-        prior_attestations=({"openspec_archive": archive_authority} if archive_authority else {}),
+        prior_attestations=prior_attestations,
         required_gaps=policy.gaps,
     )
 

@@ -47,6 +47,17 @@ def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) 
     assert len(payload["wheel_sha256"]) == 64
     assert report["scripts"] == ["pre-commit", "pre-push", "reference-transaction"]
     assert report["required_gaps"] == []
+    console_script = Path(str(report["python"])).with_name(
+        "ethos.exe" if sys.platform == "win32" else "ethos"
+    )
+    version = subprocess.run(
+        (console_script, "--version"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert version.returncode == 0, version.stderr
+    assert version.stdout.strip()
     for name in report["scripts"]:
         text = (Path(str(report["hooks_path"])) / name).read_text(encoding="utf-8")
         assert text.startswith("#!/bin/sh\n")

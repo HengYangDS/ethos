@@ -481,6 +481,12 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     assert "claim_binding" not in serialized_workspace_schema
     assert "contract_binding" not in serialized_workspace_schema
     assert "closeoutResidueLane" not in workspace_schema["$defs"]
+    assert workspace_schema["$defs"]["runtimeBinding"]["properties"]["state"]["enum"] == [
+        "bound_to_audit_root",
+        "bound_to_repository_family",
+        "external_declared_runner",
+        "external_current_runner",
+    ]
     for retired_field in (
         "closeout_disposition",
         "residue_state",

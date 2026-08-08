@@ -551,7 +551,7 @@ def test_land_rejects_proof_self_granted_candidate_authority(monkeypatch, tmp_pa
     valid = proof_attestation(worktree, work_head)
     assert valid is not None
     plan = TransitionPlan.model_validate(valid.model_dump(mode="json")["statement"]["plan"])
-    commitment = dict(valid.statement["commitment"])
+    commitment = dict(plan.commitment)
     commitment["permissions"] = [
         *commitment["permissions"],
         "git.ref.update:refs/heads/candidate/dev",
@@ -584,7 +584,7 @@ def test_land_rejects_proof_self_granted_candidate_authority(monkeypatch, tmp_pa
         closure={
             "commitment": commitment,
             "prior_attestations": plan.prior_attestations,
-            "policy": valid.statement["policy"],
+            "policy": plan.policy,
             "effect": {
                 "operation": "proof.execute",
                 "commitment": commitment_digest,
@@ -605,18 +605,7 @@ def test_land_rejects_proof_self_granted_candidate_authority(monkeypatch, tmp_pa
             "plan_digest": forged_plan.digest,
             "effect_digest": effect_digest,
             "statement": valid.statement
-            | {
-                "changed_paths": (),
-                "inputs": {
-                    "commitment": commitment_digest,
-                    "facts": facts.digest(),
-                    "plan": forged_plan.digest,
-                    "policy": plan.inputs.policy,
-                    "effect": effect_digest,
-                },
-                "plan": forged_plan.model_dump(mode="json"),
-                "commitment": commitment,
-            },
+            | {"plan": forged_plan.model_dump(mode="json")},
         }
     )
     (attestation_store_dir(worktree) / f"{valid.id}.json").unlink()

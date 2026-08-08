@@ -171,7 +171,6 @@ def _assertion_digest(attestation: Attestation) -> str:
     return canonical_json_digest(
         {
             "claim": statement.get("claim"),
-            "repository": statement.get("repository"),
             "scope": statement.get("scope"),
             "plane": statement.get("plane"),
             "context": statement.get("context"),
@@ -185,7 +184,7 @@ def _assertion_digest(attestation: Attestation) -> str:
 def _candidate_evaluation(
     root: Path, head: str, store: Path, attestation: Attestation
 ) -> tuple[str, list[str]]:
-    if attestation.subject != f"git:commit:{head}" or attestation.statement.get("head") != head:
+    if attestation.subject != f"git:commit:{head}":
         return "", ["proof_attestation_head_mismatch"]
     try:
         plan = plan_from_statement(attestation)
@@ -221,7 +220,6 @@ def _candidate_evaluation(
         gaps = proof_statement_gaps(attestation, checks)
     if gaps or checks is None:
         return "", gaps
-    statement_policy_digest = canonical_json_digest(attestation.statement.get("policy"))
     canonical_policies = (
         ("full", resolve_gate_policy(root, tree_ref=head, full=True)),
         ("default", resolve_gate_policy(root, tree_ref=head)),
@@ -232,7 +230,7 @@ def _candidate_evaluation(
             for name, policy in canonical_policies
             if plan.inputs.policy == policy.digest
             and plan.nodes == policy.nodes
-            and statement_policy_digest == policy.digest
+            and canonical_json_digest(plan.policy) == policy.digest
         ),
         "",
     )

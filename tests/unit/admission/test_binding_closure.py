@@ -12,12 +12,36 @@ from ethos.repository.policy.references.observation import repository_product_re
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def _write_files(root: Path, files: dict[str, str]) -> None:
+    for relative, content in files.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content.strip() + "\n", encoding="utf-8")
+
+
+def _minimal_product(root: Path, source: str, *, dependencies: str = "") -> None:
+    _write_files(
+        root,
+        {
+            "system/surfaces.toml": """
+schema = "system/schemas/contracts/surfaces.schema.json"
+[[surface]]
+name = "cli"
+carrier = "src/example"
+""",
+            "pyproject.toml": f"""[project]\nname = "example"\nversion = "1"\n{dependencies}""",
+            "src/example/module.py": source,
+        },
+    )
+
+
 def test_repository_binding_scan_covers_declared_surfaces_and_active_openspec(
     tmp_path: Path,
 ) -> None:
-    (tmp_path / "system").mkdir()
-    (tmp_path / "system/surfaces.toml").write_text(
-        """
+    _write_files(
+        tmp_path,
+        {
+            "system/surfaces.toml": """
 schema = "system/schemas/contracts/surfaces.schema.json"
 
 [[surface]]
@@ -27,25 +51,15 @@ carrier = "src/ethos"
 [[surface]]
 name = "extensions"
 carrier = "extensions/"
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-    source = tmp_path / "src/ethos"
-    source.mkdir(parents=True)
-    source.joinpath("application.py").write_text(
-        """
+""",
+            "src/ethos/application.py": """
 from cyclopts import App
 
 app = App(name="ethos")
 lane_app = App(name="lane")
 app.command(lane_app)
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-    source.joinpath("commands.py").write_text(
-        """
+""",
+            "src/ethos/commands.py": """
 import external_sdk
 
 from .application import lane_app
@@ -55,43 +69,24 @@ from .application import lane_app
 )
 def start() -> None:
     pass
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-    extension = tmp_path / "extensions/demo"
-    extension.mkdir(parents=True)
-    extension.joinpath("adapter.py").write_text("import extension_sdk\n", encoding="utf-8")
-    extension.joinpath("check.sh").write_text(
-        "#!/usr/bin/env bash\nexternal-shell-tool --version\n", encoding="utf-8"
-    )
-    (tmp_path / "pyproject.toml").write_text(
-        """
+""",
+            "extensions/demo/adapter.py": "import extension_sdk",
+            "extensions/demo/check.sh": "#!/usr/bin/env bash\nexternal-shell-tool --version",
+            "pyproject.toml": """
 [project]
 name = "example"
 version = "0.1.0"
 dependencies = ["external-dist>=1"]
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-    workflow = tmp_path / ".github/workflows"
-    workflow.mkdir(parents=True)
-    workflow.joinpath("ci.yml").write_text(
-        """
+""",
+            ".github/workflows/ci.yml": """
 jobs:
   check:
     steps:
       - uses: actions/checkout@v7
       - run: external-runner --check
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-    active = tmp_path / "openspec/changes/current"
-    active.mkdir(parents=True)
-    active.joinpath("runner.yaml").write_text(
-        "run: openspec validate --all --strict\n", encoding="utf-8"
+""",
+            "openspec/changes/current/runner.yaml": "run: openspec validate --all --strict",
+        },
     )
 
     observed = repository_product_references(tmp_path)
@@ -106,18 +101,17 @@ jobs:
 def test_patch_binding_scan_uses_the_same_normalized_reference_extractor(
     tmp_path: Path,
 ) -> None:
-    source = tmp_path / "src/ethos"
-    source.mkdir(parents=True)
-    source.joinpath("application.py").write_text(
-        """
+    _write_files(
+        tmp_path,
+        {
+            "src/ethos/application.py": """
 from cyclopts import App
 
 app = App(name="ethos")
 lane_app = App(name="lane")
 app.command(lane_app)
-""".strip()
-        + "\n",
-        encoding="utf-8",
+"""
+        },
     )
     files = {
         "src/ethos/commands.py": """import external_sdk
@@ -233,18 +227,7 @@ def test_product_distribution_names_are_observed() -> None:
 
 
 def test_native_owner_closure_rejects_an_unowned_reference(tmp_path: Path) -> None:
-    (tmp_path / "system").mkdir()
-    (tmp_path / "system/surfaces.toml").write_text(
-        'schema = "system/schemas/contracts/surfaces.schema.json"\n\n'
-        '[[surface]]\nname = "cli"\ncarrier = "src/example"\n',
-        encoding="utf-8",
-    )
-    (tmp_path / "src/example").mkdir(parents=True)
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "example"\nversion = "1"\n',
-        encoding="utf-8",
-    )
-    (tmp_path / "src/example/module.py").write_text("import external_sdk\n", encoding="utf-8")
+    _minimal_product(tmp_path, "import external_sdk")
 
     assert repository_product_reference_gaps(tmp_path) == [
         "product_reference_not_admitted_at_baseline:import:external_sdk"
@@ -254,23 +237,18 @@ def test_native_owner_closure_rejects_an_unowned_reference(tmp_path: Path) -> No
 def test_product_reference_closure_rejects_an_external_governance_executable(
     tmp_path: Path,
 ) -> None:
-    (tmp_path / "src/example").mkdir(parents=True)
-    (tmp_path / "src/example/application.py").write_text(
-        """from cyclopts import App
+    _write_files(
+        tmp_path,
+        {
+            "src/example/application.py": """from cyclopts import App
 
 app = App(name="example")
 """,
-        encoding="utf-8",
-    )
-    (tmp_path / "src/example/runtime.py").write_text(
-        """import subprocess
+            "src/example/runtime.py": """import subprocess
 
 subprocess.run(["foreign-governance", "inspect"], check=True)
 """,
-        encoding="utf-8",
-    )
-    (tmp_path / "pyproject.toml").write_text(
-        """[project]
+            "pyproject.toml": """[project]
 name = "example"
 version = "1"
 dependencies = ["cyclopts>=1"]
@@ -278,13 +256,13 @@ dependencies = ["cyclopts>=1"]
 [project.scripts]
 example = "example.application:app"
 """,
-        encoding="utf-8",
-    )
-    (tmp_path / "system").mkdir()
-    (tmp_path / "system/surfaces.toml").write_text(
-        'schema = "system/schemas/contracts/surfaces.schema.json"\n\n'
-        '[[surface]]\nname = "cli"\ncarrier = "src/example"\n',
-        encoding="utf-8",
+            "system/surfaces.toml": """
+schema = "system/schemas/contracts/surfaces.schema.json"
+[[surface]]
+name = "cli"
+carrier = "src/example"
+""",
+        },
     )
 
     assert repository_product_reference_gaps(tmp_path) == [
@@ -408,18 +386,8 @@ def test_native_owner_variation_axes_change_only_their_declaring_carriers() -> N
 
 
 def test_native_owner_closure_does_not_promote_observed_consumers(tmp_path: Path) -> None:
-    (tmp_path / "system").mkdir()
-    (tmp_path / "system/surfaces.toml").write_text(
-        'schema = "system/schemas/contracts/surfaces.schema.json"\n\n'
-        '[[surface]]\nname = "cli"\ncarrier = "src/example"\n',
-        encoding="utf-8",
-    )
-    (tmp_path / "src/example").mkdir(parents=True)
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "example"\nversion = "1"\n',
-        encoding="utf-8",
-    )
-    (tmp_path / "src/example/module.py").write_text(
+    _minimal_product(
+        tmp_path,
         """import rogue_sdk
 import os
 import subprocess
@@ -427,7 +395,6 @@ import subprocess
 os.environ.get("ROGUE_HOME")
 subprocess.run(["rogue-tool"], check=True)
 """,
-        encoding="utf-8",
     )
 
     allowed = native_owned_references(tmp_path)

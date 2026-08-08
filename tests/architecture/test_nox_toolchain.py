@@ -7,12 +7,35 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+import pytest
+
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from tools.ci.python_test_gate import PYTHON
 from tools.ci.python_test_gate import PythonTestGate
 from tools.ci.python_test_gate import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
+HOSTED_PROJECTIONS = (
+    ".config/ci/templates/hosted/github-actions.yml",
+    ".config/ci/templates/hosted/gitlab-ci.yml",
+    ".github/workflows/ci.yml",
+    ".gitlab-ci.yml",
+)
+
+
+def _nox() -> str:
+    return (ROOT / "noxfile.py").read_text(encoding="utf-8")
+
+
+def _gates() -> dict[str, dict[str, object]]:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    return {gate["id"]: gate for gate in declaration["gates"]}
+
+
+def _assert_hosted(command: str, *, present: bool) -> None:
+    for relative in HOSTED_PROJECTIONS:
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert (command in text) is present
 
 
 def test_nox_reuses_the_single_locked_project_environment() -> None:
@@ -84,30 +107,20 @@ def test_self_hosted_nox_gates_bind_the_repository_locked_python(monkeypatch) ->
 
 
 def test_nox_lint_includes_new_candidate_python_files() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    source = _nox()
 
     for option in ("--cached", "--others", "--exclude-standard"):
         assert f'"{option}"' in source
 
 
 def test_nox_is_the_only_python_lint_orchestrator() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    gates = {gate["id"]: gate for gate in declaration["gates"]}
-
-    assert gates["ruff"]["command"] == ["{python}", "-m", "nox", "-s", "lint"]
-    for relative in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".github/workflows/ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s format_check" in text
-        assert "uv run --frozen --offline python -m nox -s lint" not in text
+    assert _gates()["ruff"]["command"] == ["{python}", "-m", "nox", "-s", "lint"]
+    _assert_hosted("uv run --frozen --offline python -m nox -s format_check", present=True)
+    _assert_hosted("uv run --frozen --offline python -m nox -s lint", present=False)
 
 
 def test_nox_exposes_explicit_ruff_format_without_mutating_lint() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    source = _nox()
 
     format_body = source[source.index("def format_repository(") : source.index("def lint(")]
     lint_body = source[source.index("def lint(") : source.index("def tests(")]
@@ -117,7 +130,7 @@ def test_nox_exposes_explicit_ruff_format_without_mutating_lint() -> None:
 
 
 def test_nox_exposes_one_all_carrier_format_and_read_only_check() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    source = _nox()
 
     format_body = source[source.index("def format_repository(") : source.index("def lint(")]
     check_body = source[source.index("def format_check(") : source.index("def tests(")]
@@ -157,9 +170,7 @@ def test_wheel_build_materializes_only_the_openspec_production_closure() -> None
 
 
 def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    gates = {gate["id"]: gate for gate in declaration["gates"]}
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    gates, source = _gates(), _nox()
 
     assert gates["unit-architecture"]["command"] == ["{python}", "-m", "nox", "-s", "tests"]
     assert gates["coverage-floor"]["command"] == [
@@ -174,24 +185,12 @@ def test_nox_is_the_only_python_test_and_coverage_orchestrator() -> None:
 
 
 def test_nox_is_the_only_python_build_orchestrator() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    gates = {gate["id"]: gate for gate in declaration["gates"]}
-
-    assert gates["build"]["command"] == ["{python}", "-m", "nox", "-s", "build"]
-    for relative in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".github/workflows/ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s build" in text
+    assert _gates()["build"]["command"] == ["{python}", "-m", "nox", "-s", "build"]
+    _assert_hosted("uv run --frozen --offline python -m nox -s build", present=True)
 
 
 def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    gates = {gate["id"]: gate for gate in declaration["gates"]}
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    gates, source = _gates(), _nox()
 
     assert "def prepare_install_supply(" in source
     assert gates["local-install-smoke"]["command"] == [
@@ -204,7 +203,7 @@ def test_nox_is_the_only_local_install_smoke_orchestrator() -> None:
 
 
 def test_nox_owns_cross_platform_python_gate_sessions() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    source = _nox()
     sessions = (
         "ci_templates",
         "format_selection",
@@ -215,127 +214,86 @@ def test_nox_owns_cross_platform_python_gate_sessions() -> None:
         assert f"def {session}(" in source
 
 
-def test_nox_is_the_only_prose_orchestrator() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
-    declaration = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))
-    tools = {tool["concern"]: tool for tool in declaration["tool"]}
+@pytest.mark.parametrize(
+    ("session", "owned_tokens", "absent_scripts", "hosted", "hosted_mode"),
+    [
+        (
+            "prose",
+            ('_project_script("codespell")',),
+            ("run-prose-check.sh",),
+            "uv run --frozen --offline python -m nox -s prose",
+            "present",
+        ),
+        (
+            "shell_lint",
+            ('_project_script("shellcheck")',),
+            ("run-shell-lint.sh",),
+            "uv run --frozen --offline python -m nox -s shell_lint",
+            "absent",
+        ),
+        (
+            "markdown_lint",
+            (
+                'NODEJS_WHEEL = Path(import_module("nodejs_wheel").__file__).resolve().parent',
+                'ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"',
+            ),
+            ("run-markdown-lint.sh",),
+            "uv run --frozen --offline python -m nox -s markdown_lint",
+            "absent",
+        ),
+        (
+            "config_quality",
+            ('import_module("tools.ci.config_quality").run',),
+            ("run-config-lint.sh", "install-taplo.sh"),
+            "uv run --frozen --offline python -m nox -s config_quality",
+            "absent",
+        ),
+        (
+            "hosted_observation",
+            ('import_module("tools.ci.hosted_observation").capture_observation',),
+            ("run-hosted-provider-observation.sh",),
+            "uv run --frozen --offline python -m nox -s hosted_observation",
+            "present",
+        ),
+    ],
+)
+def test_nox_is_the_only_declared_quality_orchestrator(
+    session: str,
+    owned_tokens: tuple[str, ...],
+    absent_scripts: tuple[str, ...],
+    hosted: str,
+    hosted_mode: str,
+) -> None:
+    source = _nox()
+    assert f"def {session}(" in source
+    assert all(token in source for token in owned_tokens)
+    assert all(not (ROOT / "tools/ci/scripts" / script).exists() for script in absent_scripts)
+    _assert_hosted(hosted, present=hosted_mode == "present")
 
-    assert "def prose(" in source
-    assert '_project_script("codespell")' in source
-    assert tools["prose"]["gate"] == "uv run --frozen --offline python -m nox -s prose"
-    assert not (ROOT / "tools/ci/scripts/run-prose-check.sh").exists()
-    for relative in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".github/workflows/ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s prose" in text
-        assert "run-prose-check.sh" not in text
 
-
-def test_nox_is_the_only_shell_lint_orchestrator() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+def test_quality_orchestrator_toolchain_is_declared_once() -> None:
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    gates = {gate["id"]: gate for gate in declaration["gates"]}
-
-    assert "def shell_lint(" in source
-    assert '_project_script("shellcheck")' in source
-    assert "shellcheck-py>=0.11.0.1" in project["dependency-groups"]["dev"]
-    assert gates["shell-lint"]["command"] == [
-        "{python}",
-        "-m",
-        "nox",
-        "-s",
-        "shell_lint",
-    ]
-    assert not (ROOT / "tools/ci/scripts/run-shell-lint.sh").exists()
-    for relative in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".github/workflows/ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s format_check" in text
-        assert "uv run --frozen --offline python -m nox -s shell_lint" not in text
-        assert "run-shell-lint.sh" not in text
-
-
-def test_nox_is_the_only_markdown_lint_orchestrator() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
-    package = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    node_package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-
-    assert "def markdown_lint(" in source
-    assert 'NODEJS_WHEEL = Path(import_module("nodejs_wheel").__file__).resolve().parent' in source
-    assert 'NODEJS_WHEEL / "bin" / ("node.exe" if os.name == "nt" else "node")' in source
-    assert 'ROOT / "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"' in source
-    assert package["project"]["requires-python"] == ">=3.12"
-    assert node_package["devDependencies"]["markdownlint-cli2"] == "0.23.2"
-    assert all("markdownlint" not in command for command in node_package["scripts"].values())
-    assert not (ROOT / "tools/ci/scripts/run-markdown-lint.sh").exists()
-    for relative in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".github/workflows/ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s format_check" in text
-        assert "uv run --frozen --offline python -m nox -s markdown_lint" not in text
-        assert "run-markdown-lint.sh" not in text
-
-
-def test_nox_is_the_only_configuration_quality_orchestrator() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    dev = project["dependency-groups"]["dev"]
+    assert "shellcheck-py>=0.11.0.1" in dev
+    assert "yamllint>=1.38.0" in dev
+    assert package["devDependencies"] | {
+        "requires-python": project["project"]["requires-python"]
+    } == {
+        **package["devDependencies"],
+        "requires-python": ">=3.12",
+    }
+    assert package["devDependencies"]["markdownlint-cli2"] == "0.23.2"
+    assert package["devDependencies"]["@taplo/cli"] == "0.7.0"
     owner = (ROOT / "tools/ci/config_quality.py").read_text(encoding="utf-8")
-    package = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    node_package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-
-    assert "def config_quality(" in source
-    assert 'import_module("tools.ci.config_quality").run' in source
     assert "from yamllint import linter as yamllint_linter" in owner
     assert 'ROOT / "node_modules/@taplo/cli/dist/cli.js"' in owner
-    assert "yamllint>=1.38.0" in package["dependency-groups"]["dev"]
-    assert node_package["devDependencies"]["@taplo/cli"] == "0.7.0"
-    assert not (ROOT / "tools/ci/scripts/run-config-lint.sh").exists()
-    assert not (ROOT / "tools/ci/scripts/install-taplo.sh").exists()
     pre_commit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
     assert "uv run --frozen --offline python -m nox -s config_quality" in pre_commit
-    for relative in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".github/workflows/ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s format_check" in text
-        assert "uv run --frozen --offline python -m nox -s config_quality" not in text
-        assert "run-config-lint.sh" not in text
-
-
-def test_nox_is_the_only_hosted_observation_orchestrator() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
-
-    assert "def hosted_observation(" in source
-    assert 'import_module("tools.ci.hosted_observation").capture_observation' in source
-    assert not (ROOT / "tools/ci/scripts/run-hosted-provider-observation.sh").exists()
-    for relative in (
-        ".config/ci/templates/hosted/github-actions.yml",
-        ".config/ci/templates/hosted/gitlab-ci.yml",
-        ".github/workflows/ci.yml",
-        ".gitlab-ci.yml",
-    ):
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "uv run --frozen --offline python -m nox -s hosted_observation" in text
-        assert "run-hosted-provider-observation.sh" not in text
 
 
 def test_nox_host_conformance_reuses_build_install_and_portable_tests() -> None:
-    source = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    source = _nox()
 
     assert "def host_conformance(" in source
     assert "_build_wheel(session)" in source

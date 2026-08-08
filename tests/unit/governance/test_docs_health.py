@@ -256,15 +256,16 @@ See also: none.
     assert report["verdict"] == "block"
 
 
-@pytest.mark.parametrize(
-    ("records", "index", "expected"),
-    [
+def test_decision_graph_and_index_negatives(tmp_path: Path) -> None:
+    scenarios = [
         (
+            "newest-current-first",
             (("DR-0001", "example", {"changed": "2026-08-01"}), ("DR-0002", "example", {})),
             ("DR-0001", "DR-0002"),
             ["decision_index_order_invalid:docs/decisions/decision-index.md:DR-0002,DR-0001"],
         ),
         (
+            "reciprocal-supersession",
             (
                 (
                     "DR-0001",
@@ -277,6 +278,7 @@ See also: none.
             ["decision_record_supersession_not_reciprocal:DR-0001:DR-0002"],
         ),
         (
+            "dependency-closure",
             (
                 ("DR-0001", "first", {"changed": "2026-08-01", "depends_on": "DR-0002"}),
                 ("DR-0002", "second", {"depends_on": "DR-0001, DR-0003"}),
@@ -288,6 +290,7 @@ See also: none.
             ],
         ),
         (
+            "index-identity",
             (("DR-0001", "example", {}), ("DR-0002", "example", {})),
             ("DR-0001", "DR-0001"),
             [
@@ -295,31 +298,25 @@ See also: none.
             ],
         ),
         (
+            "record-identity",
             (("DR-0001", "first", {}), ("DR-0001", "second", {})),
             ("DR-0001",),
             [
                 "decision_record_id_duplicate:DR-0001:docs/decisions/DR-0001-first.md,docs/decisions/DR-0001-second.md"
             ],
         ),
-    ],
-)
-def test_decision_graph_and_index_negatives(
-    tmp_path: Path,
-    records: tuple[tuple[str, str, dict[str, str]], ...],
-    index: tuple[str, ...],
-    expected: list[str],
-) -> None:
-    decisions = tmp_path / "docs" / "decisions"
-    decisions.mkdir(parents=True)
-    for decision_id, slug, fields in records:
-        record_fields = dict(fields)
-        changed = record_fields.pop("changed", "2026-08-06")
-        (decisions / f"{decision_id}-{slug}.md").write_text(
-            _decision_record(decision_id, changed, **record_fields), encoding="utf-8"
-        )
-    (decisions / "decision-index.md").write_text(_decision_index(index), encoding="utf-8")
-
-    assert docs_registry_report(tmp_path)["decision_record_gaps"] == expected
+    ]
+    for label, records, index, expected in scenarios:
+        decisions = tmp_path / label / "docs" / "decisions"
+        decisions.mkdir(parents=True)
+        for decision_id, slug, values in records:
+            fields = dict(values)
+            changed = fields.pop("changed", "2026-08-06")
+            (decisions / f"{decision_id}-{slug}.md").write_text(
+                _decision_record(decision_id, changed, **fields), encoding="utf-8"
+            )
+        (decisions / "decision-index.md").write_text(_decision_index(index), encoding="utf-8")
+        assert docs_registry_report(tmp_path / label)["decision_record_gaps"] == expected, label
 
 
 def test_decision_record_name_and_status_use_the_closed_grammar(tmp_path: Path) -> None:

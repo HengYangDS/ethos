@@ -7,6 +7,7 @@ from typing import cast
 
 from cyclopts import Parameter
 
+from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.contracts.verdict import report_verdict
@@ -33,8 +34,45 @@ class _LandedOptions(AppliedLaneCommandOptions):
     authorize: bool = False
 
 
+class _AbsorbedRefOptions(AppliedLaneCommandOptions):
+    command = "lane retire absorbed-ref"
+    branch: Annotated[str, Parameter(name="--branch")]
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
+    accepted_head: Annotated[str, Parameter(name="--accepted-head")]
+    authorize: bool = False
+    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False
+
+
 _DEFAULT_SUPERSEDED = _SupersededOptions()
 _DEFAULT_LANDED = _LandedOptions()
+
+
+@lane_retire_app.command(name="absorbed-ref")
+def lane_retire_absorbed_ref(
+    options: Annotated[_AbsorbedRefOptions, Parameter(name="*")],
+) -> None:
+    """Retire one exact unbound, unleased Work Lane ref absorbed by accepted truth."""
+    report = retire_absorbed_ref(
+        root=resolve_root(options.root),
+        branch=options.branch,
+        expect_head=options.expect_head,
+        accepted_head=options.accepted_head,
+        authorize=options.authorize,
+        confirm_irreversible=options.confirm_irreversible,
+        apply=options.apply,
+    )
+    project_lane_result(
+        options.command,
+        report,
+        summary={
+            "branch": options.branch,
+            "head": options.expect_head,
+            "accepted_head": options.accepted_head,
+            "retire_ready": report_verdict(report) == "pass",
+        },
+        enforce=options.apply,
+        json_output=options.json_output,
+    )
 
 
 @lane_retire_app.command(name="superseded")

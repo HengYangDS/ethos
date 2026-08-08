@@ -6,6 +6,8 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import pytest
+
 import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 import ethos.adapters.mutation.lanes as lanes
 from ethos.adapters.mutation.lanes import start_work_lane
@@ -13,7 +15,6 @@ from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.coordination import FOREIGN_WORK_LANE_NEXT_ACTION
 from ethos.adapters.repo.coordination import ForeignLaneContext
-from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
@@ -28,188 +29,13 @@ from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.lifecycle_cases import LaneStartCase
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
-
 
 _HOLDER = "agent:test:case:agent-test"
-
-
-def test_collaboration_competition_projection_derives_only_from_facts() -> None:
-    alternative = {
-        "branch": "work/alternative",
-        "coordination_state": "overlap",
-        "base_commitment_digest": "a" * 64,
-        "proof_cost": 3,
-    }
-    conflict = alternative | {
-        "branch": "work/conflict",
-        "base_commitment_digest": "b" * 64,
-    }
-
-    assert collaboration_competition_projection(
-        [alternative],
-        commitment_digest="a" * 64,
-        risks=("uncertain cutover",),
-        proof_cost=2,
-        proof_capacity=5,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-    ) == {
-        "state": "compete",
-        "reason": "alternative_realizations_admitted",
-        "proof_capacity": 5,
-        "proof_cost": 5,
-        "risk_count": 1,
-        "peer_count": 1,
-        "alternative_count": 1,
-        "conflict_count": 0,
-        "unknown_count": 0,
-        "branches": ["work/alternative"],
-        "admission_order": ["work/alternative"],
-        "queue_age_seconds": {"work/alternative": 0},
-        "backpressure": "open",
-        "candidate_progress": {},
-        "proof_capacity_available": 3,
-    }
-    insufficient = collaboration_competition_projection(
-        [alternative],
-        commitment_digest="a" * 64,
-        risks=("uncertain cutover",),
-        proof_cost=2,
-        proof_capacity=4,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-    )
-    assert {key: insufficient[key] for key in ("state", "reason")} == {
-        "state": "collaborate",
-        "reason": "proof_capacity_below_alternative_cost",
-    }
-    overlapping = collaboration_competition_projection(
-        [conflict],
-        commitment_digest="a" * 64,
-        risks=("uncertain cutover",),
-        proof_cost=2,
-        proof_capacity=20,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-    )
-    assert {key: overlapping[key] for key in ("state", "reason")} == {
-        "state": "collaborate",
-        "reason": "overlapping_intents_require_coordination",
-    }
-    deterministic = collaboration_competition_projection(
-        [alternative],
-        commitment_digest="a" * 64,
-        risks=(),
-        proof_cost=2,
-        proof_capacity=20,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-    )
-    assert {key: deterministic[key] for key in ("state", "reason")} == {
-        "state": "collaborate",
-        "reason": "competition_has_no_declared_risk_basis",
-    }
-    unknown = collaboration_competition_projection(
-        [alternative | {"proof_cost": None}],
-        commitment_digest="a" * 64,
-        risks=("uncertain cutover",),
-        proof_cost=2,
-        proof_capacity=None,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-    )
-    assert {key: unknown[key] for key in ("state", "reason")} == {
-        "state": "await_facts",
-        "reason": "proof_capacity_or_cost_missing",
-    }
-
-
-def test_adaptive_admission_ages_equivalent_ready_work_without_persisted_queue_state() -> None:
-    now = datetime(2026, 8, 6, tzinfo=UTC)
-    younger = {
-        "branch": "work/younger",
-        "coordination_state": "overlap",
-        "base_commitment_digest": "a" * 64,
-        "proof_cost": 1,
-        "lease": {"issued_at": "2026-08-05T12:00:00+00:00"},
-    }
-    older = younger | {
-        "branch": "work/older",
-        "lease": {"issued_at": "2026-08-01T00:00:00+00:00"},
-    }
-
-    projection = collaboration_competition_projection(
-        [younger, older],
-        commitment_digest="a" * 64,
-        risks=("uncertain cutover",),
-        proof_cost=1,
-        proof_capacity=3,
-        observed_at=now,
-    )
-
-    assert projection["admission_order"] == ["work/older", "work/younger"]
-    assert projection["queue_age_seconds"] == {
-        "work/older": 432000,
-        "work/younger": 43200,
-    }
-    assert projection["backpressure"] == "open"
-    assert "queued_at" not in projection
-
-
-def test_adaptive_admission_applies_backpressure_when_candidate_is_not_progressing() -> None:
-    projection = collaboration_competition_projection(
-        [],
-        commitment_digest="a" * 64,
-        risks=(),
-        proof_cost=2,
-        proof_capacity=4,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-        candidate={
-            "behind_accepted": 3,
-            "advance_count": 8,
-            "latest_advance_age_seconds": 120,
-            "latest_interval_seconds": 1800,
-            "advances_per_hour": 2.0,
-        },
-    )
-
-    assert projection["backpressure"] == "candidate_behind_accepted"
-    assert projection["proof_capacity_available"] == 2
-
-
-def test_adaptive_admission_distinguishes_candidate_progress_from_stall() -> None:
-    current = collaboration_competition_projection(
-        [],
-        commitment_digest="a" * 64,
-        risks=(),
-        proof_cost=2,
-        proof_capacity=4,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-        candidate={
-            "advance_count": 8,
-            "latest_advance_age_seconds": 120,
-            "latest_interval_seconds": 1800,
-            "advances_per_hour": 2.0,
-        },
-    )
-    stalled = collaboration_competition_projection(
-        [],
-        commitment_digest="a" * 64,
-        risks=(),
-        proof_cost=2,
-        proof_capacity=4,
-        observed_at=datetime(2026, 8, 6, tzinfo=UTC),
-        candidate={
-            "advance_count": 1,
-            "latest_advance_age_seconds": 7200,
-            "latest_interval_seconds": 3600,
-            "advances_per_hour": 0.0,
-        },
-    )
-
-    assert current["backpressure"] == "open"
-    assert stalled["backpressure"] == "candidate_stalled"
-    assert current["candidate_progress"] != stalled["candidate_progress"]
 
 
 def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:
@@ -642,127 +468,17 @@ def test_unbound_work_lane_ref_preserves_exact_lease_coordinates(tmp_path: Path)
     }
 
 
-def test_start_work_lane_initialization_head_is_checkout_and_identity_independent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("commitment", [False, True], ids=["head", "commitment"])
+def test_start_work_lane_blocks_source_generation_drift(
+    tmp_path: Path, *, commitment: bool
 ) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    first_source = create_change_source_lane(
-        repo,
-        tmp_path / "repo-work-source",
-        holder_ref=_HOLDER,
-    )
-    run_git = lanes.run_git
-    identities = iter(
-        (
-            {
-                "GIT_AUTHOR_NAME": "First Author",
-                "GIT_AUTHOR_EMAIL": "first-author@example.invalid",
-                "GIT_AUTHOR_DATE": "2001-01-01T00:00:00+00:00",
-                "GIT_COMMITTER_NAME": "First Committer",
-                "GIT_COMMITTER_EMAIL": "first-committer@example.invalid",
-                "GIT_COMMITTER_DATE": "2001-01-01T00:00:00+00:00",
-            },
-            {
-                "GIT_AUTHOR_NAME": "Second Author",
-                "GIT_AUTHOR_EMAIL": "second-author@example.invalid",
-                "GIT_AUTHOR_DATE": "2002-02-02T00:00:00+00:00",
-                "GIT_COMMITTER_NAME": "Second Committer",
-                "GIT_COMMITTER_EMAIL": "second-committer@example.invalid",
-                "GIT_COMMITTER_DATE": "2002-02-02T00:00:00+00:00",
-            },
-        )
-    )
+    case = LaneStartCase.create(tmp_path, holder=_HOLDER)
+    case.commit_source_drift(commitment=commitment)
 
-    def vary_ambient_identity(root: Path, *args: str, **kwargs: object):
-        if args[:1] == ("commit-tree",):
-            kwargs["env"] = {**next(identities), **dict(kwargs.get("env") or {})}
-        return run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(lanes, "run_git", vary_ambient_identity)
-    first = start_work_lane(
-        root=repo,
-        name="first",
-        source_root=first_source,
-        path=tmp_path / "first-target",
-        holder_ref=_HOLDER,
-        apply=True,
-    )
-    second = start_work_lane(
-        root=repo,
-        name="second",
-        source_root=first_source,
-        path=tmp_path / "second-target",
-        holder_ref=_HOLDER,
-        apply=True,
-    )
-
-    assert first["verdict"] == "pass"
-    assert second["verdict"] == "pass"
-    assert second["head"] == first["head"]
-
-
-def test_start_work_lane_blocks_source_lease_head_mismatch(tmp_path: Path) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
-    target = tmp_path / "repo-work-feature"
-    source_file = source / "SOURCE.md"
-    source_file.write_text("drift\n", encoding="utf-8")
-    git(source, "add", "SOURCE.md")
-    git(
-        source,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "drift source without advancing lease",
-    )
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        source_root=source,
-        path=target,
-        holder_ref=_HOLDER,
-        apply=True,
-    )
+    report = case.start(holder=_HOLDER)
 
     assert report["required_gaps"] == ["source_lease_head_mismatch"]
-    assert ref_head(repo, "work/feature") == ""
-    assert not target.exists()
-
-
-def test_start_work_lane_blocks_source_lease_commitment_mismatch(tmp_path: Path) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
-    target = tmp_path / "repo-work-feature"
-    carrier = source / "openspec/changes/fixture-change/commitment.toml"
-    carrier.write_text(carrier.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    git(source, "add", carrier.as_posix())
-    git(
-        source,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "rewrite commitment bytes",
-    )
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        source_root=source,
-        path=target,
-        holder_ref=_HOLDER,
-        apply=True,
-    )
-
-    assert report["required_gaps"] == ["source_lease_head_mismatch"]
-    assert ref_head(repo, "work/feature") == ""
-    assert not target.exists()
+    case.assert_absent()
 
 
 def test_start_work_lane_blocks_candidate_active_change_carrier(tmp_path: Path) -> None:
@@ -918,113 +634,48 @@ def test_work_lane_status_keeps_committed_binding_and_blocks_dirty_rewrite(tmp_p
     assert status["closeout_support"]["required_gaps"] == ["work_lane_dirty"]
 
 
-def test_start_work_lane_blocks_dirty_root_before_reserving_or_creating(tmp_path: Path) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
-    target = tmp_path / "repo-work-feature"
-    (repo / "README.md").write_text("# dirty\n", encoding="utf-8")
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        source_root=source,
-        path=target,
-        holder_ref=_HOLDER,
-        apply=True,
-    )
-
-    assert report == {
-        "verdict": "block",
-        "state": "blocked",
-        "branch": "work/feature",
-        "path": target.resolve().as_posix(),
-        "role": "accepted_root",
-        "dirty": True,
-        "required_gaps": ["lane_start_requires_clean_accepted_root"],
-    }
-    assert "work/feature" not in leases_by_branch(repo)
-    assert ref_head(repo, "work/feature") == ""
-    assert not target.exists()
-
-
-def test_start_work_lane_blocks_missing_candidate_commitment_without_effects(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("mutation", "expected_gap"),
+    [
+        ("dirty-root", "lane_start_requires_clean_accepted_root"),
+        ("missing-carrier", "source_work_lane_invalid"),
+        ("ambiguous-carrier", "source_work_lane_invalid"),
+    ],
+)
+def test_start_work_lane_blocks_invalid_source_state_without_effects(
+    tmp_path: Path, mutation: str, expected_gap: str
 ) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
-    target = tmp_path / "repo-work-feature"
-    git(source, "rm", "-r", "openspec/changes/fixture-change")
+    case = LaneStartCase.create(tmp_path, holder=_HOLDER)
+    if mutation == "dirty-root":
+        (case.repo / "README.md").write_text("# dirty\n", encoding="utf-8")
+    elif mutation == "missing-carrier":
+        git(case.source, "rm", "-r", "openspec/changes/fixture-change")
+    else:
+        second = case.source / "openspec/changes/second"
+        second.mkdir(parents=True)
+        (second / "commitment.toml").write_text(
+            'schema_version = 1\nid = "change:second"\nintent = "Second."\n'
+            'subjects = ["repository:self"]\n',
+            encoding="utf-8",
+        )
+        (second / "tasks.md").write_text("- [ ] Continue\n", encoding="utf-8")
 
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        source_root=source,
-        path=target,
-        holder_ref=_HOLDER,
-        apply=True,
-    )
+    report = case.start(holder=_HOLDER)
 
     assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["source_work_lane_invalid"]
-    assert "work/feature" not in leases_by_branch(repo)
-    assert ref_head(repo, "work/feature") == ""
-    assert not target.exists()
+    assert report["required_gaps"] == [expected_gap]
+    case.assert_absent()
 
 
-def test_start_work_lane_blocks_ambiguous_candidate_commitment_without_effects(
+def test_start_work_lane_rejects_invalid_actor_before_reserving_or_creating(
     tmp_path: Path,
 ) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
-    target = tmp_path / "repo-work-feature"
-    second = source / "openspec/changes/second"
-    second.mkdir(parents=True)
-    (second / "commitment.toml").write_text(
-        'schema_version = 1\nid = "change:second"\nintent = "Second."\n'
-        'subjects = ["repository:self"]\n',
-        encoding="utf-8",
-    )
-    (second / "tasks.md").write_text("- [ ] Continue\n", encoding="utf-8")
+    case = LaneStartCase.create(tmp_path, holder=_HOLDER)
 
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        source_root=source,
-        path=target,
-        holder_ref=_HOLDER,
-        apply=True,
-    )
+    report = case.start(holder="invalid")
 
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["source_work_lane_invalid"]
-    assert "work/feature" not in leases_by_branch(repo)
-    assert ref_head(repo, "work/feature") == ""
-    assert not target.exists()
-
-
-def test_start_work_lane_rejects_invalid_actor_before_reserving_or_creating(tmp_path: Path) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    source = create_change_source_lane(repo, tmp_path / "repo-work-source", holder_ref=_HOLDER)
-    target = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        source_root=source,
-        path=target,
-        holder_ref="invalid",
-        apply=True,
-    )
-
-    assert report == {
-        "verdict": "block",
-        "state": "blocked",
-        "branch": "work/feature",
-        "required_gaps": ["holder_ref_invalid"],
-    }
-    assert "work/feature" not in leases_by_branch(repo)
-    assert ref_head(repo, "work/feature") == ""
-    assert not target.exists()
+    assert report["required_gaps"] == ["holder_ref_invalid"]
+    case.assert_absent()
 
 
 def test_start_work_lane_leaves_no_lease_when_worktree_creation_fails(

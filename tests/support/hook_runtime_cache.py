@@ -12,15 +12,13 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo import hook_runtime
+import ethos.adapters.repo.hook_runtime as hook_runtime
 
 if TYPE_CHECKING:
     import pytest
 
 
-def install_session_hook_runtime_cache(
-    monkeypatch: pytest.MonkeyPatch, cache_root: Path
-) -> None:
+def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_root: Path) -> None:
     """Reuse package bytes while retaining one runtime directory per Git common-dir."""
     source = Path(hook_runtime.__file__).resolve().parents[4]
     cache_root = cache_root.resolve()
@@ -30,8 +28,8 @@ def install_session_hook_runtime_cache(
     cache_key = _cache_key(source, Path(sys.executable))
     templates = cache_root / cache_key
     wheel_lock = threading.Lock()
-    original_materialize = hook_runtime._materialize_runtime  # noqa: SLF001
-    original_wheel = hook_runtime._runtime_wheel  # noqa: SLF001
+    original_materialize = hook_runtime.materialize_hook_runtime
+    original_wheel = hook_runtime.resolve_runtime_wheel
 
     def cached_materialize(repo: Path, source_python: Path) -> Path:
         if source_python.resolve() != Path(sys.executable).resolve():
@@ -54,10 +52,10 @@ def install_session_hook_runtime_cache(
             return destination
 
         with monkeypatch.context() as local:
-            local.setattr(hook_runtime, "_runtime_wheel", cached_wheel)
+            local.setattr(hook_runtime, "resolve_runtime_wheel", cached_wheel)
             return original_materialize(repo, source_python)
 
-    monkeypatch.setattr(hook_runtime, "_materialize_runtime", cached_materialize)
+    monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", cached_materialize)
 
 
 def _cache_key(root: Path, python: Path) -> str:

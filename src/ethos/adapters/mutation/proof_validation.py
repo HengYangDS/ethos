@@ -123,8 +123,9 @@ def former_official_statement_projection(
     statement = string_mapping(attestation.model_dump(mode="json").get("statement"))
     claim = string_mapping(statement.get("claim"))
     artifact = string_mapping(statement.get("artifact"))
-    facts = mutable_json(plan.facts)
-    values = facts.get("values") if isinstance(facts, dict) else {}
+    facts_value = mutable_json(plan.facts)
+    facts = facts_value if isinstance(facts_value, dict) else {}
+    values = facts.get("values")
     values = values if isinstance(values, dict) else {}
     artifact_digest = str(artifact.get("sha256") or "").removeprefix("sha256:")
     return {

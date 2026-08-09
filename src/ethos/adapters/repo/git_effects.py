@@ -217,10 +217,12 @@ def execute_git_effect(
     """Recognize, execute, or recover one exact Git ref transaction."""
     effect = git_effect_from_plan(plan)
     _require_effect_permission(effect, plan)
-    recorded = ethos.adapters.repo.git_effect_attestation.records(root, plan)
+    recorded = ethos.adapters.repo.git_effect_attestation.records(
+        root, plan, environment=environment
+    )
     if attestation := next(iter(recorded), None):
         ethos.adapters.repo.git_effect_attestation.validate(
-            root, effect, attestation, issuer=issuer, plan=plan
+            root, effect, attestation, issuer=issuer, plan=plan, environment=environment
         )
         _require_live_lease(
             root,
@@ -279,7 +281,9 @@ def execute_git_effect(
                 after,
             ),
         )
-        ethos.adapters.repo.git_effect_attestation.records(root, plan, attestation)
+        ethos.adapters.repo.git_effect_attestation.records(
+            root, plan, attestation, environment=environment
+        )
         _project_and_clear(root, intents, projection)
         return attestation
     finally:

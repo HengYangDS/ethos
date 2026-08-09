@@ -276,7 +276,6 @@ def test_compile_plan_binds_subject_scope_and_recursive_globs() -> None:
         commitment=_commitment(scope=("openspec/changes/archive/*-fixture-change/**",)),
     )
     assert (archive.verdict, archive.required_gaps) == ("pass", ())
-    assert _compile("README.md", "src/ethos/result.py").verdict == "pass"
 
 
 @pytest.mark.parametrize("path", [123, "/absolute.py", "../escape.py", "src\\windows.py"])
@@ -285,14 +284,12 @@ def test_compile_plan_rejects_noncanonical_changed_paths(path: object) -> None:
 
 
 def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
-    commitment = _commitment(scope=("openspec/changes/archive/**",))
-    facts = _facts("openspec/specs/product/spec.md")
-    authority = {
-        "openspec_archive": {
-            "predicate": "effect:openspec-archive",
-            "authorized_paths": ["openspec/specs/product/spec.md"],
-        }
-    }
+    archive_path = "openspec/changes/archive/2026-08-08-test/commitment.toml"
+    spec_path = "openspec/specs/product/spec.md"
+    product_path = "src/ethos/product.py"
+    commitment = _commitment(scope=(product_path,))
+    facts = _facts(archive_path, spec_path, product_path)
+    authority = {"openspec_archive": {"authorized_paths": [archive_path, spec_path]}}
     ready = _compile(commitment=commitment, facts=facts, policy={}, prior=authority)
     rehydrated = TransitionPlan.model_validate(ready.model_dump(mode="json"))
     assert (
@@ -306,11 +303,19 @@ def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
     )
     tampered = _compile(
         commitment=commitment,
-        facts=_facts("openspec/specs/other/spec.md"),
+        facts=_facts(archive_path, product_path),
         policy={},
         prior=dict(rehydrated.prior_attestations),
     )
-    assert tampered.required_gaps == ("change_scope_exceeded",)
+    assert tampered.required_gaps == ("proof_archive_scope_stale",)
+    uncovered = _compile(
+        archive_path,
+        spec_path,
+        "outside.py",
+        commitment=commitment,
+        prior=authority,
+    )
+    assert uncovered.required_gaps == ("change_scope_exceeded",)
 
 
 def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:

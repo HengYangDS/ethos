@@ -29,14 +29,14 @@ root_host_residue = [".DS_Store", "Thumbs.db", "Desktop.ini"]
 def test_repository_hygiene_is_one_python_nox_owner() -> None:
     policy = (ROOT / ".config/checks/repository-hygiene/policy.toml").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
-    noxfile = (ROOT / "noxfile.py").read_text(encoding="utf-8")
+    sessions = (ROOT / "tools/ci/sessions.py").read_text(encoding="utf-8")
 
     assert "root_host_residue = [" in policy
     assert '".DS_Store"' in policy
     assert 'concern = "repository_hygiene"' in tools
     assert 'gate = "uv run --frozen --offline python -m nox -s repository_hygiene"' in tools
-    assert "def repository_hygiene(session: nox.Session)" in noxfile
-    assert '"--ignore-noqa"' in noxfile
+    assert "def repository_hygiene(session)" in sessions
+    assert '"--ignore-noqa"' in sessions
     coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
     assert "exclude_lines =\n" in coverage
     assert not (ROOT / "tools/ci/scripts/run-repository-hygiene.sh").exists()

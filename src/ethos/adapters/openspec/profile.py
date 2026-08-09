@@ -45,13 +45,14 @@ def load_work_lane_commitment(
 ) -> Commitment:
     """Load current intent or the exact archived carrier bound by the Lease."""
     prior = load_lease_bound_commitment(root, lease=lease)
-    selected_change = prior.id.removeprefix("change:") if change_id is None else change_id
+    selected_change = change_id
     try:
         return load_profile_commitment(root, change_id=selected_change)
     except ValueError as error:
+        expected = prior.id.removeprefix("change:") if change_id is None else change_id
         if (
-            str(error) != f"commitment_missing:{selected_change}"
-            or prior.id != f"change:{selected_change}"
+            str(error) not in {"commitment_missing", f"commitment_missing:{expected}"}
+            or prior.id != f"change:{expected}"
         ):
             raise
         return prior

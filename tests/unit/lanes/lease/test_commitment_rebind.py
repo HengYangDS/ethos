@@ -12,6 +12,7 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.repo.commit_identity import commit_trust_setup_action
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
@@ -19,6 +20,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lifecycle_cases import rebind_attestation_path
@@ -269,6 +271,30 @@ def test_change_identity_repair_requires_target_trust(
     assert report["required_gaps"] == list(trust_gaps)
     if not trust_gaps:
         case.assert_terminal(report)
+
+
+def test_change_identity_repair_projects_trust_setup_action(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch, repair_identity=True)
+    monkeypatch.setattr(
+        rebind,
+        "verify_commit_trust",
+        lambda *_args: {"required_gaps": ["commit_signature_untrusted"]},
+    )
+
+    report = case.execute()
+
+    assert report["next_action"] == commit_trust_setup_action(case.worktree, case.target)
+    arguments = ["lane", "rebind-commitment", "--root", case.worktree.as_posix()]
+    for name, value in case.request.model_dump().items():
+        option = "--" + name.replace("_", "-")
+        for item in value if isinstance(value, tuple) else (value,):
+            arguments.extend(
+                (option,) if item is True else () if item is False else (option, str(item))
+            )
+    result = run_ethos_blocked(*arguments, "--json", cwd=case.worktree)
+    assert result["next_action"] == report["next_action"]
 
 
 @pytest.mark.parametrize(

@@ -12,6 +12,7 @@ from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.openspec.lifecycle.archive_transition import (
     lease_bound_archive_transition_fields,
 )
+from ethos.adapters.repo.commitment import changed_commitment_fields
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -24,6 +25,7 @@ from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitRefUpdate
+from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -360,10 +362,10 @@ def _commitment_rebind_gap(
     try:
         old_commitment = load_lease_bound_commitment(root, lease=lease)
         if not target:
-            target = _changed_commitment_target(
+            target = changed_commitment_fields(
                 root,
-                old_value=old_value,
-                new_value=new_value,
+                old_head=old_value,
+                new_head=new_value,
                 commitment_id=old_commitment.id,
                 old_digest=old_commitment.digest(),
             )
@@ -382,8 +384,11 @@ def _commitment_rebind_gap(
             ),
             (
                 new_commitment.id == old_commitment.id
-                or _change_identity_repair_valid(
-                    target["base_commitment_path"], old_commitment, new_commitment
+                or malformed_change_identity_repair_valid(
+                    carrier=target["base_commitment_path"],
+                    old_id=old_commitment.id,
+                    old_digest=old_commitment.digest(),
+                    new=new_commitment,
                 ),
                 "commitment_rebind_identity_mismatch",
             ),
@@ -395,67 +400,6 @@ def _commitment_rebind_gap(
     except (KeyError, ValueError) as error:
         return str(error)
     return next((gap for valid, gap in checks if not valid), "")
-
-
-def _change_identity_repair_valid(path: str, old_commitment, new_commitment) -> bool:
-    logical = path.removesuffix("/commitment.toml").rsplit("/", 1)[-1]
-    prefix = old_commitment.id.removeprefix("change:")
-    return (
-        len(prefix) > 9
-        and prefix[:8].isdigit()
-        and prefix[8] == "-"
-        and prefix[9:] == logical
-        and new_commitment.id == f"change:{logical}"
-        and new_commitment.model_copy(update={"id": old_commitment.id}).digest()
-        == old_commitment.digest()
-    )
-
-
-def _changed_commitment_target(
-    root: Path,
-    *,
-    old_value: str,
-    new_value: str,
-    commitment_id: str,
-    old_digest: str,
-) -> dict[str, str]:
-    """Resolve the sole semantically changed carrier in one rebind target."""
-    changed = run_git(
-        root,
-        "diff",
-        "--name-only",
-        "-z",
-        old_value,
-        new_value,
-        check=False,
-        text=False,
-        observation=True,
-    )
-    if changed.returncode:
-        msg = "commitment_rebind_target_unreadable"
-        raise ValueError(msg)
-    candidates = []
-    for raw_path in changed.stdout.split(b"\0"):
-        if not raw_path:
-            continue
-        try:
-            path = raw_path.decode()
-        except UnicodeDecodeError as error:
-            msg = "commitment_rebind_target_path_invalid"
-            raise ValueError(msg) from error
-        if not path.endswith("/commitment.toml"):
-            continue
-        try:
-            fields = exact_commitment_fields(root, head=new_value, carrier=path)
-            commitment = load_commitment(root, carrier=path, tree_ref=new_value)
-        except ValueError:
-            continue
-        if commitment.id == commitment_id and commitment.digest() != old_digest:
-            candidates.append(fields)
-    if len(candidates) != 1:
-        msg = "commitment_rebind_target_ambiguous"
-        raise ValueError(msg)
-    return candidates[0]
 
 
 def _is_zero_oid(value: str) -> bool:

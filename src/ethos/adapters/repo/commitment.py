@@ -244,6 +244,53 @@ def relocated_commitment_fields_to(
     return target
 
 
+def changed_commitment_fields(
+    repo: Path,
+    *,
+    old_head: str,
+    new_head: str,
+    commitment_id: str,
+    old_digest: str,
+) -> dict[str, str]:
+    """Resolve the sole semantically changed Commitment carrier between two commits."""
+    changed = run_git(
+        repo,
+        "diff",
+        "--name-only",
+        "-z",
+        old_head,
+        new_head,
+        check=False,
+        text=False,
+        observation=True,
+    )
+    if changed.returncode:
+        message = "commitment_rebind_target_unreadable"
+        raise ValueError(message)
+    candidates = []
+    for raw_path in changed.stdout.split(b"\0"):
+        if not raw_path:
+            continue
+        try:
+            path = raw_path.decode()
+        except UnicodeDecodeError as error:
+            message = "commitment_rebind_target_path_invalid"
+            raise ValueError(message) from error
+        if not path.endswith("/commitment.toml"):
+            continue
+        try:
+            fields = exact_commitment_fields(repo, head=new_head, carrier=path)
+            commitment = load_commitment(repo, carrier=path, tree_ref=new_head)
+        except ValueError:
+            continue
+        if commitment.id == commitment_id and commitment.digest() != old_digest:
+            candidates.append(fields)
+    if len(candidates) != 1:
+        message = "commitment_rebind_target_ambiguous"
+        raise ValueError(message)
+    return candidates[0]
+
+
 def load_lease_bound_commitment(
     repo: Path,
     *,

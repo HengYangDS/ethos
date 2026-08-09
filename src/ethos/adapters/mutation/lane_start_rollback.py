@@ -182,6 +182,7 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
         "branch": branch,
         "path": target.as_posix(),
         "stderr": context.completed.stderr.strip() or "lane_start_postcondition_failed",
+        "child_process": child_process_evidence(context.completed),
         "carrier_cleanup": {"worktree_removed": True, "ref_removed": True},
         "lease_state": "revoked" if context.lease else "not_acquired",
         "required_gaps": [context.failure_gap],
@@ -257,10 +258,23 @@ def retained_lane_start_report(
         "branch": branch,
         "path": target.as_posix(),
         "stderr": completed.stderr.strip() or "lane_start_postcondition_failed",
+        "child_process": child_process_evidence(completed),
         "carrier_cleanup": {
             "worktree_removed": worktree_removed,
             "ref_removed": ref_removed,
         },
         "lease_state": "retained" if lease else "not_acquired",
         "required_gaps": ["lane_creation_compensation_failed", gap],
+    }
+
+
+def child_process_evidence(completed: subprocess.CompletedProcess[str]) -> dict[str, object]:
+    """Project bounded child-process evidence for a blocked lane start."""
+    args = completed.args if isinstance(completed.args, (list, tuple)) else (completed.args,)
+    return {
+        "argv": [str(item) for item in args],
+        "exit_code": completed.returncode,
+        "stdout": completed.stdout.strip(),
+        "stderr": completed.stderr.strip(),
+        "parse_error": str(getattr(completed, "parse_error", "")),
     }

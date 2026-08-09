@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
+from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.observation import product_references_from_files
@@ -44,13 +45,16 @@ def patch_admission(
         reason = "prewrite_patch_baseline_missing"
     if not reason and not _patch_applies(root, patch, check_preimage=True):
         reason = "prewrite_patch_preimage_mismatch"
-    exact_scope = _baseline_exact_scope_paths(root, baseline_head) if not reason else set()
+    scope = _baseline_scope_patterns(root, baseline_head) if not reason else ()
     if not reason:
         reason = next(
             (
                 f"product_path_not_admitted_at_baseline:{change['path']}"
                 for change in changes
-                if change["new"] is True and change["path"] not in exact_scope
+                if change["new"] is True
+                and not any(
+                    repository_path_matches(str(change["path"]), pattern) for pattern in scope
+                )
             ),
             "",
         )
@@ -144,7 +148,7 @@ def _patch_path(raw: str) -> str:
     return raw.removeprefix("a/").removeprefix("b/")
 
 
-def _baseline_exact_scope_paths(root: Path, head: str) -> set[str]:
+def _baseline_scope_patterns(root: Path, head: str) -> tuple[str, ...]:
     paths = git_stdout(
         root,
         "ls-tree",
@@ -154,7 +158,7 @@ def _baseline_exact_scope_paths(root: Path, head: str) -> set[str]:
         "--",
         "openspec/changes",
     ).splitlines()
-    exact: set[str] = set()
+    patterns: list[str] = []
     for path in paths:
         if not path.endswith("/commitment.toml") or "/archive/" in path:
             continue
@@ -165,10 +169,8 @@ def _baseline_exact_scope_paths(root: Path, head: str) -> set[str]:
             continue
         if not isinstance(scope, list):
             continue
-        exact.update(
-            item for item in scope if isinstance(item, str) and item and not set("*?[") & set(item)
-        )
-    return exact
+        patterns.extend(item for item in scope if isinstance(item, str) and item)
+    return tuple(dict.fromkeys(patterns))
 
 
 def _patch_references(

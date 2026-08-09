@@ -128,6 +128,37 @@ def test_fresh_carrier_public_validation_failures(
     assert tree == ""
 
 
+def test_fresh_carrier_preserves_failed_openspec_child_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = _fresh_context(tmp_path)
+    command = ("openspec", "new", "change")
+    monkeypatch.setattr(carrier, "openspec_base_command", lambda: command)
+    monkeypatch.setattr(
+        carrier,
+        "run_json",
+        lambda *_a, **_k: {
+            "command": [*command, "fixture-change", "--json"],
+            "exit_code": 7,
+            "stdout": '{"partial":true}',
+            "stderr": "creation rejected",
+            "parse_error": "unexpected eof",
+            "json": {},
+        },
+    )
+
+    failure, tree = carrier.materialize_fresh_carrier(context)
+
+    assert failure is not None
+    assert failure.args == ("openspec", "new", "change", "fixture-change", "--json")
+    assert failure.returncode == 7
+    assert failure.stdout == '{"partial":true}'
+    assert failure.stderr == "creation rejected"
+    assert failure.parse_error == "unexpected eof"
+    assert tree == ""
+
+
 @pytest.mark.parametrize(
     ("candidate_ref", "candidate_worktree", "source_ref", "source_worktree", "gap"),
     [

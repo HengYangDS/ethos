@@ -10,6 +10,10 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.adapters.mutation.lane_retirement.observation import output
+from ethos.adapters.mutation.lane_retirement.observation import ref_outcome
+from ethos.adapters.mutation.lane_retirement.observation import retirement_observation
+from ethos.adapters.mutation.lane_retirement.observation import retirement_terminal
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -23,7 +27,6 @@ from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.lease.projection import integer_value
-from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.lease.projection import observe_lease_from_connection
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -248,23 +251,6 @@ def failed_ref_transition(
     }
 
 
-def ref_outcome(root: Path, branch: str, expected: str) -> str:
-    try:
-        observed = run_git(
-            root,
-            "rev-parse",
-            "--verify",
-            "--quiet",
-            f"refs/heads/{branch}",
-            check=False,
-        )
-    except OSError:
-        return "unavailable"
-    if observed.returncode == 0:
-        return "expected" if observed.stdout.strip() == expected else "moved"
-    return "absent" if observed.returncode == 1 else "unavailable"
-
-
 def absorbed(repo: Path, head: str, accepted_head: str) -> bool:
     if not (base := output(repo, "merge-base", accepted_head, head)):
         return False
@@ -343,11 +329,6 @@ def _archive_roots(repo: Path, accepted_head: str, change: str) -> tuple[str, ..
         if archives.returncode == 0
         else ()
     )
-
-
-def output(root: Path, *args: str) -> str | None:
-    completed = run_git(root, *args, check=False)
-    return completed.stdout.rstrip("\n") if completed.returncode == 0 else None
 
 
 def control_root(worktrees: list[dict[str, object]], default: Path) -> Path | None:
@@ -505,39 +486,6 @@ def restore_worktree(control_root: Path, lane: dict[str, object]) -> bool:
     except ValueError:
         return False
     return True
-
-
-def retirement_observation(
-    repo: Path, control_root: Path, lane: dict[str, object]
-) -> dict[str, str]:
-    """Observe the three native carriers after one retirement attempt."""
-    branch, expected = (str(lane.get(key) or "") for key in ("branch", "head"))
-    return {
-        "lease_state": observe_lease(state_database(repo), branch).state,
-        "ref_state": ref_outcome(control_root, branch, expected),
-        "worktree_state": worktree_outcome(lane),
-    }
-
-
-def retirement_terminal(observed: dict[str, str]) -> bool:
-    return observed == {
-        "lease_state": "missing",
-        "ref_state": "absent",
-        "worktree_state": "absent",
-    }
-
-
-def worktree_outcome(lane: dict[str, object]) -> str:
-    path = Path(str(lane.get("path") or ""))
-    if not path.exists():
-        return "absent"
-    branch = output(path, "symbolic-ref", "--short", "HEAD")
-    head = output(path, "rev-parse", "HEAD")
-    return (
-        "expected"
-        if branch == str(lane.get("branch") or "") and head == str(lane.get("head") or "")
-        else "moved"
-    )
 
 
 def reobservation_gaps(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -42,6 +43,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -405,8 +407,23 @@ def _target_binding(
             all(target[name] == value for name, value in declared.items()),
             "commitment_rebind_target_binding_mismatch",
         ),
-        (new_commitment.id == old_commitment_id, "commitment_rebind_identity_mismatch"),
-        (new_commitment.digest() != old_commitment_digest, "commitment_rebind_semantics_unchanged"),
+        (
+            identity_transition_valid(
+                request,
+                old_commitment_id=old_commitment_id,
+                old_commitment_digest=old_commitment_digest,
+                new_commitment=new_commitment,
+            ),
+            (
+                "change_identity_repair_invalid"
+                if request.repair_change_identity
+                else "commitment_rebind_identity_mismatch"
+            ),
+        ),
+        (
+            request.repair_change_identity or new_commitment.digest() != old_commitment_digest,
+            "commitment_rebind_semantics_unchanged",
+        ),
         (
             load_repository_commitment(repo, tree_ref=request.expect_head).id
             == load_repository_commitment(repo, tree_ref=request.target_commit).id,
@@ -416,6 +433,27 @@ def _target_binding(
     if gap := next((gap for valid, gap in checks if not valid), ""):
         raise ValueError(gap)
     return target
+
+
+def identity_transition_valid(
+    request: CommitmentRebindRequest,
+    *,
+    old_commitment_id: str,
+    old_commitment_digest: str,
+    new_commitment,
+) -> bool:
+    if not request.repair_change_identity:
+        return new_commitment.id == old_commitment_id
+    logical = request.new_commitment_path.removesuffix("/commitment.toml").rsplit("/", 1)[-1]
+    dated = re.fullmatch(r"change:20\d{6}-(.+)", old_commitment_id)
+    return (
+        dated is not None
+        and dated.group(1) == logical
+        and not logical_change_identifier_issue(logical)
+        and new_commitment.id == f"change:{logical}"
+        and new_commitment.model_copy(update={"id": old_commitment_id}).digest()
+        == old_commitment_digest
+    )
 
 
 def _plan(
@@ -434,7 +472,9 @@ def _plan(
         head=request.expect_head,
         prior_attestations={},
         policy={
-            "operation": "commitment.rebind",
+            "operation": (
+                "change.identity-repair" if request.repair_change_identity else "commitment.rebind"
+            ),
             "old_commitment_digest": old_commitment_digest,
             "new_commitment_digest": request.new_commitment_digest,
         },

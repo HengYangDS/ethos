@@ -270,7 +270,9 @@ def test_exact_multiref_cas_attestation_recognition_and_cleanup(
     monkeypatch.setattr(
         attest,
         "records",
-        lambda _root, _plan, record=None: persisted.append(record) if record else tuple(persisted),
+        lambda _root, _plan, record=None, **_kwargs: (
+            persisted.append(record) if record else tuple(persisted)
+        ),
     )
     carried = proof_plan(case, value)
     applied = execute_git_effect(case.repo, carried, issuer=ISSUER)
@@ -618,7 +620,11 @@ def test_atomic_compensation_and_retry_matrix(
         return tuple(saved)
 
     if failure == "persistence":
-        monkeypatch.setattr(attest, "records", lambda _root, _plan, record=None: fail(record))
+        monkeypatch.setattr(
+            attest,
+            "records",
+            lambda _root, _plan, record=None, **_kwargs: fail(record),
+        )
 
         def run() -> Attestation:
             return execute_git_effect(case.repo, carried, issuer=ISSUER)

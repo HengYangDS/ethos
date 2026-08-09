@@ -14,10 +14,11 @@ from typing import NamedTuple
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from ethos.adapters.repo.hook.binding import HookRuntimeBinding
+    from ethos.contracts.branch.roles import BranchRolePolicy
     from ethos.contracts.semantic import Attestation
 
 import ethos.adapters.mutation.lane_start_rollback as rollback
+from ethos.adapters.mutation.lane_start_receipt import started_lane_report
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.repo.commitment import exact_commitment_fields
@@ -34,8 +35,6 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.plan import GitEffect
@@ -510,67 +509,3 @@ def tree_entries(
             return None
         entries.append((mode, kind, oid, path))
     return tuple(entries) or None
-
-
-def started_lane_report(
-    context: LaneStartContext,
-    *,
-    base_head: str,
-    head: str,
-    lease: dict[str, object],
-    carrier_attestation: Attestation | None,
-    attachment_attestation: Attestation,
-    hook_runtime: HookRuntimeBinding,
-) -> dict[str, object]:
-    """Build the receipt for an exact, leased, linked Work Lane."""
-    return {
-        "verdict": "pass",
-        "state": "started",
-        "branch": context.branch,
-        "base": context.policy.candidate_branch,
-        "base_head": base_head,
-        "head": head,
-        "path": context.target.as_posix(),
-        "source_root": context.source_root.resolve().as_posix() if context.source_head else "",
-        "source_head": context.source_head,
-        "source_change_id": context.source_change_id,
-        "source_commitment_digest": context.base_commitment_digest,
-        "worktree": started_worktree(branch=context.branch, path=context.target, run=context.run),
-        "holder_ref": context.holder_ref,
-        "base_commitment_digest": context.base_commitment_digest,
-        "lease": lease,
-        "carrier_attestation": (
-            carrier_attestation.model_dump(mode="json") if carrier_attestation else {}
-        ),
-        "attachment_attestation": attachment_attestation.model_dump(mode="json"),
-        "hook_runtime": hook_runtime,
-        "runner_bootstrap": runner_bootstrap(context.target),
-        "required_gaps": [],
-    }
-
-
-def started_worktree(
-    *, branch: str, path: Path, run: Callable[..., subprocess.CompletedProcess[str]]
-) -> dict[str, str]:
-    """Return the linked-worktree receipt for a started lane."""
-    head = run(path, "rev-parse", "HEAD").stdout.strip()
-    return {
-        "branch": branch,
-        "path": path.as_posix(),
-        "head": head,
-        "role": ROLE_WORK_LANE,
-        "worktree_binding": "linked",
-    }
-
-
-def runner_bootstrap(target: Path) -> dict[str, str]:
-    """Return the non-mutating source-bound runner contract for a new lane."""
-    resolved = target.resolve().as_posix()
-    return {
-        "command": "uv run --frozen --offline ethos",
-        "project_environment": ".venv",
-        "environment_scope": "checkout",
-        "uv_cache": "host_or_ci_content_addressed",
-        "cache_scope": "host_or_ci",
-        "next_action": f"cd {resolved} && uv run --frozen --offline ethos status --json",
-    }

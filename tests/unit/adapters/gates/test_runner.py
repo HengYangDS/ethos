@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+import pytest
+
 import ethos.adapters.gates.runner as gate_runner
+import ethos.adapters.gates.tool as gate_tool
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 
@@ -39,6 +43,79 @@ def test_provider_success_runs_directly(monkeypatch, tmp_path: Path) -> None:
     result = _runner(monkeypatch, success=success).run(_node(gate), gate, root=tmp_path)
 
     assert (result.verdict, result.exit_code, seen) == ("pass", 0, [tmp_path])
+
+
+@pytest.mark.parametrize(
+    ("tool_path", "outcome", "verdict", "state", "gap"),
+    [
+        (None, None, "unknown", "missing_tool", "quality_tool_missing:checker"),
+        (
+            "/bin/checker",
+            OSError("offline"),
+            "unknown",
+            "tool_error",
+            "quality_tool_execution_unknown:quality",
+        ),
+        ("/bin/checker", subprocess.CompletedProcess([], 0, "ok", ""), "pass", "passed", ""),
+        (
+            "/bin/checker",
+            subprocess.CompletedProcess([], 2, "x" * 5000, "failed"),
+            "block",
+            "failed",
+            "quality_gate_failed:quality",
+        ),
+    ],
+)
+def test_quality_tool_public_failure_matrix(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    tool_path: str | None,
+    outcome: subprocess.CompletedProcess[str] | OSError | None,
+    verdict: str,
+    state: str,
+    gap: str,
+) -> None:
+    monkeypatch.setattr(gate_tool.shutil, "which", lambda _tool: tool_path)
+
+    def run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        if isinstance(outcome, OSError):
+            raise outcome
+        assert isinstance(outcome, subprocess.CompletedProcess)
+        return outcome
+
+    monkeypatch.setattr(gate_tool.subprocess, "run", run)
+    report = gate_tool.quality_tool_report(
+        root=tmp_path,
+        gate_id="quality",
+        tool="checker",
+        command=["checker", "--strict"],
+        files=["src/example.py"],
+    )
+
+    assert (report["verdict"], report["state"]) == (verdict, state)
+    assert report["required_gaps"] == ([gap] if gap else [])
+    if state == "failed":
+        assert str(report["stdout"]).endswith("[trimmed 1000 bytes]")
+
+
+def test_quality_tool_skips_empty_file_set_without_tool_lookup(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        gate_tool.shutil,
+        "which",
+        lambda _tool: pytest.fail("empty input must not resolve a host tool"),
+    )
+
+    report = gate_tool.quality_tool_report(
+        root=tmp_path, gate_id="quality", tool="checker", command=["checker"], files=[]
+    )
+
+    assert (report["verdict"], report["state"], report["file_count"]) == (
+        "pass",
+        "skipped",
+        0,
+    )
 
 
 def test_runner_rejects_gate_identity_drift(monkeypatch, tmp_path: Path) -> None:

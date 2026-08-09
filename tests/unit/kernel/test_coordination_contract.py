@@ -7,6 +7,7 @@ import pytest
 from pydantic import TypeAdapter
 from pydantic import ValidationError
 
+from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import RepositoryRelativePath
@@ -143,3 +144,118 @@ def test_lane_lease_rejects_missing_malformed_or_legacy_wire_fields(
 def test_lane_lease_rejects_non_json_python_wire_values() -> None:
     with pytest.raises(TypeError, match="lane_lease_payload_type_invalid"):
         LaneLease.from_payload(_lease_payload(path_scope=("src/**",)))
+
+
+@pytest.mark.parametrize(
+    ("lanes", "risks", "capacity", "candidate", "state", "reason"),
+    [
+        ([], (), 3, {}, "independent", "no_peer_work_lanes"),
+        (
+            [{"branch": "work/unknown", "coordination_state": "unknown"}],
+            (),
+            3,
+            {},
+            "await_facts",
+            "peer_scope_unknown",
+        ),
+        (
+            [{"branch": "work/conflict", "coordination_state": "overlap"}],
+            (),
+            3,
+            {},
+            "collaborate",
+            "overlapping_intents_require_coordination",
+        ),
+        (
+            [{"branch": "work/disjoint", "coordination_state": "disjoint"}],
+            (),
+            3,
+            {},
+            "independent",
+            "peer_scopes_disjoint",
+        ),
+        (
+            [
+                {
+                    "branch": "work/same",
+                    "coordination_state": "overlap",
+                    "base_commitment_digest": "digest",
+                    "proof_cost": 1,
+                }
+            ],
+            (),
+            3,
+            {},
+            "collaborate",
+            "competition_has_no_declared_risk_basis",
+        ),
+        (
+            [
+                {
+                    "branch": "work/same",
+                    "coordination_state": "overlap",
+                    "base_commitment_digest": "digest",
+                }
+            ],
+            ("collision",),
+            None,
+            {},
+            "await_facts",
+            "proof_capacity_or_cost_missing",
+        ),
+        (
+            [
+                {
+                    "branch": "work/same",
+                    "coordination_state": "overlap",
+                    "base_commitment_digest": "digest",
+                    "proof_cost": 3,
+                }
+            ],
+            ("collision",),
+            3,
+            {"behind_accepted": 1},
+            "collaborate",
+            "proof_capacity_below_alternative_cost",
+        ),
+        (
+            [
+                {
+                    "branch": "work/same",
+                    "coordination_state": "overlap",
+                    "base_commitment_digest": "digest",
+                    "proof_cost": 1,
+                    "lease": {"issued_at": "2026-07-09T00:00:00+00:00"},
+                }
+            ],
+            ("collision",),
+            3,
+            {"latest_advance_age_seconds": 20, "latest_interval_seconds": 10},
+            "compete",
+            "alternative_realizations_admitted",
+        ),
+    ],
+)
+def test_collaboration_competition_public_state_matrix(
+    lanes: list[dict[str, object]],
+    risks: tuple[str, ...],
+    capacity: int | None,
+    candidate: dict[str, object],
+    state: str,
+    reason: str,
+) -> None:
+    result = collaboration_competition_projection(
+        lanes,
+        commitment_digest="digest",
+        risks=risks,
+        proof_cost=1,
+        proof_capacity=capacity,
+        observed_at=datetime(2026, 7, 10, tzinfo=UTC),
+        candidate=candidate,
+    )
+
+    assert (result["state"], result["reason"]) == (state, reason)
+    if candidate.get("behind_accepted"):
+        assert result["backpressure"] == "candidate_behind_accepted"
+    elif candidate:
+        assert result["backpressure"] == "candidate_stalled"

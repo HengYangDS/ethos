@@ -622,15 +622,44 @@ def _effect_failure_runner(
     return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER, projection=fail)
 
 
-@pytest.mark.parametrize("failure", ["attestation", "persistence", "projection"])
+def _inject_postcondition_failure(case: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    observe, failed = runtime.observe_git_effect, [False]
+
+    def stale_once(*args: object, **kwargs: object) -> dict[str, object]:
+        result = observe(*args, **kwargs)
+        desired = {name: update.desired for name, update in case.effect.updates.items()}
+        if not failed[0] and result["refs"] == desired:
+            failed[0] = True
+            result = {
+                **result,
+                "refs": {name: update.expected for name, update in case.effect.updates.items()},
+            }
+        return result
+
+    monkeypatch.setattr(runtime, "observe_git_effect", stale_once)
+
+
+@pytest.mark.parametrize("failure", ["attestation", "persistence", "projection", "postcondition"])
 def test_atomic_compensation_and_retry_matrix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
     case = fixture(tmp_path)
     saved, first = [], [True]
-    run = _effect_failure_runner(case, monkeypatch, failure, saved, first)
+    if failure == "postcondition":
+        _inject_postcondition_failure(case, monkeypatch)
 
-    reject(f"{failure} unavailable", run)
+        def run() -> Any:
+            return execute_git_effect(case.repo, proof_plan(case), issuer=ISSUER)
+
+    else:
+        run = _effect_failure_runner(case, monkeypatch, failure, saved, first)
+
+    error = (
+        "git_effect_postcondition_failed"
+        if failure == "postcondition"
+        else f"{failure} unavailable"
+    )
+    reject(error, run)
     assert git(case.repo, "rev-parse", "dev") == case.old
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
     recovered = run()
@@ -638,6 +667,24 @@ def test_atomic_compensation_and_retry_matrix(
     assert recovered.statement["result"]["state"] == "applied"
     assert (saved == [recovered]) if failure == "persistence" else (not saved)
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
+
+
+@pytest.mark.parametrize("failure", ["corrupt", "collision"])
+def test_attestation_store_public_failure_matrix(tmp_path: Path, failure: str) -> None:
+    case = fixture(tmp_path)
+    carried = plan(case.repo, case.effect)
+    record = execute_git_effect(case.repo, carried, issuer=ISSUER)
+    path = ref_intent_dir(case.repo).parent / "git-effects" / f"{carried.digest}.json"
+
+    if failure == "corrupt":
+        path.write_text("{}", encoding="utf-8")
+        reject("git_effect_attestation_invalid", lambda: records(case.repo, carried))
+    else:
+        other = reissue(record, verifier="agent:test:case:other")
+        reject(
+            "git_effect_attestation_collision",
+            lambda: records(case.repo, carried, other),
+        )
 
 
 def test_prepare_failure_aborts_every_claimed_intent(

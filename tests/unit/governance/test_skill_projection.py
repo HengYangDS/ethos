@@ -7,7 +7,9 @@ from typing import cast
 
 import pytest
 
+from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.packages import validate_skill_package_manifest
+from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.contracts.review import ReviewResult
@@ -374,6 +376,103 @@ def test_skill_novelty_requires_one_owner_per_semantic_boundary() -> None:
     assert result["required_gaps"] == ["skill_portfolio_route_duplicate:alpha:govern:first,second"]
     novelty = cast("dict[str, object]", result["novelty"])
     assert novelty["duplicate_routes"] == {"alpha:govern": ["first", "second"]}
+
+
+def test_skill_capability_semantics_fail_closed_matrix(tmp_path: Path) -> None:
+    package = tmp_path / "package"
+    package.mkdir()
+    records = [
+        {"id": "mutating", "kind": "command_readonly", "command": ["ethos", "land"]},
+        {"id": "unknown", "kind": "command_readonly", "command": ["external", "read"]},
+        {"id": "empty", "kind": "script_readonly", "command": []},
+        {"id": "interpreter", "kind": "script_readonly", "command": ["python", "read.py"]},
+        {"id": "escape", "kind": "script_readonly", "command": ["../read.sh"]},
+        {"id": "proof", "kind": "command_proof", "command": ["ethos", "status"]},
+    ]
+
+    gaps, projected = capability_records(
+        "governance", records, package_dir=package, included_files=frozenset({"read.sh"})
+    )
+
+    assert gaps == [
+        "skill_package_capability_readonly_mutating:governance:mutating",
+        "skill_package_capability_readonly_untrusted:governance:unknown",
+        "skill_package_capability_readonly_untrusted:governance:empty",
+        "skill_package_capability_readonly_untrusted:governance:interpreter",
+        "skill_package_capability_readonly_untrusted:governance:escape",
+        "skill_package_capability_proof_invalid:governance:proof",
+    ]
+    assert [record["id"] for record in projected] == [record["id"] for record in records]
+
+
+def test_skill_portfolio_coverage_requires_one_active_primary_owner() -> None:
+    records = [
+        {
+            "id": "first",
+            "authority": "primary",
+            "lifecycle": "active",
+            "primary_subject": "governance",
+        },
+        {
+            "id": "second",
+            "authority": "primary",
+            "lifecycle": "active",
+            "primary_subject": "governance",
+        },
+        {
+            "id": "retired",
+            "authority": "primary",
+            "lifecycle": "retired",
+            "primary_subject": "release",
+        },
+    ]
+
+    result = portfolio_coverage(
+        {
+            "required_primary_subjects": ["governance", "release", "governance"],
+            "single_owner_subjects": ["governance"],
+        },
+        records,
+    )
+
+    assert result["required_gaps"] == [
+        "skill_portfolio_subject_missing:release",
+        "skill_portfolio_subject_duplicate:governance:first,second",
+    ]
+    assert result["owners"] == {"governance": ["first", "second"]}
+
+
+def test_skill_portfolio_design_reports_every_owner_collision() -> None:
+    records = [
+        {
+            "id": skill_id,
+            "primary_subject": "governance",
+            "subjects": [] if skill_id == "first" else ["governance"],
+            "path_globs": ["src/**"],
+            "intent_tokens": ["govern"],
+            "operation": "plan",
+        }
+        for skill_id in ("first", "second", "third")
+    ]
+    packages = [
+        {
+            "id": skill_id,
+            "files": [str(index) for index in range(7)] if skill_id == "first" else [],
+            "capabilities": [{"command": ["ethos", "status"]}],
+        }
+        for skill_id in ("first", "second", "third")
+    ]
+
+    result = portfolio_design(records, packages)
+
+    assert set(result["required_gaps"]) == {
+        "skill_portfolio_primary_subject_not_routed:first",
+        "skill_portfolio_package_overloaded:first:7",
+        "skill_portfolio_path_glob_duplicate:src/**:first,second,third",
+        "skill_portfolio_intent_token_overclaimed:govern:first,second,third",
+        "skill_portfolio_route_duplicate:governance:plan:first,second,third",
+    }
+    assert result["command_owner_count"] == {"ethos status": 3}
 
 
 def test_retired_skill_requires_complete_disposition_and_absent_carrier(tmp_path: Path) -> None:

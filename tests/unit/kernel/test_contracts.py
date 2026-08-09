@@ -19,6 +19,10 @@ from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.system.contracts import SYSTEM_CONTRACTS
+from ethos.contracts.system.contracts import load_system_contract
+from ethos.contracts.system.contracts import schema_validation_gaps
+from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.value import mutable_json
 
 _PLAN_COMMITMENT = Commitment(
@@ -100,6 +104,54 @@ def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -
         "dependencies": ["git"],
     }
     assert commitment.digest() != _contract(risks=("other",)).digest()
+
+
+def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: Path) -> None:
+    system = tmp_path / "system"
+    schemas = tmp_path / "schemas"
+    system.mkdir()
+    schemas.mkdir()
+    (system / "formats.toml").write_text("schema = 'schemas/formats.json'\n", encoding="utf-8")
+    (system / "routing.toml").write_text("invalid = [\n", encoding="utf-8")
+    (system / "surfaces.toml").write_text("schema = 'schemas/missing.json'\n", encoding="utf-8")
+    (system / "tools.toml").write_text(
+        "schema = 'schemas/tools.json'\nvalue = 1\n", encoding="utf-8"
+    )
+    (schemas / "formats.json").write_text("not-json", encoding="utf-8")
+    (schemas / "tools.json").write_text(
+        json.dumps({"type": "object", "required": ["required"]}), encoding="utf-8"
+    )
+
+    report = system_contracts_report(tmp_path)
+
+    assert report["contracts"] == {
+        "formats": True,
+        "routing": False,
+        "surfaces": True,
+        "tools": True,
+        "evidence_boundaries": False,
+    }
+    gaps = report["required_gaps"]
+    assert any(str(gap).startswith("system_schema_unreadable:formats:") for gap in gaps)
+    assert any(str(gap).startswith("system_contract_invalid:routing:") for gap in gaps)
+    assert "system_schema_ref_missing:surfaces:schemas/missing.json" in gaps
+    assert any(str(gap).startswith("system_contract_schema_violation:tools:") for gap in gaps)
+    assert "system_contract_missing:evidence_boundaries" in gaps
+    assert load_system_contract(tmp_path, "formats") == {"schema": "schemas/formats.json"}
+
+
+def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path: Path) -> None:
+    schema = tmp_path / "schema.json"
+    schema.write_text(json.dumps({"type": "object", "required": ["id"]}), encoding="utf-8")
+
+    assert schema_validation_gaps("sample", {"id": "sample"}, schema) == []
+    assert tuple(SYSTEM_CONTRACTS) == (
+        "formats",
+        "routing",
+        "surfaces",
+        "tools",
+        "evidence_boundaries",
+    )
 
 
 @pytest.mark.parametrize("field", ["campaign", "collaboration", "compatibility", "publication"])

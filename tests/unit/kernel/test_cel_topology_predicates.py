@@ -11,8 +11,11 @@ from ethos.contracts.artifacts.topology import GeneratedArtifactTopologyDeclarat
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.contracts.policy.cel import CelEvaluationError
+from ethos.contracts.policy.cel import evaluate_cel_gap_groups
 from ethos.contracts.policy.cel import evaluate_cel_predicate
+from ethos.contracts.policy.cel import evaluate_cel_rules
 from ethos.contracts.policy.cel import evaluate_cel_value
+from ethos.contracts.policy.cel import validate_cel_expression
 from tests.support.literal_cases import literal_case
 
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
@@ -57,6 +60,40 @@ def test_cel_value_projects_native_json_shapes() -> None:
 def test_cel_evaluation_errors_fail_closed() -> None:
     with pytest.raises(CelEvaluationError, match="divide by zero"):
         evaluate_cel_value("1 / 0", facts={}, policy={}, rule={})
+
+
+def test_cel_rule_and_gap_group_public_projection_matrix() -> None:
+    class Rule:
+        def __init__(self, expression: str, gap: str) -> None:
+            self.expression, self.gap = expression, gap
+
+    class Group:
+        def __init__(self, values: str, prefix: str) -> None:
+            self.values, self.prefix = values, prefix
+
+    assert evaluate_cel_rules(
+        (Rule("facts.allowed", "'blocked:' + facts.name"), Rule("true", "'unused'")),
+        facts={"allowed": False, "name": "change"},
+        policy={},
+    ) == ["blocked:change"]
+    assert evaluate_cel_gap_groups(
+        (Group("facts.paths", "'uncovered:'"),),
+        facts={"paths": ["src/a.py", "tests/a.py"]},
+        policy={},
+    ) == ["uncovered:src/a.py", "uncovered:tests/a.py"]
+    with pytest.raises(TypeError, match="CEL gap group must return a list"):
+        evaluate_cel_gap_groups(
+            (Group("facts.path", "'uncovered:'"),),
+            facts={"path": "src/a.py"},
+            policy={},
+        )
+
+
+def test_cel_expression_validation_rejects_invalid_declarations() -> None:
+    expression = "facts.allowed == true"
+    assert validate_cel_expression(expression) == expression
+    with pytest.raises(ValueError, match="invalid CEL expression"):
+        validate_cel_expression("facts[")
 
 
 def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions() -> None:

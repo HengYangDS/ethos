@@ -14,10 +14,10 @@ from cyclopts import Parameter
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
-from ethos.adapters.admission.git_admission import resolve_ref_move_policy
 from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
+from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.hook_runtime import execute_hook

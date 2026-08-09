@@ -306,6 +306,7 @@ yaml_allowed_roots = [
 ".json" = { roots = [
   "system/schemas/",
   "system/openspec/",
+  "tests/fixtures/",
   "evidence/",
   "distributions/npm/",
 ], files = [

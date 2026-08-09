@@ -425,4 +425,5 @@ class CommitmentRebindRequest(BaseModel):
     new_commitment_path: RepositoryRelativePath
     new_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     new_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    repair_change_identity: bool = False
     apply: bool = False

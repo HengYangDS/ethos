@@ -493,7 +493,7 @@ def _require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
 
 def _is_commitment_rebind_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
     """Recognize rebind's command-level CAS authority without widening normal effects."""
-    if plan.policy.get("operation") != "commitment.rebind":
+    if plan.policy.get("operation") not in {"commitment.rebind", "change.identity-repair"}:
         return False
     values = plan.facts.get("values")
     facts = values if isinstance(values, Mapping) else {}

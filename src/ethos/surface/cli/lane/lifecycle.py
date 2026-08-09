@@ -100,6 +100,7 @@ class _CommitmentRebind(AppliedLaneCommandOptions):
     new_commitment_path: Annotated[str, Parameter(name="--new-commitment-path")]
     new_commitment_bytes_sha256: Annotated[str, Parameter(name="--new-commitment-bytes-sha256")]
     new_commitment_digest: Annotated[str, Parameter(name="--new-commitment-digest")]
+    repair_change_identity: Annotated[bool, Parameter(name="--repair-change-identity")] = False
     expected_path_scope: Annotated[tuple[str, ...], Parameter(name="--expected-path-scope")] = ()
 
 

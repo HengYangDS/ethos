@@ -25,8 +25,10 @@ def require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
     admitted = set(plan.permissions)
     if "git.ref.compare-and-swap" in admitted or set(effect.permissions) <= admitted:
         return
-    if _is_commitment_rebind_authority(effect, plan) or _is_candidate_integration_authority(
-        effect, plan
+    if (
+        _is_commitment_rebind_authority(effect, plan)
+        or _is_candidate_integration_authority(effect, plan)
+        or _is_lane_start_authority(effect, plan)
     ):
         return
     message = "git_effect_permission_denied"
@@ -94,6 +96,46 @@ def _is_candidate_integration_authority(effect: GitEffect, plan: TransitionPlan)
         and statement.get("head", update.desired) == update.desired
         and proof.get("commitment_digest") == generation.get("base_commitment_digest")
         and proof.get("commitment_digest") == plan.inputs.commitment
+    )
+
+
+def _is_lane_start_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
+    """Admit only the exact zero-to-leased-head ref creation owned by lane start."""
+    if plan.policy.get("operation") != "lane.start" or "work-lane.write" not in plan.permissions:
+        return False
+    values = plan.facts.get("values")
+    facts = values if isinstance(values, Mapping) else {}
+    generation = facts.get("lease_generation")
+    if not isinstance(generation, Mapping):
+        return False
+    updates = tuple(effect.updates.items())
+    if len(updates) != 1:
+        return False
+    ref, update = updates[0]
+    branch = str(plan.policy.get("branch") or "")
+    candidate = str(plan.policy.get("candidate_branch") or "")
+    holder = str(plan.policy.get("holder_ref") or "")
+    expected_assertions = (
+        {f"refs/heads/{candidate}": str(plan.facts.get("head") or "")} if candidate else {}
+    )
+    source_branch = str(plan.policy.get("source_branch") or "")
+    source_head = str(plan.policy.get("source_head") or "")
+    if source_branch or source_head:
+        if not source_branch or not source_head:
+            return False
+        expected_assertions[f"refs/heads/{source_branch}"] = source_head
+    return (
+        bool(candidate)
+        and branch.startswith("work/")
+        and ref == f"refs/heads/{branch}"
+        and update.expected == "0" * len(update.desired)
+        and bool(update.desired.strip("0"))
+        and generation.get("branch") == branch
+        and generation.get("holder_ref") == holder
+        and generation.get("expected_head") == update.desired
+        and dict(effect.assertions) == expected_assertions
+        and facts.get("refs") == {ref: update.expected}
+        and facts.get("assertions") == expected_assertions
     )
 
 

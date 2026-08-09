@@ -231,6 +231,15 @@ def lane_start_transition_plan(
             "operation": "lane.start",
             "branch": context.branch,
             "holder_ref": context.holder_ref,
+            "candidate_branch": context.policy.candidate_branch,
+            **(
+                {
+                    "source_branch": context.source_branch,
+                    "source_head": context.source_head,
+                }
+                if context.source_branch
+                else {}
+            ),
         },
         values={"lease_generation": lease_generation(lease)},
     )

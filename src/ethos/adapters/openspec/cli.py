@@ -185,7 +185,11 @@ def run_json(
             capture_output=True,
             check=False,
             timeout=OPENSPEC_COMMAND_TIMEOUT_SECONDS,
-            env={"PATH": os.environ.get("PATH", os.defpath)},
+            env={
+                "PATH": os.environ.get("PATH", os.defpath),
+                "PWD": str(root),
+                "OLDPWD": str(root),
+            },
         )
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""

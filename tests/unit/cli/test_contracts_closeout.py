@@ -92,10 +92,6 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_pat
     git(candidate, "add", ".")
     git(
         candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "replace admission control",

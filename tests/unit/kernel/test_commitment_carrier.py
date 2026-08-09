@@ -124,10 +124,6 @@ def test_exact_lease_binding_does_not_follow_a_carrier_move(tmp_path: Path) -> N
     git(repo, "add", ".")
     git(
         repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "declare commitment",
@@ -157,10 +153,6 @@ def test_exact_lease_binding_does_not_follow_a_carrier_move(tmp_path: Path) -> N
     git(repo, "add", ".")
     git(
         repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "archive commitment",

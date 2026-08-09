@@ -102,10 +102,6 @@ def _repo(
     git(root, "add", ".")
     git(
         root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-qm",
         "baseline",

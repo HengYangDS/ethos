@@ -53,10 +53,6 @@ def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
     git(repo, "add", "obsolete.txt")
     git(
         repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "absorb obsolete lane delta",
@@ -96,10 +92,6 @@ def superseded_work_lane(
     git(lane, "add", "obsolete.txt")
     git(
         lane,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "obsolete lane delta",

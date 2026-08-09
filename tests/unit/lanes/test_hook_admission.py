@@ -301,10 +301,6 @@ def test_prewrite_rebase_state_matrix(leased_worktree: Path) -> None:
     git(root, "add", "REBASE.md")
     git(
         root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "replay checkpoint",

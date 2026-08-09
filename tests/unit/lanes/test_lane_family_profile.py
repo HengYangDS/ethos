@@ -484,10 +484,6 @@ def _mutate_blocked_start(
         git(case.candidate, "add", carrier.relative_to(case.candidate).as_posix())
         git(
             case.candidate,
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
             "commit",
             "-m",
             "seed forbidden candidate carrier",

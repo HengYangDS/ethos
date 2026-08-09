@@ -91,10 +91,6 @@ def _archive(monkeypatch: pytest.MonkeyPatch, root: Path) -> str:
 def _commit(root: Path, message: str) -> None:
     git(
         root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         message,

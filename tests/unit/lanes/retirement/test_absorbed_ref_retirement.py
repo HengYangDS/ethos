@@ -37,10 +37,6 @@ def _absorbed_ref(tmp_path: Path) -> tuple[Path, str, str]:
     git(repo, "add", marker.name)
     git(
         repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "advance accepted truth",

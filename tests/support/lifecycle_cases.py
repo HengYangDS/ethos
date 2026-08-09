@@ -78,10 +78,6 @@ class LaneStartCase:
         git(self.source, "add", relative)
         git(
             self.source,
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
             "commit",
             "-m",
             "drift source without advancing lease",

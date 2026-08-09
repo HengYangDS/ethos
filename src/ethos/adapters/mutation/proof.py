@@ -14,7 +14,6 @@ from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
-from ethos.adapters.openspec.archive_effect import archive_effect_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
@@ -344,25 +343,9 @@ def proof_plan(
             *(("lease:current-generation",) if work_lane else ()),
         ),
     )
-    observed_archive_authority = (
-        observed_scope.archive_authority
-        if generation_scope is not None
-        and observed_scope is not None
-        and observed_scope.archive_authority
-        and effective_paths == observed_scope.paths
-        else {}
-    )
     archive_authority = (
-        observed_archive_authority
-        or archive_effect_authority(
-            root,
-            head=head,
-            repository_id=repository.id,
-            commitment=commitment,
-            lease=lease,
-            changed_paths=effective_paths,
-        )
-        if work_lane and effective_paths
+        observed_scope.archive_authority
+        if work_lane and effective_paths and observed_scope is not None
         else {}
     )
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}

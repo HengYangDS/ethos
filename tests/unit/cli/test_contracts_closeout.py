@@ -16,24 +16,34 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path: Path) -> None:
+def _closeout_repo(tmp_path: Path, *, changed: bool = False) -> tuple[Path, Path, str, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
     accepted_head = git(repo, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
+    if changed:
+        commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
+    return repo, candidate, accepted_head, git(candidate, "rev-parse", "HEAD")
+
+
+def _closeout(
+    repo: Path,
+    *args: str,
+    expect_head: str | None = None,
+    blocked: bool = False,
+) -> dict[str, object]:
+    command = ["land", "--closeout", *args]
+    if expect_head is not None:
+        command.extend(("--expect-head", expect_head))
+    command.append("--json")
+    runner = run_ethos_blocked if blocked else run_ethos
+    return runner(*command, cwd=repo)
+
+
+def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path: Path) -> None:
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
     seed_executed_proof(candidate, candidate_head)
-    payload = run_ethos(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        accepted_head,
-        "--json",
-        cwd=repo,
-    )
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
@@ -121,12 +131,7 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_pat
 def test_land_closeout_audits_candidate_content_before_fast_forward(
     tmp_path: Path, monkeypatch
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
     seed_executed_proof(candidate, candidate_head)
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
@@ -140,26 +145,14 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
         }
 
     monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
-    payload = run_ethos(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        accepted_head,
-        "--json",
-        cwd=repo,
-    )
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
     assert payload["verdict"] == "pass"
     assert payload["required_gaps"] == []
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
 
 def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    repo, _candidate, _accepted_head, _candidate_head = _closeout_repo(tmp_path)
     payload = run_ethos("land", "--json", cwd=repo)
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
@@ -168,10 +161,7 @@ def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> N
 
 
 def test_land_dry_run_blocks_candidate_root_without_closeout(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    repo, candidate, _accepted_head, _candidate_head = _closeout_repo(tmp_path)
     payload = run_ethos("land", "--root", candidate.as_posix(), "--json", cwd=repo)
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
@@ -180,12 +170,8 @@ def test_land_dry_run_blocks_candidate_root_without_closeout(tmp_path: Path) -> 
 
 
 def test_land_closeout_dry_run_reports_expect_head_mismatch(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-    payload = run_ethos("land", "--closeout", "--expect-head", candidate_head, "--json", cwd=repo)
+    repo, _candidate, _accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    payload = _closeout(repo, expect_head=candidate_head)
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["expect_head_mismatch"]
@@ -194,11 +180,7 @@ def test_land_closeout_dry_run_reports_expect_head_mismatch(tmp_path: Path) -> N
 
 
 def test_land_closeout_dry_run_reports_accepted_root_required(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    accepted_head = git(repo, "rev-parse", "HEAD")
+    repo, candidate, accepted_head, _candidate_head = _closeout_repo(tmp_path)
     payload = run_ethos(
         "land",
         "--closeout",
@@ -225,12 +207,8 @@ def test_land_closeout_dry_run_reports_accepted_root_required(tmp_path: Path) ->
 def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    payload = run_ethos("land", "--closeout", "--json", cwd=repo)
+    repo, _candidate, accepted_head, _candidate_head = _closeout_repo(tmp_path)
+    payload = _closeout(repo)
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_current"
     assert payload["required_gaps"] == []
@@ -257,21 +235,8 @@ def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
 def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_proof(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    payload = run_ethos(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        accepted_head,
-        "--json",
-        cwd=repo,
-    )
+    repo, _candidate, accepted_head, _candidate_head = _closeout_repo(tmp_path)
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_current"
     assert payload["required_gaps"] == []
@@ -285,13 +250,8 @@ def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_pro
 
 
 def test_land_closeout_exposes_bootstrap_package_for_current_runner(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-    payload = run_ethos("land", "--closeout", "--json", cwd=repo)
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    payload = _closeout(repo)
     bootstrap = payload["data"]["closeout_bootstrap"]
     assert payload["verdict"] == "pass"
     runner_binding = bootstrap["runner_binding"]
@@ -319,22 +279,8 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(tmp_path: Pa
 
 
 def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-    payload = run_ethos_blocked(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        accepted_head,
-        "--json",
-        cwd=repo,
-    )
+    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
+    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head, blocked=True)
     bootstrap = payload["data"]["closeout_bootstrap"]
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["proof_not_proven"]
@@ -351,10 +297,7 @@ def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(tmp_p
 def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     tmp_path: Path, monkeypatch
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
+    repo, candidate, _accepted_head, _candidate_head = _closeout_repo(tmp_path, changed=True)
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         assert root.resolve() == candidate.resolve()
@@ -384,7 +327,7 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
             "parse_error": "",
         },
     )
-    payload = run_ethos("land", "--closeout", "--json", cwd=repo)
+    payload = _closeout(repo)
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"
     assert "openspec_completed_change_unarchived:sample-change" in payload["required_gaps"]

@@ -11,11 +11,14 @@ import pytest
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.openspec.profile as openspec_profile
 from ethos.adapters.mutation.proof import attestation_store_dir
+from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_validation import former_official_statement_projection
+from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
@@ -190,6 +193,198 @@ def test_proof_issuance_rechecks_live_facts(
     monkeypatch.setattr(proof_module, "current_tree", lambda *_args, **_kwargs: "0" * 40)
     with pytest.raises(ValueError, match="proof_attestation_live_facts_stale"):
         issue_conformant_proof(repo, head, plan=plan, issuer="agent:test:case:proof")
+
+
+@pytest.mark.parametrize(
+    ("case", "error"),
+    [
+        ("plan", "proof_attestation_plan_invalid"),
+        ("checks", "proof_attestation_checks_invalid"),
+        ("payload", "proof_attestation_payload_invalid"),
+        ("empty", "proof_attestation_payload_invalid"),
+        ("verdict", "proof_attestation_verdict_invalid"),
+        ("issued-at", "proof_attestation_issued_at_invalid"),
+        ("required-gaps-shape", "proof_attestation_required_gaps_invalid"),
+        ("required-gaps-item", "proof_attestation_required_gaps_invalid"),
+    ],
+)
+def test_proof_issuance_payload_is_a_closed_contract(
+    tmp_path: Path,
+    case: str,
+    error: str,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    plan = proof_plan(repo, head=head)
+    checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
+    payload: dict[str, object] = {
+        "plan": plan,
+        "checks": checks,
+        "verdict": "pass",
+        "issuer": "agent:test:case:proof",
+        "scope": "repository",
+        "boundary": "repository",
+    }
+    updates: dict[str, object] = {
+        "plan": None,
+        "checks": list(checks),
+        "payload": {"issuer": 1},
+        "empty": {"scope": ""},
+        "verdict": {"verdict": "maybe"},
+        "issued-at": {"issued_at": "now"},
+        "required-gaps-shape": {"required_gaps": []},
+        "required-gaps-item": {"required_gaps": (1,)},
+    }
+    update = updates[case]
+    if isinstance(update, dict):
+        payload.update(update)
+    else:
+        payload[case] = update
+
+    with pytest.raises((TypeError, ValueError), match=error):
+        issue_proof_attestation(repo, payload)
+
+
+def test_proof_issuance_rejects_nonadmitted_plan_and_result_drift(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    admitted = proof_plan(repo, head=head)
+    checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in admitted.nodes)
+    blocked = compile_plan(
+        Commitment.model_validate(dict(admitted.commitment)),
+        Facts.model_validate(admitted.facts | {"observed_at": datetime.now(UTC)}),
+        admitted.nodes,
+        policy=dict(admitted.policy),
+        prior_attestations=dict(admitted.prior_attestations),
+        required_gaps=("unresolved",),
+    )
+    payload = {
+        "plan": blocked,
+        "checks": checks,
+        "verdict": "pass",
+        "issuer": "agent:test:case:proof",
+        "scope": "repository",
+        "boundary": "repository",
+    }
+    with pytest.raises(ValueError, match="proof_plan_not_admitted"):
+        issue_proof_attestation(repo, payload)
+
+    payload["plan"] = admitted
+    payload["required_gaps"] = ("unresolved",)
+    with pytest.raises(ValueError, match="proof_attestation_verdict_mismatch"):
+        issue_proof_attestation(repo, payload)
+
+    payload["required_gaps"] = ()
+    payload["checks"] = checks[:-1]
+    with pytest.raises(ValueError, match="proof_attestation_check_plan_mismatch"):
+        issue_proof_attestation(repo, payload)
+
+
+@pytest.mark.parametrize(
+    ("state", "gap"),
+    [
+        ("expired", "work_lane_lease_expired"),
+        ("head", "lease_head_stale"),
+        ("actor", "lease_actor_mismatch"),
+    ],
+)
+def test_work_lane_proof_plan_requires_current_lease_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    state: str,
+    gap: str,
+) -> None:
+    holder = "agent:test:case:proof-holder"
+    root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
+    head = git(root, "rev-parse", "HEAD")
+    lease = dict(proof_module.leases_by_branch(root)["work/feature"])
+    monkeypatch.setenv("ETHOS_ACTOR", "other" if state == "actor" else holder)
+    if state == "expired":
+        lease["lease_state"] = "expired"
+    elif state == "head":
+        lease["expected_head"] = "0" * 40
+    monkeypatch.setattr(
+        proof_module,
+        "leases_by_branch",
+        lambda _root: {"work/feature": lease},
+    )
+
+    with pytest.raises(ValueError, match=gap):
+        proof_plan(root, head=head)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "gap"),
+    [
+        ("required_gaps", "invalid", "proof_attestation_required_gaps_invalid"),
+        ("plan", "invalid", "proof_attestation_plan_missing"),
+        ("claim", {"objective": "", "verdict": "pass"}, "proof_attestation_claim_mismatch"),
+        ("scope", [], "proof_attestation_scope_mismatch"),
+        ("plane", "hosted", "proof_attestation_plane_mismatch"),
+        ("boundary", "other", "proof_attestation_boundary_mismatch"),
+        ("context", {"boundary": "focused"}, "proof_attestation_context_mismatch"),
+        ("novel", True, "model_gap"),
+    ],
+)
+def test_proof_statement_shape_validation_matrix(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    gap: str,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _issue(repo, head)
+    checks, artifact_gaps = artifact_checks(attestation_store_dir(repo), record)
+    assert checks is not None
+    assert not artifact_gaps
+    candidate = _reissue(record, statement=record.statement | {field: value})
+
+    assert gap in proof_statement_gaps(candidate, checks)
+
+
+@pytest.mark.parametrize(
+    ("case", "gap"),
+    [
+        ("binding", "proof_attestation_binding_mismatch:plan_digest"),
+        ("gate", "proof_gate_not_policy_conformant"),
+        ("check", "proof_attestation_check_not_passed"),
+        ("trust", "trust_bearing_proof_missing"),
+    ],
+)
+def test_proof_result_and_policy_validation_matrix(
+    tmp_path: Path,
+    case: str,
+    gap: str,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _issue(repo, head)
+    checks, artifact_gaps = artifact_checks(attestation_store_dir(repo), record)
+    assert checks is not None
+    assert not artifact_gaps
+    candidate = _reissue(record, plan_digest="0" * 64) if case == "binding" else record
+    candidate_checks = checks
+    if case == "gate":
+        candidate_checks = (checks[0] | {"command": ["other"]}, *checks[1:])
+    elif case == "check":
+        candidate_checks = (checks[0] | {"verdict": "block"}, *checks[1:])
+    elif case == "trust":
+        candidate_checks = tuple(check | {"trust_bearing": False} for check in checks)
+
+    assert any(item.startswith(gap) for item in proof_statement_gaps(candidate, candidate_checks))
+
+
+def test_former_official_proof_projection_is_exact_or_rejected(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _issue(repo, head)
+    checks, artifact_gaps = artifact_checks(attestation_store_dir(repo), record)
+    assert checks is not None
+    assert not artifact_gaps
+    plan = TransitionPlan.model_validate(mutable_json(record.statement["plan"]))
+    statement = dict(record.statement) | former_official_statement_projection(record, plan)
+    statement["head"] = "0" * 40
+    candidate = _reissue(record, statement=statement)
+
+    assert "proof_attestation_former_projection_mismatch:head" in proof_statement_gaps(
+        candidate, checks
+    )
 
 
 @pytest.mark.parametrize(

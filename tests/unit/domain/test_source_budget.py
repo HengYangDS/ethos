@@ -169,6 +169,33 @@ def _fake_scc(
     monkeypatch.setattr(source_budget.subprocess, "run", dispatch)
 
 
+def _measure(
+    monkeypatch: pytest.MonkeyPatch,
+    root: Path,
+    counts: dict[str, int] | None = None,
+    *,
+    include_all: bool = True,
+) -> dict[str, object]:
+    _fake_scc(monkeypatch, root, counts, include_all=include_all)
+    return source_budget.source_budget_report(root)
+
+
+def _tracked_file(
+    root: Path,
+    relative: str,
+    content: str,
+    *,
+    executable: bool = False,
+) -> Path:
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    if executable:
+        path.chmod(0o755)
+    git(root, "add", path.as_posix())
+    return path
+
+
 def test_product_policy_counts_markdown_in_global_budget() -> None:
     root = Path(__file__).resolve().parents[3]
     report = source_budget.source_budget_report(root)
@@ -182,9 +209,7 @@ def test_direct_measurement_is_clean_when_bounded_counters_agree(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
+    report = _measure(monkeypatch, tmp_path)
 
     assert (report["verdict"], report["state"], report["required_gaps"]) == (
         "pass",
@@ -201,15 +226,9 @@ def test_measurement_separates_exact_immutable_record_roots(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    evidence = tmp_path / "evidence/chronicle/decision.py"
-    evidence.parent.mkdir(parents=True)
-    evidence.write_text("FIRST = 1\nSECOND = 2\n", encoding="utf-8")
-    archive = tmp_path / "openspec/changes/archive/closed/receipt.json"
-    archive.parent.mkdir(parents=True)
-    archive.write_text('{"closed": true}\n', encoding="utf-8")
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
+    _tracked_file(tmp_path, "evidence/chronicle/decision.py", "FIRST = 1\nSECOND = 2\n")
+    _tracked_file(tmp_path, "openspec/changes/archive/closed/receipt.json", '{"closed": true}\n')
+    report = _measure(monkeypatch, tmp_path)
 
     assert report["required_gaps"] == []
     assert report["metrics"]["python_total"] == 2
@@ -222,10 +241,8 @@ def test_report_exposes_implementation_and_record_cross_check_totals(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    record = tmp_path / "evidence/chronicle/decision.py"
-    record.parent.mkdir(parents=True)
-    record.write_text("RECORDED = 1\n", encoding="utf-8")
-    _fake_scc(
+    _tracked_file(tmp_path, "evidence/chronicle/decision.py", "RECORDED = 1\n")
+    report = _measure(
         monkeypatch,
         tmp_path,
         {
@@ -235,8 +252,6 @@ def test_report_exposes_implementation_and_record_cross_check_totals(
             "evidence/chronicle/decision.py": 1,
         },
     )
-
-    report = source_budget.source_budget_report(tmp_path)
 
     assert report["required_gaps"] == []
     assert report["cross_check"]["python_total"] == report["metrics"]["python_total"]
@@ -251,12 +266,8 @@ def test_generated_lock_is_dependency_evidence_not_owned_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    _fake_scc(monkeypatch, tmp_path)
-    before = source_budget.source_budget_report(tmp_path)
-    package_lock = tmp_path / "package-lock.json"
-    package_lock.write_text('{\n  "lockfileVersion": 3\n}\n', encoding="utf-8")
-    git(tmp_path, "add", package_lock.as_posix())
-
+    before = _measure(monkeypatch, tmp_path)
+    _tracked_file(tmp_path, "package-lock.json", '{\n  "lockfileVersion": 3\n}\n')
     report = source_budget.source_budget_report(tmp_path)
 
     assert report["required_gaps"] == []
@@ -286,13 +297,8 @@ def test_ecosystem_lockfile_patterns_share_one_evidence_class(
     relative: str,
 ) -> None:
     _repo(tmp_path)
-    path = tmp_path / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("resolved dependency graph\n", encoding="utf-8")
-    git(tmp_path, "add", path.as_posix())
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
+    _tracked_file(tmp_path, relative, "resolved dependency graph\n")
+    report = _measure(monkeypatch, tmp_path)
 
     assert report["inventory"]["category_counts"]["dependency_resolution"] == 1
 
@@ -302,13 +308,8 @@ def test_ordinary_structured_files_cannot_impersonate_lockfile_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    path = tmp_path / "system/clock.json"
-    path.parent.mkdir()
-    path.write_text('{"source": true}\n', encoding="utf-8")
-    git(tmp_path, "add", path.as_posix())
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
+    _tracked_file(tmp_path, "system/clock.json", '{"source": true}\n')
+    report = _measure(monkeypatch, tmp_path)
 
     assert report["inventory"]["category_counts"].get("dependency_resolution", 0) == 0
     assert report["inventory"]["category_counts"]["json"] == 1
@@ -319,11 +320,8 @@ def test_record_growth_is_visible_without_increasing_implementation_totals(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    record = tmp_path / "evidence/chronicle/decision.py"
-    record.parent.mkdir(parents=True)
-    record.write_text("FIRST = 1\n", encoding="utf-8")
-    _fake_scc(monkeypatch, tmp_path)
-    before = source_budget.source_budget_report(tmp_path)
+    record = _tracked_file(tmp_path, "evidence/chronicle/decision.py", "FIRST = 1\n")
+    before = _measure(monkeypatch, tmp_path)
 
     record.write_text("FIRST = 1\nSECOND = 2\nTHIRD = 3\n", encoding="utf-8")
     after = source_budget.source_budget_report(tmp_path)
@@ -338,13 +336,8 @@ def test_record_root_does_not_hide_an_unclassified_executable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    executable = tmp_path / "evidence/chronicle/opaque"
-    executable.parent.mkdir(parents=True)
-    executable.write_text("opaque\n", encoding="utf-8")
-    executable.chmod(0o755)
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
+    _tracked_file(tmp_path, "evidence/chronicle/opaque", "opaque\n", executable=True)
+    report = _measure(monkeypatch, tmp_path)
 
     expected = "source_budget_executable_unclassified:evidence/chronicle/opaque"
     assert expected in report["required_gaps"]
@@ -355,9 +348,7 @@ def test_terminal_verdict_uses_canonical_effective_lines_not_physical_cross_chec
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path, terminal=(2, 2_000))
-    _fake_scc(monkeypatch, tmp_path, {"src/ethos/demo.py": 3})
-
-    report = source_budget.source_budget_report(tmp_path)
+    report = _measure(monkeypatch, tmp_path, {"src/ethos/demo.py": 3})
 
     assert report["metrics"]["python_total"] == 2
     assert report["cross_check"]["python_total"] == 3
@@ -370,18 +361,9 @@ def test_extensionless_hook_is_counted_and_unknown_executable_blocks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    hook = tmp_path / ".githooks/pre-push"
-    hook.parent.mkdir()
-    hook.write_text("#!/bin/sh\necho ready\n", encoding="utf-8")
-    hook.chmod(0o755)
-    unknown = tmp_path / "bin/tool"
-    unknown.parent.mkdir()
-    unknown.write_text("opaque\n", encoding="utf-8")
-    unknown.chmod(0o755)
-    git(tmp_path, "add", ".")
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
+    _tracked_file(tmp_path, ".githooks/pre-push", "#!/bin/sh\necho ready\n", executable=True)
+    _tracked_file(tmp_path, "bin/tool", "opaque\n", executable=True)
+    report = _measure(monkeypatch, tmp_path)
 
     assert report["metrics"]["shell"] >= 1
     assert "source_budget_executable_unclassified:bin/tool" in report["required_gaps"]
@@ -392,7 +374,7 @@ def test_scc_cross_check_accepts_a_stricter_physical_markdown_count(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path, tolerance=(0, 0))
-    _fake_scc(
+    report = _measure(
         monkeypatch,
         tmp_path,
         {
@@ -401,8 +383,6 @@ def test_scc_cross_check_accepts_a_stricter_physical_markdown_count(
             "src/ethos/demo.py": 2,
         },
     )
-
-    report = source_budget.source_budget_report(tmp_path)
 
     assert report["cross_check"]["global_total"] > report["metrics"]["global_total"]
     assert not any("global_total_disagrees" in gap for gap in report["required_gaps"])
@@ -413,14 +393,12 @@ def test_scc_file_set_and_canonical_overcount_disagreement_block(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path, tolerance=(0, 0))
-    _fake_scc(
+    report = _measure(
         monkeypatch,
         tmp_path,
         {"src/ethos/demo.py": 4},
         include_all=False,
     )
-
-    report = source_budget.source_budget_report(tmp_path)
 
     assert any(gap.startswith("source_budget_scc_file_missing:") for gap in report["required_gaps"])
     assert any("_disagrees:" in gap for gap in report["required_gaps"])
@@ -431,13 +409,9 @@ def test_structured_measurement_cannot_be_reduced_by_minifying_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    data = tmp_path / "system/data.json"
-    data.parent.mkdir()
     value = {"items": [{"name": f"item-{index}", "enabled": True} for index in range(20)]}
-    data.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-    git(tmp_path, "add", ".")
-    _fake_scc(monkeypatch, tmp_path)
-    pretty = source_budget.source_budget_report(tmp_path)["metrics"]["json"]
+    data = _tracked_file(tmp_path, "system/data.json", json.dumps(value, indent=2) + "\n")
+    pretty = _measure(monkeypatch, tmp_path)["metrics"]["json"]
 
     data.write_text(json.dumps(value, separators=(",", ":")) + "\n", encoding="utf-8")
     compact = source_budget.source_budget_report(tmp_path)["metrics"]["json"]
@@ -463,12 +437,8 @@ def test_structured_measurement_is_formatting_and_order_invariant(
     second: str,
 ) -> None:
     _repo(tmp_path)
-    path = tmp_path / f"system/data{suffix}"
-    path.parent.mkdir()
-    path.write_text(first, encoding="utf-8")
-    git(tmp_path, "add", ".")
-    _fake_scc(monkeypatch, tmp_path)
-    before = source_budget.source_budget_report(tmp_path)["metrics"][category]
+    path = _tracked_file(tmp_path, f"system/data{suffix}", first)
+    before = _measure(monkeypatch, tmp_path)["metrics"][category]
 
     path.write_text(second, encoding="utf-8")
     after = source_budget.source_budget_report(tmp_path)["metrics"][category]
@@ -481,13 +451,8 @@ def test_yaml_measurement_accepts_native_mixed_scalar_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _repo(tmp_path)
-    path = tmp_path / "system/data.yaml"
-    path.parent.mkdir()
-    path.write_text("on: enabled\ntrue: boolean-key\n", encoding="utf-8")
-    git(tmp_path, "add", ".")
-    _fake_scc(monkeypatch, tmp_path)
-
-    report = source_budget.source_budget_report(tmp_path)
+    _tracked_file(tmp_path, "system/data.yaml", "on: enabled\ntrue: boolean-key\n")
+    report = _measure(monkeypatch, tmp_path)
 
     assert report["metrics"]["yaml"] > 0
 

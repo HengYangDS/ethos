@@ -1,385 +1,385 @@
 {
-    "push_invalid_targets": [
-        {
-            "id": "candidate_remote_forbidden",
-            "values": [
-                "refs/heads/candidate/dev",
-                "origin",
-                "publication_candidate_branch_remote_forbidden:candidate/dev",
-                "any"
-            ]
-        },
-        {
-            "id": "unknown_remote",
-            "values": [
-                "refs/heads/dev",
-                "unknown",
-                "publication_remote_target_unknown:unknown",
-                "any"
-            ]
-        },
-        {
-            "id": "work_remote_forbidden_without_proof",
-            "values": [
-                "refs/heads/work/dual-remote",
-                "github",
-                "publication_remote_branch_forbidden:work/dual-remote",
-                "absent"
-            ]
-        }
-    ],
-    "prewrite_states": [
-        {
-            "id": "protected_path",
-            "values": [
-                "protected_path",
-                "accepted_root",
-                "protected_lane_prewrite_blocked"
-            ]
-        },
-        {
-            "id": "protected_missing_paths",
-            "values": [
-                "protected_missing_paths",
-                "accepted_root",
-                "protected_root_pretool_paths_required"
-            ]
-        },
-        {
-            "id": "work_missing_lease",
-            "values": [
-                "work_missing_lease",
-                "work_lane",
-                "work_lane_missing_lease:work/feature"
-            ]
-        }
-    ],
-    "prewrite_actor_states": [
-        {
-            "id": "holder_match",
-            "values": [
-                "agent:test:case:agent-a",
-                "admitted",
-                "allow",
-                "matched"
-            ]
-        },
-        {
-            "id": "holder_mismatch",
-            "values": [
-                "agent:test:case:agent-b",
-                "blocked",
-                "block",
-                "lease_holder_mismatch:work/feature"
-            ]
-        }
-    ],
-    "mutation_without_paths": [
-        {
-            "id": "python -c 'from pathlib import Path; Path(\"README.md\").write_text(\"x\")'",
-            "values": [
-                "python -c 'from pathlib import Path; Path(\"README.md\").write_text(\"x\")'"
-            ]
-        },
-        {
-            "id": "python scripts/generate.py",
-            "values": [
-                "python scripts/generate.py"
-            ]
-        },
-        {
-            "id": "git apply patch.diff",
-            "values": [
-                "git apply patch.diff"
-            ]
-        },
-        {
-            "id": "touch README.md",
-            "values": [
-                "touch README.md"
-            ]
-        }
-    ],
-    "observe_only_commands": [
-        {
-            "id": "git status --short",
-            "values": [
-                "git status --short"
-            ]
-        },
-        {
-            "id": "git branch --show-current",
-            "values": [
-                "git branch --show-current"
-            ]
-        },
-        {
-            "id": "git branch --list 'work/*'",
-            "values": [
-                "git branch --list 'work/*'"
-            ]
-        },
-        {
-            "id": "git tag --list 'v*'",
-            "values": [
-                "git tag --list 'v*'"
-            ]
-        },
-        {
-            "id": "git tag --points-at HEAD",
-            "values": [
-                "git tag --points-at HEAD"
-            ]
-        },
-        {
-            "id": "git stash list",
-            "values": [
-                "git stash list"
-            ]
-        },
-        {
-            "id": "git stash show --stat",
-            "values": [
-                "git stash show --stat"
-            ]
-        },
-        {
-            "id": "ethos status --json",
-            "values": [
-                "ethos status --json"
-            ]
-        },
-        {
-            "id": "ethos plan --root=. --json",
-            "values": [
-                "ethos plan --root=. --json"
-            ]
-        }
-    ],
-    "effect_capable_commands": [
-        {
-            "id": "git branch feature",
-            "values": [
-                "git branch feature"
-            ]
-        },
-        {
-            "id": "git branch -D feature",
-            "values": [
-                "git branch -D feature"
-            ]
-        },
-        {
-            "id": "git tag v1",
-            "values": [
-                "git tag v1"
-            ]
-        },
-        {
-            "id": "git tag -d v1",
-            "values": [
-                "git tag -d v1"
-            ]
-        },
-        {
-            "id": "ethos status --execute=true",
-            "values": [
-                "ethos status --execute=true"
-            ]
-        },
-        {
-            "id": "ethos plan --apply=true",
-            "values": [
-                "ethos plan --apply=true"
-            ]
-        },
-        {
-            "id": "find . -delete",
-            "values": [
-                "find . -delete"
-            ]
-        }
-    ],
-    "unclassifiable_with_paths": [
-        {
-            "id": "git status\nrm README.md",
-            "values": [
-                "git status\nrm README.md"
-            ]
-        },
-        {
-            "id": "echo $(touch README.md)",
-            "values": [
-                "echo $(touch README.md)"
-            ]
-        },
-        {
-            "id": "echo `touch README.md`",
-            "values": [
-                "echo `touch README.md`"
-            ]
-        },
-        {
-            "id": "cat <(touch README.md)",
-            "values": [
-                "cat <(touch README.md)"
-            ]
-        },
-        {
-            "id": "git status; rm README.md",
-            "values": [
-                "git status; rm README.md"
-            ]
-        },
-        {
-            "id": "git status 'unterminated",
-            "values": [
-                "git status 'unterminated"
-            ]
-        }
-    ],
-    "stash_operation_states": [
-        {
-            "id": "list",
-            "values": [
-                "git stash list --format=%gd",
-                false,
-                "list"
-            ]
-        },
-        {
-            "id": "show",
-            "values": [
-                "git -C . stash show --stat",
-                false,
-                "show"
-            ]
-        },
-        {
-            "id": "implicit_push",
-            "values": [
-                "git stash",
-                true,
-                "push"
-            ]
-        },
-        {
-            "id": "short_option_push",
-            "values": [
-                "git stash -u",
-                true,
-                "push"
-            ]
-        },
-        {
-            "id": "explicit_push",
-            "values": [
-                "git stash push -- README.md",
-                true,
-                "push"
-            ]
-        },
-        {
-            "id": "command_wrapper",
-            "values": [
-                "command git stash",
-                true,
-                "push"
-            ]
-        },
-        {
-            "id": "env_wrapper",
-            "values": [
-                "env MODE=test git stash",
-                true,
-                "push"
-            ]
-        },
-        {
-            "id": "sudo_wrapper",
-            "values": [
-                "sudo git stash",
-                true,
-                "push"
-            ]
-        }
-    ],
-    "postwrite_states": [
-        {
-            "id": "protected_dirty",
-            "values": [
-                "protected",
-                "accepted_root",
-                "post_write_protected_root_dirty"
-            ]
-        },
-        {
-            "id": "work_unexpected_path",
-            "values": [
-                "work",
-                "work_lane",
-                "post_write_unexpected_path"
-            ]
-        }
-    ],
-    "identity_states": [
-        {
-            "id": "canonical",
-            "values": [
-                "Canonical User",
-                "Canonical User",
-                "pass"
-            ]
-        },
-        {
-            "id": "both_noncanonical",
-            "values": [
-                "Codex",
-                "Codex",
-                "block"
-            ]
-        },
-        {
-            "id": "author_noncanonical",
-            "values": [
-                "Other Author",
-                "Canonical User",
-                "block"
-            ]
-        },
-        {
-            "id": "committer_noncanonical",
-            "values": [
-                "Canonical User",
-                "Other Committer",
-                "block"
-            ]
-        }
-    ],
-    "proposal_baseline_states": [
-        {
-            "id": "valid",
-            "values": [
-                "valid",
-                1,
-                ""
-            ]
-        },
-        {
-            "id": "missing",
-            "values": [
-                "missing",
-                0,
-                "push_identity_proposal_baseline_missing:origin/dev"
-            ]
-        },
-        {
-            "id": "diverged",
-            "values": [
-                "diverged",
-                0,
-                "push_identity_proposal_baseline_not_ancestor:origin/dev"
-            ]
-        }
-    ]
+  "push_invalid_targets": [
+    {
+      "id": "candidate_remote_forbidden",
+      "values": [
+        "refs/heads/candidate/dev",
+        "origin",
+        "publication_candidate_branch_remote_forbidden:candidate/dev",
+        "any"
+      ]
+    },
+    {
+      "id": "unknown_remote",
+      "values": [
+        "refs/heads/dev",
+        "unknown",
+        "publication_remote_target_unknown:unknown",
+        "any"
+      ]
+    },
+    {
+      "id": "work_remote_forbidden_without_proof",
+      "values": [
+        "refs/heads/work/dual-remote",
+        "github",
+        "publication_remote_branch_forbidden:work/dual-remote",
+        "absent"
+      ]
+    }
+  ],
+  "prewrite_states": [
+    {
+      "id": "protected_path",
+      "values": [
+        "protected_path",
+        "accepted_root",
+        "protected_lane_prewrite_blocked"
+      ]
+    },
+    {
+      "id": "protected_missing_paths",
+      "values": [
+        "protected_missing_paths",
+        "accepted_root",
+        "protected_root_pretool_paths_required"
+      ]
+    },
+    {
+      "id": "work_missing_lease",
+      "values": [
+        "work_missing_lease",
+        "work_lane",
+        "work_lane_missing_lease:work/feature"
+      ]
+    }
+  ],
+  "prewrite_actor_states": [
+    {
+      "id": "holder_match",
+      "values": [
+        "agent:test:case:agent-a",
+        "admitted",
+        "allow",
+        "matched"
+      ]
+    },
+    {
+      "id": "holder_mismatch",
+      "values": [
+        "agent:test:case:agent-b",
+        "blocked",
+        "block",
+        "lease_holder_mismatch:work/feature"
+      ]
+    }
+  ],
+  "mutation_without_paths": [
+    {
+      "id": "python -c 'from pathlib import Path; Path(\"README.md\").write_text(\"x\")'",
+      "values": [
+        "python -c 'from pathlib import Path; Path(\"README.md\").write_text(\"x\")'"
+      ]
+    },
+    {
+      "id": "python scripts/generate.py",
+      "values": [
+        "python scripts/generate.py"
+      ]
+    },
+    {
+      "id": "git apply patch.diff",
+      "values": [
+        "git apply patch.diff"
+      ]
+    },
+    {
+      "id": "touch README.md",
+      "values": [
+        "touch README.md"
+      ]
+    }
+  ],
+  "observe_only_commands": [
+    {
+      "id": "git status --short",
+      "values": [
+        "git status --short"
+      ]
+    },
+    {
+      "id": "git branch --show-current",
+      "values": [
+        "git branch --show-current"
+      ]
+    },
+    {
+      "id": "git branch --list 'work/*'",
+      "values": [
+        "git branch --list 'work/*'"
+      ]
+    },
+    {
+      "id": "git tag --list 'v*'",
+      "values": [
+        "git tag --list 'v*'"
+      ]
+    },
+    {
+      "id": "git tag --points-at HEAD",
+      "values": [
+        "git tag --points-at HEAD"
+      ]
+    },
+    {
+      "id": "git stash list",
+      "values": [
+        "git stash list"
+      ]
+    },
+    {
+      "id": "git stash show --stat",
+      "values": [
+        "git stash show --stat"
+      ]
+    },
+    {
+      "id": "ethos status --json",
+      "values": [
+        "ethos status --json"
+      ]
+    },
+    {
+      "id": "ethos plan --root=. --json",
+      "values": [
+        "ethos plan --root=. --json"
+      ]
+    }
+  ],
+  "effect_capable_commands": [
+    {
+      "id": "git branch feature",
+      "values": [
+        "git branch feature"
+      ]
+    },
+    {
+      "id": "git branch -D feature",
+      "values": [
+        "git branch -D feature"
+      ]
+    },
+    {
+      "id": "git tag v1",
+      "values": [
+        "git tag v1"
+      ]
+    },
+    {
+      "id": "git tag -d v1",
+      "values": [
+        "git tag -d v1"
+      ]
+    },
+    {
+      "id": "ethos status --execute=true",
+      "values": [
+        "ethos status --execute=true"
+      ]
+    },
+    {
+      "id": "ethos plan --apply=true",
+      "values": [
+        "ethos plan --apply=true"
+      ]
+    },
+    {
+      "id": "find . -delete",
+      "values": [
+        "find . -delete"
+      ]
+    }
+  ],
+  "unclassifiable_with_paths": [
+    {
+      "id": "git status\nrm README.md",
+      "values": [
+        "git status\nrm README.md"
+      ]
+    },
+    {
+      "id": "echo $(touch README.md)",
+      "values": [
+        "echo $(touch README.md)"
+      ]
+    },
+    {
+      "id": "echo `touch README.md`",
+      "values": [
+        "echo `touch README.md`"
+      ]
+    },
+    {
+      "id": "cat <(touch README.md)",
+      "values": [
+        "cat <(touch README.md)"
+      ]
+    },
+    {
+      "id": "git status; rm README.md",
+      "values": [
+        "git status; rm README.md"
+      ]
+    },
+    {
+      "id": "git status 'unterminated",
+      "values": [
+        "git status 'unterminated"
+      ]
+    }
+  ],
+  "stash_operation_states": [
+    {
+      "id": "list",
+      "values": [
+        "git stash list --format=%gd",
+        false,
+        "list"
+      ]
+    },
+    {
+      "id": "show",
+      "values": [
+        "git -C . stash show --stat",
+        false,
+        "show"
+      ]
+    },
+    {
+      "id": "implicit_push",
+      "values": [
+        "git stash",
+        true,
+        "push"
+      ]
+    },
+    {
+      "id": "short_option_push",
+      "values": [
+        "git stash -u",
+        true,
+        "push"
+      ]
+    },
+    {
+      "id": "explicit_push",
+      "values": [
+        "git stash push -- README.md",
+        true,
+        "push"
+      ]
+    },
+    {
+      "id": "command_wrapper",
+      "values": [
+        "command git stash",
+        true,
+        "push"
+      ]
+    },
+    {
+      "id": "env_wrapper",
+      "values": [
+        "env MODE=test git stash",
+        true,
+        "push"
+      ]
+    },
+    {
+      "id": "sudo_wrapper",
+      "values": [
+        "sudo git stash",
+        true,
+        "push"
+      ]
+    }
+  ],
+  "postwrite_states": [
+    {
+      "id": "protected_dirty",
+      "values": [
+        "protected",
+        "accepted_root",
+        "post_write_protected_root_dirty"
+      ]
+    },
+    {
+      "id": "work_unexpected_path",
+      "values": [
+        "work",
+        "work_lane",
+        "post_write_unexpected_path"
+      ]
+    }
+  ],
+  "identity_states": [
+    {
+      "id": "canonical",
+      "values": [
+        "Canonical User",
+        "Canonical User",
+        "pass"
+      ]
+    },
+    {
+      "id": "both_noncanonical",
+      "values": [
+        "Codex",
+        "Codex",
+        "block"
+      ]
+    },
+    {
+      "id": "author_noncanonical",
+      "values": [
+        "Other Author",
+        "Canonical User",
+        "block"
+      ]
+    },
+    {
+      "id": "committer_noncanonical",
+      "values": [
+        "Canonical User",
+        "Other Committer",
+        "block"
+      ]
+    }
+  ],
+  "proposal_baseline_states": [
+    {
+      "id": "valid",
+      "values": [
+        "valid",
+        1,
+        ""
+      ]
+    },
+    {
+      "id": "missing",
+      "values": [
+        "missing",
+        0,
+        "push_identity_proposal_baseline_missing:origin/dev"
+      ]
+    },
+    {
+      "id": "diverged",
+      "values": [
+        "diverged",
+        0,
+        "push_identity_proposal_baseline_not_ancestor:origin/dev"
+      ]
+    }
+  ]
 }

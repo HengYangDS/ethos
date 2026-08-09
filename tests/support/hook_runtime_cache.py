@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.hook_runtime as hook_runtime
+import ethos.adapters.repo.hook_runtime_install as hook_runtime_install
 
 if TYPE_CHECKING:
     import pytest
@@ -29,7 +30,7 @@ def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_ro
     templates = cache_root / cache_key
     wheel_lock = threading.Lock()
     original_materialize = hook_runtime.materialize_hook_runtime
-    original_wheel = hook_runtime.resolve_runtime_wheel
+    original_wheel = hook_runtime_install.resolve_runtime_wheel
 
     def cached_materialize(repo: Path, source_python: Path) -> Path:
         if source_python.resolve() != Path(sys.executable).resolve():
@@ -52,7 +53,7 @@ def install_session_hook_runtime_cache(monkeypatch: pytest.MonkeyPatch, cache_ro
             return destination
 
         with monkeypatch.context() as local:
-            local.setattr(hook_runtime, "resolve_runtime_wheel", cached_wheel)
+            local.setattr(hook_runtime_install, "resolve_runtime_wheel", cached_wheel)
             return original_materialize(repo, source_python)
 
     monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", cached_materialize)

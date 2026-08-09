@@ -6,6 +6,7 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -19,145 +20,131 @@ from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.repository.profile import IndependentVerificationPolicy
 from tests.support.governed_repository import write_test_profile
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def _receipt_payload() -> dict[str, object]:
+
+REQUEST = {
+    "remote": "https://example.invalid/org/repo.git",
+    "commit": "a" * 40,
+    "tree": "b" * 40,
+    "action": "publish",
+    "proof_floor_id": "proof-floor:default",
+    "proof_floor_digest": "c" * 64,
+    "policy_digest": "d" * 64,
+    "implementation_digest": "e" * 64,
+}
+
+
+def _receipt(**updates: object) -> IndependentVerificationReceipt:
     now = datetime.now(UTC)
     receipt = IndependentVerificationReceipt(
-        remote="https://example.invalid/org/repo.git",
-        commit="a" * 40,
-        tree="b" * 40,
-        action="publish",
-        proof_floor_id="proof-floor:default",
-        proof_floor_digest="c" * 64,
-        policy_digest="d" * 64,
-        implementation_digest="e" * 64,
+        **REQUEST,
         result="pass",
         issuer="provider:example",
-        key_id="key:example",
+        key_id="provider:example",
         signature_algorithm="ssh-ed25519",
         signature="signed-payload",
         issued_at=now,
         valid_until=now + timedelta(minutes=5),
         payload_digest="",
+    ).model_copy(update=updates)
+    return receipt.model_copy(update={"payload_digest": receipt.canonical_payload_digest()})
+
+
+def _write_receipt(path: Path, **updates: object) -> Path:
+    path.write_text(json.dumps(_receipt(**updates).model_dump(mode="json")), encoding="utf-8")
+    return path
+
+
+def _provider(root: Path) -> IndependentVerificationProvider:
+    store = root / "store"
+    store.mkdir(exist_ok=True)
+    return IndependentVerificationProvider(
+        receipt_store=store,
+        allowed_signers=root / "allowed-signers",
+        namespace="ethos-independent-verification",
+        implementation_digest="e" * 64,
     )
-    return receipt.model_copy(
-        update={"payload_digest": receipt.canonical_payload_digest()}
-    ).model_dump(mode="json")
 
 
-def test_disabled_policy_is_local_first_without_a_provider(tmp_path) -> None:
+@pytest.mark.parametrize(
+    ("mode", "receipt", "verdict", "state", "gaps"),
+    [
+        ("disabled", None, "pass", "disabled", []),
+        ("optional", None, "pass", "local_readiness", []),
+        ("required", None, "unknown", "blocked", ["independent_verification_receipt_required"]),
+        ("optional", "invalid", "block", "invalid", ["independent_verification_receipt_invalid"]),
+        ("optional", "malformed", "block", "invalid", ["independent_verification_receipt_invalid"]),
+    ],
+)
+def test_policy_modes_preserve_local_first_fail_closed_semantics(
+    tmp_path: Path, mode: str, receipt: str | None, verdict: str, state: str, gaps: list[str]
+) -> None:
+    path = tmp_path / "receipt.json" if receipt else None
+    if path:
+        path.write_text("{" if receipt == "malformed" else "[]", encoding="utf-8")
     report = independent_verification_report(
         root=tmp_path,
-        policy=IndependentVerificationPolicy(mode="disabled"),
+        policy=IndependentVerificationPolicy(mode=mode),
         request={"action": "publish"},
-        receipt_path=None,
+        receipt_path=path,
     )
-
-    assert report["verdict"] == "pass"
-    assert "ok" not in report
-    assert report["state"] == "disabled"
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        verdict,
+        state,
+        gaps,
+    )
     assert report["evidence_class"] == "local_readiness"
+    assert report["mints_authority"] is False
+    assert "ok" not in report
 
 
-def test_independent_verification_policy_rejects_invalid_profile(tmp_path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text("[", encoding="utf-8")
-
-    with pytest.raises(ValueError, match="repository_profile_invalid"):
-        external.independent_verification_policy(tmp_path, "publish")
-
-
-def test_optional_policy_accepts_absence_but_marks_supplied_invalid_receipt(
-    tmp_path,
-) -> None:
-    absent = independent_verification_report(
+def test_required_policy_accepts_only_exact_valid_receipt(tmp_path: Path) -> None:
+    path = _write_receipt(tmp_path / "receipt.json")
+    report = independent_verification_report(
         root=tmp_path,
-        policy=IndependentVerificationPolicy(mode="optional"),
-        request={"action": "publish"},
-        receipt_path=None,
-    )
-    invalid = tmp_path / "receipt.json"
-    invalid.write_text("[]", encoding="utf-8")
-    supplied = independent_verification_report(
-        root=tmp_path,
-        policy=IndependentVerificationPolicy(mode="optional"),
-        request={"action": "publish"},
-        receipt_path=invalid,
-    )
-
-    assert absent["verdict"] == "pass"
-    assert supplied["verdict"] == "block"
-    assert "independent_verification_receipt_invalid" in supplied["required_gaps"]
-
-
-def test_required_policy_fails_closed_and_accepts_only_exact_valid_receipt(
-    tmp_path,
-) -> None:
-    required = IndependentVerificationPolicy(mode="required")
-    missing = independent_verification_report(
-        root=tmp_path,
-        policy=required,
-        request={"action": "publish"},
-        receipt_path=None,
-    )
-    path = tmp_path / "receipt.json"
-    path.write_text(json.dumps(_receipt_payload()), encoding="utf-8")
-    accepted = independent_verification_report(
-        root=tmp_path,
-        policy=required,
-        request={
-            "remote": "https://example.invalid/org/repo.git",
-            "commit": "a" * 40,
-            "tree": "b" * 40,
-            "action": "publish",
-            "proof_floor_id": "proof-floor:default",
-            "proof_floor_digest": "c" * 64,
-            "policy_digest": "d" * 64,
-            "implementation_digest": "e" * 64,
-        },
+        policy=IndependentVerificationPolicy(mode="required"),
+        request=REQUEST,
         receipt_path=path,
         signature_verifier=lambda receipt: receipt.issuer == "provider:example",
     )
-
-    assert missing["verdict"] == "unknown"
-    assert "independent_verification_receipt_required" in missing["required_gaps"]
-    assert accepted["verdict"] == "pass"
-    assert accepted["evidence_class"] == "independently_reexecuted"
+    assert report["verdict"] == "pass"
+    assert report["evidence_class"] == "independently_reexecuted"
+    assert report["required_gaps"] == []
 
 
-def test_profile_defaults_disabled_but_required_publish_is_action_scoped(
-    tmp_path,
-) -> None:
-    default = independent_verification_admission_report(
-        root=tmp_path,
-        action="publish",
-        request={"action": "publish"},
+def test_profile_policy_is_valid_action_scoped_and_default_disabled(tmp_path: Path) -> None:
+    assert (
+        independent_verification_admission_report(
+            root=tmp_path, action="publish", request={"action": "publish"}
+        )["verdict"]
+        == "pass"
     )
     write_test_profile(
         tmp_path,
         independent_verification={"actions": {"publish": {"mode": "required"}}},
     )
-    required = independent_verification_admission_report(
-        root=tmp_path,
-        action="publish",
-        request={"action": "publish"},
+    assert independent_verification_admission_report(
+        root=tmp_path, action="publish", request={"action": "publish"}
+    )["required_gaps"] == ["independent_verification_receipt_required"]
+    assert (
+        independent_verification_admission_report(
+            root=tmp_path, action="land", request={"action": "land"}
+        )["verdict"]
+        == "pass"
     )
-    unrelated = independent_verification_admission_report(
-        root=tmp_path,
-        action="land",
-        request={"action": "land"},
-    )
-
-    assert default["verdict"] == "pass"
-    assert required["required_gaps"] == ["independent_verification_receipt_required"]
-    assert unrelated["verdict"] == "pass"
+    profile = tmp_path / ".ethos/profile.toml"
+    profile.write_text("[", encoding="utf-8")
+    with pytest.raises(ValueError, match="repository_profile_invalid"):
+        external.independent_verification_policy(tmp_path, "publish")
+    with pytest.raises(ValueError, match=r"disabled.*optional.*required"):
+        IndependentVerificationPolicy(mode="always")
 
 
-def test_request_builder_binds_publish_to_exact_git_revision_and_gate_policy(
-    monkeypatch, tmp_path
+def test_request_binds_exact_revision_and_policy_without_provider_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(external.git, "git_stdout", lambda *_args: "origin-url")
     monkeypatch.setattr(external.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(
         external.git,
@@ -167,20 +154,12 @@ def test_request_builder_binds_publish_to_exact_git_revision_and_gate_policy(
         ),
     )
 
-    def policy(_root, *, tree_ref: str):
-        assert _root == tmp_path
-        assert tree_ref == "a" * 40
-        return type(
-            "Policy",
-            (),
-            {"gate_ids": ("tests", "lint"), "digest": "c" * 64},
-        )()
+    def policy(_root: Path, *, tree_ref: str):
+        assert (_root, tree_ref) == (tmp_path, "a" * 40)
+        return type("Policy", (), {"gate_ids": ("tests", "lint"), "digest": "c" * 64})()
 
     monkeypatch.setattr(external, "resolve_gate_policy", policy)
-
-    request = independent_verification_request(root=tmp_path, action="publish")
-
-    assert request == {
+    assert independent_verification_request(root=tmp_path, action="publish") == {
         "remote": "origin-url",
         "commit": "a" * 40,
         "tree": "b" * 40,
@@ -190,137 +169,108 @@ def test_request_builder_binds_publish_to_exact_git_revision_and_gate_policy(
         "policy_digest": "c" * 64,
         "implementation_digest": "",
     }
+    monkeypatch.setattr(external.git, "current_head", lambda _root: "")
+    empty = independent_verification_request(root=tmp_path, action="publish")
+    assert (empty["tree"], empty["policy_digest"], empty["implementation_digest"]) == ("", "", "")
 
 
-def test_provider_configuration_must_be_outside_the_agent_identity(tmp_path, monkeypatch) -> None:
-    receipts = tmp_path / "receipts"
-    receipts.mkdir()
-    signers = tmp_path / "allowed-signers"
-    signers.write_text("provider:test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest\n")
-    config = tmp_path / "provider.toml"
+def _write_provider_config(root: Path, provider: IndependentVerificationProvider) -> Path:
+    if not provider.allowed_signers.exists():
+        provider.allowed_signers.write_text("provider:test ssh-ed25519 test\n", encoding="utf-8")
+    config = root / "provider.toml"
     config.write_text(
-        "\n".join(
-            [
-                "[receipt_store]",
-                f'root = "{receipts}"',
-                "[signature]",
-                f'allowed_signers = "{signers}"',
-                'namespace = "ethos-independent-verification"',
-                'implementation_digest = "' + "a" * 64 + '"',
-                "",
-            ]
-        ),
+        f'[receipt_store]\nroot = "{provider.receipt_store}"\n[signature]\n'
+        f'allowed_signers = "{provider.allowed_signers}"\nnamespace = "{provider.namespace}"\n'
+        f'implementation_digest = "{provider.implementation_digest}"\n',
         encoding="utf-8",
     )
-    owner = config.stat().st_uid
-    monkeypatch.setattr("ethos.adapters.admission.evidence.external.os.geteuid", lambda: owner)
-
-    rejected, rejected_gaps = load_independent_verification_provider(config)
-
-    assert rejected is None
-    assert rejected_gaps == ["independent_verification_provider_config_untrusted"]
-
-    monkeypatch.setattr("ethos.adapters.admission.evidence.external.os.geteuid", lambda: owner + 1)
-    provider, gaps = load_independent_verification_provider(config)
-
-    assert gaps == []
-    assert isinstance(provider, IndependentVerificationProvider)
-    assert provider.implementation_digest == "a" * 64
+    return config
 
 
-def test_required_provider_rejects_receipt_outside_the_read_only_store(
-    tmp_path, monkeypatch
+def test_provider_configuration_is_protected_outside_agent_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    store = tmp_path / "store"
-    store.mkdir()
-    outside = tmp_path / "outside.json"
-    outside.write_text(json.dumps(_receipt_payload()), encoding="utf-8")
-    provider = IndependentVerificationProvider(
-        receipt_store=store,
-        allowed_signers=tmp_path / "allowed-signers",
-        namespace="ethos-independent-verification",
-        implementation_digest="e" * 64,
+    provider = _provider(tmp_path)
+    config = _write_provider_config(tmp_path, provider)
+    owner = config.stat().st_uid
+    monkeypatch.setattr(external.os, "geteuid", lambda: owner)
+    assert load_independent_verification_provider(config) == (
+        None,
+        ["independent_verification_provider_config_untrusted"],
     )
+    monkeypatch.setattr(external.os, "geteuid", lambda: owner + 1)
+    loaded, gaps = load_independent_verification_provider(config)
+    assert gaps == []
+    assert loaded == provider
+
+
+@pytest.mark.parametrize(
+    ("content", "gap"),
+    [
+        (None, "independent_verification_provider_config_missing"),
+        ("[receipt_store\n", "independent_verification_provider_config_invalid"),
+        ("", "independent_verification_provider_config_invalid"),
+        (
+            """[receipt_store]
+root='relative'
+[signature]
+allowed_signers='/tmp/key'
+namespace=''
+implementation_digest='invalid'
+""",
+            "independent_verification_provider_config_invalid",
+        ),
+    ],
+)
+def test_provider_configuration_invalid_inputs_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, content: str | None, gap: str
+) -> None:
+    path = tmp_path / "provider.toml"
+    if content is not None:
+        path.write_text(content, encoding="utf-8")
+        monkeypatch.setattr(external.os, "geteuid", lambda: path.stat().st_uid + 1)
+    assert load_independent_verification_provider(path) == (None, [gap])
+
+
+def test_required_provider_rejects_receipt_outside_read_only_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = _provider(tmp_path)
+    outside = _write_receipt(tmp_path / "outside.json")
     monkeypatch.setattr(
-        "ethos.adapters.admission.evidence.external.load_independent_verification_provider",
-        lambda _path: (provider, []),
+        external, "load_independent_verification_provider", lambda _path: (provider, [])
     )
     monkeypatch.setenv("ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", outside.as_posix())
     write_test_profile(
         tmp_path,
         independent_verification={"actions": {"publish": {"mode": "required"}}},
     )
-
     report = independent_verification_admission_report(
         root=tmp_path,
         action="publish",
         request={"action": "publish"},
         provider_config_path=tmp_path / "provider.toml",
     )
-
     assert report["verdict"] == "block"
-    assert "independent_verification_receipt_outside_store" in report["required_gaps"]
+    assert report["required_gaps"] == ["independent_verification_receipt_outside_store"]
 
 
-def test_provider_verifies_a_signature_from_its_protected_anchor(tmp_path, monkeypatch) -> None:
+def test_provider_verifies_signature_from_protected_anchor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ssh_keygen = shutil.which("ssh-keygen")
-    assert ssh_keygen is not None
-    store = tmp_path / "store"
-    store.mkdir()
+    assert ssh_keygen
+    provider = _provider(tmp_path)
     private_key = tmp_path / "signing-key"
-    subprocess.run(
-        [
-            ssh_keygen,
-            "-q",
-            "-t",
-            "ed25519",
-            "-N",
-            "",
-            "-f",
-            private_key.as_posix(),
-        ],
-        check=True,
-    )
-    public_key = private_key.with_suffix(".pub").read_text(encoding="utf-8").strip()
-    allowed_signers = tmp_path / "allowed-signers"
-    allowed_signers.write_text(f"provider:example {public_key}\n", encoding="utf-8")
-    config = tmp_path / "provider.toml"
-    config.write_text(
-        "\n".join(
-            [
-                "[receipt_store]",
-                f'root = "{store}"',
-                "[signature]",
-                f'allowed_signers = "{allowed_signers}"',
-                'namespace = "ethos-independent-verification"',
-                'implementation_digest = "' + "e" * 64 + '"',
-                "",
-            ]
-        ),
+    subprocess.run([ssh_keygen, "-q", "-t", "ed25519", "-N", "", "-f", private_key], check=True)
+    provider.allowed_signers.write_text(
+        f"provider:example {private_key.with_suffix('.pub').read_text().strip()}\n",
         encoding="utf-8",
     )
-    now = datetime.now(UTC)
-    unsigned = IndependentVerificationReceipt(
-        remote="https://example.invalid/org/repo.git",
-        commit="a" * 40,
-        tree="b" * 40,
-        action="publish",
-        proof_floor_id="proof-floor:default",
-        proof_floor_digest="c" * 64,
-        policy_digest="d" * 64,
-        implementation_digest="e" * 64,
-        result="pass",
-        issuer="provider:example",
-        key_id="provider:example",
-        signature_algorithm="ssh-ed25519",
-        signature="placeholder",
-        issued_at=now,
-        valid_until=now + timedelta(minutes=5),
-        payload_digest="",
-    )
-    unsigned = unsigned.model_copy(update={"payload_digest": unsigned.canonical_payload_digest()})
-    payload_path = tmp_path / "payload"
-    payload_path.write_text(
+    config = _write_provider_config(tmp_path, provider)
+    unsigned = _receipt(signature="placeholder")
+    payload = tmp_path / "payload"
+    payload.write_text(
         json.dumps(
             unsigned.model_dump(mode="json", exclude={"signature", "payload_digest"}),
             sort_keys=True,
@@ -329,121 +279,44 @@ def test_provider_verifies_a_signature_from_its_protected_anchor(tmp_path, monke
         encoding="utf-8",
     )
     subprocess.run(
-        [
-            ssh_keygen,
-            "-Y",
-            "sign",
-            "-f",
-            private_key.as_posix(),
-            "-n",
-            "ethos-independent-verification",
-            payload_path.as_posix(),
-        ],
+        [ssh_keygen, "-Y", "sign", "-f", private_key, "-n", provider.namespace, payload],
         check=True,
         capture_output=True,
     )
-    receipt_path = store / "receipt.json"
-    receipt_path.write_text(
-        json.dumps(
-            unsigned.model_copy(
-                update={"signature": payload_path.with_suffix(".sig").read_text(encoding="utf-8")}
-            ).model_dump(mode="json")
-        ),
-        encoding="utf-8",
-    )
+    receipt = unsigned.model_copy(update={"signature": payload.with_suffix(".sig").read_text()})
+    receipt_path = provider.receipt_store / "receipt.json"
+    receipt_path.write_text(json.dumps(receipt.model_dump(mode="json")), encoding="utf-8")
     write_test_profile(
         tmp_path,
         independent_verification={"actions": {"publish": {"mode": "required"}}},
     )
-    owner = config.stat().st_uid
-    monkeypatch.setattr("ethos.adapters.admission.evidence.external.os.geteuid", lambda: owner + 1)
+    monkeypatch.setattr(external.os, "geteuid", lambda: config.stat().st_uid + 1)
     monkeypatch.setenv("ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", receipt_path.as_posix())
-
     report = independent_verification_admission_report(
         root=tmp_path,
         action="publish",
-        request={
-            "remote": "https://example.invalid/org/repo.git",
-            "commit": "a" * 40,
-            "tree": "b" * 40,
-            "action": "publish",
-            "proof_floor_id": "proof-floor:default",
-            "proof_floor_digest": "c" * 64,
-            "policy_digest": "d" * 64,
-        },
+        request={k: v for k, v in REQUEST.items() if k != "implementation_digest"},
         provider_config_path=config,
     )
-
-    assert report["verdict"] == "pass"
-    assert report["evidence_class"] == "independently_reexecuted"
+    assert (report["verdict"], report["evidence_class"]) == ("pass", "independently_reexecuted")
 
 
-def test_provider_configuration_reports_invalid_inputs_fail_closed(tmp_path, monkeypatch) -> None:
-    missing = tmp_path / "missing.toml"
-    assert load_independent_verification_provider(missing) == (
-        None,
-        ["independent_verification_provider_config_missing"],
-    )
-    with pytest.raises(ValueError, match=r"disabled.*optional.*required"):
-        IndependentVerificationPolicy(mode="always")
-
-    malformed = tmp_path / "provider.toml"
-    malformed.write_text("[receipt_store\n", encoding="utf-8")
-    monkeypatch.setattr(
-        "ethos.adapters.admission.evidence.external.os.geteuid",
-        lambda: malformed.stat().st_uid + 1,
-    )
-    assert load_independent_verification_provider(malformed) == (
-        None,
-        ["independent_verification_provider_config_invalid"],
-    )
-
-    malformed.write_text("", encoding="utf-8")
-    assert load_independent_verification_provider(malformed) == (
-        None,
-        ["independent_verification_provider_config_invalid"],
-    )
-
-    malformed.write_text(
-        "[receipt_store]\nroot = 'relative'\n[signature]\nallowed_signers = '/tmp/key'\n"
-        "namespace = ''\nimplementation_digest = 'invalid'\n",
-        encoding="utf-8",
-    )
-    assert load_independent_verification_provider(malformed) == (
-        None,
-        ["independent_verification_provider_config_invalid"],
-    )
-
-
-def test_receipt_negative_paths_remain_local_readiness(tmp_path, monkeypatch) -> None:
-    invalid = tmp_path / "invalid.json"
-    invalid.write_text("{", encoding="utf-8")
-    report = independent_verification_report(
-        root=tmp_path,
-        policy=IndependentVerificationPolicy(mode="optional"),
-        request={"action": "publish"},
-        receipt_path=invalid,
-    )
-    assert report["required_gaps"] == ["independent_verification_receipt_invalid"]
-
+def test_receipt_negative_matrix_remains_local_readiness(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     now = datetime.now(UTC)
-    failed = _receipt_payload()
-    failed.update(
-        {
-            "result": "fail",
-            "issued_at": (now - timedelta(minutes=10)).isoformat(),
-            "valid_until": (now - timedelta(minutes=5)).isoformat(),
-            "remote": "https://wrong.example/repo.git",
-            "payload_digest": "",
-        }
+    path = _write_receipt(
+        tmp_path / "failed.json",
+        result="fail",
+        issued_at=now - timedelta(minutes=10),
+        valid_until=now - timedelta(minutes=5),
+        remote="https://wrong.example/repo.git",
     )
-    receipt_path = tmp_path / "failed.json"
-    receipt_path.write_text(json.dumps(failed), encoding="utf-8")
     report = independent_verification_report(
         root=tmp_path,
         policy=IndependentVerificationPolicy(mode="required"),
-        request={"remote": "https://example.invalid/org/repo.git"},
-        receipt_path=receipt_path,
+        request={"remote": REQUEST["remote"]},
+        receipt_path=path,
         signature_verifier=lambda _receipt: False,
     )
     assert set(report["required_gaps"]) == {
@@ -452,47 +325,35 @@ def test_receipt_negative_paths_remain_local_readiness(tmp_path, monkeypatch) ->
         "independent_verification_receipt_binding_mismatch",
         "independent_verification_signature_invalid",
     }
-
-    receipt = IndependentVerificationReceipt.model_validate_json(json.dumps(_receipt_payload()))
-    provider = IndependentVerificationProvider(
-        receipt_store=tmp_path,
-        allowed_signers=tmp_path / "allowed-signers",
-        namespace="ethos-independent-verification",
-        implementation_digest="e" * 64,
-    )
+    assert report["evidence_class"] == "local_readiness"
+    provider = _provider(tmp_path)
+    receipt = _receipt()
     monkeypatch.setattr(external.shutil, "which", lambda _name: None)
     assert external.verify_independent_receipt_signature(receipt, provider) is False
     monkeypatch.setattr(external.shutil, "which", lambda _name: "true")
-
-    def raise_os_error(*_args, **_kwargs):
-        raise OSError
-
-    monkeypatch.setattr(external.subprocess, "run", raise_os_error)
+    monkeypatch.setattr(
+        external.subprocess, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError)
+    )
     assert external.verify_independent_receipt_signature(receipt, provider) is False
 
 
-def test_request_without_head_and_missing_provider_config_are_fail_closed(
-    tmp_path, monkeypatch
+@pytest.mark.parametrize(("mode", "state"), [("required", "blocked"), ("optional", "invalid")])
+def test_missing_provider_config_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str, state: str
 ) -> None:
-    monkeypatch.setattr(external.git, "current_head", lambda _root: "")
-    monkeypatch.setattr(external.git, "git_stdout", lambda *_args: "origin-url")
-    request = independent_verification_request(root=tmp_path, action="publish")
-    assert request["tree"] == ""
-    assert request["policy_digest"] == ""
-
-    receipt = tmp_path / "receipt.json"
-    receipt.write_text(json.dumps(_receipt_payload()), encoding="utf-8")
+    receipt = _write_receipt(tmp_path / "receipt.json")
     monkeypatch.setenv("ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", receipt.as_posix())
-    for mode, state in (("required", "blocked"), ("optional", "invalid")):
-        write_test_profile(
-            tmp_path,
-            independent_verification={"actions": {"publish": {"mode": mode}}},
-        )
-        report = independent_verification_admission_report(
-            root=tmp_path,
-            action="publish",
-            request={"action": "publish"},
-            provider_config_path=tmp_path / "missing-provider.toml",
-        )
-        assert report["state"] == state
-        assert report["required_gaps"] == ["independent_verification_provider_config_missing"]
+    write_test_profile(
+        tmp_path,
+        independent_verification={"actions": {"publish": {"mode": mode}}},
+    )
+    report = independent_verification_admission_report(
+        root=tmp_path,
+        action="publish",
+        request={"action": "publish"},
+        provider_config_path=tmp_path / "missing.toml",
+    )
+    assert (report["state"], report["required_gaps"]) == (
+        state,
+        ["independent_verification_provider_config_missing"],
+    )

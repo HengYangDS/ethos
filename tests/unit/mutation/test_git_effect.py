@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+import ethos.adapters.repo.git_effect_admission as admission
 import ethos.adapters.repo.git_effect_attestation as attest
 import ethos.adapters.repo.git_effects as runtime
 from ethos.adapters.admission.ref_intent import claim_ref_intent
@@ -417,7 +418,7 @@ def test_stale_lease_recovery_and_detached_matrix(
     }
     carried = plan(case.repo, case.effect, values={"lease_generation": recorded})
     monkeypatch.setenv("ETHOS_ACTOR", ISSUER)
-    monkeypatch.setattr(runtime, "leases_by_branch", lambda *_args, **_kwargs: {branch: current})
+    monkeypatch.setattr(admission, "leases_by_branch", lambda *_args, **_kwargs: {branch: current})
     if recover:
         git(case.repo, "update-ref", "refs/heads/dev", case.new, case.old)
     if detached:
@@ -427,9 +428,9 @@ def test_stale_lease_recovery_and_detached_matrix(
             values={"lease_generation": lease_generation(current)},
             policy={"operation": "lane.refresh", "execution_branch": branch},
         )
-        original = runtime.run_git
+        original = admission.run_git
         monkeypatch.setattr(
-            runtime,
+            admission,
             "run_git",
             lambda root, *args, **kwargs: (
                 type("R", (), {"stdout": "", "returncode": 0})()

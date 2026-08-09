@@ -406,9 +406,17 @@ def test_terminal_change_keeps_every_remaining_obligation_once() -> None:
     assert sorted(mapped) == sorted(expected)
     assert len(mapped) == len(set(mapped))
     assert "Migrated without implementation" not in tasks
+    pre_archive = [task for task in expected if not task.startswith("7.")]
+    post_archive = [task for task in expected if task.startswith("7.")]
     assert all(
-        re.search(rf"^- \[[ x]\] {re.escape(task)} ", tasks, re.MULTILINE) for task in expected
+        re.search(rf"^- \[x\] {re.escape(task)} ", tasks, re.MULTILINE) for task in pre_archive
     )
+    assert all(
+        re.search(rf"^- \*\*{re.escape(effect)}\*\* ", tasks, re.MULTILINE)
+        for effect in post_archive
+    )
+    assert "- [ ]" not in tasks
+    assert "Post-archive effects are not OpenSpec completion tasks" in tasks
 
 
 def test_terminal_commitment_claims_complete_campaign_closeout() -> None:

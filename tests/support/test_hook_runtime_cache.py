@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.hook_runtime as hook_runtime
+import ethos.adapters.repo.hook_runtime_install as hook_runtime_install
 from tests.support.governed_repository import git
 from tests.support.hook_runtime_cache import install_session_hook_runtime_cache
 
@@ -28,14 +29,14 @@ def test_cache_reuses_package_bytes_but_keeps_repository_runtime_paths_isolated(
         return wheel
 
     def materialize(repo: Path, python: Path) -> Path:
-        wheel = hook_runtime.resolve_runtime_wheel(tmp_path, repo / "wheel")
+        wheel = hook_runtime_install.resolve_runtime_wheel(tmp_path, repo / "wheel")
         runtime = repo / ".git/ethos/runtime/content-digest/venv"
         runtime.mkdir(parents=True)
         (runtime / "wheel-bytes.txt").write_bytes(wheel.read_bytes())
         assert python == Path(sys.executable)
         return runtime
 
-    monkeypatch.setattr(hook_runtime, "resolve_runtime_wheel", build_wheel)
+    monkeypatch.setattr(hook_runtime_install, "resolve_runtime_wheel", build_wheel)
     monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", materialize)
     install_session_hook_runtime_cache(monkeypatch, tmp_path / "cache")
     cached = hook_runtime.materialize_hook_runtime

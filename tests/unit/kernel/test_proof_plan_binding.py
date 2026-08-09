@@ -338,18 +338,13 @@ def _archive_plan(
     )
 
 
-def test_archive_authority_supersedes_historical_scope_and_requires_current_proof(
-    tmp_path: Path,
-) -> None:
+def test_archive_authority_admits_its_exact_changed_path_subset(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
-    historical = _issue(
+    valid = _issue(
         repo, head, plan=_archive_plan(repo, head, ("historical.py", "current.py"), ("current.py",))
     )
-    persist_proof_attestation(repo, historical)
-    _assert_proof(repo, head, gap="proof_archive_scope_stale")
-    current = _issue(repo, head, plan=_archive_plan(repo, head, ("current.py",), ("current.py",)))
-    persist_proof_attestation(repo, current)
-    _assert_proof(repo, head, selected=current)
+    persist_proof_attestation(repo, valid)
+    _assert_proof(repo, head, selected=valid)
 
 
 @pytest.mark.parametrize("novel", [False, True])

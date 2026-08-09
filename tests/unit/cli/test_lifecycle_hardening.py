@@ -89,28 +89,23 @@ def _fail_once(monkeypatch, target, name: str, message: str):
 
 
 @pytest.mark.parametrize(
-    ("target", "name", "message", "reject_recompile"),
+    ("target", "name", "message", "effect_persisted"),
     [
-        (candidate_projection, "sync_ref_worktrees", "injected post-CAS failure", True),
-        (git_effects, "_clear_claimed_intents", "injected post-projection failure", False),
+        (candidate_projection, "sync_ref_worktrees", "injected post-CAS failure", False),
+        (git_effects, "_clear_claimed_intents", "injected post-projection failure", True),
     ],
 )
 def test_lane_candidate_refresh_recovers_after_interrupted_projection(
-    tmp_path: Path, monkeypatch, target, name: str, message: str, reject_recompile
+    tmp_path: Path, monkeypatch, target, name: str, message: str, effect_persisted
 ) -> None:
     repo, candidate, accepted_head, old_candidate_head = _diverged_candidate_repo(tmp_path)
     _fail_once(monkeypatch, target, name, message)
     arguments = _refresh_arguments(accepted_head)
     failed_report = run_ethos_blocked(*arguments, cwd=repo)
-    assert list(ref_intent_dir(repo).glob("*.json"))
-    if reject_recompile:
-        monkeypatch.setattr(
-            candidate_projection,
-            "_candidate_plan",
-            lambda **_kwargs: (_ for _ in ()).throw(
-                AssertionError("recovery must consume the attested original plan")
-            ),
-        )
+    assert bool(list(ref_intent_dir(repo).glob("*.json"))) is effect_persisted
+    assert git(repo, "rev-parse", "candidate/dev") == (
+        accepted_head if effect_persisted else old_candidate_head
+    )
     recovered = run_ethos(*arguments, cwd=repo)
     assert failed_report["required_gaps"] == ["candidate_refresh_from_accepted_failed"]
     assert failed_report["data"]["previous_head"] == old_candidate_head
@@ -185,8 +180,10 @@ def test_lane_refresh_recovers_after_ref_cas_precedes_branch_attachment(
         "--json",
     )
 
+    blocked = run_ethos_blocked(*arguments, cwd=worktree)
     recovered = run_ethos(*arguments, cwd=worktree)
     assert branch_was_advanced
+    assert blocked["required_gaps"] == ["refresh_base_worktree_attach_failed"]
     assert recovered["state"] == "base_refreshed"
     assert git(worktree, "branch", "--show-current") == "work/feature"
     assert not list(ref_intent_dir(worktree).glob("*.json"))

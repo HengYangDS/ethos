@@ -661,7 +661,8 @@ def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
     assert_public_decision(wrong := case.execute("renew", initial), verdict="block")
     assert "lease_actor_mismatch" in wrong["required_gaps"]
     monkeypatch.setenv("ETHOS_ACTOR", SOURCE)
-    assert (renewed_report := case.execute("renew", initial))["verdict"] == "pass"  # noqa: RUF018
+    renewed_report = case.execute("renew", initial)
+    assert renewed_report["verdict"] == "pass"
     renewed = cast("dict[str, object]", renewed_report["lease"])
     offered = case.execute("handoff_offer", renewed, target_holder_ref=TARGET)
     assert offered["verdict"] == "pass"

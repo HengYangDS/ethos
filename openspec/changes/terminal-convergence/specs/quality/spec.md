@@ -107,12 +107,17 @@ Quality SHALL preserve each carrier's native syntax and owner rather than mechan
 
 ### Requirement: Terminal Compression And Test Floor
 Terminal proof SHALL enforce non-compensating Python effective LOC ceilings for
-product (36,000), tests (18,000), cross-platform automation tools (3,000), and
-other Python (120), plus global owned-source effective LOC at or below 68,000,
-branch coverage at or above 95 percent, and complete behavior coverage for
+product (40,000), tests (30,000), cross-platform automation tools (4,000), and
+other Python (200), plus global owned-source effective LOC at or below 85,000,
+branch-aware coverage at or above 95 percent, and complete behavior coverage for
 authority, CAS, and pure transition reducers. Intermediate campaign growth
 SHALL be allowed only when the same campaign retains a proved net-deletion
 path.
+
+The hard floors SHALL be jointly feasible from one complete proof. A target
+shall not be converted into a weaker hard floor merely because current evidence
+does not yet satisfy it; source allowances shall instead support the required
+behavior proof.
 
 #### Scenario: one Python role grows while another shrinks
 - **WHEN** product, test, automation-tool, or other Python exceeds its own terminal ceiling

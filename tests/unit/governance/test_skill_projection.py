@@ -18,6 +18,7 @@ from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.literal_cases import literal_case
 from tests.support.playbooks import write_v2_playbook_package
 
 
@@ -331,29 +332,9 @@ undeclared = "forbidden"
 
 @pytest.mark.parametrize(
     ("old", "new", "gap"),
-    [
-        (
-            "schema_version = 2\n",
-            "",
-            "skill_package_schema_version_invalid:sample-skill",
-        ),
-        (
-            'kind = "command_readonly"',
-            'kind = "unknown"',
-            "skill_package_capability_kind_unknown:sample-skill:unknown",
-        ),
-        (
-            'command = ["ethos", "status", "--json"]\n',
-            "",
-            "skill_package_capability_command_missing:sample-skill:0",
-        ),
-        ("sha256:", "md5:", "skill_package_expected_digest_invalid:sample-skill"),
-        (
-            'kind = "command_readonly"',
-            'kind = "command_mutation_guarded"',
-            "skill_package_capability_guard_missing:sample-skill:ethos.status",
-        ),
-    ],
+    literal_case(
+        "governance.test_skill_projection:parametrize:test_skill_package_schema_owns_manifest_structure:0"
+    ),
 )
 def test_skill_package_schema_owns_manifest_structure(
     tmp_path: Path, old: str, new: str, gap: str

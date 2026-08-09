@@ -21,6 +21,7 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import Verdict
+from tests.support.literal_cases import literal_case
 
 _COMMITMENT = Commitment(
     id="change:test", intent="Exercise one transition plan.", subjects=("repository:test",)
@@ -361,10 +362,9 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [
-        ("gates", []),
-        ("gaps", ["gate_policy_source_missing:check"]),
-    ],
+    literal_case(
+        "kernel.test_transition_plan:parametrize:test_proof_plan_rejects_policy_node_projection_divergence:0"
+    ),
 )
 def test_proof_plan_rejects_policy_node_projection_divergence(
     field: str, value: list[object]

@@ -19,21 +19,13 @@ from ethos.adapters.admission.evidence.external import load_independent_verifica
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.repository.profile import IndependentVerificationPolicy
 from tests.support.governed_repository import write_test_profile
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-REQUEST = {
-    "remote": "https://example.invalid/org/repo.git",
-    "commit": "a" * 40,
-    "tree": "b" * 40,
-    "action": "publish",
-    "proof_floor_id": "proof-floor:default",
-    "proof_floor_digest": "c" * 64,
-    "policy_digest": "d" * 64,
-    "implementation_digest": "e" * 64,
-}
+REQUEST = literal_case("admission.test_independent_verification:assign:REQUEST:derived")
 
 
 def _receipt(**updates: object) -> IndependentVerificationReceipt:
@@ -70,13 +62,9 @@ def _provider(root: Path) -> IndependentVerificationProvider:
 
 @pytest.mark.parametrize(
     ("mode", "receipt", "verdict", "state", "gaps"),
-    [
-        ("disabled", None, "pass", "disabled", []),
-        ("optional", None, "pass", "local_readiness", []),
-        ("required", None, "unknown", "blocked", ["independent_verification_receipt_required"]),
-        ("optional", "invalid", "block", "invalid", ["independent_verification_receipt_invalid"]),
-        ("optional", "malformed", "block", "invalid", ["independent_verification_receipt_invalid"]),
-    ],
+    literal_case(
+        "admission.test_independent_verification:parametrize:test_policy_modes_preserve_local_first_fail_closed_semantics:0"
+    ),
 )
 def test_policy_modes_preserve_local_first_fail_closed_semantics(
     tmp_path: Path, mode: str, receipt: str | None, verdict: str, state: str, gaps: list[str]
@@ -206,21 +194,9 @@ def test_provider_configuration_is_protected_outside_agent_identity(
 
 @pytest.mark.parametrize(
     ("content", "gap"),
-    [
-        (None, "independent_verification_provider_config_missing"),
-        ("[receipt_store\n", "independent_verification_provider_config_invalid"),
-        ("", "independent_verification_provider_config_invalid"),
-        (
-            """[receipt_store]
-root='relative'
-[signature]
-allowed_signers='/tmp/key'
-namespace=''
-implementation_digest='invalid'
-""",
-            "independent_verification_provider_config_invalid",
-        ),
-    ],
+    literal_case(
+        "admission.test_independent_verification:parametrize:test_provider_configuration_invalid_inputs_fail_closed:1"
+    ),
 )
 def test_provider_configuration_invalid_inputs_fail_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, content: str | None, gap: str

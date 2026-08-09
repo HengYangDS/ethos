@@ -20,6 +20,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_candidate
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -160,10 +161,9 @@ def test_control_subject_and_request_bind_exact_signed_git_state(tmp_path: Path)
 
 @pytest.mark.parametrize(
     ("mode", "verdict", "state", "gaps"),
-    [
-        ("disabled", "pass", "disabled", []),
-        ("required", "unknown", "blocked", ["independent_verification_receipt_required"]),
-    ],
+    literal_case(
+        "admission.test_control_replacement:parametrize:test_control_policy_modes_fail_closed:0"
+    ),
 )
 def test_control_policy_modes_fail_closed(
     tmp_path: Path, mode: str, verdict: str, state: str, gaps: list[str]
@@ -222,13 +222,9 @@ def test_receipt_and_proof_negative_matrix_fails_closed(
 
 @pytest.mark.parametrize(
     "path",
-    [
-        "src/ethos/repository/adoption/evolution.py",
-        "src/ethos/repository/context.py",
-        "src/ethos/contracts/workflow.py",
-        "src/ethos/contracts/policy/cel.py",
-        "src/ethos/adapters/repo/git.py",
-    ],
+    literal_case(
+        "admission.test_control_replacement:parametrize:test_control_path_matrix_requires_independent_verification:1"
+    ),
 )
 def test_control_path_matrix_requires_independent_verification(tmp_path: Path, path: str) -> None:
     candidate, accepted, head = _control_change(tmp_path, path)

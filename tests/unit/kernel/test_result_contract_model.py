@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
+from tests.support.literal_cases import literal_case
 
 
 def _result(**updates: object) -> EthosResult:
@@ -57,17 +58,9 @@ def test_ethos_result_exposes_only_the_authoritative_verdict() -> None:
 
 @pytest.mark.parametrize(
     ("verdict", "required_gaps", "next_action", "expected"),
-    [
-        ("pass", (), "ethos plan --changed --json", "continue"),
-        ("pass", (), "", "done"),
-        ("block", ("proof_not_proven",), "repair the selected Commitment", "blocked"),
-        (
-            "block",
-            ("authorization_required",),
-            "ethos land --apply --authorize --json",
-            "await-user",
-        ),
-    ],
+    literal_case(
+        "kernel.test_result_contract_model:parametrize:test_ethos_result_derives_one_non_persistent_continuation:0"
+    ),
 )
 def test_ethos_result_derives_one_non_persistent_continuation(
     verdict: str,
@@ -111,10 +104,9 @@ def test_ethos_result_requires_user_decision_for_authority_bearing_action() -> N
 
 @pytest.mark.parametrize(
     "next_action",
-    [
-        "ethos lane start feature --commitment <path> --holder-ref <holder-ref> --apply --json",
-        "ethos land --apply=true --authorize=true --json",
-    ],
+    literal_case(
+        "kernel.test_result_contract_model:parametrize:test_ethos_result_recognizes_mutation_flag_forms:1"
+    ),
 )
 def test_ethos_result_recognizes_mutation_flag_forms(next_action: str) -> None:
     result = _result(next_action=next_action)
@@ -125,13 +117,9 @@ def test_ethos_result_recognizes_mutation_flag_forms(next_action: str) -> None:
 
 @pytest.mark.parametrize(
     "required_gap",
-    [
-        "holder_quiescence_confirmation_required",
-        "independent_verification_receipt_required",
-        "handoff_required",
-        "foreign_work_lane_retire_authority_required",
-        "lease_holder_mismatch",
-    ],
+    literal_case(
+        "kernel.test_result_contract_model:parametrize:test_ethos_result_awaits_external_decisions_named_by_gap:2"
+    ),
 )
 def test_ethos_result_awaits_external_decisions_named_by_gap(required_gap: str) -> None:
     result = _result(
@@ -175,14 +163,9 @@ def test_ethos_result_rejects_incomplete_public_payload() -> None:
 
 @pytest.mark.parametrize(
     "field",
-    [
-        "schema_version",
-        "summary",
-        "diagnostics",
-        "required_gaps",
-        "next_action",
-        "data",
-    ],
+    literal_case(
+        "kernel.test_result_contract_model:parametrize:test_ethos_result_rejects_truncated_wire_payload:3"
+    ),
 )
 def test_ethos_result_rejects_truncated_wire_payload(field: str) -> None:
     payload = _payload()
@@ -205,18 +188,9 @@ def test_ethos_result_rejects_pass_with_adverse_diagnostic(severity: str) -> Non
 
 @pytest.mark.parametrize(
     "payload",
-    [
-        {"command": "status", "verdict": "passed", "state": "ready"},
-        {"command": "status", "verdict": "pass", "state": 3},
-        {"command": "status", "verdict": "pass", "state": "ready", "ok": True},
-        {
-            "command": "status",
-            "verdict": "pass",
-            "state": "ready",
-            "next_actions": ["ethos plan --changed --json"],
-        },
-        {"command": "status", "verdict": "pass", "state": "ready", "extra": "blocked"},
-    ],
+    literal_case(
+        "kernel.test_result_contract_model:parametrize:test_ethos_result_rejects_coercion_and_unknown_fields:4"
+    ),
 )
 def test_ethos_result_rejects_coercion_and_unknown_fields(payload: dict[str, object]) -> None:
     with pytest.raises(ValidationError):

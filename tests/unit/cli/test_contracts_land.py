@@ -43,6 +43,7 @@ from tests.support.governed_repository import lane_start_arguments
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.literal_cases import literal_case
 
 FIXTURE_ROOT = Path(__file__).parents[2] / "fixtures/contracts-land"
 FULL_GATES = (FIXTURE_ROOT / "full-gates.toml").read_text()
@@ -113,17 +114,7 @@ def _proved_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, full: bool 
     return fixture, head
 
 
-LAND_CASES = (
-    "test_land_dry_run_reports_dirty_work_lane_gap",
-    "test_land_blocks_completed_active_openspec_change_before_candidate_landing",
-    "test_land_dry_run_reports_stale_candidate_base_with_refresh_action",
-    "test_land_dry_run_requires_executed_proof_before_ready_state",
-    "test_land_blocks_active_change_even_when_exact_head_is_proven",
-    "test_land_apply_refuses_active_change_without_updating_candidate",
-    "test_land_allows_officially_archived_work_lane_head",
-    "test_land_readiness_rejects_wrong_actor_before_candidate_effect",
-    "test_land_allows_full_proof_for_lease_bound_authority",
-)
+LAND_CASES = literal_case("cli.test_contracts_land:assign:LAND_CASES:0")
 
 
 def _assert_dirty_land_is_blocked(tmp_path: Path) -> None:
@@ -322,14 +313,7 @@ def test_land_readiness_claim_matrix(
     _assert_archived_land_readiness(claim, fixture, head, monkeypatch)
 
 
-PROOF_CASES = (
-    "test_land_readiness_and_apply_share_narrow_candidate_effect_authority",
-    "test_work_lane_proof_is_invalid_after_same_head_lease_handoff",
-    "test_work_lane_proof_requires_a_live_commitment_bound_lease[expired-expired]",
-    "test_work_lane_proof_requires_a_live_commitment_bound_lease[unknown-unknown]",
-    "test_work_lane_proof_requires_a_live_commitment_bound_lease[valid-mismatch]",
-    "test_land_rejects_proof_self_granted_candidate_authority",
-)
+PROOF_CASES = literal_case("cli.test_contracts_land:assign:PROOF_CASES:1")
 
 
 def _assert_narrow_candidate_effect_authority(
@@ -527,10 +511,7 @@ def test_proof_authority_claim_matrix(
     _assert_self_granted_proof_authority_is_rejected(fixture, head)
 
 
-REFRESH_CASES = (
-    "test_lane_refresh_base_apply_rebases_stale_work_lane",
-    "test_lane_refresh_base_conflict_returns_block_instead_of_type_error",
-)
+REFRESH_CASES = literal_case("cli.test_contracts_land:assign:REFRESH_CASES:2")
 
 
 @pytest.mark.parametrize("claim", REFRESH_CASES, ids=REFRESH_CASES)
@@ -596,12 +577,7 @@ def test_refresh_base_claim_matrix(
     assert git(fixture.worktree, "branch", "--show-current") == "work/feature"
 
 
-BOUNDARY_CASES = (
-    "test_land_apply_requires_authorization_and_expected_head",
-    "test_cli_runner_rejects_implicit_apply_against_repository_checkout",
-    "test_apply_rejects_accepted_root_even_when_authorized[land]",
-    "test_apply_rejects_accepted_root_even_when_authorized[publish]",
-)
+BOUNDARY_CASES = literal_case("cli.test_contracts_land:assign:BOUNDARY_CASES:3")
 
 
 @pytest.mark.parametrize("claim", BOUNDARY_CASES, ids=BOUNDARY_CASES)
@@ -639,14 +615,7 @@ def test_apply_boundary_claim_matrix(claim: str, tmp_path: Path) -> None:
     assert "protected_root_mutation" in payload["required_gaps"]
 
 
-CLOSEOUT_CASES = (
-    "test_closeout_rejects_candidate_self_granted_accepted_authority",
-    "test_closeout_bootstraps_the_first_repository_commitment_from_an_authorized_candidate",
-    "test_closeout_first_cas_uses_the_accepted_policy_when_candidate_changes_topology",
-    "test_closeout_uses_default_policy_when_profile_has_no_workspace",
-    "test_closeout_rejects_an_explicit_incomplete_workspace",
-    "test_closeout_uses_committed_accepted_policy_when_worktree_masks_release_mirror",
-)
+CLOSEOUT_CASES = literal_case("cli.test_contracts_land:assign:CLOSEOUT_CASES:4")
 
 
 def _assert_candidate_cannot_self_grant_accepted_authority(repo: Path, candidate: Path) -> None:
@@ -793,12 +762,7 @@ def test_closeout_policy_claim_matrix(claim: str, tmp_path: Path) -> None:
     _assert_declared_closeout_policy(claim, repo, candidate)
 
 
-CAS_CASES = (
-    "test_land_reobserves_and_retries_one_transient_candidate_cas_failure",
-    "test_land_exact_equal_candidate_is_an_idempotent_noop",
-    "test_land_bounds_repeated_candidate_cas_failure_to_two_attempts",
-    "test_land_reports_stale_candidate_without_overwriting_new_progress",
-)
+CAS_CASES = literal_case("cli.test_contracts_land:assign:CAS_CASES:5")
 
 
 @pytest.mark.parametrize("claim", CAS_CASES, ids=CAS_CASES)

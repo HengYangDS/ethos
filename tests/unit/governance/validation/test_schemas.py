@@ -11,47 +11,9 @@ from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.result import EthosResult
+from tests.support.literal_cases import literal_case
 
-ROLE_POLICY_SAMPLE = {
-    "release_branch": "main",
-    "accepted_branch": "dev",
-    "candidate_branch": "candidate/dev",
-    "work_branch_prefix": "work/",
-    "proposal_branch_prefix": "proposal/",
-    "release_mirror": "independent",
-    "semantic_order": [
-        {
-            "role": "release_root",
-            "kind": "exact_branch",
-            "config_key": "release_branch",
-            "pattern": "main",
-        },
-        {
-            "role": "accepted_root",
-            "kind": "exact_branch",
-            "config_key": "accepted_branch",
-            "pattern": "dev",
-        },
-        {
-            "role": "candidate",
-            "kind": "exact_branch",
-            "config_key": "candidate_branch",
-            "pattern": "candidate/dev",
-        },
-        {
-            "role": "work_lane",
-            "kind": "branch_prefix",
-            "config_key": "work_branch_prefix",
-            "pattern": "work/*",
-        },
-        {
-            "role": "proposal_lane",
-            "kind": "branch_prefix",
-            "config_key": "proposal_branch_prefix",
-            "pattern": "proposal/*",
-        },
-    ],
-}
+ROLE_POLICY_SAMPLE = literal_case("governance.validation.test_schemas:assign:ROLE_POLICY_SAMPLE:0")
 
 
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:

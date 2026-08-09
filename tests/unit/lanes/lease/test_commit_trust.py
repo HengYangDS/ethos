@@ -13,6 +13,7 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -158,11 +159,9 @@ def test_commit_signer_trust_command_projects_exact_recovery_action(tmp_path: Pa
 
 @pytest.mark.parametrize(
     ("arrange", "expected_gap"),
-    [
-        ("stale", "commit_trust_anchor_stale"),
-        ("inside", "commit_trust_anchor_inside_repository"),
-        ("writable", "commit_trust_anchor_unprotected"),
-    ],
+    literal_case(
+        "lanes.lease.test_commit_trust:parametrize:test_configured_signer_authorization_fails_closed:0"
+    ),
 )
 def test_configured_signer_authorization_fails_closed(
     tmp_path: Path,

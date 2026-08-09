@@ -10,6 +10,7 @@ from ethos.contracts.review import compile_review_plan
 from ethos.contracts.review import load_review_lens_declaration as load
 from ethos.contracts.review import reduce_review_results as reduce
 from ethos.contracts.semantic import canonical_json_digest
+from tests.support.literal_cases import literal_case
 
 DECLARATION = Path("system/review-lenses.toml")
 
@@ -94,21 +95,9 @@ def test_review_compilation_scales_post_implementation_risk_lenses() -> None:
 
 @pytest.mark.parametrize(
     ("facts", "declaration_edit", "verdict", "gaps"),
-    [
-        ({"ambiguities": ["choose boundary"]}, None, "unknown", ("review_intent_ambiguous",)),
-        (
-            {},
-            ('requires = ["structure"]', 'requires = ["missing"]'),
-            "block",
-            ("review_lens_dependency_missing:traceability:missing",),
-        ),
-        (
-            {"requirements": ["kernel:review", "kernel:recovery"]},
-            None,
-            "block",
-            ("review_traceability_incomplete",),
-        ),
-    ],
+    literal_case(
+        "governance.test_review_compilation:parametrize:test_review_compilation_fails_closed:0"
+    ),
 )
 def test_review_compilation_fails_closed(
     tmp_path: Path,
@@ -138,14 +127,9 @@ def test_review_result_reduction_accepts_exact_complete_results() -> None:
 
 @pytest.mark.parametrize(
     ("mutation", "expected"),
-    [
-        (
-            "stale",
-            ("review_result_binding_mismatch:structure", "review_result_missing:traceability"),
-        ),
-        ("duplicate", ("review_result_duplicate:structure",)),
-        ("unselected", ("review_result_unselected:security",)),
-    ],
+    literal_case(
+        "governance.test_review_compilation:parametrize:test_review_result_reduction_rejects_invalid_sets:1"
+    ),
 )
 def test_review_result_reduction_rejects_invalid_sets(
     mutation: str, expected: tuple[str, ...]
@@ -161,10 +145,9 @@ def test_review_result_reduction_rejects_invalid_sets(
 
 @pytest.mark.parametrize(
     ("verdict", "finding_kind", "state", "user_mode"),
-    [
-        ("block", "repairable", "repair", "continue"),
-        ("unknown", "judgment", "await-user", "ask"),
-    ],
+    literal_case(
+        "governance.test_review_compilation:parametrize:test_review_result_reduction_routes_repair_before_judgment:2"
+    ),
 )
 def test_review_result_reduction_routes_repair_before_judgment(
     verdict: str, finding_kind: str, state: str, user_mode: str

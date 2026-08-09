@@ -36,6 +36,7 @@ from ethos.contracts.coordination import LaneLease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_active_commitment
+from tests.support.literal_cases import literal_case
 
 
 def _write_object(destination: Path, content: str) -> str:
@@ -513,14 +514,9 @@ def test_handoff_source_revoke_rejects_live_incarnation_drift(
 
 @pytest.mark.parametrize(
     ("field", "gap"),
-    [
-        ("base_commitment_path", "handoff_import_failed:handoff_base_commitment_path_mismatch"),
-        (
-            "base_commitment_bytes_sha256",
-            "handoff_import_failed:handoff_base_commitment_bytes_mismatch",
-        ),
-        ("base_commitment_digest", "handoff_import_failed:handoff_base_commitment_digest_mismatch"),
-    ],
+    literal_case(
+        "lanes.handoff.test_cross_host_handoff:parametrize:test_handoff_import_rejects_tampered_exact_commitment_coordinate:0"
+    ),
 )
 def test_handoff_import_rejects_tampered_exact_commitment_coordinate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, gap: str

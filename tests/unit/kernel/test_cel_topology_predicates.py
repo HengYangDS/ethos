@@ -13,18 +13,16 @@ from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.contracts.policy.cel import CelEvaluationError
 from ethos.contracts.policy.cel import evaluate_cel_predicate
 from ethos.contracts.policy.cel import evaluate_cel_value
+from tests.support.literal_cases import literal_case
 
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
 
 
 @pytest.mark.parametrize(
     ("path", "prefix", "outcome"),
-    [
-        ("build/runtime/report.json", "build", "match"),
-        ("build/runtime/report.json", "build/runtime", "match"),
-        ("build/runtime/report.json", "build/runtime/work", "no-match"),
-        ("build-tools/report.json", "build", "no-match"),
-    ],
+    literal_case(
+        "kernel.test_cel_topology_predicates:parametrize:test_restricted_cel_prefix_predicate_preserves_path_boundary:0"
+    ),
 )
 def test_restricted_cel_prefix_predicate_preserves_path_boundary(
     path: str, prefix: str, outcome: str

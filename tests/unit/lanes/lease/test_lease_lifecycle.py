@@ -48,6 +48,7 @@ from tests.support.lane_scenarios import superseded_work_lane
 from tests.support.lifecycle_cases import assert_public_decision
 from tests.support.lifecycle_cases import insert_lease_row
 from tests.support.lifecycle_cases import strict_lease
+from tests.support.literal_cases import literal_case
 
 SOURCE = "agent:test:case:source"
 TARGET = "agent:test:case:target"
@@ -608,14 +609,9 @@ def test_lease_transition_matrix_preserves_binding_and_rejects_invalid_effects(
 
 @pytest.mark.parametrize(
     "claim",
-    [
-        "test_missing_lease_source_retires_through_exact_leased_successor",
-        "test_direct_retirement_ref_cas_failure_restores_exact_lease",
-        "test_retirement_commit_error_reports_observed_state[before]",
-        "test_retirement_commit_error_reports_observed_state[after]",
-        "test_successor_retirement_uses_the_installed_reference_transaction_hook",
-        "test_raw_delete_of_valid_leased_work_lane_requires_ref_intent",
-    ],
+    literal_case(
+        "lanes.lease.test_lease_lifecycle:parametrize:test_retirement_authority_transaction_matrix:0"
+    ),
 )
 def test_retirement_authority_transaction_matrix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str
@@ -735,13 +731,7 @@ def _takeover_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str):
 
 @pytest.mark.parametrize(
     "claim",
-    [
-        "test_exact_takeover_changes_only_holder_generation_and_emits_attestation",
-        "test_exact_takeover_drift_has_zero_lease_effect",
-        "test_exact_takeover_recovers_receipt_after_post_cas_persistence_failure",
-        "test_exact_takeover_rejects_authorization_store_content_mismatch",
-        "test_exact_takeover_rejects_wrong_or_stale_authorization",
-    ],
+    literal_case("lanes.lease.test_lease_lifecycle:parametrize:test_exact_takeover_claim_matrix:1"),
 )
 def test_exact_takeover_claim_matrix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str

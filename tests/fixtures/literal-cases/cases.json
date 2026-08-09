@@ -1,0 +1,3058 @@
+{
+  "cases": [
+    {
+      "id": "admission.test_control_replacement:parametrize:test_control_policy_modes_fail_closed:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 163,
+        "owner": "test_control_policy_modes_fail_closed",
+        "path": "tests/unit/admission/test_control_replacement.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "disabled",
+              "pass",
+              "disabled",
+              {
+                "items": [],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "required",
+              "unknown",
+              "blocked",
+              {
+                "items": [
+                  "independent_verification_receipt_required"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "7fdbcdf4fb0486779f7e9254660de8d6e413cda0c101ff994cc6a0916d56e9fa"
+    },
+    {
+      "id": "admission.test_control_replacement:parametrize:test_control_path_matrix_requires_independent_verification:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 225,
+        "owner": "test_control_path_matrix_requires_independent_verification",
+        "path": "tests/unit/admission/test_control_replacement.py"
+      },
+      "value": {
+        "items": [
+          "src/ethos/repository/adoption/evolution.py",
+          "src/ethos/repository/context.py",
+          "src/ethos/contracts/workflow.py",
+          "src/ethos/contracts/policy/cel.py",
+          "src/ethos/adapters/repo/git.py"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "636bfecba1f5b30638255cfd427ff66467d908a3c568fa0b4b7827d5f56aee78"
+    },
+    {
+      "id": "admission.test_independent_verification:parametrize:test_policy_modes_preserve_local_first_fail_closed_semantics:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 73,
+        "owner": "test_policy_modes_preserve_local_first_fail_closed_semantics",
+        "path": "tests/unit/admission/test_independent_verification.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "disabled",
+              null,
+              "pass",
+              "disabled",
+              {
+                "items": [],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "optional",
+              null,
+              "pass",
+              "local_readiness",
+              {
+                "items": [],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "required",
+              null,
+              "unknown",
+              "blocked",
+              {
+                "items": [
+                  "independent_verification_receipt_required"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "optional",
+              "invalid",
+              "block",
+              "invalid",
+              {
+                "items": [
+                  "independent_verification_receipt_invalid"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "optional",
+              "malformed",
+              "block",
+              "invalid",
+              {
+                "items": [
+                  "independent_verification_receipt_invalid"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "ac83092f0674a22269c7a066892c22930d54b3b26a2e2aa872892f2d9caac8c3"
+    },
+    {
+      "id": "admission.test_independent_verification:parametrize:test_provider_configuration_invalid_inputs_fail_closed:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 209,
+        "owner": "test_provider_configuration_invalid_inputs_fail_closed",
+        "path": "tests/unit/admission/test_independent_verification.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              null,
+              "independent_verification_provider_config_missing"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "[receipt_store\n",
+              "independent_verification_provider_config_invalid"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              "independent_verification_provider_config_invalid"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "[receipt_store]\nroot='relative'\n[signature]\nallowed_signers='/tmp/key'\nnamespace=''\nimplementation_digest='invalid'\n",
+              "independent_verification_provider_config_invalid"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "5ba63b26474f8360d12e360ebd587ed4410857e87e35251affee6f725f4bc66a"
+    },
+    {
+      "id": "adoption.test_profile_contract:parametrize:test_profile_rejects_retired_or_incomplete_proof_owners:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 82,
+        "owner": "test_profile_rejects_retired_or_incomplete_proof_owners",
+        "path": "tests/unit/adoption/test_profile_contract.py"
+      },
+      "value": {
+        "items": [
+          "required_gates = [\"tests\", \"types\"]\n",
+          "code_axes = { behavior = \"tests\", static-analysis = \"types\" }\n",
+          "code_correctness_gates = [\"tests\", \"types\"]\n\n[proof.code_correctness_map]\nbehavior = \"tests\"\n",
+          "code_correctness_gates = [\"tests\", \"types\"]\n\n[proof.code_correctness_map]\nbehavior = \"tests\"\nstatic-analysis = \"tests\"\n"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "374d20d2bbe0e701c6882c4ebe385247d0be18373e1cb94eeee1ca953de7a3f7"
+    },
+    {
+      "id": "adoption.test_profile_contract:parametrize:test_profile_contract_rejects_incomplete_or_undeclared_shape:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 168,
+        "owner": "test_profile_contract_rejects_incomplete_or_undeclared_shape",
+        "path": "tests/unit/adoption/test_profile_contract.py"
+      },
+      "value": {
+        "items": [
+          "profile_id = ''\n[openspec]\nmaterial_paths = ['openspec/**']\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = []\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['/absolute']\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\ndurable_evidence = '../evidence'\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\ndocs = '/docs'\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\nrules = 'rules\\\\windows'\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\nlocal_state = 'runtime'\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[evidence]\ndurable_roots = ['../outside']\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[external_backend]\nstate = 'default'\nminimum_version = 'successor>=incumbent'\ncontrol = 'control.toml'\nretirement_policy = 'retirement.toml'\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[embedded_backend]\nstate = 'frozen'\nminimum_version = 'incumbent'\ncontrol = 'control.toml'\nretirement_policy = 'retirement.toml'\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[rollback_window]\nstate = 'complete'\nevidence_manifest = 'rollback.toml'\ncompleted_scenarios = ['proof_report']\nrequired_scenarios = ['proof_report']\n",
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\nextra = true\n"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "9fb9cb721b885610c7297e3cdec3e68ab38ca9e9cfacc27a7a3b4bd04ca8d973"
+    },
+    {
+      "id": "cli.test_contracts_land:assign:LAND_CASES:0",
+      "source": {
+        "kind": "assign",
+        "line": 116,
+        "owner": "LAND_CASES",
+        "path": "tests/unit/cli/test_contracts_land.py"
+      },
+      "value": {
+        "items": [
+          "test_land_dry_run_reports_dirty_work_lane_gap",
+          "test_land_blocks_completed_active_openspec_change_before_candidate_landing",
+          "test_land_dry_run_reports_stale_candidate_base_with_refresh_action",
+          "test_land_dry_run_requires_executed_proof_before_ready_state",
+          "test_land_blocks_active_change_even_when_exact_head_is_proven",
+          "test_land_apply_refuses_active_change_without_updating_candidate",
+          "test_land_allows_officially_archived_work_lane_head",
+          "test_land_readiness_rejects_wrong_actor_before_candidate_effect",
+          "test_land_allows_full_proof_for_lease_bound_authority"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "ac5e084bf96bceadac0bd1e6f869946b864ee879f4f11604e701ce7756c9c74d"
+    },
+    {
+      "id": "cli.test_contracts_land:assign:PROOF_CASES:1",
+      "source": {
+        "kind": "assign",
+        "line": 325,
+        "owner": "PROOF_CASES",
+        "path": "tests/unit/cli/test_contracts_land.py"
+      },
+      "value": {
+        "items": [
+          "test_land_readiness_and_apply_share_narrow_candidate_effect_authority",
+          "test_work_lane_proof_is_invalid_after_same_head_lease_handoff",
+          "test_work_lane_proof_requires_a_live_commitment_bound_lease[expired-expired]",
+          "test_work_lane_proof_requires_a_live_commitment_bound_lease[unknown-unknown]",
+          "test_work_lane_proof_requires_a_live_commitment_bound_lease[valid-mismatch]",
+          "test_land_rejects_proof_self_granted_candidate_authority"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "39cef39fb65ceefb3d0b60f6c9f49efa541087e42c0eadec3faf505ead2d6801"
+    },
+    {
+      "id": "cli.test_contracts_land:assign:REFRESH_CASES:2",
+      "source": {
+        "kind": "assign",
+        "line": 530,
+        "owner": "REFRESH_CASES",
+        "path": "tests/unit/cli/test_contracts_land.py"
+      },
+      "value": {
+        "items": [
+          "test_lane_refresh_base_apply_rebases_stale_work_lane",
+          "test_lane_refresh_base_conflict_returns_block_instead_of_type_error"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "75d6b6c3467aa4b1df889b2ba270bbcb5dfd36d8aa9161b43373ef48f13819de"
+    },
+    {
+      "id": "cli.test_contracts_land:assign:BOUNDARY_CASES:3",
+      "source": {
+        "kind": "assign",
+        "line": 599,
+        "owner": "BOUNDARY_CASES",
+        "path": "tests/unit/cli/test_contracts_land.py"
+      },
+      "value": {
+        "items": [
+          "test_land_apply_requires_authorization_and_expected_head",
+          "test_cli_runner_rejects_implicit_apply_against_repository_checkout",
+          "test_apply_rejects_accepted_root_even_when_authorized[land]",
+          "test_apply_rejects_accepted_root_even_when_authorized[publish]"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "5f479df007e7d2a47a9da1943583655c53e6b983a0c1c6d252766b9ba7f66d4b"
+    },
+    {
+      "id": "cli.test_contracts_land:assign:CLOSEOUT_CASES:4",
+      "source": {
+        "kind": "assign",
+        "line": 642,
+        "owner": "CLOSEOUT_CASES",
+        "path": "tests/unit/cli/test_contracts_land.py"
+      },
+      "value": {
+        "items": [
+          "test_closeout_rejects_candidate_self_granted_accepted_authority",
+          "test_closeout_bootstraps_the_first_repository_commitment_from_an_authorized_candidate",
+          "test_closeout_first_cas_uses_the_accepted_policy_when_candidate_changes_topology",
+          "test_closeout_uses_default_policy_when_profile_has_no_workspace",
+          "test_closeout_rejects_an_explicit_incomplete_workspace",
+          "test_closeout_uses_committed_accepted_policy_when_worktree_masks_release_mirror"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "91e74ad391510f35d4d348a1126f6d1baf3d5714fc180494359da805761e0631"
+    },
+    {
+      "id": "cli.test_contracts_land:assign:CAS_CASES:5",
+      "source": {
+        "kind": "assign",
+        "line": 796,
+        "owner": "CAS_CASES",
+        "path": "tests/unit/cli/test_contracts_land.py"
+      },
+      "value": {
+        "items": [
+          "test_land_reobserves_and_retries_one_transient_candidate_cas_failure",
+          "test_land_exact_equal_candidate_is_an_idempotent_noop",
+          "test_land_bounds_repeated_candidate_cas_failure_to_two_attempts",
+          "test_land_reports_stale_candidate_without_overwriting_new_progress"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "87198b121e1e11417f62da9bfd23dd5a51e44da8d6dd9c13126ed84eee448fce"
+    },
+    {
+      "id": "cli.test_invalid_profile_boundary:parametrize:test_invalid_profilecommand_name_detection_skips_option_values:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 19,
+        "owner": "test_invalid_profilecommand_name_detection_skips_option_values",
+        "path": "tests/unit/cli/test_invalid_profile_boundary.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              {
+                "items": [
+                  "--root",
+                  "status",
+                  "plan",
+                  "--json"
+                ],
+                "type": "list"
+              },
+              "plan"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  "--root",
+                  "openspec",
+                  "status",
+                  "--json"
+                ],
+                "type": "list"
+              },
+              "status"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "5635b6cafec9d1d44e02d6ce8325343c0057d8ebbb02d08a284656280b90810f"
+    },
+    {
+      "id": "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 84,
+        "owner": "test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission",
+        "path": "tests/unit/cli/test_invalid_profile_boundary.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "prove",
+              {
+                "items": [],
+                "type": "tuple"
+              },
+              true
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "land",
+              {
+                "items": [],
+                "type": "tuple"
+              },
+              false
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "land",
+              {
+                "items": [
+                  "--apply"
+                ],
+                "type": "tuple"
+              },
+              true
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "2f573f9d8bce0f20005b121f80addf106fae74e267451ee39f5e87e4a81660a3"
+    },
+    {
+      "id": "cli.test_invalid_profile_boundary:parametrize:test_git_execution_failures_emit_structured_json_without_traceback:2",
+      "source": {
+        "kind": "parametrize",
+        "line": 127,
+        "owner": "test_git_execution_failures_emit_structured_json_without_traceback",
+        "path": "tests/unit/cli/test_invalid_profile_boundary.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "git_executable_unavailable",
+              "not_found_on_effective_path"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "git_process_spawn_failed",
+              "working_directory_unavailable"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "fe07fa8208ee6bb854b5234ed006afe7fab836981c00c562aa739478c1fd6926"
+    },
+    {
+      "id": "cli.test_terminal_command_surface:assign:PUBLIC_ROOT_COMMANDS:0",
+      "source": {
+        "kind": "assign",
+        "line": 22,
+        "owner": "PUBLIC_ROOT_COMMANDS",
+        "path": "tests/unit/cli/test_terminal_command_surface.py"
+      },
+      "value": {
+        "items": [
+          "status",
+          "plan",
+          "prove",
+          "land",
+          "publish",
+          "adopt",
+          "migrate-local-state"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "5481784be1042500d366a564b7eb59c93387e7f22bf9ed0fc568b8e54045b6f1"
+    },
+    {
+      "id": "cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1",
+      "source": {
+        "kind": "assign",
+        "line": 31,
+        "owner": "RETIRED_ROOT_COMMANDS",
+        "path": "tests/unit/cli/test_terminal_command_surface.py"
+      },
+      "value": {
+        "items": [
+          "orient",
+          "report",
+          "doctor",
+          "explain",
+          "docs",
+          "audit",
+          "openspec",
+          "fleet",
+          "intake",
+          "rules",
+          "assistants",
+          "campaign",
+          "parity",
+          "quality",
+          "playbooks"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "cc7fdf54ed602cef31df87c63a3df01ce50a44e7cebe1dd8a73b7554dc03e97b"
+    },
+    {
+      "id": "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2",
+      "source": {
+        "kind": "parametrize",
+        "line": 109,
+        "owner": "test_retired_claim_lane_surface_is_rejected_by_cyclopts",
+        "path": "tests/unit/cli/test_terminal_command_surface.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              {
+                "items": [
+                  "lane",
+                  "bind-claim",
+                  "--claim-id=retired"
+                ],
+                "type": "tuple"
+              },
+              "Unknown command"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  "lane",
+                  "start",
+                  "feature",
+                  "--holder-ref",
+                  "agent:test:case:holder",
+                  "--claim-id=retired"
+                ],
+                "type": "tuple"
+              },
+              "Unknown option"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "8843a37a17974171b669dc3a59f2f70698be57c9952794512522d82cf1fd3079"
+    },
+    {
+      "id": "domain.test_source_budget:parametrize:test_ecosystem_lockfile_patterns_share_one_evidence_class:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 291,
+        "owner": "test_ecosystem_lockfile_patterns_share_one_evidence_class",
+        "path": "tests/unit/domain/test_source_budget.py"
+      },
+      "value": {
+        "items": [
+          "uv.lock",
+          "Cargo.lock",
+          "Gemfile.lock",
+          "composer.lock",
+          "yarn.lock",
+          "package-lock.json",
+          "nested/pnpm-lock.yaml",
+          "nested/npm-shrinkwrap.json"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "c48def3ad9e69a46b704bacc9384eddf47b330c9c228ea7ec5c162bf8c5b2bf3"
+    },
+    {
+      "id": "domain.test_source_budget:parametrize:test_python_carrier_roles_cannot_compensate_for_one_another:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 369,
+        "owner": "test_python_carrier_roles_cannot_compensate_for_one_another",
+        "path": "tests/unit/domain/test_source_budget.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "python_product",
+              null,
+              {
+                "items": [
+                  1,
+                  1000,
+                  1000,
+                  1000,
+                  2000
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "python_tests",
+              "tests/test_demo.py",
+              {
+                "items": [
+                  1000,
+                  1,
+                  1000,
+                  1000,
+                  2000
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "python_tools",
+              "tools/demo.py",
+              {
+                "items": [
+                  1000,
+                  1000,
+                  1,
+                  1000,
+                  2000
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "python_other",
+              "demo.py",
+              {
+                "items": [
+                  1000,
+                  1000,
+                  1000,
+                  1,
+                  2000
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "91ad6e6dcfbecf19b98daf771c7607e4328127e30af17ddb1cb924b9f0c96961"
+    },
+    {
+      "id": "domain.test_source_budget:parametrize:test_structured_measurement_is_formatting_and_order_invariant:2",
+      "source": {
+        "kind": "parametrize",
+        "line": 513,
+        "owner": "test_structured_measurement_is_formatting_and_order_invariant",
+        "path": "tests/unit/domain/test_source_budget.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "json",
+              ".json",
+              "{\"a\": 1, \"b\": [2, 3]}\n",
+              "{\n  \"b\": [2, 3],\n  \"a\": 1\n}\n"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "toml",
+              ".toml",
+              "a = 1\nb = [2, 3]\n",
+              "b=[2,3]\na=1\n"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "yaml",
+              ".yaml",
+              "a: 1\nb: [2, 3]\n",
+              "b:\n  - 2\n  - 3\na: 1\n"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "ini",
+              ".ini",
+              "[section]\na = 1\nb = 2\n",
+              "[section]\nb=2\na=1\n"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "7b14c5bf5629cb06ab4f70a02c457599dcd1fb885610f540d9921145b68acdd9"
+    },
+    {
+      "id": "governance.test_docs_health:parametrize:test_docs_health_resolves_commands_through_the_live_command_tree:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 45,
+        "owner": "test_docs_health_resolves_commands_through_the_live_command_tree",
+        "path": "tests/unit/governance/test_docs_health.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "ethos quality provenance --json",
+              "ethos quality provenance"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "ethos lane lease migrate --json",
+              "ethos lane lease migrate"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "uv run --no-sync ethos lane lease renew --json",
+              null
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "591e5f884c9af4382f62a250f2138ec9ca5fe372a5a244e3cff30885e1d3648d"
+    },
+    {
+      "id": "governance.test_review_compilation:parametrize:test_review_compilation_fails_closed:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 97,
+        "owner": "test_review_compilation_fails_closed",
+        "path": "tests/unit/governance/test_review_compilation.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "ambiguities",
+                    {
+                      "items": [
+                        "choose boundary"
+                      ],
+                      "type": "list"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              null,
+              "unknown",
+              {
+                "items": [
+                  "review_intent_ambiguous"
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "requires = [\"structure\"]",
+                  "requires = [\"missing\"]"
+                ],
+                "type": "tuple"
+              },
+              "block",
+              {
+                "items": [
+                  "review_lens_dependency_missing:traceability:missing"
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "requirements",
+                    {
+                      "items": [
+                        "kernel:review",
+                        "kernel:recovery"
+                      ],
+                      "type": "list"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              null,
+              "block",
+              {
+                "items": [
+                  "review_traceability_incomplete"
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "823d6af4185c31838f118f08c75796753c7b4e142b6aabbb017936cb088db7df"
+    },
+    {
+      "id": "governance.test_review_compilation:parametrize:test_review_result_reduction_rejects_invalid_sets:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 141,
+        "owner": "test_review_result_reduction_rejects_invalid_sets",
+        "path": "tests/unit/governance/test_review_compilation.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "stale",
+              {
+                "items": [
+                  "review_result_binding_mismatch:structure",
+                  "review_result_missing:traceability"
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "duplicate",
+              {
+                "items": [
+                  "review_result_duplicate:structure"
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "unselected",
+              {
+                "items": [
+                  "review_result_unselected:security"
+                ],
+                "type": "tuple"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "8466408e3c6d7d0917760f1a5f94ea586e5062e9492dd2f60b3d703b48d49bdf"
+    },
+    {
+      "id": "governance.test_review_compilation:parametrize:test_review_result_reduction_routes_repair_before_judgment:2",
+      "source": {
+        "kind": "parametrize",
+        "line": 164,
+        "owner": "test_review_result_reduction_routes_repair_before_judgment",
+        "path": "tests/unit/governance/test_review_compilation.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "block",
+              "repairable",
+              "repair",
+              "continue"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "unknown",
+              "judgment",
+              "await-user",
+              "ask"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "1674ca60cb9e11b794255816342802a1a2da8788d0cbf271dfd9ffaa590df175"
+    },
+    {
+      "id": "governance.test_skill_projection:parametrize:test_skill_package_schema_owns_manifest_structure:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 334,
+        "owner": "test_skill_package_schema_owns_manifest_structure",
+        "path": "tests/unit/governance/test_skill_projection.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "schema_version = 2\n",
+              "",
+              "skill_package_schema_version_invalid:sample-skill"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "kind = \"command_readonly\"",
+              "kind = \"unknown\"",
+              "skill_package_capability_kind_unknown:sample-skill:unknown"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "command = [\"ethos\", \"status\", \"--json\"]\n",
+              "",
+              "skill_package_capability_command_missing:sample-skill:0"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "sha256:",
+              "md5:",
+              "skill_package_expected_digest_invalid:sample-skill"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "kind = \"command_readonly\"",
+              "kind = \"command_mutation_guarded\"",
+              "skill_package_capability_guard_missing:sample-skill:ethos.status"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "7e8d71929db7abc6d4695fe5af34934f04f03860fb60fdc9cf72df7b5384fdb5"
+    },
+    {
+      "id": "governance.validation.test_schemas:assign:ROLE_POLICY_SAMPLE:0",
+      "source": {
+        "kind": "assign",
+        "line": 15,
+        "owner": "ROLE_POLICY_SAMPLE",
+        "path": "tests/unit/governance/validation/test_schemas.py"
+      },
+      "value": {
+        "items": [
+          [
+            "release_branch",
+            "main"
+          ],
+          [
+            "accepted_branch",
+            "dev"
+          ],
+          [
+            "candidate_branch",
+            "candidate/dev"
+          ],
+          [
+            "work_branch_prefix",
+            "work/"
+          ],
+          [
+            "proposal_branch_prefix",
+            "proposal/"
+          ],
+          [
+            "release_mirror",
+            "independent"
+          ],
+          [
+            "semantic_order",
+            {
+              "items": [
+                {
+                  "items": [
+                    [
+                      "role",
+                      "release_root"
+                    ],
+                    [
+                      "kind",
+                      "exact_branch"
+                    ],
+                    [
+                      "config_key",
+                      "release_branch"
+                    ],
+                    [
+                      "pattern",
+                      "main"
+                    ]
+                  ],
+                  "type": "dict"
+                },
+                {
+                  "items": [
+                    [
+                      "role",
+                      "accepted_root"
+                    ],
+                    [
+                      "kind",
+                      "exact_branch"
+                    ],
+                    [
+                      "config_key",
+                      "accepted_branch"
+                    ],
+                    [
+                      "pattern",
+                      "dev"
+                    ]
+                  ],
+                  "type": "dict"
+                },
+                {
+                  "items": [
+                    [
+                      "role",
+                      "candidate"
+                    ],
+                    [
+                      "kind",
+                      "exact_branch"
+                    ],
+                    [
+                      "config_key",
+                      "candidate_branch"
+                    ],
+                    [
+                      "pattern",
+                      "candidate/dev"
+                    ]
+                  ],
+                  "type": "dict"
+                },
+                {
+                  "items": [
+                    [
+                      "role",
+                      "work_lane"
+                    ],
+                    [
+                      "kind",
+                      "branch_prefix"
+                    ],
+                    [
+                      "config_key",
+                      "work_branch_prefix"
+                    ],
+                    [
+                      "pattern",
+                      "work/*"
+                    ]
+                  ],
+                  "type": "dict"
+                },
+                {
+                  "items": [
+                    [
+                      "role",
+                      "proposal_lane"
+                    ],
+                    [
+                      "kind",
+                      "branch_prefix"
+                    ],
+                    [
+                      "config_key",
+                      "proposal_branch_prefix"
+                    ],
+                    [
+                      "pattern",
+                      "proposal/*"
+                    ]
+                  ],
+                  "type": "dict"
+                }
+              ],
+              "type": "list"
+            }
+          ]
+        ],
+        "type": "dict"
+      },
+      "value_sha256": "5dc13a570955d8c035cfeb0144fe248d0aa19e689f4a7fa41d2e8dd59746c7a8"
+    },
+    {
+      "id": "kernel.test_admission_contract:parametrize:test_mutation_classifier_recognizes_owned_and_external_effects:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 57,
+        "owner": "test_mutation_classifier_recognizes_owned_and_external_effects",
+        "path": "tests/unit/kernel/test_admission_contract.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "ethos",
+              "lane",
+              "start",
+              "feature",
+              "--apply"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "ethos",
+              "land",
+              "--authorize=true"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "openspec",
+              "archive",
+              "example",
+              "--yes",
+              "--json"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "199fc0d2f5a5958a45a0c5dea002794a0582d0933f5d5a4ce79365ede5d6bce6"
+    },
+    {
+      "id": "kernel.test_cel_topology_predicates:parametrize:test_restricted_cel_prefix_predicate_preserves_path_boundary:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 22,
+        "owner": "test_restricted_cel_prefix_predicate_preserves_path_boundary",
+        "path": "tests/unit/kernel/test_cel_topology_predicates.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "build/runtime/report.json",
+              "build",
+              "match"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "build/runtime/report.json",
+              "build/runtime",
+              "match"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "build/runtime/report.json",
+              "build/runtime/work",
+              "no-match"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "build-tools/report.json",
+              "build",
+              "no-match"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "39991b80e3d7b7307c8eb0d566cf3172ef877fe4d2c3b382925f1c54e52411f3"
+    },
+    {
+      "id": "kernel.test_coordination_contract:parametrize:test_repository_relative_path_accepts_canonical_posix_values:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 37,
+        "owner": "test_repository_relative_path_accepts_canonical_posix_values",
+        "path": "tests/unit/kernel/test_coordination_contract.py"
+      },
+      "value": {
+        "items": [
+          "openspec/changes/example/commitment.toml",
+          "src/main.py",
+          ".github/workflows/check.yml",
+          "a/.hidden/file",
+          "a/b:c"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "20181ada3c9cec195d1c5948c5c05b3b03c5901d44f4466563e49eca33e761ff"
+    },
+    {
+      "id": "kernel.test_handoff_contract:parametrize:test_handoff_import_rejects_destination_lease_before_git_effects:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 172,
+        "owner": "test_handoff_import_rejects_destination_lease_before_git_effects",
+        "path": "tests/unit/kernel/test_handoff_contract.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "valid",
+              "handoff_import_lease_conflict"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "expired",
+              "handoff_import_lease_conflict"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "unknown",
+              "handoff_import_lease_unknown"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "489f9319206ce7da81177ee1ee5e6e862aa9430891b7636629dbdcb89c808176"
+    },
+    {
+      "id": "kernel.test_proof_plan_binding:parametrize:test_proof_predicate_evidence_drift_fails_closed:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 134,
+        "owner": "test_proof_predicate_evidence_drift_fails_closed",
+        "path": "tests/unit/kernel/test_proof_plan_binding.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "claim",
+              {
+                "items": [
+                  [
+                    "objective",
+                    "other"
+                  ],
+                  [
+                    "verdict",
+                    "block"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "proof_attestation_claim_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "scope",
+              {
+                "items": [],
+                "type": "list"
+              },
+              "proof_attestation_scope_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "plane",
+              "hosted",
+              "proof_attestation_plane_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "context",
+              {
+                "items": [],
+                "type": "dict"
+              },
+              "proof_attestation_context_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "boundary",
+              "other",
+              "proof_attestation_boundary_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "novel_semantics",
+              true,
+              "model_gap"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "dcd4bc883862934b987154de5e043e882c41acadd9de8799b042d299762e793d"
+    },
+    {
+      "id": "kernel.test_proof_plan_binding:parametrize:test_proof_admission_rechecks_live_plan_closure:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 201,
+        "owner": "test_proof_admission_rechecks_live_plan_closure",
+        "path": "tests/unit/kernel/test_proof_plan_binding.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "head",
+              "proof_attestation_plan_head_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "tree",
+              "proof_attestation_live_tree_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "policy",
+              "proof_attestation_repository_policy_mismatch"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "d12556716c3a1162653a42e6a000cae2600d8b577cbb997ef85365d8dbf10494"
+    },
+    {
+      "id": "kernel.test_result_contract_model:parametrize:test_ethos_result_derives_one_non_persistent_continuation:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 60,
+        "owner": "test_ethos_result_derives_one_non_persistent_continuation",
+        "path": "tests/unit/kernel/test_result_contract_model.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "pass",
+              {
+                "items": [],
+                "type": "tuple"
+              },
+              "ethos plan --changed --json",
+              "continue"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "pass",
+              {
+                "items": [],
+                "type": "tuple"
+              },
+              "",
+              "done"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "block",
+              {
+                "items": [
+                  "proof_not_proven"
+                ],
+                "type": "tuple"
+              },
+              "repair the selected Commitment",
+              "blocked"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "block",
+              {
+                "items": [
+                  "authorization_required"
+                ],
+                "type": "tuple"
+              },
+              "ethos land --apply --authorize --json",
+              "await-user"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "a94d9d988fdfd13d006f5a3b8fbf9d249af3f7ce8a2353e32dd70349b503ccd7"
+    },
+    {
+      "id": "kernel.test_result_contract_model:parametrize:test_ethos_result_recognizes_mutation_flag_forms:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 114,
+        "owner": "test_ethos_result_recognizes_mutation_flag_forms",
+        "path": "tests/unit/kernel/test_result_contract_model.py"
+      },
+      "value": {
+        "items": [
+          "ethos lane start feature --commitment <path> --holder-ref <holder-ref> --apply --json",
+          "ethos land --apply=true --authorize=true --json"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "893742637ddf5f557a75b2670d3381d55d259c689e6894c28fb423c9a393e6f2"
+    },
+    {
+      "id": "kernel.test_result_contract_model:parametrize:test_ethos_result_awaits_external_decisions_named_by_gap:2",
+      "source": {
+        "kind": "parametrize",
+        "line": 128,
+        "owner": "test_ethos_result_awaits_external_decisions_named_by_gap",
+        "path": "tests/unit/kernel/test_result_contract_model.py"
+      },
+      "value": {
+        "items": [
+          "holder_quiescence_confirmation_required",
+          "independent_verification_receipt_required",
+          "handoff_required",
+          "foreign_work_lane_retire_authority_required",
+          "lease_holder_mismatch"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "26645482ba809714331b0665bd4126c8b807a369fd2d86997e77c608cfbb66af"
+    },
+    {
+      "id": "kernel.test_result_contract_model:parametrize:test_ethos_result_rejects_truncated_wire_payload:3",
+      "source": {
+        "kind": "parametrize",
+        "line": 178,
+        "owner": "test_ethos_result_rejects_truncated_wire_payload",
+        "path": "tests/unit/kernel/test_result_contract_model.py"
+      },
+      "value": {
+        "items": [
+          "schema_version",
+          "summary",
+          "diagnostics",
+          "required_gaps",
+          "next_action",
+          "data"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "dc62c873c109e25e211d0f877f70091260238ff3064f72d60e9015ed5bad8ba9"
+    },
+    {
+      "id": "kernel.test_result_contract_model:parametrize:test_ethos_result_rejects_coercion_and_unknown_fields:4",
+      "source": {
+        "kind": "parametrize",
+        "line": 208,
+        "owner": "test_ethos_result_rejects_coercion_and_unknown_fields",
+        "path": "tests/unit/kernel/test_result_contract_model.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              [
+                "command",
+                "status"
+              ],
+              [
+                "verdict",
+                "passed"
+              ],
+              [
+                "state",
+                "ready"
+              ]
+            ],
+            "type": "dict"
+          },
+          {
+            "items": [
+              [
+                "command",
+                "status"
+              ],
+              [
+                "verdict",
+                "pass"
+              ],
+              [
+                "state",
+                3
+              ]
+            ],
+            "type": "dict"
+          },
+          {
+            "items": [
+              [
+                "command",
+                "status"
+              ],
+              [
+                "verdict",
+                "pass"
+              ],
+              [
+                "state",
+                "ready"
+              ],
+              [
+                "ok",
+                true
+              ]
+            ],
+            "type": "dict"
+          },
+          {
+            "items": [
+              [
+                "command",
+                "status"
+              ],
+              [
+                "verdict",
+                "pass"
+              ],
+              [
+                "state",
+                "ready"
+              ],
+              [
+                "next_actions",
+                {
+                  "items": [
+                    "ethos plan --changed --json"
+                  ],
+                  "type": "list"
+                }
+              ]
+            ],
+            "type": "dict"
+          },
+          {
+            "items": [
+              [
+                "command",
+                "status"
+              ],
+              [
+                "verdict",
+                "pass"
+              ],
+              [
+                "state",
+                "ready"
+              ],
+              [
+                "extra",
+                "blocked"
+              ]
+            ],
+            "type": "dict"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "dbbc488040184e1a371ce68967e258bb279ad5f67a13aff62ac8ee6818ed51d9"
+    },
+    {
+      "id": "kernel.test_transition_plan:parametrize:test_proof_plan_rejects_policy_node_projection_divergence:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 364,
+        "owner": "test_proof_plan_rejects_policy_node_projection_divergence",
+        "path": "tests/unit/kernel/test_transition_plan.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "gates",
+              {
+                "items": [],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "gaps",
+              {
+                "items": [
+                  "gate_policy_source_missing:check"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "48170874ca3eee9420f10119ed7b00ee0d46acc094e5a94f76d0911adb67ed74"
+    },
+    {
+      "id": "lanes.handoff.test_cross_host_handoff:parametrize:test_handoff_import_rejects_tampered_exact_commitment_coordinate:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 516,
+        "owner": "test_handoff_import_rejects_tampered_exact_commitment_coordinate",
+        "path": "tests/unit/lanes/handoff/test_cross_host_handoff.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "base_commitment_path",
+              "handoff_import_failed:handoff_base_commitment_path_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "base_commitment_bytes_sha256",
+              "handoff_import_failed:handoff_base_commitment_bytes_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "base_commitment_digest",
+              "handoff_import_failed:handoff_base_commitment_digest_mismatch"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "40411122517d98a02ac06c9ea5e122114cccfa1f1c38a1af51985781bfc43be8"
+    },
+    {
+      "id": "lanes.lease.test_commit_trust:parametrize:test_configured_signer_authorization_fails_closed:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 161,
+        "owner": "test_configured_signer_authorization_fails_closed",
+        "path": "tests/unit/lanes/lease/test_commit_trust.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "stale",
+              "commit_trust_anchor_stale"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "inside",
+              "commit_trust_anchor_inside_repository"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "writable",
+              "commit_trust_anchor_unprotected"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "1366934ebb7394c27b3ae72bc05d291d6fa68372bb8a91f823e2802e865ecb1c"
+    },
+    {
+      "id": "lanes.lease.test_commitment_rebind:parametrize:test_rebind_owns_carrier_and_authority:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 231,
+        "owner": "test_rebind_owns_carrier_and_authority",
+        "path": "tests/unit/lanes/lease/test_commitment_rebind.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "relocated",
+              {
+                "items": [
+                  "git.ref.compare-and-swap"
+                ],
+                "type": "tuple"
+              },
+              "lease_base_commitment_path_mismatch"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "archive-active",
+              {
+                "items": [
+                  "git.ref.compare-and-swap"
+                ],
+                "type": "tuple"
+              },
+              null
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "stable",
+              {
+                "items": [
+                  "repository.read",
+                  "work-lane.write"
+                ],
+                "type": "tuple"
+              },
+              null
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "e069dd4ec12fcb9374eb3caa64d2dd9bdfe03a63916f6bffebd9b12a81c0e2cf"
+    },
+    {
+      "id": "lanes.lease.test_lease_lifecycle:parametrize:test_retirement_authority_transaction_matrix:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 611,
+        "owner": "test_retirement_authority_transaction_matrix",
+        "path": "tests/unit/lanes/lease/test_lease_lifecycle.py"
+      },
+      "value": {
+        "items": [
+          "test_missing_lease_source_retires_through_exact_leased_successor",
+          "test_direct_retirement_ref_cas_failure_restores_exact_lease",
+          "test_retirement_commit_error_reports_observed_state[before]",
+          "test_retirement_commit_error_reports_observed_state[after]",
+          "test_successor_retirement_uses_the_installed_reference_transaction_hook",
+          "test_raw_delete_of_valid_leased_work_lane_requires_ref_intent"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "f3e5f30fdf6bbd7a8afbf6323ceb3c243c147347c9abadbd54b394ec2a1d2b4f"
+    },
+    {
+      "id": "lanes.lease.test_lease_lifecycle:parametrize:test_exact_takeover_claim_matrix:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 738,
+        "owner": "test_exact_takeover_claim_matrix",
+        "path": "tests/unit/lanes/lease/test_lease_lifecycle.py"
+      },
+      "value": {
+        "items": [
+          "test_exact_takeover_changes_only_holder_generation_and_emits_attestation",
+          "test_exact_takeover_drift_has_zero_lease_effect",
+          "test_exact_takeover_recovers_receipt_after_post_cas_persistence_failure",
+          "test_exact_takeover_rejects_authorization_store_content_mismatch",
+          "test_exact_takeover_rejects_wrong_or_stale_authorization"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "b2ec9e6f9c18d3f987c7360555f349385d963b716bb97f0186bcdf414c0e97ac"
+    },
+    {
+      "id": "lanes.test_fresh_lane_start:parametrize:test_start_work_lane_rejects_missing_invalid_or_mismatched_fresh_commitment:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 159,
+        "owner": "test_start_work_lane_rejects_missing_invalid_or_mismatched_fresh_commitment",
+        "path": "tests/unit/lanes/test_fresh_lane_start.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              null,
+              "lane_start_commitment_required"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "invalid",
+              "lane_start_commitment_invalid"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "other-change",
+              "lane_start_commitment_identity_mismatch"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "acb954847bfff028959492ed55cedf7619caa6072aca44e9e775b3f258a8651a"
+    },
+    {
+      "id": "lanes.test_fresh_lane_start:parametrize:test_start_work_lane_removes_fresh_carrier_when_openspec_fails:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 196,
+        "owner": "test_start_work_lane_removes_fresh_carrier_when_openspec_fails",
+        "path": "tests/unit/lanes/test_fresh_lane_start.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "create",
+              "openspec_change_creation_failed"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "status",
+              "openspec_change_validation_failed"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "6583d0668be2b00e67b3b363a02b33fa347db149cd3fa74db1d3e65e3a73da1d"
+    },
+    {
+      "id": "lanes.test_lane_family_profile:assign:_LEASE_COORDINATES:0",
+      "source": {
+        "kind": "assign",
+        "line": 49,
+        "owner": "_LEASE_COORDINATES",
+        "path": "tests/unit/lanes/test_lane_family_profile.py"
+      },
+      "value": {
+        "items": [
+          "lane_incarnation_id",
+          "lease_id",
+          "holder_ref",
+          "epoch",
+          "expected_head",
+          "expected_tree",
+          "issued_at",
+          "renewed_at",
+          "path_scope",
+          "expires_at",
+          "payload_sha256",
+          "base_commitment_path",
+          "base_commitment_bytes_sha256",
+          "base_commitment_digest"
+        ],
+        "type": "tuple"
+      },
+      "value_sha256": "e928e55710904732d428b8a96600ae8608861b58efaaacdd5f72c15bd8f9c119"
+    },
+    {
+      "id": "lanes.test_lane_family_profile:parametrize:test_start_work_lane_lease_precedes_ref_creation:1",
+      "source": {
+        "kind": "parametrize",
+        "line": 352,
+        "owner": "test_start_work_lane_lease_precedes_ref_creation",
+        "path": "tests/unit/lanes/test_lane_family_profile.py"
+      },
+      "value": {
+        "items": [
+          "start_work_lane_acquires_lease_for_final_initialization_head",
+          "start_work_lane_creates_no_work_ref_before_final_lease"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "87d81ff0b826f54f0e2fe90b481bc2831c57fa683fbff0f5ce3bdb14bc5ed3b8"
+    },
+    {
+      "id": "lanes.test_lane_family_profile:parametrize:test_start_work_lane_carrier_failure_claims:2",
+      "source": {
+        "kind": "parametrize",
+        "line": 597,
+        "owner": "test_start_work_lane_carrier_failure_claims",
+        "path": "tests/unit/lanes/test_lane_family_profile.py"
+      },
+      "value": {
+        "items": [
+          "start_work_lane_leaves_no_lease_when_worktree_creation_fails",
+          "start_work_lane_retains_final_lease_when_carrier_ownership_is_unknown"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "155a050f2ba6e0065f4a2c13ff733e8ea073f2cec4d545bf006b8cf844c98083"
+    },
+    {
+      "id": "mutation.test_git_effect:parametrize:test_attestation_negative_claim_matrix:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 522,
+        "owner": "test_attestation_negative_claim_matrix",
+        "path": "tests/unit/mutation/test_git_effect.py"
+      },
+      "value": {
+        "items": [
+          "live",
+          "repository",
+          "command",
+          "program_sha256",
+          "result",
+          "inputs",
+          "output_digest",
+          "expired",
+          "expired_drift",
+          "issued_at",
+          "checkout",
+          "facts_digest",
+          "unknown"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "3e2286ed287258a7d828553191fe9a47e4a18f266c69782cd57be323a9eb0f91"
+    },
+    {
+      "id": "policy.test_artifacts:parametrize:test_entrypoint_audit_requires_semantic_package_build_output:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 21,
+        "owner": "test_entrypoint_audit_requires_semantic_package_build_output",
+        "path": "tests/unit/policy/test_artifacts.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "artifact_dir=\"${repo_root}/build/artifacts/python\"\ntools/ci/scripts/with-python-runtime.sh -- uv build --offline --wheel --out-dir \"${artifact_dir}\" --clear",
+              0
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "tools/ci/scripts/with-python-runtime.sh -- uv build --offline --wheel --out-dir \"${artifact_dir}\" --clear",
+              1
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "artifact_dir=\"${repo_root}/build/runtime/python\"\ntools/ci/scripts/with-python-runtime.sh -- uv build --offline --wheel --out-dir \"${artifact_dir}\" --clear",
+              1
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "other_dir=\"${repo_root}/build/artifacts/python\"\ntools/ci/scripts/with-python-runtime.sh -- uv build --offline --wheel --out-dir \"${artifact_dir}\" --clear",
+              1
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "be4e5f764251ef5d0620c1f193c5be72121ba0fe975e80c9a1e1031202bc8565"
+    },
+    {
+      "id": "policy.test_reference_carriers:parametrize:test_reference_carriers_have_one_deterministic_dispatch:0",
+      "source": {
+        "kind": "parametrize",
+        "line": 18,
+        "owner": "test_reference_carriers_have_one_deterministic_dispatch",
+        "path": "tests/unit/policy/test_reference_carriers.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "pyproject.toml",
+              "pyproject"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "packages/worker/pyproject.toml",
+              "pyproject"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "package.json",
+              "package-json"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "packages/web/package.json",
+              "package-json"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "src/example/runtime.py",
+              "python"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              ".github/workflows/ci.yml",
+              "yaml"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "tools/check.sh",
+              "shell"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "docs/start.md",
+              "markdown"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "system/tools.toml",
+              "text"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "bb53940af5ee9a60372b752f92d28042ebca5d458a7aa0b31af8828191d9ba76"
+    },
+    {
+      "id": "release.test_policy_attestation:assign:_LOCAL:0",
+      "source": {
+        "kind": "assign",
+        "line": 13,
+        "owner": "_LOCAL",
+        "path": "tests/unit/release/test_policy_attestation.py"
+      },
+      "value": {
+        "items": [
+          [
+            "id",
+            "local"
+          ],
+          [
+            "role",
+            "local_verification_install"
+          ],
+          [
+            "mode",
+            "offline"
+          ],
+          [
+            "verification_command",
+            "uv run --frozen --offline python -m nox -s local_ci"
+          ],
+          [
+            "installation_command",
+            "uv run --frozen --offline python -m nox -s install_smoke"
+          ]
+        ],
+        "type": "dict"
+      },
+      "value_sha256": "d9168da76094a2b98853f5a4669eb8d8d490ec0fe0b2a867bfed1f910d614f22"
+    },
+    {
+      "id": "release.test_policy_attestation:assign:_MISSING_LOCAL:1",
+      "source": {
+        "kind": "assign",
+        "line": 39,
+        "owner": "_MISSING_LOCAL",
+        "path": "tests/unit/release/test_policy_attestation.py"
+      },
+      "value": {
+        "items": [
+          "publication_topology_local_verification_command_missing",
+          "publication_topology_local_installation_command_missing",
+          "publication_topology_gitlab_ci_surface_missing",
+          "publication_topology_github_ci_surface_missing"
+        ],
+        "type": "list"
+      },
+      "value_sha256": "0b5fe90716593c32774fb19ce3318482f7d61c923ad1d023c5f54b00607de9c9"
+    },
+    {
+      "id": "release.test_policy_attestation:assign:_INVALID_PATHS:2",
+      "source": {
+        "kind": "assign",
+        "line": 70,
+        "owner": "_INVALID_PATHS",
+        "path": "tests/unit/release/test_policy_attestation.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "local_verification_command",
+                    ""
+                  ]
+                ],
+                "type": "dict"
+              },
+              "publication_topology_local_verification_command_missing"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "local_installation_command",
+                    "../install"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "publication_topology_local_installation_command_path_escape:../install"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "local_verification_command",
+                    "missing"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "publication_topology_local_verification_command_missing:missing"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "github_ci_surface",
+                    "/tmp/verify.yml"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "publication_topology_github_ci_surface_path_escape:/tmp/verify.yml"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "gitlab_ci_surface",
+                    "missing.yml"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "publication_topology_gitlab_ci_surface_missing:missing.yml"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "41d2508e44b7fd73656d346bfc93782ebea18084b79d048f7add5fe941e2f597"
+    },
+    {
+      "id": "release.test_policy_attestation:parametrize:test_release_policy_rejects_invalid_local_install_owner:3",
+      "source": {
+        "kind": "parametrize",
+        "line": 211,
+        "owner": "test_release_policy_rejects_invalid_local_install_owner",
+        "path": "tests/unit/release/test_policy_attestation.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "missing",
+              "tools/ci/scripts/missing.sh",
+              "release_local_command_missing:installation_command:tools/ci/scripts/missing.sh"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "not_executable",
+              "owner.sh",
+              "release_local_command_not_executable:installation_command:owner.sh"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "not_regular",
+              "owner",
+              "release_local_command_not_regular:installation_command:owner"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "escape",
+              "../outside.sh",
+              "release_local_command_path_escape:installation_command:../outside.sh"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "394c0452bc3957050e3e50e7b7ef01354cedc90dc1a69e79fd0faec4b222fcb6"
+    },
+    {
+      "id": "admission.test_independent_verification:assign:REQUEST:derived",
+      "source": {
+        "kind": "assign",
+        "line": 28,
+        "owner": "REQUEST",
+        "path": "tests/unit/admission/test_independent_verification.py"
+      },
+      "value": {
+        "items": [
+          [
+            "remote",
+            "https://example.invalid/org/repo.git"
+          ],
+          [
+            "commit",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ],
+          [
+            "tree",
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          [
+            "action",
+            "publish"
+          ],
+          [
+            "proof_floor_id",
+            "proof-floor:default"
+          ],
+          [
+            "proof_floor_digest",
+            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          ],
+          [
+            "policy_digest",
+            "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          ],
+          [
+            "implementation_digest",
+            "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          ]
+        ],
+        "type": "dict"
+      },
+      "value_sha256": "e86d1670ddee784143ed8995876be0d9351b2173647442714b112650313128d1"
+    },
+    {
+      "id": "kernel.test_handoff_contract:assign:_VALIDATION_CASES:derived",
+      "source": {
+        "kind": "assign",
+        "line": 93,
+        "owner": "_VALIDATION_CASES",
+        "path": "tests/unit/kernel/test_handoff_contract.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "base_commitment_digest",
+              {
+                "items": [],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "base_commitment_path",
+              {
+                "items": [],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "base_commitment_bytes_sha256",
+              {
+                "items": [],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "source_head",
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  [
+                    "source_tree",
+                    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "source_head",
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  [
+                    "source_tree",
+                    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "dirty_disposition",
+                    "preserved"
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "source_lease_epoch",
+                    true
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "source_lease_epoch",
+                    "1"
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "source_lease_epoch",
+                    1.0
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "artifacts",
+                    {
+                      "items": [
+                        {
+                          "items": [
+                            [
+                              "path",
+                              "../repository.bundle"
+                            ],
+                            [
+                              "sha256",
+                              "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                            ],
+                            [
+                              "kind",
+                              "git_bundle"
+                            ]
+                          ],
+                          "type": "dict"
+                        }
+                      ],
+                      "type": "tuple"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "artifacts",
+                    {
+                      "items": [
+                        {
+                          "items": [
+                            [
+                              "path",
+                              "repository.bundle"
+                            ],
+                            [
+                              "sha256",
+                              "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                            ],
+                            [
+                              "kind",
+                              "tracked_patch"
+                            ]
+                          ],
+                          "type": "dict"
+                        }
+                      ],
+                      "type": "tuple"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "",
+              {
+                "items": [
+                  [
+                    "artifacts",
+                    {
+                      "items": [
+                        {
+                          "items": [
+                            [
+                              "path",
+                              "repository.bundle"
+                            ],
+                            [
+                              "sha256",
+                              "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                            ],
+                            [
+                              "kind",
+                              "git_bundle"
+                            ],
+                            [
+                              "legacy",
+                              "field"
+                            ]
+                          ],
+                          "type": "dict"
+                        }
+                      ],
+                      "type": "tuple"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "4ad480852858b29d9a588a69ddbd10f1cd15b8c05c83a9413412c60dd4a99854"
+    },
+    {
+      "id": "lanes.lease.test_commitment_rebind:parametrize:test_rebind_exact_old_generation_matrix:derived",
+      "source": {
+        "kind": "parametrize",
+        "line": 543,
+        "owner": "test_rebind_exact_old_generation_matrix",
+        "path": "tests/unit/lanes/lease/test_commitment_rebind.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "lease",
+              {
+                "items": [
+                  [
+                    "lane_incarnation_id",
+                    "lane-incarnation:other"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "lease_lane_incarnation_id_stale"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "lease",
+              {
+                "items": [
+                  [
+                    "expected_tree",
+                    "0000000000000000000000000000000000000000"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "lease_expected_tree_stale"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "lease",
+              {
+                "items": [
+                  [
+                    "base_commitment_path",
+                    "openspec/changes/other/commitment.toml"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "lease_commitment_path_stale"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "request",
+              {
+                "items": [
+                  [
+                    "expected_issued_at",
+                    "2026-01-01T00:00:00+00:00"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "lease_issued_at_stale"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "request",
+              {
+                "items": [
+                  [
+                    "expected_renewed_at",
+                    "2026-01-01T00:00:00+00:00"
+                  ]
+                ],
+                "type": "dict"
+              },
+              "lease_renewed_at_stale"
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "request",
+              {
+                "items": [
+                  [
+                    "expected_path_scope",
+                    {
+                      "items": [
+                        "other/**"
+                      ],
+                      "type": "tuple"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              "lease_path_scope_stale"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "b09681f9852bb6fd4e8cb23d2159c90674881687d03c6494ac7db3c418d81e61"
+    },
+    {
+      "id": "release.test_policy_attestation:assign:_PUBLICATION:derived",
+      "source": {
+        "kind": "assign",
+        "line": 15,
+        "owner": "_PUBLICATION",
+        "path": "tests/unit/release/test_policy_attestation.py"
+      },
+      "value": {
+        "items": [
+          [
+            "local_verification_command",
+            "uv run --frozen --offline python -m nox -s local_ci"
+          ],
+          [
+            "local_installation_command",
+            "uv run --frozen --offline python -m nox -s install_smoke"
+          ],
+          [
+            "gitlab_remote",
+            "origin"
+          ],
+          [
+            "gitlab_ci_surface",
+            ".gitlab-ci.yml"
+          ],
+          [
+            "github_remote",
+            "github"
+          ],
+          [
+            "github_ci_surface",
+            ".github/workflows/verify.yml"
+          ]
+        ],
+        "type": "dict"
+      },
+      "value_sha256": "d0af886211580f151ec42f60d1d0618020a462501844896695b3db114d076032"
+    },
+    {
+      "id": "release.test_policy_attestation:assign:_DECLARATIONS:derived",
+      "source": {
+        "kind": "assign",
+        "line": 35,
+        "owner": "_DECLARATIONS",
+        "path": "tests/unit/release/test_policy_attestation.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "publication",
+                    {
+                      "items": [
+                        [
+                          "remote",
+                          {
+                            "items": [],
+                            "type": "list"
+                          }
+                        ]
+                      ],
+                      "type": "dict"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "publication_topology_declaration_invalid"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "publication",
+                    {
+                      "items": [
+                        [
+                          "remotes",
+                          {
+                            "items": [
+                              "origin",
+                              "github"
+                            ],
+                            "type": "list"
+                          }
+                        ]
+                      ],
+                      "type": "dict"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "publication_topology_declaration_invalid"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "publication_topology_declaration_invalid"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "publication",
+                    "invalid"
+                  ]
+                ],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "publication_topology_declaration_invalid"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "publication",
+                    {
+                      "items": [
+                        [
+                          "gitlab_remote",
+                          "origin"
+                        ]
+                      ],
+                      "type": "dict"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "publication_topology_github_remote_missing",
+                  "publication_topology_local_verification_command_missing",
+                  "publication_topology_local_installation_command_missing",
+                  "publication_topology_gitlab_ci_surface_missing",
+                  "publication_topology_github_ci_surface_missing"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "publication",
+                    {
+                      "items": [],
+                      "type": "dict"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "publication_topology_gitlab_remote_missing",
+                  "publication_topology_github_remote_missing",
+                  "publication_topology_local_verification_command_missing",
+                  "publication_topology_local_installation_command_missing",
+                  "publication_topology_gitlab_ci_surface_missing",
+                  "publication_topology_github_ci_surface_missing"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              {
+                "items": [
+                  [
+                    "publication",
+                    {
+                      "items": [
+                        [
+                          "gitlab_remote",
+                          "origin"
+                        ],
+                        [
+                          "github_remote",
+                          "origin"
+                        ]
+                      ],
+                      "type": "dict"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              {
+                "items": [
+                  "publication_topology_git_remotes_duplicate",
+                  "publication_topology_local_verification_command_missing",
+                  "publication_topology_local_installation_command_missing",
+                  "publication_topology_gitlab_ci_surface_missing",
+                  "publication_topology_github_ci_surface_missing"
+                ],
+                "type": "list"
+              }
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "a66fb293d1af29770ec429e1e6d1ebc864f1d490a981d6802ce69f28457f1a0f"
+    },
+    {
+      "id": "release.test_policy_attestation:parametrize:test_release_policy_separates_host_profile_from_product_files:derived",
+      "source": {
+        "kind": "parametrize",
+        "line": 325,
+        "owner": "test_release_policy_separates_host_profile_from_product_files",
+        "path": "tests/unit/release/test_policy_attestation.py"
+      },
+      "value": {
+        "items": [
+          {
+            "items": [
+              "[protected_refs]\nbranches = [\"main\", \"dev\"]\ntags = [\"v*\"]\n\n[gitlab]\nci = \".gitlab-ci.yml\"\n\n[attestation]\nformats = [\"spdx-2.3-json\"]\n",
+              {
+                "items": [
+                  [
+                    "provider",
+                    ""
+                  ],
+                  [
+                    "layer",
+                    "profile_config"
+                  ],
+                  [
+                    "surfaces",
+                    {
+                      "items": [],
+                      "type": "dict"
+                    }
+                  ]
+                ],
+                "type": "dict"
+              },
+              ""
+            ],
+            "type": "tuple"
+          },
+          {
+            "items": [
+              "[protected_refs]\nbranches = [\"main\", \"dev\"]\ntags = [\"v*\"]\n[host_profile]\nprovider = \"gitlab\"\n\n[host_profile.surfaces]\nci = \".gitlab-ci.yml\"\n\n[attestation]\nformats = [\"spdx-2.3-json\"]\n",
+              null,
+              "host_surface_missing:gitlab:ci:.gitlab-ci.yml"
+            ],
+            "type": "tuple"
+          }
+        ],
+        "type": "list"
+      },
+      "value_sha256": "634b962032a80a5280f2bee7cb14c5fd9648f4a0358d3aab7883089902d609d1"
+    }
+  ],
+  "schema_version": 1
+}

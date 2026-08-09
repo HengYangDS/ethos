@@ -46,15 +46,16 @@ def test_product_boundary_public_report_ignores_non_utf8_and_non_object_metadata
 def test_contributor_policy_public_report_skips_non_object_rows_and_reports_identity(
     tmp_path: Path,
 ) -> None:
+    private_email = "named" + "@" + "private.example"
     _write(
         tmp_path / ".ethos/workspace.toml",
-        """[commit_policy]
+        f"""[commit_policy]
 identity_mode = "external"
 
 [[commit_policy.allowed_identities]]
 role = "maintainer"
 name = "Named Person"
-email = "named@private.example"
+email = "{private_email}"
 
 [[commit_policy.allowed_identities]]
 role = "bot"

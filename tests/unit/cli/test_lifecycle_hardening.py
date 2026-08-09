@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
+import ethos.adapters.mutation.lane_lifecycle.identity_repair as identity_repair
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as work_lane_refresh
 import ethos.adapters.openspec.profile as openspec_profile
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.admission.ref_intent import ref_intent_dir
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -16,6 +22,7 @@ from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_work_lane
 
@@ -217,6 +224,100 @@ def test_lane_refresh_restores_original_branch_when_ref_cas_is_rejected_after_re
     assert git(worktree, "rev-parse", "HEAD") == previous
     assert git(worktree, "rev-parse", "work/feature") == previous
     assert git(worktree, "status", "--short") == ""
+
+
+@pytest.mark.parametrize("interrupt_at", [0, 1, 2])
+def test_repair_identity_completes_or_resumes_the_exact_train_cas(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    interrupt_at: int,
+) -> None:
+    repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    old = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    git(candidate, "reset", "--hard", old)
+    git(repo, "reset", "--hard", old)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    new = _replace_commit_signature(worktree, old)
+    scope = CurrentGenerationScope(("FEATURE.md",), {})
+    plan = proof_plan(worktree, head=new, generation_scope=scope)
+    persist_proof_attestation(worktree, issue_conformant_proof(worktree, new, plan=plan))
+    arguments = _identity_repair_arguments(old, new)
+    if not interrupt_at:
+        blocked = run_ethos_blocked(*arguments, cwd=worktree)
+        assert "commit_trust_anchor_missing" in blocked["required_gaps"]
+    monkeypatch.setattr(identity_repair, "verify_commit_trust", _trusted_commit)
+    original = identity_repair.sync_ref_worktrees
+    call = 0
+
+    def interrupt_once(*args, **kwargs):
+        nonlocal call
+        call += 1
+        if interrupt_at and call == interrupt_at:
+            return {"worktree_sync": "failed", "worktrees": []}
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(identity_repair, "sync_ref_worktrees", interrupt_once)
+    if interrupt_at:
+        assert run_ethos_blocked(*arguments, cwd=worktree)["required_gaps"] == [
+            "identity_repair_cas_rejected"
+        ]
+    assert run_ethos(*arguments, cwd=worktree)["state"] == "identity_repaired"
+    assert git(candidate, "rev-parse", "HEAD") == new
+    assert git(repo, "rev-parse", "HEAD") == new
+    assert git(candidate, "status", "--short") == git(repo, "status", "--short") == ""
+
+
+def _identity_repair_arguments(old: str, new: str) -> tuple[str, ...]:
+    return (
+        "lane",
+        "repair-identity",
+        "--old-commit",
+        old,
+        "--new-commit",
+        new,
+        "--expect-head",
+        new,
+        "--apply",
+        "--authorize",
+        "--json",
+    )
+
+
+def _trusted_commit(_root: Path, revision: str) -> dict[str, object]:
+    return {
+        "verdict": "pass",
+        "revision": revision,
+        "anchor": "/protected/allowed-signers",
+        "required_gaps": [],
+    }
+
+
+def _replace_commit_signature(worktree: Path, old: str) -> str:
+    raw = git(worktree, "cat-file", "commit", old)
+    signed = raw.replace(
+        "\n\nfeature work",
+        "\ngpgsig -----BEGIN SSH SIGNATURE-----\n synthetic\n "
+        "-----END SSH SIGNATURE-----\n\nfeature work",
+    )
+    new = subprocess.run(
+        ["git", "hash-object", "-t", "commit", "-w", "--stdin"],
+        cwd=worktree,
+        input=f"{signed}\n",
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    git(worktree, "update-ref", "refs/heads/work/feature", new, old)
+    git(worktree, "reset", "--hard", new)
+    report = work_lane_ref_transition_report(
+        root=worktree,
+        phase="committed",
+        ref_name="refs/heads/work/feature",
+        old_value=old,
+        new_value=new,
+    )
+    assert report["state"] == "lease_ref_advanced"
+    return new
 
 
 def test_land_closeout_reports_actionable_candidate_divergence(tmp_path: Path) -> None:

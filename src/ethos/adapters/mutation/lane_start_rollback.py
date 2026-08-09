@@ -274,7 +274,13 @@ def child_process_evidence(completed: subprocess.CompletedProcess[str]) -> dict[
     return {
         "argv": [str(item) for item in args],
         "exit_code": completed.returncode,
-        "stdout": completed.stdout.strip(),
-        "stderr": completed.stderr.strip(),
-        "parse_error": str(getattr(completed, "parse_error", "")),
+        "stdout": bounded_process_text(completed.stdout),
+        "stderr": bounded_process_text(completed.stderr),
+        "parse_error": bounded_process_text(str(getattr(completed, "parse_error", ""))),
     }
+
+
+def bounded_process_text(value: str, *, limit: int = 4096) -> str:
+    """Bound one child diagnostic without changing its meaning."""
+    text = value.strip()
+    return text if len(text) <= limit else f"{text[:limit]}...[truncated]"

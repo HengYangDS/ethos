@@ -19,6 +19,7 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     recognized_rebind_attestation,
 )
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
+from ethos.adapters.repo.commit_identity import commit_trust_setup_action
 from ethos.adapters.repo.commit_identity import verify_commit_trust
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
@@ -109,6 +110,7 @@ def _execute_commitment_rebind(
         lease = _admit(repo, request, lease)
         return _apply(repo, request, effect, lease)
     except (OSError, TypeError, ValueError) as error:
+        gap = str(error)
         return {
             "verdict": "block",
             "state": (
@@ -119,7 +121,12 @@ def _execute_commitment_rebind(
             "branch": request.branch,
             "lease": {},
             "attestation": {},
-            "required_gaps": [str(error)],
+            "required_gaps": [gap],
+            "next_action": (
+                commit_trust_setup_action(repo, request.target_commit)
+                if gap.startswith("commit_trust_anchor_") or gap == "commit_signature_untrusted"
+                else ""
+            ),
         }
 
 

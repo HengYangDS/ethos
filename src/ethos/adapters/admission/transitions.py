@@ -253,6 +253,14 @@ def _missing_lease_report(
             phase="prepared",
         )
         if phase == "prepared" and new_zero
+        else claim_ref_intent(
+            root=repo,
+            ref_name=ref_name,
+            update=update,
+            operation="lane.retire.compensate",
+            phase="prepared",
+        )
+        if phase == "prepared" and not new_zero and _is_zero_oid(update.expected)
         else {}
     )
     return (

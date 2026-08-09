@@ -26,6 +26,7 @@ from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 
@@ -214,6 +215,10 @@ def execute_git_effect(
     detached_branch: str = "",
 ) -> Attestation:
     """Recognize, execute, or recover one exact Git ref transaction."""
+    issuer = issuer.strip()
+    if not issuer:
+        message = "git_effect_issuer_invalid"
+        raise ValueError(message)
     effect = git_effect_from_plan(plan)
     require_effect_permission(effect, plan)
     recorded = ethos.adapters.repo.git_effect_attestation.records(
@@ -250,25 +255,15 @@ def execute_git_effect(
             intents = _claim_effect_intents(root, plan, effect, phase="recover")
         else:
             intents = _claim_effect_intents(root, plan, effect, phase="prepared")
-            completed = run_git(
-                root,
-                "update-ref",
-                "--stdin",
-                "-z",
-                check=False,
-                env={**(_effect_environment(root, plan, effect) or {}), **(environment or {})},
-                stdin=effect.program(),
-                text=False,
-            )
-            if completed.returncode:
-                msg = "git_effect_cas_rejected"
-                raise ValueError(msg)
+            _apply_git_ref_transaction(root, plan, effect, environment=environment)
             applied = True
             _claim_effect_intents(root, plan, effect, phase="committed")
-        after = observe_git_effect(root, effect, environment=environment)
-        if cast("dict[str, str]", after["refs"]) != desired:
-            msg = "git_effect_postcondition_failed"
-            raise ValueError(msg)
+        after = _require_effect_postcondition(
+            root,
+            effect,
+            desired,
+            environment=environment,
+        )
         attestation = ethos.adapters.repo.git_effect_attestation.issue(
             effect,
             plan=plan,
@@ -280,10 +275,24 @@ def execute_git_effect(
                 after,
             ),
         )
+        if projection:
+            projection()
         ethos.adapters.repo.git_effect_attestation.records(
             root, plan, attestation, environment=environment
         )
-        _project_and_clear(root, intents, projection)
+        _clear_claimed_intents(root, intents)
+    except (OSError, TypeError, ValueError) as error:
+        if applied and not recovering:
+            _compensate_git_effect(
+                root,
+                plan,
+                effect,
+                intents,
+                environment=environment,
+                cause=error,
+            )
+        raise
+    else:
         return attestation
     finally:
         if not applied and not recovering:
@@ -307,6 +316,42 @@ def admit_git_effect(
         environment=environment,
         detached_branch=detached_branch,
     )
+
+
+def _apply_git_ref_transaction(
+    root: Path,
+    plan: TransitionPlan,
+    effect: GitEffect,
+    *,
+    environment: Mapping[str, str] | None,
+) -> None:
+    completed = run_git(
+        root,
+        "update-ref",
+        "--stdin",
+        "-z",
+        check=False,
+        env={**(_effect_environment(root, plan, effect) or {}), **(environment or {})},
+        stdin=effect.program(),
+        text=False,
+    )
+    if completed.returncode:
+        message = "git_effect_cas_rejected"
+        raise ValueError(message)
+
+
+def _require_effect_postcondition(
+    root: Path,
+    effect: GitEffect,
+    desired: Mapping[str, str],
+    *,
+    environment: Mapping[str, str] | None,
+) -> dict[str, object]:
+    observed = observe_git_effect(root, effect, environment=environment)
+    if cast("dict[str, str]", observed["refs"]) != desired:
+        message = "git_effect_postcondition_failed"
+        raise ValueError(message)
+    return observed
 
 
 def _admit_git_effect(
@@ -366,7 +411,7 @@ def _claim_effect_intents(
     claimed: list[dict[str, object]] = []
     try:
         for ref_name, update in effect.updates.items():
-            operation = _ref_operation(plan, ref_name)
+            operation = _ref_operation(plan, ref_name, update)
             if phase == "prepared":
                 claimed.append(
                     write_ref_intent(
@@ -436,12 +481,59 @@ def _abort_effect_intents(root: Path, effect: GitEffect, intents: list[dict[str,
         )
 
 
-def _ref_operation(plan: TransitionPlan, ref_name: str) -> str:
+def _compensate_git_effect(
+    root: Path,
+    plan: TransitionPlan,
+    effect: GitEffect,
+    intents: list[dict[str, object]],
+    *,
+    environment: Mapping[str, str] | None,
+    cause: BaseException,
+) -> None:
+    """Reverse one applied CAS exactly or retain its committed recovery intent."""
+    reverse = GitEffect(
+        updates={
+            name: GitRefUpdate(expected=update.desired, desired=update.expected)
+            for name, update in effect.updates.items()
+        },
+        assertions=effect.assertions,
+    )
+    reverse_intents = _claim_effect_intents(root, plan, reverse, phase="prepared")
+    completed = run_git(
+        root,
+        "update-ref",
+        "--stdin",
+        "-z",
+        check=False,
+        env={**(_effect_environment(root, plan, reverse) or {}), **(environment or {})},
+        stdin=reverse.program(),
+        text=False,
+    )
+    restored = observe_git_effect(root, reverse, environment=environment)
+    expected = {name: update.desired for name, update in reverse.updates.items()}
+    observed = cast("dict[str, str]", restored["refs"])
+    if completed.returncode or observed != expected:
+        _abort_effect_intents(root, reverse, reverse_intents)
+        ref_name = next(
+            name for name in reverse.updates if observed.get(name) != reverse.updates[name].desired
+        )
+        message = (
+            f"git_effect_partial_effect_uncompensated:{ref_name}"
+            f":expected={reverse.updates[ref_name].desired}:observed={observed.get(ref_name, '')}"
+        )
+        raise ValueError(message) from cause
+    _claim_effect_intents(root, plan, reverse, phase="committed")
+    _clear_claimed_intents(root, [*intents, *reverse_intents])
+
+
+def _ref_operation(plan: TransitionPlan, ref_name: str, update: GitRefUpdate) -> str:
     operation = str(plan.policy.get("operation") or "")
     release_ref = f"refs/heads/{plan.policy.get('release_branch') or ''}"
     return (
         "release.mirror"
         if operation in {"candidate.accept", "commit.identity-replace"} and ref_name == release_ref
+        else "lane.retire.compensate"
+        if operation == "lane.retire" and not set(update.expected) - {"0"}
         else operation
     )
 

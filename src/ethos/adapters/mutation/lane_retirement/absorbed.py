@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -53,6 +54,23 @@ def retire_absorbed_ref(
     lease_state = observe_lease(state_database(repo), branch).state if branch else "missing"
     worktrees = cast("list[dict[str, object]]", status["worktrees"])
     linked = any(str(item.get("branch") or "") == branch for item in worktrees)
+    desired = "0" * len(expect_head)
+    recovery_intent = (
+        committed_ref_intent(
+            root=repo,
+            operation="lane.retire",
+            desired=desired,
+            ref_name=f"refs/heads/{branch}",
+        )
+        if branch and expect_head
+        else {}
+    )
+    recovering = (
+        current_ref == desired
+        and bool(recovery_intent.get("present"))
+        and not recovery_intent.get("gap")
+        and recovery_intent.get("old_value") == expect_head
+    )
     gaps = [
         gap
         for failed, gap in (
@@ -60,8 +78,11 @@ def retire_absorbed_ref(
             (not branch, "branch_required"),
             (not expect_head, "expect_head_required"),
             (not accepted_head, "accepted_head_required"),
-            (current_ref == "0" * len(expect_head), "absorbed_ref_missing"),
-            (expect_head and current_ref != expect_head, "absorbed_ref_head_mismatch"),
+            (current_ref == desired and not recovering, "absorbed_ref_missing"),
+            (
+                expect_head and current_ref not in {expect_head, desired},
+                "absorbed_ref_head_mismatch",
+            ),
             (accepted_head and current_accepted != accepted_head, "accepted_head_mismatch"),
             (linked, "absorbed_ref_worktree_linked"),
             (lease_state != "missing", f"absorbed_ref_lease_{lease_state}"),
@@ -82,7 +103,7 @@ def retire_absorbed_ref(
             updates={
                 f"refs/heads/{branch}": GitRefUpdate(
                     expected=expect_head,
-                    desired="0" * len(expect_head),
+                    desired=desired,
                 )
             },
             assertions={f"refs/heads/{policy.accepted_branch}": accepted_head},
@@ -120,12 +141,14 @@ def retire_absorbed_ref(
         return report
     if effect is None:
         return {**report, "verdict": "block", "required_gaps": ["absorbed_ref_effect_unavailable"]}
-    if drift := _effect_drift_gaps(
-        repo,
-        branch=branch,
-        expect_head=expect_head,
-        accepted_branch=policy.accepted_branch,
-        accepted_head=accepted_head,
+    if not recovering and (
+        drift := _effect_drift_gaps(
+            repo,
+            branch=branch,
+            expect_head=expect_head,
+            accepted_branch=policy.accepted_branch,
+            accepted_head=accepted_head,
+        )
     ):
         report["verdict"] = "block"
         report["state"] = "blocked"
@@ -133,20 +156,21 @@ def retire_absorbed_ref(
         return report
     try:
         commitment = load_repository_commitment(repo)
+        policy_values = {
+            "operation": "lane.retire",
+            "retirement_kind": "absorbed-ref",
+            "branch": branch,
+            "accepted_branch": policy.accepted_branch,
+            "accepted_head": accepted_head,
+            "holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
+        }
         plan = compile_observed_git_effect(
             repo,
             commitment,
             effect,
             head=current_tracked_head(repo),
             prior_attestations={},
-            policy={
-                "operation": "lane.retire",
-                "retirement_kind": "absorbed-ref",
-                "branch": branch,
-                "accepted_branch": policy.accepted_branch,
-                "accepted_head": accepted_head,
-                "holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
-            },
+            policy=policy_values,
             values={
                 "absorbed_ref": branch,
                 "absorbed_head": expect_head,
@@ -154,6 +178,22 @@ def retire_absorbed_ref(
                 "lease_state": "missing",
             },
         )
+        if recovering and plan.digest != recovery_intent.get("plan_digest"):
+            plan = compile_observed_git_effect(
+                repo,
+                commitment,
+                effect,
+                head=current_tracked_head(repo),
+                prior_attestations={},
+                policy=policy_values | {"holder_ref": ""},
+                values={
+                    "absorbed_ref": branch,
+                    "absorbed_head": expect_head,
+                    "accepted_head": accepted_head,
+                    "lease_state": "missing",
+                },
+            )
+            _require_recovery_plan(plan.digest, recovery_intent)
         execute_git_effect(repo, plan, issuer=os.environ.get("ETHOS_ACTOR", "").strip())
     except (OSError, ValueError) as error:
         report["verdict"] = "block"
@@ -184,6 +224,12 @@ def retire_absorbed_ref(
     report["state"] = "retired_absorbed_ref"
     report["retired"] = observed
     return report
+
+
+def _require_recovery_plan(digest: str, intent: dict[str, object]) -> None:
+    if digest != intent.get("plan_digest"):
+        message = "git_effect_recovery_unproven"
+        raise ValueError(message)
 
 
 def _mutation(

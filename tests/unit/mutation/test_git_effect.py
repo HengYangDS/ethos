@@ -302,6 +302,18 @@ def test_exact_multiref_cas_attestation_recognition_and_cleanup(
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
 
 
+def test_empty_effect_issuer_is_rejected_before_ref_mutation(tmp_path: Path) -> None:
+    case = fixture(tmp_path)
+
+    reject(
+        "git_effect_issuer_invalid",
+        lambda: execute_git_effect(case.repo, plan(case.repo, case.effect), issuer=""),
+    )
+
+    assert git(case.repo, "rev-parse", "dev") == case.old
+    assert not list(ref_intent_dir(case.repo).glob("*.json"))
+
+
 @pytest.mark.parametrize("kind", ["linked", "dirty", "changed", "foreign"])
 def test_repository_worktree_identity_matrix(tmp_path: Path, kind: str) -> None:
     identity, case = "repository:portable", fixture(tmp_path, "repository:portable")
@@ -567,36 +579,14 @@ def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
     reject(error, lambda: records(case.repo, carried, record))
 
 
-@pytest.mark.parametrize("failure", ["prepare", "persistence", "projection"])
-def test_atomic_compensation_and_retry_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
-) -> None:
-    case = fixture(tmp_path)
-    if failure == "prepare":
-        value = GitEffect(
-            updates={
-                ref: GitRefUpdate(expected=ZERO_OID, desired=case.new)
-                for ref in ("refs/heads/a", "refs/heads/b")
-            }
-        )
-        claim = runtime.claim_ref_intent
-        monkeypatch.setattr(
-            runtime,
-            "claim_ref_intent",
-            lambda **kwargs: (
-                {"gap": "forced_prepare_failure"}
-                if kwargs["ref_name"] == "refs/heads/b" and kwargs["phase"] == "prepared"
-                else claim(**kwargs)
-            ),
-        )
-        reject(
-            "git_effect_ref_intent_prepared_forced_prepare_failure",
-            lambda: execute_git_effect(case.repo, plan(case.repo, value), issuer=ISSUER),
-        )
-        assert all(not git_stdout(case.repo, "rev-parse", "--verify", ref) for ref in value.updates)
-        assert not list(ref_intent_dir(case.repo).glob("*.json"))
-        return
-    carried, saved, first = proof_plan(case), [], [True]
+def _effect_failure_runner(
+    case: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+    saved: list[Attestation],
+    first: list[bool],
+) -> Any:
+    carried = proof_plan(case)
 
     def fail(record: Attestation | None = None) -> object:
         if first[0] and (failure == "projection" or record is not None):
@@ -607,26 +597,106 @@ def test_atomic_compensation_and_retry_matrix(
             saved.append(record)
         return tuple(saved)
 
+    if failure == "attestation":
+        issue = attest.issue
+
+        def issue_once(*args: object, **kwargs: object) -> Attestation:
+            if first[0]:
+                first[0] = False
+                message = "attestation unavailable"
+                raise ValueError(message)
+            return issue(*args, **kwargs)
+
+        monkeypatch.setattr(attest, "issue", issue_once)
+        return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER)
     if failure == "persistence":
         monkeypatch.setattr(
             attest,
             "records",
             lambda _root, _plan, record=None, **_kwargs: fail(record),
         )
+        return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER)
+    return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER, projection=fail)
 
-        def run() -> Attestation:
-            return execute_git_effect(case.repo, carried, issuer=ISSUER)
 
-    else:
-
-        def run() -> Attestation:
-            return execute_git_effect(case.repo, carried, issuer=ISSUER, projection=fail)
+@pytest.mark.parametrize("failure", ["attestation", "persistence", "projection"])
+def test_atomic_compensation_and_retry_matrix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    case = fixture(tmp_path)
+    saved, first = [], [True]
+    run = _effect_failure_runner(case, monkeypatch, failure, saved, first)
 
     reject(f"{failure} unavailable", run)
-    if failure == "projection":
-        assert list(ref_intent_dir(case.repo).glob("*.json"))
+    assert git(case.repo, "rev-parse", "dev") == case.old
+    assert not list(ref_intent_dir(case.repo).glob("*.json"))
     recovered = run()
     assert git(case.repo, "rev-parse", "dev") == case.new
-    assert recovered.statement["result"]["state"] in {"applied", "recovered"}
+    assert recovered.statement["result"]["state"] == "applied"
     assert (saved == [recovered]) if failure == "persistence" else (not saved)
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
+
+
+def test_prepare_failure_aborts_every_claimed_intent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = fixture(tmp_path)
+    value = GitEffect(
+        updates={
+            ref: GitRefUpdate(expected=ZERO_OID, desired=case.new)
+            for ref in ("refs/heads/a", "refs/heads/b")
+        }
+    )
+    claim = runtime.claim_ref_intent
+    monkeypatch.setattr(
+        runtime,
+        "claim_ref_intent",
+        lambda **kwargs: (
+            {"gap": "forced_prepare_failure"}
+            if kwargs["ref_name"] == "refs/heads/b" and kwargs["phase"] == "prepared"
+            else claim(**kwargs)
+        ),
+    )
+
+    reject(
+        "git_effect_ref_intent_prepared_forced_prepare_failure",
+        lambda: execute_git_effect(case.repo, plan(case.repo, value), issuer=ISSUER),
+    )
+
+    assert all(not git_stdout(case.repo, "rev-parse", "--verify", ref) for ref in value.updates)
+    assert not list(ref_intent_dir(case.repo).glob("*.json"))
+
+
+def test_compensation_failure_preserves_exact_recovery_intent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = fixture(tmp_path)
+    carried = proof_plan(case)
+    original_run_git = runtime.run_git
+    updates = 0
+
+    def fail_reverse(root: Path, *args: str, **kwargs: object) -> object:
+        nonlocal updates
+        if args == ("update-ref", "--stdin", "-z"):
+            updates += 1
+            if updates == 2:
+                return subprocess.CompletedProcess(args, 1, b"", b"reverse rejected")
+        return original_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(runtime, "run_git", fail_reverse)
+    monkeypatch.setattr(
+        attest,
+        "issue",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("attestation unavailable")),
+    )
+
+    reject(
+        "git_effect_partial_effect_uncompensated:refs/heads/dev"
+        f":expected={case.old}:observed={case.new}",
+        lambda: execute_git_effect(case.repo, carried, issuer=ISSUER),
+    )
+
+    assert git(case.repo, "rev-parse", "dev") == case.new
+    intents = list(ref_intent_dir(case.repo).glob("*.json"))
+    assert len(intents) == 1
+    assert '"phase":"committed"' in intents[0].read_text(encoding="utf-8")

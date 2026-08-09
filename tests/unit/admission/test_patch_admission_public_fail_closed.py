@@ -139,3 +139,23 @@ def test_patch_admission_does_not_invent_scope_from_invalid_commitment(
 
     assert report["verdict"] == "block"
     assert report["reason"] == "product_path_not_admitted_at_baseline:new.py"
+
+
+def test_patch_admission_accepts_new_file_covered_by_recursive_commitment_scope(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    commit_active_commitment(repo, scope=("openspec/changes/fixture-change/**",))
+    head = git(repo, "rev-parse", "HEAD")
+    path = "openspec/changes/fixture-change/design.md"
+    patch = _patch(repo, path, "# Design\n")
+
+    report = admission.patch_admission(
+        root=repo,
+        requested_paths=(path,),
+        baseline_head=head,
+        patch=patch,
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["state"] == "admitted"

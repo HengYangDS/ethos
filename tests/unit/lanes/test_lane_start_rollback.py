@@ -220,6 +220,38 @@ def test_successful_rollback_revokes_exact_lease(
     assert len(revoked) == 1
 
 
+def test_rollback_preserves_child_process_diagnostics_after_cleanup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "lane"
+    target.mkdir()
+    completed = subprocess.CompletedProcess(("openspec", "new"), 7, "partial", "rejected")
+    completed.parse_error = "unexpected eof"
+    monkeypatch.setattr(rollback, "ref_head", lambda *_args: "")
+    monkeypatch.setattr(rollback, "remove_lane_start_worktree", lambda *_args, **_kwargs: True)
+    context = rollback.LaneStartRollback(
+        repo=tmp_path,
+        target=target,
+        branch="work/example",
+        ownership=("detached", "a" * 40, ""),
+        completed=completed,
+        run=_run_worktree_list(target, branch="detached"),
+        lease=None,
+        failure_gap="openspec_change_creation_failed",
+    )
+
+    report = rollback.rollback_lane_start(context)
+
+    assert report["child_process"] == {
+        "argv": ["openspec", "new"],
+        "exit_code": 7,
+        "stdout": "partial",
+        "stderr": "rejected",
+        "parse_error": "unexpected eof",
+    }
+
+
 def test_delete_ref_requires_lease_and_remove_worktree_is_fail_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

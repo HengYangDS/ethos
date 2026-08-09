@@ -91,7 +91,7 @@ def resolve_ref_move_policy(
                     policy = BranchRolePolicy()
                     break
     if policy is None:
-        policy = _absorbed_ref_deletion_policy(repo, branch, old_value, new_value)
+        policy = _absorbed_ref_transition_policy(repo, branch, old_value, new_value)
     if policy is None:
         message = "ref_move_policy_unavailable"
         raise ValueError(message)
@@ -106,11 +106,13 @@ def resolve_ref_move_policy(
     )
 
 
-def _absorbed_ref_deletion_policy(
+def _absorbed_ref_transition_policy(
     repo: Path, branch: str, old_value: str, new_value: str
 ) -> BranchRolePolicy | None:
-    """Resolve current strict policy for one exact legacy absorbed-ref deletion."""
-    if new_value not in _ZERO_OIDS or old_value in _ZERO_OIDS:
+    """Resolve current strict policy for one exact legacy retirement transition."""
+    deleting = new_value in _ZERO_OIDS and old_value not in _ZERO_OIDS
+    compensating = old_value in _ZERO_OIDS and new_value not in _ZERO_OIDS
+    if not (deleting or compensating):
         return None
     current_policy = load_branch_role_policy(repo)
     accepted_head = git_stdout(repo, "rev-parse", current_policy.accepted_branch)
@@ -119,14 +121,14 @@ def _absorbed_ref_deletion_policy(
         accepted_policy is None
         or git_stdout(repo, "rev-parse", "HEAD") != accepted_head
         or accepted_policy.role_for_branch(branch) != "work_lane"
-        or not is_ancestor(repo, old_value, accepted_head)
+        or not is_ancestor(repo, old_value if deleting else new_value, accepted_head)
     ):
         return None
     intent = claim_ref_intent(
         root=repo,
         ref_name=f"refs/heads/{branch}",
         update=GitRefUpdate(expected=old_value, desired=new_value),
-        operation="lane.retire",
+        operation="lane.retire" if deleting else "lane.retire.compensate",
         phase="prepared",
     )
     return accepted_policy if intent.get("present") and not intent.get("gap") else None

@@ -179,6 +179,7 @@ def validate(
     *,
     issuer: str,
     plan: TransitionPlan,
+    environment: Mapping[str, str] | None = None,
 ) -> None:
     """Validate immutable typed evidence, validity, and current postconditions."""
     if git_effect_from_plan(plan) != effect:
@@ -229,6 +230,7 @@ def validate(
         root,
         effect,
         before,
+        environment=environment,
         allow_missing_prestate=allow_missing_prestate,
     )
     evidence = (
@@ -249,6 +251,7 @@ def validate(
         evidence,
         observed_at,
         _object_mapping(statement.get("freshness")),
+        environment=environment,
         allow_missing_prestate=allow_missing_prestate,
     ):
         raise ValueError(_CONTENT_MISMATCH)
@@ -326,6 +329,8 @@ def records(
     root: Path,
     plan: TransitionPlan,
     record: Attestation | None = None,
+    *,
+    environment: Mapping[str, str] | None = None,
 ) -> tuple[Attestation, ...]:
     """Read or atomically persist the sole Attestation for one exact plan."""
     effect = git_effect_from_plan(plan)
@@ -339,7 +344,7 @@ def records(
             message = "git_effect_attestation_invalid"
             raise ValueError(message) from error
     plan_from_attestation(record)
-    validate(root, effect, record, issuer=record.verifier, plan=plan)
+    validate(root, effect, record, issuer=record.verifier, plan=plan, environment=environment)
     existing = records(root, plan)
     if existing:
         if existing[0].canonical_json() != record.canonical_json():
@@ -361,11 +366,13 @@ def _matches(
     observed_at: dict[str, object],
     freshness: dict[str, object],
     *,
+    environment: Mapping[str, str] | None = None,
     allow_missing_prestate: bool = False,
 ) -> bool:
     repository, state, before, after = evidence
     current_refs = {
-        name: ref_head(root, name, update.desired) for name, update in effect.updates.items()
+        name: ref_head(root, name, update.desired, environment=environment)
+        for name, update in effect.updates.items()
     }
     expected_before = {ref: update.expected for ref, update in effect.updates.items()}
     desired = {ref: update.desired for ref, update in effect.updates.items()}
@@ -388,6 +395,7 @@ def _matches(
             root,
             effect,
             before,
+            environment=environment,
             allow_missing_prestate=allow_missing_prestate,
         )
     except ValueError:
@@ -397,15 +405,17 @@ def _matches(
         and current_refs == desired
         and before.get("refs") == expected_before
         and before.get("assertions") == effect.assertions
-        and before.get("tree") == current_tree(root, str(before.get("head") or ""))
+        and before.get("tree")
+        == current_tree(root, str(before.get("head") or ""), environment=environment)
         and after.get("refs") == desired
-        and after.get("tree") == current_tree(root, str(after.get("head") or ""))
+        and after.get("tree")
+        == current_tree(root, str(after.get("head") or ""), environment=environment)
         and (
             current_head == after.get("head")
             or (
                 state == "applied"
                 and before.get("head") == current_head
-                and current_tree(root, current_head) == before.get("tree")
+                and current_tree(root, current_head, environment=environment) == before.get("tree")
             )
         )
         and freshness

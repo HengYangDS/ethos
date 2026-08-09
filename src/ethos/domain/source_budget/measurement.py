@@ -17,6 +17,7 @@ from typing import cast
 import yaml
 
 import ethos.adapters.repo.git as git_adapter
+from ethos.domain.source_budget.measurement_policy import PYTHON_CATEGORIES
 from ethos.domain.source_budget.measurement_policy import TERMINAL_TOTALS
 from ethos.domain.source_budget.measurement_policy import Carrier
 from ethos.domain.source_budget.measurement_policy import Policy
@@ -78,10 +79,10 @@ def _carrier(
     root: Path,
     carriers: tuple[Carrier, ...],
     source: bytes | None = None,
-) -> Carrier | None:
+) -> tuple[Carrier | None, str]:
     lowered = relative.lower()
     if lowered.startswith("openspec/changes/archive/") and lowered.endswith("/.openspec.yaml"):
-        return None
+        return None, ""
     interpreter = (
         _interpreter_source(
             source.decode("utf-8", errors="replace")
@@ -91,18 +92,21 @@ def _carrier(
         if executable and not Path(lowered).suffix
         else ""
     )
-    return next(
-        (
-            item
-            for item in carriers
-            if (lowered.endswith(item.extensions) or interpreter in item.shebangs)
-            and (
-                not item.paths
-                or any(fnmatch.fnmatchcase(lowered, pattern) for pattern in item.paths)
-            )
-        ),
-        None,
+    matches = tuple(
+        item
+        for item in carriers
+        if (lowered.endswith(item.extensions) or interpreter in item.shebangs)
+        and (not item.paths or any(fnmatch.fnmatchcase(lowered, pattern) for pattern in item.paths))
     )
+    python_roles = tuple(
+        item for item in matches if item.category in PYTHON_CATEGORIES and item.paths
+    )
+    if len(python_roles) > 1:
+        categories = ",".join(sorted(item.category for item in python_roles))
+        return None, f"source_budget_python_role_ambiguous:{relative}:{categories}"
+    if python_roles:
+        return python_roles[0], ""
+    return next(iter(matches), None), ""
 
 
 def _interpreter_source(source: str) -> str:
@@ -227,13 +231,16 @@ def _measure(
         if contents is not None and source is None:
             gaps.append(f"source_budget_carrier_unreadable:{relative}")
             continue
-        carrier = _carrier(
+        carrier, classification_gap = _carrier(
             relative,
             executable=executable,
             root=root,
             carriers=policy.carriers,
             source=source,
         )
+        if classification_gap:
+            gaps.append(classification_gap)
+            continue
         if carrier is None:
             if executable and classify_executables:
                 gaps.append(f"source_budget_executable_unclassified:{relative}")

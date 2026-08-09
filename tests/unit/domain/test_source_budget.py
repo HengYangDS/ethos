@@ -408,6 +408,43 @@ def test_python_role_partition_is_complete_and_non_overlapping(
     assert report["metrics"]["python_total"] == 8
 
 
+def test_overlapping_python_role_patterns_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selection, _ = _repo(tmp_path)
+    selection.write_text(
+        selection.read_text().replace(
+            'category = "python_product", paths = ["src/*"]',
+            'category = "python_product", paths = ["src/*", "tests/*"]',
+        ),
+        encoding="utf-8",
+    )
+    _tracked_file(tmp_path, "tests/test_demo.py", "FIRST = 1\nSECOND = 2\n")
+    report = _measure(monkeypatch, tmp_path)
+
+    assert report["verdict"] == "block"
+    assert (
+        "source_budget_python_role_ambiguous:tests/test_demo.py:python_product,python_tests"
+        in report["required_gaps"]
+    )
+
+
+def test_global_total_blocks_without_any_python_role_exceeding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo(tmp_path, terminal=(1_000, 1_000, 1_000, 1_000, 1))
+    report = _measure(monkeypatch, tmp_path)
+
+    assert "source_budget_terminal_exceeded:global_total:" in "\n".join(report["required_gaps"])
+    assert not any(
+        f"terminal_exceeded:{category}" in gap
+        for category in PYTHON_CATEGORIES
+        for gap in report["required_gaps"]
+    )
+
+
 def test_extensionless_hook_is_counted_and_unknown_executable_blocks(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

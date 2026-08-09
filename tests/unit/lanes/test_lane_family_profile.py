@@ -611,6 +611,13 @@ def test_start_work_lane_carrier_failure_claims(
             "branch": "work/feature",
             "path": lane_case.target.resolve().as_posix(),
             "stderr": "injected failure",
+            "child_process": {
+                "argv": ["materialize"],
+                "exit_code": 1,
+                "stdout": "",
+                "stderr": "injected failure",
+                "parse_error": "",
+            },
             "carrier_cleanup": {"worktree_removed": True, "ref_removed": True},
             "lease_state": "not_acquired",
             "required_gaps": ["worktree_add_failed"],

@@ -192,6 +192,7 @@ def test_absorbed_ref_retires_legacy_source_without_branch_policy_through_curren
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     source = git(repo, "rev-parse", "HEAD")
+    adopt_and_commit(repo)
     missing_policy = subprocess.run(
         ("git", "show", f"{source}:.ethos/workspace.toml"),
         cwd=repo,
@@ -251,6 +252,67 @@ def test_legacy_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked
 
     assert deleted.returncode != 0
     assert git(repo, "rev-parse", "work/legacy-unintended") == source
+
+
+def test_installed_hook_retires_two_legacy_refs_under_exact_legacy_accepted_policy(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    source = git(repo, "rev-parse", "HEAD")
+    adopt_and_commit(repo)
+    legacy_policy = """[branch_roles]
+release_branch = "main"
+accepted_branch = "dev"
+candidate_branch = "candidate/dev"
+release_mirror = "accepted_ff"
+work_branch_prefix = "work/"
+proposal_branch_prefix = "proposal/"
+repository_family_worktrees = true
+"""
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.write_text(legacy_policy, encoding="utf-8")
+    git(repo, "add", workspace.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "adopt legacy branch-role policy")
+    accepted = git(repo, "rev-parse", "HEAD")
+    branches = ("work/legacy-one", "work/legacy-two")
+    for branch in branches:
+        git(repo, "branch", branch, source)
+    install_hook_launchers(repo)
+
+    raw = subprocess.run(
+        ("git", "update-ref", "-d", f"refs/heads/{branches[0]}", source),
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert raw.returncode != 0
+
+    for branch in branches:
+        applied = run_ethos(
+            "lane",
+            "retire",
+            "absorbed-ref",
+            "--branch",
+            branch,
+            "--expect-head",
+            source,
+            "--accepted-head",
+            accepted,
+            "--root",
+            repo.as_posix(),
+            "--authorize",
+            "--confirm-irreversible",
+            "--apply",
+            "--json",
+            cwd=repo,
+        )
+        assert (applied["verdict"], applied["state"]) == (
+            "pass",
+            "retired_absorbed_ref",
+        )
+
+    assert git(repo, "branch", "--list", "work/*") == ""
 
 
 def test_absorbed_ref_fails_closed_when_ref_is_not_an_accepted_ancestor(tmp_path: Path) -> None:

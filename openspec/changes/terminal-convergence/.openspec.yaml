@@ -2,3 +2,4 @@ schema: spec-driven
 created: 2026-07-24
 goal: Converge ETHOS to the smallest truthful vendor-neutral change compiler
   through one deletion-first campaign.
+skip_specs: true

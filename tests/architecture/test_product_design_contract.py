@@ -6,6 +6,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+import yaml
 
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
@@ -433,6 +434,14 @@ def test_terminal_commitment_claims_complete_campaign_closeout() -> None:
     assert "python_source_roles_do_not_compensate" in commitment["invariants"]
     assert "terminal-publication.execute" in commitment["permissions"]
     assert commitment["dependencies"] == []
+
+
+def test_terminal_archive_preserves_already_reconciled_specs() -> None:
+    metadata = yaml.safe_load(read(f"{SOURCE_CHANGE}/.openspec.yaml"))
+
+    assert metadata["skip_specs"] is True
+    assert not (ROOT / SOURCE_CHANGE / "specs").exists()
+    assert "already carry the terminal behavior" in read(f"{SOURCE_CHANGE}/README.md")
 
 
 def test_branch_roles_and_thresholds_have_machine_owners() -> None:

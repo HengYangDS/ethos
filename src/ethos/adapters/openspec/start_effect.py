@@ -81,6 +81,15 @@ class CurrentGenerationBinding:
     commitment: Commitment
     scope: CurrentGenerationScope
 
+    @property
+    def change_id(self) -> str | None:
+        """Return the selected logical Change identity, if this is one."""
+        return (
+            self.commitment.id.removeprefix("change:")
+            if self.commitment.id.startswith("change:")
+            else None
+        )
+
 
 def current_generation_binding(
     root: Path,

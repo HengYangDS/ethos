@@ -109,7 +109,7 @@ def plan(
     if openspec_profile_enabled(repo):
         profile_adapter = openspec_governance_report(
             repo,
-            change=change,
+            change=change or generation.change_id,
             lifecycle=True,
             changed_paths=paths,
             require_workspace=False,

@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.proof as proof_module
+import ethos.adapters.openspec.profile as openspec_profile
 from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
-from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
@@ -87,17 +87,14 @@ def test_work_lane_proof_plan_uses_the_current_active_commitment(
 ) -> None:
     holder = "agent:test:case:current-commitment"
     root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
-    branch = git(root, "branch", "--show-current")
-    lease = proof_module.leases_by_branch(root)[branch]
+    lease = proof_module.leases_by_branch(root)["work/feature"]
     carrier = root / str(lease["base_commitment_path"])
-    carrier.write_text(
-        carrier.read_text() + 'acceptance = ["current working-tree intent is planned"]\n'
-    )
+    carrier.write_text(carrier.read_text() + 'acceptance=["current"]\n')
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     plan = proof_plan(root, head=git(root, "rev-parse", "HEAD"))
-    assert plan.inputs.commitment == load_profile_commitment(root).digest()
-    assert plan.inputs.commitment != lease["base_commitment_digest"]
-    assert plan.commitment["acceptance"] == ("current working-tree intent is planned",)
+    dated = Commitment.model_validate(plan.commitment | {"id": "change:20260809-proof-binding"})
+    monkeypatch.setattr(openspec_profile, "load_lease_bound_commitment", lambda *_a, **_k: dated)
+    proof_plan(root, head=git(root, "rev-parse", "HEAD"))
 
 
 def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path) -> None:

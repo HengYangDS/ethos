@@ -171,6 +171,8 @@ def publish(
         required_gaps=gaps,
     )
     remote_topology = publication_topology(repo, release_config(repo))
+    local_topology = _object_mapping(remote_topology.get("local"))
+    local_verification_command = str(local_topology.get("verification_command") or "")
     raw_topology_gaps = remote_topology.get("required_gaps", [])
     topology_gaps = (
         tuple(str(gap) for gap in raw_topology_gaps) if isinstance(raw_topology_gaps, list) else ()
@@ -202,7 +204,10 @@ def publish(
     remote_sync = _object_mapping(gitlab_observation.get("sync"))
     remote_matrix = git.publication_remote_syncs(repo, str(branch))
     local_ci_fallback = local_ci_fallback_package(
-        remote_availability=remote_availability, root=repo, current_head=current_head
+        remote_availability=remote_availability,
+        root=repo,
+        current_head=current_head,
+        command=local_verification_command,
     )
     publication = publication_readiness(
         branch=str(branch),
@@ -212,6 +217,7 @@ def publish(
         local_ci_fallback=local_ci_fallback,
         topology=remote_topology,
         remote_observations=remote_observations,
+        local_verification_command=local_verification_command,
     )
     publication = publication_with_remote_matrix(
         publication, remote_matrix, remote_available=bool(remote_availability.get("available"))

@@ -7,6 +7,7 @@ from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos.domain.land.publication import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import seed_executed_proof
@@ -33,10 +34,7 @@ def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
         "current_head": head,
         "evidence_head": "",
         "verdict": "block",
-        "next_action": (
-            "rerun uv run --frozen --offline python -m nox -s local_ci "
-            "to refresh local fallback evidence"
-        ),
+        "next_action": "rerun dev/verify to refresh local fallback evidence",
     }
 
 
@@ -49,8 +47,9 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert (
         payload["data"]["local_ci_fallback"] == payload["data"]["publication"]["fallback_evidence"]
     )
-    assert payload["data"]["local_ci_fallback"]["owner_scripts"] == local_ci_owner_scripts(
-        root=Path.cwd()
+    fallback = payload["data"]["local_ci_fallback"]
+    assert fallback["owner_scripts"] == local_ci_owner_scripts(
+        root=Path.cwd(), command=fallback["command"]
     )
 
     publication = payload["data"]["publication"]
@@ -62,6 +61,55 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
         in publication["local_proposal_package"]["required_steps"]
     )
     assert payload["next_action"]
+
+
+def test_publish_uses_declared_local_verification_command_as_fallback_ssot(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    command = "uv run --locked --no-sync nox -s full"
+    release = repo / ".ethos" / "release.toml"
+    release.write_text(
+        release.read_text(encoding="utf-8").replace(
+            'local_verification_command = "dev/verify"',
+            f'local_verification_command = "{command}"',
+        ),
+        encoding="utf-8",
+    )
+    head = commit_fixture(repo, "declare canonical local verification")
+    seed_executed_proof(repo, head)
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    fallback = payload["data"]["local_ci_fallback"]
+    assert fallback["command"] == command
+    assert fallback["evidence_status"]["next_action"] == (
+        f"run {command} as local fallback evidence"
+    )
+    assert payload["next_action"] == f"run {command} as local fallback evidence"
+
+
+def test_publish_rejects_fallback_evidence_from_a_retired_verification_command(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+    manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(
+        '{"command":"retired/verify","head":"' + head + '","required_gaps":[],"verdict":"pass"}\n',
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    evidence = payload["data"]["local_ci_fallback"]["evidence_status"]
+    assert evidence["state"] == "stale"
+    assert evidence["command"] == "retired/verify"
+    assert evidence["next_action"] == "run dev/verify as local fallback evidence"
 
 
 def test_publish_observes_gitlab_and_github_independently_without_push(
@@ -130,17 +178,17 @@ def test_publish_reports_synchronized_tracking_without_claiming_a_push(
 
 def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_status() -> None:
     policy = load_branch_role_policy(Path.cwd())
+    command = "dev/verify"
     for evidence_status in ({}, None):
         publication = publication_readiness(
             branch="dev",
             local_ok=True,
             policy=policy,
             local_ci_fallback={"evidence_status": evidence_status},
+            local_verification_command=command,
         )
 
-        assert publication["next_action"] == (
-            "run uv run --frozen --offline python -m nox -s local_ci as local fallback evidence"
-        )
+        assert publication["next_action"] == f"run {command} as local fallback evidence"
 
 
 def test_publish_uses_configured_proposal_branch_role_policy(tmp_path: Path) -> None:

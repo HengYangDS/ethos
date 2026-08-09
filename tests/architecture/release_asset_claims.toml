@@ -141,7 +141,7 @@ forbidden = []
 [[text]]
 claim = "python-test-gate-contract"
 owner = "tools/ci/python_test_gate.py"
-required = ["--cov=ethos", "current_hard_floor", "def enforce_floor(", "--cov-fail-under=0", "self._coverage(\"report\", f\"--fail-under={floor:g}\")", "f\"--fail-under={floor:g}\"", "self.head_file = self.coverage / \"head.txt\"", "current != self.s.head", "\"-W\",", "\"error\"", "self.data = self.coverage / \".coverage\"", "ROOT / \".coverage\"", "self.pytest / \"junit.xml\"", "--cov-report=term-missing", "f\"--cov-report=xml:{self.coverage / 'coverage.xml'}\"", "f\"--cov-config={COVERAGE_CONFIG}\"", "build/evidence/quality/tests", "ETHOS_TEST_BASETEMP", "ethos-pytest"]
+required = ["--cov=src/ethos", "current_hard_floor", "def enforce_floor(", "--cov-fail-under=0", "self._coverage(\"report\", f\"--fail-under={floor:g}\")", "f\"--fail-under={floor:g}\"", "self.head_file = self.coverage / \"head.txt\"", "current != self.s.head", "\"-W\",", "\"error\"", "self.data = self.coverage / \".coverage\"", "ROOT / \".coverage\"", "self.pytest / \"junit.xml\"", "--cov-report=term-missing", "f\"--cov-report=xml:{self.coverage / 'coverage.xml'}\"", "f\"--cov-config={COVERAGE_CONFIG}\"", "build/evidence/quality/tests", "ETHOS_TEST_BASETEMP", "ethos-pytest"]
 forbidden = []
 
 [[text]]

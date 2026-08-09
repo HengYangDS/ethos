@@ -1,589 +1,221 @@
-"""Accepted/candidate ref-move and protected publication admission."""
+"""Accepted/candidate ref-move and protected publication admission matrix.
+
+release-mirror/accepted-policy-requires-intent|independent|FAHNP|r|main|main|c1|block|=release_mirror_ref_move_no_ref_intent
+release-mirror/candidate-policy-cannot-rewrite-accepted-policy|independent|JFPA|r|main|main|c1|block|=release_mirror_ref_move_no_ref_intent
+ref/accepted/off-train-blocks|independent|W|r|dev|base|work|block|~accepted_advance_not_candidate_validated+w
+ref/accepted/candidate-contained-unproven-blocks|independent|WC|r|dev|base|work|block|~proof_not_proven+w
+ref/candidate/unproven-blocks-fail-closed|independent||r|candidate/dev|base|zero|block|!proof
+ref/candidate/proven-without-intent-blocks|independent|1P|r|candidate/dev|base|c1|block|=candidate_ref_move_no_ref_intent
+policy/profile-only-defaults|profile|1|o|work/example|base|c1|pass|policy
+ref/candidate/accepted-contained-rewind-passes|independent|1R|r|candidate/dev|c1|base|pass|=
+ref/accepted/rollback-blocks|independent|1P2|r|dev|c2|c1|block|~accepted_ref_move_not_fast_forward
+ref/accepted/non-head-blocks|independent|1P2|r|dev|base|c1|block|~accepted_ref_move_not_candidate_head
+cas/equivalent-proof-keeps-binding|independent|1PIE|r|dev|base|c1|pass|=
+cas/distinct-proof-closure-stales-binding|independent|1PIX|r|dev|base|c1|block|=stale_binding
+intent/matching-passes|independent|1PI|r|dev|base|c1|pass|=
+intent/missing-blocks|independent|1P|r|dev|base|c1|block|~accepted_ref_move_no_ref_intent
+intent/mismatch-blocks|independent|1PM|r|dev|base|c1|block|~ref_intent_mismatch
+intent/stale-blocks|independent|1PIS|r|dev|base|c1|block|~ref_intent_stale
+cas/intent-consumed-once|independent|1PI|r|dev|base|c1|block|consume
+push/accepted/off-train-blocks|offtrain||p|dev|base|work|block|~accepted_advance_not_candidate_validated
+push/accepted/non-head-blocks|independent|1P2|p|dev|base|c1|block|~accepted_ref_move_not_candidate_head
+push/accepted/rollback-blocks|independent|1P2|p|dev|c2|c1|block|~accepted_ref_move_not_fast_forward
+push/protected/local-ref-mismatch-blocks|independent|1P|p|dev|base|c1|block|~push_to_protected_role_not_proven:local_ref_mismatch:dev
+push/protected/local-closeout-passes|independent|1PA|p|dev|base|c1|pass|=
+push/protected/target-role-governs|fixture||p|dev|base|c1|pass|=
+push/work-lane/remote-publication-blocks|independent|W|p|work/x|base|work|block|=publication_remote_branch_forbidden:work/x
+"""
 
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.admission.git_admission as git_admission
-from ethos.adapters.admission.git_admission import push_admission_report
-from ethos.adapters.admission.git_admission import ref_move_admission_report
-from ethos.adapters.admission.ref_intent import ref_intent_dir
-from ethos.adapters.admission.ref_intent import write_ref_intent
-from ethos.adapters.mutation.proof import issue_proof_attestation
-from ethos.adapters.mutation.proof import persist_proof_attestation
-from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
-from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.contracts.plan import GitEffect
-from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import canonical_json_digest
-from ethos.repository.adoption.planner import adoption_plan
-from tests.support.governed_repository import commit_fixture_file
-from tests.support.governed_repository import conformant_proof_check
-from tests.support.governed_repository import exact_lease
-from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import seed_executed_proof
-from tests.support.governed_repository import start_adopted_work_lane
-from tests.support.governed_repository import write_active_commitment
-from tests.support.governed_repository import write_publication_topology
-from tests.support.governed_repository import write_role_policy
-
-_FIXTURE_COMMITMENT_CARRIER = "openspec/changes/fixture-change/commitment.toml"
+import ethos.adapters.admission.git_admission as admission
+import ethos.adapters.admission.ref_intent as intent
+import ethos.adapters.mutation.proof as proof
+from tests.support import governed_repository as fx
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _acquire_fixture_lease(repo: Path, branch: str, head: str, holder: str) -> None:
-    acquire_lease(
-        state_database(repo),
-        lease=exact_lease(
-            repo=repo,
-            branch=branch,
-            holder_ref=holder,
-            expected_head=head,
-            carrier=_FIXTURE_COMMITMENT_CARRIER,
-        ),
-    )
-
-
-def _record_complete_proof(root: Path, head: str, *, changed_paths: tuple[str, ...] = ()) -> None:
-    branch = git(root, "branch", "--show-current")
-    holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
-    original = os.environ.get("ETHOS_ACTOR")
-    if holder:
-        os.environ["ETHOS_ACTOR"] = holder
-    try:
-        plan = proof_plan(root, head=head, changed_paths=changed_paths)
-        checks = tuple(
-            conformant_proof_check(gate_id, root, tree_ref=head)
-            for gate_id in resolve_gate_policy(root, tree_ref=head).gate_ids
-        )
-        attestation = issue_proof_attestation(
-            root,
-            {
-                "plan": plan,
-                "checks": checks,
-                "verdict": "pass",
-                "issuer": "agent:test:case:ref-move",
-                "scope": "repository",
-                "boundary": "repository",
-            },
-        )
-        persist_proof_attestation(root, attestation)
-    finally:
-        if original is None:
-            os.environ.pop("ETHOS_ACTOR", None)
-        else:
-            os.environ["ETHOS_ACTOR"] = original
-
-
-def _accepted_boundary_repo(
-    tmp_path: Path, *, release_mirror: str = "independent"
-) -> tuple[Path, str]:
-    """A repo on dev with a candidate/dev branch; return (root, base_head).
-
-    Later commits are made on candidate/dev so the accepted branch (dev) can be
-    probed for out-of-band advances to candidate-contained commits.
-    """
-
-    def g(*a: str) -> str:
-        return subprocess.run(
-            ["git", *a], cwd=tmp_path, capture_output=True, text=True, check=False
-        ).stdout.strip()
-
-    g("init", "-q", "-b", "dev")
-    g("config", "user.name", "t")
-    g("config", "user.email", "t@e.x")
-    adoption_plan(tmp_path, apply=True)
-    write_role_policy(
-        tmp_path,
-        candidate_branch="candidate/dev",
-        work_branch_prefix="work/",
-        proposal_branch_prefix="proposal/",
-        release_mirror=release_mirror,
-    )
-    write_publication_topology(tmp_path)
-    write_active_commitment(tmp_path)
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.write_text(
-        profile.read_text(encoding="utf-8")
-        + """
-[proof]
-code_correctness_gates = ["sample-tests", "sample-static"]
-
-[proof.code_correctness_map]
-behavior = "sample-tests"
-static-analysis = "sample-static"
-
-[[proof.gates]]
-id = "sample-tests"
-kind = "test"
-command = ["sample", "test"]
-dimensions = ["test", "coverage"]
-execution_mode = "subprocess"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "repository-native"
-
-[[proof.gates]]
-id = "sample-static"
-kind = "typing"
-command = ["sample", "typecheck"]
-dimensions = ["static-analysis"]
-execution_mode = "subprocess"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "repository-native"
-""",
-        encoding="utf-8",
-    )
-    g("add", ".")
-    g("commit", "-q", "-m", "base")
-    base = g("rev-parse", "HEAD")
-    g("branch", "candidate/dev")
-    g("checkout", "-q", "candidate/dev")
-    return tmp_path, base
-
-
-@pytest.mark.parametrize(
-    ("accepted_policy", "candidate_policy", "main_revision"),
-    [
-        ("accepted_ff", "independent", "HEAD"),
-        ("independent", "accepted_ff", "HEAD~1"),
-    ],
-)
-def test_release_mirror_admission_uses_current_accepted_policy(
-    tmp_path: Path, accepted_policy: str, candidate_policy: str, main_revision: str
-) -> None:
-    repo, _base = _accepted_boundary_repo(tmp_path, release_mirror=accepted_policy)
-    git(repo, "branch", "main", git(repo, "rev-parse", main_revision))
-    workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text(
-        workspace.read_text(encoding="utf-8").replace(
-            f'release_mirror = "{accepted_policy}"', f'release_mirror = "{candidate_policy}"'
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", workspace.as_posix())
-    git(repo, "commit", "-m", "change release mirror policy")
-    candidate_head = git(repo, "rev-parse", "HEAD")
-    _record_complete_proof(repo, candidate_head)
-    if candidate_policy == "accepted_ff":
-        git(repo, "branch", "-f", "dev", candidate_head)
-
-    report = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/main",
-        old_value=git(repo, "rev-parse", "main"),
-        new_value=candidate_head,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["release_mirror_ref_move_no_ref_intent"]
-
-
-def _advance_candidate(repo: Path, name: str) -> str:
-    """Commit `name` on candidate/dev and return the new candidate head."""
+def _advance(repo: Path, name: str) -> str:
     (repo / name).write_text(name, encoding="utf-8")
-    git(repo, "add", ".")
-    git(repo, "-c", "user.name=t", "-c", "user.email=t@e.x", "commit", "-m", name)
-    return git(repo, "rev-parse", "HEAD")
+    fx.git(repo, "add", ".")
+    fx.git(repo, "-c", "user.name=t", "-c", "user.email=t@e.x", "commit", "-m", name)
+    return fx.git(repo, "rev-parse", "HEAD")
 
 
-@pytest.mark.parametrize(
-    ("containment", "expected_verdict", "expected_gap"),
-    [
-        pytest.param(
-            "off_train", "block", "accepted_advance_not_candidate_validated", id="off-train"
-        ),
-        pytest.param("candidate", "block", "proof_not_proven", id="candidate-contained"),
-    ],
-)
-def test_accepted_ref_requires_candidate_containment_and_intent(
-    tmp_path: Path, containment: str, expected_verdict: str, expected_gap: str
-) -> None:
-    repo, base = _accepted_boundary_repo(tmp_path)
-    git(repo, "checkout", "-b", "work/x")
-    work = _advance_candidate(repo, "work")
-    if containment == "candidate":
-        git(repo, "branch", "-f", "candidate/dev", work)
+class State:
+    """Materialize compact claim-state codes."""
 
-    report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=work
-    )
+    def __init__(self, tmp: Path, mode: str) -> None:
+        repo, candidate = fx.start_adopted_candidate(tmp)
+        self.repo, self.v = candidate, {"base": fx.git(repo, "rev-parse", "dev"), "zero": "c" * 40}
+        if mode == "offtrain":
+            fixture = fx.start_adopted_work_lane(tmp / "offtrain")
+            self.repo, self.v = (
+                fixture.worktree,
+                {"base": fx.git(fixture.repository, "rev-parse", "dev")},
+            )
+            self.v["work"] = fx.commit_fixture_file(self.repo, "work", "work", "work")
+            fx.seed_executed_proof(self.repo, self.v["work"])
+        elif mode == "profile":
+            (candidate / ".ethos/workspace.toml").unlink()
+        elif mode == "fixture":
+            fixture = fx.start_adopted_work_lane(tmp / "fixture")
+            head = fx.commit_fixture_file(
+                fixture.candidate, "CANDIDATE.md", "candidate\n", "candidate"
+            )
+            fx.seed_executed_proof(fixture.candidate, head)
+            fx.git(fixture.repository, "update-ref", "refs/heads/dev", head)
+            self.repo = fixture.worktree
+            self.v = {"base": fx.git(fixture.repository, "rev-parse", f"{head}^"), "c1": head}
 
-    assert report["verdict"] == expected_verdict
-    assert expected_gap in report["required_gaps"]
-    assert (
-        ref_move_admission_report(
-            root=repo, ref_name="refs/heads/work/x", old_value=base, new_value=work
-        )["verdict"]
-        == "pass"
-    )
+    def run(self, codes: str) -> None:
+        for code in codes:
+            if code in "12WCP":
+                self._topology(code)
+            else:
+                self._binding(code)
 
+    def _topology(self, code: str) -> None:
+        if code in "12":
+            self.v[f"c{code}"] = _advance(self.repo, f"c{code}")
+        elif code == "W":
+            fx.git(self.repo, "checkout", "-q", "-b", "work/x")
+            self.v["work"] = _advance(self.repo, "work")
+        elif code == "C":
+            fx.git(self.repo, "branch", "-f", "candidate/dev", self.v["work"])
+        elif code == "P":
+            fx.seed_executed_proof(self.repo, self.v["c1"])
 
-def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    write_role_policy(
-        repo,
-        candidate_branch="candidate/dev",
-        work_branch_prefix="work/",
-        proposal_branch_prefix="proposal/",
-    )
-    head = git(repo, "rev-parse", "HEAD")
-    candidate_head = "c" * 40
+    def _binding(self, code: str) -> None:
+        if code in "IMR":
+            old = "0" * 40 if code == "M" else self.v["c1" if code == "R" else "base"]
+            new = self.v["base" if code == "R" else "c1"]
+            self._intent(old, new, "candidate.refresh" if code == "R" else "candidate.accept")
+        elif code == "S":
+            for path in intent.ref_intent_dir(self.repo).glob("*.json"):
+                data = json.loads(path.read_text()) | {"expires_at": "2000-01-01T00:00:00+00:00"}
+                path.write_text(json.dumps(data))
+        elif code == "E":
+            first = proof.proof_attestation(self.repo, self.v["c1"])
+            assert first is not None
+            proof.persist_proof_attestation(
+                self.repo,
+                proof.Attestation.issue(
+                    first.model_dump(exclude={"id", "schema_version", "statement_digest"})
+                    | {"issued_at": first.issued_at + timedelta(seconds=1)}
+                ),
+            )
+        elif code in "XA":
+            if code == "X":
+                self._distinct_proof()
+            else:
+                fx.git(self.repo, "update-ref", "refs/heads/dev", self.v["c1"], self.v["base"])
+        elif code in "HJ":
+            fx.git(
+                self.repo,
+                "branch",
+                "main",
+                fx.git(self.repo, "rev-parse", "HEAD" if code == "H" else "HEAD~1"),
+            )
+            self.v["main"] = fx.git(self.repo, "rev-parse", "main")
+        else:
+            self._policy("accepted_ff" if code == "F" else "independent")
 
-    report = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/candidate/dev",
-        old_value=head,
-        new_value=candidate_head,
-    )
+    def _policy(self, value: str) -> None:
+        path = self.repo / ".ethos/workspace.toml"
+        current = "accepted_ff" if value == "independent" else "independent"
+        path.write_text(
+            path.read_text().replace(f'release_mirror = "{current}"', f'release_mirror = "{value}"')
+        )
+        fx.git(self.repo, "add", path.as_posix())
+        fx.git(self.repo, "commit", "-m", "change release mirror policy")
+        self.v["c1"] = fx.git(self.repo, "rev-parse", "HEAD")
 
-    assert report["verdict"] == "block"
-    assert report["state"] == "blocked"
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "protected_ref_move_not_proven",
-    }
-    assert any("proof" in str(gap) or "not_proven" in str(gap) for gap in report["required_gaps"])
+    def _intent(self, old: str, new: str, operation: str) -> None:
+        ref = "refs/heads/candidate/dev" if operation == "candidate.refresh" else "refs/heads/dev"
+        update = admission.GitRefUpdate(expected=old, desired=new)
+        intent.write_ref_intent(
+            root=self.repo,
+            ref_name=ref,
+            update=update,
+            operation=operation,
+            plan_digest=proof.canonical_json_digest({"operation": operation}),
+        )
 
-
-def test_ref_move_admission_blocks_proven_candidate_move_without_land_intent(
-    tmp_path: Path,
-) -> None:
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-
-    report = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/candidate/dev",
-        old_value=base,
-        new_value=candidate_head,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["candidate_ref_move_no_ref_intent"]
-
-
-def test_ref_move_policy_uses_valid_profile_defaults_without_workspace(tmp_path: Path) -> None:
-    repo = tmp_path
-    git(repo, "init", "-q", "-b", "dev")
-    git(repo, "config", "user.name", "test")
-    git(repo, "config", "user.email", "test@example.invalid")
-    profile = repo / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text('profile_id = "adopter"\n', encoding="utf-8")
-    git(repo, "add", ".ethos/profile.toml")
-    git(repo, "commit", "-m", "adopt")
-    old = git(repo, "rev-parse", "HEAD")
-    (repo / "change.txt").write_text("change", encoding="utf-8")
-    git(repo, "add", "change.txt")
-    git(repo, "commit", "-m", "change")
-    new = git(repo, "rev-parse", "HEAD")
-
-    resolved = git_admission.resolve_ref_move_policy(
-        repo,
-        ref_name="refs/heads/work/example",
-        old_value=old,
-        new_value=new,
-    )
-
-    assert resolved == BranchRolePolicy()
-
-
-def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_path: Path) -> None:
-    """A candidate-branch move to a commit the accepted branch already contains (a
-    refresh-from-accepted rewind) promotes no new work, so it is admitted WITHOUT a fresh
-    proof — the exemption that keeps `ethos lane refresh-base` working once the
-    ETHOS_ALLOW_REF_MOVE bypass is gone. `base` is on the accepted branch (dev)."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-
-    write_ref_intent(
-        root=repo,
-        ref_name="refs/heads/candidate/dev",
-        update=GitEffect(
-            updates={
-                "refs/heads/candidate/dev": GitRefUpdate(
-                    expected=candidate_head,
-                    desired=base,
-                )
-            }
-        ).updates["refs/heads/candidate/dev"],
-        operation="candidate.refresh",
-        plan_digest=canonical_json_digest({"operation": "candidate.refresh"}),
-    )
-    report = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/candidate/dev",
-        old_value=candidate_head,
-        new_value=base,  # rewind candidate back onto accepted-contained base
-    )
-
-    assert report["verdict"] == "pass"
+    def _distinct_proof(self) -> None:
+        head = self.v["c1"]
+        plan = proof.proof_plan(self.repo, head=head, changed_paths=("other-operation",))
+        checks = tuple(
+            fx.conformant_proof_check(gate, self.repo, tree_ref=head)
+            for gate in proof.resolve_gate_policy(self.repo, tree_ref=head).gate_ids
+        )
+        proof.persist_proof_attestation(
+            self.repo,
+            proof.issue_proof_attestation(
+                self.repo,
+                {
+                    "plan": plan,
+                    "checks": checks,
+                    "verdict": "pass",
+                    "issuer": "agent:test:case:ref-move",
+                    "scope": "repository",
+                    "boundary": "repository",
+                },
+            ),
+        )
 
 
-@pytest.mark.parametrize(
-    ("relation", "expected_gap"),
-    [
-        pytest.param("rollback", "accepted_ref_move_not_fast_forward", id="rollback"),
-        pytest.param("intermediate", "accepted_ref_move_not_candidate_head", id="intermediate"),
-    ],
-)
-def test_accepted_ref_rejects_invalid_candidate_relation(
-    tmp_path: Path, relation: str, expected_gap: str
-) -> None:
-    repo, base = _accepted_boundary_repo(tmp_path)
-    first = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, first)
-    second = _advance_candidate(repo, "c2")
-    old_value, new_value = (second, first) if relation == "rollback" else (base, first)
-
-    report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=old_value, new_value=new_value
-    )
-
-    assert report["verdict"] == "block"
-    assert expected_gap in report["required_gaps"]
+_ROWS = tuple(line.split("|") for line in (__doc__ or "").splitlines()[2:])
 
 
-def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
-    """Write the exact one-shot marker after proof admission succeeds independently."""
-    write_ref_intent(
-        root=repo,
-        ref_name="refs/heads/dev",
-        update=GitEffect(
-            updates={
-                "refs/heads/dev": GitRefUpdate(
-                    expected=old_value,
-                    desired=new_value,
-                )
-            }
-        ).updates["refs/heads/dev"],
-        operation="candidate.accept",
-        plan_digest=canonical_json_digest({"operation": "candidate.accept"}),
+def _call(state: State, plane: str, target: str, old: str, new: str, **extra: str) -> object:
+    if plane == "o":
+        return admission.resolve_ref_move_policy(
+            state.repo, ref_name=f"refs/heads/{target}", old_value=old, new_value=new
+        )
+    if plane == "p":
+        return admission.push_admission_report(
+            root=state.repo, target_ref=f"refs/heads/{target}", pushed_head=new, remote_head=old
+        )
+    return admission.ref_move_admission_report(
+        root=state.repo, ref_name=f"refs/heads/{target}", old_value=old, new_value=new, **extra
     )
 
 
-def test_equivalent_proof_cannot_invalidate_matching_ref_intent(tmp_path: Path) -> None:
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
-    first = proof_attestation(repo, candidate_head)
-    assert first is not None
-    equivalent = Attestation.issue(
-        first.model_dump(exclude={"id", "schema_version", "statement_digest"})
-        | {"issued_at": first.issued_at + timedelta(seconds=1)}
-    )
-    persist_proof_attestation(repo, equivalent)
-
-    report = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/dev",
-        old_value=base,
-        new_value=candidate_head,
-    )
-
-    assert report["verdict"] == "pass"
-
-
-def test_distinct_proof_closures_block_ref_move_admission(
-    tmp_path: Path,
-) -> None:
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
-    _record_complete_proof(repo, candidate_head, changed_paths=("other-operation",))
-
-    report = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/dev",
-        old_value=base,
-        new_value=candidate_head,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["stale_binding"]
-
-
-@pytest.mark.parametrize(
-    ("intent", "expected_verdict", "expected_gap"),
-    [
-        pytest.param("matching", "pass", None, id="official-closeout"),
-        pytest.param("missing", "block", "accepted_ref_move_no_ref_intent", id="raw-move"),
-        pytest.param("mismatch", "block", "ref_intent_mismatch", id="mismatched-intent"),
-        pytest.param("stale", "block", "ref_intent_stale", id="stale-intent"),
-    ],
-)
-def test_accepted_ref_intent_contract(
-    tmp_path: Path, intent: str, expected_verdict: str, expected_gap: str | None
-) -> None:
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-    if intent != "missing":
-        old_value = "0" * 40 if intent == "mismatch" else base
-        _write_matching_intent(repo, old_value=old_value, new_value=candidate_head)
-    if intent == "stale":
-        _backdate_markers(repo)
-
-    report = ref_move_admission_report(
-        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
-    )
-
-    assert report["verdict"] == expected_verdict
-    if expected_gap is None:
-        assert report["required_gaps"] == []
+@pytest.mark.parametrize("row", _ROWS, ids=lambda row: row[0])
+def test_accepted_ref_admission_claim_matrix(tmp_path: Path, row: tuple[str, ...]) -> None:
+    _claim, mode, actions, plane, target, old_key, new_key, verdict, boundary = row
+    state = State(tmp_path, mode)
+    state.run(actions)
+    old, new = state.v[old_key], state.v[new_key]
+    if boundary == "consume":
+        assert _call(state, plane, target, old, new)["verdict"] == "pass"
+        assert _call(state, plane, target, old, new, phase="committed")["verdict"] == "pass"
+    report = _call(state, plane, target, old, new)
+    if boundary == "policy":
+        assert report == admission.BranchRolePolicy()
+        return
+    assert report["verdict"] == verdict
+    if boundary == "!proof":
+        assert report["state"] == "blocked"
+        assert report["decision"] == {"action": "block", "reason": "protected_ref_move_not_proven"}
+        assert any(
+            "proof" in str(gap) or "not_proven" in str(gap) for gap in report["required_gaps"]
+        )
+    elif boundary == "consume":
+        assert report["required_gaps"] == ["ref_intent_reused"]
+    elif boundary.startswith("="):
+        assert report["required_gaps"] == ([boundary[1:]] if boundary[1:] else [])
     else:
-        assert expected_gap in report["required_gaps"]
-
-
-def test_ref_intent_is_consumed_once(tmp_path: Path) -> None:
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
-    move = {
-        "root": repo,
-        "ref_name": "refs/heads/dev",
-        "old_value": base,
-        "new_value": candidate_head,
-    }
-
-    assert ref_move_admission_report(**move)["verdict"] == "pass"
-    assert ref_move_admission_report(**move, phase="committed")["verdict"] == "pass"
-    replay = ref_move_admission_report(**move)
-
-    assert replay["verdict"] == "block"
-    assert replay["required_gaps"] == ["ref_intent_reused"]
-
-
-def _backdate_markers(repo: Path) -> None:
-    """Expire every ref-intent marker by rewriting expires_at into the past."""
-    marker_dir = ref_intent_dir(repo)
-    for path in marker_dir.glob("*.json"):
-        marker = json.loads(path.read_text(encoding="utf-8"))
-        marker["expires_at"] = "2000-01-01T00:00:00+00:00"
-        path.write_text(json.dumps(marker), encoding="utf-8")
-
-
-# ── H2: the push plane enforces the SAME candidate-train topology as the ref-move plane ──
-def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
-    """A push of a proven commit that candidate never validated must block — the same
-    accepted_advance_gaps the local ref-move reducer applies, so a raw `git push` cannot
-    promote off-train work the ref hook would refuse."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    _advance_candidate(repo, "c1")
-    git(repo, "checkout", "-q", "-b", "work/x")
-    off_train = _advance_candidate(repo, "d")  # commit on work/x, never on candidate
-    _acquire_fixture_lease(repo, "work/x", off_train, "agent:test:case:ref-move")
-    _record_complete_proof(repo, off_train)
-
-    report = push_admission_report(
-        root=repo, target_ref="refs/heads/dev", pushed_head=off_train, remote_head=base
-    )
-
-    assert report["verdict"] == "block"
-    assert "accepted_advance_not_candidate_validated" in report["required_gaps"]
-
-
-def test_push_admission_blocks_non_head_intermediate(tmp_path: Path) -> None:
-    """B/H2: pushing a candidate-contained but non-head proven commit to dev must block."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    c1 = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, c1)
-    _advance_candidate(repo, "c2")  # live candidate head is c2
-
-    report = push_admission_report(
-        root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=base
-    )
-
-    assert report["verdict"] == "block"
-    assert "accepted_ref_move_not_candidate_head" in report["required_gaps"]
-
-
-def test_push_admission_blocks_rollback(tmp_path: Path) -> None:
-    """C/H2: a force-push rewinding dev to an older proven commit (non-fast-forward)
-    must block at the push plane — the rollback needs zero forgery."""
-    repo, _base = _accepted_boundary_repo(tmp_path)
-    c1 = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, c1)
-    c2 = _advance_candidate(repo, "c2")
-
-    report = push_admission_report(
-        root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=c2
-    )
-
-    assert report["verdict"] == "block"
-    assert "accepted_ref_move_not_fast_forward" in report["required_gaps"]
-
-
-def test_push_admission_requires_local_closeout_before_protected_publication(
-    tmp_path: Path,
-) -> None:
-    """A proven candidate head is publishable only after local accepted closeout."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    candidate_head = _advance_candidate(repo, "c1")
-    _record_complete_proof(repo, candidate_head)
-
-    blocked = push_admission_report(
-        root=repo, target_ref="refs/heads/dev", pushed_head=candidate_head, remote_head=base
-    )
-    git(repo, "update-ref", "refs/heads/dev", candidate_head, base)
-    admitted = push_admission_report(
-        root=repo, target_ref="refs/heads/dev", pushed_head=candidate_head, remote_head=base
-    )
-
-    assert blocked["verdict"] == "block"
-    assert "push_to_protected_role_not_proven:local_ref_mismatch:dev" in blocked["required_gaps"]
-    assert admitted["verdict"] == "pass"
-
-
-def test_protected_push_uses_target_role_not_caller_work_lane(tmp_path: Path) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
-    candidate_head = commit_fixture_file(
-        fixture.candidate, "CANDIDATE.md", "candidate\n", "candidate"
-    )
-    seed_executed_proof(fixture.candidate, candidate_head)
-    git(fixture.repository, "update-ref", "refs/heads/dev", candidate_head)
-
-    report = push_admission_report(
-        root=fixture.worktree,
-        target_ref="refs/heads/dev",
-        pushed_head=candidate_head,
-        remote_head=git(fixture.repository, "rev-parse", f"{candidate_head}^"),
-    )
-
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
-
-
-def test_push_admission_rejects_remote_work_lane(tmp_path: Path) -> None:
-    """Work lanes are local-only and never enter either remote publication plane."""
-    repo, base = _accepted_boundary_repo(tmp_path)
-    git(repo, "checkout", "-q", "-b", "work/x")
-    head = _advance_candidate(repo, "w")
-
-    report = push_admission_report(
-        root=repo, target_ref="refs/heads/work/x", pushed_head=head, remote_head=base
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["publication_remote_branch_forbidden:work/x"]
+        gap = boundary.removeprefix("~").removesuffix("+w")
+        assert gap in report["required_gaps"]
+        if boundary.endswith("+w"):
+            assert _call(state, "r", "work/x", old, new)["verdict"] == "pass"

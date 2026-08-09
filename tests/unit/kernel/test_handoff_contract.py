@@ -13,6 +13,7 @@ import ethos.adapters.repo.dirty.change_provenance as change_provenance
 from ethos.adapters.store.state.lease.projection import LeaseObservation
 from ethos.contracts.coordination import CrossHostHandoff
 from ethos.contracts.coordination import HolderRef
+from tests.support.literal_cases import literal_case
 
 _HANDOFF = {
     "source_lane_ref": "work/example",
@@ -89,22 +90,7 @@ def _artifact(**overrides: str) -> tuple[dict[str, str]]:
     return ({"path": "repository.bundle", "sha256": "d" * 64, "kind": "git_bundle"} | overrides,)
 
 
-_VALIDATION_CASES = [
-    *(
-        (field, {})
-        for field in (
-            "base_commitment_digest",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-        )
-    ),
-    *(("", {"source_head": "a" * width, "source_tree": "b" * width}) for width in (41, 63)),
-    ("", {"dirty_disposition": "preserved"}),
-    *(("", {"source_lease_epoch": epoch}) for epoch in (True, "1", 1.0)),
-    ("", {"artifacts": _artifact(path="../repository.bundle")}),
-    ("", {"artifacts": _artifact(kind="tracked_patch")}),
-    ("", {"artifacts": _artifact(legacy="field")}),
-]
+_VALIDATION_CASES = literal_case("kernel.test_handoff_contract:assign:_VALIDATION_CASES:derived")
 
 
 @pytest.mark.parametrize(("absent", "overrides"), _VALIDATION_CASES)
@@ -169,11 +155,9 @@ def test_handoff_manifest_rejects_a_symlinked_manifest(
 
 @pytest.mark.parametrize(
     ("state", "gap"),
-    [
-        ("valid", "handoff_import_lease_conflict"),
-        ("expired", "handoff_import_lease_conflict"),
-        ("unknown", "handoff_import_lease_unknown"),
-    ],
+    literal_case(
+        "kernel.test_handoff_contract:parametrize:test_handoff_import_rejects_destination_lease_before_git_effects:0"
+    ),
 )
 def test_handoff_import_rejects_destination_lease_before_git_effects(
     tmp_path, monkeypatch: pytest.MonkeyPatch, state: str, gap: str

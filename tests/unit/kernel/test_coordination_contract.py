@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import RepositoryRelativePath
+from tests.support.literal_cases import literal_case
 
 
 def test_holder_ref_is_provider_neutral_and_carries_no_privilege() -> None:
@@ -34,13 +35,9 @@ def test_holder_ref_rejects_provider_only_or_ambiguous_values(value: str) -> Non
 
 @pytest.mark.parametrize(
     "value",
-    [
-        "openspec/changes/example/commitment.toml",
-        "src/main.py",
-        ".github/workflows/check.yml",
-        "a/.hidden/file",
-        "a/b:c",
-    ],
+    literal_case(
+        "kernel.test_coordination_contract:parametrize:test_repository_relative_path_accepts_canonical_posix_values:0"
+    ),
 )
 def test_repository_relative_path_accepts_canonical_posix_values(value: str) -> None:
     assert TypeAdapter(RepositoryRelativePath).validate_python(value) == value

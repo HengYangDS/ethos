@@ -8,6 +8,7 @@ import pytest
 import ethos.domain.source_budget.measurement as source_budget
 from ethos.domain.source_budget.measurement_policy import PYTHON_CATEGORIES
 from tests.support.governed_repository import git
+from tests.support.literal_cases import literal_case
 from tests.support.subprocesses import completed as cp
 
 
@@ -288,16 +289,9 @@ def test_generated_lock_is_dependency_evidence_not_owned_source(
 
 @pytest.mark.parametrize(
     "relative",
-    [
-        "uv.lock",
-        "Cargo.lock",
-        "Gemfile.lock",
-        "composer.lock",
-        "yarn.lock",
-        "package-lock.json",
-        "nested/pnpm-lock.yaml",
-        "nested/npm-shrinkwrap.json",
-    ],
+    literal_case(
+        "domain.test_source_budget:parametrize:test_ecosystem_lockfile_patterns_share_one_evidence_class:0"
+    ),
 )
 def test_ecosystem_lockfile_patterns_share_one_evidence_class(
     tmp_path: Path,
@@ -366,12 +360,9 @@ def test_terminal_verdict_uses_canonical_effective_lines_not_physical_cross_chec
 
 @pytest.mark.parametrize(
     ("category", "relative", "terminal"),
-    [
-        ("python_product", None, (1, 1_000, 1_000, 1_000, 2_000)),
-        ("python_tests", "tests/test_demo.py", (1_000, 1, 1_000, 1_000, 2_000)),
-        ("python_tools", "tools/demo.py", (1_000, 1_000, 1, 1_000, 2_000)),
-        ("python_other", "demo.py", (1_000, 1_000, 1_000, 1, 2_000)),
-    ],
+    literal_case(
+        "domain.test_source_budget:parametrize:test_python_carrier_roles_cannot_compensate_for_one_another:1"
+    ),
 )
 def test_python_carrier_roles_cannot_compensate_for_one_another(
     tmp_path: Path,
@@ -510,12 +501,9 @@ def test_structured_measurement_cannot_be_reduced_by_minifying_json(
 
 @pytest.mark.parametrize(
     ("category", "suffix", "first", "second"),
-    [
-        ("json", ".json", '{"a": 1, "b": [2, 3]}\n', '{\n  "b": [2, 3],\n  "a": 1\n}\n'),
-        ("toml", ".toml", "a = 1\nb = [2, 3]\n", "b=[2,3]\na=1\n"),
-        ("yaml", ".yaml", "a: 1\nb: [2, 3]\n", "b:\n  - 2\n  - 3\na: 1\n"),
-        ("ini", ".ini", "[section]\na = 1\nb = 2\n", "[section]\nb=2\na=1\n"),
-    ],
+    literal_case(
+        "domain.test_source_budget:parametrize:test_structured_measurement_is_formatting_and_order_invariant:2"
+    ),
 )
 def test_structured_measurement_is_formatting_and_order_invariant(
     tmp_path: Path,

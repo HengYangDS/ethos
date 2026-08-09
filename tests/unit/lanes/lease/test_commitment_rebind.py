@@ -26,6 +26,7 @@ from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lifecycle_cases import rebind_attestation_path
 from tests.support.lifecycle_cases import rebind_effect
 from tests.support.lifecycle_cases import tamper_attestation
+from tests.support.literal_cases import literal_case
 
 
 def _replace_lease(worktree: Path, branch: str, **updates: object) -> None:
@@ -228,11 +229,9 @@ def _case(
 
 @pytest.mark.parametrize(
     ("mode", "permissions", "raw_gap"),
-    [
-        ("relocated", ("git.ref.compare-and-swap",), "lease_base_commitment_path_mismatch"),
-        ("archive-active", ("git.ref.compare-and-swap",), None),
-        ("stable", ("repository.read", "work-lane.write"), None),
-    ],
+    literal_case(
+        "lanes.lease.test_commitment_rebind:parametrize:test_rebind_owns_carrier_and_authority:0"
+    ),
 )
 def test_rebind_owns_carrier_and_authority(
     tmp_path: Path,
@@ -541,22 +540,9 @@ def test_rebind_cli_and_impossible_state_matrix(
 
 @pytest.mark.parametrize(
     ("location", "updates", "gap"),
-    [
-        (
-            "lease",
-            {"lane_incarnation_id": "lane-incarnation:other"},
-            "lease_lane_incarnation_id_stale",
-        ),
-        ("lease", {"expected_tree": "0" * 40}, "lease_expected_tree_stale"),
-        (
-            "lease",
-            {"base_commitment_path": "openspec/changes/other/commitment.toml"},
-            "lease_commitment_path_stale",
-        ),
-        ("request", {"expected_issued_at": "2026-01-01T00:00:00+00:00"}, "lease_issued_at_stale"),
-        ("request", {"expected_renewed_at": "2026-01-01T00:00:00+00:00"}, "lease_renewed_at_stale"),
-        ("request", {"expected_path_scope": ("other/**",)}, "lease_path_scope_stale"),
-    ],
+    literal_case(
+        "lanes.lease.test_commitment_rebind:parametrize:test_rebind_exact_old_generation_matrix:derived"
+    ),
 )
 def test_rebind_exact_old_generation_matrix(
     tmp_path: Path,

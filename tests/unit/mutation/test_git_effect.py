@@ -33,6 +33,7 @@ from ethos.contracts.value import mutable_json
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -519,21 +520,7 @@ def test_plan_binding_and_stale_prestate_matrix(tmp_path: Path, kind: str) -> No
 
 @pytest.mark.parametrize(
     "kind",
-    [
-        "live",
-        "repository",
-        "command",
-        "program_sha256",
-        "result",
-        "inputs",
-        "output_digest",
-        "expired",
-        "expired_drift",
-        "issued_at",
-        "checkout",
-        "facts_digest",
-        "unknown",
-    ],
+    literal_case("mutation.test_git_effect:parametrize:test_attestation_negative_claim_matrix:0"),
 )
 def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
     case = fixture(tmp_path)

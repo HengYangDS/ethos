@@ -8,6 +8,7 @@ import pytest
 
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.closure import repository_product_reference_gaps
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,17 +16,9 @@ if TYPE_CHECKING:
 
 @pytest.mark.parametrize(
     ("path", "carrier"),
-    [
-        ("pyproject.toml", "pyproject"),
-        ("packages/worker/pyproject.toml", "pyproject"),
-        ("package.json", "package-json"),
-        ("packages/web/package.json", "package-json"),
-        ("src/example/runtime.py", "python"),
-        (".github/workflows/ci.yml", "yaml"),
-        ("tools/check.sh", "shell"),
-        ("docs/start.md", "markdown"),
-        ("system/tools.toml", "text"),
-    ],
+    literal_case(
+        "policy.test_reference_carriers:parametrize:test_reference_carriers_have_one_deterministic_dispatch:0"
+    ),
 )
 def test_reference_carriers_have_one_deterministic_dispatch(path: str, carrier: str) -> None:
     """Every supported path resolves through the one ordered carrier table."""

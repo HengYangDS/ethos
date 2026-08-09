@@ -13,6 +13,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -156,11 +157,9 @@ def test_start_work_lane_rejects_ambiguous_fresh_and_source_inputs(tmp_path: Pat
 
 @pytest.mark.parametrize(
     ("commitment", "gap"),
-    [
-        (None, "lane_start_commitment_required"),
-        ("invalid", "lane_start_commitment_invalid"),
-        ("other-change", "lane_start_commitment_identity_mismatch"),
-    ],
+    literal_case(
+        "lanes.test_fresh_lane_start:parametrize:test_start_work_lane_rejects_missing_invalid_or_mismatched_fresh_commitment:0"
+    ),
 )
 def test_start_work_lane_rejects_missing_invalid_or_mismatched_fresh_commitment(
     tmp_path: Path,
@@ -193,10 +192,9 @@ def test_start_work_lane_rejects_missing_invalid_or_mismatched_fresh_commitment(
 
 @pytest.mark.parametrize(
     ("failure", "gap"),
-    [
-        ("create", "openspec_change_creation_failed"),
-        ("status", "openspec_change_validation_failed"),
-    ],
+    literal_case(
+        "lanes.test_fresh_lane_start:parametrize:test_start_work_lane_removes_fresh_carrier_when_openspec_fails:1"
+    ),
 )
 def test_start_work_lane_removes_fresh_carrier_when_openspec_fails(
     tmp_path: Path,

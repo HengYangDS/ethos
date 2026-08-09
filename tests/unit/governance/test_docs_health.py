@@ -9,6 +9,7 @@ from typing import cast
 import pytest
 
 from ethos.surface.cli.root.reference import docs_registry_report
+from tests.support.literal_cases import literal_case
 
 
 def write_active_doc(root: Path, command: str) -> None:
@@ -42,11 +43,9 @@ See also: none.
 
 @pytest.mark.parametrize(
     ("command", "invalid"),
-    [
-        ("ethos quality provenance --json", "ethos quality provenance"),
-        ("ethos lane lease migrate --json", "ethos lane lease migrate"),
-        ("uv run --no-sync ethos lane lease renew --json", None),
-    ],
+    literal_case(
+        "governance.test_docs_health:parametrize:test_docs_health_resolves_commands_through_the_live_command_tree:0"
+    ),
 )
 def test_docs_health_resolves_commands_through_the_live_command_tree(
     tmp_path: Path, command: str, invalid: str | None

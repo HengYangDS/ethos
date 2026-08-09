@@ -11,6 +11,7 @@ from ethos.repository.policy.artifact_entrypoints import generated_artifact_entr
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -18,39 +19,9 @@ if TYPE_CHECKING:
 
 @pytest.mark.parametrize(
     ("script", "expected_gap_count"),
-    [
-        (
-            (
-                'artifact_dir="${repo_root}/build/artifacts/python"\n'
-                "tools/ci/scripts/with-python-runtime.sh -- uv build "
-                '--offline --wheel --out-dir "${artifact_dir}" --clear'
-            ),
-            0,
-        ),
-        (
-            (
-                "tools/ci/scripts/with-python-runtime.sh -- uv build "
-                '--offline --wheel --out-dir "${artifact_dir}" --clear'
-            ),
-            1,
-        ),
-        (
-            (
-                'artifact_dir="${repo_root}/build/runtime/python"\n'
-                "tools/ci/scripts/with-python-runtime.sh -- uv build "
-                '--offline --wheel --out-dir "${artifact_dir}" --clear'
-            ),
-            1,
-        ),
-        (
-            (
-                'other_dir="${repo_root}/build/artifacts/python"\n'
-                "tools/ci/scripts/with-python-runtime.sh -- uv build "
-                '--offline --wheel --out-dir "${artifact_dir}" --clear'
-            ),
-            1,
-        ),
-    ],
+    literal_case(
+        "policy.test_artifacts:parametrize:test_entrypoint_audit_requires_semantic_package_build_output:0"
+    ),
 )
 def test_entrypoint_audit_requires_semantic_package_build_output(
     tmp_path: Path, script: str, expected_gap_count: int

@@ -9,22 +9,10 @@ from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
 from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
+from tests.support.literal_cases import literal_case
 
-_LOCAL = {
-    "id": "local",
-    "role": "local_verification_install",
-    "mode": "offline",
-    "verification_command": "uv run --frozen --offline python -m nox -s local_ci",
-    "installation_command": "uv run --frozen --offline python -m nox -s install_smoke",
-}
-_PUBLICATION = {
-    "local_verification_command": _LOCAL["verification_command"],
-    "local_installation_command": _LOCAL["installation_command"],
-    "gitlab_remote": "origin",
-    "gitlab_ci_surface": ".gitlab-ci.yml",
-    "github_remote": "github",
-    "github_ci_surface": ".github/workflows/verify.yml",
-}
+_LOCAL = literal_case("release.test_policy_attestation:assign:_LOCAL:0")
+_PUBLICATION = literal_case("release.test_policy_attestation:assign:_PUBLICATION:derived")
 _REQUIRED_FILES = ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md")
 _RUNTIME = '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n'
 _INVALID_IDENTITIES = [
@@ -36,56 +24,9 @@ _INVALID_IDENTITIES = [
     (_RUNTIME, b"\xff"),
     (_RUNTIME.replace("sample", "first") + "\n" + _RUNTIME.replace("sample", "second"), "1"),
 ]
-_MISSING_LOCAL = [
-    "publication_topology_local_verification_command_missing",
-    "publication_topology_local_installation_command_missing",
-    "publication_topology_gitlab_ci_surface_missing",
-    "publication_topology_github_ci_surface_missing",
-]
-_DECLARATIONS = [
-    ({"publication": {"remote": []}}, ["publication_topology_declaration_invalid"]),
-    (
-        {"publication": {"remotes": ["origin", "github"]}},
-        ["publication_topology_declaration_invalid"],
-    ),
-    ({}, ["publication_topology_declaration_invalid"]),
-    ({"publication": "invalid"}, ["publication_topology_declaration_invalid"]),
-    (
-        {"publication": {"gitlab_remote": "origin"}},
-        ["publication_topology_github_remote_missing", *_MISSING_LOCAL],
-    ),
-    (
-        {"publication": {}},
-        [
-            "publication_topology_gitlab_remote_missing",
-            "publication_topology_github_remote_missing",
-            *_MISSING_LOCAL,
-        ],
-    ),
-    (
-        {"publication": {"gitlab_remote": "origin", "github_remote": "origin"}},
-        ["publication_topology_git_remotes_duplicate", *_MISSING_LOCAL],
-    ),
-]
-_INVALID_PATHS = [
-    ({"local_verification_command": ""}, "publication_topology_local_verification_command_missing"),
-    (
-        {"local_installation_command": "../install"},
-        "publication_topology_local_installation_command_path_escape:../install",
-    ),
-    (
-        {"local_verification_command": "missing"},
-        "publication_topology_local_verification_command_missing:missing",
-    ),
-    (
-        {"github_ci_surface": "/tmp/verify.yml"},
-        "publication_topology_github_ci_surface_path_escape:/tmp/verify.yml",
-    ),
-    (
-        {"gitlab_ci_surface": "missing.yml"},
-        "publication_topology_gitlab_ci_surface_missing:missing.yml",
-    ),
-]
+_MISSING_LOCAL = literal_case("release.test_policy_attestation:assign:_MISSING_LOCAL:1")
+_DECLARATIONS = literal_case("release.test_policy_attestation:assign:_DECLARATIONS:derived")
+_INVALID_PATHS = literal_case("release.test_policy_attestation:assign:_INVALID_PATHS:2")
 _HOST_SURFACES = """[host_profile]
 provider = "gitlab"
 
@@ -208,24 +149,9 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
 
 @pytest.mark.parametrize(
     ("kind", "command", "gap"),
-    [
-        (
-            "missing",
-            "tools/ci/scripts/missing.sh",
-            "release_local_command_missing:installation_command:tools/ci/scripts/missing.sh",
-        ),
-        (
-            "not_executable",
-            "owner.sh",
-            "release_local_command_not_executable:installation_command:owner.sh",
-        ),
-        ("not_regular", "owner", "release_local_command_not_regular:installation_command:owner"),
-        (
-            "escape",
-            "../outside.sh",
-            "release_local_command_path_escape:installation_command:../outside.sh",
-        ),
-    ],
+    literal_case(
+        "release.test_policy_attestation:parametrize:test_release_policy_rejects_invalid_local_install_owner:3"
+    ),
 )
 def test_release_policy_rejects_invalid_local_install_owner(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str, command: str, gap: str
@@ -365,28 +291,9 @@ proposal_branch_prefix = "review/"
 
 @pytest.mark.parametrize(
     ("release", "expected", "gap"),
-    [
-        (
-            _PROTECTED_REFS
-            + """\n[gitlab]
-ci = ".gitlab-ci.yml"
-
-[attestation]
-formats = ["spdx-2.3-json"]
-""",
-            {"provider": "", "layer": "profile_config", "surfaces": {}},
-            "",
-        ),
-        (
-            _PROTECTED_REFS
-            + _HOST_SURFACES
-            + """\n[attestation]
-formats = ["spdx-2.3-json"]
-""",
-            None,
-            "host_surface_missing:gitlab:ci:.gitlab-ci.yml",
-        ),
-    ],
+    literal_case(
+        "release.test_policy_attestation:parametrize:test_release_policy_separates_host_profile_from_product_files:derived"
+    ),
 )
 def test_release_policy_separates_host_profile_from_product_files(
     tmp_path: Path, release: str, expected: dict[str, object] | None, gap: str

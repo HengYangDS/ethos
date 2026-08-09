@@ -10,6 +10,7 @@ from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.admission import ethos_command_mutates
+from tests.support.literal_cases import literal_case
 
 
 def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
@@ -54,11 +55,9 @@ def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:
 
 @pytest.mark.parametrize(
     "command",
-    [
-        ("ethos", "lane", "start", "feature", "--apply"),
-        ("ethos", "land", "--authorize=true"),
-        ("openspec", "archive", "example", "--yes", "--json"),
-    ],
+    literal_case(
+        "kernel.test_admission_contract:parametrize:test_mutation_classifier_recognizes_owned_and_external_effects:0"
+    ),
 )
 def test_mutation_classifier_recognizes_owned_and_external_effects(
     command: tuple[str, ...],

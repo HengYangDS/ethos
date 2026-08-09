@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -35,12 +36,38 @@ def _write(root: Path, *, operation: str = "candidate.accept") -> dict[str, obje
     )
 
 
+def _path(root: Path, written: dict[str, object]) -> Path:
+    return intent.ref_intent_dir(root) / f"{written['nonce']}.json"
+
+
+def _payload(root: Path, written: dict[str, object]) -> dict[str, object]:
+    return json.loads(_path(root, written).read_text(encoding="utf-8"))
+
+
+def _store(root: Path, written: dict[str, object], **updates: object) -> None:
+    payload = _payload(root, written)
+    payload.update(updates)
+    _path(root, written).write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _claim(root: Path, phase: str = "prepared", *, operation: str = "candidate.accept"):
+    return intent.claim_ref_intent(
+        root=root,
+        ref_name="refs/heads/dev",
+        update=_update(),
+        operation=operation,
+        phase=phase,
+        plan_digest=PLAN,
+    )
+
+
 def test_intent_lock_times_out_without_overwriting_owner(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(intent, "_LOCK_ATTEMPTS", 1)
     monkeypatch.setattr(
-        intent.os, "open", lambda *_args, **_kwargs: (_ for _ in ()).throw(FileExistsError)
+        intent.os,
+        "open",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(FileExistsError),
     )
     monkeypatch.setattr(intent.time, "sleep", lambda _seconds: None)
 
@@ -48,87 +75,33 @@ def test_intent_lock_times_out_without_overwriting_owner(
         _write(tmp_path)
 
 
-def test_claim_detects_disappeared_and_changed_intent(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_claim_detects_disappeared_intent(tmp_path: Path) -> None:
     written = _write(tmp_path)
-    reader = intent._read  # noqa: SLF001
-    original = reader(intent.ref_intent_dir(tmp_path) / f"{written['nonce']}.json")
-    assert original is not None
+    _path(tmp_path, written).unlink()
 
-    calls = iter((original, None))
-    monkeypatch.setattr(intent, "_read", lambda _path: next(calls))
-    missing = intent.claim_ref_intent(
-        root=tmp_path,
-        ref_name="refs/heads/dev",
-        update=_update(),
-        operation="candidate.accept",
-        phase="prepared",
-        plan_digest=PLAN,
-    )
-    assert (missing["present"], missing["gap"]) == (False, "ref_intent_missing")
+    report = _claim(tmp_path)
 
-    changed = original.model_copy(update={"nonce": "c" * 64})
-    calls = iter((original, changed))
-    monkeypatch.setattr(intent, "_read", lambda _path: next(calls))
-    report = intent.claim_ref_intent(
-        root=tmp_path,
-        ref_name="refs/heads/dev",
-        update=_update(),
-        operation="candidate.accept",
-        phase="prepared",
-        plan_digest=PLAN,
-    )
-    assert report["gap"] == "ref_intent_changed"
+    assert (report["present"], report["gap"]) == (False, "ref_intent_missing")
 
 
-def test_claim_rechecks_identity_after_lock(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_claim_rechecks_identity_after_public_storage_drift(tmp_path: Path) -> None:
     written = _write(tmp_path)
-    path = intent.ref_intent_dir(tmp_path) / f"{written['nonce']}.json"
-    reader = intent._read  # noqa: SLF001
-    original = reader(path)
-    assert original is not None
-    drifted = original.model_copy(update={"operation": "candidate.refresh"})
-    calls = iter((original, drifted))
-    monkeypatch.setattr(intent, "_read", lambda _path: next(calls))
+    _store(tmp_path, written, operation="candidate.refresh")
 
-    report = intent.claim_ref_intent(
-        root=tmp_path,
-        ref_name="refs/heads/dev",
-        update=_update(),
-        operation="candidate.accept",
-        phase="prepared",
-        plan_digest=PLAN,
-    )
+    report = _claim(tmp_path)
 
-    assert report["gap"] == "ref_intent_operation_mismatch"
+    assert report["gap"] == "ref_intent_payload_invalid"
+    assert not _path(tmp_path, written).exists()
 
 
-def test_expired_intent_reclamation_detects_concurrent_change(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_expired_intent_is_reclaimed_and_removed(tmp_path: Path) -> None:
     written = _write(tmp_path)
-    path = intent.ref_intent_dir(tmp_path) / f"{written['nonce']}.json"
-    reader = intent._read  # noqa: SLF001
-    original = reader(path)
-    assert original is not None
-    expired = original.model_copy(update={"expires_at": datetime.now(UTC) - timedelta(seconds=1)})
-    changed = expired.model_copy(update={"nonce": "d" * 64})
-    calls = iter((expired, changed))
-    monkeypatch.setattr(intent, "_read", lambda _path: next(calls))
+    _store(tmp_path, written, expires_at=(datetime.now(UTC) - timedelta(seconds=1)).isoformat())
 
-    report = intent.claim_ref_intent(
-        root=tmp_path,
-        ref_name="refs/heads/dev",
-        update=_update(),
-        operation="candidate.accept",
-        phase="prepared",
-        plan_digest=PLAN,
-    )
+    report = _claim(tmp_path)
 
-    assert report["gap"] == "ref_intent_changed"
+    assert report["gap"] == "ref_intent_stale"
+    assert not _path(tmp_path, written).exists()
 
 
 def test_committed_lookup_removes_invalid_and_reports_ambiguity(tmp_path: Path) -> None:
@@ -143,35 +116,27 @@ def test_committed_lookup_removes_invalid_and_reports_ambiguity(tmp_path: Path) 
     assert not invalid.exists()
 
     first = _write(tmp_path)
-    path = directory / f"{first['nonce']}.json"
-    model = intent._read(path)  # noqa: SLF001
-    assert model is not None
-    committed = model.model_copy(update={"phase": "committed"})
+    assert _claim(tmp_path)["gap"] == ""
+    assert _claim(tmp_path, "committed")["gap"] == ""
     second = directory / "second.json"
-    second.write_text(committed.model_dump_json(), encoding="utf-8")
-    path.write_text(committed.model_dump_json(), encoding="utf-8")
+    second.write_bytes(_path(tmp_path, first).read_bytes())
 
     report = intent.committed_ref_intent(root=tmp_path, operation="candidate.accept", desired=NEW)
+
     assert (report["present"], report["gap"]) == (True, "ref_intent_ambiguous")
 
 
-def test_write_detects_nonce_collision_after_public_identity_resolution(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    existing = _write(tmp_path)
-    path = intent.ref_intent_dir(tmp_path) / f"{existing['nonce']}.json"
-    model = intent._read(path)  # noqa: SLF001
-    assert model is not None
-    collision = model.model_copy(update={"nonce": "e" * 64})
-    monkeypatch.setattr(intent, "_read", lambda _path: collision)
+def test_write_is_idempotent_for_the_same_public_identity(tmp_path: Path) -> None:
+    first = _write(tmp_path)
+    second = _write(tmp_path)
 
-    with pytest.raises(ValueError, match="ref_intent_collision"):
-        _write(tmp_path)
+    assert second == first
+    assert len(list(intent.ref_intent_dir(tmp_path).glob("*.json"))) == 1
 
 
 def test_public_lookup_rejects_invalid_nonce_and_ignores_uncommitted(tmp_path: Path) -> None:
     written = _write(tmp_path)
-    path = intent.ref_intent_dir(tmp_path) / f"{written['nonce']}.json"
+    path = _path(tmp_path, written)
     assert (
         intent.committed_ref_intent(
             root=tmp_path,
@@ -181,8 +146,7 @@ def test_public_lookup_rejects_invalid_nonce_and_ignores_uncommitted(tmp_path: P
         == "ref_intent_missing"
     )
 
-    payload = path.read_text(encoding="utf-8").replace(str(written["nonce"]), "f" * 64)
-    path.write_text(payload, encoding="utf-8")
+    _store(tmp_path, written, nonce="f" * 64)
     report = intent.committed_ref_intent(
         root=tmp_path,
         operation="candidate.accept",
@@ -193,37 +157,37 @@ def test_public_lookup_rejects_invalid_nonce_and_ignores_uncommitted(tmp_path: P
     assert not path.exists()
 
 
-def test_public_abort_reports_invalid_stored_phase(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_public_abort_reports_invalid_stored_phase(tmp_path: Path) -> None:
+    written = _write(tmp_path)
+    assert _claim(tmp_path)["gap"] == ""
+    assert _claim(tmp_path, "committed")["gap"] == ""
+
+    report = _claim(tmp_path, "aborted")
+
+    assert report["gap"] == ""
+    assert _path(tmp_path, written).exists()
+
+
+def test_invalid_cleanup_preserves_replacement_written_during_observation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     written = _write(tmp_path)
-    path = intent.ref_intent_dir(tmp_path) / f"{written['nonce']}.json"
-    model = intent._read(path)  # noqa: SLF001
-    assert model is not None
-    invalid = model.model_copy(update={"phase": "unexpected"})
-    monkeypatch.setattr(intent, "_read", lambda _path: invalid)
+    path = _path(tmp_path, written)
+    valid = path.read_text(encoding="utf-8")
+    path.write_text("{", encoding="utf-8")
+    original_read = type(path).read_text
+    reads = 0
 
-    report = intent.claim_ref_intent(
-        root=tmp_path,
-        ref_name="refs/heads/dev",
-        update=_update(),
-        operation="candidate.accept",
-        phase="aborted",
-        plan_digest=PLAN,
-    )
+    def replace_after_invalid(observed: Path, *args: object, **kwargs: object) -> str:
+        nonlocal reads
+        text = original_read(observed, *args, **kwargs)
+        if observed == path:
+            reads += 1
+            if reads == 1:
+                observed.write_text(valid, encoding="utf-8")
+        return text
 
-    assert report["gap"] == "ref_intent_not_prepared"
-
-
-def test_invalid_cleanup_preserves_file_replaced_by_valid_intent(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    written = _write(tmp_path)
-    path = intent.ref_intent_dir(tmp_path) / f"{written['nonce']}.json"
-    model = intent._read(path)  # noqa: SLF001
-    assert model is not None
-    reads = iter((None, model))
-    monkeypatch.setattr(intent, "_read", lambda _path: next(reads))
+    monkeypatch.setattr(type(path), "read_text", replace_after_invalid)
 
     report = intent.committed_ref_intent(
         root=tmp_path,

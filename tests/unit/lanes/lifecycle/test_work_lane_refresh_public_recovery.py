@@ -1,6 +1,7 @@
-# ruff: noqa: SLF001
 from __future__ import annotations
 
+from datetime import UTC
+from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
@@ -9,6 +10,11 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as refresh
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import compile_git_effect_plan
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -16,6 +22,7 @@ if TYPE_CHECKING:
 
 HEAD = "a" * 40
 CANDIDATE = "b" * 40
+REBASED = "c" * 40
 BRANCH = "work/feature"
 
 
@@ -38,6 +45,7 @@ def _status(*, branch: str = BRANCH) -> dict[str, Any]:
 
 
 def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     monkeypatch.setattr(
         refresh,
         "load_branch_role_policy",
@@ -54,16 +62,48 @@ def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
     )
 
 
+def _recovery_plan(
+    *,
+    updates: dict[str, GitRefUpdate] | None = None,
+    execution_branch: str = BRANCH,
+):
+    effect = GitEffect(
+        updates=updates or {f"refs/heads/{BRANCH}": GitRefUpdate(expected=HEAD, desired=REBASED)},
+        assertions={"refs/heads/candidate/dev": CANDIDATE},
+    )
+    return compile_git_effect_plan(
+        Commitment(
+            id="authority:test:refresh",
+            intent="Recover one refresh effect.",
+            subjects=("repository:test",),
+            permissions=effect.permissions,
+        ),
+        Facts(
+            repository="repository:test",
+            head=REBASED,
+            tree="f" * 40,
+            observed_at=datetime(2026, 8, 10, tzinfo=UTC),
+            values={
+                "refs": {name: update.expected for name, update in effect.updates.items()},
+                "assertions": effect.assertions,
+            },
+        ),
+        prior_attestations={},
+        policy={"operation": "lane.refresh", "execution_branch": execution_branch},
+        effect=effect,
+    )
+
+
 def test_refresh_public_reader_distinguishes_current_and_ready(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_a: False)
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_a: True)
+    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: True)
     current = refresh.refresh_work_lane_base(root=tmp_path)
     assert current["state"] == "base_current"
 
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_a: False)
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
     ready = refresh.refresh_work_lane_base(root=tmp_path)
     assert ready["state"] == "ready_to_refresh_base"
 
@@ -72,12 +112,14 @@ def test_refresh_rejects_snapshot_drift_before_rebase(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_a: False)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_a: False)
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
+    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: "drift")
+
     report = refresh.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head=HEAD
     )
+
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
 
 
@@ -85,8 +127,8 @@ def test_refresh_conflict_reports_failed_restore(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_a: False)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_a: False)
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
+    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: HEAD)
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
@@ -97,12 +139,14 @@ def test_refresh_conflict_reports_failed_restore(
     monkeypatch.setattr(refresh, "run_git", run_git)
     monkeypatch.setattr(
         refresh,
-        "_attach_work_lane",
-        lambda *_a: (_ for _ in ()).throw(ValueError("attachment stale")),
+        "attach_worktree",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("attachment stale")),
     )
+
     report = refresh.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head=HEAD
     )
+
     assert report["required_gaps"] == [
         "refresh_base_failed",
         "refresh_base_worktree_restore_failed",
@@ -114,61 +158,174 @@ def test_refresh_rejects_rebase_postcondition_and_restores_branch(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_a: False)
+    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     ancestry = iter((False, False))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_a: next(ancestry))
-    heads = iter((HEAD, "rebased", "restored"))
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+    heads = iter((HEAD, REBASED, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     attached: list[tuple[str, str]] = []
     monkeypatch.setattr(
         refresh,
-        "_attach_work_lane",
-        lambda _root, branch, head: attached.append((branch, head)),
+        "attach_worktree",
+        lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
     )
+
     report = refresh.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head=HEAD
     )
+
     assert report["required_gaps"] == ["refresh_base_postcondition_failed"]
     assert attached == [(BRANCH, HEAD)]
 
 
-@pytest.mark.parametrize("case", ["ref-drift", "effect-fails", "recovered"])
-def test_refresh_recovery_replays_only_exact_persisted_ref_effect(
+@pytest.mark.parametrize("case", ["ambiguous", "multiple", "wrong-branch", "recovered"])
+def test_detached_public_recovery_accepts_only_exact_persisted_effect(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     case: str,
 ) -> None:
-    ref_matches = case != "ref-drift"
-    effect_fails = case == "effect-fails"
-    monkeypatch.setattr(refresh, "ref_head", lambda *_a: HEAD if ref_matches else "other")
-    monkeypatch.setattr(refresh, "_actor", lambda: "agent:test")
-    sentinel = object()
-    monkeypatch.setattr(
-        refresh,
-        "execute_git_effect",
-        lambda *_a, **_k: (_ for _ in ()).throw(ValueError("stale")) if effect_fails else sentinel,
-    )
-    result = refresh._recover_applied_refresh(
-        tmp_path, SimpleNamespace(), lambda: None, BRANCH, HEAD
-    )
-    assert (result is sentinel) is (case == "recovered")
-
-
-def test_refresh_restore_and_attachment_fail_closed(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: HEAD)
-    monkeypatch.setattr(
-        refresh,
-        "run_git",
-        lambda *_a, **_k: _completed(stdout=BRANCH + "\n"),
-    )
-    assert refresh._restore_pre_refresh_checkout(tmp_path, BRANCH, HEAD) == []
-
+    _common(monkeypatch, branch="detached")
+    plan = {
+        "ambiguous": None,
+        "multiple": _recovery_plan(
+            updates={
+                f"refs/heads/{BRANCH}": GitRefUpdate(expected=HEAD, desired=REBASED),
+                "refs/heads/work/other": GitRefUpdate(expected="d" * 40, desired="e" * 40),
+            }
+        ),
+        "wrong-branch": _recovery_plan(
+            updates={"refs/heads/dev": GitRefUpdate(expected=HEAD, desired=REBASED)},
+            execution_branch="dev",
+        ),
+        "recovered": _recovery_plan(),
+    }[case]
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: REBASED)
+    monkeypatch.setattr(refresh, "recover_plan", lambda *_args, **_kwargs: plan)
+    attached: list[tuple[str, str]] = []
     monkeypatch.setattr(
         refresh,
         "attach_worktree",
-        lambda *_a, **_k: (_ for _ in ()).throw(ValueError("branch occupied")),
+        lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
     )
-    with pytest.raises(ValueError, match="work-lane branch attachment stale:branch occupied"):
-        refresh._attach_work_lane(tmp_path, BRANCH, HEAD)
+
+    def execute(_root: Path, _plan: object, **kwargs: object) -> SimpleNamespace:
+        kwargs["projection"]()
+        return SimpleNamespace()
+
+    monkeypatch.setattr(refresh, "execute_git_effect", execute)
+
+    report = refresh.refresh_work_lane_base(root=tmp_path, apply=True)
+
+    if case == "recovered":
+        assert report["state"] == "base_refreshed"
+        assert report["previous_head"] == HEAD
+        assert attached == [(BRANCH, REBASED)]
+    else:
+        assert report["state"] == "blocked"
+        assert report["required_gaps"] == [
+            "git_effect_recovery_ambiguous"
+            if case == "ambiguous"
+            else "git_effect_recovery_unproven"
+        ]
+
+
+@pytest.mark.parametrize("case", ["ref-drift", "effect-fails"])
+def test_refresh_public_effect_failure_restores_original_checkout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case: str,
+) -> None:
+    _common(monkeypatch)
+    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
+    heads = iter((HEAD, REBASED, REBASED if case == "effect-fails" else HEAD, HEAD, HEAD))
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    monkeypatch.setattr(
+        refresh,
+        "load_repository_commitment",
+        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "d" * 64),
+    )
+    monkeypatch.setattr(refresh, "lease_generation", lambda _lease: {})
+    monkeypatch.setattr(refresh, "leases_by_branch", lambda _root: {BRANCH: {}})
+    monkeypatch.setattr(
+        refresh,
+        "compile_observed_git_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(digest="plan-digest"),
+    )
+    monkeypatch.setattr(
+        refresh,
+        "issue_native_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
+    )
+    monkeypatch.setattr(
+        refresh, "ref_head", lambda *_args: "other" if case == "ref-drift" else REBASED
+    )
+    monkeypatch.setattr(
+        refresh,
+        "execute_git_effect",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("stale effect")),
+    )
+    restored: list[tuple[str, str]] = []
+    monkeypatch.setattr(refresh, "compensate_git_worktree", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        refresh,
+        "attach_worktree",
+        lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
+    )
+
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
+
+    assert report["state"] == "blocked"
+    assert restored == [(BRANCH, HEAD)]
+
+
+def test_refresh_public_attachment_failure_is_reported(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _common(monkeypatch)
+    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
+    ancestry = iter((False, True))
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+    heads = iter((HEAD, REBASED, REBASED, REBASED, HEAD, HEAD))
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    monkeypatch.setattr(
+        refresh,
+        "load_repository_commitment",
+        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "d" * 64),
+    )
+    monkeypatch.setattr(refresh, "lease_generation", lambda _lease: {})
+    monkeypatch.setattr(refresh, "leases_by_branch", lambda _root: {BRANCH: {}})
+    monkeypatch.setattr(
+        refresh,
+        "compile_observed_git_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(digest="plan-digest"),
+    )
+    monkeypatch.setattr(
+        refresh,
+        "issue_native_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
+    )
+    monkeypatch.setattr(refresh, "ref_head", lambda *_args: "other")
+
+    def execute(_root: Path, _plan: object, **kwargs: object) -> None:
+        kwargs["projection"]()
+
+    monkeypatch.setattr(refresh, "execute_git_effect", execute)
+    monkeypatch.setattr(
+        refresh,
+        "attach_worktree",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("branch occupied")),
+    )
+    monkeypatch.setattr(refresh, "compensate_git_worktree", lambda *_args, **_kwargs: None)
+
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
+
+    assert report["required_gaps"] == [
+        "refresh_base_worktree_attach_failed",
+        "refresh_base_worktree_restore_failed",
+    ]
+    assert "attachment" in report["stderr"] or "branch" in report["stderr"]

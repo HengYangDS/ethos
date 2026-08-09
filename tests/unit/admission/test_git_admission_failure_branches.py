@@ -94,7 +94,7 @@ def test_ref_move_policy_failure_and_noop_are_structured(
     assert noop["verdict"] == "pass"
 
 
-def test_committed_intent_gap_and_postwrite_outside_path_fail_closed(
+def test_committed_intent_gap_is_repair_required(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     policy = SimpleNamespace(
@@ -110,30 +110,45 @@ def test_committed_intent_gap_and_postwrite_outside_path_fail_closed(
         "claim_ref_intent",
         lambda **_kwargs: {"gap": "ref_intent_digest_mismatch"},
     )
-    intent = admission.ref_move_admission_report(
+
+    report = admission.ref_move_admission_report(
         root=tmp_path,
         ref_name="refs/heads/work/example",
         old_value="a" * 40,
         new_value="0" * 40,
         phase="committed",
     )
+
+    assert report["state"] == "repair_required"
+    assert report["required_gaps"] == ["ref_intent_digest_mismatch"]
+
+
+def test_postwrite_reports_unexpected_and_outside_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outside = tmp_path.parent / "outside.txt"
     monkeypatch.setattr(
         admission,
         "workspace_status",
         lambda *_args, **_kwargs: {
             "role": "work_lane",
             "branch": "work/example",
-            "changed_paths": ["outside.txt"],
+            "changed_paths": ["outside.txt", outside.as_posix()],
         },
     )
-    post = admission._post_write_report(  # noqa: SLF001
-        {"verdict": "pass"}, tmp_path, [tmp_path / "expected.txt"]
+
+    report = admission.hook_admission_report(
+        HookAdmissionRequest(
+            root=tmp_path,
+            layer="post-write",
+            paths=(tmp_path / "expected.txt", outside),
+        )
     )
 
-    assert intent["state"] == "repair_required"
-    assert intent["required_gaps"] == ["ref_intent_digest_mismatch"]
-    assert post["required_gaps"] == ["post_write_unexpected_path"]
-    assert (
-        admission._relative(tmp_path, tmp_path.parent / "outside")  # noqa: SLF001
-        == (tmp_path.parent / "outside").as_posix()
-    )
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["post_write_unexpected_path"]
+    assert report["target_paths"] == [
+        (tmp_path / "expected.txt").as_posix(),
+        outside.as_posix(),
+    ]
+    assert report["unexpected_paths"] == ["outside.txt"]

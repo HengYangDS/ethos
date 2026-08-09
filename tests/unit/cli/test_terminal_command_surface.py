@@ -18,32 +18,13 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.literal_cases import literal_case
 
-PUBLIC_ROOT_COMMANDS = (
-    "status",
-    "plan",
-    "prove",
-    "land",
-    "publish",
-    "adopt",
-    "migrate-local-state",
+PUBLIC_ROOT_COMMANDS = literal_case(
+    "cli.test_terminal_command_surface:assign:PUBLIC_ROOT_COMMANDS:0"
 )
-RETIRED_ROOT_COMMANDS = (
-    "orient",
-    "report",
-    "doctor",
-    "explain",
-    "docs",
-    "audit",
-    "openspec",
-    "fleet",
-    "intake",
-    "rules",
-    "assistants",
-    "campaign",
-    "parity",
-    "quality",
-    "playbooks",
+RETIRED_ROOT_COMMANDS = literal_case(
+    "cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1"
 )
 
 
@@ -106,20 +87,9 @@ def test_retired_root_commands_are_not_registered(command: str) -> None:
 
 @pytest.mark.parametrize(
     ("arguments", "native_error"),
-    [
-        (("lane", "bind-claim", "--claim-id=retired"), "Unknown command"),
-        (
-            (
-                "lane",
-                "start",
-                "feature",
-                "--holder-ref",
-                "agent:test:case:holder",
-                "--claim-id=retired",
-            ),
-            "Unknown option",
-        ),
-    ],
+    literal_case(
+        "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2"
+    ),
 )
 def test_retired_claim_lane_surface_is_rejected_by_cyclopts(
     arguments: tuple[str, ...],

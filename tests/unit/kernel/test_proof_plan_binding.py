@@ -31,6 +31,7 @@ from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_script_gate_policy
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -131,14 +132,9 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
 
 @pytest.mark.parametrize(
     ("field", "value", "gap"),
-    [
-        ("claim", {"objective": "other", "verdict": "block"}, "proof_attestation_claim_mismatch"),
-        ("scope", [], "proof_attestation_scope_mismatch"),
-        ("plane", "hosted", "proof_attestation_plane_mismatch"),
-        ("context", {}, "proof_attestation_context_mismatch"),
-        ("boundary", "other", "proof_attestation_boundary_mismatch"),
-        ("novel_semantics", True, "model_gap"),
-    ],
+    literal_case(
+        "kernel.test_proof_plan_binding:parametrize:test_proof_predicate_evidence_drift_fails_closed:0"
+    ),
 )
 def test_proof_predicate_evidence_drift_fails_closed(
     tmp_path: Path, field: str, value: object, gap: str
@@ -198,11 +194,9 @@ def test_proof_issuance_rechecks_live_facts(
 
 @pytest.mark.parametrize(
     ("case", "gap"),
-    [
-        ("head", "proof_attestation_plan_head_mismatch"),
-        ("tree", "proof_attestation_live_tree_mismatch"),
-        ("policy", "proof_attestation_repository_policy_mismatch"),
-    ],
+    literal_case(
+        "kernel.test_proof_plan_binding:parametrize:test_proof_admission_rechecks_live_plan_closure:1"
+    ),
 )
 def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, gap: str) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")

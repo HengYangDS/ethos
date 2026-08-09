@@ -12,14 +12,14 @@ from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.literal_cases import literal_case
 
 
 @pytest.mark.parametrize(
     ("argv", "expected"),
-    [
-        (["--root", "status", "plan", "--json"], "plan"),
-        (["--root", "openspec", "status", "--json"], "status"),
-    ],
+    literal_case(
+        "cli.test_invalid_profile_boundary:parametrize:test_invalid_profilecommand_name_detection_skips_option_values:0"
+    ),
 )
 def test_invalid_profilecommand_name_detection_skips_option_values(
     argv: list[str], expected: str
@@ -81,11 +81,9 @@ def test_invalid_profile_readercommand_names_emit_json_result(
 
 @pytest.mark.parametrize(
     "case",
-    [
-        ("prove", (), True),
-        ("land", (), False),
-        ("land", ("--apply",), True),
-    ],
+    literal_case(
+        "cli.test_invalid_profile_boundary:parametrize:test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission:1"
+    ),
 )
 def test_invalid_profile_workflowcommand_names_emit_structured_result_before_admission(
     tmp_path: Path,
@@ -124,10 +122,9 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
 
 @pytest.mark.parametrize(
     ("code", "reason"),
-    [
-        ("git_executable_unavailable", "not_found_on_effective_path"),
-        ("git_process_spawn_failed", "working_directory_unavailable"),
-    ],
+    literal_case(
+        "cli.test_invalid_profile_boundary:parametrize:test_git_execution_failures_emit_structured_json_without_traceback:2"
+    ),
 )
 def test_git_execution_failures_emit_structured_json_without_traceback(
     tmp_path: Path,

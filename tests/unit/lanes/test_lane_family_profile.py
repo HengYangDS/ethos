@@ -32,6 +32,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.lifecycle_cases import LaneStartCase
+from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -46,22 +47,7 @@ work_branch_prefix = "work/"
 proposal_branch_prefix = "proposal/"
 repository_family_worktrees = true
 """
-_LEASE_COORDINATES = (
-    "lane_incarnation_id",
-    "lease_id",
-    "holder_ref",
-    "epoch",
-    "expected_head",
-    "expected_tree",
-    "issued_at",
-    "renewed_at",
-    "path_scope",
-    "expires_at",
-    "payload_sha256",
-    "base_commitment_path",
-    "base_commitment_bytes_sha256",
-    "base_commitment_digest",
-)
+_LEASE_COORDINATES = literal_case("lanes.test_lane_family_profile:assign:_LEASE_COORDINATES:0")
 
 
 @pytest.fixture
@@ -349,10 +335,9 @@ def test_start_work_lane_ref_creation_transaction_claims(
 
 @pytest.mark.parametrize(
     "claim",
-    [
-        "start_work_lane_acquires_lease_for_final_initialization_head",
-        "start_work_lane_creates_no_work_ref_before_final_lease",
-    ],
+    literal_case(
+        "lanes.test_lane_family_profile:parametrize:test_start_work_lane_lease_precedes_ref_creation:1"
+    ),
 )
 def test_start_work_lane_lease_precedes_ref_creation(
     lane_case: LaneStartCase,
@@ -594,10 +579,9 @@ def test_work_lane_status_keeps_committed_binding_and_blocks_dirty_rewrite(
 
 @pytest.mark.parametrize(
     "mode",
-    [
-        "start_work_lane_leaves_no_lease_when_worktree_creation_fails",
-        "start_work_lane_retains_final_lease_when_carrier_ownership_is_unknown",
-    ],
+    literal_case(
+        "lanes.test_lane_family_profile:parametrize:test_start_work_lane_carrier_failure_claims:2"
+    ),
 )
 def test_start_work_lane_carrier_failure_claims(
     lane_case: LaneStartCase,

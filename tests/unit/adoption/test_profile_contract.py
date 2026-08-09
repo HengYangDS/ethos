@@ -13,6 +13,7 @@ from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_evidence_roots
 from ethos.repository.profile import profile_root
 from ethos.repository.profile import render_repository_profile
+from tests.support.literal_cases import literal_case
 
 
 def _write_profile(root: Path, text: str) -> Path:
@@ -79,19 +80,9 @@ def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path
 
 @pytest.mark.parametrize(
     "proof",
-    [
-        'required_gates = ["tests", "types"]\n',
-        'code_axes = { behavior = "tests", static-analysis = "types" }\n',
-        (
-            'code_correctness_gates = ["tests", "types"]\n\n'
-            '[proof.code_correctness_map]\nbehavior = "tests"\n'
-        ),
-        (
-            'code_correctness_gates = ["tests", "types"]\n\n'
-            "[proof.code_correctness_map]\n"
-            'behavior = "tests"\nstatic-analysis = "tests"\n'
-        ),
-    ],
+    literal_case(
+        "adoption.test_profile_contract:parametrize:test_profile_rejects_retired_or_incomplete_proof_owners:0"
+    ),
 )
 def test_profile_rejects_retired_or_incomplete_proof_owners(tmp_path: Path, proof: str) -> None:
     _assert_invalid_profile(tmp_path, 'profile_id = "sample"\n\n[proof]\n' + proof)
@@ -165,51 +156,9 @@ def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "text",
-    [
-        "profile_id = ''\n[openspec]\nmaterial_paths = ['openspec/**']\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = []\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['/absolute']\n",
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[roots]\ndurable_evidence = '../evidence'\n"
-        ),
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[roots]\ndocs = '/docs'\n"
-        ),
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[roots]\nrules = 'rules\\\\windows'\n"
-        ),
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[roots]\nlocal_state = 'runtime'\n"
-        ),
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[evidence]\ndurable_roots = ['../outside']\n"
-        ),
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[external_backend]\nstate = 'default'\n"
-            "minimum_version = 'successor>=incumbent'\n"
-            "control = 'control.toml'\nretirement_policy = 'retirement.toml'\n"
-        ),
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[embedded_backend]\nstate = 'frozen'\n"
-            "minimum_version = 'incumbent'\n"
-            "control = 'control.toml'\nretirement_policy = 'retirement.toml'\n"
-        ),
-        (
-            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
-            "[rollback_window]\nstate = 'complete'\n"
-            "evidence_manifest = 'rollback.toml'\n"
-            "completed_scenarios = ['proof_report']\n"
-            "required_scenarios = ['proof_report']\n"
-        ),
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\nextra = true\n",
-    ],
+    literal_case(
+        "adoption.test_profile_contract:parametrize:test_profile_contract_rejects_incomplete_or_undeclared_shape:1"
+    ),
 )
 def test_profile_contract_rejects_incomplete_or_undeclared_shape(tmp_path: Path, text: str) -> None:
     _assert_invalid_profile(tmp_path, text)

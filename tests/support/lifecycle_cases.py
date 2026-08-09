@@ -26,7 +26,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LaneStartCase:
     """One accepted/candidate/source/target topology for lane-start matrices."""
 

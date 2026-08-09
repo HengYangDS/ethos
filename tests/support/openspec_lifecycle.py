@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 HOLDER = "agent:test:case:agent-test"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class OpenSpecLifecycle:
     """One completed, Lease-bound OpenSpec generation."""
 

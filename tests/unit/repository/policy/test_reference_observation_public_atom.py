@@ -4,7 +4,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.repository.policy.references.observation as observation
+from ethos.repository.policy.references.observation import npm_script_commands
+from ethos.repository.policy.references.observation import product_references_from_files
+from ethos.repository.policy.references.observation import reference_gaps
+from ethos.repository.policy.references.observation import repository_product_references
+from ethos.repository.policy.references.observation import repository_reference_files
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -21,70 +25,88 @@ def _observed() -> dict[str, set[str]]:
     }
 
 
-def test_repository_reference_files_skips_unreadable_carriers(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_repository_public_observation_skips_unreadable_reference_carriers(tmp_path: Path) -> None:
+    skill = tmp_path / ".agents/skills/sample"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("good\n", encoding="utf-8")
+    (skill / "bad.md").write_bytes(b"\xff")
+
+    files = repository_reference_files(tmp_path)
+    observed = repository_product_references(tmp_path)
+
+    assert files == {".agents/skills/sample/SKILL.md": "good\n"}
+    assert observed == _observed()
+
+
+def test_repository_public_observation_discovers_command_sources_and_skips_unreadable_python(
+    tmp_path: Path,
 ) -> None:
-    good, bad = tmp_path / "good.md", tmp_path / "bad.md"
-    good.write_text("good\n", encoding="utf-8")
-    bad.write_bytes(b"\xff")
-    monkeypatch.setattr(observation, "product_surface_files", lambda _root: [good, bad])
-    monkeypatch.setattr(observation, "reference_paths", lambda _root, paths: paths)
-
-    assert observation.repository_reference_files(tmp_path) == {"good.md": "good\n"}
-
-
-def test_command_source_discovery_skips_unreadable_python(tmp_path: Path) -> None:
-    source = tmp_path / "src"
-    source.mkdir()
+    source = tmp_path / "src/ethos"
+    source.mkdir(parents=True)
     (source / "app.py").write_text("App()\n", encoding="utf-8")
     (source / "bad.py").write_bytes(b"\xff")
 
-    assert observation._command_source_files({}, root=tmp_path) == {  # noqa: SLF001
-        "src/app.py": "App()\n"
-    }
+    observed = product_references_from_files({}, root=tmp_path)
 
-
-@pytest.mark.parametrize("values", [None, {}, [None, 7, "Valid_Name>=1", "-invalid"]])
-def test_requirement_names_accept_only_normalizable_string_sequences(values: object) -> None:
-    expected = {"valid-name"} if isinstance(values, list) else set()
-    assert observation._requirement_names(values) == expected  # noqa: SLF001
-
-
-def test_npm_scripts_ignore_invalid_manifests_and_non_object_scripts(tmp_path: Path) -> None:
-    package = tmp_path / "package.json"
-    package.write_text("[]", encoding="utf-8")
-    assert observation.npm_script_commands({"bad.json": "{"}, root=tmp_path) == {}
-
-    assert observation.npm_script_commands({"package.json": '{"scripts": []}'}, root=None) == {}
-
-
-def test_package_json_non_object_root_does_not_mint_references() -> None:
-    observed = _observed()
-    observation.package_json_references("[]", {}, observed, declarations=True)
     assert observed == _observed()
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("[project]\nname = 'Valid_Name'\n", {"valid-name"}),
+        ("[project]\ndependencies = ['Valid_Name>=1', '-invalid']\n", {"valid-name"}),
+        ("[project]\ndependencies = 'not-a-sequence'\n", set()),
+        ("[project]\noptional-dependencies = { test = [7] }\n", set()),
+    ],
+)
+def test_pyproject_public_observation_accepts_only_normalizable_requirements(
+    text: str, expected: set[str]
+) -> None:
+    observed = product_references_from_files({"pyproject.toml": text})
+    assert observed["distribution"] == expected
+
+
+def test_npm_public_observation_ignores_invalid_and_non_object_scripts() -> None:
+    assert npm_script_commands({"bad.json": "{"}, root=None) == {}
+    assert npm_script_commands({"package.json": '{"scripts": []}'}, root=None) == {}
+    assert product_references_from_files({"package.json": "[]"}) == _observed()
+
+
+def test_npm_public_observation_reads_root_manifest_and_skips_unreadable_siblings(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "package.json").write_text(
+        '{"scripts": {"verify": "python -m pytest"}}', encoding="utf-8"
+    )
+    sibling = tmp_path / "packages/bad/package.json"
+    sibling.parent.mkdir(parents=True)
+    sibling.write_bytes(b"\xff")
+
+    assert npm_script_commands({}, root=tmp_path) == {"verify": {"python -m pytest"}}
 
 
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        ("", ""),
-        ("./local/action", ""),
-        ("docker://alpine:3", "docker"),
-        ("owner/action@v4", "github"),
+        ("", {"github"}),
+        ("./local/action", {"github"}),
+        ("docker://alpine:3", {"github", "docker"}),
+        ("owner/action@v4", {"github"}),
     ],
 )
-def test_github_reference_normalization(value: str, expected: str) -> None:
-    assert observation._github_reference(value) == expected  # noqa: SLF001
+def test_yaml_public_observation_normalizes_action_references(
+    value: str, expected: set[str]
+) -> None:
+    text = f"jobs:\n  test:\n    steps:\n      - uses: {value!r}\n"
+    observed = product_references_from_files({".github/workflows/test.yml": text})
+    assert observed["reference"] == expected
 
 
-def test_markdown_observation_ignores_malformed_inline_shell() -> None:
-    observed = _observed()
-    observation._markdown_references(  # noqa: SLF001
-        "docs/reference/example.md",
-        "`'unterminated`\n",
-        {"ethos status"},
-        {},
-        observed,
+def test_markdown_public_observation_ignores_malformed_inline_shell() -> None:
+    observed = product_references_from_files(
+        {"docs/reference/example.md": "`'unterminated`\n"},
+        declared_commands=("ethos status",),
     )
     assert observed == _observed()
 
@@ -94,7 +116,7 @@ def test_reference_gaps_are_sorted_and_ignore_internal_import_roots() -> None:
     observed["import"] = {"ethos", "tests", "tools", "zeta", "alpha"}
     observed["reference"] = {"gitlab", "docker"}
 
-    assert observation.reference_gaps({}, observed) == [
+    assert reference_gaps({}, observed) == [
         "product_reference_not_admitted_at_baseline:import:alpha",
         "product_reference_not_admitted_at_baseline:import:zeta",
         "product_reference_not_admitted_at_baseline:reference:docker",

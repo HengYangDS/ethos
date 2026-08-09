@@ -16,6 +16,7 @@ from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
+from ethos.contracts.proof.plan import validate_proof_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
@@ -351,3 +352,39 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
         "effect": base.inputs.effect,
     }
     assert base.permissions == ("repository.read",)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("gates", []),
+        ("gaps", ["gate_policy_source_missing:check"]),
+    ],
+)
+def test_proof_plan_rejects_policy_node_projection_divergence(
+    field: str, value: list[object]
+) -> None:
+    commitment = _commitment()
+    facts = Facts(
+        repository="repository:test",
+        head="a" * 40,
+        tree="b" * 40,
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        values={"gate_ids": ["check"]},
+    )
+    node = PlanNode(id="check", kind="check", command=("check",))
+    policy = {
+        "gates": [
+            {
+                "id": "check",
+                "execution_identity": ["check"],
+                "depends_on": [],
+            }
+        ],
+        "gaps": [],
+    }
+    plan = compile_plan(commitment, facts, (node,), policy=policy)
+    divergent = plan.model_copy(update={"policy": policy | {field: value}})
+
+    with pytest.raises(ValueError, match="transition_plan_policy_node_mismatch"):
+        validate_proof_plan(divergent, commitment, facts)

@@ -144,6 +144,7 @@ def test_canonical_sibling_profile_rejects_noncanonical_path(tmp_path: Path) -> 
 
 def test_legacy_complete_branch_policy_preserves_canonical_sibling_authority(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos/workspace.toml").write_text(_LEGACY_BRANCH_POLICY, encoding="utf-8")
@@ -161,6 +162,21 @@ def test_legacy_complete_branch_policy_preserves_canonical_sibling_authority(
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["work_lane_path_not_canonical"]
 
+    monkeypatch.setattr(lanes, "utc_now", lambda: datetime(2026, 8, 9, tzinfo=UTC))
+    canonical = start_work_lane(
+        root=repo,
+        name="repository record publication",
+        source_root=repo,
+        holder_ref=_HOLDER,
+    )
+    assert canonical["verdict"] == "pass"
+    assert canonical["required_gaps"] == []
+    assert canonical["branch"] == "work/20260809-repository-record-publication"
+    assert (
+        canonical["path"]
+        == (tmp_path / "repo-worktrees/20260809-repository-record-publication").as_posix()
+    )
+
 
 def test_incomplete_retired_branch_policy_key_fails_closed() -> None:
     text = "[branch_roles]\nrepository_family_worktrees = true\n"
@@ -168,6 +184,17 @@ def test_incomplete_retired_branch_policy_key_fails_closed() -> None:
     with pytest.raises(ValueError, match="branch_roles legacy schema requires migration"):
         branch_role_policy_from_text(text)
     with pytest.raises(ValueError, match="branch_roles legacy schema requires migration"):
+        strict_branch_role_policy_from_text(text)
+
+
+def test_unknown_retired_branch_policy_key_fails_closed() -> None:
+    text = _LEGACY_BRANCH_POLICY.replace(
+        "repository_family_worktrees", "repository_family_worktree"
+    )
+
+    with pytest.raises(ValueError, match="branch_roles contains unknown fields"):
+        branch_role_policy_from_text(text)
+    with pytest.raises(ValueError, match="branch_roles table must be complete and exact"):
         strict_branch_role_policy_from_text(text)
 
 

@@ -22,6 +22,7 @@ _STRICT_BRANCH_ROLE_TEXT_ERROR = "branch_roles text fields must be canonical str
 _STRICT_BRANCH_ROLE_MIRROR_ERROR = "branch_roles release_mirror is invalid"
 _STRICT_BRANCH_ROLE_SIBLING_ERROR = "branch_roles canonical_sibling_worktrees must be boolean"
 _LEGACY_BRANCH_ROLE_MIGRATION_ERROR = "branch_roles legacy schema requires migration"
+_UNKNOWN_BRANCH_ROLE_FIELDS_ERROR = "branch_roles contains unknown fields"
 _STRICT_BRANCH_ROLE_FIELDS = {
     "release_branch",
     "accepted_branch",
@@ -149,6 +150,8 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     raw_policy = payload.get("branch_roles")
     if not isinstance(raw_policy, dict):
         return BranchRolePolicy()
+    if set(raw_policy) - (_STRICT_BRANCH_ROLE_FIELDS | {_LEGACY_SIBLING_FIELD}):
+        raise ValueError(_UNKNOWN_BRANCH_ROLE_FIELDS_ERROR)
     if _LEGACY_SIBLING_FIELD in raw_policy:
         return _legacy_branch_role_policy(raw_policy)
     default = BranchRolePolicy()

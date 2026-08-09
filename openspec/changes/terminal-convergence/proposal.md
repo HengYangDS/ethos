@@ -86,10 +86,13 @@ truth owner. Intermediate size growth is acceptable only when it enables a
 larger same-campaign deletion. The terminal product has no compatibility alias,
 shim, wrapper, re-export, fallback, or duplicate evaluator.
 
-Terminal Python effective LOC is at most 54,000 and terminal global owned-source
-effective LOC is at most 68,000. Branch coverage is at least 95 percent, with
-complete behavior coverage for authority, CAS, and pure transition reducers.
-Warnings and production suppressions are zero.
+Terminal Python effective LOC is non-compensating by carrier role: product at
+most 36,000, tests at most 18,000, cross-platform automation tools at most
+3,000, and other Python at most 120. Terminal global owned-source effective LOC
+remains at most 68,000, so behavior cannot escape by moving to another carrier.
+Branch coverage is at least 95 percent, with complete behavior coverage for
+authority, CAS, and pure transition reducers. Warnings and production
+suppressions are zero.
 
 `candidate/dev` and `work/*` remain local-only. `dev` and default `main` are
 protected; `proposal/*` is the sole remote review branch role. GitLab and GitHub

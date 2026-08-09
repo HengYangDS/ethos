@@ -106,11 +106,18 @@ Quality SHALL preserve each carrier's native syntax and owner rather than mechan
 - **THEN** the owning drift check blocks the stale artifact
 
 ### Requirement: Terminal Compression And Test Floor
-Terminal proof SHALL enforce Python effective LOC at or below 54,000, global
-owned-source effective LOC at or below 68,000, branch coverage at or above 95
-percent, and complete behavior coverage for authority, CAS, and pure transition
-reducers. Intermediate campaign growth SHALL be allowed only when the same
-campaign retains a proved net-deletion path.
+Terminal proof SHALL enforce non-compensating Python effective LOC ceilings for
+product (36,000), tests (18,000), cross-platform automation tools (3,000), and
+other Python (120), plus global owned-source effective LOC at or below 68,000,
+branch coverage at or above 95 percent, and complete behavior coverage for
+authority, CAS, and pure transition reducers. Intermediate campaign growth
+SHALL be allowed only when the same campaign retains a proved net-deletion
+path.
+
+#### Scenario: one Python role grows while another shrinks
+- **WHEN** product, test, automation-tool, or other Python exceeds its own terminal ceiling
+- **THEN** terminal proof blocks even when total Python or another Python role has decreased
+- **AND** global owned-source measurement continues to prevent carrier relocation
 
 #### Scenario: semantics move between carriers
 - **WHEN** executable behavior moves among source, tests, tools, configuration,

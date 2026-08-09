@@ -11,8 +11,18 @@ from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 
 
+def _result(**updates: object) -> EthosResult:
+    return EthosResult.model_validate(
+        {"command": "status", "verdict": "pass", "state": "ready"} | updates
+    )
+
+
+def _payload() -> dict[str, object]:
+    return _result().to_dict()
+
+
 def test_ethos_result_is_frozen_strict_schema_model() -> None:
-    result = EthosResult(command="status", verdict="pass", state="ready")
+    result = _result()
     mutable: Any = result
 
     with pytest.raises(ValidationError) as exc_info:
@@ -39,7 +49,7 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
 
 
 def test_ethos_result_exposes_only_the_authoritative_verdict() -> None:
-    result = EthosResult(command="status", verdict="pass", state="ready")
+    result = _result()
 
     assert result.verdict == "pass"
     assert not hasattr(result, "ok")
@@ -65,8 +75,7 @@ def test_ethos_result_derives_one_non_persistent_continuation(
     next_action: str,
     expected: str,
 ) -> None:
-    result = EthosResult(
-        command="status",
+    result = _result(
         verdict=verdict,
         state="ready" if verdict == "pass" else "blocked",
         required_gaps=required_gaps,
@@ -78,8 +87,7 @@ def test_ethos_result_derives_one_non_persistent_continuation(
 
 
 def test_ethos_result_projects_unknown_gaps_as_missing_facts_or_evidence() -> None:
-    result = EthosResult(
-        command="status",
+    result = _result(
         verdict="unknown",
         state="unknown",
         required_gaps=("facts_unavailable", "proof_missing"),
@@ -91,9 +99,8 @@ def test_ethos_result_projects_unknown_gaps_as_missing_facts_or_evidence() -> No
 
 
 def test_ethos_result_requires_user_decision_for_authority_bearing_action() -> None:
-    result = EthosResult(
+    result = _result(
         command="lane housekeeping",
-        verdict="pass",
         state="planned",
         next_action="ethos lane housekeeping --authorize --apply --json",
     )
@@ -110,12 +117,7 @@ def test_ethos_result_requires_user_decision_for_authority_bearing_action() -> N
     ],
 )
 def test_ethos_result_recognizes_mutation_flag_forms(next_action: str) -> None:
-    result = EthosResult(
-        command="status",
-        verdict="pass",
-        state="ready",
-        next_action=next_action,
-    )
+    result = _result(next_action=next_action)
 
     assert result.user_decision_required is True
     assert result.continuation == "await-user"
@@ -132,8 +134,7 @@ def test_ethos_result_recognizes_mutation_flag_forms(next_action: str) -> None:
     ],
 )
 def test_ethos_result_awaits_external_decisions_named_by_gap(required_gap: str) -> None:
-    result = EthosResult(
-        command="status",
+    result = _result(
         verdict="block",
         state="blocked",
         required_gaps=(required_gap,),
@@ -145,8 +146,7 @@ def test_ethos_result_awaits_external_decisions_named_by_gap(required_gap: str) 
 
 
 def test_ethos_result_round_trips_its_public_payload() -> None:
-    result = EthosResult(
-        command="status",
+    result = _result(
         verdict="block",
         state="blocked",
         required_gaps=("candidate_base_stale",),
@@ -158,7 +158,7 @@ def test_ethos_result_round_trips_its_public_payload() -> None:
 
 
 def test_ethos_result_rejects_forged_derived_payload() -> None:
-    payload = EthosResult(command="status", verdict="pass", state="ready").to_dict()
+    payload = _payload()
     payload["continuation"] = "continue"
 
     with pytest.raises(ValueError, match="result_derived_field_mismatch:continuation"):
@@ -166,7 +166,7 @@ def test_ethos_result_rejects_forged_derived_payload() -> None:
 
 
 def test_ethos_result_rejects_incomplete_public_payload() -> None:
-    payload = EthosResult(command="status", verdict="pass", state="ready").to_dict()
+    payload = _payload()
     del payload["continuation"]
 
     with pytest.raises(ValueError, match="result_payload_field_missing:continuation"):
@@ -185,7 +185,7 @@ def test_ethos_result_rejects_incomplete_public_payload() -> None:
     ],
 )
 def test_ethos_result_rejects_truncated_wire_payload(field: str) -> None:
-    payload = EthosResult(command="status", verdict="pass", state="ready").to_dict()
+    payload = _payload()
     del payload[field]
 
     with pytest.raises(ValueError, match=f"result_payload_field_missing:{field}"):
@@ -194,23 +194,13 @@ def test_ethos_result_rejects_truncated_wire_payload(field: str) -> None:
 
 def test_ethos_result_rejects_pass_with_required_gaps() -> None:
     with pytest.raises(ValidationError, match="pass_with_required_gaps"):
-        EthosResult(
-            command="status",
-            verdict="pass",
-            state="ready",
-            required_gaps=("hard_gap",),
-        )
+        _result(required_gaps=("hard_gap",))
 
 
 @pytest.mark.parametrize("severity", ["warning", "error"])
 def test_ethos_result_rejects_pass_with_adverse_diagnostic(severity: str) -> None:
     with pytest.raises(ValidationError, match="pass_with_warnings"):
-        EthosResult(
-            command="status",
-            verdict="pass",
-            state="ready",
-            diagnostics=({"severity": severity, "message": "adverse"},),
-        )
+        _result(diagnostics=({"severity": severity, "message": "adverse"},))
 
 
 @pytest.mark.parametrize(
@@ -234,7 +224,7 @@ def test_ethos_result_rejects_coercion_and_unknown_fields(payload: dict[str, obj
 
 
 def test_projection_preserves_blocking_gaps_without_parallel_success_flag() -> None:
-    result = EthosResult(
+    result = _result(
         command="plan",
         verdict="block",
         state="planned",
@@ -264,10 +254,7 @@ def test_projection_preserves_blocking_gaps_without_parallel_success_flag() -> N
 
 
 def test_ethos_result_payload_is_deeply_immutable() -> None:
-    result = EthosResult(
-        command="status",
-        verdict="pass",
-        state="ready",
+    result = _result(
         summary={"nested": {"value": 1}},
         diagnostics=({"kind": "probe", "details": {"value": 1}},),
         governance_context={"authority": {"owner": "repository"}},
@@ -286,12 +273,7 @@ def test_ethos_result_payload_is_deeply_immutable() -> None:
 
 def test_payload_budget_preserves_deep_immutability(tmp_path) -> None:
     bounded = apply_payload_budget(
-        EthosResult(
-            command="status",
-            verdict="pass",
-            state="ready",
-            data={"large": "x" * 20_000},
-        ),
+        _result(data={"large": "x" * 20_000}),
         root=tmp_path,
     )
 

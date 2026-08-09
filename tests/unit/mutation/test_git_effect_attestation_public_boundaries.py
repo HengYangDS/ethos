@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -28,11 +29,12 @@ def _case(tmp_path: Path) -> tuple[Path, GitEffect, Any, dict[str, object], dict
         updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)},
         assertions={},
     )
+    observed = datetime.now(UTC) - timedelta(seconds=2)
     facts = Facts(
         repository="repository:repo",
         head=old,
         tree=git(repo, "rev-parse", "HEAD^{tree}"),
-        observed_at=datetime(2026, 8, 10, tzinfo=UTC),
+        observed_at=observed,
         values={"refs": {"refs/heads/dev": old}, "assertions": {}},
     )
     plan = compile_git_effect_plan(
@@ -52,13 +54,13 @@ def _case(tmp_path: Path) -> tuple[Path, GitEffect, Any, dict[str, object], dict
         "tree": facts.tree,
         "refs": {"refs/heads/dev": old},
         "assertions": {},
-        "observed_at": "2026-08-10T00:00:00+00:00",
+        "observed_at": observed.isoformat(),
     }
     after = {
         "head": new,
         "tree": facts.tree,
         "refs": {"refs/heads/dev": new},
-        "observed_at": "2026-08-10T00:00:01+00:00",
+        "observed_at": (observed + timedelta(seconds=1)).isoformat(),
     }
     return repo, effect, plan, before, after
 
@@ -77,8 +79,8 @@ def _issued_record(tmp_path: Path) -> tuple[Path, GitEffect, Any, Attestation]:
 @pytest.mark.parametrize("statement", [(), "not-an-object", ["not", "an", "object"]])
 def test_statement_projection_rejects_non_object_claims(statement: object) -> None:
     record = Attestation.model_construct(statement=statement)
-    with pytest.raises(TypeError, match="statement"):
-        attest._statement(record)  # noqa: SLF001
+    with pytest.raises(TypeError, match="git_effect_attestation_statement_invalid"):
+        attest.plan_from_attestation(record)
 
 
 @pytest.mark.parametrize(
@@ -158,32 +160,31 @@ def test_matches_rejects_temporal_and_repository_drift(
     monkeypatch: pytest.MonkeyPatch,
     failure: str,
 ) -> None:
-    repo, effect, _plan, before, after = _case(tmp_path)
-    observed = {
-        "before": before["observed_at"],
-        "after": after["observed_at"],
-    }
+    repo, effect, plan, before, after = _case(tmp_path)
     if failure == "time-order":
-        observed = {"before": after["observed_at"], "after": before["observed_at"]}
-    elif failure == "invalid-time":
-        observed = {"before": "invalid", "after": after["observed_at"]}
-    else:
-        monkeypatch.setattr(
-            attest,
-            "resolve_git_effect_repository",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("drift")),
+        before["observed_at"], after["observed_at"] = (
+            after["observed_at"],
+            before["observed_at"],
         )
-
-    assert not attest._matches(  # noqa: SLF001
-        repo,
+    elif failure == "invalid-time":
+        before["observed_at"] = "invalid"
+    record = attest.issue(
         effect,
-        ("repository:repo", "applied", before, after),
-        observed,
-        {
-            "mode": "semantic_scope",
-            "repository": "repository:repo",
-            "head": after["head"],
-            "tree": after["tree"],
-            "refs": after["refs"],
-        },
+        plan=plan,
+        issuer=ISSUER,
+        evidence=("repository:repo", "applied", before, after),
     )
+    resolutions = iter(("repository:repo",))
+    if failure == "repository":
+        resolutions = iter(("repository:repo", ValueError("drift")))
+
+    def resolve(*_args: object, **_kwargs: object) -> str:
+        result = next(resolutions)
+        if isinstance(result, ValueError):
+            raise result
+        return result
+
+    monkeypatch.setattr(attest, "resolve_git_effect_repository", resolve)
+
+    with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
+        attest.validate(repo, effect, record, issuer=ISSUER, plan=plan)

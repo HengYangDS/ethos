@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
 
 import ethos.surface.cli.hook.commands as commands
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -17,15 +19,64 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     return values
 
 
-def test_hook_admit_block_uses_report_action_before_fallback() -> None:
-    assert (
-        commands._hook_admit_next_action(  # noqa: SLF001
-            {"next_action": "set ETHOS_ACTOR=owner"}, "block"
-        )
-        == "set ETHOS_ACTOR=owner"
+@pytest.mark.parametrize(
+    ("report", "expected_action"),
+    [
+        (
+            {
+                "verdict": "block",
+                "state": "blocked",
+                "layer": "pre-tool",
+                "role": "work_lane",
+                "next_action": "set ETHOS_ACTOR=owner",
+                "required_gaps": ["actor_missing"],
+            },
+            "set ETHOS_ACTOR=owner",
+        ),
+        (
+            {
+                "verdict": "block",
+                "state": "blocked",
+                "layer": "pre-tool",
+                "role": "work_lane",
+                "required_gaps": ["path_uncovered"],
+            },
+            "ethos lane prewrite <path>",
+        ),
+        (
+            {
+                "verdict": "pass",
+                "state": "admitted",
+                "layer": "pre-tool",
+                "role": "work_lane",
+                "required_gaps": [],
+            },
+            "",
+        ),
+    ],
+)
+def test_hook_admit_projects_report_action_before_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    report: dict[str, object],
+    expected_action: str,
+) -> None:
+    monkeypatch.setattr(commands, "hook_admission_report", lambda **_kwargs: report)
+
+    completed = run_ethos_raw(
+        "hook",
+        "admit",
+        "pre-tool",
+        "README.md",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+        cwd=tmp_path,
     )
-    assert commands._hook_admit_next_action({}, "block") == "ethos lane prewrite <path>"  # noqa: SLF001
-    assert commands._hook_admit_next_action({}, "pass") == ""  # noqa: SLF001
+
+    payload = json.loads(completed.stdout)
+    assert completed.returncode == (0 if report["verdict"] == "pass" else 1)
+    assert payload["next_action"] == expected_action
 
 
 def test_reconciliation_receipt_missing_refs_is_structured_and_nonwriting(
@@ -92,6 +143,41 @@ def test_hook_install_failure_is_public_block(
     assert result.summary["wired"] is False
 
 
-def test_decision_action_is_empty_without_mapping() -> None:
-    assert commands._decision_action({}) == ""  # noqa: SLF001
-    assert commands._decision_action({"decision": "allow"}) == ""  # noqa: SLF001
+@pytest.mark.parametrize("decision", [None, "allow"])
+def test_ref_transaction_summary_omits_non_mapping_decision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    decision: object,
+) -> None:
+    results = _capture(monkeypatch)
+    monkeypatch.setattr(commands, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        commands,
+        "resolve_ref_move_policy",
+        lambda *_args: type(
+            "Policy",
+            (),
+            {"role_for_branch": lambda _self, _branch: "topic"},
+        )(),
+    )
+    monkeypatch.setattr(
+        commands,
+        "ref_move_admission_report",
+        lambda **_kwargs: {
+            "verdict": "pass",
+            "state": "admitted",
+            "branch": "topic/example",
+            "decision": decision,
+            "required_gaps": [],
+        },
+    )
+
+    commands.ref_transaction(
+        "refs/heads/topic/example",
+        "a" * 40,
+        "b" * 40,
+        root=tmp_path,
+        json_output=True,
+    )
+
+    assert results.pop().summary["decision"] == ""

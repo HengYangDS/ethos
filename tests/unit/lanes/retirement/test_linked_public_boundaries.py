@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -10,12 +10,25 @@ from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementReque
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.contracts.branch.roles import BranchRolePolicy
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+SOURCE = "work/source"
+SUCCESSOR = "work/successor"
+SOURCE_HEAD = "a" * 40
+ACCEPTED = "b" * 40
+SUCCESSOR_HEAD = "c" * 40
+
+
+def _worktree(branch: str = SOURCE, head: str = SOURCE_HEAD) -> dict[str, object]:
+    return {"role": "work_lane", "branch": branch, "head": head, "path": f"/{branch}"}
+
 
 def _lane(
     *,
-    branch: str = "work/source",
-    head: str = "a" * 40,
-    path: str = "/lane",
+    branch: str = SOURCE,
+    head: str = SOURCE_HEAD,
     gaps: list[str] | None = None,
     lease_state: str = "valid",
     holder: str = "agent:test:holder",
@@ -23,180 +36,254 @@ def _lane(
     return {
         "branch": branch,
         "head": head,
-        "path": path,
+        "path": f"/{branch}",
         "required_gaps": gaps or [],
         "lease_state": lease_state,
         "lease": {"holder_ref": holder},
     }
 
 
+def _stub_retirement(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    worktrees: list[dict[str, object]],
+    lanes: dict[str, dict[str, object]] | None = None,
+    accepted: str = ACCEPTED,
+    current_branch: str = "",
+    verified_refs: set[str] | None = None,
+) -> None:
+    lane_map = lanes or {}
+    refs = verified_refs if verified_refs is not None else {str(row["branch"]) for row in worktrees}
+    monkeypatch.setattr(linked, "repository_root", lambda root: root)
+    monkeypatch.setattr(linked, "workspace_status", lambda _repo: {"worktrees": worktrees})
+    monkeypatch.setattr(linked, "load_branch_role_policy", lambda _repo: BranchRolePolicy())
+    monkeypatch.setattr(linked, "leases_by_branch", lambda _repo: {})
+    monkeypatch.setattr(effects, "control_root", lambda *_args: None)
+    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:holder")
+    monkeypatch.setattr(effects, "holder_gaps", lambda _lane: [])
+    monkeypatch.setattr(effects, "archived_carrier_absorption", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        effects,
+        "lane",
+        lambda _repo, row, *_args, **_kwargs: lane_map.get(
+            str(row["branch"]), _lane(branch=str(row["branch"]), head=str(row["head"]))
+        ),
+    )
+
+    def output(_repo: Path, *args: str) -> str | None:
+        if args == ("rev-parse", "dev"):
+            return accepted
+        if args[:2] == ("rev-parse", "--verify"):
+            return args[2] if args[2] in refs else None
+        if args == ("symbolic-ref", "--short", "HEAD"):
+            return current_branch
+        return None
+
+    monkeypatch.setattr(linked, "output", output)
+
+
 @pytest.mark.parametrize(
-    ("branch", "lanes", "retirement_request", "gaps"),
+    ("worktrees", "retirement_request", "expected"),
     [
-        ("", [], LinkedRetirementRequest(apply=True, authorize=True), {"retire_branch_required"}),
+        ([], LinkedRetirementRequest(apply=True, authorize=True), "retire_branch_required"),
         (
-            "work/missing",
             [],
             LinkedRetirementRequest(branch="work/missing"),
-            {"retire_branch_not_found"},
+            "retire_branch_not_found",
         ),
         (
-            "work/source",
-            [_lane()],
-            LinkedRetirementRequest(branch="work/source", apply=True),
-            {"authorization_required", "expect_head_required"},
+            [_worktree()],
+            LinkedRetirementRequest(branch=SOURCE, apply=True),
+            "authorization_required",
         ),
         (
-            "work/source",
-            [_lane(gaps=["work_lane_dirty"])],
-            LinkedRetirementRequest(
-                branch="work/source", expect_head="b" * 40, apply=True, authorize=True
-            ),
-            {"work_lane_dirty", "expect_head_mismatch"},
+            [_worktree()],
+            LinkedRetirementRequest(branch=SOURCE, apply=True, authorize=True),
+            "expect_head_required",
         ),
     ],
 )
-def test_landed_pre_effect_matrix_is_fail_closed(
+def test_landed_public_pre_effect_matrix_is_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
-    branch: str,
-    lanes: list[dict[str, object]],
+    tmp_path: Path,
+    worktrees: list[dict[str, object]],
     retirement_request: LinkedRetirementRequest,
-    gaps: set[str],
+    expected: str,
 ) -> None:
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:holder")
+    _stub_retirement(monkeypatch, worktrees=worktrees)
 
-    assert gaps <= set(
-        linked._landed_gaps(  # noqa: SLF001
-            branch=branch, request=retirement_request, lanes=lanes
-        )
+    report = retire_linked_work_lane(root=tmp_path, mode="landed", request=retirement_request)
+
+    assert expected in report["required_gaps"]
+    assert report["mutation"]["decision"]["verdict"] == report["verdict"]
+
+
+def test_landed_public_preserves_lane_and_head_gaps(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    lane = _lane(gaps=["work_lane_dirty"])
+    _stub_retirement(monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane})
+
+    report = retire_linked_work_lane(
+        root=tmp_path,
+        mode="landed",
+        request=LinkedRetirementRequest(
+            branch=SOURCE,
+            expect_head="d" * 40,
+            apply=True,
+            authorize=True,
+        ),
     )
+
+    assert {"work_lane_dirty", "expect_head_mismatch"} <= set(report["required_gaps"])
 
 
 @pytest.mark.parametrize(
-    ("branch", "linked_lane", "gap"),
+    ("branch", "worktrees", "verified", "gap"),
     [
-        ("", {}, "superseded_retire_branch_required"),
-        ("work/missing", {}, "superseded_retire_branch_not_found"),
-        ("dev", {}, "superseded_retire_not_work_lane"),
-        ("work/source", {}, "superseded_retire_worktree_not_linked"),
+        ("", [], set(), "superseded_retire_branch_required"),
+        ("work/missing", [], set(), "superseded_retire_branch_not_found"),
+        ("dev", [], {"dev"}, "superseded_retire_not_work_lane"),
+        (SOURCE, [], {SOURCE}, "superseded_retire_worktree_not_linked"),
     ],
 )
-def test_superseded_target_resolution_rejects_invalid_subjects(
+def test_superseded_public_target_resolution_rejects_invalid_subjects(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
     branch: str,
-    linked_lane: dict[str, object],
+    worktrees: list[dict[str, object]],
+    verified: set[str],
     gap: str,
 ) -> None:
-    policy = BranchRolePolicy()
-    monkeypatch.setattr(
-        linked,
-        "output",
-        lambda _repo, *args: (
-            None
-            if branch == "work/missing" and args == ("rev-parse", "--verify", branch)
-            else branch
+    _stub_retirement(monkeypatch, worktrees=worktrees, verified_refs=verified)
+
+    report = retire_linked_work_lane(
+        root=tmp_path,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch=branch,
+            expect_head=SOURCE_HEAD,
+            absorbed_by=ACCEPTED,
+            reason="absorbed",
         ),
     )
-    assert linked._superseded_target_gaps(  # noqa: SLF001
-        Path("/repo"), policy, branch, linked_lane
-    ) == [gap]
+
+    assert gap in report["required_gaps"]
 
 
-def test_source_lane_successor_authority_filters_only_missing_source_lease() -> None:
-    lane = _lane(
-        gaps=["work_lane_missing_lease:work/source", "work_lane_dirty"],
+def test_superseded_public_successor_filters_only_missing_source_lease(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = _lane(
+        gaps=[f"work_lane_missing_lease:{SOURCE}", "work_lane_dirty"],
         lease_state="valid",
     )
+    successor = _lane(branch=SUCCESSOR, head=SUCCESSOR_HEAD)
+    _stub_retirement(
+        monkeypatch,
+        worktrees=[_worktree(), _worktree(SUCCESSOR, SUCCESSOR_HEAD)],
+        lanes={SOURCE: source, SUCCESSOR: successor},
+        current_branch=SUCCESSOR,
+    )
 
-    assert linked._source_lane_gaps(  # noqa: SLF001
-        lane, branch="work/source", successor=_lane()
-    ) == [
-        "work_lane_dirty",
-        "successor_retire_target_lease_present",
-    ]
+    report = retire_linked_work_lane(
+        root=tmp_path,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch=SOURCE,
+            expect_head=SOURCE_HEAD,
+            absorbed_by=SUCCESSOR_HEAD,
+            reason="absorbed by successor",
+        ),
+    )
+
+    gaps = set(report["required_gaps"])
+    assert f"work_lane_missing_lease:{SOURCE}" not in gaps
+    assert {"work_lane_dirty", "successor_retire_target_lease_present"} <= gaps
 
 
 @pytest.mark.parametrize(
-    ("source", "absorbed", "accepted", "successor", "lane", "ancestor", "gap"),
+    ("absorbed_by", "archive_absorption", "ancestor", "gap"),
     [
-        ("", "a", "a", {}, {}, True, ""),
-        ("a", "", "a", {}, {}, True, ""),
-        ("a", "b", "b", {}, {}, False, "superseded_lane_not_absorbed_by_accepted"),
-        ("a", "b", "b", {}, {"archive_absorption": {"change": "x"}}, False, ""),
-        ("a", "c", "b", _lane(head="c"), {}, False, "superseded_lane_not_absorbed_by_successor"),
+        (ACCEPTED, False, False, "superseded_lane_not_absorbed_by_accepted"),
+        (ACCEPTED, True, False, ""),
+        (SUCCESSOR_HEAD, False, False, "superseded_lane_not_absorbed_by_successor"),
+        (SUCCESSOR_HEAD, False, True, ""),
     ],
 )
-def test_absorption_authority_matrix(
+def test_superseded_public_absorption_authority_matrix(
     monkeypatch: pytest.MonkeyPatch,
-    source: str,
-    absorbed: str,
-    accepted: str,
-    successor: dict[str, object],
-    lane: dict[str, object],
-    ancestor: int,
+    tmp_path: Path,
+    absorbed_by: str,
+    archive_absorption: object,
+    ancestor: object,
     gap: str,
 ) -> None:
-    monkeypatch.setattr(effects, "absorbed", lambda *_args: False)
-    monkeypatch.setattr(linked, "is_ancestor", lambda *_args: ancestor)
-
-    assert (
-        linked._absorption_gap(  # noqa: SLF001
-            Path("/repo"),
-            source_head=source,
-            absorbed_by=absorbed,
-            accepted_head=accepted,
-            successor=successor,
-            lane=lane,
-        )
-        == gap
+    successor_rows = [_worktree(SUCCESSOR, SUCCESSOR_HEAD)] if absorbed_by == SUCCESSOR_HEAD else []
+    lanes = {SOURCE: _lane()}
+    if successor_rows:
+        lanes[SUCCESSOR] = _lane(branch=SUCCESSOR, head=SUCCESSOR_HEAD)
+    _stub_retirement(
+        monkeypatch,
+        worktrees=[_worktree(), *successor_rows],
+        lanes=lanes,
+        current_branch=SUCCESSOR if successor_rows else "",
     )
+    monkeypatch.setattr(effects, "absorbed", lambda *_args: ancestor)
+    monkeypatch.setattr(linked, "is_ancestor", lambda *_args: ancestor)
+    if archive_absorption:
+        monkeypatch.setattr(
+            effects,
+            "archived_carrier_absorption",
+            lambda *_args, **_kwargs: {"change": "archived"},
+        )
+
+    report = retire_linked_work_lane(
+        root=tmp_path,
+        mode="superseded",
+        request=LinkedRetirementRequest(
+            branch=SOURCE,
+            expect_head=SOURCE_HEAD,
+            absorbed_by=absorbed_by,
+            reason="absorbed",
+        ),
+    )
+
+    if gap:
+        assert gap in report["required_gaps"]
+    else:
+        assert not any(
+            str(item).startswith("superseded_lane_not_absorbed") for item in report["required_gaps"]
+        )
 
 
 def test_linked_apply_rejects_missing_control_root_before_effect(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    head = "a" * 40
-    worktree = {"role": "work_lane", "branch": "work/source", "head": head, "path": "/lane"}
-    monkeypatch.setattr(linked, "repository_root", lambda root: root)
-    monkeypatch.setattr(linked, "workspace_status", lambda _repo: {"worktrees": [worktree]})
-    monkeypatch.setattr(linked, "load_branch_role_policy", lambda _repo: BranchRolePolicy())
-    monkeypatch.setattr(linked, "output", lambda *_args: "b" * 40)
-    monkeypatch.setattr(linked, "leases_by_branch", lambda _repo: {})
-    monkeypatch.setattr(effects, "control_root", lambda *_args: None)
-    monkeypatch.setattr(effects, "lane", lambda *_args, **_kwargs: _lane(head=head))
-    monkeypatch.setattr(linked, "_with_archive_absorption", lambda _repo, lane, _head: lane)
-    monkeypatch.setattr(effects, "holder_gaps", lambda _lane: [])
+    _stub_retirement(monkeypatch, worktrees=[_worktree()])
     applied: list[bool] = []
     monkeypatch.setattr(effects, "apply_retirement", lambda *_args, **_kwargs: applied.append(True))
 
     report = retire_linked_work_lane(
-        root=Path("/repo"),
+        root=tmp_path,
         mode="landed",
         request=LinkedRetirementRequest(
-            branch="work/source", expect_head=head, authorize=True, apply=True
+            branch=SOURCE,
+            expect_head=SOURCE_HEAD,
+            authorize=True,
+            apply=True,
         ),
     )
 
-    assert report["verdict"] == "block"
     assert report["required_gaps"] == ["retirement_control_root_unavailable"]
     assert applied == []
 
 
 def test_linked_effect_failure_is_projected_as_a_fresh_block(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    head = "a" * 40
-    control = Path("/control")
-    worktree = {"role": "work_lane", "branch": "work/source", "head": head, "path": "/lane"}
-    monkeypatch.setattr(linked, "repository_root", lambda root: root)
-    monkeypatch.setattr(linked, "workspace_status", lambda _repo: {"worktrees": [worktree]})
-    monkeypatch.setattr(linked, "load_branch_role_policy", lambda _repo: BranchRolePolicy())
-    monkeypatch.setattr(linked, "output", lambda *_args: "b" * 40)
-    monkeypatch.setattr(linked, "leases_by_branch", lambda _repo: {})
-    monkeypatch.setattr(effects, "control_root", lambda *_args: control)
-    monkeypatch.setattr(effects, "lane", lambda *_args, **_kwargs: _lane(head=head))
-    monkeypatch.setattr(linked, "_with_archive_absorption", lambda _repo, lane, _head: lane)
-    monkeypatch.setattr(effects, "holder_gaps", lambda _lane: [])
+    _stub_retirement(monkeypatch, worktrees=[_worktree()])
+    monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
     monkeypatch.setattr(
         effects,
         "apply_retirement",
@@ -208,10 +295,13 @@ def test_linked_effect_failure_is_projected_as_a_fresh_block(
     )
 
     report = retire_linked_work_lane(
-        root=Path("/repo"),
+        root=tmp_path,
         mode="landed",
         request=LinkedRetirementRequest(
-            branch="work/source", expect_head=head, authorize=True, apply=True
+            branch=SOURCE,
+            expect_head=SOURCE_HEAD,
+            authorize=True,
+            apply=True,
         ),
     )
 

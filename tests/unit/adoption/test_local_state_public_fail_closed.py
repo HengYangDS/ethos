@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
@@ -21,7 +22,7 @@ def _legacy(root: Path) -> Path:
 
 def _database(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.execute("begin immediate")
         state_schema.initialize_state_connection(connection)
         connection.commit()

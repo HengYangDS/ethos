@@ -1,4 +1,3 @@
-# ruff: noqa: SLF001
 from __future__ import annotations
 
 import json
@@ -10,10 +9,13 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.archive_binding as binding
 import ethos.adapters.openspec.lifecycle.archive_transition as transition
 import ethos.adapters.openspec.lifecycle.report as report
 from ethos.contracts.semantic import Commitment
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 
 def _completed(name: str = "change") -> dict[str, object]:
@@ -108,22 +110,33 @@ def test_edge_reports_and_lifecycle_mismatches_preserve_attribution(
     assert apply_mismatch["required_gaps"] == ["openspec_apply_change_mismatch:requested"]
 
 
-def test_change_report_filters_capability_escape_and_rejects_invalid_identifier(
-    monkeypatch, tmp_path: Path
+def test_public_lifecycle_filters_capability_escape_and_governance_rejects_invalid_identifier(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    root = tmp_path.resolve()
-    prefix = root / "openspec/changes/20260810-invalid/specs"
+    root = init_git_repo(tmp_path / "repo")
+    write_test_profile(root, openspec={"material_paths": ["openspec/**"]})
+    (root / "openspec/specs").mkdir(parents=True)
+    prefix = root / "openspec/changes/valid-change/specs"
     inside = prefix / "contracts/spec.md"
     outside = root / "openspec/specs/contracts/spec.md"
-    monkeypatch.setattr(report.scope, "commitment_report", lambda *_a: {"required_gaps": []})
-    status = {
-        "changeName": "20260810-invalid",
-        "artifactPaths": {"specs": {"existingOutputPaths": [str(outside), str(inside)]}},
-        "artifacts": [],
-    }
-    change, gaps = report._change_report(root, "20260810-invalid", status, {})
-    assert change["capabilities"] == ["contracts"]
-    assert gaps == ["openspec_active_change_identifier_invalid:20260810-invalid"]
+    monkeypatch.setattr(report.scope, "commitment_report", lambda *_args: {"required_gaps": []})
+
+    lifecycle = report.lifecycle_report(
+        root,
+        request=report.OpenSpecRequest(change="valid-change", lifecycle=True),
+        list_payload={"changes": [_completed("valid-change")]},
+        status_payload={
+            "changeName": "valid-change",
+            "artifactPaths": {"specs": {"existingOutputPaths": [str(outside), str(inside)]}},
+            "artifacts": [],
+        },
+        apply_payload={"changeName": "valid-change"},
+    )
+    result = governance.openspec_governance_report(root, change="20260810-invalid")
+
+    assert lifecycle["changes"][0]["capabilities"] == ["contracts"]
+    assert result["lifecycle"]["changes"] == []
+    assert result["required_gaps"] == ["openspec_active_change_identifier_invalid:20260810-invalid"]
 
 
 def test_archive_transition_environment_rejects_extra_keys_and_stale_bindings(
@@ -263,25 +276,44 @@ def test_archive_scope_attribution_maps_archive_and_proven_canonical_specs(
     monkeypatch.setattr(
         transition,
         "git_stdout",
-        lambda _root, *args: "blob" if args[-1].endswith("/specs/contracts/spec.md") else "",
+        lambda _root, *args: (
+            "work/change"
+            if args == ("branch", "--show-current")
+            else "blob"
+            if args[-1].endswith("/specs/contracts/spec.md")
+            else ""
+        ),
     )
     scope = (
         "openspec/changes/change/**",
         "openspec/changes/change/specs/contracts/spec.md",
     )
-    result = transition._scope_report(
+    commitment = _commitment(scope)
+    lease = {
+        "lease_state": "valid",
+        "expected_head": "head",
+        "base_commitment_digest": commitment.digest(),
+    }
+    monkeypatch.setattr(transition, "archive_context", lambda _root: ("head", lease, commitment))
+    monkeypatch.setattr(
+        transition,
+        "archive_binding",
+        lambda *_args, **_kwargs: ("archive_transition", "tree", carrier),
+    )
+    monkeypatch.setattr(transition, "load_commitment", lambda *_args, **_kwargs: commitment)
+    monkeypatch.setattr(transition, "active_commitments", lambda *_args: ())
+    result = transition.lease_bound_archive_scope_report(
         tmp_path,
-        commitment=_commitment(scope),
-        change="change",
-        carrier=carrier,
-        state="post_archive_closeout",
+        requested_change="change",
+        official_change_complete=True,
         changed_paths=(
             "openspec/changes/archive/2026-08-10-change/tasks.md",
             "openspec/specs/contracts/spec.md",
             "openspec/specs/unproven/spec.md",
         ),
-        completion_artifacts=(),
+        completion_artifacts=("openspec/changes/change/specs/contracts/spec.md",),
     )
+    assert result is not None
     assert result["covered_paths"] == [
         {
             "path": "openspec/changes/archive/2026-08-10-change/tasks.md",
@@ -290,14 +322,21 @@ def test_archive_scope_attribution_maps_archive_and_proven_canonical_specs(
         {"path": "openspec/specs/contracts/spec.md", "changes": ["change"]},
     ]
     assert result["uncovered_paths"] == ["openspec/specs/unproven/spec.md"]
-    assert (
-        transition._archive_authority_path(
-            tmp_path,
-            "README.md",
-            change="change",
-            carrier=carrier,
-            state="completion_transition",
-            completion_artifacts=(),
-        )
-        == "README.md"
+
+    monkeypatch.setattr(
+        transition,
+        "archive_binding",
+        lambda *_args, **_kwargs: ("completion_transition", "tree", carrier),
     )
+    monkeypatch.setattr(transition, "active_commitments", lambda *_args: (carrier,))
+    fallback = transition.lease_bound_archive_scope_report(
+        tmp_path,
+        requested_change="change",
+        official_change_complete=True,
+        changed_paths=("README.md",),
+        completion_artifacts=("README.md",),
+    )
+
+    assert fallback is not None
+    assert fallback["material_paths"] == []
+    assert fallback["covered_paths"] == []

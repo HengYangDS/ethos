@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
+import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission as rebind_admission
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.repo.commit_identity import commit_trust_setup_action
@@ -261,10 +262,9 @@ def test_change_identity_repair_requires_target_trust(
 ) -> None:
     case = _case(tmp_path, monkeypatch, repair_identity=True)
     monkeypatch.setattr(
-        rebind,
+        rebind_admission,
         "verify_commit_trust",
         lambda *_args: {"required_gaps": list(trust_gaps)},
-        raising=False,
     )
     report = case.execute()
     assert report["required_gaps"] == list(trust_gaps)
@@ -277,7 +277,7 @@ def test_change_identity_repair_projects_trust_setup_action(
 ) -> None:
     case = _case(tmp_path, monkeypatch, repair_identity=True)
     monkeypatch.setattr(
-        rebind,
+        rebind_admission,
         "verify_commit_trust",
         lambda *_args: {"required_gaps": ["commit_signature_untrusted"]},
     )

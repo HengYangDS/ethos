@@ -25,6 +25,37 @@ _FACT_FIELDS = {
 }
 
 
+def archive_scope_gaps(
+    facts: Mapping[str, object], prior_attestations: Mapping[str, object]
+) -> tuple[str, ...]:
+    """Require archive authority to name a unique subset of changed paths."""
+    archive = prior_attestations.get("openspec_archive")
+    if not isinstance(archive, Mapping):
+        return ()
+    authorized = archive.get("authorized_paths")
+    values = facts.get("values")
+    fact_values = values if isinstance(values, Mapping) else {}
+    changed = fact_values.get("changed_paths")
+    authorized_paths = (
+        tuple(str(path) for path in authorized)
+        if isinstance(authorized, tuple | list)
+        and all(isinstance(path, str) for path in authorized)
+        else ()
+    )
+    changed_paths = (
+        tuple(str(path) for path in changed)
+        if isinstance(changed, tuple | list) and all(isinstance(path, str) for path in changed)
+        else ()
+    )
+    return (
+        ()
+        if authorized_paths
+        and len(set(authorized_paths)) == len(authorized_paths)
+        and set(authorized_paths).issubset(changed_paths)
+        else ("proof_archive_scope_stale",)
+    )
+
+
 def commitment_fact_gaps(
     commitment: Commitment,
     facts: Facts,
@@ -41,6 +72,7 @@ def commitment_fact_gaps(
     if commitment.subjects and facts.repository not in commitment.subjects:
         gaps.append("repository_subject_mismatch")
     changed = facts.values.get("changed_paths", ())
+    gaps.extend(archive_scope_gaps(facts.model_dump(mode="python"), prior_attestations))
     if commitment.scope and (
         not isinstance(changed, tuple | list) or any(not _valid_path(path) for path in changed)
     ):

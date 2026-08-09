@@ -164,7 +164,8 @@ def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str,
 
 
 def _rebase_head_branch(root: Path) -> str:
-    git_dir = _git_path(root)
+    git_dir = Path(git_stdout(root, "rev-parse", "--git-path", ".") or ".git")
+    git_dir = git_dir if git_dir.is_absolute() else root / git_dir
     head = next(
         filter(
             Path.exists,
@@ -173,11 +174,6 @@ def _rebase_head_branch(root: Path) -> str:
         None,
     )
     return head.read_text(encoding="utf-8").strip().removeprefix("refs/heads/") if head else ""
-
-
-def _git_path(root: Path) -> Path:
-    path = Path(git_stdout(root, "rev-parse", "--git-path", ".") or ".git")
-    return path if path.is_absolute() else root / path
 
 
 def _work_lane_lease_check(

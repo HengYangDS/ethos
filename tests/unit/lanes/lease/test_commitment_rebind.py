@@ -119,10 +119,6 @@ def _case(
         index = git(worktree, "write-tree")
         old_head = git(
             worktree,
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
             "commit-tree",
             index,
             "-p",
@@ -144,10 +140,6 @@ def _case(
         git(worktree, "mv", carrier.as_posix(), archived.as_posix())
         git(
             worktree,
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
             "commit",
             "-m",
             "archive fixture commitment",
@@ -177,10 +169,6 @@ def _case(
     index_tree = git(worktree, "write-tree")
     target_commit = git(
         worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit-tree",
         index_tree,
         "-p",

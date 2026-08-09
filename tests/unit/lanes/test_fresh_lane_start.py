@@ -91,10 +91,6 @@ def test_start_work_lane_bootstraps_a_fresh_change_without_a_source_lane(
     git(candidate, "add", "openspec/config.yaml")
     git(
         candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
         "commit",
         "-m",
         "select custom OpenSpec schema",

@@ -62,7 +62,7 @@ def _raises(exception, match: str | None, call) -> None:
 
 
 def _commit(root: Path, message: str) -> str:
-    (git(root, "add", "."), git(root, "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", message))
+    (git(root, "add", "."), git(root, "commit", "-m", message))
     return git(root, "rev-parse", "HEAD")
 
 

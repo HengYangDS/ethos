@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 def _advance(repo: Path, name: str) -> str:
     (repo / name).write_text(name, encoding="utf-8")
     fx.git(repo, "add", ".")
-    fx.git(repo, "-c", "user.name=t", "-c", "user.email=t@e.x", "commit", "-m", name)
+    fx.git(repo, "commit", "-m", name)
     return fx.git(repo, "rev-parse", "HEAD")
 
 

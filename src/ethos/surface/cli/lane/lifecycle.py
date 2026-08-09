@@ -160,6 +160,10 @@ def _refresh_action(report: dict[str, object], verdict: Verdict) -> str:
     return action or "ethos status --json"
 
 
+def _report_action(report: dict[str, object], _verdict: Verdict) -> str:
+    return str(report.get("next_action") or "")
+
+
 def _retirement_action(_report: dict[str, object], verdict: Verdict) -> str:
     return "ethos status" if verdict == "pass" else "ethos lane status"
 
@@ -202,6 +206,7 @@ _ACTIONS: dict[str, Action] = {
     ),
     "lane start": _start_action,
     "lane refresh-base": _refresh_action,
+    "lane rebind-commitment": _report_action,
     "lane retire superseded": _retirement_action,
     "lane retire landed": _retirement_action,
 }

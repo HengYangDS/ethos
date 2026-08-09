@@ -157,6 +157,30 @@ product, test, automation-tool, and other Python independently while retaining
 the global owned-source ceiling. No carrier is excluded and no role can borrow
 headroom from another.
 
+The first role allocation inherited the historical 54,000 Python and 68,000
+global targets without a joint feasibility proof. At the first complete proof,
+the repository measured 35,787 product, 18,018 test, 2,992 tool, and 110 other
+Python ELOC, while the executed branch-aware coverage report rounded to 86
+percent. The 36,000/18,000/3,000/120 allocation therefore left only 231 Python
+ELOC of aggregate headroom, and the 68,000 global ceiling left 1,133 ELOC while
+the same contract demanded an immediate rise to 95 percent coverage. Those
+constraints rewarded assertion deletion, coverage-only tests, and metric-driven
+module movement instead of semantic convergence.
+
+The calibrated convergence contract is product 40,000, tests 30,000, tools
+4,000, and other Python 200. The test allowance preserves the required 95
+percent branch-aware coverage floor: the complete proof exposed 1,806 uncovered
+statement/branch outcomes, so the former 18,000 ceiling could not remain an
+independent blocker while that deficit was repaired. The 11,982 test-ELOC
+headroom provides a conservative 6.6 ELOC per uncovered outcome without
+requiring that coverage be achieved by test growth alone. The 85,000 global
+ceiling is jointly derived: role ceilings total 74,200 and measured non-Python
+owned source is 9,960, yielding 84,160 before rounding to the next thousand.
+These are guardrails against regression and carrier relocation, not claims that
+line count proves design quality. The 95 percent coverage floor, semantic
+ownership, authority/CAS behavior, and module-layout checks remain independently
+blocking.
+
 ## Decision Change Ledger
 
 | Version | Date | Change | Reason | Evidence |
@@ -164,3 +188,4 @@ headroom from another.
 | 1 | 2026-07-19 | Selected the metric-domain vector | Prevent cross-domain gaming | Budget Contract v2 evidence |
 | 2 | 2026-07-28 | Superseded the private vector runtime with direct measurement | Preserve anti-gaming with less machinery | Terminal quality contract and source-budget tests |
 | 3 | 2026-08-09 | Replaced the compensating Python scalar with role-local terminal coordinates | Prevent test deletion from subsidizing product or automation growth while retaining the global ceiling | Terminal quality contract, generation comparison, and non-compensation regressions |
+| 4 | 2026-08-09 | Recalibrated role and global source ceilings while retaining 95 percent coverage | The inherited source thresholds were jointly infeasible with the required coverage floor and distorted implementation toward metric gaming | Exact role measurements, current non-Python footprint, and branch-aware coverage artifact |

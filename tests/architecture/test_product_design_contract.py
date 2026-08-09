@@ -361,13 +361,14 @@ def test_branch_roles_and_thresholds_have_machine_owners() -> None:
         "proposal_branch_prefix": "proposal/",
     }
     assert coverage["current_hard_floor"] == 95
+    assert coverage["aspirational_floor"] == 95
     assert coverage["branch_coverage_required"] is True
     assert source_budget == {
-        "python_product": 36_000,
-        "python_tests": 18_000,
-        "python_tools": 3_000,
-        "python_other": 120,
-        "global_total": 68_000,
+        "python_product": 40_000,
+        "python_tests": 30_000,
+        "python_tools": 4_000,
+        "python_other": 200,
+        "global_total": 85_000,
     }
     assert "`candidate/dev` and every `work/*` branch are local-only" in release
     assert "`dev`, `main`, and `proposal/*`" in release

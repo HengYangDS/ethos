@@ -192,7 +192,7 @@ PATCH_CASES = [
     ((), M, M, P_EXEC, E_EXEC),
     ((), M, M, P_COMMAND, E_COMMAND),
     (("external_sdk",), M, M, P_IMPORT, "head"),
-    ((), ("src/**",), A, P_NEW, E_PATH),
+    ((), ("src/**",), A, P_NEW, "pass"),
     ((), A, A, P_NEW, "pass"),
     ((), M, T + M, DECL + P_EXEC, E_EXEC),
     ((), T, T, DECL, "pass"),

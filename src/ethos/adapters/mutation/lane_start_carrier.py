@@ -10,6 +10,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import NamedTuple
+from typing import cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -473,13 +474,14 @@ def openspec_failure_process(
     """Preserve bounded child evidence when official OpenSpec fails."""
     command = report.get("command")
     args = tuple(str(item) for item in command) if isinstance(command, list) else ("openspec",)
+    exit_code = report.get("exit_code")
     process = subprocess.CompletedProcess(
         args,
-        int(report.get("exit_code") or 1),
+        exit_code if isinstance(exit_code, int) and not isinstance(exit_code, bool) else 1,
         str(report.get("stdout") or ""),
         str(report.get("stderr") or fallback),
     )
-    process.parse_error = str(report.get("parse_error") or "")
+    cast("object", process).__dict__["parse_error"] = str(report.get("parse_error") or "")
     return process
 
 

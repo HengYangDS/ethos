@@ -275,12 +275,6 @@ def create_change_source_lane(
     return path
 
 
-def _lease_holder(root: Path, branch: str) -> str:
-    holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
-    assert holder
-    return holder
-
-
 def write_active_commitment(
     repo: Path,
     *,

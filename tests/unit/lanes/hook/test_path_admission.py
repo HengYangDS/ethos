@@ -116,7 +116,9 @@ def test_editor_binding_matrix(
 
 
 def test_unknown_editor_component(worktree: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    unknown = lambda _status: {"verdict": "unknown", "reason": ""}  # noqa: E731
+    def unknown(_status):
+        return {"verdict": "unknown", "reason": ""}
+
     monkeypatch.setattr(admission_prewrite, "runtime_binding_check", unknown)
     report = _guard(worktree, ("README.md",))
     assert report["verdict"] == "unknown"

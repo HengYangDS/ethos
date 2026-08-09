@@ -51,7 +51,7 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
     if not source_python.is_absolute() or not source_python.is_file():
         message = "hook_runtime_python_invalid"
         raise ValueError(message)
-    runtime = _materialize_runtime(repo, source_python)
+    runtime = materialize_hook_runtime(repo, source_python)
     hooks = Path(git_common_dir(repo)) / "ethos-hooks"
     locator = _runtime_locator(runtime)
     _replace_launchers(hooks, locator)
@@ -59,7 +59,7 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
     return hook_runtime_binding(repo)
 
 
-def _materialize_runtime(repo: Path, source_python: Path) -> Path:
+def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
     """Build and atomically install one wheel-qualified common-dir runtime."""
     source = Path(__file__).resolve().parents[4]
     common = Path(git_common_dir(repo))
@@ -68,7 +68,7 @@ def _materialize_runtime(repo: Path, source_python: Path) -> Path:
     wheel_dir = work / "wheel"
     try:
         python_abi = _python_abi(source_python)
-        wheel = _runtime_wheel(source, wheel_dir)
+        wheel = resolve_runtime_wheel(source, wheel_dir)
         wheel_sha256 = _sha256(wheel)
         digest = _runtime_digest(wheel_sha256, python_abi)
         target = runtime_root / digest
@@ -114,7 +114,7 @@ def _materialize_runtime(repo: Path, source_python: Path) -> Path:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _runtime_wheel(source: Path, wheel_dir: Path) -> Path:
+def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
     if (source / "pyproject.toml").is_file():
         wheel_dir.parent.mkdir(parents=True)
         _run_runtime_tool(

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 import ethos.domain.source_budget.measurement as source_budget
+from ethos.domain.source_budget.measurement_policy import PYTHON_CATEGORIES
 from tests.support.governed_repository import git
 from tests.support.subprocesses import completed as cp
 
@@ -13,15 +14,18 @@ from tests.support.subprocesses import completed as cp
 def _selection(
     root: Path,
     *,
-    terminal: tuple[int, int] = (1_000, 2_000),
+    terminal: tuple[int, int, int, int, int] = (1_000, 1_000, 1_000, 1_000, 2_000),
     tolerance: tuple[int, int] = (100, 200),
 ) -> Path:
     path = root / ".config/checks/format/selection.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        f"""[source_budget]
-terminal = {{ python_total = {terminal[0]}, global_total = {terminal[1]} }}
-immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
+        "[source_budget]\n"
+        "terminal = { "
+        f"python_product = {terminal[0]}, python_tests = {terminal[1]}, "
+        f"python_tools = {terminal[2]}, python_other = {terminal[3]}, "
+        f"global_total = {terminal[4]} }}\n"
+        f"""immutable_record_roots = ["evidence/", "openspec/changes/archive/"]
 line_width = 100
 
 [source_budget.cross_check]
@@ -31,8 +35,11 @@ timeout_seconds = 5
 tolerance = {{ python_total = {tolerance[0]}, global_total = {tolerance[1]} }}
 
 [source_budget.aggregates]
-python_total = ["python_product", "python_other"]
-global_total = ["python_product", "python_other", "toml", "json", "yaml", "ini", "shell"]
+python_total = ["python_product", "python_tests", "python_tools", "python_other"]
+global_total = [
+  "python_product", "python_tests", "python_tools", "python_other",
+  "toml", "json", "yaml", "ini", "shell",
+]
 
 [[format]]
 extensions = [".lock", ".json", ".yaml", ".yml"]
@@ -49,6 +56,8 @@ accounting = "generated_evidence"
 extensions = [".py"]
 budget = [
   {{ category = "python_product", paths = ["src/*"], measure = "python_ast" }},
+  {{ category = "python_tests", paths = ["tests/*"], measure = "python_ast" }},
+  {{ category = "python_tools", paths = ["tools/*"], measure = "python_ast" }},
   {{ category = "python_other", measure = "python_ast" }},
 ]
 
@@ -83,7 +92,7 @@ budget = [
 def _repo(
     root: Path,
     *,
-    terminal: tuple[int, int] = (1_000, 2_000),
+    terminal: tuple[int, int, int, int, int] = (1_000, 1_000, 1_000, 1_000, 2_000),
     tolerance: tuple[int, int] = (100, 200),
 ) -> tuple[Path, Path]:
     selection = _selection(root, terminal=terminal, tolerance=tolerance)
@@ -94,8 +103,11 @@ def _repo(
     rules.parent.mkdir(parents=True)
     rules.write_text(
         "[quality.source_budget.terminal]\n"
-        f"python_total = {terminal[0]}\n"
-        f"global_total = {terminal[1]}\n",
+        f"python_product = {terminal[0]}\n"
+        f"python_tests = {terminal[1]}\n"
+        f"python_tools = {terminal[2]}\n"
+        f"python_other = {terminal[3]}\n"
+        f"global_total = {terminal[4]}\n",
         encoding="utf-8",
     )
     git(root, "init", "-q", "-b", "dev")
@@ -251,7 +263,7 @@ def test_report_exposes_implementation_and_record_cross_check_totals(
 
     assert report["required_gaps"] == []
     assert report["cross_check"]["python_total"] == report["metrics"]["python_total"]
-    assert report["cross_check"]["global_total"] == report["metrics"]["global_total"]
+    assert report["cross_check"]["global_total"] <= report["metrics"]["global_total"]
     assert report["metrics"]["record_total"] == 1
     assert report["cross_check"]["record_total"] == 1
     assert report["cross_check"]["file_count"] == report["inventory"]["file_count"]
@@ -343,13 +355,57 @@ def test_terminal_verdict_uses_canonical_effective_lines_not_physical_cross_chec
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _repo(tmp_path, terminal=(2, 2_000))
+    _repo(tmp_path, terminal=(2, 1_000, 1_000, 1_000, 2_000))
     report = _measure(monkeypatch, tmp_path, {"src/ethos/demo.py": 3})
 
     assert report["metrics"]["python_total"] == 2
     assert report["cross_check"]["python_total"] == 3
-    assert report["enforced_metrics"]["python_total"] == 2
-    assert not any("terminal_exceeded:python_total" in gap for gap in report["required_gaps"])
+    assert report["enforced_metrics"]["python_product"] == 2
+    assert not any("terminal_exceeded:python_product" in gap for gap in report["required_gaps"])
+
+
+@pytest.mark.parametrize(
+    ("category", "relative", "terminal"),
+    [
+        ("python_product", None, (1, 1_000, 1_000, 1_000, 2_000)),
+        ("python_tests", "tests/test_demo.py", (1_000, 1, 1_000, 1_000, 2_000)),
+        ("python_tools", "tools/demo.py", (1_000, 1_000, 1, 1_000, 2_000)),
+        ("python_other", "demo.py", (1_000, 1_000, 1_000, 1, 2_000)),
+    ],
+)
+def test_python_carrier_roles_cannot_compensate_for_one_another(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    category: str,
+    relative: str | None,
+    terminal: tuple[int, int, int, int, int],
+) -> None:
+    _repo(tmp_path, terminal=terminal)
+    if relative is not None:
+        _tracked_file(tmp_path, relative, "FIRST = 1\nSECOND = 2\n")
+    report = _measure(monkeypatch, tmp_path)
+
+    assert report["enforced_metrics"][category] == 2
+    assert f"source_budget_terminal_exceeded:{category}:2>1" in report["required_gaps"]
+    assert not any("terminal_exceeded:global_total" in gap for gap in report["required_gaps"])
+
+
+def test_python_role_partition_is_complete_and_non_overlapping(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo(tmp_path)
+    for relative in ("tests/test_demo.py", "tools/demo.py", "demo.py"):
+        _tracked_file(tmp_path, relative, "FIRST = 1\nSECOND = 2\n")
+    report = _measure(monkeypatch, tmp_path)
+
+    assert {role: report["metrics"][role] for role in PYTHON_CATEGORIES} == {
+        "python_product": 2,
+        "python_tests": 2,
+        "python_tools": 2,
+        "python_other": 2,
+    }
+    assert report["metrics"]["python_total"] == 8
 
 
 def test_extensionless_hook_is_counted_and_unknown_executable_blocks(
@@ -457,7 +513,12 @@ def test_yaml_measurement_accepts_native_mixed_scalar_keys(
     "mutation",
     [
         lambda text: text.replace("immutable_record_roots =", "invalid_record_roots ="),
-        lambda text: text.replace(', "shell"]', "]"),
+        lambda text: text.replace('  "toml", "json", "yaml", "ini", "shell",\n', ""),
+        lambda text: text.replace(
+            'python_total = ["python_product", "python_tests", "python_tools", "python_other"]',
+            'python_total = ["python_tests", "python_product", "python_tools", "python_other"]',
+        ),
+        lambda text: text.replace("python_other = 1000", "python_unknown = 1000"),
         lambda text: text.replace('shebangs = ["sh", "bash", "zsh"]', 'shebangs = "sh"'),
         lambda text: text.replace('comment_prefixes = ["#"]', 'comment_prefixes = "#"', 1),
     ],

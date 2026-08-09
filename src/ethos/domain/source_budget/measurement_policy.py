@@ -15,7 +15,9 @@ from pydantic import ValidationError
 from pydantic import model_validator
 
 POLICY_PATH = Path(".config/checks/format/selection.toml")
-TERMINAL_TOTALS = ("python_total", "global_total")
+PYTHON_CATEGORIES = ("python_product", "python_tests", "python_tools", "python_other")
+TERMINAL_TOTALS = (*PYTHON_CATEGORIES, "global_total")
+AGGREGATE_TOTALS = ("python_total", "global_total")
 IMMUTABLE_RECORD_ROOTS = ("evidence/", "openspec/changes/archive/")
 
 
@@ -23,8 +25,16 @@ class _Contract(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
 
-class Totals(_Contract):
+class CrossCheckTotals(_Contract):
     python_total: Annotated[int, Field(ge=0)]
+    global_total: Annotated[int, Field(ge=0)]
+
+
+class TerminalTotals(_Contract):
+    python_product: Annotated[int, Field(ge=0)]
+    python_tests: Annotated[int, Field(ge=0)]
+    python_tools: Annotated[int, Field(ge=0)]
+    python_other: Annotated[int, Field(ge=0)]
     global_total: Annotated[int, Field(ge=0)]
 
 
@@ -32,7 +42,7 @@ class CrossCheck(_Contract):
     command: Annotated[str, Field(min_length=1)]
     args: tuple[str, ...]
     timeout_seconds: Annotated[int, Field(gt=0, le=300)]
-    tolerance: Totals
+    tolerance: CrossCheckTotals
 
 
 class Carrier(_Contract):
@@ -67,7 +77,7 @@ class Carrier(_Contract):
 
 
 class Policy(_Contract):
-    terminal: Totals
+    terminal: TerminalTotals
     cross_check: CrossCheck
     aggregates: dict[str, tuple[str, ...]]
     immutable_record_roots: tuple[str, ...] = ()
@@ -84,14 +94,17 @@ class Policy(_Contract):
             for carrier in self.carriers
             if carrier.measure == "python_ast" and carrier.accounting == "source"
         }
-        if set(self.aggregates) != set(TERMINAL_TOTALS):
-            msg = "source-budget aggregates must contain exactly the terminal totals"
+        if set(self.aggregates) != set(AGGREGATE_TOTALS):
+            msg = "source-budget aggregates must contain exactly the aggregate totals"
             raise ValueError(msg)
         if set(self.aggregates["global_total"]) != categories:
             msg = "global_total must own every carrier category exactly once"
             raise ValueError(msg)
-        if set(self.aggregates["python_total"]) != python_categories:
+        if tuple(self.aggregates["python_total"]) != PYTHON_CATEGORIES:
             msg = "python_total must own every Python carrier category exactly once"
+            raise ValueError(msg)
+        if set(PYTHON_CATEGORIES) != python_categories:
+            msg = "source-budget must declare every Python carrier role exactly once"
             raise ValueError(msg)
         if any(
             not values or len(values) != len(set(values)) for values in self.aggregates.values()
@@ -196,9 +209,9 @@ def _raw_carriers(payload: dict[str, object]) -> tuple[Carrier, ...]:
 def _policy_contract(payload: dict[str, object]) -> Policy | None:
     try:
         source = _table(payload.get("source_budget"))
-        terminal = Totals.model_validate(_table(source.get("terminal")))
+        terminal = TerminalTotals.model_validate(_table(source.get("terminal")))
         cross = _table(source.get("cross_check"))
-        tolerance = Totals.model_validate(_table(cross.get("tolerance")))
+        tolerance = CrossCheckTotals.model_validate(_table(cross.get("tolerance")))
         aggregates = {
             name: _strings(value) for name, value in _table(source.get("aggregates")).items()
         }

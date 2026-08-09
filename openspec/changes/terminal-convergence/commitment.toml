@@ -41,13 +41,14 @@ invariants = [
   "no_parallel_truth_or_compatibility_residue",
   "unknown_signals_preserved",
   "terminal_capability_preserved_with_net_deletion",
+  "python_source_roles_do_not_compensate",
 ]
 acceptance = [
   "contract_attestation_plan_and_effect_chain_proven",
   "campaign_lane_records_docs_skills_and_ci_are_derived",
   "three_adopter_profiles_conform",
   "warnings_and_suppressions_zero",
-  "terminal_source_budget_met",
+  "terminal_role_local_source_budget_met",
   "local_gitlab_and_github_planes_independently_attested",
 ]
 risks = [

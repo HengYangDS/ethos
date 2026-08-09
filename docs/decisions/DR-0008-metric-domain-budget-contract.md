@@ -150,9 +150,17 @@ Use canonical formatting, direct measurement, `scc`, and Python AST/tokenize
 cross-checks, while proving capabilities and all owned carrier classes rather
 than preserving the historical private vector runtime.
 
+The former terminal `python_total` scalar was a compensating coordinate: test
+deletion could fund product or automation growth even though these roles have
+different change reasons and risk. The terminal successor therefore enforces
+product, test, automation-tool, and other Python independently while retaining
+the global owned-source ceiling. No carrier is excluded and no role can borrow
+headroom from another.
+
 ## Decision Change Ledger
 
 | Version | Date | Change | Reason | Evidence |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-19 | Selected the metric-domain vector | Prevent cross-domain gaming | Budget Contract v2 evidence |
 | 2 | 2026-07-28 | Superseded the private vector runtime with direct measurement | Preserve anti-gaming with less machinery | Terminal quality contract and source-budget tests |
+| 3 | 2026-08-09 | Replaced the compensating Python scalar with role-local terminal coordinates | Prevent test deletion from subsidizing product or automation growth while retaining the global ceiling | Terminal quality contract, generation comparison, and non-compensation regressions |

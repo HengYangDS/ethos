@@ -337,9 +337,10 @@ def test_terminal_commitment_claims_complete_campaign_closeout() -> None:
         "campaign_lane_records_docs_skills_and_ci_are_derived",
         "three_adopter_profiles_conform",
         "warnings_and_suppressions_zero",
-        "terminal_source_budget_met",
+        "terminal_role_local_source_budget_met",
         "local_gitlab_and_github_planes_independently_attested",
     ]
+    assert "python_source_roles_do_not_compensate" in commitment["invariants"]
     assert "terminal-publication.execute" in commitment["permissions"]
     assert commitment["dependencies"] == []
 
@@ -361,7 +362,13 @@ def test_branch_roles_and_thresholds_have_machine_owners() -> None:
     }
     assert coverage["current_hard_floor"] == 95
     assert coverage["branch_coverage_required"] is True
-    assert source_budget == {"python_total": 54_000, "global_total": 68_000}
+    assert source_budget == {
+        "python_product": 36_000,
+        "python_tests": 18_000,
+        "python_tools": 3_000,
+        "python_other": 120,
+        "global_total": 68_000,
+    }
     assert "`candidate/dev` and every `work/*` branch are local-only" in release
     assert "`dev`, `main`, and `proposal/*`" in release
     assert "submit/*" not in release

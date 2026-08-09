@@ -15,6 +15,18 @@ from ethos.repository.profile import profile_root
 from ethos.repository.profile import render_repository_profile
 
 
+def _write_profile(root: Path, text: str) -> Path:
+    profile = root / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(text, encoding="utf-8")
+    return profile
+
+
+def _assert_invalid_profile(root: Path, text: str) -> None:
+    _write_profile(root, text)
+    assert load_repository_profile(root).state == "invalid"
+
+
 def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> None:
     declaration = RepositoryProfileDeclaration.bootstrap('sample<repo&"')
 
@@ -35,9 +47,7 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
             }
         )
 
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(rendered, encoding="utf-8")
+    _write_profile(tmp_path, rendered)
     loaded = load_repository_profile(tmp_path)
 
     assert loaded.state == "valid"
@@ -48,16 +58,14 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
 
 
 def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
+    _write_profile(
+        tmp_path,
         'profile_id = "self"\n'
         'commitment = "governance/commitment.toml"\n\n'
         "[openspec]\n"
         'material_paths = ["docs/**"]\n\n'
         "[proof]\n"
         'gate_registry = "system/gates.toml"\n',
-        encoding="utf-8",
     )
 
     declaration = load_repository_profile(tmp_path).declaration
@@ -86,11 +94,7 @@ def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path
     ],
 )
 def test_profile_rejects_retired_or_incomplete_proof_owners(tmp_path: Path, proof: str) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text('profile_id = "sample"\n\n[proof]\n' + proof, encoding="utf-8")
-
-    assert load_repository_profile(tmp_path).state == "invalid"
+    _assert_invalid_profile(tmp_path, 'profile_id = "sample"\n\n[proof]\n' + proof)
 
 
 def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -> None:
@@ -99,9 +103,8 @@ def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Pa
     subprocess.run(
         ["git", "config", "user.email", "test@example.invalid"], cwd=tmp_path, check=True
     )
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
+    _write_profile(
+        tmp_path,
         'profile_id = "codex-responses-proxy"\n\n'
         "[proof]\n"
         'code_correctness_gates = ["python-quality", "python-matrix"]\n\n'
@@ -126,7 +129,6 @@ def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Pa
         'evidence_class = "proof"\n'
         "trust_bearing = true\n"
         'tool_adapter = "repository-native"\n',
-        encoding="utf-8",
     )
     subprocess.run(["git", "add", ".ethos/profile.toml"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "profile"], cwd=tmp_path, check=True)
@@ -148,9 +150,8 @@ def test_real_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Pa
 
 
 def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
+    _assert_invalid_profile(
+        tmp_path,
         'profile_id = "sample"\n\n'
         "[proof]\n"
         'code_correctness_gates = ["tests"]\n\n'
@@ -159,10 +160,7 @@ def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
         'kind = "test"\n'
         'command = ["pytest"]\n'
         'registries = ["quality"]\n',
-        encoding="utf-8",
     )
-
-    assert load_repository_profile(tmp_path).state == "invalid"
 
 
 @pytest.mark.parametrize(
@@ -214,11 +212,7 @@ def test_profile_gate_cannot_select_registry_projection(tmp_path: Path) -> None:
     ],
 )
 def test_profile_contract_rejects_incomplete_or_undeclared_shape(tmp_path: Path, text: str) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(text, encoding="utf-8")
-
-    assert load_repository_profile(tmp_path).state == "invalid"
+    _assert_invalid_profile(tmp_path, text)
 
 
 def test_profile_contract_rejects_non_string_paths() -> None:
@@ -233,9 +227,8 @@ def test_profile_contract_rejects_non_string_paths() -> None:
 
 
 def test_profile_contract_rejects_complete_former_envelope(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
+    _assert_invalid_profile(
+        tmp_path,
         "schema_version = 1\n"
         'profile_id = "sample"\n'
         'profile_version = "1"\n'
@@ -245,34 +238,22 @@ def test_profile_contract_rejects_complete_former_envelope(tmp_path: Path) -> No
         'root_subject = "sample"\n\n'
         "[openspec]\n"
         'material_paths = ["openspec/**"]\n',
-        encoding="utf-8",
     )
-
-    assert load_repository_profile(tmp_path).state == "invalid"
 
 
 def test_current_profile_rejects_root_rules_workaround(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
+    _assert_invalid_profile(
+        tmp_path,
         'profile_id = "sample"\n\n'
         "[roots]\n"
         'rules = "."\n\n'
         "[openspec]\n"
         'material_paths = ["openspec/**"]\n',
-        encoding="utf-8",
     )
-
-    assert load_repository_profile(tmp_path).state == "invalid"
 
 
 def test_profile_includes_declared_normative_sources_without_root_escape(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        'profile_id = "sample"\n\nnormative_sources = ["guidelines.md"]\n',
-        encoding="utf-8",
-    )
+    _write_profile(tmp_path, 'profile_id = "sample"\n\nnormative_sources = ["guidelines.md"]\n')
 
     assert profile_evidence_roots(tmp_path) == (
         ".ethos/profile.toml",
@@ -285,9 +266,7 @@ def test_profile_includes_declared_normative_sources_without_root_escape(tmp_pat
 
 
 def test_profile_loader_rejects_unreadable_profile(tmp_path: Path, monkeypatch) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text("profile_id = 'sample'\n", encoding="utf-8")
+    profile = _write_profile(tmp_path, "profile_id = 'sample'\n")
     original = Path.read_text
 
     def unreadable(path: Path, *args, **kwargs) -> str:
@@ -301,11 +280,9 @@ def test_profile_loader_rejects_unreadable_profile(tmp_path: Path, monkeypatch) 
 
 
 def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
+    _write_profile(
+        tmp_path,
         "profile_id = 'sample'\n[roots]\ndurable_evidence = '../evidence'\n",
-        encoding="utf-8",
     )
 
     loaded = load_repository_profile(tmp_path)
@@ -317,9 +294,7 @@ def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> No
 
 def test_profile_loader_never_falls_back_from_an_invalid_tree_ref(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", tmp_path], check=True)
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text("profile_id = 'working-tree'\n", encoding="utf-8")
+    _write_profile(tmp_path, "profile_id = 'working-tree'\n")
 
     with pytest.raises(ValueError, match="repository_tree_ref_invalid"):
         load_committed_repository_profile(tmp_path, "deadbeef" * 5)

@@ -19,6 +19,7 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     recognized_rebind_attestation,
 )
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
+from ethos.adapters.repo.commit_identity import verify_commit_trust
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -344,6 +345,11 @@ def _admit_request(
     *,
     require_apply: bool,
 ) -> None:
+    if request.repair_change_identity:
+        trust = verify_commit_trust(repo, request.target_commit)
+        gaps = trust.get("required_gaps")
+        if isinstance(gaps, list) and gaps:
+            raise ValueError(str(gaps[0]))
     checks = (
         (request.apply or not require_apply, "commitment_rebind_apply_required"),
         (

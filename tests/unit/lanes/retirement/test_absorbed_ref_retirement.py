@@ -48,14 +48,22 @@ def _absorbed_ref(tmp_path: Path) -> tuple[Path, str, str]:
     return repo, source, git(repo, "rev-parse", "HEAD")
 
 
-def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) -> None:
-    repo, source, accepted = _absorbed_ref(tmp_path)
+def _retire(
+    repo: Path,
+    *,
+    branch: str,
+    source: str,
+    accepted: str,
+    apply: bool = True,
+    blocked: bool = False,
+) -> dict[str, object]:
+    command = run_ethos_blocked if blocked else run_ethos
     arguments = (
         "lane",
         "retire",
         "absorbed-ref",
         "--branch",
-        "work/absorbed",
+        branch,
         "--expect-head",
         source,
         "--accepted-head",
@@ -64,16 +72,31 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
         repo.as_posix(),
         "--authorize",
         "--confirm-irreversible",
+        *(("--apply",) if apply else ()),
         "--json",
     )
+    return command(*arguments, cwd=repo)
 
-    planned = run_ethos(*arguments, cwd=repo)
+
+def _raw_delete(repo: Path, branch: str, source: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ("git", "update-ref", "-d", f"refs/heads/{branch}", source),
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) -> None:
+    repo, source, accepted = _absorbed_ref(tmp_path)
+    planned = _retire(repo, branch="work/absorbed", source=source, accepted=accepted, apply=False)
     assert (planned["verdict"], planned["state"], planned["required_gaps"]) == (
         "pass",
         "ready_to_retire_absorbed_ref",
         [],
     )
-    applied = run_ethos(*arguments, "--apply", cwd=repo)
+    applied = _retire(repo, branch="work/absorbed", source=source, accepted=accepted)
 
     assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
         "pass",
@@ -128,23 +151,11 @@ def test_absorbed_ref_retires_through_installed_reference_transaction_hook(
 
     monkeypatch.setattr(absorbed_retirement, "execute_git_effect", capture_policy)
 
-    applied = run_ethos(
-        "lane",
-        "retire",
-        "absorbed-ref",
-        "--branch",
-        "work/absorbed",
-        "--expect-head",
-        source,
-        "--accepted-head",
-        accepted,
-        "--root",
-        repo.as_posix(),
-        "--authorize",
-        "--confirm-irreversible",
-        "--apply",
-        "--json",
-        cwd=repo,
+    applied = _retire(
+        repo,
+        branch="work/absorbed",
+        source=source,
+        accepted=accepted,
     )
 
     assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
@@ -169,19 +180,7 @@ def test_absorbed_ref_retires_through_installed_reference_transaction_hook(
         operation="lane.retire.absorbed-ref",
         plan_digest="0" * 64,
     )
-    wrong_operation = subprocess.run(
-        [
-            "git",
-            "update-ref",
-            "-d",
-            "refs/heads/work/wrong-operation",
-            source,
-        ],
-        cwd=repo,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    wrong_operation = _raw_delete(repo, "work/wrong-operation", source)
 
     assert wrong_operation.returncode != 0
     assert git(repo, "rev-parse", "work/wrong-operation") == source
@@ -206,23 +205,11 @@ def test_absorbed_ref_retires_legacy_source_without_branch_policy_through_curren
     git(repo, "branch", "work/legacy-absorbed", source)
     install_hook_launchers(repo)
 
-    applied = run_ethos(
-        "lane",
-        "retire",
-        "absorbed-ref",
-        "--branch",
-        "work/legacy-absorbed",
-        "--expect-head",
-        source,
-        "--accepted-head",
-        accepted,
-        "--root",
-        repo.as_posix(),
-        "--authorize",
-        "--confirm-irreversible",
-        "--apply",
-        "--json",
-        cwd=repo,
+    applied = _retire(
+        repo,
+        branch="work/legacy-absorbed",
+        source=source,
+        accepted=accepted,
     )
 
     assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
@@ -242,13 +229,7 @@ def test_legacy_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked
     git(repo, "branch", "work/legacy-unintended", source)
     install_hook_launchers(repo)
 
-    deleted = subprocess.run(
-        ("git", "update-ref", "-d", "refs/heads/work/legacy-unintended", source),
-        cwd=repo,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    deleted = _raw_delete(repo, "work/legacy-unintended", source)
 
     assert deleted.returncode != 0
     assert git(repo, "rev-parse", "work/legacy-unintended") == source
@@ -279,34 +260,11 @@ repository_family_worktrees = true
         git(repo, "branch", branch, source)
     install_hook_launchers(repo)
 
-    raw = subprocess.run(
-        ("git", "update-ref", "-d", f"refs/heads/{branches[0]}", source),
-        cwd=repo,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    raw = _raw_delete(repo, branches[0], source)
     assert raw.returncode != 0
 
     for branch in branches:
-        applied = run_ethos(
-            "lane",
-            "retire",
-            "absorbed-ref",
-            "--branch",
-            branch,
-            "--expect-head",
-            source,
-            "--accepted-head",
-            accepted,
-            "--root",
-            repo.as_posix(),
-            "--authorize",
-            "--confirm-irreversible",
-            "--apply",
-            "--json",
-            cwd=repo,
-        )
+        applied = _retire(repo, branch=branch, source=source, accepted=accepted)
         assert (applied["verdict"], applied["state"]) == (
             "pass",
             "retired_absorbed_ref",
@@ -320,23 +278,12 @@ def test_absorbed_ref_fails_closed_when_ref_is_not_an_accepted_ancestor(tmp_path
     git(repo, "branch", "-f", "work/absorbed", accepted)
     changed = git(repo, "rev-parse", "work/absorbed")
 
-    payload = run_ethos_blocked(
-        "lane",
-        "retire",
-        "absorbed-ref",
-        "--branch",
-        "work/absorbed",
-        "--expect-head",
-        changed,
-        "--accepted-head",
-        source,
-        "--root",
-        repo.as_posix(),
-        "--authorize",
-        "--confirm-irreversible",
-        "--apply",
-        "--json",
-        cwd=repo,
+    payload = _retire(
+        repo,
+        branch="work/absorbed",
+        source=changed,
+        accepted=source,
+        blocked=True,
     )
 
     assert "accepted_head_mismatch" in payload["required_gaps"]
@@ -363,23 +310,12 @@ def test_absorbed_ref_reobserves_before_delete(
         return status
 
     monkeypatch.setattr(absorbed_retirement, "workspace_status", worktree_appeared)
-    payload = run_ethos_blocked(
-        "lane",
-        "retire",
-        "absorbed-ref",
-        "--branch",
-        "work/absorbed",
-        "--expect-head",
-        source,
-        "--accepted-head",
-        accepted,
-        "--root",
-        repo.as_posix(),
-        "--authorize",
-        "--confirm-irreversible",
-        "--apply",
-        "--json",
-        cwd=repo,
+    payload = _retire(
+        repo,
+        branch="work/absorbed",
+        source=source,
+        accepted=accepted,
+        blocked=True,
     )
 
     assert payload["required_gaps"] == ["absorbed_ref_worktree_appeared"]

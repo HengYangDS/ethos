@@ -408,7 +408,7 @@ def materialize_fresh_carrier(
         ("new", "change", context.source_change_id, "--json"),
     )
     if created["exit_code"] or created["parse_error"]:
-        return failed_process("openspec_change_creation_failed"), ""
+        return openspec_failure_process(created, "openspec_change_creation_failed"), ""
     target = context.target / context.source_commitment_path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(context.source_root.read_bytes())
@@ -464,6 +464,23 @@ def lane_start_drift_gap(
 def failed_process(message: str) -> subprocess.CompletedProcess[str]:
     """Build one synthetic failed process for a pre-command lane-start check."""
     return subprocess.CompletedProcess(("materialize",), 1, "", message)
+
+
+def openspec_failure_process(
+    report: dict[str, object],
+    fallback: str,
+) -> subprocess.CompletedProcess[str]:
+    """Preserve bounded child evidence when official OpenSpec fails."""
+    command = report.get("command")
+    args = tuple(str(item) for item in command) if isinstance(command, list) else ("openspec",)
+    process = subprocess.CompletedProcess(
+        args,
+        int(report.get("exit_code") or 1),
+        str(report.get("stdout") or ""),
+        str(report.get("stderr") or fallback),
+    )
+    process.parse_error = str(report.get("parse_error") or "")
+    return process
 
 
 def commit_metadata(

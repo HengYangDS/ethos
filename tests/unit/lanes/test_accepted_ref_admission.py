@@ -36,6 +36,7 @@ import pytest
 
 import ethos.adapters.admission.git_admission as admission
 import ethos.adapters.admission.ref_intent as intent
+import ethos.adapters.admission.ref_move_policy as ref_move_policy
 import ethos.adapters.mutation.proof as proof
 from tests.support import governed_repository as fx
 
@@ -178,7 +179,7 @@ _ROWS = tuple(line.split("|") for line in (__doc__ or "").splitlines()[2:])
 
 def _call(state: State, plane: str, target: str, old: str, new: str, **extra: str) -> object:
     if plane == "o":
-        return admission.resolve_ref_move_policy(
+        return ref_move_policy.resolve_ref_move_policy(
             state.repo, ref_name=f"refs/heads/{target}", old_value=old, new_value=new
         )
     if plane == "p":
@@ -201,7 +202,7 @@ def test_accepted_ref_admission_claim_matrix(tmp_path: Path, row: tuple[str, ...
         assert _call(state, plane, target, old, new, phase="committed")["verdict"] == "pass"
     report = _call(state, plane, target, old, new)
     if boundary == "policy":
-        assert report == admission.BranchRolePolicy()
+        assert report == ref_move_policy.BranchRolePolicy()
         return
     assert report["verdict"] == verdict
     if boundary == "!proof":

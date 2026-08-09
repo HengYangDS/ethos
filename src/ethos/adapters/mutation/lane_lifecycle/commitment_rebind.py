@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -45,7 +44,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.repository.openspec.identifiers import logical_change_identifier_issue
+from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -457,15 +456,11 @@ def identity_transition_valid(
 ) -> bool:
     if not request.repair_change_identity:
         return new_commitment.id == old_commitment_id
-    logical = request.new_commitment_path.removesuffix("/commitment.toml").rsplit("/", 1)[-1]
-    dated = re.fullmatch(r"change:20\d{6}-(.+)", old_commitment_id)
-    return (
-        dated is not None
-        and dated.group(1) == logical
-        and not logical_change_identifier_issue(logical)
-        and new_commitment.id == f"change:{logical}"
-        and new_commitment.model_copy(update={"id": old_commitment_id}).digest()
-        == old_commitment_digest
+    return malformed_change_identity_repair_valid(
+        carrier=request.new_commitment_path,
+        old_id=old_commitment_id,
+        old_digest=old_commitment_digest,
+        new=new_commitment,
     )
 
 

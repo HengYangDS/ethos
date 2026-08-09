@@ -130,19 +130,7 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
     git(root, "add", relative)
     empty_hooks = Path(git(root, "rev-parse", "--path-format=absolute", "--git-path", "test-hooks"))
     empty_hooks.mkdir(parents=True, exist_ok=True)
-    git(
-        root,
-        "-c",
-        f"core.hooksPath={empty_hooks.as_posix()}",
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        message,
-    )
-    head = git(root, "rev-parse", "HEAD")
+    head = _commit_fixture(root, message, hooks_path=empty_hooks)
     branch = git(root, "branch", "--show-current")
     holder = str(leases_by_branch(root).get(branch, {}).get("holder_ref") or "")
     if holder:
@@ -202,17 +190,7 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
     (path / ".ethos" / "state").mkdir(parents=True)
     (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
-    git(path, "add", ".")
-    git(
-        path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "init",
-    )
+    commit_fixture(path, "init")
     return path
 
 
@@ -220,17 +198,7 @@ def init_repo_with_candidate(tmp_path: Path) -> tuple[Path, Path]:
     """Create a minimal accepted root and its linked candidate checkout."""
     repo = init_git_repo(tmp_path / "repo")
     adoption_plan(repo, apply=True)
-    git(repo, "add", ".")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "adopt ethos governance",
-    )
+    commit_fixture(repo, "adopt ethos governance")
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
@@ -250,17 +218,7 @@ def create_change_source_lane(
     base_branch = load_branch_role_policy(repo).accepted_branch
     git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
     _write_active_change_carrier(path, change_id=change_id, scope=scope)
-    git(path, "add", ".")
-    git(
-        path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        f"declare {change_id}",
-    )
+    commit_fixture(path, f"declare {change_id}")
     acquire_lease(
         state_database(repo),
         lease=exact_lease(
@@ -338,16 +296,7 @@ def commit_openspec_baseline(repo: Path) -> None:
     _write_openspec_baseline(repo)
     if git(repo, "status", "--short", "--", "openspec", ".ethos/profile.toml"):
         git(repo, "add", "openspec/config.yaml", "openspec/specs", ".ethos/profile.toml")
-        git(
-            repo,
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "seed OpenSpec baseline",
-        )
+        _commit_fixture(repo, "seed OpenSpec baseline")
 
 
 def _write_active_change_carrier(
@@ -413,17 +362,7 @@ def commit_active_commitment(
     """Commit one active fixture Commitment and return its canonical digest."""
     write_active_commitment(repo, change_id=change_id, scope=scope)
     if git(repo, "status", "--short"):
-        git(repo, "add", ".")
-        git(
-            repo,
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "declare active change",
-        )
+        commit_fixture(repo, "declare active change")
     head = git(repo, "rev-parse", "HEAD")
     return exact_commitment_fields(
         repo,
@@ -469,17 +408,7 @@ def write_role_policy(
         ),
         encoding="utf-8",
     )
-    git(repo, "add", workspace_path.as_posix())
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "configure branch roles",
-    )
+    commit_fixture(repo, "configure branch roles")
 
 
 def adopt_and_commit(repo: Path) -> None:
@@ -500,17 +429,7 @@ def adopt_and_commit(repo: Path) -> None:
     _enable_openspec_profile(repo)
     write_publication_topology(repo)
     _write_openspec_baseline(repo)
-    git(repo, "add", ".")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "adopt ethos governance",
-    )
+    commit_fixture(repo, "adopt ethos governance")
 
 
 def render_branch_policy(
@@ -577,6 +496,55 @@ def write_publication_topology(
     )
 
 
+def write_script_gate_policy(root: Path, *, full: bool = False) -> None:
+    """Declare one script-backed proof policy for repository fixtures."""
+    profile = root / ".ethos/profile.toml"
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(
+        'profile_id = "policy-test"\n\n[proof]\ngate_registry = "system/gates.toml"\n',
+        encoding="utf-8",
+    )
+    registry = root / "system/gates.toml"
+    registry.parent.mkdir(parents=True, exist_ok=True)
+    default = '"check"' if full else '"publish"'
+    registry.write_text(
+        'schema_version = 1\nid = "policy-test"\n\n'
+        f"[proof_sets]\ndefault = [{default}]\n"
+        'full = ["check", "publish"]\n\n'
+        '[[gates]]\nid = "publish"\nregistries = ["runtime"]\nkind = "release"\n'
+        'command = ["publish"]\ndepends_on = ["check"]\n\n'
+        '[[gates]]\nid = "check"\nregistries = ["runtime"]\nkind = "test"\n'
+        'command = ["tools/check.sh"]\ndimensions = ["behavior"]\n'
+        'evidence_class = "proof"\ntrust_bearing = true\n',
+        encoding="utf-8",
+    )
+    (root / "tools").mkdir(parents=True, exist_ok=True)
+    (root / "tools/check.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+
+
+def commit_fixture(root: Path, message: str) -> str:
+    """Commit all fixture changes and return the resulting HEAD."""
+    git(root, "add", ".")
+    return _commit_fixture(root, message)
+
+
+def _commit_fixture(root: Path, message: str, *, hooks_path: Path | None = None) -> str:
+    """Commit the staged fixture index with deterministic test identity."""
+    hook_arguments = ("-c", f"core.hooksPath={hooks_path.as_posix()}") if hooks_path else ()
+    git(
+        root,
+        *hook_arguments,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        message,
+    )
+    return git(root, "rev-parse", "HEAD")
+
+
 def _declare_minimal_code_correctness(repo: Path) -> None:
     """Declare a minimal, axis-covering code-correctness map on the scaffolded profile.
 
@@ -618,6 +586,34 @@ def _declare_minimal_code_correctness(repo: Path) -> None:
     )
 
 
+def issue_conformant_proof(
+    repo,
+    head,
+    *,
+    plan=None,
+    checks=None,
+    issuer="agent:test:fixture:proof",
+    issued_at=datetime(2026, 7, 26, tzinfo=UTC),
+    boundary="repository",
+):
+    """Issue one proof Attestation from the repository's exact declared policy."""
+    plan = plan or proof_plan(repo, head=head)
+    if checks is None:
+        checks = tuple(conformant_proof_check(node.id, repo, tree_ref=head) for node in plan.nodes)
+    return issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": checks,
+            "verdict": "pass",
+            "issuer": issuer,
+            "issued_at": issued_at,
+            "scope": "repository",
+            "boundary": boundary,
+        },
+    )
+
+
 def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
     """Persist one complete policy-conformant generic proof Attestation."""
     branch = git(repo, "branch", "--show-current")
@@ -632,23 +628,10 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
             full=full,
             changed_paths=change_scope_paths_from_status(repo, workspace_status(repo)),
         )
-        checks = tuple(
-            conformant_proof_check(gate_id, repo, tree_ref=head)
-            for gate_id in resolve_gate_policy(repo, tree_ref=head, full=full).gate_ids
-        )
-        attestation = issue_proof_attestation(
+        persist_proof_attestation(
             repo,
-            {
-                "plan": plan,
-                "checks": checks,
-                "verdict": "pass",
-                "issuer": "agent:test:fixture:proof",
-                "issued_at": datetime.now(UTC),
-                "scope": "repository",
-                "boundary": "repository",
-            },
+            issue_conformant_proof(repo, head, plan=plan, issued_at=datetime.now(UTC)),
         )
-        persist_proof_attestation(repo, attestation)
     finally:
         if original is None:
             os.environ.pop("ETHOS_ACTOR", None)

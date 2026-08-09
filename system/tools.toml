@@ -356,6 +356,7 @@ profile = "docs"
 concern = "hosted_provider_observation"
 tool = "gh,glab"
 config = ".config/checks/ci/hosted-observation.toml"
+runtime_inputs = ["ETHOS_HOSTED_OBSERVATION_EXECUTE"]
 artifacts = "build/evidence/hosted-ci/"
 gate = "uv run --frozen --offline python -m nox -s hosted_observation"
 profile = "provider"

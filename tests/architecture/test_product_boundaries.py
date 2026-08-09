@@ -484,7 +484,12 @@ def test_openspec_workspace_validates_with_official_cli() -> None:
 
 def test_product_behavior_does_not_live_in_tools_directory() -> None:
     tools_root = ROOT / "tools"
-    allowed = {tools_root / "ci", tools_root / "ci/scripts"}
+    allowed = {
+        tools_root / "ci",
+        tools_root / "ci/delivery",
+        tools_root / "ci/scripts",
+        tools_root / "ci/toolchain",
+    }
     cache_dirs = {"__pycache__", ".pytest_cache", ".ruff_cache"}
     product_dirs = {
         path

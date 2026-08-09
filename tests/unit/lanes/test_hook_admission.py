@@ -5,6 +5,9 @@ import os
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
 
 import ethos.adapters.admission.identity as admission_identity
 from ethos.adapters.admission.git_admission import hook_admission_report
@@ -31,7 +34,42 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_publication_topology
 from tests.support.lane_scenarios import leased_worktree as create_leased_worktree
 
-CASE_PAYLOAD = json.loads(
+
+class Case(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    id: str = Field(min_length=1)
+    values: tuple[object, ...] = Field(min_length=1)
+
+
+class CaseMatrix(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    push_invalid_targets: tuple[Case, ...]
+    prewrite_states: tuple[Case, ...]
+    prewrite_actor_states: tuple[Case, ...]
+    mutation_without_paths: tuple[Case, ...]
+    observe_only_commands: tuple[Case, ...]
+    effect_capable_commands: tuple[Case, ...]
+    unclassifiable_with_paths: tuple[Case, ...]
+    stash_operation_states: tuple[Case, ...]
+    postwrite_states: tuple[Case, ...]
+    identity_states: tuple[Case, ...]
+    proposal_baseline_states: tuple[Case, ...]
+
+
+CASE_ARITY = {
+    "push_invalid_targets": 4,
+    "prewrite_states": 3,
+    "prewrite_actor_states": 4,
+    "mutation_without_paths": 1,
+    "observe_only_commands": 1,
+    "effect_capable_commands": 1,
+    "unclassifiable_with_paths": 1,
+    "stash_operation_states": 3,
+    "postwrite_states": 3,
+    "identity_states": 3,
+    "proposal_baseline_states": 3,
+}
+CASE_PAYLOAD = CaseMatrix.model_validate_json(
     (Path(__file__).parents[2] / "fixtures/hook-admission/cases.json").read_text()
 )
 
@@ -103,7 +141,11 @@ def _clear_attestation_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _cases(name: str) -> tuple[object, ...]:
-    return tuple(pytest.param(*case["values"], id=case["id"]) for case in CASE_PAYLOAD[name])
+    cases = getattr(CASE_PAYLOAD, name)
+    ids = [case.id for case in cases]
+    assert len(ids) == len(set(ids))
+    assert all(len(case.values) == CASE_ARITY[name] for case in cases)
+    return tuple(pytest.param(*case.values, id=case.id) for case in cases)
 
 
 @pytest.fixture

@@ -16,7 +16,6 @@ from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import effective_git_config_value
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_admission import require_effect_permission
@@ -24,6 +23,7 @@ from ethos.adapters.repo.git_effect_admission import require_live_lease
 from ethos.adapters.repo.git_effect_admission import require_plan_prestate
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
+from ethos.adapters.repo.git_signing import commit_environment
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -100,48 +100,12 @@ def commit_git_worktree(
         "-m",
         message,
         check=False,
-        env=_commit_environment(root, environment),
+        env=commit_environment(root, environment),
     )
     return {
         "verdict": "pass" if completed.returncode == 0 else "block",
         "error": completed.stderr.strip(),
     }
-
-
-def _commit_environment(root: Path, environment: Mapping[str, str] | None) -> dict[str, str] | None:
-    bound = dict(environment or {})
-    signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
-    if signing.returncode:
-        return bound or None
-    key = Path(signing.stdout.strip())
-    if not key.is_absolute() or not key.is_file():
-        message = "git_effect_signing_key_invalid"
-        raise ValueError(message)
-    public_key = key.read_text(encoding="utf-8").strip()
-    if not public_key.startswith(("ssh-ed25519 ", "ssh-rsa ", "ecdsa-sha2-")):
-        message = "git_effect_signing_key_invalid"
-        raise ValueError(message)
-    signer_value = effective_git_config_value(root, "gpg.ssh.program")
-    signing_value = f"key::{public_key}"
-    signing_inputs: tuple[tuple[str, str], ...] = ()
-    if signer_value:
-        signer = Path(signer_value)
-        if not signer.is_absolute() or not signer.is_file() or not os.access(signer, os.X_OK):
-            message = "git_effect_signing_program_invalid"
-            raise ValueError(message)
-        signing_value = key.as_posix()
-        signing_inputs = (("gpg.ssh.program", signer.as_posix()),)
-    count = int(bound.get("GIT_CONFIG_COUNT", "0"))
-    for name, value in (
-        ("gpg.format", "ssh"),
-        *signing_inputs,
-        ("user.signingkey", signing_value),
-    ):
-        bound[f"GIT_CONFIG_KEY_{count}"] = name
-        bound[f"GIT_CONFIG_VALUE_{count}"] = value
-        count += 1
-    bound["GIT_CONFIG_COUNT"] = str(count)
-    return bound
 
 
 def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") -> None:
@@ -250,6 +214,7 @@ def execute_git_effect(
     desired = {name: update.desired for name, update in effect.updates.items()}
     intents: list[dict[str, object]] = []
     applied = False
+    persisted = False
     try:
         if recovering:
             intents = _claim_effect_intents(root, plan, effect, phase="recover")
@@ -280,9 +245,10 @@ def execute_git_effect(
         ethos.adapters.repo.git_effect_attestation.records(
             root, plan, attestation, environment=environment
         )
+        persisted = True
         _clear_claimed_intents(root, intents)
     except (OSError, TypeError, ValueError) as error:
-        if applied and not recovering:
+        if applied and not recovering and not persisted:
             _compensate_git_effect(
                 root,
                 plan,
@@ -318,14 +284,14 @@ def admit_git_effect(
     )
 
 
-def _apply_git_ref_transaction(
+def _run_effect_program(
     root: Path,
     plan: TransitionPlan,
     effect: GitEffect,
     *,
     environment: Mapping[str, str] | None,
-) -> None:
-    completed = run_git(
+) -> Any:
+    return run_git(
         root,
         "update-ref",
         "--stdin",
@@ -335,7 +301,16 @@ def _apply_git_ref_transaction(
         stdin=effect.program(),
         text=False,
     )
-    if completed.returncode:
+
+
+def _apply_git_ref_transaction(
+    root: Path,
+    plan: TransitionPlan,
+    effect: GitEffect,
+    *,
+    environment: Mapping[str, str] | None,
+) -> None:
+    if _run_effect_program(root, plan, effect, environment=environment).returncode:
         message = "git_effect_cas_rejected"
         raise ValueError(message)
 
@@ -499,16 +474,7 @@ def _compensate_git_effect(
         assertions=effect.assertions,
     )
     reverse_intents = _claim_effect_intents(root, plan, reverse, phase="prepared")
-    completed = run_git(
-        root,
-        "update-ref",
-        "--stdin",
-        "-z",
-        check=False,
-        env={**(_effect_environment(root, plan, reverse) or {}), **(environment or {})},
-        stdin=reverse.program(),
-        text=False,
-    )
+    completed = _run_effect_program(root, plan, reverse, environment=environment)
     restored = observe_git_effect(root, reverse, environment=environment)
     expected = {name: update.desired for name, update in reverse.updates.items()}
     observed = cast("dict[str, str]", restored["refs"])

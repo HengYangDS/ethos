@@ -244,23 +244,16 @@ def _missing_lease_report(
     new_zero: bool,
 ) -> dict[str, object]:
     ref_name = f"refs/heads/{branch}"
+    operation = "lane.retire" if new_zero else "lane.retire.compensate"
     intent = (
         claim_ref_intent(
             root=repo,
             ref_name=ref_name,
             update=update,
-            operation="lane.retire",
+            operation=operation,
             phase="prepared",
         )
-        if phase == "prepared" and new_zero
-        else claim_ref_intent(
-            root=repo,
-            ref_name=ref_name,
-            update=update,
-            operation="lane.retire.compensate",
-            phase="prepared",
-        )
-        if phase == "prepared" and not new_zero and _is_zero_oid(update.expected)
+        if phase == "prepared" and (new_zero or _is_zero_oid(update.expected))
         else {}
     )
     return (

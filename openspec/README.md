@@ -43,6 +43,12 @@ to move unchecked work, and never mark migration as implementation. The current
 terminal-convergence Campaign deliberately remains one active Change and one Work
 Lane until its complete terminal predicate is proved.
 
+OpenSpec checkboxes own obligations that can be completed before archive. An
+archive, proof of the resulting HEAD, candidate or protected-ref advance, hosted
+review, and publication are effects whose subject does not exist until the prior
+transition succeeds; they remain mandatory through exact Attestations and receipts,
+not unchecked boxes that would make archive admission circular.
+
 ## Proof
 
 Validate the carrier with its native owner, then compile the governed plan:

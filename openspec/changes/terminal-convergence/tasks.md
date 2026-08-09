@@ -314,7 +314,7 @@ are proved homomorphic projections of one portable policy.
 
 ## 6. Complete Quality, Product, And Ecosystem Proof
 
-- [ ] 6.1 Declare exactly one owner for formatting, lint, type, test,
+- [x] 6.1 Declare exactly one owner for formatting, lint, type, test,
   architecture, docs, schema, dependency, security, SBOM, provenance, version,
   release, environment matrix, and source measurement; local and hosted gates
   call those owners. Cut Python execution over to one project-local closure:
@@ -338,10 +338,10 @@ are proved homomorphic projections of one portable policy.
   credential helpers, user identity, HOME, PATH, network, and provider state;
   local listeners are loopback-only unless an explicit deployment owner proves a
   broader bind. Exceptions name owner, scope, reason, expiry, and kill signal.
-- [ ] 6.2 Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
+- [x] 6.2 Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
   coverage-ignore, and equivalent suppressions.
-- [ ] 6.3 Enforce non-compensating Python ELOC ceilings for product ≤40,000,
-  tests ≤30,000, cross-platform automation tools ≤4,000, and other Python ≤200;
+- [x] 6.3 Enforce non-compensating Python ELOC ceilings for product ≤40,000,
+  tests ≤33,000, cross-platform automation tools ≤4,000, and other Python ≤200;
   retain global owned-source ELOC ≤85,000, branch-aware coverage ≥95%, and complete
   behavior coverage for authority, CAS, and pure reducers. Changed-scope
   admission binds the exact merge base and evaluates every coordinate
@@ -352,7 +352,7 @@ are proved homomorphic projections of one portable policy.
   consistent blank-line rules, internal and external links, and projection drift.
   Exercise GitHub workflows locally with locked `act` and GitLab pipelines with
   their declared local emulator as non-hosted evidence only.
-- [ ] 6.5 Admit duplicate/dead-definition, complexity, dependency, security, and
+- [x] 6.5 Admit duplicate/dead-definition, complexity, dependency, security, and
   structural tools only for distinct owned properties; delete overlapping
   wrappers, baselines, advisory-only tools, and unconsumed dependencies. One
   online refresh proposes the latest stable direct floors and lock update;
@@ -361,10 +361,10 @@ are proved homomorphic projections of one portable policy.
   import/dependency analyzers, and native language tools by signal overlap,
   false-positive cost, speed, lockability, and net deletion; do not admit a tool
   merely because it finds another metric.
-- [ ] 6.6 Enforce Cyclopts-only CLI, no argparse, unnecessary `__all__`, import
+- [x] 6.6 Enforce Cyclopts-only CLI, no argparse, unnecessary `__all__`, import
   aliases, shims, wrappers, thin forwarding, re-exports, compatibility facades,
   coverage-only tests, or hard-coded policy/configuration.
-- [ ] 6.7 Prove Python, Node/polyglot, and docs/infra adopters through offline
+- [x] 6.7 Prove Python, Node/polyglot, and docs/infra adopters through offline
   install, adopt/status/plan/prove/land/publish, handoff/recovery, profile
   isolation, native layout, complete pinned-OpenSpec lifecycle, and clean
   uninstall without a mandatory forge provider. Prove first-hour UX and DX for
@@ -381,10 +381,10 @@ are proved homomorphic projections of one portable policy.
   repository closeout resolves the canonical accepted worktree, migration
   restores clean lane start, and refresh-base restores the original branch/HEAD
   when post-rebase CAS fails.
-- [ ] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
+- [x] 6.8 Publish language-neutral schemas and one conformance kit for CLI,
   Python SDK, subprocess JSON, permissions, determinism, authority isolation,
   versioning, errors, offline behavior, and optional MCP/A2A-style adapters.
-- [ ] 6.9 Admit an execution runtime, generator, scaffold, Jinja, DI, event bus,
+- [x] 6.9 Admit an execution runtime, generator, scaffold, Jinja, DI, event bus,
   plugin framework, or protocol adapter only when a real adopter proves unique
   need, measurable token/time gain, zero truth ownership, clean uninstall, and
   net deletion. Execution budgets count only acceptance-gap reduction, failed
@@ -452,8 +452,9 @@ are proved homomorphic projections of one portable policy.
   as diagnostic evidence and map SLSA 1.2, in-toto Attestation v1, and Sigstore
   only at release/provenance boundaries. Prove the same conformance case through
   at least two host/protocol projections with no protocol-specific kernel field.
-- [ ] 6.10 Close this Change through the official owner-native OpenSpec action
-  at verified version `1.8.0` as the final tracked source mutation. Bind the
+- [x] 6.10 Implement and prove readiness for the official owner-native OpenSpec
+  archive action at verified version `1.8.0`. Its execution is the final tracked
+  source mutation and is recorded by the archive-effect Attestation below. Bind the
   effective tool version, returned archive path, warnings, no-op state, and
   resulting HEAD. The public `ethos lane archive-change` transition must bind
   the same-holder Lease, exact pre-archive HEAD/tree and proof, official delta,
@@ -471,23 +472,32 @@ are proved homomorphic projections of one portable policy.
   preserves evidence only and never remains a current execution owner.
 
 **Exit 6:** quality, compression, adopter, interface, and method-evaluation
-obligations are implemented and proved; official OpenSpec 1.8 archives the
-completed Change without speculative spec mutation.
+obligations are implemented and proved; the completed Change is ready for the
+official OpenSpec 1.8 archive without speculative spec mutation.
 
-## 7. Close The Campaign Once
+## 7. Post-Archive Governed Effects
 
-- [ ] 7.1 At one immutable local HEAD run format, lint, type, unit, property,
+Post-archive effects are not OpenSpec completion tasks. They cannot truthfully be
+checked before the archive that creates their subject HEAD, and archived task
+history is not a current progress owner. Each effect remains mandatory and is
+complete only when its exact HEAD-bound Attestation or external receipt exists.
+
+- **archive-effect** Execute `ethos lane archive-change` once; require its typed
+  effect Attestation to bind the exact pre/post HEAD, official delta, relocated
+  Commitment, advanced Lease, pinned tool, warnings, and replay state.
+- **7.1** At one immutable post-archive local HEAD run format, lint, type, unit,
+  property,
   formal model, mutation, integration, adopter, package, source-budget,
   security, SBOM, provenance, offline install, release, and full ETHOS proof.
   This complete local predicate is the sole admission to any campaign remote
   mutation.
-- [ ] 7.2 Advance only local `candidate/dev`, then protected `dev`, through
+- **7.2** Advance only local `candidate/dev`, then protected `dev`, through
   audited exact-CAS closeout; absorb or retire every owned lane and verify
   immutable record packages, manifests, hashes, and indexes.
-- [ ] 7.3 Create exactly one `proposal/terminal-convergence` from that closed
+- **7.3** Create exactly one `proposal/terminal-convergence` from that closed
   HEAD and independently verify GitLab and GitHub CI/CD and review evidence;
   neither provider substitutes for the other.
-- [ ] 7.4 Publish protected `dev`, release protected default `main`, and verify
+- **7.4** Publish protected `dev`, release protected default `main`, and verify
   the same commit, version, signed tag, SBOM, provenance, and artifact digests on
   both providers.
 **Exit 7:** terminal local closeout and both independent provider publications

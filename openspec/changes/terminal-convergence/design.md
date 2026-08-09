@@ -266,11 +266,11 @@ the final explicit remainder; every tracked path resolves to exactly one row.
 | --- | --- | --- | --- | --- | --- |
 | `docs/governance/product-design-contract.md`, `system/**` | Canonical product contract and machine declarations | absorbed | product contract and narrow machine declarations | `5.2` | design integrity, schema, and projection-drift gates |
 | `openspec/changes/terminal-convergence/**` | Active terminal OpenSpec Change | absorbed | official OpenSpec workspace plus this self-profile Change | `6.10` | official strict validation and owner-native archive |
-| `openspec/specs/**` | Accepted OpenSpec capability specs | deleted-after-proof | active terminal delta specs, then canonical capability specs | `5.1` | canonical spec cutover with no resurrected lifecycle owner |
+| `openspec/specs/**` | Accepted OpenSpec capability specs | absorbed | canonical capability specs | `5.1` | canonical spec cutover with no resurrected lifecycle owner |
 | `openspec/changes/archive/**` | Official OpenSpec archives | historical | immutable Git history | `5.6` | active readers exclude archives from authority |
 | `evidence/**` | Claims, Chronicle, and legacy evidence bytes | historical | immutable evidence plus future Attestation disposition | `5.6` | no current reader or policy authorizes legacy evidence |
 | `docs/history/**` | Superseded documentation history | historical | Git history and current documentation routing | `5.6` | links resolve and current docs exclude historical authority |
-| `docs/governance/conversation-ledger.md` | Conversation-derived requirement ledger | deleted-after-proof | this design, delta specs, stable tasks, and the fact-boundary closure below | `0.4` | all feedback and independent fact boundaries map to one owner and verifier |
+| `docs/governance/conversation-ledger.md` | Conversation-derived requirement ledger | deleted-after-proof | this design, canonical specs, stable tasks, and the fact-boundary closure below | `0.4` | all feedback and independent fact boundaries map to one owner and verifier |
 | `docs/plans/terminal-governance-product-design.md` | Canonical terminal target design | absorbed | terminal target design under the Product Design Contract | `5.1`, `5.6` | design integrity preserves the target until its current semantics are absorbed |
 | Superseded plans and experimental research | Historical design carriers | deleted-after-proof | Git history plus current OpenSpec design/tasks | `5.4`, `5.6` | current design already absorbs lane, runtime, and tooling conclusions; stale carriers are removed rather than archived in parallel |
 | `.agents/**`, `.config/**`, `.github/**`, `.gitlab/**`, `.gitlab-ci.yml`, `.pre-commit-config.yaml`, `rules/**` | Rules, skills, checks, forge, and provider projections | absorbed | their declared native owners | `5.5`, `5.7` | route-owner, drift, and provider-homomorphism checks |
@@ -522,9 +522,10 @@ backward, and an unobserved or unregistered row fails the architecture gate.
 
 ## Requirement To Task To Proof
 
-This table is the explicit lossless edge set consumed by `ethos plan`. It does
-not own progress: requirement text remains in delta specs, task state remains in
-`tasks.md`, and each proof name resolves to an existing gate or acceptance
+This table preserves the campaign's historical requirement-to-proof mapping. It
+does not own current progress or requirement text: accepted capability specs are
+the current semantic owners, task history remains in `tasks.md`, and each proof
+name resolves to an existing gate or acceptance
 boundary. A missing or stale edge is `model_gap`.
 
 | Requirement | Task | Proof |

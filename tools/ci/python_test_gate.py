@@ -264,7 +264,7 @@ class PythonTestGate:
             "error",
             f"--rootdir={ROOT}",
             f"--cov-config={COVERAGE_CONFIG}",
-            "--cov=ethos",
+            "--cov=src/ethos",
             f"--basetemp={self.s.basetemp}",
             f"--durations={self.s.durations}",
             "--dist=loadscope",

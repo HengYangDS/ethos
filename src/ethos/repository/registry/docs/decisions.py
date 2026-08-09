@@ -132,7 +132,9 @@ class DecisionRegistry:
                 ref for ref in _references(fields.get(field, "")) if not _ID.fullmatch(ref)
             )
             if invalid:
-                gaps.append(f"decision_record_reference_invalid:{relative}:{field}:{','.join(invalid)}")
+                gaps.append(
+                    f"decision_record_reference_invalid:{relative}:{field}:{','.join(invalid)}"
+                )
         if missing_fields:
             return None, gaps
         try:
@@ -171,9 +173,13 @@ class DecisionRegistry:
                 supersessions.append((record.decision_id, record.superseded_by))
             for predecessor_id, successor_id in supersessions:
                 predecessor, successor = by_id.get(predecessor_id), by_id.get(successor_id)
-                if predecessor and successor and (
-                    predecessor.superseded_by != successor_id
-                    or predecessor_id not in successor.supersedes
+                if (
+                    predecessor
+                    and successor
+                    and (
+                        predecessor.superseded_by != successor_id
+                        or predecessor_id not in successor.supersedes
+                    )
                 ):
                     gaps.append(
                         "decision_record_supersession_not_reciprocal:"

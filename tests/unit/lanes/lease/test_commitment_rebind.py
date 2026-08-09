@@ -49,6 +49,34 @@ def _install_hooks(repository: Path, worktree: Path) -> None:
     exclude.write_text("tools/\n", encoding="utf-8")
 
 
+def _identity_content(content: str, *, repair: bool, old: bool) -> str:
+    if not repair:
+        return content
+    source, target = (
+        ('id = "change:fixture-change"', 'id = "change:20260809-fixture-change"')
+        if old
+        else ('id = "change:20260809-fixture-change"', 'id = "change:fixture-change"')
+    )
+    return content.replace(source, target)
+
+
+def _bind_fixture_commitment(
+    worktree: Path, branch: str, carrier: Path, old_head: str
+) -> tuple[str, dict[str, object]]:
+    git(worktree, "add", carrier.as_posix())
+    index = git(worktree, "write-tree")
+    old_head = git(
+        worktree, "commit-tree", index, "-p", old_head, "-m", "bind minimal fixture commitment"
+    )
+    git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
+    git(worktree, "update-ref", f"refs/heads/{branch}", old_head)
+    git(worktree, "reset", "--hard", old_head)
+    install_hook_launchers(worktree)
+    binding = exact_commitment_fields(worktree, head=old_head, carrier=carrier.as_posix())
+    _replace_lease(worktree, branch, **binding)
+    return old_head, leases_by_branch(worktree)[branch]
+
+
 @dataclass
 class RebindCase:
     worktree: Path
@@ -97,6 +125,7 @@ def _case(
     *,
     carrier_mode: str = "stable",
     old_permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
+    repair_identity: bool = False,
 ) -> RebindCase:
     holder = "agent:test:case:commitment-rebind"
     fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
@@ -106,33 +135,16 @@ def _case(
     lease = leases_by_branch(worktree)[branch]
     carrier = Path(str(lease["base_commitment_path"]))
     old_head = git(worktree, "rev-parse", "HEAD")
-    if old_permissions != ("git.ref.compare-and-swap",):
+    if old_permissions != ("git.ref.compare-and-swap",) or repair_identity:
         commitment = worktree / carrier
+        content = commitment.read_text(encoding="utf-8").replace(
+            'permissions = ["git.ref.compare-and-swap"]',
+            f"permissions = {json.dumps(old_permissions).replace(',', ', ')}",
+        )
         commitment.write_text(
-            commitment.read_text(encoding="utf-8").replace(
-                'permissions = ["git.ref.compare-and-swap"]',
-                f"permissions = {json.dumps(old_permissions).replace(',', ', ')}",
-            ),
-            encoding="utf-8",
+            _identity_content(content, repair=repair_identity, old=True), encoding="utf-8"
         )
-        git(worktree, "add", carrier.as_posix())
-        index = git(worktree, "write-tree")
-        old_head = git(
-            worktree,
-            "commit-tree",
-            index,
-            "-p",
-            old_head,
-            "-m",
-            "bind minimal fixture commitment",
-        )
-        git(worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-        git(worktree, "update-ref", f"refs/heads/{branch}", old_head)
-        git(worktree, "reset", "--hard", old_head)
-        install_hook_launchers(worktree)
-        binding = exact_commitment_fields(worktree, head=old_head, carrier=carrier.as_posix())
-        _replace_lease(worktree, branch, **binding)
-        lease = leases_by_branch(worktree)[branch]
+        old_head, lease = _bind_fixture_commitment(worktree, branch, carrier, old_head)
     if carrier_mode == "archive-active":
         archived = Path("openspec/changes/archive/2026-08-06-fixture-change/commitment.toml")
         (worktree / archived).parent.mkdir(parents=True)
@@ -158,13 +170,14 @@ def _case(
         (worktree / target_carrier).parent.mkdir(parents=True, exist_ok=True)
         git(worktree, "mv", carrier.as_posix(), target_carrier.as_posix())
     commitment = worktree / target_carrier
-    commitment.write_text(
-        commitment.read_text(encoding="utf-8").replace(
+    content = commitment.read_text(encoding="utf-8")
+    content = _identity_content(content, repair=repair_identity, old=False)
+    if not repair_identity:
+        content = content.replace(
             "Exercise the governed fixture lifecycle.",
             "Rebind one changed governed fixture intent.",
-        ),
-        encoding="utf-8",
-    )
+        )
+    commitment.write_text(content, encoding="utf-8")
     git(worktree, "add", target_carrier.as_posix())
     index_tree = git(worktree, "write-tree")
     target_commit = git(
@@ -204,6 +217,7 @@ def _case(
         new_commitment_path=target["base_commitment_path"],
         new_commitment_bytes_sha256=target["base_commitment_bytes_sha256"],
         new_commitment_digest=target["base_commitment_digest"],
+        repair_change_identity=repair_identity,
         apply=True,
     )
     monkeypatch.setenv("ETHOS_ACTOR", holder)
@@ -238,6 +252,23 @@ def test_rebind_owns_carrier_and_authority(
     report = case.execute()
     assert (report["verdict"], report["required_gaps"]) == ("pass", [])
     case.assert_terminal(report)
+
+
+@pytest.mark.parametrize("trust_gaps", [("commit_signature_untrusted",), ()])
+def test_change_identity_repair_requires_target_trust(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, trust_gaps: tuple[str, ...]
+) -> None:
+    case = _case(tmp_path, monkeypatch, repair_identity=True)
+    monkeypatch.setattr(
+        rebind,
+        "verify_commit_trust",
+        lambda *_args: {"required_gaps": list(trust_gaps)},
+        raising=False,
+    )
+    report = case.execute()
+    assert report["required_gaps"] == list(trust_gaps)
+    if not trust_gaps:
+        case.assert_terminal(report)
 
 
 @pytest.mark.parametrize(

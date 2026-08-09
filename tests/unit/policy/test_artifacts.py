@@ -156,3 +156,49 @@ def test_topology_report_interprets_supplied_git_classification(tmp_path: Path) 
     assert report["required_gaps"] == [
         "generated_artifact_tracked_untracked_home:build/evidence/proof.json"
     ]
+
+
+def test_topology_report_classifies_every_generated_home_and_prunes_runtime_trees(
+    tmp_path: Path,
+) -> None:
+    cases = (
+        "build/evidence/proof.json",
+        "evidence/review.json",
+        ".config/result.json",
+        ".pytest_cache",
+        "build/runtime/flat/report.json",
+        f"{'adopters'}/sample/report.json",
+        "root-report.json",
+    )
+    for relative in cases:
+        path = tmp_path / relative
+        if path.suffix:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("{}\n", encoding="utf-8")
+        else:
+            path.mkdir(parents=True)
+    ignored = tmp_path / "ignored.json"
+    ignored.write_text("{}\n", encoding="utf-8")
+    pruned = tmp_path / ".venv/report.json"
+    pruned.parent.mkdir()
+    pruned.write_text("{}\n", encoding="utf-8")
+
+    report = generated_artifact_topology_report(
+        tmp_path,
+        ignored_local_paths=frozenset({"ignored.json"}),
+        tracked_untracked_paths=(),
+    )
+
+    assert "evidence/review.json" in report["review_paths"]
+    assert report["ignored_local_paths"] == ["ignored.json"]
+    assert report["allowed_paths"] == []
+    assert not any(
+        path.startswith((".venv", "build/evidence"))
+        for paths in (report["review_paths"], report["denied_paths"])
+        for path in paths
+    )
+    assert {".config/result.json", ".pytest_cache", "build/runtime/flat/report.json"} <= set(
+        report["denied_paths"]
+    )
+    assert report["verdict"] == "block"
+    assert report["summary"]["path_blocker_count"] >= 4

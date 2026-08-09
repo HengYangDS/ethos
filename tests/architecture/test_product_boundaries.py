@@ -212,6 +212,115 @@ def test_product_boundary_rejects_identity_literals(tmp_path: Path) -> None:
     assert mapping(report["summary"])["by_kind"] == {"fixed_key_or_fingerprint": 2}
 
 
+def test_product_boundary_reports_malformed_and_unsafe_package_manifests(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "package.json": {"workspaces": ["packages/*"], "private": False, "author": "A Person"},
+        "distributions/npm/package.json": {
+            "files": ["./bin/ethos.mjs", "tests/", "private.txt"],
+            "bin": {},
+            "maintainers": ["A Person"],
+        },
+    }
+    for relative, payload in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = product_boundary_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert mapping(report["summary"])["by_kind"] == {
+        "distribution_bin_missing": 1,
+        "distribution_file_scope_leak": 2,
+        "person_attribution_metadata": 1,
+        "root_workspace_package_publishable": 1,
+        "single_author_metadata": 1,
+    }
+
+
+def test_product_boundary_requires_an_explicit_distribution_allowlist(tmp_path: Path) -> None:
+    path = tmp_path / "distributions/npm/package.json"
+    path.parent.mkdir(parents=True)
+    path.write_text('{"bin": {"ethos": "bin/ethos.mjs"}}', encoding="utf-8")
+
+    report = product_boundary_report(tmp_path)
+
+    assert report["required_gaps"] == [
+        "distribution_files_allowlist_missing:distributions/npm/package.json:1"
+    ]
+
+
+def test_malformed_package_metadata_does_not_mint_findings(tmp_path: Path) -> None:
+    for relative in ("package.json", "distributions/npm/package.json"):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{", encoding="utf-8")
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("[project", encoding="utf-8")
+
+    report = product_boundary_report(tmp_path)
+
+    assert report["verdict"] == "pass"
+    assert report["findings"] == []
+
+
+def test_release_visible_history_is_scanned_by_path_and_content(tmp_path: Path) -> None:
+    path = tmp_path / "docs/history/host-path.md"
+    path.parent.mkdir(parents=True)
+    path.write_text("/" + "Users/private/workspace\n", encoding="utf-8")
+
+    report = product_boundary_report(tmp_path)
+
+    kinds = mapping(report["summary"])["by_kind"]
+    assert report["verdict"] == "block"
+    assert kinds["archival_local_workstation_path"] >= 1
+
+
+@pytest.mark.parametrize(
+    ("workspace", "expected_kinds"),
+    [
+        (
+            "[commit_policy\n",
+            {"commit_policy_toml_invalid"},
+        ),
+        (
+            '[commit_policy]\nidentity_mode = "local"\nexpected_name = "Person"\n',
+            {"single_author_policy", "identity_mode_not_external", "allowed_identities_missing"},
+        ),
+        (
+            """[commit_policy]
+identity_mode = "external"
+[[commit_policy.allowed_identities]]
+role = "unknown"
+name = "<your-name-or-team>"
+email = "<your-approved-email>"
+""",
+            {
+                "identity_role_unknown",
+                "identity_placeholder",
+                "maintainer_or_team_missing",
+                "automation_identity_missing",
+            },
+        ),
+    ],
+)
+def test_contributor_policy_fails_closed_on_malformed_or_incomplete_identity_policy(
+    tmp_path: Path,
+    workspace: str,
+    expected_kinds: set[str],
+) -> None:
+    path = tmp_path / ".ethos/workspace.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(workspace, encoding="utf-8")
+
+    report = contributor_policy_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert expected_kinds <= {finding["kind"] for finding in report["findings"]}
+
+
 def test_python_parser_model_and_export_policy() -> None:
     tracked = subprocess.run(
         ["git", "ls-files", "*.py"],

@@ -1,0 +1,147 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pytest
+
+from ethos.adapters.repo.commitment import changed_commitment_fields
+from ethos.adapters.repo.commitment import exact_commitment_fields
+from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _repository_commitment(root: Path) -> None:
+    path = root / ".ethos/commitment.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
+        'subjects = ["repository:test"]\n',
+        encoding="utf-8",
+    )
+
+
+def _change_commitment(root: Path, change_id: str, *, intent: str = "Change.") -> str:
+    relative = f"openspec/changes/{change_id}/commitment.toml"
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        f'schema_version = 1\nid = "change:{change_id}"\nintent = "{intent}"\n'
+        'subjects = ["repository:self"]\nscope = ["src/**"]\n',
+        encoding="utf-8",
+    )
+    return relative
+
+
+def _commit(repo: Path, message: str) -> str:
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", message)
+    return git(repo, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize(
+    "carrier",
+    ["", "/absolute", "./relative", "../escape", "path\\windows", "path\x00nul"],
+)
+def test_commitment_carrier_malformed_paths_fail_closed(tmp_path: Path, carrier: str) -> None:
+    _repository_commitment(tmp_path)
+    with pytest.raises(ValueError, match="commitment_carrier_invalid"):
+        load_commitment(tmp_path, carrier=carrier)
+
+
+def test_commitment_missing_malformed_and_canonical_public_boundaries(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="repository_commitment_missing"):
+        load_repository_commitment(tmp_path)
+
+    _repository_commitment(tmp_path)
+    (tmp_path / ".ethos/commitment.toml").write_bytes(b"\xff")
+    with pytest.raises(ValueError, match="repository_commitment_missing"):
+        load_repository_commitment(tmp_path)
+
+    _repository_commitment(tmp_path)
+    assert load_repository_commitment(tmp_path).id == "repository:test"
+
+
+def test_commitment_exact_fields_and_digest_boundary(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _repository_commitment(repo)
+    carrier = _change_commitment(repo, "canonical")
+    head = _commit(repo, "canonical")
+
+    fields = exact_commitment_fields(repo, head=head, carrier=carrier, change_id="canonical")
+    assert fields["expected_head"] == head
+    assert fields["expected_tree"] == git(repo, "rev-parse", "HEAD^{tree}")
+    assert (
+        load_commitment(
+            repo,
+            carrier=carrier,
+            tree_ref=head,
+            expected_digest=fields["base_commitment_digest"],
+        ).id
+        == "change:canonical"
+    )
+    with pytest.raises(ValueError, match="commitment_digest_mismatch"):
+        load_commitment(repo, carrier=carrier, tree_ref=head, expected_digest="0" * 64)
+    with pytest.raises(ValueError, match="commitment_carrier_path_invalid"):
+        exact_commitment_fields(repo, head=head, carrier="../escape")
+    with pytest.raises(ValueError, match="commitment_head_unreadable"):
+        exact_commitment_fields(repo, head="0" * 40, carrier=carrier)
+
+
+def test_commitment_changed_carrier_is_unique_and_readable(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _repository_commitment(repo)
+    carrier = _change_commitment(repo, "refine")
+    old_head = _commit(repo, "old")
+    old_digest = load_commitment(repo, carrier=carrier, tree_ref=old_head).digest()
+
+    _change_commitment(repo, "refine", intent="Refined.")
+    new_head = _commit(repo, "new")
+    fields = changed_commitment_fields(
+        repo,
+        old_head=old_head,
+        new_head=new_head,
+        commitment_id="change:refine",
+        old_digest=old_digest,
+    )
+    assert fields["base_commitment_path"] == carrier
+
+    with pytest.raises(ValueError, match="commitment_rebind_target_ambiguous"):
+        changed_commitment_fields(
+            repo,
+            old_head=new_head,
+            new_head=new_head,
+            commitment_id="change:refine",
+            old_digest=old_digest,
+        )
+    with pytest.raises(ValueError, match="commitment_rebind_target_unreadable"):
+        changed_commitment_fields(
+            repo,
+            old_head="0" * 40,
+            new_head=new_head,
+            commitment_id="change:refine",
+            old_digest=old_digest,
+        )
+
+
+def test_lease_bound_commitment_missing_and_canonical_coordinates(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    _repository_commitment(repo)
+    carrier = _change_commitment(repo, "lease")
+    head = _commit(repo, "lease")
+    fields = exact_commitment_fields(repo, head=head, carrier=carrier, change_id="lease")
+
+    with pytest.raises(ValueError, match="lease_expected_head_missing"):
+        load_lease_bound_commitment(repo, lease={})
+    assert load_lease_bound_commitment(repo, lease=fields, change_id="lease").id == "change:lease"
+    with pytest.raises(ValueError, match="lease_base_commitment_bytes_mismatch"):
+        load_lease_bound_commitment(
+            repo,
+            lease=fields | {"base_commitment_bytes_sha256": "0" * 64},
+            change_id="lease",
+        )

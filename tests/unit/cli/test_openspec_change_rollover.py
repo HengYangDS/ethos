@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
+from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.normalization.coercion import integer
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import OpenSpecLifecycle
 from tests.support.openspec_lifecycle import completed_lifecycle
@@ -118,6 +122,71 @@ def test_start_change_rejects_a_dirty_overlay_without_an_exact_digest(
     assert git(worktree, "status", "--short")
 
 
+def test_start_change_cli_commits_an_exact_scope_bound_staged_overlay(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree, branch, previous_lease = lifecycle.worktree, lifecycle.branch, lifecycle.lease
+    archived_head = current_tracked_head(worktree)
+    target = worktree / "tests/governance/test_repository.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("def test_forward_fix():\n    assert True\n", encoding="utf-8")
+    git(worktree, "add", target.relative_to(worktree).as_posix())
+
+    payload = run_ethos(
+        *_start_change_arguments(
+            worktree,
+            archived_head,
+            "--expected-overlay-digest",
+            dirty_content_sha256(worktree),
+        ),
+        cwd=worktree,
+    )
+
+    current = current_tracked_head(worktree)
+    lease = leases_by_branch(worktree)[branch]
+    assert payload["state"] == "started"
+    assert git(worktree, "show", f"{current}:tests/governance/test_repository.py")
+    assert lease["expected_head"] == current
+    assert integer(lease["epoch"]) == integer(previous_lease["epoch"]) + 1
+    assert git(worktree, "status", "--short") == ""
+
+
+def test_start_change_cli_rejects_an_unsafe_scope_before_official_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    worktree = _archived_lane(tmp_path, monkeypatch).worktree
+    archived_head = current_tracked_head(worktree)
+
+    payload = run_ethos_blocked(
+        *_start_change_arguments(worktree, archived_head, scope="../outside/**"),
+        cwd=worktree,
+    )
+
+    assert payload["required_gaps"] == ["openspec_change_commitment_invalid"]
+    assert current_tracked_head(worktree) == archived_head
+    assert not (worktree / "openspec/changes/hosted-verification-fix").exists()
+
+
+def test_start_change_cli_recognizes_the_same_committed_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    worktree = _archived_lane(tmp_path, monkeypatch).worktree
+    archived_head = current_tracked_head(worktree)
+    arguments = _start_change_arguments(worktree, archived_head)
+
+    started = run_ethos(*arguments, cwd=worktree)
+    recognized = run_ethos(*arguments, cwd=worktree)
+
+    assert started["state"] == "started"
+    assert recognized["state"] == "recognized"
+    assert started["data"]["attestation"] == recognized["data"]["attestation"]
+    assert os.environ["ETHOS_ACTOR"] == "agent:test:case:agent-test"
+
+
 def test_start_change_recovers_after_commit_before_commitment_rebind(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -164,3 +233,27 @@ def test_start_change_recovers_after_commit_before_commitment_rebind(
         "openspec/changes/hosted-verification-fix/commitment.toml"
     )
     assert integer(lease["epoch"]) == integer(previous_lease["epoch"]) + 1
+
+
+def _start_change_arguments(
+    worktree: Path,
+    head: str,
+    *extra: str,
+    scope: str = "tests/**",
+) -> tuple[str, ...]:
+    return (
+        "lane",
+        "start-change",
+        "hosted-verification-fix",
+        "--intent",
+        "Repair hosted verification.",
+        "--scope",
+        scope,
+        "--expect-head",
+        head,
+        "--root",
+        worktree.as_posix(),
+        "--apply",
+        "--json",
+        *extra,
+    )

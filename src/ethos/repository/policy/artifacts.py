@@ -28,7 +28,7 @@ def generated_artifact_topology_report(
     allowed_paths: list[str] = []
     denied_paths: list[str] = []
     review_paths: list[str] = []
-    ignored_local_paths: list[str] = []
+    observed_ignored_paths: list[str] = []
     tracked_untracked = list(tracked_untracked_paths)
     review_gaps: list[str] = []
     path_blockers: list[str] = []
@@ -36,7 +36,7 @@ def generated_artifact_topology_report(
     for path in _candidate_paths(root, declaration):
         rel = path.relative_to(root).as_posix()
         if rel in ignored_local_paths:
-            ignored_local_paths.append(rel)
+            observed_ignored_paths.append(rel)
             continue
 
         policy = path_policy_from_declaration(rel, declaration)
@@ -64,7 +64,7 @@ def generated_artifact_topology_report(
     allowed_paths.sort()
     denied_paths.sort()
     review_paths.sort()
-    ignored_local_paths.sort()
+    observed_ignored_paths.sort()
     tracked_untracked.sort()
     review_gaps.sort()
     path_blockers.sort()
@@ -76,7 +76,7 @@ def generated_artifact_topology_report(
             "allowed_path_count": len(allowed_paths),
             "denied_path_count": len(denied_paths),
             "review_path_count": len(review_paths),
-            "ignored_local_path_count": len(ignored_local_paths),
+            "ignored_local_path_count": len(observed_ignored_paths),
             "tracked_untracked_path_count": len(tracked_untracked),
             "review_gap_count": len(review_gaps),
             "path_blocker_count": len(path_blockers),
@@ -87,7 +87,7 @@ def generated_artifact_topology_report(
         "allowed_paths": allowed_paths,
         "denied_paths": denied_paths,
         "review_paths": review_paths,
-        "ignored_local_paths": ignored_local_paths,
+        "ignored_local_paths": observed_ignored_paths,
         "tracked_untracked_paths": tracked_untracked,
         "review_gaps": review_gaps,
         "path_blockers": path_blockers,

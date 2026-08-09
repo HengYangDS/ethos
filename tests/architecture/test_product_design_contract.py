@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.design.integrity import front_matter_ok
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 
@@ -234,6 +235,87 @@ def test_design_integrity_rejects_duplicated_root_text(design_tree: Path) -> Non
     assert "design_axioms_duplicates_root_verse" in report["required_gaps"]
 
 
+def test_design_integrity_reports_missing_native_owner_projection_and_axioms(
+    design_tree: Path,
+) -> None:
+    (design_tree / CANONICAL_OWNER).unlink()
+    (design_tree / "README.md").unlink()
+    (design_tree / AXIOMS).unlink()
+
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+
+    assert {
+        f"design_canonical_owner_missing:{CANONICAL_OWNER}",
+        "design_projection_missing:README.md",
+        f"design_axioms_missing:{AXIOMS}",
+    } <= set(report["required_gaps"])
+
+
+def test_design_integrity_reports_invalid_owner_and_projection_metadata(design_tree: Path) -> None:
+    owner = design_tree / CANONICAL_OWNER
+    owner.write_text(
+        owner.read_text(encoding="utf-8").replace("state: canonical", "state: active"),
+        encoding="utf-8",
+    )
+    projection = design_tree / "docs/concepts/kernel-model.md"
+    projection.write_text(
+        projection.read_text(encoding="utf-8")
+        .replace("state: active", "state: canonical")
+        .replace("projects:", "canonical_for:"),
+        encoding="utf-8",
+    )
+
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+
+    assert "design_canonical_owner_front_matter_invalid" in report["required_gaps"]
+    assert (
+        "design_projection_front_matter_invalid:docs/concepts/kernel-model.md"
+        in report["required_gaps"]
+    )
+
+
+def test_design_integrity_reports_each_missing_axiom_boundary(design_tree: Path) -> None:
+    axioms = design_tree / AXIOMS
+    text = axioms.read_text(encoding="utf-8")
+    text = text.replace("product-design-contract.md#root-constraint", "product-design-contract.md")
+    text = text.replace("second semantic owner", "parallel text")
+    text = text.replace("Commitment", "Intent")
+    axioms.write_text(text, encoding="utf-8")
+
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+
+    assert {
+        "design_axioms_derivation_metadata_invalid",
+        "design_axioms_root_constraint_link_missing",
+        "design_axioms_derivation_boundary_missing",
+        "design_axioms_term_missing:Commitment",
+    } <= set(report["required_gaps"])
+
+
+def test_design_integrity_deduplicates_forbidden_native_projection_gaps(design_tree: Path) -> None:
+    forbidden = design_tree / ".claude"
+    forbidden.mkdir()
+
+    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+
+    assert report["required_gaps"].count("design_integrity_forbidden_projection_path:.claude") == 1
+
+
+def test_front_matter_ok_fails_closed_for_missing_and_partial_documents(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.md"
+    partial = tmp_path / "partial.md"
+    partial.write_text("---\nsubject: example\nrole: reference\n---\n", encoding="utf-8")
+    complete = tmp_path / "complete.md"
+    complete.write_text(
+        "---\nsubject: example\nrole: reference\nstate: active\nrelations: none\n---\n",
+        encoding="utf-8",
+    )
+
+    assert front_matter_ok(missing) is False
+    assert front_matter_ok(partial) is False
+    assert front_matter_ok(complete) is True
+
+
 def test_terminal_plan_projects_canonical_semantics_without_repeating_its_model() -> None:
     plan = read(PLAN)
 
@@ -365,7 +447,7 @@ def test_branch_roles_and_thresholds_have_machine_owners() -> None:
     assert coverage["branch_coverage_required"] is True
     assert source_budget == {
         "python_product": 40_000,
-        "python_tests": 30_000,
+        "python_tests": 32_600,
         "python_tools": 4_000,
         "python_other": 200,
         "global_total": 85_000,

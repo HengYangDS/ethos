@@ -110,6 +110,22 @@ def test_retired_lane_resolution_surface_is_rejected_by_cyclopts(command: str) -
     assert "Unknown command" in f"{completed.stdout}{completed.stderr}"
 
 
+def test_archive_change_rejects_the_retired_history_rebuild_option() -> None:
+    completed = run_ethos_raw(
+        "lane",
+        "archive-change",
+        "--change",
+        "sample-change",
+        "--expect-head",
+        "a" * 40,
+        "--rebuild-from",
+        "b" * 40,
+    )
+
+    assert completed.returncode != 0
+    assert "Unknown option" in f"{completed.stdout}{completed.stderr}"
+
+
 def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) -> None:
     _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")

@@ -31,6 +31,10 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_publication_topology
 from tests.support.lane_scenarios import leased_worktree as create_leased_worktree
 
+CASE_PAYLOAD = json.loads(
+    (Path(__file__).parents[2] / "fixtures/hook-admission/cases.json").read_text()
+)
+
 
 def _assert(actual: dict[str, object], expected: dict[str, object]) -> None:
     for key, value in expected.items():
@@ -98,6 +102,10 @@ def _clear_attestation_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
+def _cases(name: str) -> tuple[object, ...]:
+    return tuple(pytest.param(*case["values"], id=case["id"]) for case in CASE_PAYLOAD[name])
+
+
 @pytest.fixture
 def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     worktree = create_leased_worktree(
@@ -107,132 +115,9 @@ def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return worktree
 
 
-PUSH_INVALID_TARGETS = (
-    pytest.param(
-        "refs/heads/candidate/dev",
-        "origin",
-        "publication_candidate_branch_remote_forbidden:candidate/dev",
-        "any",
-        id="candidate_remote_forbidden",
-    ),
-    pytest.param(
-        "refs/heads/dev",
-        "unknown",
-        "publication_remote_target_unknown:unknown",
-        "any",
-        id="unknown_remote",
-    ),
-    pytest.param(
-        "refs/heads/work/dual-remote",
-        "github",
-        "publication_remote_branch_forbidden:work/dual-remote",
-        "absent",
-        id="work_remote_forbidden_without_proof",
-    ),
+@pytest.mark.parametrize(
+    ("target_ref", "remote", "gap", "proof_check"), _cases("push_invalid_targets")
 )
-
-PREWRITE_STATES = (
-    pytest.param(
-        "protected_path", "accepted_root", "protected_lane_prewrite_blocked", id="protected_path"
-    ),
-    pytest.param(
-        "protected_missing_paths",
-        "accepted_root",
-        "protected_root_pretool_paths_required",
-        id="protected_missing_paths",
-    ),
-    pytest.param(
-        "work_missing_lease",
-        "work_lane",
-        "work_lane_missing_lease:work/feature",
-        id="work_missing_lease",
-    ),
-)
-
-PREWRITE_ACTOR_STATES = (
-    pytest.param("agent:test:case:agent-a", "admitted", "allow", "matched", id="holder_match"),
-    pytest.param(
-        "agent:test:case:agent-b",
-        "blocked",
-        "block",
-        "lease_holder_mismatch:work/feature",
-        id="holder_mismatch",
-    ),
-)
-
-MUTATION_WITHOUT_PATHS = (
-    'python -c \'from pathlib import Path; Path("README.md").write_text("x")\'',
-    "python scripts/generate.py",
-    "git apply patch.diff",
-    "touch README.md",
-)
-
-OBSERVE_ONLY_COMMANDS = (
-    "git status --short",
-    "git branch --show-current",
-    "git branch --list 'work/*'",
-    "git tag --list 'v*'",
-    "git tag --points-at HEAD",
-    "git stash list",
-    "git stash show --stat",
-    "ethos status --json",
-    "ethos plan --root=. --json",
-)
-
-EFFECT_CAPABLE_COMMANDS = (
-    "git branch feature",
-    "git branch -D feature",
-    "git tag v1",
-    "git tag -d v1",
-    "ethos status --execute=true",
-    "ethos plan --apply=true",
-    "find . -delete",
-)
-
-UNCLASSIFIABLE_WITH_PATHS = (
-    "git status\nrm README.md",
-    "echo $(touch README.md)",
-    "echo `touch README.md`",
-    "cat <(touch README.md)",
-    "git status; rm README.md",
-    "git status 'unterminated",
-)
-
-STASH_OPERATION_STATES = (
-    pytest.param("git stash list --format=%gd", False, "list", id="list"),
-    pytest.param("git -C . stash show --stat", False, "show", id="show"),
-    pytest.param("git stash", True, "push", id="implicit_push"),
-    pytest.param("git stash -u", True, "push", id="short_option_push"),
-    pytest.param("git stash push -- README.md", True, "push", id="explicit_push"),
-    pytest.param("command git stash", True, "push", id="command_wrapper"),
-    pytest.param("env MODE=test git stash", True, "push", id="env_wrapper"),
-    pytest.param("sudo git stash", True, "push", id="sudo_wrapper"),
-)
-
-POSTWRITE_STATES = (
-    pytest.param(
-        "protected", "accepted_root", "post_write_protected_root_dirty", id="protected_dirty"
-    ),
-    pytest.param("work", "work_lane", "post_write_unexpected_path", id="work_unexpected_path"),
-)
-
-IDENTITY_STATES = (
-    pytest.param("Canonical User", "Canonical User", "pass", id="canonical"),
-    pytest.param("Codex", "Codex", "block", id="both_noncanonical"),
-    pytest.param("Other Author", "Canonical User", "block", id="author_noncanonical"),
-    pytest.param("Canonical User", "Other Committer", "block", id="committer_noncanonical"),
-)
-
-PROPOSAL_BASELINE_STATES = (
-    pytest.param("valid", 1, "", id="valid"),
-    pytest.param("missing", 0, "push_identity_proposal_baseline_missing:origin/dev", id="missing"),
-    pytest.param(
-        "diverged", 0, "push_identity_proposal_baseline_not_ancestor:origin/dev", id="diverged"
-    ),
-)
-
-
-@pytest.mark.parametrize(("target_ref", "remote", "gap", "proof_check"), PUSH_INVALID_TARGETS)
 def test_push_invalid_target_matrix(
     tmp_path: Path, target_ref: str, remote: str, gap: str, proof_check: str
 ) -> None:
@@ -281,7 +166,7 @@ def test_hook_state_matrix(tmp_path: Path) -> None:
     assert "ok" not in report
 
 
-@pytest.mark.parametrize(("state", "role", "reason"), PREWRITE_STATES)
+@pytest.mark.parametrize(("state", "role", "reason"), _cases("prewrite_states"))
 def test_prewrite_state_matrix(tmp_path: Path, state: str, role: str, reason: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     root, values = (repo, {"editor_root": repo, "require_editor_root": True})
@@ -313,7 +198,7 @@ def test_prewrite_state_matrix(tmp_path: Path, state: str, role: str, reason: st
         assert report["next_action"] == next_action
 
 
-@pytest.mark.parametrize(("actor", "state", "action", "reason"), PREWRITE_ACTOR_STATES)
+@pytest.mark.parametrize(("actor", "state", "action", "reason"), _cases("prewrite_actor_states"))
 def test_prewrite_actor_lease_matrix(
     leased_worktree: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -434,7 +319,7 @@ def test_prewrite_rebase_state_matrix(leased_worktree: Path) -> None:
     }
 
 
-@pytest.mark.parametrize("command", MUTATION_WITHOUT_PATHS)
+@pytest.mark.parametrize("command", _cases("mutation_without_paths"))
 def test_prerun_mutation_without_paths_matrix(tmp_path: Path, command: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     report = _hook(repo, "pre-run", command=command, editor_root=repo, require_editor_root=True)
@@ -450,7 +335,7 @@ def test_prerun_mutation_without_paths_matrix(tmp_path: Path, command: str) -> N
     assert "hook_prerun_paths_required" in report["required_gaps"]
 
 
-@pytest.mark.parametrize("command", OBSERVE_ONLY_COMMANDS)
+@pytest.mark.parametrize("command", _cases("observe_only_commands"))
 def test_shell_read_parity_matrix(command: str) -> None:
     assert command_risk(command) == {
         "tracked_mutation_risk": False,
@@ -459,12 +344,12 @@ def test_shell_read_parity_matrix(command: str) -> None:
     }
 
 
-@pytest.mark.parametrize("command", EFFECT_CAPABLE_COMMANDS)
+@pytest.mark.parametrize("command", _cases("effect_capable_commands"))
 def test_shell_write_parity_matrix(command: str) -> None:
     _assert(command_risk(command), {"tracked_mutation_risk": True, "unclassifiable": False})
 
 
-@pytest.mark.parametrize("command", UNCLASSIFIABLE_WITH_PATHS)
+@pytest.mark.parametrize("command", _cases("unclassifiable_with_paths"))
 def test_prerun_unclassifiable_matrix(tmp_path: Path, command: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     report = _hook(
@@ -486,7 +371,7 @@ def test_prerun_unclassifiable_matrix(tmp_path: Path, command: str) -> None:
     assert report["command_risk"]["unclassifiable"] is True
 
 
-@pytest.mark.parametrize(("command", "forbidden", "operation"), STASH_OPERATION_STATES)
+@pytest.mark.parametrize(("command", "forbidden", "operation"), _cases("stash_operation_states"))
 def test_stash_operation_matrix(command: str, forbidden: object, operation: str) -> None:
     _assert(git_stash_policy(command), {"forbidden": forbidden, "operation": operation})
 
@@ -545,7 +430,7 @@ def test_runtime_state_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     _assert(report, {"verdict": "block", "runner_matches_common_runtime": False})
 
 
-@pytest.mark.parametrize(("state", "role", "reason"), POSTWRITE_STATES)
+@pytest.mark.parametrize(("state", "role", "reason"), _cases("postwrite_states"))
 def test_postwrite_state_matrix(tmp_path: Path, state: str, role: str, reason: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     root, values = (repo, {"editor_root": repo, "require_editor_root": True})
@@ -600,7 +485,7 @@ def test_push_topology_and_proof_state_matrix(tmp_path: Path) -> None:
         assert any(gap in str(item) for item in report["required_gaps"])
 
 
-@pytest.mark.parametrize(("author", "committer", "verdict"), IDENTITY_STATES)
+@pytest.mark.parametrize(("author", "committer", "verdict"), _cases("identity_states"))
 def test_identity_state_matrix(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, author: str, committer: str, verdict: str
 ) -> None:
@@ -623,7 +508,7 @@ def test_identity_state_matrix(
         ) is (identity != "Canonical User")
 
 
-@pytest.mark.parametrize(("state", "count", "gap"), PROPOSAL_BASELINE_STATES)
+@pytest.mark.parametrize(("state", "count", "gap"), _cases("proposal_baseline_states"))
 def test_proposal_baseline_state_matrix(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, state: str, count: int, gap: str
 ) -> None:

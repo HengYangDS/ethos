@@ -397,7 +397,7 @@ def test_entrypoints_do_not_resurrect_global_authority_or_retired_kernel_names()
 
 
 def test_lane_runner_bootstrap_uses_the_checkout_bound_uv_command() -> None:
-    carrier = read("src/ethos/adapters/mutation/lane_start_carrier.py")
+    carrier = read("src/ethos/adapters/mutation/lane_start_receipt.py")
 
     assert '"command": "uv run --frozen --offline ethos"' in carrier
     assert "tools/ci/scripts/run-ethos-lane.sh" not in carrier

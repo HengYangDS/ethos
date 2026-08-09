@@ -290,7 +290,7 @@ def _commitment_rebind_report(
         root=repo,
         ref_name=ref_name,
         update=update,
-        operation="commitment.rebind",
+        operation=_rebind_operation(repo, update, lease, target),
         phase=cast(
             "Literal['prepared', 'committed', 'aborted']",
             {"committed": "committed", "aborted": "aborted"}.get(phase, "prepared"),
@@ -318,6 +318,25 @@ def _commitment_rebind_report(
     if phase == "committed":
         report["state"] = "commitment_rebind_pending"
     return report
+
+
+def _rebind_operation(
+    repo: Path,
+    update: GitRefUpdate,
+    lease: dict[str, object],
+    target: dict[str, str],
+) -> str:
+    try:
+        old = load_lease_bound_commitment(repo, lease=lease)
+        new = load_commitment(
+            repo,
+            carrier=target["base_commitment_path"],
+            tree_ref=update.desired,
+            expected_digest=target["base_commitment_digest"],
+        )
+    except (KeyError, ValueError):
+        return "commitment.rebind"
+    return "change.identity-repair" if old.id != new.id else "commitment.rebind"
 
 
 _COMMITMENT_REBIND_GAPS = frozenset(
@@ -361,7 +380,13 @@ def _commitment_rebind_gap(
                 run_git(root, "write-tree").stdout.strip() == target["expected_tree"],
                 "commitment_rebind_index_tree_mismatch",
             ),
-            (new_commitment.id == old_commitment.id, "commitment_rebind_identity_mismatch"),
+            (
+                new_commitment.id == old_commitment.id
+                or _change_identity_repair_valid(
+                    target["base_commitment_path"], old_commitment, new_commitment
+                ),
+                "commitment_rebind_identity_mismatch",
+            ),
             (
                 new_commitment.digest() != old_commitment.digest(),
                 "commitment_rebind_semantics_unchanged",
@@ -370,6 +395,20 @@ def _commitment_rebind_gap(
     except (KeyError, ValueError) as error:
         return str(error)
     return next((gap for valid, gap in checks if not valid), "")
+
+
+def _change_identity_repair_valid(path: str, old_commitment, new_commitment) -> bool:
+    logical = path.removesuffix("/commitment.toml").rsplit("/", 1)[-1]
+    prefix = old_commitment.id.removeprefix("change:")
+    return (
+        len(prefix) > 9
+        and prefix[:8].isdigit()
+        and prefix[8] == "-"
+        and prefix[9:] == logical
+        and new_commitment.id == f"change:{logical}"
+        and new_commitment.model_copy(update={"id": old_commitment.id}).digest()
+        == old_commitment.digest()
+    )
 
 
 def _changed_commitment_target(

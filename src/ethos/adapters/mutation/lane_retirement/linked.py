@@ -10,6 +10,7 @@ from pydantic import ConfigDict
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.lane_retirement.observation import output
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -54,7 +55,7 @@ def retire_linked_work_lane(
     branch = (request.branch or "").strip()
     reason = request.reason.strip()
     absorbed_by = request.absorbed_by.strip()
-    accepted_head = effects.output(repo, "rev-parse", policy.accepted_branch) or ""
+    accepted_head = output(repo, "rev-parse", policy.accepted_branch) or ""
     control_root = effects.control_root(worktrees, repo)
     leases = leases_by_branch(repo)
     candidates = [
@@ -313,7 +314,7 @@ def _superseded_target_gaps(
 ) -> list[str]:
     if not branch:
         return ["superseded_retire_branch_required"]
-    if effects.output(repo, "rev-parse", "--verify", branch) is None:
+    if output(repo, "rev-parse", "--verify", branch) is None:
         return ["superseded_retire_branch_not_found"]
     if policy.role_for_branch(branch) != ROLE_WORK_LANE:
         return ["superseded_retire_not_work_lane"]
@@ -368,7 +369,7 @@ def _leased_successor(
     accepted_head: str,
 ) -> dict[str, object]:
     """Resolve the current exact leased Work Lane that absorbed a source lane."""
-    branch = effects.output(repo, "symbolic-ref", "--short", "HEAD") or ""
+    branch = output(repo, "symbolic-ref", "--short", "HEAD") or ""
     current = next(
         (
             worktree

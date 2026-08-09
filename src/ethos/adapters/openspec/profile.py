@@ -47,7 +47,7 @@ def load_work_lane_commitment(
     prior = load_lease_bound_commitment(root, lease=lease)
     selected_change = change_id
     try:
-        return load_profile_commitment(root, change_id=selected_change)
+        selected = load_profile_commitment(root, change_id=selected_change)
     except ValueError as error:
         expected = prior.id.removeprefix("change:") if change_id is None else change_id
         if (
@@ -56,6 +56,13 @@ def load_work_lane_commitment(
         ):
             raise
         return prior
+    if (
+        change_id is None
+        and prior.id.startswith("change:")
+        and not selected.id.startswith("change:")
+    ):
+        return prior
+    return selected
 
 
 def completed_active_changes_report(root: Path) -> dict[str, object]:

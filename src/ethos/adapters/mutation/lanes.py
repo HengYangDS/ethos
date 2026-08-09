@@ -11,7 +11,7 @@ from typing import cast
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.lane_start_carrier import LaneStartContext
 from ethos.adapters.mutation.lane_start_carrier import create_lane_start_carrier
-from ethos.adapters.mutation.lane_start_carrier import runner_bootstrap
+from ethos.adapters.mutation.lane_start_receipt import runner_bootstrap
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment

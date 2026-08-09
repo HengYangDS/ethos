@@ -1,0 +1,7 @@
+profile_id = "repo"
+
+[proof]
+gate_registry = "system/gates.toml"
+
+[openspec]
+material_paths = ["openspec/**"]

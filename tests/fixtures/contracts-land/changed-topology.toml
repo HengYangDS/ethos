@@ -1,0 +1,8 @@
+[branch_roles]
+release_branch = "main"
+accepted_branch = "candidate-selected-accepted"
+candidate_branch = "candidate/dev"
+work_branch_prefix = "work/"
+proposal_branch_prefix = "proposal/"
+release_mirror = "independent"
+canonical_sibling_worktrees = false

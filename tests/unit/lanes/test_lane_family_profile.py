@@ -23,6 +23,8 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import branch_role_policy_from_text
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
@@ -36,6 +38,16 @@ if TYPE_CHECKING:
 
 
 _HOLDER = "agent:test:case:agent-test"
+
+_LEGACY_BRANCH_POLICY = """[branch_roles]
+release_branch = "main"
+accepted_branch = "dev"
+candidate_branch = "candidate/dev"
+release_mirror = "accepted_ff"
+work_branch_prefix = "work/"
+proposal_branch_prefix = "proposal/"
+repository_family_worktrees = true
+"""
 
 
 def test_work_lane_projections_preserve_exact_carrier_coordinates() -> None:
@@ -128,6 +140,35 @@ def test_canonical_sibling_profile_rejects_noncanonical_path(tmp_path: Path) -> 
     )
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["work_lane_path_not_canonical"]
+
+
+def test_legacy_complete_branch_policy_preserves_canonical_sibling_authority(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / ".ethos/workspace.toml").write_text(_LEGACY_BRANCH_POLICY, encoding="utf-8")
+
+    assert branch_role_policy_from_text(_LEGACY_BRANCH_POLICY).canonical_sibling_worktrees
+    assert strict_branch_role_policy_from_text(_LEGACY_BRANCH_POLICY).canonical_sibling_worktrees
+    report = start_work_lane(
+        root=repo,
+        name="repository record publication",
+        source_root=repo,
+        path=tmp_path / "intentionally-noncanonical",
+        holder_ref=_HOLDER,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["work_lane_path_not_canonical"]
+
+
+def test_incomplete_retired_branch_policy_key_fails_closed() -> None:
+    text = "[branch_roles]\nrepository_family_worktrees = true\n"
+
+    with pytest.raises(ValueError, match="branch_roles legacy schema requires migration"):
+        branch_role_policy_from_text(text)
+    with pytest.raises(ValueError, match="branch_roles legacy schema requires migration"):
+        strict_branch_role_policy_from_text(text)
 
 
 def test_canonical_sibling_profile_requires_configured_work_branch_prefix(tmp_path: Path) -> None:

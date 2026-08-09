@@ -14,240 +14,139 @@ from ethos.adapters.store.state.lease.projection import LeaseObservation
 from ethos.contracts.coordination import CrossHostHandoff
 from ethos.contracts.coordination import HolderRef
 
+_HANDOFF = {
+    "source_lane_ref": "work/example",
+    "source_head": "a" * 40,
+    "source_tree": "b" * 40,
+    "base_commitment_path": "openspec/changes/example/commitment.toml",
+    "base_commitment_bytes_sha256": "1" * 64,
+    "target_holder_ref": HolderRef.parse("agent:other:run:two"),
+    "context_digest": "c" * 64,
+    "dirty_content_sha256": "f" * 64,
+    "source_lane_incarnation_id": "lane-incarnation:one",
+    "source_lease_id": "lease:one",
+    "source_lease_epoch": 3,
+    "source_lease_expires_at": "2026-07-20T00:00:00+00:00",
+    "source_lease_payload_sha256": "e" * 64,
+    "base_commitment_digest": "f" * 64,
+    "source_holder_ref": HolderRef.parse("agent:source:run:one"),
+}
+
+
+def _handoff(**overrides: object) -> CrossHostHandoff:
+    return CrossHostHandoff(**(_HANDOFF | overrides))
+
+
+def _mock_dirty_git(monkeypatch: pytest.MonkeyPatch, selected: bytes) -> None:
+    def run_git(_root, *args, **_kwargs):
+        return SimpleNamespace(stdout=b"" if args[0] == "diff" else selected)
+
+    monkeypatch.setattr(change_provenance, "run_git", run_git)
+
 
 @pytest.mark.parametrize("width", [40, 64])
 def test_cross_host_handoff_transfers_content_not_source_lease(width: int) -> None:
-    handoff = CrossHostHandoff(
-        source_lane_ref="work/example",
+    payload = _handoff(
         source_head="a" * width,
         source_tree="b" * width,
-        base_commitment_path="openspec/changes/example/commitment.toml",
-        base_commitment_bytes_sha256="1" * 64,
-        target_holder_ref=HolderRef.parse("agent:other:run:two"),
-        context_digest="c" * 64,
-        dirty_content_sha256="f" * 64,
-        source_lane_incarnation_id="lane-incarnation:one",
-        source_lease_id="lease:one",
-        source_lease_epoch=3,
-        source_lease_expires_at="2026-07-20T00:00:00+00:00",
-        source_lease_payload_sha256="e" * 64,
-        base_commitment_digest="f" * 64,
-        source_holder_ref=HolderRef.parse("agent:source:run:one"),
         artifacts=({"path": "repository.bundle", "sha256": "d" * 64, "kind": "git_bundle"},),
-    )
-
-    payload = handoff.to_payload()
-    assert payload["source_head"] == "a" * width
-    assert payload["source_tree"] == "b" * width
-    assert payload["base_commitment_path"] == "openspec/changes/example/commitment.toml"
-    assert payload["base_commitment_bytes_sha256"] == "1" * 64
-    assert payload["target_holder_ref"] == "agent:other:run:two"
-    assert payload["dirty_content_sha256"] == "f" * 64
-    assert payload["base_commitment_digest"] == "f" * 64
-    assert payload["transfers_source_lease"] is False
-    assert payload["destination_creates_local_incarnation"] is True
-    assert payload["source_lease_binding"]["lane_incarnation_id"] == "lane-incarnation:one"
-    assert payload["source_lease_binding"]["epoch"] == 3
-    assert payload["source_lease_binding"]["expires_at"] == "2026-07-20T00:00:00+00:00"
-    assert payload["source_lease_binding"]["payload_sha256"] == "e" * 64
-    assert payload["truth_boundary"] == "content_addressed_context_until_promoted"
-    assert CrossHostHandoff.model_fields["source_lease_expires_at"].is_required()
-    assert CrossHostHandoff.model_fields["source_lane_incarnation_id"].is_required()
-    assert CrossHostHandoff.model_fields["source_lease_payload_sha256"].is_required()
-    assert CrossHostHandoff.model_fields["base_commitment_path"].is_required()
-    assert CrossHostHandoff.model_fields["base_commitment_bytes_sha256"].is_required()
-    assert CrossHostHandoff.model_fields["base_commitment_digest"].is_required()
-
-
-def test_cross_host_handoff_rejects_missing_base_commitment_digest() -> None:
-    with pytest.raises(ValidationError):
-        CrossHostHandoff(
-            source_lane_ref="work/example",
-            source_head="a" * 40,
-            source_tree="b" * 40,
-            base_commitment_path="openspec/changes/example/commitment.toml",
-            base_commitment_bytes_sha256="1" * 64,
-            target_holder_ref=HolderRef.parse("agent:other:run:two"),
-            context_digest="c" * 64,
-            dirty_content_sha256="f" * 64,
-            source_lane_incarnation_id="lane-incarnation:one",
-            source_lease_id="lease:one",
-            source_lease_epoch=3,
-            source_lease_expires_at="2026-07-20T00:00:00+00:00",
-            source_lease_payload_sha256="e" * 64,
-            source_holder_ref=HolderRef.parse("agent:source:run:one"),
-        )
-
-
-@pytest.mark.parametrize("field", ["base_commitment_path", "base_commitment_bytes_sha256"])
-def test_cross_host_handoff_rejects_missing_exact_carrier_coordinate(field: str) -> None:
-    payload = {
-        "source_lane_ref": "work/example",
-        "source_head": "a" * 40,
-        "source_tree": "b" * 40,
+    ).to_payload()
+    expected = {
+        "source_head": "a" * width,
+        "source_tree": "b" * width,
         "base_commitment_path": "openspec/changes/example/commitment.toml",
         "base_commitment_bytes_sha256": "1" * 64,
-        "target_holder_ref": HolderRef.parse("agent:other:run:two"),
-        "context_digest": "c" * 64,
+        "target_holder_ref": "agent:other:run:two",
         "dirty_content_sha256": "f" * 64,
-        "source_lane_incarnation_id": "lane-incarnation:one",
-        "source_lease_id": "lease:one",
-        "source_lease_epoch": 3,
-        "source_lease_expires_at": "2026-07-20T00:00:00+00:00",
-        "source_lease_payload_sha256": "e" * 64,
         "base_commitment_digest": "f" * 64,
-        "source_holder_ref": HolderRef.parse("agent:source:run:one"),
+        "transfers_source_lease": False,
+        "destination_creates_local_incarnation": True,
+        "truth_boundary": "content_addressed_context_until_promoted",
     }
-    del payload[field]
+    assert expected.items() <= payload.items()
+    lease = payload["source_lease_binding"]
+    keys = "lane_incarnation_id", "epoch", "expires_at", "payload_sha256"
+    assert [lease[key] for key in keys] == [
+        "lane-incarnation:one",
+        3,
+        "2026-07-20T00:00:00+00:00",
+        "e" * 64,
+    ]
+    assert all(
+        CrossHostHandoff.model_fields[field].is_required()
+        for field in (
+            "source_lease_expires_at",
+            "source_lane_incarnation_id",
+            "source_lease_payload_sha256",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    )
 
+
+def _artifact(**overrides: str) -> tuple[dict[str, str]]:
+    return ({"path": "repository.bundle", "sha256": "d" * 64, "kind": "git_bundle"} | overrides,)
+
+
+_VALIDATION_CASES = [
+    *(
+        (field, {})
+        for field in (
+            "base_commitment_digest",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+        )
+    ),
+    *(("", {"source_head": "a" * width, "source_tree": "b" * width}) for width in (41, 63)),
+    ("", {"dirty_disposition": "preserved"}),
+    *(("", {"source_lease_epoch": epoch}) for epoch in (True, "1", 1.0)),
+    ("", {"artifacts": _artifact(path="../repository.bundle")}),
+    ("", {"artifacts": _artifact(kind="tracked_patch")}),
+    ("", {"artifacts": _artifact(legacy="field")}),
+]
+
+
+@pytest.mark.parametrize(("absent", "overrides"), _VALIDATION_CASES)
+def test_cross_host_handoff_validation_matrix(absent: str, overrides: dict[str, object]) -> None:
+    payload = _HANDOFF | overrides
+    if absent:
+        del payload[absent]
     with pytest.raises(ValidationError):
         CrossHostHandoff(**payload)
-
-
-@pytest.mark.parametrize("width", [41, 63])
-def test_cross_host_handoff_rejects_intermediate_oid_widths(width: int) -> None:
-    with pytest.raises(ValidationError):
-        CrossHostHandoff(
-            source_lane_ref="work/example",
-            source_head="a" * width,
-            source_tree="b" * width,
-            base_commitment_path="openspec/changes/example/commitment.toml",
-            base_commitment_bytes_sha256="1" * 64,
-            target_holder_ref=HolderRef.parse("agent:other:run:two"),
-            context_digest="c" * 64,
-            dirty_content_sha256="f" * 64,
-            source_lane_incarnation_id="lane-incarnation:one",
-            source_lease_id="lease:one",
-            source_lease_epoch=3,
-            source_lease_expires_at="2026-07-20T00:00:00+00:00",
-            source_lease_payload_sha256="e" * 64,
-            base_commitment_digest="f" * 64,
-            source_holder_ref=HolderRef.parse("agent:source:run:one"),
-        )
-
-
-def test_cross_host_handoff_rejects_legacy_dirty_disposition() -> None:
-    with pytest.raises(ValidationError):
-        CrossHostHandoff(
-            source_lane_ref="work/example",
-            source_head="a" * 40,
-            source_tree="b" * 40,
-            base_commitment_path="openspec/changes/example/commitment.toml",
-            base_commitment_bytes_sha256="1" * 64,
-            target_holder_ref=HolderRef.parse("agent:other:run:two"),
-            context_digest="c" * 64,
-            dirty_content_sha256="f" * 64,
-            dirty_disposition="preserved",
-            source_lane_incarnation_id="lane-incarnation:one",
-            source_lease_id="lease:one",
-            source_lease_epoch=3,
-            source_lease_expires_at="2026-07-20T00:00:00+00:00",
-            source_lease_payload_sha256="e" * 64,
-            base_commitment_digest="f" * 64,
-            source_holder_ref=HolderRef.parse("agent:source:run:one"),
-        )
-
-
-@pytest.mark.parametrize("epoch", [True, "1", 1.0])
-def test_cross_host_handoff_rejects_coercive_lease_epochs(epoch: object) -> None:
-    with pytest.raises(ValidationError):
-        CrossHostHandoff(
-            source_lane_ref="work/example",
-            source_head="a" * 40,
-            source_tree="b" * 40,
-            base_commitment_path="openspec/changes/example/commitment.toml",
-            base_commitment_bytes_sha256="1" * 64,
-            target_holder_ref=HolderRef.parse("agent:other:run:two"),
-            context_digest="c" * 64,
-            dirty_content_sha256="f" * 64,
-            source_lane_incarnation_id="lane-incarnation:one",
-            source_lease_id="lease:one",
-            source_lease_epoch=epoch,
-            source_lease_expires_at="2026-07-20T00:00:00+00:00",
-            source_lease_payload_sha256="e" * 64,
-            base_commitment_digest="f" * 64,
-            source_holder_ref=HolderRef.parse("agent:source:run:one"),
-        )
-
-
-@pytest.mark.parametrize(
-    "artifact",
-    [
-        {"path": "../repository.bundle", "sha256": "d" * 64, "kind": "git_bundle"},
-        {"path": "repository.bundle", "sha256": "d" * 64, "kind": "tracked_patch"},
-        {
-            "path": "repository.bundle",
-            "sha256": "d" * 64,
-            "kind": "git_bundle",
-            "legacy": "field",
-        },
-    ],
-)
-def test_cross_host_handoff_rejects_noncanonical_artifacts(
-    artifact: dict[str, str],
-) -> None:
-    with pytest.raises(ValidationError):
-        CrossHostHandoff(
-            source_lane_ref="work/example",
-            source_head="a" * 40,
-            source_tree="b" * 40,
-            base_commitment_path="openspec/changes/example/commitment.toml",
-            base_commitment_bytes_sha256="1" * 64,
-            target_holder_ref=HolderRef.parse("agent:other:run:two"),
-            context_digest="c" * 64,
-            dirty_content_sha256="f" * 64,
-            source_lane_incarnation_id="lane-incarnation:one",
-            source_lease_id="lease:one",
-            source_lease_epoch=3,
-            source_lease_expires_at="2026-07-20T00:00:00+00:00",
-            source_lease_payload_sha256="e" * 64,
-            base_commitment_digest="f" * 64,
-            source_holder_ref=HolderRef.parse("agent:source:run:one"),
-            artifacts=(artifact,),
-        )
 
 
 def test_handoff_export_rejects_a_bundle_from_another_generation(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    handoff = CrossHostHandoff(
-        source_lane_ref="work/example",
-        source_head="a" * 40,
-        source_tree="b" * 40,
-        base_commitment_path="openspec/changes/example/commitment.toml",
-        base_commitment_bytes_sha256="1" * 64,
-        target_holder_ref=HolderRef.parse("agent:other:run:two"),
-        context_digest="c" * 64,
-        dirty_content_sha256="d" * 64,
-        source_lane_incarnation_id="lane-incarnation:one",
-        source_lease_id="lease:one",
-        source_lease_epoch=1,
-        source_lease_expires_at="2026-07-21T00:00:00+00:00",
-        source_lease_payload_sha256="e" * 64,
-        base_commitment_digest="f" * 64,
-        source_holder_ref=HolderRef.parse("agent:source:run:one"),
-    )
-
     def run_git(_root, *args, **_kwargs):
-        stdout = (
-            f"{'f' * 40} refs/heads/work/example\n" if args[:2] == ("bundle", "list-heads") else ""
-        )
-        return SimpleNamespace(stdout=stdout)
+        head = f"{'f' * 40} refs/heads/work/example\n"
+        return SimpleNamespace(stdout=head if args[:2] == ("bundle", "list-heads") else "")
 
-    monkeypatch.setattr(handoff_package, "run_git", run_git)
-    monkeypatch.setattr(
-        handoff_package,
-        "_artifact",
-        lambda path, _root, kind: {"path": path.name, "sha256": "0" * 64, "kind": kind},
-    )
-    monkeypatch.setattr(handoff_package, "_require_schema", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(handoff_package, "_verify_export_snapshot", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(handoff_package, "_publish_package", lambda *_args, **_kwargs: None)
+    patches = {
+        "run_git": run_git,
+        "_artifact": lambda path, _root, kind: {
+            "path": path.name,
+            "sha256": "0" * 64,
+            "kind": kind,
+        },
+    }
+    for name, replacement in patches.items():
+        monkeypatch.setattr(handoff_package, name, replacement)
 
+    def noop(*_args, **_kwargs):
+        return None
+
+    for name in ("_require_schema", "_verify_export_snapshot", "_publish_package"):
+        monkeypatch.setattr(handoff_package, name, noop)
     with pytest.raises(ValueError, match="handoff_bundle_identity_mismatch"):
         handoff_package.write_handoff_package(
             repo=tmp_path,
-            handoff=handoff,
+            handoff=_handoff(
+                dirty_content_sha256="d" * 64,
+                source_lease_epoch=1,
+                source_lease_expires_at="2026-07-21T00:00:00+00:00",
+            ),
             context="context",
             output_root=tmp_path / "output",
         )
@@ -256,19 +155,15 @@ def test_handoff_export_rejects_a_bundle_from_another_generation(
 def test_handoff_manifest_rejects_a_symlinked_manifest(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    package = tmp_path / "handoff:package"
-    package.mkdir()
-    outside = tmp_path / "outside.json"
-    outside.write_text("{}\n", encoding="utf-8")
+    (package := tmp_path / "handoff:package").mkdir()
+    (outside := tmp_path / "outside.json").write_text("{}\n", encoding="utf-8")
     (package / "manifest.json").symlink_to(outside)
-    monkeypatch.setattr(
-        handoff_package,
-        "validate_schema_instance",
-        lambda *_args, **_kwargs: {"verdict": "pass", "required_gaps": []},
-    )
 
+    def valid(*_args, **_kwargs):
+        return {"verdict": "pass", "required_gaps": []}
+
+    monkeypatch.setattr(handoff_package, "validate_schema_instance", valid)
     _, gaps = handoff_package.verified_handoff_manifest(package=package, root=tmp_path)
-
     assert gaps == ["handoff_manifest_unsafe"]
 
 
@@ -326,136 +221,99 @@ def test_handoff_import_rejects_destination_lease_before_git_effects(
 def test_dirty_content_digest_frames_path_and_content(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    (tmp_path / "a").write_bytes(b"bc")
-    (tmp_path / "ab").write_bytes(b"c")
-
-    selected = b"a\0"
+    for name, content in (("a", b"bc"), ("ab", b"c")):
+        (tmp_path / name).write_bytes(content)
+    selected = [b"a\0"]
 
     def run_git(_root, *args, **kwargs):
         assert kwargs["text"] is False
-        return SimpleNamespace(stdout=b"" if args[0] == "diff" else selected)
+        return SimpleNamespace(stdout=b"" if args[0] == "diff" else selected[0])
 
     monkeypatch.setattr(change_provenance, "run_git", run_git)
     first = change_provenance.dirty_content_sha256(tmp_path)
-    selected = b"ab\0"
-
+    selected[0] = b"ab\0"
     assert change_provenance.dirty_content_sha256(tmp_path) != first
 
 
-def test_dirty_content_digest_rejects_an_untracked_symlink(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    outside = tmp_path.parent / "outside"
-    outside.write_bytes(b"external")
-    (tmp_path / "link").symlink_to(outside)
-
-    monkeypatch.setattr(
-        change_provenance,
-        "run_git",
-        lambda _root, *args, **_kwargs: SimpleNamespace(
-            stdout=b"" if args[0] == "diff" else b"link\0"
-        ),
-    )
-
-    with pytest.raises(ValueError, match="dirty_content_unsafe_path:link"):
-        change_provenance.dirty_content_sha256(tmp_path)
+_DIRTY_CASES = [
+    ("link", "dirty_content_unsafe_path:link"),
+    *((case, "dirty_content_snapshot_drift") for case in ("patch", "inventory")),
+    ("root", "dirty_content_unsafe_path:file"),
+    ("replace", "dirty_content_unstable_path:file"),
+]
 
 
-@pytest.mark.parametrize("drift", ["patch", "inventory"])
-def test_dirty_content_digest_rejects_snapshot_drift(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, drift: str
-) -> None:
-    (tmp_path / "file").write_bytes(b"content")
+def _drifting_git(case: str):
     calls = {"diff": 0, "ls-files": 0}
 
     def run_git(_root, *args, **_kwargs):
         command = args[0]
         calls[command] += 1
+        kind = {"diff": "patch", "ls-files": "inventory"}[command]
+        changed = calls[command] == 2 and case == kind
         if command == "diff":
-            changed = drift == "patch" and calls[command] == 2
             return SimpleNamespace(stdout=b"changed" if changed else b"")
-        changed = drift == "inventory" and calls[command] == 2
         return SimpleNamespace(stdout=b"other\0" if changed else b"file\0")
 
-    monkeypatch.setattr(change_provenance, "run_git", run_git)
-
-    with pytest.raises(ValueError, match="dirty_content_snapshot_drift"):
-        change_provenance.dirty_content_sha256(tmp_path)
+    return run_git
 
 
-def test_dirty_content_digest_rejects_a_symlinked_root(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    real_root = tmp_path / "real"
-    real_root.mkdir()
-    (real_root / "file").write_bytes(b"content")
-    linked_root = tmp_path / "linked"
-    linked_root.symlink_to(real_root, target_is_directory=True)
-    monkeypatch.setattr(
-        change_provenance,
-        "run_git",
-        lambda _root, *args, **_kwargs: SimpleNamespace(
-            stdout=b"" if args[0] == "diff" else b"file\0"
-        ),
-    )
+def _replace_on_second_regular_fstat(file, outside):
+    original, calls = change_provenance.os.fstat, [0]
 
-    with pytest.raises(ValueError, match="dirty_content_unsafe_path:file"):
-        change_provenance.dirty_content_sha256(linked_root)
-
-
-def test_dirty_content_digest_rejects_path_replacement_after_read(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    target = tmp_path / "file"
-    target.write_bytes(b"content")
-    outside = tmp_path / "outside"
-    outside.write_bytes(b"outside")
-    monkeypatch.setattr(
-        change_provenance,
-        "run_git",
-        lambda _root, *args, **_kwargs: SimpleNamespace(
-            stdout=b"" if args[0] == "diff" else b"file\0"
-        ),
-    )
-    original_fstat = change_provenance.os.fstat
-    regular_fstat_calls = 0
-
-    def replace_after_read(descriptor: int):
-        nonlocal regular_fstat_calls
-        observed = original_fstat(descriptor)
+    def fstat(descriptor: int):
+        observed = original(descriptor)
         if stat.S_ISREG(observed.st_mode):
-            regular_fstat_calls += 1
-            if regular_fstat_calls == 2:
-                target.unlink()
-                target.symlink_to(outside)
+            calls[0] += 1
+            if calls[0] == 2:
+                file.unlink()
+                file.symlink_to(outside)
         return observed
 
-    monkeypatch.setattr(change_provenance.os, "fstat", replace_after_read)
+    return fstat
 
-    with pytest.raises(ValueError, match="dirty_content_unstable_path:file"):
-        change_provenance.dirty_content_sha256(tmp_path)
+
+@pytest.mark.parametrize(("case", "gap"), _DIRTY_CASES)
+def test_dirty_content_digest_negative_matrix(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, case: str, gap: str
+) -> None:
+    target = tmp_path
+    if case == "link":
+        (outside := tmp_path.parent / "outside").write_bytes(b"external")
+        (tmp_path / "link").symlink_to(outside)
+        _mock_dirty_git(monkeypatch, b"link\0")
+    elif case in {"patch", "inventory"}:
+        (tmp_path / "file").write_bytes(b"content")
+        monkeypatch.setattr(change_provenance, "run_git", _drifting_git(case))
+    elif case == "root":
+        target = tmp_path / "linked"
+        (real := tmp_path / "real").mkdir()
+        (real / "file").write_bytes(b"content")
+        target.symlink_to(real, target_is_directory=True)
+        _mock_dirty_git(monkeypatch, b"file\0")
+    else:
+        for name, content in (("file", b"content"), ("outside", b"outside")):
+            (tmp_path / name).write_bytes(content)
+        file, outside = tmp_path / "file", tmp_path / "outside"
+        _mock_dirty_git(monkeypatch, b"file\0")
+        monkeypatch.setattr(
+            change_provenance.os, "fstat", _replace_on_second_regular_fstat(file, outside)
+        )
+    with pytest.raises(ValueError, match=gap):
+        change_provenance.dirty_content_sha256(target)
 
 
 def test_dirty_content_digest_opens_special_files_nonblocking(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fifo = tmp_path / "fifo"
-    os.mkfifo(fifo)
-    monkeypatch.setattr(
-        change_provenance,
-        "run_git",
-        lambda _root, *args, **_kwargs: SimpleNamespace(
-            stdout=b"" if args[0] == "diff" else b"fifo\0"
-        ),
-    )
-    original_open = change_provenance.os.open
+    os.mkfifo(tmp_path / "fifo")
+    _mock_dirty_git(monkeypatch, b"fifo\0")
+    original = change_provenance.os.open
 
-    def guarded_open(path, flags, *args, **kwargs):
-        if path == "fifo":
-            assert flags & os.O_NONBLOCK
-        return original_open(path, flags, *args, **kwargs)
+    def open_(path, flags, *args, **kwargs):
+        assert path != "fifo" or flags & os.O_NONBLOCK
+        return original(path, flags, *args, **kwargs)
 
-    monkeypatch.setattr(change_provenance.os, "open", guarded_open)
-
+    monkeypatch.setattr(change_provenance.os, "open", open_)
     with pytest.raises(ValueError, match="dirty_content_unsafe_path:fifo"):
         change_provenance.dirty_content_sha256(tmp_path)

@@ -1,0 +1,39 @@
+schema_version = 1
+id = "fixture-gates"
+
+[proof_sets]
+default = ["sample-tests", "sample-static"]
+full = ["sample-tests", "sample-static", "full-only"]
+
+[[gates]]
+id = "sample-tests"
+registries = ["runtime"]
+kind = "test"
+command = ["sample", "test"]
+asset_classes = ["python-code"]
+dimensions = ["test", "coverage"]
+evidence_class = "proof"
+trust_bearing = true
+tool_adapter = "fixture"
+
+[[gates]]
+id = "sample-static"
+registries = ["runtime"]
+kind = "typing"
+command = ["sample", "typecheck"]
+asset_classes = ["python-code"]
+dimensions = ["static-analysis"]
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "fixture"
+
+[[gates]]
+id = "full-only"
+registries = ["runtime"]
+kind = "test"
+command = ["sample", "full"]
+asset_classes = ["python-code"]
+dimensions = ["behavior"]
+evidence_class = "proof"
+trust_bearing = true
+tool_adapter = "fixture"

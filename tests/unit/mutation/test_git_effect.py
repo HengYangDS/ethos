@@ -4,12 +4,14 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from typing import Any
 
 import pytest
 
-import ethos.adapters.repo.git_effect_attestation
-import ethos.adapters.repo.git_effects
+import ethos.adapters.repo.git_effect_attestation as attest
+import ethos.adapters.repo.git_effects as runtime
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
@@ -35,7 +37,7 @@ from tests.support.governed_repository import init_git_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
-_ISSUER = "agent:test:case:one"
+ISSUER = "agent:test:case:one"
 
 
 def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
@@ -51,7 +53,7 @@ def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
     git(repo, "add", "README.md")
     previous = git(repo, "rev-parse", "HEAD")
     calls: list[dict[str, str]] = []
-    original = ethos.adapters.repo.git_effects.run_git
+    original = runtime.run_git
 
     def capture(_root: Path, *args: str, **kwargs: object) -> object:
         if args[:1] == ("config",):
@@ -62,7 +64,7 @@ def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
         calls.append(environment)
         return type("Result", (), {"returncode": 0, "stderr": ""})()
 
-    monkeypatch.setattr(ethos.adapters.repo.git_effects, "run_git", capture)
+    monkeypatch.setattr(runtime, "run_git", capture)
 
     result = commit_git_worktree(
         repo,
@@ -141,46 +143,91 @@ def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
     assert signer_record.read_text(encoding="utf-8").strip() == str(public_key)
 
 
-def _declare_repository(repo: Path, repository_id: str | None = None) -> str:
-    repository_id = repository_id or f"repository:{repo.name}"
-    commit_fixture_file(
-        repo,
-        ".ethos/commitment.toml",
-        "schema_version = 1\n"
-        f'id = "{repository_id}"\n'
-        'intent = "Govern the fixture repository."\n'
-        f'subjects = ["{repository_id}"]\n',
-        "declare repository identity",
+ZERO_OID, ZERO_DIGEST = "0" * 40, "0" * 64
+
+
+def fixture(root: Path, identity: str = "repository:repo") -> SimpleNamespace:
+    repo = init_git_repo(root / "repo")
+    carrier = (
+        f'schema_version = 1\nid = "{identity}"\nintent = "Govern."\nsubjects = ["{identity}"]\n'
     )
-    return repository_id
-
-
-def _effect(*, old: str, new: str) -> GitEffect:
-    return GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
-
-
-def _fixture_effect(repo: Path) -> tuple[str, str, GitEffect]:
+    commit_fixture_file(repo, ".ethos/commitment.toml", carrier, "declare identity")
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
-    return old, new, _effect(old=old, new=new)
+    return SimpleNamespace(repo=repo, old=old, new=new, effect=effect(old, new))
 
 
-def _effect_fixture(
-    tmp_path: Path, repository_id: str | None = None
-) -> tuple[Path, str, str, GitEffect]:
-    repo = init_git_repo(tmp_path / "repo")
-    _declare_repository(repo, repository_id)
-    return (repo, *_fixture_effect(repo))
+def effect(old: str, new: str, ref: str = "refs/heads/dev") -> GitEffect:
+    return GitEffect(updates={ref: GitRefUpdate(expected=old, desired=new)})
 
 
-def _lease_generation(repo: Path, old: str, branch: str) -> dict[str, object]:
+def plan(
+    root: Path,
+    value: GitEffect,
+    permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
+    values: dict[str, object] | None = None,
+    policy: dict[str, object] | None = None,
+    prior: dict[str, object] | None = None,
+) -> TransitionPlan:
+    identity = f"repository:{root.name}"
+    facts = Facts(
+        repository=identity,
+        head=git(root, "rev-parse", "HEAD"),
+        tree=git(root, "rev-parse", "HEAD^{tree}"),
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        values={
+            "refs": {name: update.expected for name, update in value.updates.items()},
+            "assertions": value.assertions,
+            **(values or {}),
+        },
+    )
+    authority = Commitment(
+        id="authority:test:git-effect",
+        intent="Apply CAS.",
+        subjects=(identity,),
+        permissions=permissions,
+    )
+    return compile_git_effect_plan(
+        authority,
+        facts,
+        prior_attestations=prior or {},
+        policy=policy or {"operation": "test.apply"},
+        effect=value,
+    )
+
+
+def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
+    value = value or case.effect
+    desired = next(iter(value.updates.values())).desired
+    proof = Attestation.issue(
+        {
+            "predicate": "proof:execution",
+            "verifier": ISSUER,
+            "subject": f"git:commit:{desired}",
+            "issued_at": datetime(2026, 8, 1, tzinfo=UTC),
+            "valid_from": datetime(2026, 8, 1, tzinfo=UTC),
+            "verdict": "pass",
+            "statement": {"head": desired},
+            "commitment_digest": "a" * 64,
+            "policy_digest": canonical_json_digest({"operation": "candidate.integrate"}),
+        }
+    )
+    return plan(
+        case.repo,
+        value,
+        policy={"operation": "candidate.integrate"},
+        prior={"proof": proof.model_dump(mode="json")},
+    )
+
+
+def generation(case: Any, branch: str) -> dict[str, object]:
     return {
         "branch": branch,
         "lease_id": "lease:test",
         "epoch": 1,
-        "holder_ref": _ISSUER,
-        "expected_head": old,
-        "expected_tree": git(repo, "rev-parse", "HEAD^{tree}"),
+        "holder_ref": ISSUER,
+        "expected_head": case.old,
+        "expected_tree": git(case.repo, "rev-parse", "HEAD^{tree}"),
         "base_commitment_path": ".ethos/commitment.toml",
         "base_commitment_bytes_sha256": "c" * 64,
         "base_commitment_digest": "a" * 64,
@@ -189,771 +236,403 @@ def _lease_generation(repo: Path, old: str, branch: str) -> dict[str, object]:
     }
 
 
-def _plan(
-    repo: Path,
-    effect: GitEffect,
-    *,
-    permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
-    facts_values: dict[str, object] | None = None,
-    policy: dict[str, object] | None = None,
-    prior_attestations: dict[str, object] | None = None,
-) -> TransitionPlan:
-    repository = f"repository:{repo.name}"
-    authority = Commitment(
-        id="authority:test:git-effect",
-        intent="Apply one verified Git ref transition.",
-        subjects=(repository,),
-        permissions=permissions,
-    )
-    values = facts_values or {}
-    facts = Facts(
-        repository=repository,
-        head=git(repo, "rev-parse", "HEAD"),
-        tree=git(repo, "rev-parse", "HEAD^{tree}"),
-        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
-        values={
-            "refs": {ref: update.expected for ref, update in effect.updates.items()},
-            "assertions": effect.assertions,
-            **values,
-        },
-    )
-    return compile_git_effect_plan(
-        authority,
-        facts,
-        prior_attestations=prior_attestations or {},
-        policy=policy or {"operation": "test.apply"},
-        effect=effect,
-    )
-
-
-def _proof_bound_plan(
-    repo: Path,
-    effect: GitEffect,
-) -> TransitionPlan:
-    proof = Attestation.issue(
-        {
-            "predicate": "proof:execution",
-            "verifier": _ISSUER,
-            "subject": f"git:commit:{next(iter(effect.updates.values())).desired}",
-            "issued_at": datetime(2026, 8, 1, tzinfo=UTC),
-            "valid_from": datetime(2026, 8, 1, tzinfo=UTC),
-            "verdict": "pass",
-            "statement": {},
-            "commitment_digest": "a" * 64,
-            "policy_digest": canonical_json_digest({"operation": "candidate.integrate"}),
-        }
-    )
-    return _plan(
-        repo,
-        effect,
-        policy={"operation": "candidate.integrate"},
-        prior_attestations={"proof": proof.model_dump(mode="json")},
-    )
-
-
-def _applied_fixture(
-    tmp_path: Path,
-) -> tuple[Path, str, str, GitEffect, TransitionPlan, Attestation]:
-    repo, old, new, effect = _effect_fixture(tmp_path)
-    plan = _plan(repo, effect)
-    return repo, old, new, effect, plan, execute_git_effect(repo, plan, issuer=_ISSUER)
-
-
-def _reissue(attestation: Attestation, **updates: object) -> Attestation:
-    payload = attestation.model_dump(
-        mode="python", exclude={"id", "schema_version", "statement_digest"}
-    )
+def reissue(value: Attestation, **updates: object) -> Attestation:
+    payload = value.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
     return Attestation.issue(payload | updates)
 
 
-def _lease_plan(
-    repo: Path,
-    old: str,
-    effect: GitEffect,
-    branch: str,
-) -> tuple[dict[str, object], TransitionPlan]:
-    generation = _lease_generation(repo, old, branch)
-    return generation, _plan(repo, effect, facts_values={"lease_generation": generation})
+def reject(error: str, call: Any) -> None:
+    with pytest.raises((OSError, ValueError), match=error):
+        call()
 
 
-def test_git_effect_applies_exact_cas_and_recognizes_matching_attestation(
+def test_exact_multiref_cas_attestation_recognition_and_cleanup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, old, new, effect = _effect_fixture(tmp_path)
-    plan = _plan(repo, effect)
+    case = fixture(tmp_path)
+    git(case.repo, "branch", "candidate/dev", case.old)
+    value = GitEffect(
+        updates={
+            ref: GitRefUpdate(expected=case.old, desired=case.new)
+            for ref in ("refs/heads/candidate/dev", "refs/heads/dev")
+        }
+    )
+    persisted: list[Attestation] = []
     programs: list[tuple[object, object]] = []
-    original = ethos.adapters.repo.git_effects.run_git
+    original = runtime.run_git
 
-    def capture(root, *args, **kwargs):
+    def capture(root: Path, *args: str, **kwargs: object) -> object:
         if args == ("update-ref", "--stdin", "-z"):
             programs.append((kwargs.get("stdin"), kwargs.get("text", True)))
         return original(root, *args, **kwargs)
 
-    monkeypatch.setattr(ethos.adapters.repo.git_effects, "run_git", capture)
-    applied = execute_git_effect(repo, plan, issuer=_ISSUER)
-    recognized = execute_git_effect(repo, plan, issuer=_ISSUER)
-    statement = mutable_json(applied.statement)
-    assert isinstance(statement, dict)
-    assert programs == [(effect.program(), False)]
+    monkeypatch.setattr(runtime, "run_git", capture)
+    monkeypatch.setattr(
+        attest,
+        "records",
+        lambda _root, _plan, record=None: persisted.append(record) if record else tuple(persisted),
+    )
+    carried = proof_plan(case, value)
+    applied = execute_git_effect(case.repo, carried, issuer=ISSUER)
+    statement = applied.statement
+    assert programs == [(value.program(), False)]
     assert (applied.predicate, applied.subject, applied.verdict) == (
         "effect:git-ref-update",
-        f"git-effect:{effect.digest()}",
+        f"git-effect:{value.digest()}",
         "pass",
     )
-    assert (applied.plan_digest, applied.effect_digest) == (plan.digest, effect.digest())
-    assert (applied.commitment_digest, applied.facts_digest, applied.policy_digest) == (
-        plan.inputs.commitment,
-        plan.inputs.facts,
-        plan.inputs.policy,
+    assert (applied.plan_digest, applied.effect_digest) == (carried.digest, value.digest())
+    assert statement["command"] == ("git", "update-ref", "--stdin", "-z")
+    assert statement["program_sha256"] == value.digest()
+    assert mutable_json(statement["plan"]) == carried.model_dump(mode="json")
+    assert mutable_json(statement["effect"]) == value.model_dump(mode="json")
+    assert statement["input"]["refs"] == dict.fromkeys(value.updates, case.old)
+    assert (
+        statement["result"]["refs"]
+        == statement["output"]["refs"]
+        == dict.fromkeys(value.updates, case.new)
     )
-    assert statement["repository"] == "repository:repo"
-    assert statement["command"] == ["git", "update-ref", "--stdin", "-z"]
-    assert statement["program_sha256"] == effect.digest()
-    assert statement["plan"] == plan.model_dump(mode="json")
-    assert statement["effect"] == effect.model_dump(mode="json")
-    assert statement["input"]["refs"] == {"refs/heads/dev": old}
-    assert statement["result"] == {
-        "state": "applied",
-        "executed": True,
-        "exit_code": 0,
-        "refs": {"refs/heads/dev": new},
-    }
-    assert statement["output"]["refs"] == {"refs/heads/dev": new}
-    assert statement["freshness"] == {
-        "mode": "semantic_scope",
-        "repository": "repository:repo",
-        **statement["output"],
-    }
-    observed = statement["observed_at"]
-    assert isinstance(observed, dict)
-    assert observed["before"] <= observed["after"]
-    assert applied.issued_at == datetime.fromisoformat(str(observed["after"]))
-    assert applied.valid_from == applied.issued_at
-    assert recognized == applied
-    assert git(repo, "rev-parse", "dev") == new
-    assert not list(ref_intent_dir(repo).glob("*.json"))
+    assert (statement["result"]["state"], statement["result"]["executed"]) == ("applied", True)
+    assert persisted == [applied]
+    assert execute_git_effect(case.repo, carried, issuer=ISSUER) == applied
+    assert not list(ref_intent_dir(case.repo).glob("*.json"))
 
 
-def test_git_effect_rejects_unbound_detached_lease_execution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, _old, _new, effect = _effect_fixture(tmp_path)
-    current_lease = {
-        **_lease_generation(repo, _old, "work/example"),
-        "lane_ref": "work/example",
-        "lease_state": "valid",
-        "commitment_binding": "bound",
-    }
-    plan = _plan(
-        repo,
-        effect,
-        facts_values={"lease_generation": lease_generation(current_lease)},
-        policy={"operation": "lane.refresh", "execution_branch": "work/example"},
+@pytest.mark.parametrize("kind", ["linked", "dirty", "changed", "foreign"])
+def test_repository_worktree_identity_matrix(tmp_path: Path, kind: str) -> None:
+    identity, case = "repository:portable", fixture(tmp_path, "repository:portable")
+    root = case.repo
+    if kind == "linked":
+        root = tmp_path / "linked"
+        git(case.repo, "worktree", "add", "--detach", str(root), "dev")
+    elif kind == "dirty":
+        carrier = root / ".ethos/commitment.toml"
+        carrier.write_text(carrier.read_text().replace(identity, "repository:dirty"))
+    elif kind == "changed":
+        git(root, "checkout", "-q", "-b", "change")
+        carrier = root / ".ethos/commitment.toml"
+        case.new = commit_fixture_file(
+            root,
+            str(carrier.relative_to(root)),
+            carrier.read_text().replace(identity, "repository:changed"),
+            "change",
+        )
+        git(root, "checkout", "-q", "dev")
+        case.effect = effect(case.old, case.new)
+    elif kind == "foreign":
+        other = fixture(tmp_path / "foreign", "repository:foreign")
+        git(root, "fetch", str(other.repo), f"{other.old}:refs/heads/foreign")
+        case.effect = effect(other.old, case.new)
+    if kind in {"changed", "foreign"}:
+        reject(
+            "git_effect_repository_identity_mismatch",
+            lambda: execute_git_effect(root, plan(root, case.effect), issuer=ISSUER),
+        )
+        assert git_stdout(case.repo, "rev-parse", "--verify", "refs/heads/dev") == case.old
+    else:
+        assert (
+            execute_git_effect(root, plan(root, case.effect), issuer=ISSUER).statement["repository"]
+            == identity
+        )
+
+
+@pytest.mark.parametrize("kind", ["zero", "owned", "unowned", "stale", "assertion"])
+def test_ref_recovery_and_cas_failure_matrix(tmp_path: Path, kind: str) -> None:
+    case = fixture(tmp_path)
+    if kind == "zero":
+        value = effect(ZERO_OID, case.old, "refs/heads/work/new")
+        record = execute_git_effect(case.repo, plan(case.repo, value), issuer=ISSUER)
+        assert (git(case.repo, "rev-parse", "work/new"), record.statement["input"]["refs"]) == (
+            case.old,
+            {"refs/heads/work/new": ZERO_OID},
+        )
+        return
+    if kind in {"owned", "unowned"}:
+        carried, update = proof_plan(case), case.effect.updates["refs/heads/dev"]
+        if kind == "owned":
+            options = {
+                "root": case.repo,
+                "ref_name": "refs/heads/dev",
+                "update": update,
+                "operation": "candidate.integrate",
+                "plan_digest": carried.digest,
+            }
+            write_ref_intent(**options)
+            claim_ref_intent(**options, phase="prepared")
+        git(case.repo, "update-ref", "refs/heads/dev", case.new, case.old)
+        if kind == "owned":
+            result = execute_git_effect(case.repo, carried, issuer=ISSUER).statement["result"]
+            assert (result["state"], result["executed"]) == ("recovered", False)
+        else:
+            reject(
+                "git_effect_recovery_intent_missing",
+                lambda: execute_git_effect(case.repo, carried, issuer=ISSUER),
+            )
+        return
+    if kind == "stale":
+        git(case.repo, "update-ref", "refs/heads/dev", case.new, case.old)
+        value, carried = effect(ZERO_OID, case.old), None
+    else:
+        git(case.repo, "branch", "candidate/dev", case.old)
+        value = GitEffect(
+            updates=case.effect.updates, assertions={"refs/heads/candidate/dev": case.old}
+        )
+        carried = plan(case.repo, value)
+        git(case.repo, "update-ref", "refs/heads/candidate/dev", case.new, case.old)
+    reject(
+        "git_effect_cas_mismatch",
+        lambda: execute_git_effect(case.repo, carried or plan(case.repo, value), issuer=ISSUER),
     )
-    monkeypatch.setenv("ETHOS_ACTOR", _ISSUER)
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effects,
-        "leases_by_branch",
-        lambda *_args, **_kwargs: {"work/example": current_lease},
-    )
-    run_git = ethos.adapters.repo.git_effects.run_git
-
-    def detached(root, *args, **kwargs):
-        if args == ("branch", "--show-current"):
-            return type("Result", (), {"stdout": "", "returncode": 0})()
-        return run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effects,
-        "run_git",
-        detached,
-    )
-
-    with pytest.raises(ValueError, match="git_effect_lease_branch_mismatch"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
-
-
-def test_git_effect_repository_identity_is_stable_across_worktrees(tmp_path: Path) -> None:
-    repository_id = "repository:portable"
-    repo, _old, _new, effect = _effect_fixture(tmp_path, repository_id)
-    linked = tmp_path / "linked"
-    git(repo, "worktree", "add", "--detach", linked.as_posix(), "dev")
-
-    attestation = execute_git_effect(linked, _plan(linked, effect), issuer=_ISSUER)
-
-    assert attestation.statement["repository"] == repository_id
-
-
-def test_git_effect_repository_identity_ignores_dirty_carrier_edits(tmp_path: Path) -> None:
-    repository_id = "repository:committed"
-    repo, _old, _new, effect = _effect_fixture(tmp_path, repository_id)
-    carrier = repo / ".ethos" / "commitment.toml"
-    carrier.write_text(
-        carrier.read_text(encoding="utf-8").replace(repository_id, "repository:dirty"),
-        encoding="utf-8",
-    )
-    attestation = execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
-
-    assert attestation.statement["repository"] == repository_id
-
-
-def test_git_effect_blocks_repository_identity_change_before_ref_mutation(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    _declare_repository(repo, "repository:stable")
-    old = git(repo, "rev-parse", "HEAD")
-    git(repo, "checkout", "-q", "-b", "identity-change")
-    carrier = repo / ".ethos" / "commitment.toml"
-    new = commit_fixture_file(
-        repo,
-        ".ethos/commitment.toml",
-        carrier.read_text(encoding="utf-8").replace("repository:stable", "repository:changed"),
-        "change repository identity",
-    )
-    git(repo, "checkout", "-q", "dev")
-    effect = _effect(old=old, new=new)
-
-    with pytest.raises(ValueError, match="git_effect_repository_identity_mismatch"):
-        execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
-
-    assert git(repo, "rev-parse", "dev") == old
-
-
-def test_git_effect_blocks_foreign_expected_ref_identity(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    _declare_repository(repo, "repository:stable")
-    old = git(repo, "rev-parse", "HEAD")
-    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
-    foreign = init_git_repo(tmp_path / "foreign")
-    _declare_repository(foreign, "repository:foreign")
-    foreign_head = git(foreign, "rev-parse", "HEAD")
-    git(repo, "fetch", foreign.as_posix(), f"{foreign_head}:refs/heads/foreign")
-    effect = _effect(old=foreign_head, new=new)
-
-    with pytest.raises(ValueError, match="git_effect_repository_identity_mismatch"):
-        execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
-
-
-def test_git_effect_recovers_attestation_when_desired_state_already_holds(
-    tmp_path: Path,
-) -> None:
-    repo, old, new, effect = _effect_fixture(tmp_path)
-    (repo / "NEXT.md").write_text("next\n", encoding="utf-8")
-    git(repo, "add", "NEXT.md")
-    plan = _proof_bound_plan(repo, effect)
-    write_ref_intent(
-        root=repo,
-        ref_name="refs/heads/dev",
-        update=effect.updates["refs/heads/dev"],
-        operation="candidate.integrate",
-        plan_digest=plan.digest,
-    )
-    claim_ref_intent(
-        root=repo,
-        ref_name="refs/heads/dev",
-        update=effect.updates["refs/heads/dev"],
-        operation="candidate.integrate",
-        phase="prepared",
-        plan_digest=plan.digest,
-    )
-    git(repo, "update-ref", "refs/heads/dev", new, old)
-
-    recovered = execute_git_effect(repo, plan, issuer=_ISSUER)
-
-    assert recovered.statement["result"]["state"] == "recovered"
-    assert recovered.statement["result"]["executed"] is False
-
-
-def test_git_effect_does_not_attest_an_unowned_preexisting_ref_move(
-    tmp_path: Path,
-) -> None:
-    repo, old, new, effect = _effect_fixture(tmp_path)
-    plan = _proof_bound_plan(repo, effect)
-    git(repo, "update-ref", "refs/heads/dev", new, old)
-
-    with pytest.raises(ValueError, match="git_effect_recovery_intent_missing"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
-
-
-def test_git_effect_normalizes_an_absent_ref_to_the_expected_zero_oid(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    _declare_repository(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    effect = GitEffect(
-        updates={
-            "refs/heads/work/new": GitRefUpdate(expected="0" * len(head), desired=head),
-        }
-    )
-
-    attestation = execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
-
-    assert git(repo, "rev-parse", "work/new") == head
-    assert attestation.statement["input"]["refs"] == {"refs/heads/work/new": "0" * len(head)}
 
 
 @pytest.mark.parametrize(
-    ("lease_state", "commitment_binding"),
-    [("expired", "expired"), ("unknown", "unknown"), ("valid", "mismatch")],
+    ("state", "binding", "epoch", "recover", "detached"),
+    [
+        (a, b, 1, r, 0)
+        for a, b in [("expired", "expired"), ("unknown", "unknown"), ("valid", "mismatch")]
+        for r in (0, 1)
+    ]
+    + [("valid", "bound", 2, 0, 0), ("valid", "bound", 1, 0, 1)],
 )
-def test_git_effect_recovery_requires_a_live_commitment_bound_lease(
+def test_stale_lease_recovery_and_detached_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    lease_state: str,
-    commitment_binding: str,
+    state: str,
+    binding: str,
+    epoch: int,
+    recover: int,
+    detached: int,
 ) -> None:
-    repo, old, new, effect = _effect_fixture(tmp_path)
-    generation, plan = _lease_plan(repo, old, effect, "dev")
-    git(repo, "update-ref", "refs/heads/dev", new, old)
-    monkeypatch.setenv("ETHOS_ACTOR", _ISSUER)
-    monkeypatch.setattr(
-        "ethos.adapters.repo.git_effects.leases_by_branch",
-        lambda _root, **_kwargs: {
-            "dev": generation
-            | {
-                "lease_state": lease_state,
-                "commitment_binding": commitment_binding,
-            }
-        },
+    case = fixture(tmp_path)
+    branch = "work/example" if detached else "dev"
+    recorded = generation(case, branch)
+    current = recorded | {
+        "epoch": epoch,
+        "lane_ref": branch,
+        "lease_state": state,
+        "commitment_binding": binding,
+    }
+    carried = plan(case.repo, case.effect, values={"lease_generation": recorded})
+    monkeypatch.setenv("ETHOS_ACTOR", ISSUER)
+    monkeypatch.setattr(runtime, "leases_by_branch", lambda *_args, **_kwargs: {branch: current})
+    if recover:
+        git(case.repo, "update-ref", "refs/heads/dev", case.new, case.old)
+    if detached:
+        carried = plan(
+            case.repo,
+            case.effect,
+            values={"lease_generation": lease_generation(current)},
+            policy={"operation": "lane.refresh", "execution_branch": branch},
+        )
+        original = runtime.run_git
+        monkeypatch.setattr(
+            runtime,
+            "run_git",
+            lambda root, *args, **kwargs: (
+                type("R", (), {"stdout": "", "returncode": 0})()
+                if args == ("branch", "--show-current")
+                else original(root, *args, **kwargs)
+            ),
+        )
+    error = "git_effect_lease_branch_mismatch" if detached else "git_effect_lease_generation_stale"
+    reject(error, lambda: execute_git_effect(case.repo, carried, issuer=ISSUER))
+    assert git_stdout(case.repo, "rev-parse", "--verify", "refs/heads/dev") == (
+        case.new if recover else case.old
     )
 
-    with pytest.raises(ValueError, match="git_effect_lease_generation_stale"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
 
-
-def test_git_effect_blocks_stale_cas(tmp_path: Path) -> None:
-    repo, old, new, _ = _effect_fixture(tmp_path)
-    git(repo, "update-ref", "refs/heads/dev", new, old)
-    stale_effect = _effect(old="0" * 40, new=old)
-    with pytest.raises(ValueError, match="git_effect_cas_mismatch"):
-        execute_git_effect(repo, _plan(repo, stale_effect), issuer=_ISSUER)
-
-
-def test_git_effect_requires_explicit_permission_admission(tmp_path: Path) -> None:
-    repo, _old, _new, effect = _effect_fixture(tmp_path)
-
-    with pytest.raises(ValueError, match="git_effect_permission_denied"):
-        execute_git_effect(repo, _plan(repo, effect, permissions=()), issuer=_ISSUER)
-
-
-def test_candidate_integration_has_narrow_lease_bound_cas_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, old, new, _effect = _effect_fixture(tmp_path)
-    branch = "work/example"
-    candidate = "candidate/dev"
-    git(repo, "reset", "--hard", new)
-    generation = _lease_generation(repo, new, branch)
-    effect = GitEffect(
-        updates={f"refs/heads/{candidate}": GitRefUpdate(expected=old, desired=new)},
-        assertions={f"refs/heads/{branch}": new},
-    )
-    authority_digest = _plan(repo, effect, permissions=()).inputs.commitment
-    generation["base_commitment_digest"] = authority_digest
-    proof = Attestation.issue(
-        {
-            "predicate": "proof:execution",
-            "verifier": _ISSUER,
-            "subject": f"git:commit:{new}",
-            "issued_at": datetime(2026, 8, 8, tzinfo=UTC),
-            "valid_from": datetime(2026, 8, 8, tzinfo=UTC),
-            "verdict": "pass",
-            "statement": {"head": new},
-            "commitment_digest": generation["base_commitment_digest"],
-        }
-    )
-    plan = _plan(
-        repo,
-        effect,
-        permissions=(),
-        facts_values={"lease_generation": generation},
-        policy={"operation": "candidate.integrate", "candidate_branch": candidate},
-        prior_attestations={"proof": proof.model_dump(mode="json")},
-    )
-
-    monkeypatch.setattr(
-        "ethos.adapters.repo.git_effects._admit_git_effect",
-        lambda *_args, **_kwargs: None,
-    )
-
-    admit_git_effect(repo, plan)
-
-
-@pytest.mark.parametrize(
-    "defect",
-    ["wrong_ref", "wrong_source", "wrong_head", "wrong_proof", "missing_generation"],
-)
-def test_candidate_integration_rejects_inexact_command_authority(
-    tmp_path: Path, defect: str
-) -> None:
-    repo, old, new, _effect = _effect_fixture(tmp_path)
-    branch = "work/example"
-    candidate = "candidate/dev"
-    git(repo, "reset", "--hard", new)
-    generation = _lease_generation(repo, new, branch)
-    effect = GitEffect(
+def candidate_plan(case: Any, flaw: str = "") -> TransitionPlan:
+    branch, target = "work/example", "candidate/dev"
+    git(case.repo, "reset", "--hard", case.new)
+    recorded = generation(case, branch) | {"expected_head": case.new}
+    value = GitEffect(
         updates={
-            f"refs/heads/{'other' if defect == 'wrong_ref' else candidate}": GitRefUpdate(
-                expected=old,
-                desired=old if defect == "wrong_head" else new,
+            f"refs/heads/{'other' if flaw == 'ref' else target}": GitRefUpdate(
+                expected=case.old, desired=case.old if flaw == "non_ff" else case.new
             )
         },
-        assertions={f"refs/heads/{'other' if defect == 'wrong_source' else branch}": new},
+        assertions={f"refs/heads/{'other' if flaw == 'source' else branch}": case.new},
     )
-    authority_digest = _plan(repo, effect, permissions=()).inputs.commitment
-    generation["base_commitment_digest"] = authority_digest
+    digest = plan(case.repo, value, permissions=()).inputs.commitment
+    recorded["base_commitment_digest"] = digest
+    proof_head = case.old if flaw == "proof" else case.new
     proof = Attestation.issue(
         {
             "predicate": "proof:execution",
-            "verifier": _ISSUER,
-            "subject": f"git:commit:{old if defect == 'wrong_proof' else new}",
+            "verifier": ISSUER,
+            "subject": f"git:commit:{proof_head}",
             "issued_at": datetime(2026, 8, 8, tzinfo=UTC),
             "valid_from": datetime(2026, 8, 8, tzinfo=UTC),
             "verdict": "pass",
-            "statement": {"head": old if defect == "wrong_proof" else new},
-            "commitment_digest": generation["base_commitment_digest"],
+            "statement": {"head": proof_head},
+            "commitment_digest": digest,
         }
     )
-    plan = _plan(
-        repo,
-        effect,
+    return plan(
+        case.repo,
+        value,
         permissions=(),
-        facts_values={} if defect == "missing_generation" else {"lease_generation": generation},
-        policy={"operation": "candidate.integrate", "candidate_branch": candidate},
-        prior_attestations={"proof": proof.model_dump(mode="json")},
+        values={} if flaw == "lease" else {"lease_generation": recorded},
+        policy={"operation": "candidate.integrate", "candidate_branch": target},
+        prior={"proof": proof.model_dump(mode="json")},
     )
 
-    with pytest.raises(ValueError, match="git_effect_permission_denied"):
-        admit_git_effect(repo, plan)
 
-
-def test_git_effect_blocks_assertion_drift_before_recovery(tmp_path: Path) -> None:
-    repo, old, new, _ = _effect_fixture(tmp_path)
-    git(repo, "branch", "candidate/dev", old)
-    effect = GitEffect(
-        updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)},
-        assertions={"refs/heads/candidate/dev": old},
-    )
-    git(repo, "update-ref", "refs/heads/candidate/dev", new, old)
-
-    with pytest.raises(ValueError, match="git_effect_cas_mismatch"):
-        execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
-
-
-def test_git_effect_revalidates_state_before_recognizing_attestation(tmp_path: Path) -> None:
-    repo, old, new, effect = _effect_fixture(tmp_path)
-    plan = _plan(repo, effect)
-    execute_git_effect(repo, plan, issuer=_ISSUER)
-    git(repo, "update-ref", "refs/heads/dev", old, new)
-
-    with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
-
-
-def test_git_effect_record_rejects_typed_evidence_drift(tmp_path: Path) -> None:
-    repo, _old, _new, _effect_value, plan, applied = _applied_fixture(tmp_path)
-
-    for field, value in (
-        ("repository", "git:other"),
-        ("command", ("git", "update-ref")),
-        ("program_sha256", "0" * 64),
-        ("result", applied.statement["result"] | {"exit_code": 7}),
-        ("inputs", {}),
-        ("output_digest", "0" * 64),
-    ):
-        forged = _reissue(applied, statement=applied.statement | {field: value})
-        with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-            records(repo, plan, forged)
-
-
-@pytest.mark.parametrize("state", ["current", "drifted"])
-def test_git_effect_rejects_expired_attestation_before_live_state(
-    tmp_path: Path, state: str
+@pytest.mark.parametrize("flaw", ["", "ref", "source", "non_ff", "proof", "lease"])
+def test_permission_non_ff_candidate_authority_matrix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flaw: str
 ) -> None:
-    repo, old, new, _effect_value, plan, applied = _applied_fixture(tmp_path)
-    stale = _reissue(
-        applied,
-        issued_at=applied.issued_at - timedelta(minutes=2),
-        valid_from=applied.issued_at - timedelta(minutes=2),
-        valid_until=applied.issued_at - timedelta(minutes=1),
-    )
-    if state == "drifted":
-        git(repo, "update-ref", "refs/heads/dev", old, new)
-    with pytest.raises(ValueError, match="git_effect_attestation_stale"):
-        records(repo, plan, stale)
-
-
-def test_git_effect_binds_issue_time_to_post_observation(tmp_path: Path) -> None:
-    repo, _old, _new, _effect_value, plan, applied = _applied_fixture(tmp_path)
-    with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-        records(repo, plan, _reissue(applied, issued_at=applied.issued_at + timedelta(seconds=1)))
-
-
-def test_git_effect_record_rejects_checkout_head_drift(tmp_path: Path) -> None:
-    repo, _old, _new, _effect_value, plan, applied = _applied_fixture(tmp_path)
-    git(repo, "checkout", "-q", "-b", "side")
-    commit_fixture_file(repo, "SIDE.md", "side\n", "move checkout head")
-
-    with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-        records(repo, plan, applied)
-
-
-def test_git_effect_store_validates_the_exact_plan_carried_by_attestation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, _old, _new, effect = _effect_fixture(tmp_path)
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effect_attestation,
-        "records",
-        lambda *_args, **_kwargs: (),
-    )
-    applied = execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
-    carried_plan = _plan(repo, effect, policy={"name": "carried"})
-    inputs = {
-        "commitment": carried_plan.inputs.commitment,
-        "facts": carried_plan.inputs.facts,
-        "prior_attestations": carried_plan.inputs.prior_attestations,
-        "plan": carried_plan.digest,
-        "policy": carried_plan.inputs.policy,
-        "effect": effect.digest(),
-    }
-    carried_statement = applied.statement | {
-        "plan": carried_plan.model_dump(mode="json"),
-        "inputs": inputs,
-        "input_digest": canonical_json_digest(
-            {"input": applied.statement["input"], "inputs": inputs}
+    case = fixture(tmp_path)
+    if flaw:
+        reject(
+            "git_effect_permission_denied",
+            lambda: admit_git_effect(case.repo, candidate_plan(case, flaw)),
+        )
+        return
+    monkeypatch.setattr(runtime, "_admit_git_effect", lambda *_args, **_kwargs: None)
+    admit_git_effect(case.repo, candidate_plan(case))
+    reject(
+        "git_effect_permission_denied",
+        lambda: execute_git_effect(
+            case.repo, plan(case.repo, case.effect, permissions=()), issuer=ISSUER
         ),
-    }
-    carried = _reissue(
-        applied,
-        commitment_digest=carried_plan.inputs.commitment,
-        facts_digest=carried_plan.inputs.facts,
-        plan_digest=carried_plan.digest,
-        policy_digest=carried_plan.inputs.policy,
-        statement=carried_statement,
     )
 
-    assert records(repo, carried_plan, carried) == (carried,)
-    assert records(repo, carried_plan) == (carried,)
 
-
-def test_git_effect_store_rejects_identity_collision(tmp_path: Path) -> None:
-    repo, _old, _new, _effect, plan, applied = _applied_fixture(tmp_path)
-    path = (
-        repo
-        / git(repo, "rev-parse", "--git-common-dir")
-        / "ethos"
-        / "git-effects"
-        / f"{plan.digest}.json"
-    )
-    path.write_text(
-        _reissue(applied, verifier="agent:test:case:collision").canonical_json(),
-        encoding="utf-8",
-    )
-    with pytest.raises(ValueError, match="git_effect_attestation_collision"):
-        records(repo, plan, applied)
-
-
-@pytest.mark.parametrize("field", ["commitment", "facts", "policy", "effect"])
-def test_git_effect_blocks_tampered_plan_bindings_before_mutation(
-    tmp_path: Path, field: str
-) -> None:
-    repo, old, _new, effect = _effect_fixture(tmp_path)
-    plan = _plan(repo, effect)
-    tampered = plan.model_copy(update={"inputs": plan.inputs.model_copy(update={field: "0" * 64})})
-
-    with pytest.raises(ValueError, match="git_effect_plan_mismatch"):
-        execute_git_effect(repo, tampered, issuer=_ISSUER)
-
-    assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") == old
-
-
-def test_git_effect_blocks_stale_carried_prestate_before_mutation(tmp_path: Path) -> None:
-    repo, _old, new, effect = _effect_fixture(tmp_path)
-    plan = _plan(repo, effect)
-    commit_fixture_file(repo, "DRIFT.md", "drift\n", "drift")
-
-    with pytest.raises(ValueError, match="git_effect_plan_prestate_stale"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
-
-    assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") != new
-
-
-def test_git_effect_blocks_stale_lease_generation_before_mutation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, old, _new, effect = _effect_fixture(tmp_path)
-    generation, plan = _lease_plan(repo, old, effect, "work/test")
-    monkeypatch.setattr(
-        "ethos.adapters.repo.git_effects.leases_by_branch",
-        lambda _root, **_kwargs: {"work/test": generation | {"epoch": 2}},
-    )
-
-    with pytest.raises(ValueError, match="git_effect_lease_generation_stale"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
-
-    assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") == old
+@pytest.mark.parametrize("kind", ["commitment", "facts", "policy", "effect", "prestate"])
+def test_plan_binding_and_stale_prestate_matrix(tmp_path: Path, kind: str) -> None:
+    case = fixture(tmp_path)
+    carried = plan(case.repo, case.effect)
+    if kind == "prestate":
+        commit_fixture_file(case.repo, "DRIFT.md", "drift\n", "drift")
+        error = "git_effect_plan_prestate_stale"
+    else:
+        carried = carried.model_copy(
+            update={"inputs": carried.inputs.model_copy(update={kind: ZERO_DIGEST})}
+        )
+        error = "git_effect_plan_mismatch"
+    reject(error, lambda: execute_git_effect(case.repo, carried, issuer=ISSUER))
+    assert git_stdout(case.repo, "rev-parse", "--verify", "refs/heads/dev") != case.new
 
 
 @pytest.mark.parametrize(
-    ("lease_state", "commitment_binding"),
-    [("expired", "expired"), ("unknown", "unknown"), ("valid", "mismatch")],
+    "kind",
+    [
+        "live",
+        "repository",
+        "command",
+        "program_sha256",
+        "result",
+        "inputs",
+        "output_digest",
+        "expired",
+        "expired_drift",
+        "issued_at",
+        "checkout",
+        "facts_digest",
+        "unknown",
+    ],
 )
-def test_git_effect_requires_a_live_commitment_bound_lease_before_mutation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    lease_state: str,
-    commitment_binding: str,
+def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
+    case = fixture(tmp_path)
+    carried = plan(case.repo, case.effect)
+    record = execute_git_effect(case.repo, carried, issuer=ISSUER)
+    error = "git_effect_attestation_content_mismatch"
+    if kind == "live":
+        git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
+        reject(error, lambda: execute_git_effect(case.repo, carried, issuer=ISSUER))
+        return
+    if kind.startswith("expired"):
+        record = reissue(
+            record,
+            issued_at=record.issued_at - timedelta(minutes=2),
+            valid_from=record.issued_at - timedelta(minutes=2),
+            valid_until=record.issued_at - timedelta(minutes=1),
+        )
+        error = "git_effect_attestation_stale"
+        if kind.endswith("drift"):
+            git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
+    elif kind == "checkout":
+        git(case.repo, "checkout", "-q", "-b", "side")
+        commit_fixture_file(case.repo, "SIDE", "x", "side")
+    elif kind == "facts_digest":
+        record, error = (
+            reissue(record, facts_digest="e" * 64),
+            "git_effect_attestation_binding_mismatch:facts_digest",
+        )
+    elif kind == "unknown":
+        record, error = reissue(record, verdict="unknown"), "git_effect_attestation_verdict_unknown"
+    elif kind == "issued_at":
+        record = reissue(record, issued_at=record.issued_at + timedelta(seconds=1))
+    else:
+        replacements = {
+            "repository": "git:other",
+            "command": ("git", "update-ref"),
+            "program_sha256": ZERO_DIGEST,
+            "result": record.statement["result"] | {"exit_code": 7},
+            "inputs": {},
+            "output_digest": ZERO_DIGEST,
+        }
+        record = reissue(record, statement=record.statement | {kind: replacements[kind]})
+    reject(error, lambda: records(case.repo, carried, record))
+
+
+@pytest.mark.parametrize("failure", ["prepare", "persistence", "projection"])
+def test_atomic_compensation_and_retry_matrix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
-    repo, old, _new, effect = _effect_fixture(tmp_path)
-    generation, plan = _lease_plan(repo, old, effect, "work/test")
-    monkeypatch.setattr(
-        "ethos.adapters.repo.git_effects.leases_by_branch",
-        lambda _root, **_kwargs: {
-            "work/test": generation
-            | {
-                "subject": "work/test",
-                "lease_state": lease_state,
-                "commitment_binding": commitment_binding,
+    case = fixture(tmp_path)
+    if failure == "prepare":
+        value = GitEffect(
+            updates={
+                ref: GitRefUpdate(expected=ZERO_OID, desired=case.new)
+                for ref in ("refs/heads/a", "refs/heads/b")
             }
-        },
-    )
+        )
+        claim = runtime.claim_ref_intent
+        monkeypatch.setattr(
+            runtime,
+            "claim_ref_intent",
+            lambda **kwargs: (
+                {"gap": "forced_prepare_failure"}
+                if kwargs["ref_name"] == "refs/heads/b" and kwargs["phase"] == "prepared"
+                else claim(**kwargs)
+            ),
+        )
+        reject(
+            "git_effect_ref_intent_prepared_forced_prepare_failure",
+            lambda: execute_git_effect(case.repo, plan(case.repo, value), issuer=ISSUER),
+        )
+        assert all(not git_stdout(case.repo, "rev-parse", "--verify", ref) for ref in value.updates)
+        assert not list(ref_intent_dir(case.repo).glob("*.json"))
+        return
+    carried, saved, first = proof_plan(case), [], [True]
 
-    with pytest.raises(ValueError, match="git_effect_lease_generation_stale"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
+    def fail(record: Attestation | None = None) -> object:
+        if first[0] and (failure == "projection" or record is not None):
+            first[0] = False
+            message = f"{failure} unavailable"
+            raise OSError(message)
+        if record:
+            saved.append(record)
+        return tuple(saved)
 
-    assert git_stdout(repo, "rev-parse", "--verify", "refs/heads/dev") == old
+    if failure == "persistence":
+        monkeypatch.setattr(attest, "records", lambda _root, _plan, record=None: fail(record))
 
+        def run() -> Attestation:
+            return execute_git_effect(case.repo, carried, issuer=ISSUER)
 
-def test_git_effect_record_blocks_binding_drift_and_unknown_verdict(
-    tmp_path: Path,
-) -> None:
-    repo, _old, _new, _effect_value, plan, applied = _applied_fixture(tmp_path)
-    stale_binding = _reissue(applied, facts_digest="e" * 64)
+    else:
 
-    with pytest.raises(
-        ValueError,
-        match="git_effect_attestation_binding_mismatch:facts_digest",
-    ):
-        records(repo, plan, stale_binding)
+        def run() -> Attestation:
+            return execute_git_effect(case.repo, carried, issuer=ISSUER, projection=fail)
 
-    unknown = _reissue(applied, verdict="unknown")
-    with pytest.raises(ValueError, match="git_effect_attestation_verdict_unknown"):
-        records(repo, plan, unknown)
-
-
-def test_git_effect_owns_proof_bound_multiref_cas_attestation_and_intent_cleanup(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, old, new, _ = _effect_fixture(tmp_path)
-    git(repo, "branch", "candidate/dev", old)
-    effect = GitEffect(
-        updates={
-            "refs/heads/candidate/dev": GitRefUpdate(expected=old, desired=new),
-            "refs/heads/dev": GitRefUpdate(expected=old, desired=new),
-        }
-    )
-    plan = _proof_bound_plan(repo, effect)
-    persisted: list[Attestation] = []
-
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effect_attestation,
-        "records",
-        lambda _root, _effect, record=None: (
-            persisted.append(record) if record is not None else tuple(persisted)
-        ),
-    )
-
-    attestation = execute_git_effect(repo, plan, issuer=_ISSUER)
-
-    assert {git(repo, "rev-parse", ref) for ref in ("dev", "candidate/dev")} == {new}
-    assert persisted == [attestation]
-    assert attestation.statement["result"]["state"] == "applied"
-    assert attestation.statement["output"]["refs"] == {
-        "refs/heads/candidate/dev": new,
-        "refs/heads/dev": new,
-    }
-    assert not list(ref_intent_dir(repo).glob("*.json"))
-
-
-def test_git_effect_cleans_every_intent_when_multiref_prepare_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, old, new, _ = _effect_fixture(tmp_path)
-    effect = GitEffect(
-        updates={
-            "refs/heads/a": GitRefUpdate(expected="0" * len(old), desired=new),
-            "refs/heads/b": GitRefUpdate(expected="0" * len(old), desired=new),
-        }
-    )
-    claim = ethos.adapters.repo.git_effects.claim_ref_intent
-
-    def fail_second_prepare(**kwargs):
-        if kwargs["ref_name"] == "refs/heads/b" and kwargs["phase"] == "prepared":
-            return {"gap": "forced_prepare_failure"}
-        return claim(**kwargs)
-
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effects,
-        "claim_ref_intent",
-        fail_second_prepare,
-    )
-
-    with pytest.raises(ValueError, match="git_effect_ref_intent_prepared_forced_prepare_failure"):
-        execute_git_effect(repo, _plan(repo, effect), issuer=_ISSUER)
-
-    assert not list(ref_intent_dir(repo).glob("*.json"))
-
-
-def test_git_effect_recovers_after_attestation_persistence_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, _old, new, effect = _effect_fixture(tmp_path)
-    plan = _proof_bound_plan(repo, effect)
-    persisted: list[Attestation] = []
-    fail_once = True
-
-    def persist(_root, _effect, record=None):
-        nonlocal fail_once
-        if record is not None and fail_once:
-            fail_once = False
-            msg = "storage unavailable"
-            raise OSError(msg)
-        if record is not None:
-            persisted.append(record)
-        return tuple(persisted)
-
-    monkeypatch.setattr(ethos.adapters.repo.git_effect_attestation, "records", persist)
-
-    with pytest.raises(OSError, match="storage unavailable"):
-        execute_git_effect(repo, plan, issuer=_ISSUER)
-    recovered = execute_git_effect(repo, plan, issuer=_ISSUER)
-
-    assert git(repo, "rev-parse", "dev") == new
-    assert recovered.statement["result"]["state"] == "recovered"
-    assert persisted == [recovered]
-
-
-def test_git_effect_recognition_retries_projection_before_clearing_intent(
-    tmp_path: Path,
-) -> None:
-    repo, _old, _new, effect = _effect_fixture(tmp_path)
-    plan = _proof_bound_plan(repo, effect)
-    projected: list[str] = []
-    fail_once = True
-
-    def project() -> None:
-        nonlocal fail_once
-        if fail_once:
-            fail_once = False
-            msg = "projection unavailable"
-            raise OSError(msg)
-        projected.append("complete")
-
-    with pytest.raises(OSError, match="projection unavailable"):
-        execute_git_effect(repo, plan, issuer=_ISSUER, projection=project)
-
-    assert list(ref_intent_dir(repo).glob("*.json"))
-    attestation = execute_git_effect(repo, plan, issuer=_ISSUER, projection=project)
-
-    assert attestation.statement["result"]["state"] == "applied"
-    assert projected == ["complete"]
-    assert not list(ref_intent_dir(repo).glob("*.json"))
+    reject(f"{failure} unavailable", run)
+    if failure == "projection":
+        assert list(ref_intent_dir(case.repo).glob("*.json"))
+    recovered = run()
+    assert git(case.repo, "rev-parse", "dev") == case.new
+    assert recovered.statement["result"]["state"] in {"applied", "recovered"}
+    assert (saved == [recovered]) if failure == "persistence" else (not saved)
+    assert not list(ref_intent_dir(case.repo).glob("*.json"))

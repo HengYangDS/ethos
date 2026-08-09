@@ -229,25 +229,6 @@ def current_generation_scope(
     )
 
 
-def archive_generation_authority(
-    root: Path,
-    *,
-    head: str,
-    repository_id: str,
-    commitment: Commitment,
-    lease: dict[str, object],
-) -> JsonObject:
-    """Return the sole exact archive effect from the generation observation."""
-    _start, archive = _effect_authorities(
-        root,
-        head=head,
-        repository_id=repository_id,
-        commitment=commitment,
-        lease=lease,
-    )
-    return archive[0] if len(archive) == 1 else {}
-
-
 def _effect_authorities(
     root: Path,
     *,

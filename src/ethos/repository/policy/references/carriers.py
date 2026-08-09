@@ -116,9 +116,7 @@ def reference_paths(root: Path, declared: Iterable[Path]) -> list[Path]:
         paths.update(
             path
             for path in base.rglob("*")
-            if path.is_file()
-            and "__pycache__" not in path.parts
-            and _is_reference_path(root, path)
+            if path.is_file() and "__pycache__" not in path.parts and _is_reference_path(root, path)
         )
     return sorted(paths)
 

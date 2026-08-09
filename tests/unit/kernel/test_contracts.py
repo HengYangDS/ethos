@@ -338,9 +338,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     assert set(generated) == set(expected)
     for name, model in expected.items():
         schema = generated[name]
-        persisted = json.loads(
-            (Path("system/schemas/kernel") / name).read_text(encoding="utf-8")
-        )
+        persisted = json.loads((Path("system/schemas/kernel") / name).read_text(encoding="utf-8"))
         assert schema == persisted
         assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert schema["title"] == f"ETHOS {model.__name__}"
@@ -367,9 +365,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     } <= set(attestation["required"])
     assert attestation["properties"]["verdict"]["enum"] == ["pass", "block", "unknown"]
     assert "enum" not in attestation["properties"]["predicate"]
-    assert not {"kind", "content", "sequence", "mints_authority"} & set(
-        attestation["properties"]
-    )
+    assert not {"kind", "content", "sequence", "mints_authority"} & set(attestation["properties"])
     plan = generated["transition-plan.schema.json"]
     assert set(plan["required"]) == {
         "schema_version",

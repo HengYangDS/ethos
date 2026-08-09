@@ -234,9 +234,7 @@ class _Migration:
         )
         if database_source.is_file() and database_source.stat().st_size:
             with (
-                closing(
-                    sqlite3.connect(read_only_state_uri(database_source), uri=True)
-                ) as origin,
+                closing(sqlite3.connect(read_only_state_uri(database_source), uri=True)) as origin,
                 closing(sqlite3.connect(staging / "state.sqlite")) as destination,
             ):
                 origin.backup(destination)

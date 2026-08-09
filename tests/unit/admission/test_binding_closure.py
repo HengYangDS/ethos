@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ethos.repository.policy.references.closure import repository_product_reference_gaps
 from ethos.repository.policy.references.declarations import native_owned_references
 from ethos.repository.policy.references.observation import product_references_from_files
+from ethos.repository.policy.references.observation import reference_gaps
 from ethos.repository.policy.references.observation import repository_product_references
 
 if TYPE_CHECKING:
@@ -163,4 +164,104 @@ subprocess.run(["rogue-tool"], check=True)
         "product_reference_not_admitted_at_baseline:import:rogue_sdk",
         "product_reference_not_admitted_at_baseline:executable:rogue-tool",
         "product_reference_not_admitted_at_baseline:value:ROGUE_HOME",
+    ]
+
+
+def test_malformed_reference_carriers_fail_closed_without_inventing_references() -> None:
+    observed = product_references_from_files(
+        {
+            "pyproject.toml": "[project",
+            "package.json": "{",
+            ".github/workflows/ci.yml": "jobs: [",
+            "README.md": "Use `unterminated ' command` safely.",
+        }
+    )
+
+    assert observed == {
+        "import": set(),
+        "distribution": set(),
+        "executable": set(),
+        "reference": {"github"},
+        "command": set(),
+        "value": set(),
+    }
+
+
+def test_native_declarations_and_cross_carrier_commands_are_observed() -> None:
+    observed = product_references_from_files(
+        {
+            "pyproject.toml": """[project]
+name = "Demo_Package"
+dependencies = ["Requests>=2", 42]
+[project.optional-dependencies]
+test = ["PyTest"]
+[project.scripts]
+demo = "demo:main"
+[dependency-groups]
+dev = ["Ruff"]
+[build-system]
+requires = ["Hatchling"]
+""",
+            "package.json": """{
+  "name": "@Scope/Demo",
+  "dependencies": {"left-pad": "1"},
+  "devDependencies": {"vitest": "1"},
+  "packageManager": "pnpm@10",
+  "bin": {"demo-js": "bin/demo.js"},
+  "scripts": {"check": "node scripts/check.js"}
+}""",
+            ".gitlab-ci.yml": "script: [npm run check, false]\nimage: python:3.14",
+            "docs/reference/commands.md": """```yaml
+uses: docker://alpine:latest
+```
+```console
+$ demo --help
+output
+```
+""",
+        },
+        declared_commands=("demo",),
+    )
+
+    assert {
+        "demo-package",
+        "requests",
+        "pytest",
+        "ruff",
+        "hatchling",
+        "@scope/demo",
+        "left-pad",
+        "vitest",
+    } <= observed["distribution"]
+    assert {"demo", "pnpm", "demo-js", "node", "npm"} <= observed["executable"]
+    assert observed["reference"] == {"gitlab", "docker"}
+    assert "demo" in observed["command"]
+
+
+def test_observation_can_exclude_dependency_declarations_but_keeps_consumers() -> None:
+    observed = product_references_from_files(
+        {
+            "pyproject.toml": '[project]\nname = "demo"\ndependencies = ["requests"]\n',
+            "package.json": '{"dependencies": {"left-pad": "1"}, "scripts": {"x": "node x.js"}}',
+        },
+        include_declarations=False,
+    )
+
+    assert observed["distribution"] == set()
+    assert observed["executable"] == {"node"}
+
+
+def test_reference_gap_report_ignores_native_modules_and_sorts_unknowns() -> None:
+    gaps = reference_gaps(
+        {"import": frozenset({"allowed"})},
+        {
+            "import": {"tools", "tests", "ethos", "zeta", "allowed"},
+            "executable": {"z-tool", "a-tool"},
+        },
+    )
+
+    assert gaps == [
+        "product_reference_not_admitted_at_baseline:import:zeta",
+        "product_reference_not_admitted_at_baseline:executable:a-tool",
+        "product_reference_not_admitted_at_baseline:executable:z-tool",
     ]

@@ -8,6 +8,9 @@ from typing import cast
 
 import pytest
 
+from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.registry.docs.health import ethos_command_tokens
+from ethos.repository.registry.docs.health import shell_commands
 from ethos.surface.cli.root.reference import docs_registry_report
 from tests.support.literal_cases import literal_case
 
@@ -75,6 +78,94 @@ def test_docs_health_rejects_unindexed_plan(tmp_path: Path) -> None:
     report = docs_registry_report(tmp_path)
 
     assert report["unindexed_plans"] == ["unindexed_plan:docs/plans/orphan.md"]
+
+
+def test_docs_health_reports_missing_invalid_and_duplicate_metadata(tmp_path: Path) -> None:
+    docs = tmp_path / "docs" / "reference"
+    docs.mkdir(parents=True)
+    (docs / "first.md").write_text(
+        _document("ethos:duplicate", "unknown", "unexpected", "First"),
+        encoding="utf-8",
+    )
+    (docs / "second.md").write_text(
+        _document("ethos:duplicate", "reference", "canonical", "Second"),
+        encoding="utf-8",
+    )
+    (docs / "missing.md").write_text("# Missing metadata\n", encoding="utf-8")
+
+    report = docs_health_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["missing_metadata"] == ["docs/reference/missing.md"]
+    assert report["invalid_state"] == ["invalid_state:docs/reference/first.md:unexpected"]
+    assert report["invalid_role"] == ["invalid_role:docs/reference/first.md:unknown"]
+    assert report["duplicate_subjects"] == [
+        "duplicate_subject:ethos:duplicate:docs/reference/first.md,docs/reference/second.md"
+    ]
+
+
+def test_docs_health_ignores_missing_visible_document_after_registry_observation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = {
+        "path": "docs/reference/removed.md",
+        "subject": "ethos:removed",
+        "role": "reference",
+        "state": "canonical",
+        "relations": "none",
+    }
+    monkeypatch.setattr(
+        "ethos.repository.registry.docs.health.build_docs_registry", lambda _root: [entry]
+    )
+
+    report = docs_health_report(tmp_path)
+
+    assert report["verdict"] == "pass"
+    assert report["missing_visible_sections"] == []
+
+
+def test_shell_command_reports_native_invocation_forms_and_malformed_quotes(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "commands.md"
+    path.write_text(
+        """```bash
+# ignored
+env ETHOS_ACTOR=agent:test ethos status \\
+  --json
+uv run --package ethos ethos plan --changed --json
+python -m ethos.cli prove --json
+printf 'not ethos'
+ethos "unterminated
+```
+""",
+        encoding="utf-8",
+    )
+
+    commands = shell_commands(path)
+
+    assert commands == [
+        (3, "env ETHOS_ACTOR=agent:test ethos status --json"),
+        (5, "uv run --package ethos ethos plan --changed --json"),
+        (6, "python -m ethos.cli prove --json"),
+        (7, "printf 'not ethos'"),
+        (8, 'ethos "unterminated'),
+    ]
+    assert [ethos_command_tokens(command) for _, command in commands] == [
+        ["status", "--json"],
+        ["plan", "--changed", "--json"],
+        ["prove", "--json"],
+        [],
+        ['"unterminated'],
+    ]
+
+
+def test_shell_commands_flushes_unclosed_fence_and_ignores_uv_without_ethos(tmp_path: Path) -> None:
+    path = tmp_path / "commands.md"
+    path.write_text("```sh\nuv run python -V " + "\\\n  --verbose", encoding="utf-8")
+
+    assert shell_commands(path) == [(2, "uv run python -V --verbose")]
+    assert ethos_command_tokens("uv run python -V") == []
 
 
 def _write_guide(root: Path, relative: str = "docs/native/guide.md") -> Path:
@@ -147,6 +238,27 @@ def test_docs_health_fails_closed_for_invalid_taxonomy(tmp_path: Path) -> None:
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["docs_taxonomy_invalid:docs/_meta/taxonomy.toml"]
+
+
+def test_docs_health_does_not_reclassify_unrelated_registry_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    message = "unrelated native read failure"
+
+    def fail(_root: Path) -> list[dict[str, str]]:
+        raise ValueError(message)
+
+    monkeypatch.setattr("ethos.repository.registry.docs.health.build_docs_registry", fail)
+
+    with pytest.raises(ValueError, match=message):
+        docs_health_report(tmp_path)
+
+
+def test_shell_commands_flushes_buffer_at_closing_fence(tmp_path: Path) -> None:
+    path = tmp_path / "commands.md"
+    path.write_text("```bash\nethos status " + "\\\n```\n", encoding="utf-8")
+
+    assert shell_commands(path) == [(2, "ethos status")]
 
 
 def test_docs_health_does_not_scan_product_distribution_layout(tmp_path: Path) -> None:

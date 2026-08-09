@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
 
 from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.repo.commitment import changed_commitment_fields
+from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import relocated_commitment_fields
+from ethos.adapters.repo.commitment import relocated_commitment_fields_to
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -245,3 +250,114 @@ def test_carrier_path_and_commitment_identity_must_match(tmp_path: Path) -> None
 
     with pytest.raises(ValueError, match="commitment_identity_mismatch:terminal-convergence"):
         load_openspec_commitment(tmp_path, change_id="terminal-convergence")
+
+
+def _committed_change(tmp_path: Path) -> tuple[Path, str, str, dict[str, str]]:
+    repo = init_git_repo(tmp_path / "repo")
+    _repository_commitment(repo)
+    carrier = _change_carrier(repo, "example", "example") / "commitment.toml"
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "declare example")
+    head = git(repo, "rev-parse", "HEAD")
+    relative = carrier.relative_to(repo).as_posix()
+    return repo, head, relative, exact_commitment_fields(repo, head=head, carrier=relative)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "gap"),
+    [
+        ("expected_head", "f" * 40, "lease_expected_tree_mismatch"),
+        ("expected_tree", "f" * 40, "lease_expected_tree_mismatch"),
+        ("base_commitment_path", "../commitment.toml", "lease_base_commitment_path_mismatch"),
+        ("base_commitment_bytes_sha256", "f" * 64, "lease_base_commitment_bytes_mismatch"),
+        ("base_commitment_digest", "f" * 64, "lease_base_commitment_digest_mismatch"),
+    ],
+)
+def test_lease_bound_commitment_rejects_each_exact_coordinate(
+    tmp_path: Path, field: str, value: str, gap: str
+) -> None:
+    repo, _head, _carrier, lease = _committed_change(tmp_path)
+
+    with pytest.raises(ValueError, match=gap):
+        load_lease_bound_commitment(repo, lease=lease | {field: value})
+
+
+def test_lease_bound_commitment_requires_every_exact_coordinate(tmp_path: Path) -> None:
+    repo, _head, _carrier, lease = _committed_change(tmp_path)
+
+    for field in tuple(lease):
+        with pytest.raises(ValueError, match=f"lease_{field}_missing"):
+            load_lease_bound_commitment(repo, lease=lease | {field: ""})
+
+
+def test_relocated_commitment_requires_one_exact_parented_rename(tmp_path: Path) -> None:
+    repo, old_head, carrier, lease = _committed_change(tmp_path)
+    target = "openspec/changes/archive/2026-08-10-example/commitment.toml"
+    (repo / target).parent.mkdir(parents=True)
+    (repo / carrier).rename(repo / target)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "archive example")
+    new_head = git(repo, "rev-parse", "HEAD")
+
+    assert (
+        relocated_commitment_fields(repo, old_head=old_head, new_head=new_head, lease=lease)[
+            "base_commitment_path"
+        ]
+        == target
+    )
+    assert (
+        relocated_commitment_fields_to(
+            repo, old_head=old_head, new_head=new_head, lease=lease, carrier=target
+        )["base_commitment_path"]
+        == target
+    )
+
+    with pytest.raises(ValueError, match="lease_base_commitment_path_mismatch"):
+        relocated_commitment_fields_to(
+            repo,
+            old_head="f" * 40,
+            new_head=new_head,
+            lease=lease,
+            carrier=target,
+        )
+
+
+def test_changed_commitment_fields_selects_one_semantic_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, old_head, carrier, lease = _committed_change(tmp_path)
+    path = repo / carrier
+    path.write_text(
+        path.read_text(encoding="utf-8").replace('intent = "Change."', 'intent = "Changed."')
+    )
+    git(repo, "add", carrier)
+    git(repo, "commit", "-m", "change commitment")
+    new_head = git(repo, "rev-parse", "HEAD")
+
+    fields = changed_commitment_fields(
+        repo,
+        old_head=old_head,
+        new_head=new_head,
+        commitment_id="change:example",
+        old_digest=lease["base_commitment_digest"],
+    )
+    assert fields["base_commitment_path"] == carrier
+    with pytest.raises(ValueError, match="commitment_rebind_target_ambiguous"):
+        changed_commitment_fields(
+            repo,
+            old_head=old_head,
+            new_head=new_head,
+            commitment_id="change:missing",
+            old_digest=lease["base_commitment_digest"],
+        )
+
+    failed = subprocess.CompletedProcess(("git", "diff"), 1, b"", b"failed")
+    monkeypatch.setattr("ethos.adapters.repo.commitment.run_git", lambda *_a, **_k: failed)
+    with pytest.raises(ValueError, match="commitment_rebind_target_unreadable"):
+        changed_commitment_fields(
+            repo,
+            old_head=old_head,
+            new_head=new_head,
+            commitment_id="change:example",
+            old_digest=lease["base_commitment_digest"],
+        )

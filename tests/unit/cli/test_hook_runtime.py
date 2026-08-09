@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.hook_runtime as hook_runtime
+import ethos.adapters.repo.hook_runtime_install as runtime_install
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
@@ -38,6 +39,106 @@ def _venv_executable(venv: Path, name: str) -> Path:
     directory = "Scripts" if os.name == "nt" else "bin"
     suffix = ".exe" if os.name == "nt" else ""
     return venv / directory / f"{name}{suffix}"
+
+
+def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    source = tmp_path / "installed" / "a" / "b" / "c" / "d"
+    source.mkdir(parents=True)
+    wheel = tmp_path / "ethos-test.whl"
+    wheel.write_bytes(b"wheel")
+    source_python = Path(sys.executable)
+    monkeypatch.setattr(runtime_install, "__file__", (source / "module.py").as_posix())
+    monkeypatch.setattr(runtime_install, "resolve_runtime_wheel", lambda *_args: wheel)
+    monkeypatch.setattr(runtime_install, "_python_abi", lambda _python: "cpython-test")
+
+    def copy_runtime(target: Path, _python: Path) -> None:
+        runtime_python = _venv_executable(target, "python")
+        runtime_python.parent.mkdir(parents=True)
+        runtime_python.write_bytes(b"runtime-python")
+
+    monkeypatch.setattr(runtime_install, "_copy_installed_runtime", copy_runtime)
+    return repo, runtime_install.materialize_hook_runtime(repo, source_python)
+
+
+@pytest.mark.parametrize(
+    "drift",
+    ["manifest", "digest", "wheel", "abi", "platform", "files", "python", "hash"],
+)
+def test_hook_runtime_manifest_rejects_every_binding_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    runtime = venv.parent
+    manifest = runtime / "manifest.json"
+    python = _venv_executable(venv, "python")
+    if drift == "manifest":
+        manifest.write_text("not-json", encoding="utf-8")
+    elif drift == "python":
+        python.unlink()
+    elif drift == "hash":
+        python.write_text("drift\n", encoding="utf-8")
+    else:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+        key = {
+            "digest": "runtime_digest",
+            "wheel": "wheel_sha256",
+            "abi": "python_abi",
+            "platform": "platform",
+            "files": "runtime_files",
+        }[drift]
+        payload[key] = {} if drift == "files" else "drift"
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+        runtime_install.materialize_hook_runtime(repo, Path(sys.executable))
+
+
+def test_hook_runtime_manifest_and_runtime_locator_bind_exact_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    runtime = venv.parent
+
+    executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    assert runtime_install.runtime_locator(runtime / "venv") == (
+        f"../ethos/runtime/{runtime.name}/venv/{executable}"
+    )
+
+
+def test_hook_runtime_wheel_provenance_and_tool_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "installed"
+    source.mkdir()
+
+    class Metadata:
+        def read_text(self, _name: str) -> str:
+            return '{"url":"https://example.invalid/ethos.whl"}'
+
+    monkeypatch.setattr(runtime_install, "distribution", lambda _name: Metadata())
+    with pytest.raises(ValueError, match="hook_runtime_wheel_provenance_missing"):
+        runtime_install.resolve_runtime_wheel(source, tmp_path / "wheel")
+
+    (source / "pyproject.toml").touch()
+    monkeypatch.setattr(runtime_install.sys, "executable", (tmp_path / "python").as_posix())
+    with pytest.raises(ValueError, match="hook_runtime_uv_unavailable"):
+        runtime_install.resolve_runtime_wheel(source, tmp_path / "build" / "wheel")
+
+
+def test_hook_runtime_python_and_manifest_require_executable_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert _git(tmp_path, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    monkeypatch.setattr(
+        runtime_install.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "failed"),
+    )
+    with pytest.raises(ValueError, match="hook_runtime_python_abi_invalid"):
+        runtime_install.materialize_hook_runtime(tmp_path, tmp_path / "missing-python")
 
 
 def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) -> None:

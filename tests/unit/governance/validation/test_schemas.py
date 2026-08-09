@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -14,6 +16,7 @@ from ethos.result import EthosResult
 from tests.support.literal_cases import literal_case
 
 ROLE_POLICY_SAMPLE = literal_case("governance.validation.test_schemas:assign:ROLE_POLICY_SAMPLE:0")
+ROOT = Path(__file__).resolve().parents[4]
 
 
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:
@@ -169,3 +172,106 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
     assert report["mode"] == "adopter"
     assert report["schema_count"] >= 19
     assert report["instances"]["docs-registry"]["verdict"] == "pass"
+
+
+@pytest.mark.parametrize(
+    ("contents", "error_name"),
+    [
+        ("{", "JSONDecodeError"),
+        (json.dumps({"type": "not-a-json-schema-type"}), "SchemaError"),
+    ],
+)
+def test_schema_report_blocks_malformed_native_product_schema(
+    tmp_path, contents: str, error_name: str
+) -> None:
+    target = tmp_path / "system" / "schemas" / "kernel"
+    shutil.copytree(ROOT / "system" / "schemas" / "kernel", target)
+    (target / "result.schema.json").write_text(contents, encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+
+    report = schema_validation_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["schemas"]["result.schema.json"]["verdict"] == "block"
+    assert report["required_gaps"] == [f"result.schema.json:{error_name}"]
+
+
+def test_schema_report_blocks_malformed_live_skill_declarations(tmp_path) -> None:
+    activation = tmp_path / ".agents" / "skills" / "activation.toml"
+    activation.parent.mkdir(parents=True)
+    activation.write_text("[meta", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+
+    report = schema_validation_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    for name in (
+        "live-skill-activation-contract",
+        "live-skill-registry-contract",
+        "live-skill-package-manifests",
+    ):
+        assert report["instances"][name]["verdict"] == "block"
+        assert report["instances"][name]["required_gaps"]
+
+
+def test_schema_report_blocks_malformed_and_invalid_live_skill_packages(tmp_path) -> None:
+    skill_root = tmp_path / ".agents" / "skills"
+    shutil.copytree(ROOT / ".agents" / "skills", skill_root)
+    malformed = skill_root / "malformed" / "package.toml"
+    malformed.parent.mkdir()
+    malformed.write_text("[package", encoding="utf-8")
+    invalid = skill_root / "invalid" / "package.toml"
+    invalid.parent.mkdir()
+    invalid.write_text("schema_version = 2\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+
+    report = schema_validation_report(tmp_path)
+
+    package = report["instances"]["live-skill-package-manifests"]
+    assert package["verdict"] == "block"
+    assert len(package["required_gaps"]) >= 2
+    assert any(
+        gap.startswith(".agents/skills/malformed/package.toml:") for gap in package["required_gaps"]
+    )
+    assert any(
+        gap.startswith(".agents/skills/invalid/package.toml:") for gap in package["required_gaps"]
+    )
+
+
+def test_validate_schema_instance_reports_all_native_instance_gaps() -> None:
+    validation = validate_schema_instance("result.schema.json", {"verdict": "invalid"})
+
+    assert validation["verdict"] == "block"
+    assert len(validation["required_gaps"]) > 1
+
+
+def test_schema_report_skips_retired_schema_during_native_iteration(
+    tmp_path,
+) -> None:
+    target = tmp_path / "system" / "schemas" / "kernel"
+    shutil.copytree(ROOT / "system" / "schemas" / "kernel", target)
+    (target / "capability-profile.schema.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+
+    report = schema_validation_report(tmp_path)
+
+    assert report["required_gaps"] == ["schema_retired:capability-profile.schema.json"]
+    assert report["schemas"]["capability-profile.schema.json"] == {
+        "verdict": "block",
+        "error": "retired semantic schema",
+    }
+
+
+def test_validate_schema_instance_preserves_cyclic_native_reference(
+    tmp_path,
+) -> None:
+    schema_dir = tmp_path / "system" / "schemas" / "kernel"
+    shutil.copytree(ROOT / "system" / "schemas" / "kernel", schema_dir)
+    (schema_dir / "cycle.schema.json").write_text(
+        json.dumps({"type": "object", "properties": {"child": {"$ref": "cycle.schema.json"}}}),
+        encoding="utf-8",
+    )
+
+    validation = validate_schema_instance("cycle.schema.json", {}, root=tmp_path)
+
+    assert validation == {"verdict": "pass", "required_gaps": []}

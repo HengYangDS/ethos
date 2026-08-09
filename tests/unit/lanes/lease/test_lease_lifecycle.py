@@ -324,6 +324,140 @@ def _reject_failed_ref_cas(
     assert observe_lease(database, BRANCH).state == "valid"
 
 
+@pytest.mark.parametrize(
+    ("failure", "gap"),
+    [
+        ("control-root", "retirement_control_root_stale"),
+        ("dirty-reobservation", "work_lane_dirty"),
+        ("worktree-remove", "worktree_remove_failed"),
+    ],
+)
+def test_retirement_public_failure_matrix_preserves_lane_and_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+    gap: str,
+) -> None:
+    repo, source, head, accepted, database = superseded_work_lane(
+        tmp_path / failure, holder_ref=SOURCE
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", SOURCE)
+    before = leases_by_branch(source)[BRANCH]
+    if failure == "control-root":
+        observed = retirement_effects.output
+
+        def stale_control(root: Path, *args: str) -> str | None:
+            if root == repo and args == ("symbolic-ref", "--short", "HEAD"):
+                return "candidate/dev"
+            return observed(root, *args)
+
+        monkeypatch.setattr(retirement_effects, "output", stale_control)
+    elif failure == "dirty-reobservation":
+        run_git = retirement_effects.run_git
+
+        def dirty_lane(root: Path, *args: str, **kwargs: object) -> object:
+            if root == source and args == ("status", "--porcelain", "--untracked-files=all"):
+                return subprocess.CompletedProcess(args, 0, " M drift\n", "")
+            return run_git(root, *args, **kwargs)
+
+        monkeypatch.setattr(retirement_effects, "run_git", dirty_lane)
+    else:
+        monkeypatch.setattr(
+            retirement_effects,
+            "remove_worktree",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("remove rejected")),
+        )
+
+    report = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=_retirement_request(head, accepted, apply=True),
+    )
+
+    assert report["verdict"] == "block"
+    assert gap in report["required_gaps"]
+    assert (source.is_dir(), git(repo, "rev-parse", BRANCH)) == (True, head)
+    assert leases_by_branch(source)[BRANCH] == before
+    assert observe_lease(database, BRANCH).state == "valid"
+
+
+@pytest.mark.parametrize(
+    ("scenario", "accepted_state", "source_state", "gaps"),
+    [
+        (
+            "accepted-moved",
+            "moved",
+            "expected",
+            {"accepted_ref_changed_after_worktree_removed"},
+        ),
+        (
+            "states-unavailable",
+            "unavailable",
+            "unavailable",
+            {
+                "accepted_ref_state_unavailable_after_worktree_removed",
+                "retirement_ref_state_unavailable_after_worktree_removed",
+            },
+        ),
+        (
+            "restore-fails",
+            "expected",
+            "expected",
+            {
+                "branch_delete_failed_after_worktree_removed",
+                "worktree_restore_failed_after_ref_transition",
+            },
+        ),
+    ],
+)
+def test_retirement_ref_failure_reports_observation_and_compensation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    scenario: str,
+    accepted_state: str,
+    source_state: str,
+    gaps: set[str],
+) -> None:
+    repo, source, head, accepted, database = superseded_work_lane(
+        tmp_path / accepted_state, holder_ref=SOURCE
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", SOURCE)
+    before = leases_by_branch(source)[BRANCH]
+    run_git = git_effects.run_git
+
+    def fail_ref(root: Path, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ("update-ref", "--stdin"):
+            return subprocess.CompletedProcess(["git", *args], 1, "", "forced ref failure")
+        return run_git(root, *args, **kwargs)
+
+    def ref_state(_root: Path, branch: str, _head: str) -> str:
+        return accepted_state if branch == "dev" else source_state
+
+    monkeypatch.setattr(git_effects, "run_git", fail_ref)
+    monkeypatch.setattr(retirement_effects, "ref_outcome", ref_state)
+    if scenario == "restore-fails":
+        monkeypatch.setattr(
+            retirement_effects,
+            "add_worktree",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("restore rejected")),
+        )
+
+    report = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=_retirement_request(head, accepted, apply=True),
+    )
+
+    assert report["verdict"] == "block"
+    assert gaps <= set(report["required_gaps"])
+    assert report["worktree_restored"] is (
+        source_state == "expected" and scenario != "restore-fails"
+    )
+    assert git(repo, "rev-parse", BRANCH) == head
+    assert leases_by_branch(repo)[BRANCH] == before
+    assert observe_lease(database, BRANCH).state == "valid"
+
+
 def _observe_uncertain_commit(
     repo: Path,
     source: Path,
@@ -416,10 +550,11 @@ def _retire_through_installed_hook(
 
 @pytest.mark.parametrize(
     "mode",
-    ["exact", "extra"],
+    ["exact", "extra", "stale"],
     ids=[
         "test_linked_leased_archive_equivalent_carrier_retires_atomically",
         "test_archive_equivalent_retirement_rejects_extra_source_delta",
+        "test_archive_equivalent_retirement_rechecks_absorption_before_effect",
     ],
 )
 def test_archive_retirement_claims(
@@ -480,6 +615,21 @@ def test_archive_retirement_claims(
             "target": f"openspec/changes/archive/2026-08-08-fixture-change/{name}",
             "blob": git(repo, "rev-parse", f"{source_head}:{source}"),
         }
+    if mode == "stale":
+        observed, calls = retirement_effects.archived_carrier_absorption, [0]
+
+        def stale_after_planning(*args: object, **kwargs: object) -> dict[str, object]:
+            calls[0] += 1
+            return observed(*args, **kwargs) if calls[0] == 1 else {}
+
+        monkeypatch.setattr(retirement_effects, "archived_carrier_absorption", stale_after_planning)
+        applied = retire_linked_work_lane(
+            root=repo, mode="superseded", request=request.model_copy(update={"apply": True})
+        )
+        assert applied["required_gaps"] == ["retirement_archive_absorption_stale"]
+        assert (lane.is_dir(), git(repo, "rev-parse", BRANCH)) == (True, source_head)
+        assert observe_lease(database, BRANCH).state == "valid"
+        return
     applied = retire_linked_work_lane(
         root=repo, mode="superseded", request=request.model_copy(update={"apply": True})
     )
@@ -605,6 +755,140 @@ def test_lease_transition_matrix_preserves_binding_and_rejects_invalid_effects(
         with pytest.raises(ValueError, match=error):
             apply_lease_operation(case.database, request=request)
         assert case.snapshot() == stable
+
+
+def test_lease_transition_failure_matrix_preserves_exact_generation(tmp_path: Path) -> None:
+    case = LeaseCase.start(tmp_path, "transition-failures")
+    initial = case.snapshot()
+    requests = (
+        (case.request("resume", initial), f"lease_not_expired:{case.branch}"),
+        (
+            case.request("renew", initial).model_copy(
+                update={"expected_expires_at": "1970-01-01T00:00:00+00:00"}
+            ),
+            "lease_maintenance_candidate_drift",
+        ),
+        (
+            case.request("renew", initial).model_copy(update={"expected_payload_sha256": "0" * 64}),
+            "lease_maintenance_candidate_drift",
+        ),
+    )
+    for request, gap in requests:
+        with pytest.raises(ValueError, match=gap):
+            apply_lease_operation(case.database, request=request)
+        assert case.snapshot() == initial
+
+    expired_at = datetime.now(UTC) - timedelta(seconds=1)
+    payload = dict(initial["payload"])
+    payload.update(
+        issued_at=(expired_at - timedelta(seconds=2)).isoformat(),
+        renewed_at=(expired_at - timedelta(seconds=1)).isoformat(),
+        expires_at=expired_at.isoformat(),
+    )
+    with closing(sqlite3.connect(case.database)) as connection, connection:
+        connection.execute(
+            "update leases set expires_at = ?, payload_json = ? where subject = ?",
+            (expired_at.isoformat(), json.dumps(payload, sort_keys=True), case.branch),
+        )
+    expired = case.snapshot()
+    with pytest.raises(ValueError, match=f"lease_expired:{case.branch}"):
+        case.apply("renew", expired)
+    resumed = case.apply("resume", expired)
+    assert resumed["expires_at"] > expired_at.isoformat()
+
+    with pytest.raises(ValueError, match="lease_handoff_offer_missing"):
+        case.apply(
+            "handoff_accept",
+            resumed,
+            target_holder_ref=TARGET,
+            offer_id="handoff-offer:missing",
+            holder_quiesced=True,
+        )
+    offered = case.apply("handoff_offer", resumed, target_holder_ref=TARGET)
+    offered_snapshot = case.snapshot()
+    for update, gap in (
+        ({"offer_id": "handoff-offer:stale"}, "lease_handoff_offer_stale"),
+        ({"target_holder_ref": "agent:test:case:other"}, "lease_handoff_target_mismatch"),
+    ):
+        values = {
+            "target_holder_ref": TARGET,
+            "offer_id": offered["offer_id"],
+            "holder_quiesced": True,
+            **update,
+        }
+        with pytest.raises(ValueError, match=gap):
+            case.apply("handoff_accept", offered, **values)
+        assert case.snapshot() == offered_snapshot
+
+
+@pytest.mark.parametrize(
+    ("state", "gap"),
+    [
+        ("missing", "work_lane_missing_lease"),
+        ("unknown", "lease_unknown"),
+    ],
+)
+def test_lease_public_missing_and_unknown_rows_fail_closed(
+    tmp_path: Path, state: str, gap: str
+) -> None:
+    case = LeaseCase.start(tmp_path, f"lease-{state}")
+    current = case.snapshot()
+    with closing(sqlite3.connect(case.database)) as connection, connection:
+        if state == "missing":
+            connection.execute("delete from leases where subject = ?", (case.branch,))
+        else:
+            connection.execute(
+                "update leases set payload_json = ? where subject = ?",
+                ("{}", case.branch),
+            )
+
+    report = execute_lease_operation(root=case.worktree, request=case.request("renew", current))
+
+    assert report["verdict"] == ("unknown" if state == "unknown" else "block")
+    assert any(gap in item for item in report["required_gaps"])
+
+
+def test_lease_storage_cas_rejects_identity_and_row_drift(tmp_path: Path) -> None:
+    case = LeaseCase.start(tmp_path, "storage-cas")
+    current = case.snapshot()
+    offered = case.apply("handoff_offer", current, target_holder_ref=TARGET)
+    binding = {
+        "expected_head": current["expected_head"],
+        "expected_tree": current["expected_tree"],
+        "base_commitment_path": current["base_commitment_path"],
+        "base_commitment_bytes_sha256": current["base_commitment_bytes_sha256"],
+        "base_commitment_digest": current["base_commitment_digest"],
+    }
+    with pytest.raises(ValueError, match=f"lease_handoff_pending:{case.branch}"):
+        lease_transitions.rebind_lease_commitment(
+            case.database,
+            request=case.request("advance", offered),
+            binding=binding,
+        )
+
+    with closing(sqlite3.connect(case.database)) as connection:
+        connection.execute("begin immediate")
+        row, current_lease = lease_transitions.expected_current_lease(
+            connection,
+            request=case.request("renew", offered),
+            require_expired=False,
+        )
+        replacement = strict_lease(
+            branch="work/other",
+            lane_incarnation_id=offered["lane_incarnation_id"],
+            lease_id=offered["lease_id"],
+        )
+        with pytest.raises(ValueError, match="lease_reissue_identity_mismatch"):
+            lease_transitions.replace_exact_lease_from_connection(
+                connection, current=row, replacement=replacement
+            )
+        connection.execute("delete from leases where subject = ?", (case.branch,))
+        with pytest.raises(ValueError, match="lease_maintenance_candidate_drift"):
+            lease_transitions.replace_exact_lease_from_connection(
+                connection,
+                current=row,
+                replacement=current_lease,
+            )
 
 
 @pytest.mark.parametrize(
@@ -808,3 +1092,35 @@ def test_exact_takeover_claim_matrix(
             )
             assert report["verdict"] == "block"
             assert case.snapshot() == before
+
+
+@pytest.mark.parametrize("drift_at", ["before-cas", "after-cas"])
+def test_public_takeover_repository_drift_rolls_back_exact_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    drift_at: str,
+) -> None:
+    case, before, _auth, request = _takeover_case(
+        tmp_path, monkeypatch, f"repository-drift-{drift_at}"
+    )
+    observed = dirty_content_sha256
+    calls = 0
+
+    def drift(root: Path) -> str:
+        nonlocal calls
+        calls += 1
+        digest = observed(root)
+        if calls == (2 if drift_at == "before-cas" else 3):
+            return "f" * 64
+        return digest
+
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lane_lifecycle.lease.dirty_content_sha256",
+        drift,
+    )
+
+    report = execute_lease_takeover(root=case.worktree, request=request)
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["lease_takeover_repository_drift"]
+    assert case.snapshot() == before

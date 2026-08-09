@@ -16,16 +16,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_generic_commitment_loader_uses_profile_selected_carrier(tmp_path: Path) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:test"
-intent = "Govern the repository."
-subjects = ["repository:test"]
-""",
+def _repository_commitment(root: Path, *, subject: str = "repository:test") -> None:
+    (root / ".ethos").mkdir(exist_ok=True)
+    (root / ".ethos" / "commitment.toml").write_text(
+        'schema_version = 1\nid = "repository:test"\nintent = "Govern the repository."\n'
+        f'subjects = ["{subject}"]\n',
         encoding="utf-8",
     )
+
+
+def test_generic_commitment_loader_uses_profile_selected_carrier(tmp_path: Path) -> None:
+    _repository_commitment(tmp_path)
     (tmp_path / ".ethos" / "profile.toml").write_text(
         'profile_id = "sample"\ncommitment = "governance/commitment.toml"\n',
         encoding="utf-8",
@@ -56,15 +57,7 @@ dependencies = []
 def test_explicit_commitment_carrier_does_not_require_openspec(
     tmp_path: Path,
 ) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:test"
-intent = "Govern the repository."
-subjects = ["repository:test"]
-""",
-        encoding="utf-8",
-    )
+    _repository_commitment(tmp_path)
     carrier = tmp_path / "intent"
     carrier.mkdir(parents=True)
     (carrier / "commitment.toml").write_text(
@@ -82,15 +75,7 @@ subjects = ["repository:self"]
 
 
 def test_generic_commitment_loader_ignores_openspec_inventory_and_tasks(tmp_path: Path) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:test"
-intent = "Govern the repository."
-subjects = ["repository:test"]
-""",
-        encoding="utf-8",
-    )
+    _repository_commitment(tmp_path)
     for change_id in ("first", "second"):
         carrier = tmp_path / "openspec" / "changes" / change_id
         carrier.mkdir(parents=True)
@@ -111,12 +96,7 @@ subjects = ["repository:self"]
 def test_native_commitment_selection_treats_unarchived_changes_as_active(
     tmp_path: Path,
 ) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
-        'subjects = ["repository:test"]\n',
-        encoding="utf-8",
-    )
+    _repository_commitment(tmp_path)
     _enable_openspec_profile(tmp_path)
     for change_id, task in (("active", "- [ ] Continue\n"), ("complete", "- [x] Done\n")):
         carrier = tmp_path / "openspec" / "changes" / change_id
@@ -199,15 +179,7 @@ def test_exact_lease_binding_does_not_follow_a_carrier_move(tmp_path: Path) -> N
 
 
 def test_commitment_missing_fails_closed(tmp_path: Path) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:test"
-intent = "Govern the repository."
-subjects = ["repository:test"]
-""",
-        encoding="utf-8",
-    )
+    _repository_commitment(tmp_path)
 
     with pytest.raises(ValueError, match="commitment_missing"):
         load_commitment(tmp_path, change_id="terminal-convergence")
@@ -216,15 +188,7 @@ subjects = ["repository:test"]
 
 
 def test_unselected_scope_file_does_not_override_commitment(tmp_path: Path) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:test"
-intent = "Govern the repository."
-subjects = ["repository:test"]
-""",
-        encoding="utf-8",
-    )
+    _repository_commitment(tmp_path)
     carrier = tmp_path / "openspec" / "changes" / "terminal-convergence"
     carrier.mkdir(parents=True)
     (carrier / "commitment.toml").write_text(
@@ -249,15 +213,7 @@ scope = ["src/**"]
 
 
 def test_repository_commitment_owns_stable_subject_across_worktrees(tmp_path: Path) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:test"
-intent = "Govern the repository."
-subjects = ["repository:test"]
-""",
-        encoding="utf-8",
-    )
+    _repository_commitment(tmp_path)
 
     commitment = load_repository_commitment(tmp_path)
 
@@ -266,27 +222,10 @@ subjects = ["repository:test"]
 
 
 def test_repository_commitment_requires_id_to_equal_its_single_subject(tmp_path: Path) -> None:
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos" / "commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:first"
-intent = "Govern the repository."
-subjects = ["repository:second"]
-""",
-        encoding="utf-8",
-    )
+    _repository_commitment(tmp_path, subject="repository:second")
 
     with pytest.raises(ValueError, match="repository_commitment_identity_mismatch"):
         load_repository_commitment(tmp_path)
-
-
-def _repository_commitment(root: Path) -> None:
-    (root / ".ethos").mkdir(exist_ok=True)
-    (root / ".ethos" / "commitment.toml").write_text(
-        'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
-        'subjects = ["repository:test"]\n',
-        encoding="utf-8",
-    )
 
 
 def _enable_openspec_profile(root: Path) -> None:

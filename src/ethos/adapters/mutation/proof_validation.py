@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 
@@ -23,6 +24,20 @@ _STATEMENT_FIELDS = {
     "required_gaps",
     "scope",
 }
+_FORMER_STATEMENT_FIELDS = (
+    "change_id",
+    "changed_paths",
+    "commitment",
+    "freshness",
+    "gate_ids",
+    "head",
+    "inputs",
+    "objective",
+    "output",
+    "policy",
+    "repository",
+    "tree",
+)
 
 
 def plan_from_statement(attestation: Attestation) -> TransitionPlan:
@@ -101,11 +116,66 @@ def _context_gaps(statement: Mapping[str, object]) -> list[str]:
     return gaps
 
 
-def _statement_gaps(attestation: Attestation, statement: Mapping[str, object]) -> list[str]:
+def former_official_statement_projection(
+    attestation: Attestation, plan: TransitionPlan
+) -> dict[str, object]:
+    """Derive the exact redundant projection emitted by the former official runtime."""
+    statement = string_mapping(attestation.model_dump(mode="json").get("statement"))
+    claim = string_mapping(statement.get("claim"))
+    artifact = string_mapping(statement.get("artifact"))
+    facts = mutable_json(plan.facts)
+    values = facts.get("values") if isinstance(facts, dict) else {}
+    values = values if isinstance(values, dict) else {}
+    artifact_digest = str(artifact.get("sha256") or "").removeprefix("sha256:")
+    return {
+        "change_id": str(values.get("change_id") or ""),
+        "changed_paths": list(string_sequence(values.get("changed_paths"))),
+        "commitment": mutable_json(plan.commitment),
+        "freshness": {
+            "mode": "semantic_scope",
+            "repository": facts.get("repository"),
+            "head": facts.get("head"),
+            "tree": facts.get("tree"),
+            "policy": plan.inputs.policy,
+        },
+        "gate_ids": [node.id for node in plan.nodes],
+        "head": facts.get("head"),
+        "inputs": {
+            "commitment": plan.inputs.commitment,
+            "facts": plan.inputs.facts,
+            "plan": plan.digest,
+            "policy": plan.inputs.policy,
+            "effect": plan.inputs.effect,
+        },
+        "objective": claim.get("objective"),
+        "output": {"artifact": artifact_digest, "verdict": attestation.verdict},
+        "policy": mutable_json(plan.policy),
+        "repository": facts.get("repository"),
+        "tree": facts.get("tree"),
+    }
+
+
+def _statement_schema_gaps(
+    attestation: Attestation, plan: TransitionPlan, statement: Mapping[str, object]
+) -> list[str]:
+    fields = set(statement)
+    if fields == _STATEMENT_FIELDS:
+        return []
+    if fields != _STATEMENT_FIELDS | set(_FORMER_STATEMENT_FIELDS):
+        return ["model_gap"]
+    expected = former_official_statement_projection(attestation, plan)
+    return [
+        f"proof_attestation_former_projection_mismatch:{field}"
+        for field in _FORMER_STATEMENT_FIELDS
+        if mutable_json(statement.get(field)) != mutable_json(expected[field])
+    ]
+
+
+def _statement_gaps(
+    attestation: Attestation, plan: TransitionPlan, statement: Mapping[str, object]
+) -> list[str]:
     claim = statement.get("claim")
-    gaps = []
-    if statement.keys() - _STATEMENT_FIELDS:
-        gaps.append("model_gap")
+    gaps = _statement_schema_gaps(attestation, plan, statement)
     if (
         not isinstance(claim, Mapping)
         or not isinstance(claim.get("objective"), str)
@@ -159,7 +229,7 @@ def proof_statement_gaps(
         return [str(error)]
     return [
         *_binding_gaps(attestation, plan),
-        *_statement_gaps(attestation, statement),
+        *_statement_gaps(attestation, plan, statement),
         *_gate_gaps(plan, checks),
         *_result_gaps(attestation, checks, required_gaps),
     ]

@@ -13,6 +13,7 @@ import pytest
 import ethos.adapters.repo.git_effect_admission as admission
 import ethos.adapters.repo.git_effect_attestation as attest
 import ethos.adapters.repo.git_effects as runtime
+import ethos.adapters.repo.git_signing as git_signing
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
@@ -55,18 +56,20 @@ def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
     git(repo, "add", "README.md")
     previous = git(repo, "rev-parse", "HEAD")
     calls: list[dict[str, str]] = []
-    original = runtime.run_git
+    original = git_signing.run_git
 
-    def capture(_root: Path, *args: str, **kwargs: object) -> object:
-        if args[:1] == ("config",):
-            return original(_root, *args, **kwargs)
+    def capture_signing(_root: Path, *args: str, **kwargs: object) -> object:
+        return original(_root, *args, **kwargs)
+
+    def capture_commit(_root: Path, *args: str, **kwargs: object) -> object:
         assert args == ("commit", "-m", "fix: signed effect")
         environment = kwargs["env"]
         assert isinstance(environment, dict)
         calls.append(environment)
         return type("Result", (), {"returncode": 0, "stderr": ""})()
 
-    monkeypatch.setattr(runtime, "run_git", capture)
+    monkeypatch.setattr(git_signing, "run_git", capture_signing)
+    monkeypatch.setattr(runtime, "run_git", capture_commit)
 
     result = commit_git_worktree(
         repo,

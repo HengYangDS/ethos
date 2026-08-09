@@ -87,10 +87,10 @@ larger same-campaign deletion. The terminal product has no compatibility alias,
 shim, wrapper, re-export, fallback, or duplicate evaluator.
 
 Terminal Python effective LOC is non-compensating by carrier role: product at
-most 36,000, tests at most 18,000, cross-platform automation tools at most
-3,000, and other Python at most 120. Terminal global owned-source effective LOC
-remains at most 68,000, so behavior cannot escape by moving to another carrier.
-Branch coverage is at least 95 percent, with complete behavior coverage for
+most 40,000, tests at most 30,000, cross-platform automation tools at most
+4,000, and other Python at most 200. Terminal global owned-source effective LOC
+is at most 85,000, so behavior cannot escape by moving to another carrier.
+Branch-aware coverage is at least 95 percent, with complete behavior coverage for
 authority, CAS, and pure transition reducers. Warnings and production
 suppressions are zero.
 

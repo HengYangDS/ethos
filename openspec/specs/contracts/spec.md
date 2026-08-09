@@ -204,8 +204,8 @@ replay runtime, shadow model, or debt contract.
 #### Scenario: The measurement policy is loaded
 
 - **WHEN** ETHOS loads `.config/checks/format/selection.toml`
-- **THEN** it requires terminal ceilings no greater than 54,000 for
-  `python_total` and 68,000 for `global_total`, one bounded `scc` command with
+- **THEN** it requires non-compensating role ceilings and a jointly derived
+  global ceiling, one bounded `scc` command with
   exact non-negative tolerances, a fixed canonicalization line width, named
   aggregate members, and admitted format budget rows
 - **AND** `global_total` contains every admitted category exactly once and

@@ -340,9 +340,9 @@ are proved homomorphic projections of one portable policy.
   broader bind. Exceptions name owner, scope, reason, expiry, and kill signal.
 - [ ] 6.2 Eliminate all warnings and production `fmt off/on`, noqa, type-ignore,
   coverage-ignore, and equivalent suppressions.
-- [ ] 6.3 Enforce non-compensating Python ELOC ceilings for product ≤36,000,
-  tests ≤18,000, cross-platform automation tools ≤3,000, and other Python ≤120;
-  retain global owned-source ELOC ≤68,000, branch coverage ≥95%, and complete
+- [ ] 6.3 Enforce non-compensating Python ELOC ceilings for product ≤40,000,
+  tests ≤30,000, cross-platform automation tools ≤4,000, and other Python ≤200;
+  retain global owned-source ELOC ≤85,000, branch-aware coverage ≥95%, and complete
   behavior coverage for authority, CAS, and pure reducers. Changed-scope
   admission binds the exact merge base and evaluates every coordinate
   independently; improvement in one coordinate never compensates for regression

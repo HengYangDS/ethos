@@ -11,6 +11,8 @@ scope = [
   "tests/unit/lanes/retirement/test_effect_failure_branches.py",
   "tests/unit/lanes/retirement/test_effect_public_boundaries.py",
   "tests/unit/cli/test_lane_retirement.py",
+  "tools/ci/delivery/pipeline.py",
+  "tests/architecture/test_local_install_smoke.py",
 ]
 invariants = [
   "failed_ref_transition_restores_the_exact_clean_linked_worktree_or_exposes_a_public_recovery_transition",

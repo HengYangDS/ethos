@@ -17,6 +17,8 @@ scope = [
   "src/ethos/adapters/mutation/lanes.py",
   "src/ethos/adapters/repo/hook_runtime_install.py",
   "tests/unit/lanes/test_fresh_lane_start.py",
+  "tests/unit/cli/test_hook_runtime.py",
+  "tests/unit/coverage_closure/test_hook_runtime_install_public_resolution.py",
 ]
 invariants = []
 acceptance = []

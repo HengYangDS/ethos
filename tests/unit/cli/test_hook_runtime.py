@@ -57,7 +57,9 @@ def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     def copy_runtime(target: Path, _python: Path) -> None:
         runtime_python = _venv_executable(target, "python")
         runtime_python.parent.mkdir(parents=True)
-        runtime_python.symlink_to(Path(sys.executable))
+        source_python = Path(sys.executable)
+        runtime_python.write_bytes(source_python.read_bytes())
+        runtime_python.chmod(source_python.stat().st_mode)
         entrypoint = _venv_executable(target, "ethos")
         entrypoint.write_text(
             f"#!{runtime_python}\nprint('ethos-test')\n",

@@ -7,25 +7,24 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_gap
+from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_operation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
+from ethos.adapters.mutation.remediation.guidance import commitment_rebind_remediation
 from ethos.adapters.openspec.lifecycle.archive_transition import (
     lease_bound_archive_transition_fields,
 )
 from ethos.adapters.repo.commitment import exact_commitment_fields
-from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import rebind_target_fields
 from ethos.adapters.repo.commitment import relocated_commitment_fields
 from ethos.adapters.repo.git import ref_head
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitRefUpdate
-from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -293,7 +292,7 @@ def _commitment_rebind_report(
         root=repo,
         ref_name=ref_name,
         update=update,
-        operation=_rebind_operation(repo, update, lease, target),
+        operation=commitment_rebind_operation(repo, update, lease, target),
         phase=cast(
             "Literal['prepared', 'committed', 'aborted']",
             {"committed": "committed", "aborted": "aborted"}.get(phase, "prepared"),
@@ -311,37 +310,12 @@ def _commitment_rebind_report(
                 ["commitment_rebind_required"],
                 "commitment_rebind_required",
             )
-            next_command = (
-                f"ethos lane rebind-commitment derive --target-commit {update.desired} --json"
-            )
-            report.update(
-                target_commit=update.desired,
-                target_commit_valid=True,
-                partial_effects={
-                    "commit_object_created": True,
-                    "ref_updated": False,
-                    "lease_updated": False,
-                    "index_updated": False,
-                },
-                next_action=next_command,
-                remediation=[
-                    {
-                        "gap": "commitment_rebind_required",
-                        "kind": "authority_denied",
-                        "owner": "lane rebind-commitment",
-                        "reason": "active Commitment bytes or semantics changed",
-                        "retryable": True,
-                        "mutation": False,
-                        "user_decision_required": False,
-                        "next_command": next_command,
-                    }
-                ],
-            )
+            report.update(commitment_rebind_remediation(update.desired))
             return report
         if gap != "ref_intent_missing":
             gaps[:] = [gap]
         return None
-    if gap := _commitment_rebind_gap(
+    if gap := commitment_rebind_gap(
         repo,
         lease,
         target,
@@ -360,28 +334,6 @@ def _commitment_rebind_report(
     return report
 
 
-def _rebind_operation(
-    repo: Path,
-    update: GitRefUpdate,
-    lease: dict[str, object],
-    target: dict[str, str],
-) -> str:
-    try:
-        old = load_lease_bound_commitment(repo, lease=lease)
-        target = rebind_target_fields(
-            repo, old_head=update.expected, new_head=update.desired, commitment=old, target=target
-        )
-        new = load_commitment(
-            repo,
-            carrier=target["base_commitment_path"],
-            tree_ref=update.desired,
-            expected_digest=target["base_commitment_digest"],
-        )
-    except (KeyError, ValueError):
-        return "commitment.rebind"
-    return "change.identity-repair" if old.id != new.id else "commitment.rebind"
-
-
 _COMMITMENT_REBIND_GAPS = frozenset(
     {
         "lease_base_commitment_path_mismatch",
@@ -389,57 +341,6 @@ _COMMITMENT_REBIND_GAPS = frozenset(
         "lease_base_commitment_digest_mismatch",
     }
 )
-
-
-def _commitment_rebind_gap(
-    root: Path,
-    lease: dict[str, object],
-    target: dict[str, str],
-    *,
-    old_value: str,
-    new_value: str,
-) -> str:
-    """Validate one semantic Work Lane ref move against live immutable facts."""
-    try:
-        old_commitment = load_lease_bound_commitment(root, lease=lease)
-        target = rebind_target_fields(
-            root,
-            old_head=old_value,
-            new_head=new_value,
-            commitment=old_commitment,
-            target=target,
-        )
-        new_commitment = load_commitment(
-            root,
-            carrier=target["base_commitment_path"],
-            tree_ref=new_value,
-            expected_digest=target["base_commitment_digest"],
-        )
-        parents = run_git(root, "rev-list", "--parents", "-n", "1", new_value).stdout.split()
-        checks = (
-            (parents == [new_value, old_value], "commitment_rebind_target_parent_mismatch"),
-            (
-                run_git(root, "write-tree").stdout.strip() == target["expected_tree"],
-                "commitment_rebind_index_tree_mismatch",
-            ),
-            (
-                new_commitment.id == old_commitment.id
-                or malformed_change_identity_repair_valid(
-                    carrier=target["base_commitment_path"],
-                    old_id=old_commitment.id,
-                    old_digest=old_commitment.digest(),
-                    new=new_commitment,
-                ),
-                "commitment_rebind_identity_mismatch",
-            ),
-            (
-                new_commitment.digest() != old_commitment.digest(),
-                "commitment_rebind_semantics_unchanged",
-            ),
-        )
-    except (KeyError, ValueError) as error:
-        return str(error)
-    return next((gap for valid, gap in checks if not valid), "")
 
 
 def _is_zero_oid(value: str) -> bool:

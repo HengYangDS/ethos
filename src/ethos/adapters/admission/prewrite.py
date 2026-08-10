@@ -4,7 +4,9 @@ import os
 from fnmatch import fnmatchcase
 from pathlib import Path
 
+from ethos.adapters.admission.lease_binding import lease_binding_reason
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.repo.commitment import load_commitment
@@ -105,16 +107,11 @@ def prewrite_guard(
         required_gaps=tuple(gaps),
     )
     decision = _prewrite_decision(root, effective, checked, lease, verdict, tuple(gaps))
-    next_action = ""
-    editor_reason = str(editor.get("reason") or "")
-    if editor_reason == "editor_root_missing":
-        next_action = (
-            f"ethos lane prewrite <path> --editor-root {editor['expected']} "
-            "--require-editor-root --json"
-        )
-    elif str(lease.get("reason") or "").startswith("invocation_actor_missing:"):
-        holder = str(lease.get("holder_ref") or "")
-        next_action = f"set ETHOS_ACTOR={holder} and rerun the blocked command"
+    next_action = (
+        ""
+        if verdict == "pass"
+        else prewrite_next_action({"work_lane_lease": lease, "editor_root": editor})
+    )
     return {
         "verdict": decision.verdict,
         "error": gaps[0] if gaps else "",
@@ -221,12 +218,13 @@ def _work_lane_lease_check(
         if source == "git_rebase_head_name"
         else (current, "head")
     )
-    reason = _lease_binding_reason(
+    reason = lease_binding_reason(
         root=root,
         branch=branch,
         lease=lease,
         actor=actor,
         current_head=binding,
+        commitment_loader=load_lease_bound_commitment,
     )
     return _lease_report(
         branch,
@@ -266,38 +264,6 @@ def _lease_report(
 def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> dict[str, object]:
     current_path = Path(str(status.get("root") or root)).resolve()
     return leases_by_branch(current_path).get(branch, {})
-
-
-def _lease_binding_reason(
-    *, root: Path, branch: str, lease: dict[str, object], actor: str, current_head: str
-) -> str:
-    expected_head = str(lease.get("expected_head") or "")
-    commitment_reason = ""
-    try:
-        load_lease_bound_commitment(root, lease=lease)
-    except ValueError as exc:
-        reason = str(exc)
-        commitment_reason = f"{reason}:{branch}" if reason.startswith("lease_base_") else reason
-    checks = (
-        (
-            not actor,
-            f"invocation_actor_missing:{branch}",
-        ),
-        (
-            actor != str(lease.get("holder_ref") or ""),
-            f"lease_holder_mismatch:{branch}",
-        ),
-        (
-            not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1,
-            f"lease_generation_missing:{branch}",
-        ),
-        (
-            expected_head != current_head,
-            f"lease_head_stale:{branch}",
-        ),
-        (bool(commitment_reason), commitment_reason),
-    )
-    return next((reason for failed, reason in checks if failed), "")
 
 
 def _prewrite_decision(

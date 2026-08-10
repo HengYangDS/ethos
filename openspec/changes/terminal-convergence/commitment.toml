@@ -14,6 +14,8 @@ scope = [
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/domain/land/publication.py",
   "src/ethos/repository/release/publication.py",
+  "src/ethos/repository/openspec/identifiers.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_admission.py",
   "src/ethos/surface/cli/root/publish.py",
   "src/ethos/surface/cli/hook/commands.py",
   "tests/support/governed_repository.py",
@@ -24,6 +26,7 @@ scope = [
   "tests/unit/lanes/test_hook_publication_admission.py",
   "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/release/test_policy_attestation.py",
+  "tests/unit/lanes/lease/test_commitment_rebind.py",
 ]
 invariants = [
   "only explicitly declared publication peers participate in admission observation reconciliation and publish",

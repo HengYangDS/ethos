@@ -77,6 +77,14 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
         shutil.rmtree(work, ignore_errors=True)
 
 
+def require_runtime_wheel_provenance() -> None:
+    """Validate that the current package can materialize a source-independent runtime."""
+    source = Path(__file__).resolve().parents[4]
+    if (source / "pyproject.toml").is_file():
+        return
+    resolve_runtime_wheel(source, Path())
+
+
 def resolve_runtime_wheel(source: Path, wheel_dir: Path) -> Path:
     if (source / "pyproject.toml").is_file():
         wheel_dir.parent.mkdir(parents=True)

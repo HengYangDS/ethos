@@ -12,10 +12,10 @@ from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.openspec.lifecycle.archive_transition import (
     lease_bound_archive_transition_fields,
 )
-from ethos.adapters.repo.commitment import changed_commitment_fields
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.commitment import rebind_target_fields
 from ethos.adapters.repo.commitment import relocated_commitment_fields
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
@@ -331,15 +331,9 @@ def _rebind_operation(
 ) -> str:
     try:
         old = load_lease_bound_commitment(repo, lease=lease)
-        if not target:
-            target = changed_commitment_fields(
-                repo,
-                old_head=update.expected,
-                new_head=update.desired,
-                commitment_id=old.id,
-                old_digest=old.digest(),
-                allow_identity_repair=True,
-            )
+        target = rebind_target_fields(
+            repo, old_head=update.expected, new_head=update.desired, commitment=old, target=target
+        )
         new = load_commitment(
             repo,
             carrier=target["base_commitment_path"],
@@ -371,15 +365,13 @@ def _commitment_rebind_gap(
     """Validate one semantic Work Lane ref move against live immutable facts."""
     try:
         old_commitment = load_lease_bound_commitment(root, lease=lease)
-        if not target:
-            target = changed_commitment_fields(
-                root,
-                old_head=old_value,
-                new_head=new_value,
-                commitment_id=old_commitment.id,
-                old_digest=old_commitment.digest(),
-                allow_identity_repair=True,
-            )
+        target = rebind_target_fields(
+            root,
+            old_head=old_value,
+            new_head=new_value,
+            commitment=old_commitment,
+            target=target,
+        )
         new_commitment = load_commitment(
             root,
             carrier=target["base_commitment_path"],

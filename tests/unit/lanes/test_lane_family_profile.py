@@ -244,7 +244,12 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(
         "holder_ref": _HOLDER,
         "required_gaps": [],
     }.items() <= report.items()
-    assert report["hook_runtime"] == hook_runtime_binding(lane_case.target)
+    assert hook_runtime_binding(lane_case.target).items() <= report["hook_runtime"].items()
+    assert report["hook_runtime"]["legacy_runtime_locator"] == {
+        "path": (lane_case.repo / ".git" / "ethos-runtime-python").as_posix(),
+        "state": "absent",
+        "removed": False,
+    }
     assert report["hook_runtime"]["required_gaps"] == []
     assert "claim_id" not in report
     assert (

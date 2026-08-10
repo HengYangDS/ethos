@@ -301,6 +301,25 @@ def changed_commitment_fields(
     return candidates[0]
 
 
+def rebind_target_fields(
+    repo: Path,
+    *,
+    old_head: str,
+    new_head: str,
+    commitment: Commitment,
+    target: dict[str, str],
+) -> dict[str, str]:
+    """Return an observed target or discover the sole valid identity repair."""
+    return target or changed_commitment_fields(
+        repo,
+        old_head=old_head,
+        new_head=new_head,
+        commitment_id=commitment.id,
+        old_digest=commitment.digest(),
+        allow_identity_repair=True,
+    )
+
+
 def load_lease_bound_commitment(
     repo: Path,
     *,

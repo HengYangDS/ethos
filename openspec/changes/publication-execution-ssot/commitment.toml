@@ -46,6 +46,7 @@ invariants = [
   "TransitionPlan is the sole mutation authority and every peer uses exact CAS",
   "cross-peer partial effects are attested without claiming distributed atomicity",
   "DRY SSOT MECE and SOLID remove entities unless they retain unique semantics",
+  "OpenSpec proposal design tasks and delta spec are the sole traceability owner for this atomic change",
   "coverage remains at or above 95 percent while python_tests budget is 36000",
 ]
 acceptance = [
@@ -53,6 +54,7 @@ acceptance = [
   "proposal dry-run persists one immutable request and apply replays the identical admitted plan",
   "remote drift blocks before the first push and partial peer failure is observable and retryable",
   "single-peer result aliases duplicate validators and ownerless abstractions are absent",
+  "requirement task implementation and proof edges are explicit in the active OpenSpec carrier",
   "focused broad quality source-budget and package-only gates pass",
   "exact-head full proof archive post-archive proof governed land and accepted runtime closeout pass",
 ]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import subprocess
+from contextlib import closing
 from typing import TYPE_CHECKING
 
 import pytest
@@ -46,7 +47,7 @@ def test_require_missing_lease_and_restore_fail_closed(
         lambda *_args: type("Lease", (), {"state": "valid"})(),
     )
     with (
-        sqlite3.connect(":memory:") as connection,
+        closing(sqlite3.connect(":memory:")) as connection,
         pytest.raises(ValueError, match="successor_retire_target_lease_present"),
     ):
         effects.require_missing_lease(connection, "work/example")

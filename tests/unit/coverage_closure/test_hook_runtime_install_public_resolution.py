@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -168,6 +169,9 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
     python = prefix / "bin/python"
     python.parent.mkdir(parents=True)
     python.write_bytes(b"python")
+    entrypoint = prefix / "bin/ethos"
+    entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
+    entrypoint.chmod(0o755)
     common = tmp_path / "repo.git"
     common.mkdir()
     wheel = tmp_path / "ethos.whl"
@@ -185,3 +189,62 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
     runtime = install.materialize_hook_runtime(tmp_path / "repo", python)
 
     assert (runtime / "bin/python").read_bytes() == b"python"
+
+
+def test_final_runtime_rejects_console_entrypoint_bound_to_staging(
+    tmp_path: Path,
+) -> None:
+    runtime = tmp_path / "runtime" / ("a" * 64)
+    python = runtime / "venv/bin/python"
+    entrypoint = runtime / "venv/bin/ethos"
+    python.parent.mkdir(parents=True)
+    python.write_bytes(b"python")
+    entrypoint.write_text(
+        f"#!{runtime.parent}/.runtime-staging/venv/bin/python\n",
+        encoding="utf-8",
+    )
+    entrypoint.chmod(0o755)
+    install._write_manifest(  # noqa: SLF001
+        runtime, "a" * 64, "b" * 64, "cpython-test", python
+    )
+
+    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+        install._require_runtime(  # noqa: SLF001
+            runtime, "a" * 64, "b" * 64, "cpython-test"
+        )
+
+
+def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    runtime = tmp_path / ("a" * 64)
+    python = runtime / "venv/bin/python"
+    entrypoint = runtime / "venv/bin/ethos"
+    python.parent.mkdir(parents=True)
+    python.write_bytes(b"python")
+    entrypoint.write_text("#!/staging/venv/bin/python\n", encoding="utf-8")
+    entrypoint.chmod(0o755)
+    install._write_manifest(  # noqa: SLF001
+        runtime, runtime.name, "b" * 64, "cpython-test", python
+    )
+    observed: list[Path] = []
+    monkeypatch.setattr(
+        install.subprocess,
+        "run",
+        lambda command, **_kwargs: (
+            observed.append(command[0]) or _completed(0, stdout="ethos-test\n")
+        ),
+    )
+
+    install._finalize_runtime(  # noqa: SLF001
+        runtime, runtime.name, "b" * 64, "cpython-test"
+    )
+
+    assert entrypoint.read_text(encoding="utf-8").splitlines()[0] == f"#!{python}"
+    assert observed == [entrypoint]
+    payload = json.loads((runtime / "manifest.json").read_text(encoding="utf-8"))
+    assert (
+        payload["runtime_files"][entrypoint.relative_to(runtime).as_posix()]
+        == hashlib.sha256(entrypoint.read_bytes()).hexdigest()
+    )

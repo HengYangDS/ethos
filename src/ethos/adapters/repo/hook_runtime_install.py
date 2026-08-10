@@ -69,6 +69,12 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
                 staging.rename(target)
             except FileExistsError:
                 _require_runtime(target, digest, wheel_sha256, python_abi)
+            else:
+                try:
+                    _finalize_runtime(target, digest, wheel_sha256, python_abi)
+                except (OSError, ValueError):
+                    shutil.rmtree(target, ignore_errors=True)
+                    raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
         _require_runtime(target, digest, wheel_sha256, python_abi)
@@ -193,13 +199,19 @@ def _write_manifest(
     if not python.is_file():
         message = "hook_runtime_python_missing"
         raise ValueError(message)
+    entrypoint = _runtime_entrypoint(python.parent.parent)
+    if not entrypoint.is_file():
+        message = "hook_runtime_entrypoint_missing"
+        raise ValueError(message)
     payload = {
         "schema_version": 1,
         "runtime_digest": digest,
         "wheel_sha256": wheel_sha256,
         "python_abi": python_abi,
         "platform": platform.system().lower(),
-        "runtime_files": {python.relative_to(runtime).as_posix(): _sha256(python)},
+        "runtime_files": {
+            path.relative_to(runtime).as_posix(): _sha256(path) for path in (python, entrypoint)
+        },
     }
     (runtime / "manifest.json").write_text(
         json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
@@ -209,23 +221,82 @@ def _write_manifest(
 def _require_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
     manifest = runtime / "manifest.json"
     python = _venv_python(runtime / "venv")
+    entrypoint = _runtime_entrypoint(runtime / "venv")
     try:
         payload = json.loads(manifest.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         message = "hook_runtime_manifest_invalid"
         raise ValueError(message) from error
     files = payload.get("runtime_files")
-    expected = python.relative_to(runtime).as_posix()
+    expected = {
+        path.relative_to(runtime).as_posix(): _sha256(path)
+        for path in (python, entrypoint)
+        if path.is_file()
+    }
     if (
         payload.get("runtime_digest") != digest
         or payload.get("wheel_sha256") != wheel_sha256
         or payload.get("python_abi") != python_abi
         or payload.get("platform") != platform.system().lower()
         or not isinstance(files, dict)
-        or not python.is_file()
-        or files.get(expected) != _sha256(python)
+        or expected.keys()
+        != {
+            python.relative_to(runtime).as_posix(),
+            entrypoint.relative_to(runtime).as_posix(),
+        }
+        or files != expected
+        or not _entrypoint_bound_to_final_runtime(entrypoint, python)
     ):
         message = "hook_runtime_manifest_invalid"
+        raise ValueError(message)
+
+
+def _runtime_entrypoint(venv: Path) -> Path:
+    directory = venv / ("Scripts" if os.name == "nt" else "bin")
+    return directory / ("ethos.exe" if os.name == "nt" else "ethos")
+
+
+def _entrypoint_bound_to_final_runtime(entrypoint: Path, python: Path) -> bool:
+    if os.name == "nt":
+        return entrypoint.is_file()
+    try:
+        first = entrypoint.read_text(encoding="utf-8").splitlines()[0]
+    except (OSError, UnicodeError, IndexError):
+        return False
+    return first == f"#!{python}"
+
+
+def _rewrite_runtime_entrypoint(runtime: Path) -> None:
+    if os.name == "nt":
+        return
+    entrypoint = _runtime_entrypoint(runtime / "venv")
+    python = _venv_python(runtime / "venv")
+    try:
+        lines = entrypoint.read_text(encoding="utf-8").splitlines(keepends=True)
+    except (OSError, UnicodeError) as error:
+        message = "hook_runtime_entrypoint_invalid"
+        raise ValueError(message) from error
+    if not lines:
+        message = "hook_runtime_entrypoint_invalid"
+        raise ValueError(message)
+    lines[0] = f"#!{python}\n"
+    entrypoint.write_text("".join(lines), encoding="utf-8", newline="\n")
+    entrypoint.chmod(0o755)
+
+
+def _finalize_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
+    _rewrite_runtime_entrypoint(runtime)
+    python = _venv_python(runtime / "venv")
+    _write_manifest(runtime, digest, wheel_sha256, python_abi, python)
+    _require_runtime(runtime, digest, wheel_sha256, python_abi)
+    completed = subprocess.run(
+        (_runtime_entrypoint(runtime / "venv"), "--version"),
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if completed.returncode or not completed.stdout.strip():
+        message = "hook_runtime_entrypoint_smoke_failed"
         raise ValueError(message)
 
 

@@ -35,6 +35,16 @@ if TYPE_CHECKING:
 def _absorbed_ref(tmp_path: Path) -> tuple[Path, str, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
+    commitment = repo / ".ethos" / "commitment.toml"
+    commitment.write_text(
+        commitment.read_text(encoding="utf-8").replace(
+            'permissions = ["repository.read", "git.ref.compare-and-swap"]',
+            'permissions = ["repository.read"]',
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", commitment.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "use minimal repository authority")
     source = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "work/absorbed", source)
     marker = repo / "accepted.txt"
@@ -97,6 +107,16 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
         "ready_to_retire_absorbed_ref",
         [],
     )
+    transition = planned["data"]["transition"]
+    assert transition["state"] == "git_effect_admitted"
+    assert transition["effect"]["updates"] == {
+        "refs/heads/work/absorbed": {
+            "expected": source,
+            "desired": "0" * len(source),
+        }
+    }
+    assert transition["permissions"] == ["repository.read"]
+    assert transition["plan_digest"]
     applied = _retire(repo, branch="work/absorbed", source=source, accepted=accepted)
 
     assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
@@ -115,6 +135,11 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
     }
     assert git(repo, "branch", "--list", "work/absorbed") == ""
     assert observe_lease(state_database(repo), "work/absorbed").state == "missing"
+    attested = applied["data"]["transition"]["attestation"]["statement"]["plan"]
+    assert (attested["digest"], attested["effect"]) == (
+        transition["plan_digest"],
+        transition["effect"],
+    )
 
 
 def test_absorbed_ref_recovers_exact_already_applied_committed_intent(

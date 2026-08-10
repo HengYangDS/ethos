@@ -10,6 +10,10 @@ scope = [
   "tests/architecture/test_format_selection.py",
   "src/ethos/adapters/mutation/lane_lifecycle/change_rollover.py",
   "tests/unit/cli/test_openspec_change_rollover.py",
+  "src/ethos/adapters/repo/git_effect_admission.py",
+  "src/ethos/adapters/mutation/lane_retirement/absorbed.py",
+  "tests/unit/lanes/retirement/test_absorbed_ref_retirement.py",
+  "tests/unit/cli/test_contracts_land.py",
 ]
 invariants = []
 acceptance = []

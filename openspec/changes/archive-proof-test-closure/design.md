@@ -18,3 +18,10 @@ Keep both ownership rules explicit:
 
 Missing or duplicate terminal identities remain assertion failures. No fallback
 path or archived-mutation authority is introduced.
+
+For destructive Git effects, readiness is not a weaker projection than apply.
+The public command compiles one exact `TransitionPlan`, admits its permission
+and prestate without mutation, and reports that plan in dry-run. Apply executes
+the same plan shape after immediate drift checks. Absorbed-ref authority is
+narrowly bound to `lane.retire`, one `work/*` deletion, an absent Lease and
+worktree binding, and the asserted accepted ancestor; it is not generic CAS.

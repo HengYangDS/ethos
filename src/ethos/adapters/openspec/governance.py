@@ -337,7 +337,7 @@ def _openspec_governance_report(
             root,
             request=request,
             list_payload=list_result["json"],
-            status_payload=status["json"],
+            status_payload=status.get("json", {}),
             apply_payload=apply.get("json", {}),
             protected_branch_residue=protected_branch_residue,
         )

@@ -11,6 +11,8 @@ import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_retirement.observation import output
+from ethos.adapters.mutation.lane_retirement.recovery import recover_worktree
+from ethos.adapters.mutation.lane_retirement.recovery import recovery_lane
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -34,6 +36,7 @@ class LinkedRetirementRequest(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     branch: str | None = None
+    path: str | None = None
     expect_head: str | None = None
     absorbed_by: str = ""
     reason: str = ""
@@ -58,24 +61,16 @@ def retire_linked_work_lane(
     accepted_head = output(repo, "rev-parse", policy.accepted_branch) or ""
     control_root = effects.control_root(worktrees, repo)
     leases = leases_by_branch(repo)
-    candidates = [
-        lane
-        for lane in worktrees
-        if lane["role"] == ROLE_WORK_LANE
-        and ((mode == "landed" and request.branch is None) or lane["branch"] == branch)
-    ]
-    lanes = [
-        effects.lane(
-            repo,
-            lane,
-            leases,
-            accepted_head=accepted_head,
-            mode=mode,
-        )
-        for lane in candidates
-    ]
-    lanes = [_with_archive_absorption(repo, lane, accepted_head) for lane in lanes]
-    lane = lanes[0] if lanes else {}
+    lanes, lane = _retirement_target(
+        repo=repo,
+        policy=policy,
+        worktrees=worktrees,
+        leases=leases,
+        request=request,
+        mode=mode,
+        branch=branch,
+        accepted_head=accepted_head,
+    )
     successor = (
         _leased_successor(
             repo=repo,
@@ -131,6 +126,7 @@ def retire_linked_work_lane(
         expected_state = {
             "ref": f"refs/heads/{branch}" if branch else "",
             "head": (request.expect_head or "").strip(),
+            "path": (request.path or "").strip(),
             "invocation_holder_ref": effects.actor_ref(),
             "required_holder_ref": required_holder,
             "authority_branch": authority.get("branch", ""),
@@ -174,15 +170,7 @@ def retire_linked_work_lane(
 
     report: dict[str, object] = {
         "verdict": verdict,
-        "state": (
-            "unknown"
-            if verdict == "unknown"
-            else "blocked"
-            if verdict == "block"
-            else "planned"
-            if mode == "landed"
-            else "ready_to_retire_superseded"
-        ),
+        "state": _retirement_state(verdict, mode=mode, recovery=lane.get("recovery_required")),
         "branch": branch,
         "mutation": mutation(required_gaps),
         "required_gaps": required_gaps,
@@ -197,6 +185,12 @@ def retire_linked_work_lane(
         return report
     if not request.apply:
         return report
+
+    recovery = _apply_recovery(cast("Path", control_root), lane, mutation=mutation)
+    if recovery:
+        report.update(recovery)
+        if report.get("verdict") == "block":
+            return report
 
     effect = effects.apply_retirement(
         repo,
@@ -219,6 +213,81 @@ def retire_linked_work_lane(
         retired=observed,
     )
     return report
+
+
+def _retirement_target(
+    *,
+    repo: Path,
+    policy: BranchRolePolicy,
+    worktrees: list[dict[str, object]],
+    leases: dict[str, dict[str, object]],
+    request: LinkedRetirementRequest,
+    mode: Literal["landed", "superseded"],
+    branch: str,
+    accepted_head: str,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    candidates = [
+        item
+        for item in worktrees
+        if item["role"] == ROLE_WORK_LANE
+        and ((mode == "landed" and request.branch is None) or item["branch"] == branch)
+    ]
+    lanes = [
+        _with_archive_absorption(
+            repo,
+            effects.lane(repo, item, leases, accepted_head=accepted_head, mode=mode),
+            accepted_head,
+        )
+        for item in candidates
+    ]
+    if lanes or mode == "landed":
+        return lanes, lanes[0] if lanes else {}
+    lane = recovery_lane(
+        repo,
+        policy=policy,
+        worktrees=worktrees,
+        leases=leases,
+        branch=branch,
+        path=(request.path or "").strip(),
+        head=(output(repo, "rev-parse", "--verify", branch) or "") if branch else "",
+    )
+    return lanes, _with_archive_absorption(repo, lane, accepted_head) if lane else {}
+
+
+def _retirement_state(
+    verdict: Verdict,
+    *,
+    mode: Literal["landed", "superseded"],
+    recovery: object,
+) -> str:
+    if verdict in {"unknown", "block"}:
+        return "blocked" if verdict == "block" else "unknown"
+    if mode == "landed":
+        return "planned"
+    return "ready_to_recover_and_retire_superseded" if recovery else "ready_to_retire_superseded"
+
+
+def _apply_recovery(
+    control_root: Path,
+    lane: dict[str, object],
+    *,
+    mutation,
+) -> dict[str, object]:
+    if not lane.get("recovery_required"):
+        return {}
+    recovery = recover_worktree(control_root, lane)
+    gaps = string_sequence(recovery.get("required_gaps"))
+    return (
+        {
+            "recovery": recovery,
+            "verdict": "block",
+            "state": "blocked",
+            "mutation": mutation(gaps),
+            "required_gaps": gaps,
+        }
+        if gaps
+        else {"recovery": recovery}
+    )
 
 
 def _retirement_verdict(gaps: list[str] | tuple[str, ...]) -> Verdict:

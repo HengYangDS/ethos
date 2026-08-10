@@ -21,6 +21,7 @@ from ethos.surface.cli.root_binding import resolve_root
 class _SupersededOptions(AppliedLaneCommandOptions):
     command = "lane retire superseded"
     branch: Annotated[str | None, Parameter(name="--branch")] = None
+    path: Annotated[str | None, Parameter(name="--path")] = None
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     absorbed_by: Annotated[str, Parameter(name="--absorbed-by")] = ""
     reason: Annotated[str, Parameter(name="--reason")] = ""

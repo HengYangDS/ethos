@@ -18,6 +18,7 @@ from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
@@ -138,57 +139,25 @@ def remove_linked_lane(
     accepted_branch, accepted_head = accepted
     authority_branch = str(authority.get("branch") or "")
     authority_head = str(authority.get("head") or "")
-    authority_path = str(authority.get("path") or "")
-    authority_lease = {
-        **cast("dict[str, object]", authority.get("lease") or {}),
-        "lane_ref": authority_branch,
-    }
     branch, path, expected = (str(lane.get(key) or "") for key in ("branch", "path", "head"))
     if gaps := reobservation_gaps(branch, path, expected):
         return blocked(gaps)
     try:
+        transaction_root, plan = linked_retirement_plan(
+            control_root,
+            lane,
+            accepted=accepted,
+            authority=authority,
+        )
+        admit_git_effect(transaction_root, plan)
+    except (OSError, ValueError) as error:
+        return blocked([str(error).partition(":")[0]], str(error))
+    try:
         remove_worktree(control_root, Path(path), branch=branch, head=expected)
     except ValueError as error:
         return blocked(["worktree_remove_failed"], str(error))
-    transaction_root = (
-        Path(authority_path)
-        if authority_branch not in {accepted_branch, branch} and Path(authority_path).is_dir()
-        else control_root
-    )
-    execution_branch = authority_branch if transaction_root != control_root else accepted_branch
-    execution_head = authority_head if transaction_root != control_root else accepted_head
     try:
-        updates = {
-            f"refs/heads/{branch}": GitRefUpdate(expected=expected, desired="0" * len(expected))
-        }
-        assertions = {f"refs/heads/{accepted_branch}": accepted_head}
-        if authority_branch not in {accepted_branch, branch}:
-            assertions[f"refs/heads/{authority_branch}"] = authority_head
-        effect = GitEffect(updates=updates, assertions=assertions)
-        commitment = load_lease_bound_commitment(transaction_root, lease=authority_lease)
-        execute_git_effect(
-            transaction_root,
-            compile_observed_git_effect(
-                transaction_root,
-                commitment,
-                effect,
-                head=execution_head,
-                prior_attestations={},
-                policy={
-                    "operation": "lane.retire",
-                    "execution_branch": execution_branch,
-                },
-                values={
-                    "lease_generation": lease_generation(authority_lease),
-                    **(
-                        {"archive_absorption": lane["archive_absorption"]}
-                        if lane.get("archive_absorption")
-                        else {}
-                    ),
-                },
-            ),
-            issuer=actor_ref(),
-        )
+        execute_git_effect(transaction_root, plan, issuer=actor_ref())
     except (OSError, ValueError) as exc:
         return failed_ref_transition(
             control_root,
@@ -200,6 +169,68 @@ def remove_linked_lane(
         )
     else:
         return {}
+
+
+def linked_retirement_plan(
+    control_root: Path,
+    lane: dict[str, object],
+    *,
+    accepted: tuple[str, str],
+    authority: dict[str, object],
+):
+    """Compile the exact linked-lane deletion used by readiness and apply."""
+    accepted_branch, accepted_head = accepted
+    authority_branch = str(authority.get("branch") or "")
+    authority_head = str(authority.get("head") or "")
+    authority_path = str(authority.get("path") or "")
+    authority_lease = {
+        **cast("dict[str, object]", authority.get("lease") or {}),
+        "lane_ref": authority_branch,
+    }
+    branch, expected = (str(lane.get(key) or "") for key in ("branch", "head"))
+    transaction_root = (
+        Path(authority_path)
+        if authority_branch not in {accepted_branch, branch} and Path(authority_path).is_dir()
+        else control_root
+    )
+    execution_branch = authority_branch if transaction_root != control_root else accepted_branch
+    execution_head = authority_head if transaction_root != control_root else accepted_head
+    assertions = {f"refs/heads/{accepted_branch}": accepted_head}
+    if authority_branch not in {accepted_branch, branch}:
+        assertions[f"refs/heads/{authority_branch}"] = authority_head
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{branch}": GitRefUpdate(expected=expected, desired="0" * len(expected))
+        },
+        assertions=assertions,
+    )
+    commitment = load_lease_bound_commitment(transaction_root, lease=authority_lease)
+    return transaction_root, compile_observed_git_effect(
+        transaction_root,
+        commitment,
+        effect,
+        head=execution_head,
+        prior_attestations={},
+        policy={
+            "operation": "lane.retire",
+            "retirement_kind": "linked-lane",
+            "branch": branch,
+            "accepted_branch": accepted_branch,
+            "accepted_head": accepted_head,
+            "authority_branch": authority_branch,
+            "authority_head": authority_head,
+            "execution_branch": execution_branch,
+        },
+        values={
+            "retired_head": expected,
+            "lease_generation": lease_generation(authority_lease),
+            **(
+                {"archive_absorption": lane["archive_absorption"]}
+                if lane.get("archive_absorption")
+                else {}
+            ),
+        },
+    )
 
 
 def failed_ref_transition(
@@ -432,18 +463,37 @@ def effect_gaps(
             gaps.extend(observed_gaps)
     if not gaps and actor_ref() != holder_ref(authority_lane):
         gaps.append("foreign_work_lane_retire_authority_required")
-    archive_absorption = cast("dict[str, object]", lane.get("archive_absorption") or {})
-    if not gaps and archive_absorption:
-        lease = cast("dict[str, object]", lane.get("lease") or {})
-        observed = archived_carrier_absorption(
-            control_root,
-            head=str(lane.get("head") or ""),
-            accepted_head=accepted_head,
-            carrier=str(lease.get("base_commitment_path") or ""),
-        )
-        if observed != archive_absorption:
-            gaps.append("retirement_archive_absorption_stale")
+    if not gaps:
+        gaps.extend(archive_absorption_gaps(control_root, lane, accepted_head))
+    if not gaps:
+        try:
+            transaction_root, plan = linked_retirement_plan(
+                control_root,
+                lane,
+                accepted=(policy.accepted_branch, accepted_head),
+                authority=authority_lane,
+            )
+            admit_git_effect(transaction_root, plan)
+        except (OSError, ValueError) as error:
+            gaps.append(str(error).partition(":")[0])
     return gaps
+
+
+def archive_absorption_gaps(
+    control_root: Path, lane: dict[str, object], accepted_head: str
+) -> list[str]:
+    """Recheck the exact archived carrier mapping before retirement."""
+    archive_absorption = cast("dict[str, object]", lane.get("archive_absorption") or {})
+    if not archive_absorption:
+        return []
+    lease = cast("dict[str, object]", lane.get("lease") or {})
+    observed = archived_carrier_absorption(
+        control_root,
+        head=str(lane.get("head") or ""),
+        accepted_head=accepted_head,
+        carrier=str(lease.get("base_commitment_path") or ""),
+    )
+    return [] if observed == archive_absorption else ["retirement_archive_absorption_stale"]
 
 
 def lease_request(lane: dict[str, object]) -> LeaseOperationRequest:

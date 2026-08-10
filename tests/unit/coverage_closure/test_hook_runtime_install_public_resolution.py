@@ -208,14 +208,10 @@ def test_final_runtime_rejects_console_entrypoint_bound_to_staging(
         encoding="utf-8",
     )
     entrypoint.chmod(0o755)
-    install._write_manifest(  # noqa: SLF001
-        runtime, "a" * 64, "b" * 64, "cpython-test", python
-    )
+    install.write_runtime_manifest(runtime, "a" * 64, "b" * 64, "cpython-test", python)
 
     with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-        install._require_runtime(  # noqa: SLF001
-            runtime, "a" * 64, "b" * 64, "cpython-test"
-        )
+        install.require_runtime(runtime, "a" * 64, "b" * 64, "cpython-test")
 
 
 def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
@@ -229,9 +225,7 @@ def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
     python.write_bytes(b"python")
     entrypoint.write_text("#!/staging/venv/bin/python\n", encoding="utf-8")
     entrypoint.chmod(0o755)
-    install._write_manifest(  # noqa: SLF001
-        runtime, runtime.name, "b" * 64, "cpython-test", python
-    )
+    install.write_runtime_manifest(runtime, runtime.name, "b" * 64, "cpython-test", python)
     observed: list[Path] = []
     monkeypatch.setattr(
         install.subprocess,
@@ -241,9 +235,7 @@ def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
         ),
     )
 
-    install._finalize_runtime(  # noqa: SLF001
-        runtime, runtime.name, "b" * 64, "cpython-test"
-    )
+    install.finalize_runtime(runtime, runtime.name, "b" * 64, "cpython-test")
 
     assert entrypoint.read_text(encoding="utf-8").splitlines()[0] == f"#!{python}"
     assert observed == [entrypoint]

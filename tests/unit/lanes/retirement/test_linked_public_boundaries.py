@@ -284,6 +284,7 @@ def test_linked_effect_failure_is_projected_as_a_fresh_block(
 ) -> None:
     _stub_retirement(monkeypatch, worktrees=[_worktree()])
     monkeypatch.setattr(effects, "control_root", lambda *_args: tmp_path)
+    monkeypatch.setattr(effects, "effect_gaps", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
         effects,
         "apply_retirement",

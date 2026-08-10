@@ -233,6 +233,38 @@ def _assert_retired(repo: Path, source: Path, database: Path) -> None:
     ) == (False, "", "missing")
 
 
+def test_landed_retirement_readiness_and_apply_share_exact_ref_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = start_adopted_work_lane(tmp_path, name="landed", holder_ref=SOURCE)
+    branch = "work/landed"
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    git(fixture.repository, "merge", "--ff-only", branch)
+    monkeypatch.setenv("ETHOS_ACTOR", SOURCE)
+    request = LinkedRetirementRequest(
+        branch=branch,
+        expect_head=head,
+        authorize=True,
+    )
+
+    planned = retire_linked_work_lane(
+        root=fixture.repository,
+        mode="landed",
+        request=request,
+    )
+    assert_public_decision(planned, verdict="pass", state="planned", gaps=[])
+
+    applied = retire_linked_work_lane(
+        root=fixture.repository,
+        mode="landed",
+        request=request.model_copy(update={"apply": True}),
+    )
+    assert_public_decision(applied, verdict="pass", state="retired", gaps=[])
+    assert not fixture.worktree.exists()
+    assert git(fixture.repository, "branch", "--list", branch) == ""
+    assert observe_lease(state_database(fixture.repository), branch).state == "missing"
+
+
 def _assert_reissue(before: dict[str, object], after: dict[str, object], *changed: str) -> None:
     old, new = (dict(before["payload"]), dict(after["payload"]))
     assert set(old) == set(new) == set(LaneLease.model_fields)

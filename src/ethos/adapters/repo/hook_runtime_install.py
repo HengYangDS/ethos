@@ -36,7 +36,7 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
         digest = _runtime_digest(wheel_sha256, python_abi)
         target = runtime_root / digest
         if target.is_dir():
-            _require_runtime(target, digest, wheel_sha256, python_abi)
+            require_runtime(target, digest, wheel_sha256, python_abi)
             return target / "venv"
         staging = runtime_root / f".runtime-{digest[:12]}-{uuid.uuid4().hex}"
         try:
@@ -63,21 +63,21 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
                     runtime_python.as_posix(),
                     wheel.as_posix(),
                 )
-            _write_manifest(staging, digest, wheel_sha256, python_abi, runtime_python)
+            write_runtime_manifest(staging, digest, wheel_sha256, python_abi, runtime_python)
             runtime_root.mkdir(parents=True, exist_ok=True)
             try:
                 staging.rename(target)
             except FileExistsError:
-                _require_runtime(target, digest, wheel_sha256, python_abi)
+                require_runtime(target, digest, wheel_sha256, python_abi)
             else:
                 try:
-                    _finalize_runtime(target, digest, wheel_sha256, python_abi)
+                    finalize_runtime(target, digest, wheel_sha256, python_abi)
                 except (OSError, ValueError):
                     shutil.rmtree(target, ignore_errors=True)
                     raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
-        _require_runtime(target, digest, wheel_sha256, python_abi)
+        require_runtime(target, digest, wheel_sha256, python_abi)
         return target / "venv"
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -192,7 +192,7 @@ def _venv_python(venv: Path) -> Path:
     return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
-def _write_manifest(
+def write_runtime_manifest(
     runtime: Path,
     digest: str,
     wheel_sha256: str,
@@ -221,7 +221,7 @@ def _write_manifest(
     )
 
 
-def _require_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
+def require_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
     manifest = runtime / "manifest.json"
     python = _venv_python(runtime / "venv")
     entrypoint = _runtime_entrypoint(runtime / "venv")
@@ -287,11 +287,11 @@ def _rewrite_runtime_entrypoint(runtime: Path) -> None:
     entrypoint.chmod(0o755)
 
 
-def _finalize_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
+def finalize_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
     _rewrite_runtime_entrypoint(runtime)
     python = _venv_python(runtime / "venv")
-    _write_manifest(runtime, digest, wheel_sha256, python_abi, python)
-    _require_runtime(runtime, digest, wheel_sha256, python_abi)
+    write_runtime_manifest(runtime, digest, wheel_sha256, python_abi, python)
+    require_runtime(runtime, digest, wheel_sha256, python_abi)
     completed = subprocess.run(
         (_runtime_entrypoint(runtime / "venv"), "--version"),
         capture_output=True,

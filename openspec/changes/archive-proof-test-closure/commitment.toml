@@ -14,6 +14,9 @@ scope = [
   "src/ethos/adapters/mutation/lane_retirement/absorbed.py",
   "tests/unit/lanes/retirement/test_absorbed_ref_retirement.py",
   "tests/unit/cli/test_contracts_land.py",
+  "src/ethos/adapters/mutation/lanes.py",
+  "src/ethos/adapters/repo/hook_runtime_install.py",
+  "tests/unit/lanes/test_fresh_lane_start.py",
 ]
 invariants = []
 acceptance = []

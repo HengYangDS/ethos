@@ -1249,25 +1249,35 @@ precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
   because provider materialization can omit them
 - **AND** it SHALL explicitly state that hosted provider status was not claimed.
 
-### Requirement: Equal dual-remote publication topology
+### Requirement: Declared publication peer topology
 
-Publication SHALL comprise local verification/install plus independent GitLab
-organization and GitHub public targets. The remotes have equal `repository`,
-`ci_cd`, and `publication` capability and no authority ordering.
+Publication SHALL comprise local verification/install plus zero or more
+explicitly declared remote peers. Local-only, either single provider, and
+multiple independent providers SHALL be valid. Peers SHALL have no implicit
+authority ordering, and an absent provider SHALL mint no requirement.
+
+#### Scenario: local-only publication remains valid
+
+- **WHEN** `[publication]` declares valid local commands and no peers
+- **THEN** `ethos publish` SHALL perform no remote observation
+- **AND** local readiness MAY pass without claiming hosted CI or remote publication.
 
 #### Scenario: independent remote observations remain no-push
 
-- **WHEN** `ethos publish` observes GitLab and GitHub
+- **WHEN** `ethos publish` observes one or more declared peers
 - **THEN** it SHALL expose each target separately
 - **AND** `remote_push` SHALL remain `not_performed`
-- **AND** hosted CI status SHALL remain unclaimed.
+- **AND** hosted CI status SHALL remain unclaimed unless separately evidenced.
 
 ### Requirement: Strict remote publication admission
 
-The required `[publication]` declaration SHALL contain only non-empty, valid,
-distinct named scalars `gitlab_remote` and `github_remote`. Admission SHALL
-permit only `dev`, `main`, and `proposal/*`; local branches remain excluded.
-`ethos publish` SHALL only observe targets and reject positional arguments.
+The required `[publication]` declaration SHALL contain the two local commands
+and a zero-or-more `peers` collection. Each peer SHALL have unique non-empty
+`id`, `provider`, and `git_remote` values plus a role and capability set.
+`ci_surface` SHALL be required only for `ci_cd`. Admission SHALL permit only
+`dev`, `main`, and `proposal/*` to a named declared remote; local branches remain
+excluded. `ethos publish` SHALL only observe declared targets and reject
+positional arguments.
 
 #### Scenario: explicit remote admission preserves local candidate isolation
 
@@ -1277,10 +1287,10 @@ permit only `dev`, `main`, and `proposal/*`; local branches remain excluded.
 
 #### Scenario: non-canonical declaration fails closed
 
-- **WHEN** an adopter omits `[publication]` or supplies an unknown, compact-list,
-  or verbose-record declaration
+- **WHEN** an adopter omits `[publication]`, mixes retired provider scalars with
+  peer records, or supplies an unknown declaration field
 - **THEN** ETHOS SHALL reject publication topology admission
-- **AND** it SHALL NOT infer `origin`, preserve a legacy state, or bypass branch
+- **AND** it SHALL NOT infer `origin`, preserve a compatibility state, or bypass branch
   enforcement.
 
 ### Requirement: Tool adoption remains profile and adapter scoped
@@ -2469,9 +2479,9 @@ have an external command failure.
 - **AND** it can produce current parity evidence instead of reporting an
   `external_command_failed` gap solely because of the stale root environment.
 
-### Requirement: Final dual-remote proposal absorption is proof-bound and non-destructive
+### Requirement: Final declared-peer proposal absorption is proof-bound and non-destructive
 
-When configured GitLab and GitHub proposal refs carry a final divergent patch,
+When one or more declared peer proposal refs carry a final divergent patch,
 ETHOS SHALL retain each exact observed proposal tip through ordinary merge
 ancestry, execute local proof and governed local closeout before a protected
 update, and delete a proposal ref only after its tip is an ancestor of accepted

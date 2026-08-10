@@ -11,29 +11,34 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
-_PROVIDERS = {
-    "gitlab": "organization_collaboration",
-    "github": "public_distribution",
-}
-_CAPABILITIES = ["repository", "ci_cd", "publication"]
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _LOCAL_FIELDS = ("local_verification_command", "local_installation_command")
-_PROVIDER_FIELDS = tuple(
-    field for provider in _PROVIDERS for field in (f"{provider}_remote", f"{provider}_ci_surface")
-)
-_DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, *_PROVIDER_FIELDS))
+_DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers"))
+_PEER_FIELDS = frozenset(("id", "provider", "role", "git_remote", "capabilities", "ci_surface"))
+_REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
+_ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
 
 
 def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
     """Compile and validate the repository's sole publication declaration."""
     raw = config.get("publication")
     if not isinstance(raw, Mapping) or set(raw) - _DECLARATION_FIELDS:
-        return _topology(values={}, gaps=("publication_topology_declaration_invalid",))
-    if any(not isinstance(raw.get(field), str) for field in raw):
-        return _topology(values={}, gaps=("publication_topology_declaration_invalid",))
-    values = {field: str(raw.get(field) or "") for field in _DECLARATION_FIELDS}
-    gaps = [*_remote_gaps(values), *_path_gaps(root, values)]
-    return _topology(values=values, gaps=tuple(gaps))
+        return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
+    if any(not isinstance(raw.get(field), str) for field in _LOCAL_FIELDS):
+        return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
+    raw_peers = raw.get("peers", [])
+    if not isinstance(raw_peers, list):
+        return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
+    local = {field: str(raw.get(field) or "") for field in _LOCAL_FIELDS}
+    peers: list[dict[str, object]] = []
+    gaps = _local_path_gaps(root, local)
+    for index, raw_peer in enumerate(raw_peers):
+        peer, peer_gaps = _compile_peer(root, raw_peer, index=index)
+        peers.append(peer)
+        gaps.extend(peer_gaps)
+    gaps.extend(_duplicate_peer_gaps(peers))
+    return _topology(local=local, peers=tuple(peers), gaps=tuple(dict.fromkeys(gaps)))
 
 
 def publication_branch_admission(
@@ -60,7 +65,7 @@ def publication_branch_admission(
         "branch": branch,
         "candidate_branch": candidate_branch,
         "remote_name": remote_name,
-        "declared_remote_names": sorted(set(topology_remotes(topology).values()) - {""}),
+        "declared_remote_names": sorted(set(topology_remotes(topology).values())),
         "remote_mutation_allowed": not gaps,
         "state": "local_only"
         if branch == candidate_branch
@@ -72,36 +77,99 @@ def publication_branch_admission(
 
 
 def topology_remotes(topology: Mapping[str, object]) -> dict[str, str]:
-    """Return provider IDs and their explicitly declared Git remote names."""
+    """Return peer IDs and their explicitly declared Git remote names."""
+    remotes = topology.get("remotes")
+    rows = remotes if isinstance(remotes, list) else []
     return {
-        provider: str(_mapping(topology.get(provider)).get("git_remote") or "")
-        for provider in _PROVIDERS
+        str(peer.get("id") or ""): str(peer.get("git_remote") or "")
+        for peer in rows
+        if isinstance(peer, Mapping) and peer.get("id") and peer.get("git_remote")
     }
 
 
-def _remote_gaps(values: Mapping[str, str]) -> list[str]:
-    remotes = {provider: values[f"{provider}_remote"] for provider in _PROVIDERS}
+def _compile_peer(root: Path, raw: object, *, index: int) -> tuple[dict[str, object], list[str]]:
+    if not isinstance(raw, Mapping) or set(raw) - _PEER_FIELDS:
+        return {}, [f"publication_topology_peer_declaration_invalid:{index}"]
+    if any(
+        not isinstance(raw.get(field), str) for field in ("id", "provider", "role", "git_remote")
+    ) or not isinstance(raw.get("capabilities"), list):
+        return {}, [f"publication_topology_peer_declaration_invalid:{index}"]
+    peer_id = str(raw.get("id") or "")
+    provider = str(raw.get("provider") or "")
+    role = str(raw.get("role") or "")
+    remote = str(raw.get("git_remote") or "")
+    raw_capabilities = cast("list[object]", raw.get("capabilities"))
+    if any(not isinstance(item, str) for item in raw_capabilities):
+        return {}, [f"publication_topology_peer_declaration_invalid:{index}"]
+    capabilities = list(dict.fromkeys(str(item) for item in raw_capabilities))
+    ci_surface = raw.get("ci_surface", "")
+    if not isinstance(ci_surface, str):
+        return {}, [f"publication_topology_peer_declaration_invalid:{index}"]
+    peer = {
+        "id": peer_id,
+        "provider": provider,
+        "role": role,
+        "git_remote": remote,
+        "ci_surface": ci_surface,
+        "capabilities": capabilities,
+    }
+    return peer, _peer_gaps(root, peer)
+
+
+def _peer_gaps(root: Path, peer: Mapping[str, object]) -> list[str]:
+    peer_id = str(peer["id"])
     gaps = [
-        f"publication_topology_{provider}_remote_missing"
-        if not remote
-        else f"publication_topology_{provider}_remote_invalid:{remote}"
-        for provider, remote in remotes.items()
-        if not remote or not _REMOTE.fullmatch(remote)
+        f"publication_topology_peer_{field}_invalid:{value}"
+        for field in ("id", "provider", "role")
+        if not (value := str(peer[field])) or _IDENTIFIER.fullmatch(value) is None
     ]
-    if all(remotes.values()) and len(set(remotes.values())) != len(remotes):
-        gaps.append("publication_topology_git_remotes_duplicate")
-    return gaps
-
-
-def _path_gaps(root: Path, values: Mapping[str, str]) -> list[str]:
-    gaps = []
-    for field in (*_LOCAL_FIELDS, *(f"{provider}_ci_surface" for provider in _PROVIDERS)):
-        value = values[field]
-        kind = "command" if field in _LOCAL_FIELDS else "surface"
-        gap = _repository_path_gap(root, field, value, executable=kind == "command")
+    remote = str(peer["git_remote"])
+    if not remote or _REMOTE.fullmatch(remote) is None:
+        gaps.append(f"publication_topology_peer_git_remote_invalid:{remote}")
+    capabilities = set(cast("list[str]", peer["capabilities"]))
+    if not _REQUIRED_CAPABILITIES.issubset(capabilities) or capabilities - _ALLOWED_CAPABILITIES:
+        gaps.append(f"publication_topology_peer_capabilities_invalid:{peer_id}")
+    ci_surface = str(peer["ci_surface"])
+    if "ci_cd" in capabilities:
+        gap = _peer_ci_surface_gap(root, peer_id, ci_surface)
         if gap:
             gaps.append(gap)
+    elif ci_surface:
+        gaps.append(f"publication_topology_peer_ci_surface_without_capability:{peer_id}")
     return gaps
+
+
+def _peer_ci_surface_gap(root: Path, peer_id: str, ci_surface: str) -> str:
+    return (
+        f"publication_topology_peer_ci_surface_missing:{peer_id}"
+        if not ci_surface
+        else _repository_path_gap(
+            root,
+            f"peer_ci_surface:{peer_id}",
+            ci_surface,
+            executable=False,
+        )
+    )
+
+
+def _duplicate_peer_gaps(peers: list[dict[str, object]]) -> list[str]:
+    gaps: list[str] = []
+    for field in ("id", "provider", "git_remote"):
+        values = [str(peer.get(field) or "") for peer in peers if peer.get(field)]
+        gaps.extend(
+            f"publication_topology_peer_{field}_duplicate:{value}"
+            for value in dict.fromkeys(values)
+            if values.count(value) > 1
+        )
+    return gaps
+
+
+def _local_path_gaps(root: Path, values: Mapping[str, str]) -> list[str]:
+    return [
+        gap
+        for field in _LOCAL_FIELDS
+        if (gap := _repository_path_gap(root, field, values[field], executable=True))
+    ]
 
 
 def _repository_path_gap(root: Path, field: str, value: str, *, executable: bool) -> str:
@@ -135,8 +203,10 @@ def _resolved_path_gap(
     )
 
 
-def _topology(*, values: Mapping[str, str], gaps: tuple[str, ...]) -> dict[str, object]:
-    peers = {provider: _peer(provider, values) for provider in _PROVIDERS}
+def _topology(
+    *, local: Mapping[str, str], peers: tuple[dict[str, object], ...], gaps: tuple[str, ...]
+) -> dict[str, object]:
+    aliases = {str(peer.get("id") or ""): peer for peer in peers if peer.get("id") and not gaps}
     return {
         "kind": "ethos_publication_topology",
         "state": "ready" if not gaps else "invalid",
@@ -144,32 +214,17 @@ def _topology(*, values: Mapping[str, str], gaps: tuple[str, ...]) -> dict[str, 
             "id": "local",
             "role": "local_verification_install",
             "mode": "offline",
-            "verification_command": values.get("local_verification_command", ""),
-            "installation_command": values.get("local_installation_command", ""),
+            "verification_command": local.get("local_verification_command", ""),
+            "installation_command": local.get("local_installation_command", ""),
         },
         "branch_admission": {
             "candidate_role": "local_only",
             "remote_branches": "accepted_release_proposal_only",
         },
-        "remotes": list(peers.values()),
-        **peers,
+        "remotes": list(peers),
+        **aliases,
         "required_gaps": list(gaps),
     }
-
-
-def _peer(provider: str, values: Mapping[str, str]) -> dict[str, object]:
-    return {
-        "id": provider,
-        "role": _PROVIDERS[provider],
-        "provider": provider,
-        "git_remote": values.get(f"{provider}_remote", ""),
-        "ci_surface": values.get(f"{provider}_ci_surface", ""),
-        "capabilities": _CAPABILITIES,
-    }
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else {}
 
 
 def _strings(value: object) -> list[str]:

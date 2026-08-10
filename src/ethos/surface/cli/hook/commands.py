@@ -26,6 +26,9 @@ from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.release.configuration import release_config
+from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
 from ethos.surface.cli.application import hook_app
 from ethos.surface.cli.output import JsonFlag
@@ -64,18 +67,9 @@ class PushReconciliationOptions:
     reconciliation_receipt_path: Annotated[
         str, Parameter(name="--reconciliation-receipt", group=_RECONCILIATION_OPTIONS)
     ] = ""
-    observed_origin_head: Annotated[
-        str, Parameter(name="--observed-origin-head", group=_RECONCILIATION_OPTIONS)
-    ] = ""
-    observed_origin_main_head: Annotated[
-        str, Parameter(name="--observed-origin-main-head", group=_RECONCILIATION_OPTIONS)
-    ] = ""
-    observed_github_head: Annotated[
-        str, Parameter(name="--observed-github-head", group=_RECONCILIATION_OPTIONS)
-    ] = ""
-    observed_github_main_head: Annotated[
-        str, Parameter(name="--observed-github-main-head", group=_RECONCILIATION_OPTIONS)
-    ] = ""
+    observed_peer_head: Annotated[
+        tuple[str, ...], Parameter(name="--observed-peer-head", group=_RECONCILIATION_OPTIONS)
+    ] = ()
     root: RootOption | None = None
     json_output: JsonFlag = False
 
@@ -175,10 +169,7 @@ def pre_push(
     repo = resolve_root(options.root)
     reconciliation = ReconciliationObservation(
         receipt_path=options.reconciliation_receipt_path,
-        origin_head=options.observed_origin_head,
-        origin_main_head=options.observed_origin_main_head,
-        github_head=options.observed_github_head,
-        github_main_head=options.observed_github_main_head,
+        peer_heads=_parse_peer_heads(options.observed_peer_head),
     )
     admission = partial(
         push_admission_report,
@@ -213,32 +204,30 @@ def reconciliation_receipt_command(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Record exact local observations before a one-shot dual-remote proposal push."""
+    """Record exact local observations before a declared-peer proposal push."""
     repo = resolve_root(root)
     target = write_receipt.expanduser().resolve()
     if target.is_relative_to(repo):
         error = "reconciliation receipt must be outside the repository root"
         raise ValueError(error)
+    remotes = topology_remotes(publication_topology(repo, release_config(repo)))
     refs = {
-        remote: git_stdout(repo, "rev-parse", "--verify", remote)
-        for remote in ("origin/dev", "origin/main", "github/dev", "github/main")
+        peer_id: (
+            git_stdout(repo, "rev-parse", "--verify", f"{remote}/dev"),
+            git_stdout(repo, "rev-parse", "--verify", f"{remote}/main"),
+        )
+        for peer_id, remote in remotes.items()
     }
     gaps = tuple(
-        gap
-        for remote, gap in (
-            ("origin/dev", "reconciliation_origin_tracking_missing"),
-            ("origin/main", "reconciliation_origin_main_tracking_missing"),
-            ("github/dev", "reconciliation_github_tracking_missing"),
-            ("github/main", "reconciliation_github_main_tracking_missing"),
-        )
-        if not refs[remote]
+        f"reconciliation_peer_tracking_missing:{peer_id}:{branch}"
+        for peer_id, heads in refs.items()
+        for branch, head in zip(("dev", "main"), heads, strict=True)
+        if not head
     )
     receipt = reconciliation_receipt_payload(
         proposal_branch=proposal_branch,
         source_head=source_head,
-        origin_head=refs["origin/dev"],
-        github_head=refs["github/dev"],
-        main_heads=(refs["origin/main"], refs["github/main"]),
+        peer_heads=tuple((peer_id, *heads) for peer_id, heads in refs.items()),
     )
     if not gaps:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -253,6 +242,16 @@ def reconciliation_receipt_command(
         data={"receipt": receipt, "path": str(target)},
     )
     emit(result, json_output=json_output, enforce=True)
+
+
+def _parse_peer_heads(values: tuple[str, ...]) -> tuple[tuple[str, str, str], ...]:
+    rows = []
+    for value in values:
+        fields = value.split("=", 1)
+        heads = fields[1].split(",", 1) if len(fields) == 2 else []
+        if len(heads) == 2:
+            rows.append((fields[0], heads[0], heads[1]))
+    return tuple(rows)
 
 
 @hook_app.command

@@ -36,9 +36,14 @@ def test_remote_head_is_empty_unless_ls_remote_succeeds(
     monkeypatch.setenv("ETHOS_RECONCILIATION_RECEIPT", receipt.as_posix())
     monkeypatch.setattr(
         runtime,
+        "_declared_peer_heads",
+        lambda _root: (("gitlab", expected, expected), ("github", expected, expected)),
+    )
+    monkeypatch.setattr(
+        runtime,
         "push_admission_report",
         lambda **kwargs: (
-            observed.append(kwargs["reconciliation"].origin_head)
+            observed.append(kwargs["reconciliation"].peer_heads)
             or {
                 "verdict": "pass",
                 "state": "admitted",
@@ -55,7 +60,7 @@ def test_remote_head_is_empty_unless_ls_remote_succeeds(
     )
 
     assert result == 0
-    assert observed == [expected]
+    assert observed == [(("gitlab", expected, expected), ("github", expected, expected))]
 
 
 def test_reference_transition_policy_failure_is_blocked(

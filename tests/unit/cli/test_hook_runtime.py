@@ -187,6 +187,29 @@ def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) 
         assert 'exec "$HOOK_DIR/../ethos/runtime/' in text
 
 
+@pytest.mark.parametrize("kind", ["file", "symlink"])
+def test_hook_install_retires_the_legacy_runtime_python_locator(tmp_path: Path, kind: str) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    common = Path(git_common_dir(repo))
+    legacy = common / "ethos-runtime-python"
+    if kind == "symlink":
+        legacy.symlink_to(tmp_path / "retired-python")
+    else:
+        legacy.write_text("/retired/runtime/bin/python\n", encoding="utf-8")
+
+    report = install_hook_launchers(repo)
+
+    assert not legacy.exists()
+    assert not legacy.is_symlink()
+    assert report["legacy_runtime_locator"] == {
+        "path": legacy.as_posix(),
+        "state": "retired",
+        "removed": True,
+    }
+
+
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[3]
     uv = Path(sys.executable).with_name("uv.exe" if os.name == "nt" else "uv")
@@ -198,6 +221,7 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         ).as_posix(),
         "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
     }
+    environment.pop("PYTHONPATH", None)
     dist = tmp_path / "dist"
     subprocess.run(
         (uv, "build", "--offline", "--wheel", "--out-dir", dist),
@@ -225,6 +249,7 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         capture_output=True,
         text=True,
         check=False,
+        env=environment,
     )
 
     assert installed.returncode == 0, installed.stderr
@@ -371,6 +396,14 @@ def test_pre_push_binds_remote_and_reconciliation_observations(
     )
     monkeypatch.setattr(
         hook_runtime,
+        "_declared_peer_heads",
+        lambda _root: (
+            ("gitlab", "origin:refs/heads/dev", "origin:refs/heads/main"),
+            ("github", "github:refs/heads/dev", "github:refs/heads/main"),
+        ),
+    )
+    monkeypatch.setattr(
+        hook_runtime,
         "push_admission_report",
         lambda **kwargs: (
             calls.append(kwargs) or {"verdict": "pass", "state": "admitted", "required_gaps": []}
@@ -383,8 +416,10 @@ def test_pre_push_binds_remote_and_reconciliation_observations(
     assert calls[0]["remote_name"] == "github"
     observation = calls[0]["reconciliation"]
     assert observation.receipt_path == "/receipt.json"
-    assert observation.origin_head == "origin:refs/heads/dev"
-    assert observation.github_main_head == "github:refs/heads/main"
+    assert observation.peer_heads == (
+        ("gitlab", "origin:refs/heads/dev", "origin:refs/heads/main"),
+        ("github", "github:refs/heads/dev", "github:refs/heads/main"),
+    )
 
 
 @pytest.mark.parametrize(

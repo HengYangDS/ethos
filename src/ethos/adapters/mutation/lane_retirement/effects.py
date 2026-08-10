@@ -104,7 +104,7 @@ def apply_retirement(
 
 
 def retirement_result(
-    repo: Path,
+    _repo: Path,
     control_root: Path,
     lane: dict[str, object],
     *,

@@ -15,6 +15,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -29,6 +30,7 @@ from ethos.contracts.plan import GitRefUpdate
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.verdict import Verdict
 
 
@@ -137,69 +139,155 @@ def retire_absorbed_ref(
         "mutation": mutation,
         "required_gaps": required_gaps,
     }
-    if verdict != "pass" or not apply:
+    if verdict != "pass":
         return report
     if effect is None:
-        return {**report, "verdict": "block", "required_gaps": ["absorbed_ref_effect_unavailable"]}
-    if not recovering and (
-        drift := _effect_drift_gaps(
+        report.update(verdict="block", required_gaps=["absorbed_ref_effect_unavailable"])
+        return report
+    try:
+        plan = _admitted_retirement_plan(
+            repo,
+            effect,
+            branch=branch,
+            expect_head=expect_head,
+            accepted_branch=policy.accepted_branch,
+            accepted_head=accepted_head,
+            recovering=recovering,
+            recovery_intent=recovery_intent,
+        )
+    except (OSError, ValueError) as error:
+        _block_effect_report(
+            report,
+            repo=repo,
+            branch=branch,
+            expect_head=expect_head,
+            accepted_head=accepted_head,
+            authorize=authorize,
+            confirm_irreversible=confirm_irreversible,
+            apply=apply,
+            error=error,
+        )
+        return report
+    transition = {
+        "state": "git_effect_admitted",
+        "effect": plan.effect,
+        "plan_digest": plan.digest,
+        "permissions": list(plan.permissions),
+    }
+    report["transition"] = transition
+    if not apply:
+        return report
+    drift = (
+        _effect_drift_gaps(
             repo,
             branch=branch,
             expect_head=expect_head,
             accepted_branch=policy.accepted_branch,
             accepted_head=accepted_head,
         )
-    ):
+        if not recovering
+        else []
+    )
+    if drift:
         report["verdict"] = "block"
         report["state"] = "blocked"
         report["required_gaps"] = drift
-        return report
-    try:
-        commitment = load_repository_commitment(repo)
-        policy_values = {
-            "operation": "lane.retire",
-            "retirement_kind": "absorbed-ref",
-            "branch": branch,
-            "accepted_branch": policy.accepted_branch,
-            "accepted_head": accepted_head,
-            "holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
-        }
+    else:
+        try:
+            attestation = execute_git_effect(
+                repo,
+                plan,
+                issuer=os.environ.get("ETHOS_ACTOR", "").strip(),
+            )
+        except (OSError, ValueError) as error:
+            _block_effect_report(
+                report,
+                repo=repo,
+                branch=branch,
+                expect_head=expect_head,
+                accepted_head=accepted_head,
+                authorize=authorize,
+                confirm_irreversible=confirm_irreversible,
+                apply=apply,
+                error=error,
+            )
+        else:
+            transition["attestation"] = attestation.model_dump(mode="json")
+            _project_retirement_postcondition(
+                report,
+                _retirement_observation(repo, branch, expect_head, accepted_head),
+            )
+    return report
+
+
+def _admitted_retirement_plan(
+    repo: Path,
+    effect: GitEffect,
+    *,
+    branch: str,
+    expect_head: str,
+    accepted_branch: str,
+    accepted_head: str,
+    recovering: bool,
+    recovery_intent: dict[str, object],
+) -> TransitionPlan:
+    commitment = load_repository_commitment(repo)
+    policy = {
+        "operation": "lane.retire",
+        "retirement_kind": "absorbed-ref",
+        "branch": branch,
+        "accepted_branch": accepted_branch,
+        "accepted_head": accepted_head,
+        "holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
+    }
+    values = {
+        "absorbed_ref": branch,
+        "absorbed_head": expect_head,
+        "accepted_head": accepted_head,
+        "lease_state": "missing",
+    }
+    plan = compile_observed_git_effect(
+        repo,
+        commitment,
+        effect,
+        head=current_tracked_head(repo),
+        prior_attestations={},
+        policy=policy,
+        values=values,
+    )
+    if recovering and plan.digest != recovery_intent.get("plan_digest"):
         plan = compile_observed_git_effect(
             repo,
             commitment,
             effect,
             head=current_tracked_head(repo),
             prior_attestations={},
-            policy=policy_values,
-            values={
-                "absorbed_ref": branch,
-                "absorbed_head": expect_head,
-                "accepted_head": accepted_head,
-                "lease_state": "missing",
-            },
+            policy=policy | {"holder_ref": ""},
+            values=values,
         )
-        if recovering and plan.digest != recovery_intent.get("plan_digest"):
-            plan = compile_observed_git_effect(
-                repo,
-                commitment,
-                effect,
-                head=current_tracked_head(repo),
-                prior_attestations={},
-                policy=policy_values | {"holder_ref": ""},
-                values={
-                    "absorbed_ref": branch,
-                    "absorbed_head": expect_head,
-                    "accepted_head": accepted_head,
-                    "lease_state": "missing",
-                },
-            )
-            _require_recovery_plan(plan.digest, recovery_intent)
-        execute_git_effect(repo, plan, issuer=os.environ.get("ETHOS_ACTOR", "").strip())
-    except (OSError, ValueError) as error:
-        report["verdict"] = "block"
-        report["state"] = "blocked"
-        report["required_gaps"] = [str(error)]
-        report["mutation"] = _mutation(
+        _require_recovery_plan(plan.digest, recovery_intent)
+    admit_git_effect(repo, plan)
+    return plan
+
+
+def _block_effect_report(
+    report: dict[str, object],
+    *,
+    repo: Path,
+    branch: str,
+    expect_head: str,
+    accepted_head: str,
+    authorize: bool,
+    confirm_irreversible: bool,
+    apply: bool,
+    error: Exception,
+) -> None:
+    gaps = [str(error)]
+    report.update(
+        verdict="block",
+        state="blocked",
+        required_gaps=gaps,
+        mutation=_mutation(
             repo=repo,
             branch=branch,
             expect_head=expect_head,
@@ -208,22 +296,26 @@ def retire_absorbed_ref(
             confirm_irreversible=confirm_irreversible,
             apply=apply,
             verdict="block",
-            required_gaps=report["required_gaps"],
-        )
-        return report
-    observed = _retirement_observation(repo, branch, expect_head, accepted_head)
+            required_gaps=gaps,
+        ),
+    )
+
+
+def _project_retirement_postcondition(
+    report: dict[str, object], observed: dict[str, object]
+) -> None:
     if (
         observed["ref_state"] != "absent"
         or observed["worktree_binding"] != "absent"
         or observed["lease_state"] != "missing"
     ):
-        report["verdict"] = "block"
-        report["state"] = "blocked"
-        report["required_gaps"] = ["absorbed_ref_postcondition_failed"]
-        return report
-    report["state"] = "retired_absorbed_ref"
-    report["retired"] = observed
-    return report
+        report.update(
+            verdict="block",
+            state="blocked",
+            required_gaps=["absorbed_ref_postcondition_failed"],
+        )
+    else:
+        report.update(state="retired_absorbed_ref", retired=observed)
 
 
 def _require_recovery_plan(digest: str, intent: dict[str, object]) -> None:

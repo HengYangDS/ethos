@@ -2,6 +2,16 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import cast
+
+import tools.ci.delivery.pipeline as delivery_pipeline
+from tools.ci.delivery.pipeline import DeliveryPipeline
+
+if TYPE_CHECKING:
+    import nox
+
+    from tools.ci.toolchain.environment import ProjectRuntime
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -23,3 +33,24 @@ def test_package_only_runtime_behavior_remains_owned_by_install_smoke() -> None:
     assert "build/runtime/work/local-install-smoke" in owner
     assert '"external_governance_available": False' in owner
     assert '"hosted_ci_status_claimed": False' in owner
+
+
+def test_install_smoke_prepares_frozen_supply_before_offline_install(
+    monkeypatch,
+) -> None:
+    events: list[object] = []
+    session = cast("nox.Session", object())
+    monkeypatch.setattr(delivery_pipeline, "prepare_supply", lambda: events.append("supply"))
+    monkeypatch.setattr(
+        delivery_pipeline,
+        "run_install_smoke",
+        lambda observed: events.append(("install", observed)),
+    )
+
+    DeliveryPipeline(
+        runtime=cast("ProjectRuntime", object()),
+        node=Path("node"),
+        npm_cli=Path("npm-cli.js"),
+    ).prove_install(session)
+
+    assert events == ["supply", ("install", session)]

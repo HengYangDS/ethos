@@ -44,12 +44,14 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
         ),
         (
             "lane prewrite",
-            {"verdict": "unknown", "path_count": 0, "role": "other"},
+            {
+                "verdict": "unknown",
+                "path_count": 0,
+                "role": "other",
+                "next_action": "ethos lane prewrite <path> --editor-root <root>",
+            },
             "unknown",
-            (
-                "ethos lane start <name> --commitment <commitment.toml> "
-                "--holder-ref <holder-ref> --apply --json"
-            ),
+            "ethos lane prewrite <path> --editor-root <root>",
         ),
         (
             "lane start",

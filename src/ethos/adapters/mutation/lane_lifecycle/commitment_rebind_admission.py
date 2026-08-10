@@ -122,6 +122,7 @@ def admit_rebind_request(
         gaps = verify_commit_trust(repo, request.target_commit).get("required_gaps")
         if isinstance(gaps, list) and gaps:
             raise ValueError(str(gaps[0]))
+    actor = os.environ.get("ETHOS_ACTOR", "").strip()
     _require(
         (
             (request.apply or not require_apply, "commitment_rebind_apply_required"),
@@ -133,10 +134,8 @@ def admit_rebind_request(
                 run_git(repo, "branch", "--show-current").stdout.strip() == request.branch,
                 "lane_branch_mismatch",
             ),
-            (
-                os.environ.get("ETHOS_ACTOR", "").strip() == request.holder_ref,
-                "lease_actor_mismatch",
-            ),
+            (bool(actor), "invocation_actor_missing"),
+            (actor == request.holder_ref, "lease_actor_mismatch"),
             (
                 working_overlay_sha256(repo) == request.expected_working_overlay_sha256,
                 "commitment_rebind_overlay_changed",

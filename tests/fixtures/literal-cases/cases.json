@@ -1790,7 +1790,7 @@
                 ],
                 "type": "tuple"
               },
-              "lease_base_commitment_path_mismatch"
+              "commitment_rebind_required"
             ],
             "type": "tuple"
           },
@@ -1824,7 +1824,7 @@
         ],
         "type": "list"
       },
-      "value_sha256": "e069dd4ec12fcb9374eb3caa64d2dd9bdfe03a63916f6bffebd9b12a81c0e2cf"
+      "value_sha256": "ab0b5e0ec46d086e4e735742ad4479d0fba05ab35de1ccaf5dfd2185ad4f2c37"
     },
     {
       "id": "lanes.lease.test_lease_lifecycle:parametrize:test_retirement_authority_transaction_matrix:0",

@@ -166,9 +166,12 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
     source.parent.mkdir(parents=True)
     source.write_text("installed", encoding="utf-8")
     prefix = tmp_path / "prefix"
+    host_python = tmp_path / "host/python"
+    host_python.parent.mkdir(parents=True)
+    host_python.write_bytes(b"python")
     python = prefix / "bin/python"
     python.parent.mkdir(parents=True)
-    python.write_bytes(b"python")
+    python.symlink_to(host_python)
     entrypoint = prefix / "bin/ethos"
     entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
     entrypoint.chmod(0o755)
@@ -189,6 +192,7 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
     runtime = install.materialize_hook_runtime(tmp_path / "repo", python)
 
     assert (runtime / "bin/python").read_bytes() == b"python"
+    assert not (runtime / "bin/python").is_symlink()
 
 
 def test_final_runtime_rejects_console_entrypoint_bound_to_staging(

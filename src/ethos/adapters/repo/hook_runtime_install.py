@@ -123,7 +123,10 @@ def _copy_installed_runtime(target: Path, source_python: Path) -> None:
     except ValueError as error:
         message = "hook_runtime_python_prefix_invalid"
         raise ValueError(message) from error
-    shutil.copytree(prefix, target, symlinks=True)
+    # A virtual environment commonly links its interpreter back to the host
+    # installation.  Preserving that link would make the supposedly immutable
+    # runtime depend on (and permit writes through to) the host interpreter.
+    shutil.copytree(prefix, target, symlinks=False)
 
 
 def _run_runtime_tool(source: Path, *args: str) -> None:

@@ -1,5 +1,64 @@
 from __future__ import annotations
 
+from ethos.normalization.coercion import string_mapping
+
+
+def prewrite_next_action(admission: dict[str, object]) -> str:
+    """Return the unique public recovery action for one prewrite block."""
+    lease = string_mapping(admission.get("work_lane_lease"))
+    reason = str(lease.get("reason") or "")
+    holder = str(lease.get("holder_ref") or "").strip()
+    if reason.startswith("invocation_actor_missing:"):
+        return (
+            f"set ETHOS_ACTOR={holder} and rerun the blocked command"
+            if holder
+            else "set ETHOS_ACTOR to the current holder_ref and rerun the blocked command"
+        )
+    if reason.startswith("lease_holder_mismatch:"):
+        return (
+            f"set ETHOS_ACTOR={holder} and rerun the blocked command, or obtain handoff"
+            if holder
+            else "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
+        )
+    if reason.startswith("work_lane_missing_lease:"):
+        return (
+            "ethos lane start <name> --commitment <commitment.toml> "
+            "--holder-ref <holder-ref> --apply --json"
+        )
+    editor = string_mapping(admission.get("editor_root"))
+    if editor.get("reason") == "editor_root_missing":
+        expected = str(editor.get("expected") or "")
+        return f"ethos lane prewrite <path> --editor-root {expected} --require-editor-root --json"
+    return "ethos lane prewrite <path>"
+
+
+def commitment_rebind_remediation(target_commit: str) -> dict[str, object]:
+    """Project the dedicated hook recovery for one valid dangling target."""
+    next_command = f"ethos lane rebind-commitment derive --target-commit {target_commit} --json"
+    return {
+        "target_commit": target_commit,
+        "target_commit_valid": True,
+        "partial_effects": {
+            "commit_object_created": True,
+            "ref_updated": False,
+            "lease_updated": False,
+            "index_updated": False,
+        },
+        "next_action": next_command,
+        "remediation": [
+            {
+                "gap": "commitment_rebind_required",
+                "kind": "authority_denied",
+                "owner": "lane rebind-commitment",
+                "reason": "active Commitment bytes or semantics changed",
+                "retryable": True,
+                "mutation": False,
+                "user_decision_required": False,
+                "next_command": next_command,
+            }
+        ],
+    }
+
 
 def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, object]]:
     """Machine-readable repair hints for common mutation blockers."""

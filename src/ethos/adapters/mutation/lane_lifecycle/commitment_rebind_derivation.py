@@ -25,6 +25,8 @@ from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.coordination import CommitmentRebindRequest
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.normalization.coercion import integer
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 
 
@@ -105,11 +107,11 @@ def derive_commitment_rebind(
             holder_ref=actor,
             lease_id=str(lease.get("lease_id") or ""),
             expected_lane_incarnation_id=str(lease.get("lane_incarnation_id") or ""),
-            expected_epoch=int(lease.get("epoch") or 0),
+            expected_epoch=integer(lease.get("epoch")),
             expected_issued_at=str(lease.get("issued_at") or ""),
             expected_renewed_at=str(lease.get("renewed_at") or ""),
             expected_expires_at=str(lease.get("expires_at") or ""),
-            expected_path_scope=tuple(str(item) for item in lease.get("path_scope") or ()),
+            expected_path_scope=tuple(string_sequence(lease.get("path_scope"))),
             expected_payload_sha256=str(lease.get("payload_sha256") or ""),
             expect_head=str(lease.get("expected_head") or ""),
             expected_tree=str(lease.get("expected_tree") or ""),

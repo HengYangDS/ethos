@@ -17,6 +17,7 @@ from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -379,7 +380,7 @@ def _prewrite_report(
         reason,
         gaps,
     )
-    blocked["next_action"] = _prewrite_block_next_action(admission)
+    blocked["next_action"] = prewrite_next_action(admission)
     return blocked
 
 
@@ -405,36 +406,6 @@ def _relative(root: Path, path: Path) -> str:
         return resolved.resolve().relative_to(root).as_posix()
     except ValueError:
         return resolved.as_posix()
-
-
-def _prewrite_block_next_action(admission: dict[str, object]) -> str:
-    lease = admission.get("work_lane_lease")
-    reason = str(lease.get("reason") or "") if isinstance(lease, dict) else ""
-    if reason.startswith("invocation_actor_missing:"):
-        holder = str(lease.get("holder_ref") or "").strip() if isinstance(lease, dict) else ""
-        return (
-            f"set ETHOS_ACTOR={holder} and rerun the blocked command"
-            if holder
-            else "set ETHOS_ACTOR to the current holder_ref and rerun the blocked command"
-        )
-    if reason.startswith("lease_holder_mismatch:"):
-        holder = str(lease.get("holder_ref") or "").strip() if isinstance(lease, dict) else ""
-        return (
-            f"set ETHOS_ACTOR={holder} and rerun the blocked command, or obtain handoff"
-            if holder
-            else "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
-        )
-    if reason.startswith("work_lane_missing_lease:"):
-        return (
-            "ethos lane start <name> --commitment <commitment.toml> "
-            "--holder-ref <holder-ref> --apply --json"
-        )
-    editor = admission.get("editor_root")
-    editor_reason = str(editor.get("reason") or "") if isinstance(editor, dict) else ""
-    if editor_reason == "editor_root_missing":
-        expected = str(editor.get("expected") or "")
-        return f"ethos lane prewrite <path> --editor-root {expected} --require-editor-root --json"
-    return "ethos lane prewrite <path>"
 
 
 def _verdict(

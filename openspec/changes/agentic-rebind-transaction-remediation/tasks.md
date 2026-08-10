@@ -1,10 +1,10 @@
 # Tasks
 
-- [ ] 1.1 Add a RED status regression for an authenticated archive effect whose
+- [x] 1.1 Add a RED status regression for an authenticated archive effect whose
   carrier has moved outside the former active scope glob.
-- [ ] 1.2 Authorize exact archive-effect paths in current-generation attribution
+- [x] 1.2 Authorize exact archive-effect paths in current-generation attribution
   while preserving tampered or missing attestation failures.
-- [ ] 1.3 Run the post-archive status/plan/prove focused matrix and commit the
+- [x] 1.3 Run the post-archive status/plan/prove focused matrix and commit the
   smallest signed atom.
 - [ ] 2.1 Add RED derive tests for exact target discovery, ambiguity, absent
   target, and package-only CLI output.

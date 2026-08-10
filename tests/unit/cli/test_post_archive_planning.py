@@ -117,6 +117,23 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
 
     assert scope.paths == archive_paths
     assert scope.archive_authority["predicate"] == "effect:openspec-archive"
+    assert {item.path for item in scope.attributions} == set(archive_paths) | {
+        "openspec/specs/contracts/spec.md"
+    }
+    assert {item.state for item in scope.attributions if item.path in set(archive_paths)} == {
+        "authorized"
+    }
+    assert {item.source for item in scope.attributions if item.path in set(archive_paths)} == {
+        "archive_effect"
+    }
+    status_payload = run_ethos("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
+    assert status_payload["verdict"] == "pass", json.dumps(status_payload, indent=2)
+    assert "change_scope_exceeded" not in status_payload["required_gaps"]
+    assert {
+        item["path"]
+        for item in status_payload["data"]["path_attributions"]
+        if item["state"] == "authorized"
+    } == set(archive_paths)
     receipt_path = attestation_store_dir(worktree) / f"{archived['attestation']['id']}.json"
     receipt = Attestation.model_validate_json(receipt_path.read_text(encoding="utf-8"))
     forged = Attestation.issue(

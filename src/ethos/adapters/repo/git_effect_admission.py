@@ -29,6 +29,7 @@ def require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
         _is_commitment_rebind_authority(effect, plan)
         or _is_candidate_integration_authority(effect, plan)
         or _is_lane_start_authority(effect, plan)
+        or _is_linked_lane_retirement_authority(effect, plan)
         or _is_absorbed_ref_retirement_authority(effect, plan)
     ):
         return
@@ -168,6 +169,44 @@ def _is_absorbed_ref_retirement_authority(effect: GitEffect, plan: TransitionPla
         and plan.policy.get("accepted_head") == accepted_head
         and facts.get("refs") == {ref: update.expected}
         and facts.get("assertions") == {accepted_ref: accepted_head}
+    )
+
+
+def _is_linked_lane_retirement_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
+    """Admit one exact holder-bound linked Work Lane deletion."""
+    if (
+        plan.policy.get("operation") != "lane.retire"
+        or plan.policy.get("retirement_kind") != "linked-lane"
+    ):
+        return False
+    values = plan.facts.get("values")
+    facts = values if isinstance(values, Mapping) else {}
+    generation = facts.get("lease_generation")
+    if not isinstance(generation, Mapping):
+        return False
+    updates = tuple(effect.updates.items())
+    if len(updates) != 1:
+        return False
+    ref, update = updates[0]
+    branch = str(plan.policy.get("branch") or "")
+    accepted_branch = str(plan.policy.get("accepted_branch") or "")
+    accepted_head = str(plan.policy.get("accepted_head") or "")
+    authority_branch = str(plan.policy.get("authority_branch") or "")
+    expected_assertions = {f"refs/heads/{accepted_branch}": accepted_head}
+    if authority_branch not in {accepted_branch, branch}:
+        expected_assertions[f"refs/heads/{authority_branch}"] = str(
+            plan.policy.get("authority_head") or ""
+        )
+    return (
+        branch.startswith("work/")
+        and ref == f"refs/heads/{branch}"
+        and update.expected == facts.get("retired_head")
+        and update.desired == "0" * len(update.expected)
+        and dict(effect.assertions) == expected_assertions
+        and generation.get("branch") == authority_branch
+        and generation.get("expected_head") == plan.policy.get("authority_head")
+        and facts.get("refs") == {ref: update.expected}
+        and facts.get("assertions") == expected_assertions
     )
 
 

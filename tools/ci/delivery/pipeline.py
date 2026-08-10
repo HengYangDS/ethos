@@ -55,12 +55,12 @@ class DeliveryPipeline:
 
     def prove_install(self, session: nox.Session) -> None:
         """Install and exercise the built wheel without source-checkout fallback."""
+        self.prepare_supply()
         run_install_smoke(session)
 
     def prove_host(self, session: nox.Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
         self.build(session)
-        self.prepare_supply()
         self.prove_install(session)
         session.run(
             str(self.runtime.python),

@@ -17,12 +17,16 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import OpenSpecLifecycle
 from tests.support.openspec_lifecycle import completed_lifecycle
+from tools.ci.delivery.pipeline import DeliveryPipeline
+from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     import pytest
 
 
 ROOT = Path(__file__).resolve().parents[3]
+RUNTIME = ProjectRuntime.discover(ROOT)
+TAPLO = ROOT / "node_modules/@taplo/cli/dist/cli.js"
 
 
 def _archived_lane(
@@ -69,7 +73,8 @@ def test_start_change_rolls_an_archived_owned_lane_to_a_new_commitment(
     assert (
         subprocess.run(
             (
-                "taplo",
+                str(DeliveryPipeline.from_runtime(RUNTIME).node),
+                str(TAPLO),
                 "format",
                 "--check",
                 "--config",

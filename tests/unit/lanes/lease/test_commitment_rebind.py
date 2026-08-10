@@ -11,6 +11,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission as rebind_admission
+import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.repo.commit_identity import commit_trust_setup_action
@@ -375,7 +376,7 @@ def test_change_identity_repair_projects_trust_setup_action(
     report = case.execute()
 
     assert report["next_action"] == commit_trust_setup_action(case.worktree, case.target)
-    arguments = ["lane", "rebind-commitment", "--root", case.worktree.as_posix()]
+    arguments = ["lane", "rebind-commitment", "exact", "--root", case.worktree.as_posix()]
     for name, value in case.request.model_dump().items():
         option = "--" + name.replace("_", "-")
         for item in value if isinstance(value, tuple) else (value,):
@@ -488,6 +489,200 @@ def test_rebind_preserves_overlay_and_recognizes_idempotently(
     ) == before
     assert case.tracked.read_text(encoding="utf-8") == "# sample\n\nlocal overlay\n"
     assert os.environ["ETHOS_ACTOR"] == case.request.holder_ref
+
+
+def test_rebind_derive_emits_receipt_for_exact_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit=case.request.target_commit,
+        repair_change_identity=False,
+    )
+
+    assert (report["verdict"], report["state"]) == ("pass", "derived")
+    assert report["request"] == case.request.model_copy(update={"apply": False}).model_dump(
+        mode="json"
+    )
+    reference = report["receipt"]
+    assert isinstance(reference, dict)
+    receipt = rebind_derivation.load_commitment_rebind_receipt(
+        case.worktree, str(reference["path"]), str(reference["sha256"])
+    )
+    assert receipt.request == case.request.model_copy(update={"apply": False})
+    assert len(receipt.digest) == 64
+    assert report["next_action"] == (
+        f"ethos lane rebind-commitment --receipt {reference['path']} --apply --json"
+    )
+
+    derived_cli = run_ethos(
+        "lane",
+        "rebind-commitment",
+        "derive",
+        "--root",
+        case.worktree.as_posix(),
+        "--target-commit",
+        case.request.target_commit,
+        "--json",
+        cwd=case.worktree,
+    )
+    assert derived_cli["verdict"] == "pass"
+    cli_receipt = derived_cli["data"]["receipt"]
+    dry_run = run_ethos(
+        "lane",
+        "rebind-commitment",
+        "--root",
+        case.worktree.as_posix(),
+        "--receipt",
+        cli_receipt["path"],
+        "--receipt-sha256",
+        cli_receipt["sha256"],
+        "--json",
+        cwd=case.worktree,
+    )
+    assert (dry_run["verdict"], dry_run["state"]) == ("pass", "ready_to_apply")
+    assert dry_run["data"]["request_receipt"] == {
+        key: cli_receipt[key] for key in ("path", "sha256")
+    }
+
+
+def test_rebind_derive_discovers_the_sole_compatible_dangling_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit="",
+        repair_change_identity=False,
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["request"]["target_commit"] == case.request.target_commit
+    assert report["observed_targets"] == [case.request.target_commit]
+
+    projected = run_ethos(
+        "lane",
+        "rebind-commitment",
+        "derive",
+        "--root",
+        case.worktree.as_posix(),
+        "--json",
+        cwd=case.worktree,
+    )
+    assert projected["verdict"] == "pass"
+    assert projected["data"]["observed_targets"] == [case.request.target_commit]
+
+
+def test_rebind_derive_rejects_missing_compatible_dangling_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    git(
+        case.worktree,
+        "update-ref",
+        "refs/heads/reachable-rebind-target",
+        case.request.target_commit,
+    )
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit="",
+        repair_change_identity=False,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["commitment_rebind_target_missing"]
+    assert report["observed_targets"] == []
+
+
+def test_rebind_derive_rejects_multiple_compatible_dangling_targets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    second = git(
+        case.worktree,
+        "commit-tree",
+        case.request.expect_index_tree,
+        "-p",
+        case.request.expect_head,
+        "-m",
+        "second compatible rebind target",
+    )
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit="",
+        repair_change_identity=False,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["commitment_rebind_target_ambiguous"]
+    assert report["observed_targets"] == sorted([case.request.target_commit, second])
+
+
+@pytest.mark.parametrize(
+    ("actor", "gap"),
+    [("", "invocation_actor_missing"), ("agent:test:case:other", "lease_actor_mismatch")],
+)
+def test_rebind_derivation_distinguishes_missing_and_wrong_actor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    actor: str,
+    gap: str,
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    monkeypatch.setenv("ETHOS_ACTOR", actor)
+
+    report = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit=case.request.target_commit,
+        repair_change_identity=False,
+    )
+
+    assert report["required_gaps"] == [gap]
+
+
+@pytest.mark.parametrize(
+    ("drift", "gap"),
+    [
+        ("head", "lease_head_stale"),
+        ("overlay", "commitment_rebind_overlay_changed"),
+        ("lease", "lease_epoch_stale"),
+    ],
+)
+def test_rebind_receipt_apply_and_drift_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    drift: str,
+    gap: str,
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    derived = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit=case.request.target_commit,
+        repair_change_identity=False,
+    )
+    receipt = str(derived["receipt"]["path"])
+    digest = str(derived["receipt"]["sha256"])
+    if drift == "head":
+        case.replace_lease(expected_head="0" * 40)
+    elif drift == "overlay":
+        case.untracked.write_text("drifted\n", encoding="utf-8")
+    else:
+        case.replace_lease(epoch=int(case.lease["epoch"]) + 2)
+
+    report = rebind.execute_commitment_rebind_receipt(
+        root=case.worktree,
+        receipt_path=receipt,
+        receipt_sha256=digest,
+        apply=True,
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == [gap]
 
 
 @pytest.mark.parametrize(
@@ -611,7 +806,7 @@ def test_rebind_cli_and_impossible_state_matrix(
             ["commitment_rebind_state_inconsistent"],
         )
         return
-    arguments = ["lane", "rebind-commitment", "--root", case.worktree.as_posix()]
+    arguments = ["lane", "rebind-commitment", "exact", "--root", case.worktree.as_posix()]
     for name, value in case.request.model_dump().items():
         option = "--" + name.replace("_", "-")
         for item in value if isinstance(value, tuple) else (value,):

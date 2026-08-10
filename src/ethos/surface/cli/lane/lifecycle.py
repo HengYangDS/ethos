@@ -22,6 +22,12 @@ from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
     refresh_candidate_from_accepted,
 )
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import execute_commitment_rebind
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import (
+    execute_commitment_rebind_receipt,
+)
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation import (
+    derive_commitment_rebind,
+)
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.proof import attestation_store_dir
@@ -37,6 +43,7 @@ from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli.application import lane_app
+from ethos.surface.cli.application import lane_rebind_app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
@@ -104,6 +111,12 @@ class _CommitmentRebind(AppliedLaneCommandOptions):
     expected_path_scope: Annotated[tuple[str, ...], Parameter(name="--expected-path-scope")] = ()
 
 
+class _CommitmentRebindReceipt(AppliedLaneCommandOptions):
+    command = "lane rebind-commitment"
+    receipt: Annotated[str, Parameter(name="--receipt")]
+    receipt_sha256: Annotated[str, Parameter(name="--receipt-sha256")] = ""
+
+
 class _ArchiveChange(AppliedLaneCommandOptions):
     command = "lane archive-change"
     change: Annotated[str, Parameter(name="--change")]
@@ -163,6 +176,10 @@ def _report_action(report: dict[str, object], _verdict: Verdict) -> str:
     return str(report.get("next_action") or "")
 
 
+def _prewrite_action(report: dict[str, object], verdict: Verdict) -> str:
+    return "" if verdict == "pass" else str(report.get("next_action") or "")
+
+
 def _retirement_action(_report: dict[str, object], verdict: Verdict) -> str:
     return "ethos status" if verdict == "pass" else "ethos lane status"
 
@@ -198,11 +215,7 @@ _ACTIONS: dict[str, Action] = {
         "--holder-ref <holder-ref> --apply --json",
         "ethos status",
     ),
-    "lane prewrite": _actions(
-        "",
-        "ethos lane start <name> --commitment <commitment.toml> "
-        "--holder-ref <holder-ref> --apply --json",
-    ),
+    "lane prewrite": _prewrite_action,
     "lane start": _start_action,
     "lane refresh-base": _refresh_action,
     "lane rebind-commitment": _report_action,
@@ -476,11 +489,30 @@ def lane_archive_change(
     )
 
 
-@lane_app.command(name="rebind-commitment")
+@lane_rebind_app.default
 def lane_rebind_commitment(
+    options: Annotated[_CommitmentRebindReceipt, Parameter(name="*")],
+) -> None:
+    """Revalidate and apply one derived Commitment request receipt."""
+    report = execute_commitment_rebind_receipt(
+        root=resolve_root(options.root),
+        receipt_path=options.receipt,
+        receipt_sha256=options.receipt_sha256,
+        apply=options.apply,
+    )
+    project_lane_result(
+        options.command,
+        report,
+        enforce=options.apply,
+        json_output=options.json_output,
+    )
+
+
+@lane_rebind_app.command(name="exact")
+def lane_rebind_commitment_exact(
     options: Annotated[_CommitmentRebind, Parameter(name="*")],
 ) -> None:
-    """Replace one owned lane's immutable Commitment through exact CAS."""
+    """Execute one fully specified internal exact-CAS request."""
     values = options.model_dump(exclude={"root", "json_output"})
     report = execute_commitment_rebind(
         root=resolve_root(options.root),
@@ -495,4 +527,25 @@ def lane_rebind_commitment(
         },
         enforce=options.apply,
         json_output=options.json_output,
+    )
+
+
+@lane_rebind_app.command(name="derive")
+def lane_rebind_commitment_derive(
+    target_commit: Annotated[str, Parameter(name="--target-commit")] = "",
+    *,
+    root: RootOption | None = None,
+    repair_change_identity: Annotated[bool, Parameter(name="--repair-change-identity")] = False,
+    json_output: JsonFlag = False,
+) -> None:
+    """Derive and persist one exact request receipt without mutation."""
+    report = derive_commitment_rebind(
+        root=resolve_root(root),
+        target_commit=target_commit,
+        repair_change_identity=repair_change_identity,
+    )
+    project_lane_result(
+        "lane rebind-commitment derive",
+        report,
+        json_output=json_output,
     )

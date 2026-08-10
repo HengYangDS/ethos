@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_old_generation
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_request
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_state
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import rebind_target_binding
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation import (
+    load_commitment_rebind_receipt,
+)
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     issue_rebind_attestation,
 )
@@ -40,8 +44,6 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.contracts.semantic import Attestation
 
 
@@ -60,6 +62,91 @@ def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -
             "next_action": guard["next_action"],
         }
     return _execute_commitment_rebind(repo, request)
+
+
+def execute_commitment_rebind_receipt(
+    *,
+    root: Path,
+    receipt_path: str,
+    receipt_sha256: str = "",
+    apply: bool,
+) -> dict[str, object]:
+    """Revalidate and execute the existing request carried by one receipt."""
+    repo = repository_root(root)
+    try:
+        receipt = load_commitment_rebind_receipt(repo, receipt_path, receipt_sha256)
+    except (OSError, TypeError, ValueError) as error:
+        return {
+            "verdict": "block",
+            "state": "blocked",
+            "branch": "",
+            "lease": {},
+            "attestation": {},
+            "required_gaps": [str(error)],
+            "next_action": "",
+        }
+    request = receipt.request.model_copy(update={"apply": apply})
+    report = (
+        execute_commitment_rebind(root=repo, request=request)
+        if apply
+        else _preview_commitment_rebind(repo, request)
+    )
+    report["request_receipt"] = {
+        "path": Path(receipt_path).resolve().as_posix(),
+        "sha256": receipt_sha256 or f"sha256:{Path(receipt_path).stem}",
+    }
+    return report
+
+
+def _preview_commitment_rebind(
+    repo: Path,
+    request: CommitmentRebindRequest,
+) -> dict[str, object]:
+    """Validate the exact receipt without applying its Git or Lease effects."""
+    try:
+        lease = leases_by_branch(repo).get(request.branch, {})
+        admit_rebind_request(repo, request, require_apply=False)
+        admit_old_generation(request, lease)
+        admit_rebind_state(repo, request, lease)
+        old_commitment = load_lease_bound_commitment(repo, lease=lease)
+        target = rebind_target_binding(repo, request, old_commitment)
+        effect = GitEffect(
+            updates={
+                f"refs/heads/{request.branch}": GitRefUpdate(
+                    expected=request.expect_head,
+                    desired=request.target_commit,
+                )
+            }
+        )
+        plan = _plan(
+            repo,
+            request,
+            lease,
+            effect,
+            old_commitment.digest(),
+            request.expected_working_overlay_sha256,
+        )
+    except (OSError, TypeError, ValueError) as error:
+        return {
+            "verdict": "block",
+            "state": "blocked",
+            "branch": request.branch,
+            "lease": {},
+            "attestation": {},
+            "required_gaps": [str(error)],
+            "next_action": "",
+        }
+    return {
+        "verdict": "pass",
+        "state": "ready_to_apply",
+        "branch": request.branch,
+        "lease": lease,
+        "target": target,
+        "transition_plan": plan.model_dump(mode="json"),
+        "attestation": {},
+        "required_gaps": [],
+        "next_action": "",
+    }
 
 
 def _execute_commitment_rebind(

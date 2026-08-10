@@ -98,6 +98,10 @@ def test_prewrite_editor_authority_is_actionable(
     if report["verdict"] == "block":
         assert reason in report["required_gaps"]
         assert report["decision"]["next_action"] == "repair_required_gap"
+        if reason == "editor_root_missing":
+            assert report["next_action"] == (
+                f"ethos lane prewrite <path> --editor-root {tmp_path} --require-editor-root --json"
+            )
 
 
 def test_prewrite_reports_outside_path_and_exact_commitment_scope(

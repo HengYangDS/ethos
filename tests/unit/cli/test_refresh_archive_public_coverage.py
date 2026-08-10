@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -14,7 +15,9 @@ BRANCH = "work/feature"
 HEAD = "old-head"
 NEW_HEAD = "new-head"
 CHANGE = "fixture-change"
-ARCHIVE_PATH = "openspec/changes/archive/2026-08-10-fixture-change"
+ARCHIVE_PATH = (
+    f"openspec/changes/archive/{datetime.now().astimezone().date().isoformat()}-fixture-change"
+)
 
 
 class _Dumpable:

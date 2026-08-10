@@ -25,6 +25,7 @@ scope = [
   "tests/unit/cli/test_hook_runtime.py",
   "tests/unit/cli/test_hook_runtime_failure_branches.py",
   "tests/unit/cli/test_hook_command_failure_branches.py",
+  "tests/unit/cli/test_refresh_archive_public_coverage.py",
   "tests/unit/admission/test_identity_public_reconciliation.py",
   "tests/unit/lanes/test_lane_family_profile.py",
   "tests/unit/lanes/test_hook_publication_admission.py",

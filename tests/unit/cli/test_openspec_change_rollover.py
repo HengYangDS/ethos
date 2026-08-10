@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
@@ -17,9 +19,10 @@ from tests.support.openspec_lifecycle import OpenSpecLifecycle
 from tests.support.openspec_lifecycle import completed_lifecycle
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     import pytest
+
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def _archived_lane(
@@ -62,6 +65,23 @@ def test_start_change_rolls_an_archived_owned_lane_to_a_new_commitment(
     )
     assert integer(lease["epoch"]) == integer(previous_lease["epoch"]) + 1
     assert git(worktree, "status", "--short") == ""
+    commitment = worktree / "openspec/changes/hosted-verification-fix/commitment.toml"
+    assert (
+        subprocess.run(
+            (
+                "taplo",
+                "format",
+                "--check",
+                "--config",
+                str(ROOT / ".config/checks/taplo/taplo.toml"),
+                str(commitment),
+            ),
+            cwd=worktree,
+            check=False,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
     assert (
         prewrite_guard(
             root=worktree,

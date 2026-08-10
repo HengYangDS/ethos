@@ -16,7 +16,7 @@ from ethos.surface.cli.application import load_command_groups
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_OWNER = "docs/governance/product-design-contract.md"
 PLAN = "docs/plans/terminal-governance-product-design.md"
-SOURCE_CHANGE = "openspec/changes/terminal-convergence"
+SOURCE_CHANGE_ID = "change:terminal-convergence"
 AXIOMS = "system/axioms.md"
 PROJECTIONS = {
     "README.md",
@@ -55,6 +55,16 @@ SUCCESSOR_OUTCOMES = {
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def change_carrier(change_id: str) -> Path:
+    carriers = tuple(
+        path.parent
+        for path in (ROOT / "openspec" / "changes").glob("**/commitment.toml")
+        if tomllib.loads(path.read_text(encoding="utf-8"))["id"] == change_id
+    )
+    assert len(carriers) == 1, carriers
+    return carriers[0]
 
 
 def tracked_markdown(root: Path) -> tuple[str, ...]:
@@ -385,8 +395,11 @@ def test_openspec_workspace_owns_atomic_change_lifecycle() -> None:
 
 
 def test_terminal_change_keeps_every_remaining_obligation_once() -> None:
-    design = section(read(f"{SOURCE_CHANGE}/design.md"), "Campaign Dependency Graph")
-    tasks = read(f"{SOURCE_CHANGE}/tasks.md")
+    carrier = change_carrier(SOURCE_CHANGE_ID)
+    design = section(
+        carrier.joinpath("design.md").read_text(encoding="utf-8"), "Campaign Dependency Graph"
+    )
+    tasks = carrier.joinpath("tasks.md").read_text(encoding="utf-8")
     rows = re.findall(r"^\| `([^`]+)` \| (.+?) \| (.+?) \| (.+?) \|$", design, re.MULTILINE)
     mapped = [
         task
@@ -421,7 +434,9 @@ def test_terminal_change_keeps_every_remaining_obligation_once() -> None:
 
 
 def test_terminal_commitment_claims_complete_campaign_closeout() -> None:
-    commitment = tomllib.loads(read(f"{SOURCE_CHANGE}/commitment.toml"))
+    commitment = tomllib.loads(
+        change_carrier(SOURCE_CHANGE_ID).joinpath("commitment.toml").read_text(encoding="utf-8")
+    )
 
     assert commitment["acceptance"] == [
         "contract_attestation_plan_and_effect_chain_proven",
@@ -437,11 +452,14 @@ def test_terminal_commitment_claims_complete_campaign_closeout() -> None:
 
 
 def test_terminal_archive_preserves_already_reconciled_specs() -> None:
-    metadata = yaml.safe_load(read(f"{SOURCE_CHANGE}/.openspec.yaml"))
+    carrier = change_carrier(SOURCE_CHANGE_ID)
+    metadata = yaml.safe_load(carrier.joinpath(".openspec.yaml").read_text(encoding="utf-8"))
 
     assert metadata["skip_specs"] is True
-    assert not (ROOT / SOURCE_CHANGE / "specs").exists()
-    assert "already carry the terminal behavior" in read(f"{SOURCE_CHANGE}/README.md")
+    assert not carrier.joinpath("specs").exists()
+    assert "already carry the terminal behavior" in carrier.joinpath("README.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_branch_roles_and_thresholds_have_machine_owners() -> None:

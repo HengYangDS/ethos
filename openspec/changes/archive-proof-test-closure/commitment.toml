@@ -1,0 +1,21 @@
+schema_version = 1
+id = "change:archive-proof-test-closure"
+intent = "Keep terminal closeout architecture claims valid after the official Change archive transition."
+subjects = [
+    "repository:self",
+]
+scope = [
+    "openspec/changes/archive-proof-test-closure/**",
+    "tests/architecture/test_product_design_contract.py",
+    "tests/architecture/test_format_selection.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+permissions = [
+    "repository.read",
+    "work-lane.write",
+]
+hypotheses = []
+dependencies = []

@@ -31,6 +31,7 @@ from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.lifecycle_cases import LaneStartCase
 from tests.support.literal_cases import literal_case
 
@@ -170,14 +171,22 @@ def test_legacy_complete_branch_policy_preserves_canonical_sibling_authority(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
+    repo, _candidate = start_adopted_candidate(tmp_path)
     (repo / ".ethos/workspace.toml").write_text(_LEGACY_POLICY, encoding="utf-8")
+    git(repo, "add", ".ethos/workspace.toml")
+    git(repo, "commit", "-m", "adopt legacy complete branch policy")
+    source = create_change_source_lane(
+        repo,
+        tmp_path / "repo-work-source",
+        branch="work/source-repository-record-publication",
+        holder_ref=_HOLDER,
+    )
     assert branch_role_policy_from_text(_LEGACY_POLICY).canonical_sibling_worktrees
     assert strict_branch_role_policy_from_text(_LEGACY_POLICY).canonical_sibling_worktrees
     blocked = start_work_lane(
         root=repo,
         name="repository record publication",
-        source_root=repo,
+        source_root=source,
         path=tmp_path / "intentionally-noncanonical",
         holder_ref=_HOLDER,
     )
@@ -186,7 +195,7 @@ def test_legacy_complete_branch_policy_preserves_canonical_sibling_authority(
     canonical = start_work_lane(
         root=repo,
         name="repository record publication",
-        source_root=repo,
+        source_root=source,
         holder_ref=_HOLDER,
     )
     lane_id = "20260809-repository-record-publication"

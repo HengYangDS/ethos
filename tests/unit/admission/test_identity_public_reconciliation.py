@@ -44,18 +44,13 @@ def _receipt(path: Path, *, source: str, baseline: str) -> ReconciliationObserva
     payload = reconciliation_receipt_payload(
         proposal_branch="proposal/identity",
         source_head=source,
-        origin_head=baseline,
-        github_head=baseline,
-        main_heads=(baseline, baseline),
+        peer_heads=(("gitlab", baseline, baseline), ("github", baseline, baseline)),
     )
     path.write_text(json.dumps(payload), encoding="utf-8")
     return ReconciliationObservation(
         proposal_branch="proposal/identity",
         receipt_path=path.as_posix(),
-        origin_head=baseline,
-        origin_main_head=baseline,
-        github_head=baseline,
-        github_main_head=baseline,
+        peer_heads=(("gitlab", baseline, baseline), ("github", baseline, baseline)),
     )
 
 
@@ -78,7 +73,7 @@ def test_identity_reconciliation_accepts_exact_receipt_baselines(
         ("missing", "push_identity_reconciliation_receipt_invalid"),
         ("invalid-json", "push_identity_reconciliation_receipt_invalid"),
         ("digest-drift", "push_identity_reconciliation_receipt_payload_digest_mismatch"),
-        ("observed-drift", "push_identity_reconciliation_origin_head_stale"),
+        ("observed-drift", "push_identity_reconciliation_peer_heads_stale"),
         ("baseline-missing", "push_identity_reconciliation_baseline_missing:"),
     ],
 )
@@ -100,10 +95,7 @@ def test_identity_reconciliation_fails_closed_on_receipt_or_observation_drift(
         observation = ReconciliationObservation(
             proposal_branch=observation.proposal_branch,
             receipt_path=observation.receipt_path,
-            origin_head="f" * 40,
-            origin_main_head=observation.origin_main_head,
-            github_head=observation.github_head,
-            github_main_head=observation.github_main_head,
+            peer_heads=(("gitlab", "f" * 40, baseline), ("github", baseline, baseline)),
         )
     else:
         missing = "f" * 40

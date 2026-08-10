@@ -14,6 +14,16 @@ from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import write_role_policy
 
 
+def _write_local_only_publication(repo: Path) -> None:
+    release = repo / ".ethos" / "release.toml"
+    release.write_text(
+        "[publication]\n"
+        'local_verification_command = "dev/verify"\n'
+        'local_installation_command = "dev/install"\n',
+        encoding="utf-8",
+    )
+
+
 def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
     tmp_path: Path,
 ) -> None:
@@ -137,6 +147,43 @@ def test_publish_observes_gitlab_and_github_independently_without_push(
     assert observations["gitlab"]["availability"]["remote"] == "origin"
     assert observations["github"]["availability"]["remote"] == "github"
     assert payload["data"]["publication"]["remote_observations"] == observations
+
+
+def test_publish_local_only_does_not_observe_or_require_a_remote(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    _write_local_only_publication(repo)
+    head = commit_fixture(repo, "declare local-only publication")
+    seed_executed_proof(repo, head)
+
+    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
+
+    assert payload["verdict"] == "pass"
+    assert payload["data"]["remote_topology"]["state"] == "ready"
+    assert payload["data"]["remote_observations"] == {}
+    assert payload["data"]["publication"]["remote_state"] == "local_only"
+    assert payload["summary"]["hosted_ci_status_claimed"] is False
+
+
+def test_publish_gitlab_only_observes_only_the_declared_peer(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    release = repo / ".ethos" / "release.toml"
+    declaration = release.read_text(encoding="utf-8")
+    declaration = declaration.split("[[publication.peers]]", 2)
+    release.write_text(declaration[0] + "[[publication.peers]]" + declaration[1], encoding="utf-8")
+    head = commit_fixture(repo, "declare GitLab-only publication")
+    seed_executed_proof(repo, head)
+    remote = tmp_path / "gitlab.git"
+    git(tmp_path, "init", "--bare", remote.as_posix())
+    git(repo, "remote", "add", "origin", remote.as_posix())
+    git(repo, "push", "--set-upstream", "origin", "dev")
+
+    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
+
+    assert set(payload["data"]["remote_observations"]) == {"gitlab"}
+    assert set(payload["data"]["remote_matrix"]["remotes"]) == {"gitlab"}
+    assert payload["data"]["remote_topology"]["state"] == "ready"
 
 
 def test_publish_reports_synchronized_tracking_without_claiming_a_push(

@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import IO
 from typing import Literal
+from typing import cast
 
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
@@ -31,6 +32,9 @@ from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.release.configuration import release_config
+from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import topology_remotes
 
 HookName = Literal["pre-commit", "pre-push", "reference-transaction"]
 _ZERO_OIDS = {"0" * 40, "0" * 64}
@@ -48,7 +52,20 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
     locator = runtime_locator(runtime)
     replace_launchers(hooks, locator)
     set_worktree_config(repo, {"core.hooksPath": hooks.as_posix(), "gc.packRefs": "false"})
-    return hook_runtime_binding(repo)
+    binding = hook_runtime_binding(repo)
+    if binding["required_gaps"]:
+        return binding
+    common = Path(git_common_dir(repo))
+    legacy = common / "ethos-runtime-python"
+    present = legacy.exists() or legacy.is_symlink()
+    if present:
+        legacy.unlink()
+    cast("dict[str, object]", binding)["legacy_runtime_locator"] = {
+        "path": legacy.as_posix(),
+        "state": "retired" if present else "absent",
+        "removed": present,
+    }
+    return binding
 
 
 def execute_hook(
@@ -158,10 +175,7 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
     observations = (
         ReconciliationObservation(
             receipt_path=receipt,
-            origin_head=_remote_head(root, "origin", "refs/heads/dev"),
-            origin_main_head=_remote_head(root, "origin", "refs/heads/main"),
-            github_head=_remote_head(root, "github", "refs/heads/dev"),
-            github_main_head=_remote_head(root, "github", "refs/heads/main"),
+            peer_heads=_declared_peer_heads(root),
         )
         if receipt
         else ReconciliationObservation()
@@ -191,6 +205,18 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
 def _remote_head(root: Path, remote: str, ref: str) -> str:
     completed = run_git(root, "ls-remote", "--exit-code", remote, ref, check=False)
     return completed.stdout.partition("\t")[0].strip() if completed.returncode == 0 else ""
+
+
+def _declared_peer_heads(root: Path) -> tuple[tuple[str, str, str], ...]:
+    remotes = topology_remotes(publication_topology(root, release_config(root)))
+    return tuple(
+        (
+            peer_id,
+            _remote_head(root, remote, "refs/heads/dev"),
+            _remote_head(root, remote, "refs/heads/main"),
+        )
+        for peer_id, remote in remotes.items()
+    )
 
 
 def _reference_transaction(

@@ -79,7 +79,7 @@ def _publish_expected_state(
 ) -> dict[str, object]:
     target_branch = str(publication.get("proposal_branch") or branch)
     observations = {key: _object_mapping(value) for key, value in remote_observations.items()}
-    primary = observations.get("gitlab", {})
+    primary = next(iter(observations.values()), {})
     availability = _object_mapping(primary.get("availability"))
     sync = _object_mapping(primary.get("sync"))
     targets = [
@@ -111,7 +111,7 @@ def _publish_expected_state(
 
 
 def _remote_observations(
-    *, repo: Path, branch: str, gitlab_remote: str, github_remote: str, probe_remote: bool
+    *, repo: Path, branch: str, remotes: Mapping[str, str], probe_remote: bool
 ) -> dict[str, dict[str, object]]:
     """Read declared remote targets independently without pushing."""
     availability = git.remote_availability if probe_remote else git.remote_availability_not_probed
@@ -120,7 +120,7 @@ def _remote_observations(
             "availability": availability(repo, remote),
             "sync": git.remote_tracking_sync(repo, branch, remote),
         }
-        for key, remote in {"gitlab": gitlab_remote, "github": github_remote}.items()
+        for key, remote in remotes.items()
     }
 
 
@@ -181,8 +181,7 @@ def publish(
     local_verdict = reduce_verdicts(local_verdict, required_gaps=gaps)
     policy = load_branch_role_policy(repo)
     configured_remotes = topology_remotes(remote_topology)
-    gitlab_remote = configured_remotes["gitlab"]
-    github_remote = configured_remotes["github"]
+    selected_remote = options.remote or next(iter(configured_remotes.values()), "")
     branch_admission = publication_branch_admission(
         remote_topology,
         branch=str(branch),
@@ -190,19 +189,18 @@ def publish(
         accepted_branch=str(getattr(policy, "accepted_branch", "dev")),
         release_branch=str(getattr(policy, "release_branch", "main")),
         proposal_branch_prefix=str(getattr(policy, "proposal_branch_prefix", "proposal/")),
-        remote_name=options.remote or "origin",
+        remote_name=selected_remote,
     )
     remote_observations = _remote_observations(
         repo=repo,
         branch=str(branch),
-        gitlab_remote=gitlab_remote,
-        github_remote=github_remote,
+        remotes=configured_remotes,
         probe_remote=options.probe_remote,
     )
-    gitlab_observation = remote_observations["gitlab"]
-    remote_availability = _object_mapping(gitlab_observation.get("availability"))
-    remote_sync = _object_mapping(gitlab_observation.get("sync"))
-    remote_matrix = git.publication_remote_syncs(repo, str(branch))
+    primary_observation = next(iter(remote_observations.values()), {})
+    remote_availability = _object_mapping(primary_observation.get("availability"))
+    remote_sync = _object_mapping(primary_observation.get("sync"))
+    remote_matrix = git.publication_remote_syncs(repo, str(branch), configured_remotes)
     local_ci_fallback = local_ci_fallback_package(
         remote_availability=remote_availability,
         root=repo,
@@ -233,11 +231,10 @@ def publish(
         "remote_availability_state": remote_availability_state,
         "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
         "remote_reconciliation_state": str(remote_matrix.get("state") or "pending"),
-        "gitlab_remote_state": str(remote_availability.get("state") or "not_probed"),
-        "github_remote_state": str(
-            _object_mapping(remote_observations["github"].get("availability")).get("state")
-            or "not_probed"
-        ),
+        "remote_states": {
+            key: str(_object_mapping(value.get("availability")).get("state") or "not_probed")
+            for key, value in remote_observations.items()
+        },
         "remote_mutation_allowed": bool(branch_admission.get("remote_mutation_allowed")),
         "remote_ahead": integer(remote_sync.get("ahead")),
         "remote_behind": integer(remote_sync.get("behind")),

@@ -79,7 +79,7 @@ def test_hook_admit_projects_report_action_before_fallback(
     assert payload["next_action"] == expected_action
 
 
-def test_reconciliation_receipt_missing_refs_is_structured_and_nonwriting(
+def test_reconciliation_receipt_local_only_needs_no_tracking_refs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     results = _capture(monkeypatch)
@@ -92,9 +92,10 @@ def test_reconciliation_receipt_missing_refs_is_structured_and_nonwriting(
     )
 
     result = results.pop()
-    assert result.verdict == "block"
-    assert len(result.required_gaps) == 4
-    assert not target.exists()
+    assert result.verdict == "pass"
+    assert result.required_gaps == ()
+    assert result.data["receipt"]["peer_heads"] == ()
+    assert target.is_file()
 
 
 def test_ref_transaction_policy_failure_emits_actionable_block(

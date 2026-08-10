@@ -21,13 +21,6 @@ from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstra
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
     refresh_candidate_from_accepted,
 )
-from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import execute_commitment_rebind
-from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import (
-    execute_commitment_rebind_receipt,
-)
-from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation import (
-    derive_commitment_rebind,
-)
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.proof import attestation_store_dir
@@ -35,7 +28,6 @@ from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
 from ethos.adapters.repo.coordination import shared_inbox_projection
 from ethos.adapters.repo.status.workspace import workspace_status
-from ethos.contracts.coordination import CommitmentRebindRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -43,7 +35,6 @@ from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli.application import lane_app
-from ethos.surface.cli.application import lane_rebind_app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
@@ -79,42 +70,6 @@ class _Start(AppliedLaneCommandOptions):
     commitment: Annotated[str | None, Parameter(name="--commitment")] = None
     path: Annotated[str | None, Parameter(name="--path")] = None
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
-
-
-class _CommitmentRebind(AppliedLaneCommandOptions):
-    command = "lane rebind-commitment"
-    branch: Annotated[str, Parameter(name="--branch")]
-    holder_ref: Annotated[str, Parameter(name="--holder-ref")]
-    lease_id: Annotated[str, Parameter(name="--lease-id")]
-    expected_lane_incarnation_id: Annotated[str, Parameter(name="--expected-lane-incarnation-id")]
-    expected_epoch: Annotated[int, Parameter(name="--expected-epoch")]
-    expected_issued_at: Annotated[str, Parameter(name="--expected-issued-at")]
-    expected_renewed_at: Annotated[str, Parameter(name="--expected-renewed-at")]
-    expected_expires_at: Annotated[str, Parameter(name="--expected-expires-at")]
-    expected_payload_sha256: Annotated[str, Parameter(name="--expected-payload-sha256")]
-    expect_head: Annotated[str, Parameter(name="--expect-head")]
-    expected_tree: Annotated[str, Parameter(name="--expected-tree")]
-    expected_commitment_path: Annotated[str, Parameter(name="--expected-commitment-path")]
-    expected_commitment_bytes_sha256: Annotated[
-        str, Parameter(name="--expected-commitment-bytes-sha256")
-    ]
-    expected_commitment_digest: Annotated[str, Parameter(name="--expected-commitment-digest")]
-    expect_index_tree: Annotated[str, Parameter(name="--expect-index-tree")]
-    expected_working_overlay_sha256: Annotated[
-        str, Parameter(name="--expected-working-overlay-sha256")
-    ]
-    target_commit: Annotated[str, Parameter(name="--target-commit")]
-    new_commitment_path: Annotated[str, Parameter(name="--new-commitment-path")]
-    new_commitment_bytes_sha256: Annotated[str, Parameter(name="--new-commitment-bytes-sha256")]
-    new_commitment_digest: Annotated[str, Parameter(name="--new-commitment-digest")]
-    repair_change_identity: Annotated[bool, Parameter(name="--repair-change-identity")] = False
-    expected_path_scope: Annotated[tuple[str, ...], Parameter(name="--expected-path-scope")] = ()
-
-
-class _CommitmentRebindReceipt(AppliedLaneCommandOptions):
-    command = "lane rebind-commitment"
-    receipt: Annotated[str, Parameter(name="--receipt")]
-    receipt_sha256: Annotated[str, Parameter(name="--receipt-sha256")] = ""
 
 
 class _ArchiveChange(AppliedLaneCommandOptions):
@@ -486,66 +441,4 @@ def lane_archive_change(
         report,
         enforce=options.apply,
         json_output=options.json_output,
-    )
-
-
-@lane_rebind_app.default
-def lane_rebind_commitment(
-    options: Annotated[_CommitmentRebindReceipt, Parameter(name="*")],
-) -> None:
-    """Revalidate and apply one derived Commitment request receipt."""
-    report = execute_commitment_rebind_receipt(
-        root=resolve_root(options.root),
-        receipt_path=options.receipt,
-        receipt_sha256=options.receipt_sha256,
-        apply=options.apply,
-    )
-    project_lane_result(
-        options.command,
-        report,
-        enforce=options.apply,
-        json_output=options.json_output,
-    )
-
-
-@lane_rebind_app.command(name="exact")
-def lane_rebind_commitment_exact(
-    options: Annotated[_CommitmentRebind, Parameter(name="*")],
-) -> None:
-    """Execute one fully specified internal exact-CAS request."""
-    values = options.model_dump(exclude={"root", "json_output"})
-    report = execute_commitment_rebind(
-        root=resolve_root(options.root),
-        request=CommitmentRebindRequest.model_validate(values),
-    )
-    project_lane_result(
-        options.command,
-        report,
-        summary={
-            "branch": report["branch"],
-            "epoch": integer(cast("dict[str, object]", report.get("lease") or {}).get("epoch")),
-        },
-        enforce=options.apply,
-        json_output=options.json_output,
-    )
-
-
-@lane_rebind_app.command(name="derive")
-def lane_rebind_commitment_derive(
-    target_commit: Annotated[str, Parameter(name="--target-commit")] = "",
-    *,
-    root: RootOption | None = None,
-    repair_change_identity: Annotated[bool, Parameter(name="--repair-change-identity")] = False,
-    json_output: JsonFlag = False,
-) -> None:
-    """Derive and persist one exact request receipt without mutation."""
-    report = derive_commitment_rebind(
-        root=resolve_root(root),
-        target_commit=target_commit,
-        repair_change_identity=repair_change_identity,
-    )
-    project_lane_result(
-        "lane rebind-commitment derive",
-        report,
-        json_output=json_output,
     )

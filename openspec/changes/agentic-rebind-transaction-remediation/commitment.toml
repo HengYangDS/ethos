@@ -1,0 +1,27 @@
+schema_version = 1
+id = "change:agentic-rebind-transaction-remediation"
+intent = "Make lifecycle mutation derivation, exact-CAS receipts, post-archive readiness, and structured recovery congruent and package-only."
+subjects = [
+  "repository:self",
+]
+scope = [
+  "openspec/changes/agentic-rebind-transaction-remediation/**",
+  "src/ethos/**",
+  "tests/**",
+  "schemas/**",
+  "system/**",
+  "rules/**",
+  "docs/**",
+  ".agents/skills/**",
+  "openspec/**",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+permissions = [
+  "repository.read",
+  "work-lane.write",
+]
+hypotheses = []
+dependencies = []

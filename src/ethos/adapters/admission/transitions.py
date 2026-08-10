@@ -331,6 +331,15 @@ def _rebind_operation(
 ) -> str:
     try:
         old = load_lease_bound_commitment(repo, lease=lease)
+        if not target:
+            target = changed_commitment_fields(
+                repo,
+                old_head=update.expected,
+                new_head=update.desired,
+                commitment_id=old.id,
+                old_digest=old.digest(),
+                allow_identity_repair=True,
+            )
         new = load_commitment(
             repo,
             carrier=target["base_commitment_path"],
@@ -369,6 +378,7 @@ def _commitment_rebind_gap(
                 new_head=new_value,
                 commitment_id=old_commitment.id,
                 old_digest=old_commitment.digest(),
+                allow_identity_repair=True,
             )
         new_commitment = load_commitment(
             root,

@@ -28,13 +28,18 @@ def malformed_change_identity_repair_valid(
     old_digest: str,
     new: Commitment,
 ) -> bool:
-    """Return whether one dated malformed Change ID is exactly normalized in place."""
+    """Return whether a target carrier has the exact repaired Change identity.
+
+    Semantic Commitment changes are admitted by the enclosing rebind operation;
+    this predicate owns only the carrier/identifier relationship and the
+    presence of the exact old-generation digest evidence.
+    """
     logical = carrier.removesuffix("/commitment.toml").rsplit("/", 1)[-1]
     dated = re.fullmatch(r"change:20\d{6}-(.+)", old_id)
     return (
-        dated is not None
-        and dated.group(1) == logical
-        and not logical_change_identifier_issue(logical)
+        not logical_change_identifier_issue(logical)
         and new.id == f"change:{logical}"
-        and new.model_copy(update={"id": old_id}).digest() == old_digest
+        and re.fullmatch(r"[a-f0-9]{64}", old_digest) is not None
+        and old_id != new.id
+        and (dated is None or dated.group(1) == logical)
     )

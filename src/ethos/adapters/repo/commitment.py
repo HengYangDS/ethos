@@ -16,6 +16,7 @@ from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
 from ethos.normalization.coercion import object_sequence
+from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
@@ -251,6 +252,7 @@ def changed_commitment_fields(
     new_head: str,
     commitment_id: str,
     old_digest: str,
+    allow_identity_repair: bool = False,
 ) -> dict[str, str]:
     """Resolve the sole semantically changed Commitment carrier between two commits."""
     changed = run_git(
@@ -283,7 +285,15 @@ def changed_commitment_fields(
             commitment = load_commitment(repo, carrier=path, tree_ref=new_head)
         except ValueError:
             continue
-        if commitment.id == commitment_id and commitment.digest() != old_digest:
+        if (commitment.id == commitment_id and commitment.digest() != old_digest) or (
+            allow_identity_repair
+            and malformed_change_identity_repair_valid(
+                carrier=path,
+                old_id=commitment_id,
+                old_digest=old_digest,
+                new=commitment,
+            )
+        ):
             candidates.append(fields)
     if len(candidates) != 1:
         message = "commitment_rebind_target_ambiguous"

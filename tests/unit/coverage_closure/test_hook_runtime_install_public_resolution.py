@@ -6,14 +6,11 @@ import hashlib
 import json
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 import ethos.adapters.repo.hook_runtime_install as install
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
@@ -193,6 +190,81 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
 
     assert (runtime / "bin/python").read_bytes() == b"python"
     assert not (runtime / "bin/python").is_symlink()
+
+
+def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "source"
+    module = source / "a/b/c/d/module.py"
+    module.parent.mkdir(parents=True)
+    (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
+    volatile_wheel = tmp_path / "volatile/ethos-test.whl"
+    volatile_wheel.parent.mkdir()
+    volatile_wheel.write_bytes(b"wheel")
+    wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
+    common = tmp_path / "repo.git"
+    common.mkdir()
+    source_python = tmp_path / "bin/python"
+    source_python.parent.mkdir()
+    source_python.write_bytes(b"python")
+    installed_from: list[Path] = []
+    monkeypatch.setattr(install, "__file__", module.as_posix())
+    monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
+    monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: volatile_wheel)
+    monkeypatch.setattr(install, "_python_abi", lambda _python: "cpython-test")
+
+    def run_runtime_tool(_source: Path, operation: str, *args: str) -> None:
+        if operation == "venv":
+            venv = Path(args[-1])
+            python = venv / "bin/python"
+            python.parent.mkdir(parents=True)
+            python.write_bytes(b"python")
+            entrypoint = venv / "bin/ethos"
+            entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
+            entrypoint.chmod(0o755)
+        elif operation == "pip":
+            installed_from.append(Path(args[-1]))
+
+    monkeypatch.setattr(install, "_run_runtime_tool", run_runtime_tool)
+    monkeypatch.setattr(
+        install.subprocess,
+        "run",
+        lambda *_args, **_kwargs: _completed(0, stdout="ethos-test\n"),
+    )
+
+    install.materialize_hook_runtime(tmp_path / "repo", source_python)
+    volatile_wheel.unlink()
+
+    durable = common / "ethos/packages" / wheel_sha256 / volatile_wheel.name
+    assert installed_from == [durable]
+    assert durable.read_bytes() == b"wheel"
+
+
+def test_materialize_runtime_rejects_durable_wheel_digest_collision(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "installed/a/b/c/d"
+    source.mkdir(parents=True)
+    wheel = tmp_path / "ethos-test.whl"
+    wheel.write_bytes(b"wheel")
+    wheel_sha256 = hashlib.sha256(b"wheel").hexdigest()
+    common = tmp_path / "repo.git"
+    durable = common / "ethos/packages" / wheel_sha256 / wheel.name
+    durable.parent.mkdir(parents=True)
+    durable.write_bytes(b"different")
+    prefix = tmp_path / "prefix"
+    source_python = prefix / "bin/python"
+    source_python.parent.mkdir(parents=True)
+    source_python.write_bytes(b"python")
+    monkeypatch.setattr(install, "__file__", (source / "module.py").as_posix())
+    monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
+    monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: wheel)
+    monkeypatch.setattr(install, "_python_abi", lambda _python: "cpython-test")
+    monkeypatch.setattr(sys, "prefix", prefix.as_posix())
+
+    with pytest.raises(ValueError, match="hook_runtime_wheel_digest_collision"):
+        install.materialize_hook_runtime(tmp_path / "repo", source_python)
 
 
 def test_final_runtime_rejects_console_entrypoint_bound_to_staging(

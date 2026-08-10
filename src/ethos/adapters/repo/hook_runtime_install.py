@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.adapters.store.content_addressed import write_content_addressed
 
 
 def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
@@ -33,6 +34,11 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
         python_abi = _python_abi(source_python)
         wheel = resolve_runtime_wheel(source, wheel_dir)
         wheel_sha256 = _sha256(wheel)
+        wheel = write_content_addressed(
+            common / "ethos" / "packages" / wheel_sha256 / wheel.name,
+            wheel.read_bytes(),
+            collision="hook_runtime_wheel_digest_collision",
+        )
         digest = _runtime_digest(wheel_sha256, python_abi)
         target = runtime_root / digest
         if target.is_dir():

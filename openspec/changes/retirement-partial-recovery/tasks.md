@@ -20,7 +20,7 @@
 
 - [x] 3.1 Cover successful package-style recovery and retirement plus path
   collision, foreign holder, stale tree, and moved-coordinate negatives.
-- [ ] 3.2 Run focused retirement and CLI tests, formatting, lint, OpenSpec,
+- [x] 3.2 Run focused retirement and CLI tests, formatting, lint, OpenSpec,
   source budget, and the unchanged 95 percent coverage floor.
 - [ ] 3.3 Execute exact-HEAD full proof, archive, post-archive proof, governed
   land, accepted closeout, and immutable package-only runtime verification.

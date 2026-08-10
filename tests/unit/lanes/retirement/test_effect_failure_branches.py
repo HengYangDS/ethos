@@ -46,19 +46,19 @@ def test_require_missing_lease_and_restore_fail_closed(
     )
     with pytest.raises(ValueError, match="successor_retire_target_lease_present"):
         effects.require_missing_lease(object(), "work/example")  # type: ignore[arg-type]
-    assert effects.restore_worktree(tmp_path, {"path": "", "branch": ""}) is False
+    assert effects.restore_worktree(tmp_path, {"path": "", "branch": ""}) == {
+        "state": "blocked",
+        "error": "worktree_restore_coordinates_missing",
+    }
     monkeypatch.setattr(
         effects,
         "add_worktree",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("occupied")),
     )
-    assert (
-        effects.restore_worktree(
-            tmp_path,
-            {"path": str(tmp_path / "lane"), "branch": "work/example", "head": "a" * 40},
-        )
-        is False
-    )
+    assert effects.restore_worktree(
+        tmp_path,
+        {"path": str(tmp_path / "lane"), "branch": "work/example", "head": "a" * 40},
+    ) == {"state": "blocked", "error": "occupied"}
 
 
 @pytest.mark.parametrize(

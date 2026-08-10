@@ -8,6 +8,6 @@
 - [x] 2.2 Remove the locator only after final runtime and launcher validation.
 - [x] 2.3 Project the cleanup disposition in the public receipt.
 - [x] 3.1 Run focused tests, OpenSpec strict validation, Ruff, and config quality.
-- [ ] 3.2 Create a signed atomic commit and execute exact-HEAD full proof at 95% coverage.
+- [x] 3.2 Create a signed atomic commit and execute exact-HEAD full proof at 95% coverage.
 - [ ] 3.3 Archive the Change, execute post-archive proof, land, close out accepted refs, and install the source-independent runtime.
 - [ ] 3.4 Synchronize governed local and remote main/dev and retire obsolete proposal refs.

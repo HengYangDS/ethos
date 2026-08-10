@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -206,13 +207,15 @@ def failed_ref_transition(
     }.get(ref_state)
     if ref_gap:
         gaps.append(ref_gap)
-    worktree_restored = ref_state == "expected" and restore_worktree(control_root, lane)
+    restoration = restore_worktree(control_root, lane) if ref_state == "expected" else {}
+    worktree_restored = restoration.get("state") in {"applied", "recognized"}
     if ref_state == "expected" and not worktree_restored:
         gaps.append("worktree_restore_failed_after_ref_transition")
     return {
         **blocked(gaps, stderr),
         "worktree_removed": not worktree_restored,
         "worktree_restored": worktree_restored,
+        "worktree_restoration": restoration,
         "ref_state": ref_state,
         "ref_preserved": ref_state == "expected",
     }
@@ -456,22 +459,29 @@ def require_missing_lease(connection: sqlite3.Connection, branch: str) -> None:
     raise ValueError(message)
 
 
-def restore_worktree(control_root: Path, lane: dict[str, object]) -> bool:
-    """Restore one removed linked worktree when a later retirement effect fails."""
+def restore_worktree(control_root: Path, lane: dict[str, object]) -> dict[str, object]:
+    """Restore one removed linked worktree and retain its exact effect result."""
     path = str(lane.get("path") or "")
     branch = str(lane.get("branch") or "")
     if not path or not branch:
-        return False
+        return {"state": "blocked", "error": "worktree_restore_coordinates_missing"}
     try:
-        add_worktree(
+        attestation = add_worktree(
             control_root,
             Path(path),
             branch=branch,
             head=str(lane.get("head") or ""),
         )
-    except ValueError:
-        return False
-    return True
+    except (OSError, ValueError) as error:
+        return {
+            "state": "blocked",
+            "error": str(error).strip() or error.__class__.__name__,
+        }
+    if attestation is None:
+        return {"state": "recognized"}
+    result = attestation.statement.get("result")
+    state = str(result.get("state") or "") if isinstance(result, Mapping) else ""
+    return {"state": state, "attestation_id": attestation.id}
 
 
 def reobservation_gaps(

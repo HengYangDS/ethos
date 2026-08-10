@@ -28,6 +28,7 @@ from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementReque
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
@@ -485,6 +486,13 @@ def test_retirement_ref_failure_reports_observation_and_compensation(
     assert report["worktree_restored"] is (
         source_state == "expected" and scenario != "restore-fails"
     )
+    if scenario == "restore-fails":
+        assert report["worktree_restoration"] == {
+            "state": "blocked",
+            "error": "restore rejected",
+        }
+    elif source_state == "expected":
+        assert report["worktree_restoration"]["state"] in {"applied", "recognized"}
     assert git(repo, "rev-parse", BRANCH) == head
     assert leases_by_branch(repo)[BRANCH] == before
     assert observe_lease(database, BRANCH).state == "valid"
@@ -667,6 +675,167 @@ def test_archive_retirement_claims(
     )
     assert_public_decision(applied, verdict="pass", state="retired_superseded", gaps=[])
     _assert_retired(repo, lane, database)
+
+
+def test_archive_equivalent_superseded_retirement_passes_through_installed_hooks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    holder = "agent:test:case:archive-hook"
+    repo, lane, _source_head, _, database = superseded_work_lane(
+        tmp_path, holder_ref=holder, absorbed=False
+    )
+    active = lane / "openspec/changes/fixture-change"
+    archive = repo / "openspec/changes/archive/2026-08-08-fixture-change"
+    archive.mkdir(parents=True)
+    for name in ("proposal.md", "commitment.toml"):
+        (archive / name).write_bytes((active / name).read_bytes())
+    git(repo, "add", archive.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "archive fixture carrier")
+    git(repo, "rm", "-r", "openspec/changes/fixture-change")
+    git(repo, "commit", "-m", "retire active carrier")
+    accepted = git(repo, "rev-parse", "HEAD")
+    git(lane, "reset", "--hard", accepted)
+    active.mkdir(parents=True)
+    for name in ("proposal.md", "commitment.toml"):
+        (active / name).write_bytes((archive / name).read_bytes())
+    git(lane, "add", active.relative_to(lane).as_posix())
+    git(lane, "commit", "-m", "reconstruct active carrier")
+    source_head = git(lane, "rev-parse", "HEAD")
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("delete from leases where subject = ?", (BRANCH,))
+    acquire_lease(
+        database,
+        lease=exact_lease(
+            repo=lane,
+            branch=BRANCH,
+            holder_ref=holder,
+            expected_head=source_head,
+            carrier="openspec/changes/fixture-change/commitment.toml",
+            change_id="fixture-change",
+        ),
+    )
+    install_hook_launchers(repo)
+    exclude = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    exclude.write_text("tools/\n", encoding="utf-8")
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+
+    request = _retirement_request(source_head, accepted)
+    planned = retire_linked_work_lane(root=repo, mode="superseded", request=request)
+    assert_public_decision(planned, verdict="pass", state="ready_to_retire_superseded", gaps=[])
+
+    applied = retire_linked_work_lane(
+        root=repo, mode="superseded", request=request.model_copy(update={"apply": True})
+    )
+
+    assert_public_decision(applied, verdict="pass", state="retired_superseded", gaps=[])
+    _assert_retired(repo, lane, database)
+
+
+def test_superseded_retirement_recovers_exact_unbound_lease_then_retires(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    holder = "agent:test:case:partial-recovery"
+    repo, lane, head, accepted, database = superseded_work_lane(tmp_path, holder_ref=holder)
+    install_hook_launchers(repo)
+    git(repo, "worktree", "remove", lane.as_posix())
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    request = _retirement_request(head, accepted).model_copy(update={"path": lane.as_posix()})
+
+    planned = retire_linked_work_lane(root=repo, mode="superseded", request=request)
+
+    assert_public_decision(
+        planned,
+        verdict="pass",
+        state="ready_to_recover_and_retire_superseded",
+        gaps=[],
+    )
+    assert planned["lane"]["recovery_required"] is True
+    assert not lane.exists()
+
+    applied = retire_linked_work_lane(
+        root=repo,
+        mode="superseded",
+        request=request.model_copy(update={"apply": True}),
+    )
+
+    assert_public_decision(applied, verdict="pass", state="retired_superseded", gaps=[])
+    assert applied["recovery"]["state"] == "recovered_for_retirement"
+    assert not applied["recovery"]["hook_runtime"]["required_gaps"]
+    _assert_retired(repo, lane, database)
+
+
+def test_superseded_retirement_keeps_recovered_worktree_when_ref_effect_blocks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    holder = "agent:test:case:partial-recovery"
+    repo, lane, head, accepted, database = superseded_work_lane(tmp_path, holder_ref=holder)
+    install_hook_launchers(repo)
+    git(repo, "worktree", "remove", lane.as_posix())
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    monkeypatch.setattr(
+        retirement_effects,
+        "remove_linked_lane",
+        lambda *_args, **_kwargs: retirement_effects.blocked(["git_effect_cas_rejected"]),
+    )
+    request = _retirement_request(head, accepted, apply=True).model_copy(
+        update={"path": lane.as_posix()}
+    )
+
+    report = retire_linked_work_lane(root=repo, mode="superseded", request=request)
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["git_effect_cas_rejected"]
+    assert (lane.exists(), git(lane, "rev-parse", "HEAD")) == (True, head)
+    assert not hook_runtime_binding(lane)["required_gaps"]
+    assert git(repo, "rev-parse", BRANCH) == head
+    assert observe_lease(database, BRANCH).state == "valid"
+
+
+@pytest.mark.parametrize(
+    ("scenario", "gap"),
+    [
+        ("path-collision", "retirement_recovery_path_collision"),
+        ("foreign-holder", "foreign_work_lane_retire_authority_required"),
+        ("lease-tree-mismatch", "lease_expected_tree_mismatch"),
+    ],
+)
+def test_superseded_retirement_partial_recovery_rejects_stale_exact_bindings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    scenario: str,
+    gap: str,
+) -> None:
+    holder = "agent:test:case:partial-recovery"
+    repo, lane, head, accepted, database = superseded_work_lane(
+        tmp_path / scenario, holder_ref=holder
+    )
+    git(repo, "worktree", "remove", lane.as_posix())
+    monkeypatch.setenv(
+        "ETHOS_ACTOR",
+        "agent:test:case:foreign" if scenario == "foreign-holder" else holder,
+    )
+    if scenario == "path-collision":
+        lane.mkdir()
+    elif scenario == "lease-tree-mismatch":
+        with closing(sqlite3.connect(database)) as connection, connection:
+            row = connection.execute(
+                "select payload_json from leases where subject = ?", (BRANCH,)
+            ).fetchone()
+            payload = json.loads(str(row[0]))
+            payload["expected_tree"] = "0" * 40
+            connection.execute(
+                "update leases set payload_json = ? where subject = ?",
+                (json.dumps(payload, sort_keys=True, separators=(",", ":")), BRANCH),
+            )
+    request = _retirement_request(head, accepted).model_copy(update={"path": lane.as_posix()})
+
+    report = retire_linked_work_lane(root=repo, mode="superseded", request=request)
+
+    assert report["verdict"] == "block"
+    assert gap in report["required_gaps"]
+    assert git(repo, "rev-parse", BRANCH) == head
+    assert observe_lease(database, BRANCH).state == "valid"
 
 
 def test_lease_observation_keeps_valid_expired_unknown_and_missing_distinct(tmp_path: Path) -> None:

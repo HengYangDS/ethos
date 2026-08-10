@@ -112,7 +112,7 @@ def retirement_result(
     error: OSError | sqlite3.Error | None,
 ) -> dict[str, object]:
     """Resolve one retirement attempt from fresh native carrier observations."""
-    observed = retirement_observation(repo, control_root, lane)
+    observed = retirement_observation(control_root, control_root, lane)
     if error is not None:
         if retirement_terminal(observed):
             return {"observed": observed}

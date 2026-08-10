@@ -363,9 +363,10 @@ def _lease_request(
 
 
 def _commitment_text(*, change: str, intent: str, scope: tuple[str, ...]) -> str:
-    return tomli_w.dumps(
+    text = tomli_w.dumps(
         _commitment(change=change, intent=intent, scope=scope).model_dump(mode="python")
     )
+    return text.replace("\n    ", "\n  ")
 
 
 def _commitment(*, change: str, intent: str, scope: tuple[str, ...]) -> Commitment:

@@ -1,0 +1,13 @@
+# Tasks
+
+- [x] 1.1 Add a RED matrix for local-only, each single peer, both peers, and duplicate identities.
+- [x] 1.2 Add RED publish and admission tests that observe only declared peers.
+- [x] 1.3 Replace fixed provider/cardinality compilation with declared peers.
+- [x] 1.4 Update the self release declaration, docs, and canonical specs.
+- [x] 2.1 Add a RED hook-install test for legacy locator retirement.
+- [x] 2.2 Remove the locator only after final runtime and launcher validation.
+- [x] 2.3 Project the cleanup disposition in the public receipt.
+- [x] 3.1 Run focused tests, OpenSpec strict validation, Ruff, and config quality.
+- [ ] 3.2 Create a signed atomic commit and execute exact-HEAD full proof at 95% coverage.
+- [ ] 3.3 Archive the Change, execute post-archive proof, land, close out accepted refs, and install the source-independent runtime.
+- [ ] 3.4 Synchronize governed local and remote main/dev and retire obsolete proposal refs.

@@ -11,12 +11,6 @@ from ethos.adapters.repo.git import run_git
 
 _ZERO = "0" * 40
 _IDENTITY_FIELDS = ("author_name", "author_email", "committer_name", "committer_email")
-_BASELINE_GAPS = {
-    "origin_head": "push_identity_reconciliation_origin_head_stale",
-    "origin_main_head": "push_identity_reconciliation_origin_main_head_stale",
-    "github_head": "push_identity_reconciliation_github_head_stale",
-    "github_main_head": "push_identity_reconciliation_github_main_head_stale",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,10 +19,7 @@ class ReconciliationObservation:
 
     proposal_branch: str = ""
     receipt_path: str = ""
-    origin_head: str = ""
-    origin_main_head: str = ""
-    github_head: str = ""
-    github_main_head: str = ""
+    peer_heads: tuple[tuple[str, str, str], ...] = ()
 
 
 _NO_RECONCILIATION = ReconciliationObservation()
@@ -93,9 +84,7 @@ def reconciliation_receipt_payload(
     *,
     proposal_branch: str,
     source_head: str,
-    origin_head: str,
-    github_head: str,
-    main_heads: tuple[str, str] = ("", ""),
+    peer_heads: tuple[tuple[str, str, str], ...],
 ) -> dict[str, object]:
     """Build the deterministic non-authorizing reconciliation observation."""
     payload: dict[str, object] = {
@@ -103,14 +92,14 @@ def reconciliation_receipt_payload(
         "kind": "proposal-reconciliation",
         "proposal_branch": proposal_branch,
         "source_head": source_head,
-        "origin_ref": "origin/dev",
-        "origin_head": origin_head,
-        "origin_main_ref": "origin/main",
-        "origin_main_head": main_heads[0],
-        "github_ref": "github/dev",
-        "github_head": github_head,
-        "github_main_ref": "github/main",
-        "github_main_head": main_heads[1],
+        "peer_heads": [
+            {
+                "id": peer_id,
+                "accepted_head": accepted_head,
+                "release_head": release_head,
+            }
+            for peer_id, accepted_head, release_head in peer_heads
+        ],
         "mints_authority": False,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
@@ -153,31 +142,43 @@ def _reconciliation_baselines(
     expected = reconciliation_receipt_payload(
         proposal_branch=observation.proposal_branch or str(receipt.get("proposal_branch") or ""),
         source_head=pushed_head,
-        origin_head=str(receipt.get("origin_head") or ""),
-        github_head=str(receipt.get("github_head") or ""),
-        main_heads=(
-            str(receipt.get("origin_main_head") or ""),
-            str(receipt.get("github_main_head") or ""),
-        ),
+        peer_heads=_receipt_peer_heads(receipt),
     )
     gaps = [
         f"push_identity_reconciliation_receipt_{field}_mismatch"
         for field, value in expected.items()
         if receipt.get(field) != value
     ]
-    heads = tuple(str(receipt.get(field) or "") for field in _BASELINE_GAPS)
-    gaps.extend(
-        gap
-        for (field, gap), head in zip(_BASELINE_GAPS.items(), heads, strict=True)
-        if getattr(observation, field) != head
+    receipt_heads = _receipt_peer_heads(receipt)
+    if observation.peer_heads != receipt_heads:
+        gaps.append("push_identity_reconciliation_peer_heads_stale")
+    baselines = tuple(
+        head
+        for _peer_id, accepted_head, release_head in receipt_heads
+        for head in (accepted_head, release_head)
+        if head
     )
-    baselines = tuple(filter(None, heads))
     gaps.extend(
         f"push_identity_reconciliation_baseline_missing:{head}"
         for head in baselines
         if not _exists(root, head)
     )
     return (baselines, []) if not gaps else ((), gaps)
+
+
+def _receipt_peer_heads(receipt: dict[str, object]) -> tuple[tuple[str, str, str], ...]:
+    rows = receipt.get("peer_heads")
+    if not isinstance(rows, list):
+        return ()
+    return tuple(
+        (
+            str(row.get("id") or ""),
+            str(row.get("accepted_head") or ""),
+            str(row.get("release_head") or ""),
+        )
+        for row in rows
+        if isinstance(row, dict)
+    )
 
 
 def push_identity_policy_report(

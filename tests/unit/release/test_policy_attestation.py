@@ -9,10 +9,32 @@ from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
 from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import topology_remotes
 from tests.support.literal_cases import literal_case
 
 _LOCAL = literal_case("release.test_policy_attestation:assign:_LOCAL:0")
-_PUBLICATION = literal_case("release.test_policy_attestation:assign:_PUBLICATION:derived")
+_PUBLICATION = {
+    "local_verification_command": "uv run --frozen --offline python -m nox -s local_ci",
+    "local_installation_command": "uv run --frozen --offline python -m nox -s install_smoke",
+    "peers": [
+        {
+            "id": "gitlab",
+            "provider": "gitlab",
+            "role": "organization_collaboration",
+            "git_remote": "origin",
+            "capabilities": ["repository", "ci_cd", "publication"],
+            "ci_surface": ".gitlab-ci.yml",
+        },
+        {
+            "id": "github",
+            "provider": "github",
+            "role": "public_distribution",
+            "git_remote": "github",
+            "capabilities": ["repository", "ci_cd", "publication"],
+            "ci_surface": ".github/workflows/verify.yml",
+        },
+    ],
+}
 _REQUIRED_FILES = ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md")
 _RUNTIME = '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n'
 _INVALID_IDENTITIES = [
@@ -25,8 +47,12 @@ _INVALID_IDENTITIES = [
     (_RUNTIME.replace("sample", "first") + "\n" + _RUNTIME.replace("sample", "second"), "1"),
 ]
 _MISSING_LOCAL = literal_case("release.test_policy_attestation:assign:_MISSING_LOCAL:1")
-_DECLARATIONS = literal_case("release.test_policy_attestation:assign:_DECLARATIONS:derived")
-_INVALID_PATHS = literal_case("release.test_policy_attestation:assign:_INVALID_PATHS:2")
+_DECLARATIONS = [
+    ({"publication": {"remote": []}}, ["publication_topology_declaration_invalid"]),
+    ({"publication": {"remotes": ["origin"]}}, ["publication_topology_declaration_invalid"]),
+    ({}, ["publication_topology_declaration_invalid"]),
+    ({"publication": "invalid"}, ["publication_topology_declaration_invalid"]),
+]
 _HOST_SURFACES = """[host_profile]
 provider = "gitlab"
 
@@ -69,6 +95,36 @@ def _config(**updates: object) -> dict[str, object]:
 
 def _fields(actual: dict[str, object], **expected: object) -> None:
     assert {key: actual[key] for key in expected} == expected
+
+
+def _declared_publication(*peers: dict[str, object]) -> dict[str, object]:
+    return {
+        "publication": {
+            "local_verification_command": "dev/verify",
+            "local_installation_command": "dev/install",
+            "peers": list(peers),
+        }
+    }
+
+
+def _peer(
+    peer_id: str,
+    provider: str,
+    remote: str,
+    *,
+    capabilities: tuple[str, ...] = ("repository", "publication"),
+    ci_surface: str | None = None,
+) -> dict[str, object]:
+    peer: dict[str, object] = {
+        "id": peer_id,
+        "provider": provider,
+        "role": "organization_collaboration",
+        "git_remote": remote,
+        "capabilities": list(capabilities),
+    }
+    if ci_surface is not None:
+        peer["ci_surface"] = ci_surface
+    return peer
 
 
 def test_release_inspection_reads_one_runtime_files_identity(tmp_path: Path) -> None:
@@ -139,11 +195,8 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     topology = report["publication_topology"]
     _fields(topology, state="ready", local=_LOCAL)
     assert "legacy" not in topology
-    assert (
-        topology["gitlab"]["capabilities"]
-        == topology["github"]["capabilities"]
-        == ["repository", "ci_cd", "publication"]
-    )
+    assert topology["gitlab"]["capabilities"] == ["repository", "ci_cd", "publication"]
+    assert topology["github"]["capabilities"] == ["repository", "ci_cd", "publication"]
     assert topology["gitlab"]["git_remote"] != topology["github"]["git_remote"]
 
 
@@ -184,19 +237,19 @@ def test_release_policy_ignores_malformed_publication_gap_collection(
     _fields(release_policy_report(Path.cwd()), verdict="pass", required_gaps=[])
 
 
-def test_release_policy_rejects_unequal_remote_capability_declaration(tmp_path: Path) -> None:
+def test_release_policy_rejects_duplicate_remote_declaration(tmp_path: Path) -> None:
     root = Path.cwd()
     scratch = _root(
         tmp_path,
         (root / ".ethos/release.toml")
         .read_text()
-        .replace('github_remote = "github"', 'github_remote = "origin"', 1),
+        .replace('git_remote = "github"', 'git_remote = "origin"', 1),
     )
     for path in (*_REQUIRED_FILES, "pyproject.toml", ".ethos/workspace.toml"):
         _write(scratch, path, (root / path).read_text())
     assert release_policy_report(root)["publication_topology"]["state"] == "ready"
     assert (
-        "publication_topology_git_remotes_duplicate"
+        "publication_topology_peer_git_remote_duplicate:origin"
         in release_policy_report(scratch)["required_gaps"]
     )
 
@@ -239,7 +292,103 @@ def test_release_topology_uses_declared_repository_native_commands_and_ci_surfac
     assert topology["github"]["ci_surface"] == ".github/workflows/verify.yml"
 
 
-@pytest.mark.parametrize(("updates", "gap"), _INVALID_PATHS)
+@pytest.mark.parametrize(
+    ("peers", "expected"),
+    [
+        ((), {}),
+        ((_peer("gitlab", "gitlab", "origin"),), {"gitlab": "origin"}),
+        ((_peer("github", "github", "github"),), {"github": "github"}),
+        (
+            (
+                _peer("gitlab", "gitlab", "origin"),
+                _peer("github", "github", "github"),
+            ),
+            {"gitlab": "origin", "github": "github"},
+        ),
+    ],
+    ids=("local-only", "local-gitlab", "local-github", "local-dual-remote"),
+)
+def test_release_topology_supports_every_declared_peer_cardinality(
+    tmp_path: Path,
+    peers: tuple[dict[str, object], ...],
+    expected: dict[str, str],
+) -> None:
+    for path in ("dev/verify", "dev/install"):
+        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
+
+    topology = publication_topology(tmp_path, _declared_publication(*peers))
+
+    _fields(topology, state="ready", required_gaps=[])
+    assert topology_remotes(topology) == expected
+    assert [peer["id"] for peer in topology["remotes"]] == list(expected)
+    assert not ({"gitlab", "github"} - set(expected)) & set(topology)
+
+
+@pytest.mark.parametrize("field", ["id", "provider", "git_remote"])
+def test_release_topology_rejects_duplicate_peer_identity(tmp_path: Path, field: str) -> None:
+    for path in ("dev/verify", "dev/install"):
+        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
+    left = _peer("gitlab", "gitlab", "origin")
+    right = _peer("github", "github", "github")
+    right[field] = left[field]
+
+    topology = publication_topology(tmp_path, _declared_publication(left, right))
+
+    assert topology["state"] == "invalid"
+    assert f"publication_topology_peer_{field}_duplicate:{left[field]}" in topology["required_gaps"]
+
+
+def test_release_topology_rejects_legacy_scalar_with_declared_peers(tmp_path: Path) -> None:
+    for path in ("dev/verify", "dev/install"):
+        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
+    declaration = _declared_publication(_peer("gitlab", "gitlab", "origin"))
+    declaration["publication"]["github_remote"] = "github"
+
+    assert publication_topology(tmp_path, declaration)["required_gaps"] == [
+        "publication_topology_declaration_invalid"
+    ]
+
+
+def test_release_topology_requires_ci_surface_only_for_ci_capability(tmp_path: Path) -> None:
+    for path in ("dev/verify", "dev/install"):
+        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
+    repository_only = publication_topology(
+        tmp_path,
+        _declared_publication(_peer("gitlab", "gitlab", "origin")),
+    )
+    ci_peer = publication_topology(
+        tmp_path,
+        _declared_publication(
+            _peer(
+                "gitlab",
+                "gitlab",
+                "origin",
+                capabilities=("repository", "ci_cd", "publication"),
+            )
+        ),
+    )
+
+    assert repository_only["state"] == "ready"
+    assert ci_peer["required_gaps"] == ["publication_topology_peer_ci_surface_missing:gitlab"]
+
+
+@pytest.mark.parametrize(
+    ("updates", "gap"),
+    [
+        (
+            {"local_verification_command": ""},
+            "publication_topology_local_verification_command_missing",
+        ),
+        (
+            {"local_installation_command": "../install"},
+            "publication_topology_local_installation_command_path_escape:../install",
+        ),
+        (
+            {"local_verification_command": "missing"},
+            "publication_topology_local_verification_command_missing:missing",
+        ),
+    ],
+)
 def test_release_topology_rejects_invalid_declared_paths(
     tmp_path: Path, updates: dict[str, object], gap: str
 ) -> None:

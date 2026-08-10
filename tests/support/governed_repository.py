@@ -467,7 +467,7 @@ def write_publication_topology(
     gitlab_ci_surface: str = ".gitlab-ci.yml",
     github_ci_surface: str = ".github/workflows/verify.yml",
 ) -> None:
-    """Declare the canonical independent GitLab and GitHub test remotes."""
+    """Declare the canonical independent GitLab and GitHub test peers."""
     release = repo / ".ethos" / "release.toml"
     release.parent.mkdir(parents=True, exist_ok=True)
     for command in (verification_command, installation_command):
@@ -485,10 +485,22 @@ def write_publication_topology(
                 "[publication]",
                 f'local_verification_command = "{verification_command}"',
                 f'local_installation_command = "{installation_command}"',
-                f'gitlab_remote = "{gitlab_remote}"',
-                f'gitlab_ci_surface = "{gitlab_ci_surface}"',
-                f'github_remote = "{github_remote}"',
-                f'github_ci_surface = "{github_ci_surface}"',
+                "",
+                "[[publication.peers]]",
+                'id = "gitlab"',
+                'provider = "gitlab"',
+                'role = "organization_collaboration"',
+                f'git_remote = "{gitlab_remote}"',
+                'capabilities = ["repository", "ci_cd", "publication"]',
+                f'ci_surface = "{gitlab_ci_surface}"',
+                "",
+                "[[publication.peers]]",
+                'id = "github"',
+                'provider = "github"',
+                'role = "public_distribution"',
+                f'git_remote = "{github_remote}"',
+                'capabilities = ["repository", "ci_cd", "publication"]',
+                f'ci_surface = "{github_ci_surface}"',
                 "",
             )
         ),

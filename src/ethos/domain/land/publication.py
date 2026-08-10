@@ -32,7 +32,6 @@ _NOT_CHECKED_SYNC: dict[str, object] = {
     "required_gaps": [],
     "advisory_gaps": [],
 }
-_REMOTE_PAIR = 2
 
 
 def local_ci_fallback_evidence_status(
@@ -172,14 +171,8 @@ def publication_readiness(
         if isinstance(availability.get("tracking_sync"), dict)
         else dict(_NOT_CHECKED_SYNC)
     )
-    observations = {
-        key: _object(value)
-        for key, value in _object(
-            remote_observations,
-            {"gitlab": {"availability": availability, "sync": sync}},
-        ).items()
-    }
-    primary = observations.get("gitlab", {})
+    observations = {key: _object(value) for key, value in _object(remote_observations).items()}
+    primary = next(iter(observations.values()), {})
     availability, sync = (
         _object(primary.get("availability"), availability),
         _object(primary.get("sync"), sync),
@@ -203,12 +196,14 @@ def publication_readiness(
         _object(item.get("sync")).get("state") == "synchronized" for item in observations.values()
     )
     state = (
-        "synchronized"
+        "local_only"
+        if not observations
+        else "synchronized"
         if synchronized
         else "targets_available"
-        if remote_observations and len(available) == _REMOTE_PAIR
+        if len(available) == len(observations) and len(observations) > 1
         else "target_available"
-        if remote_observations and available
+        if available
         else "deferred"
     )
     evidence = fallback.get("evidence_status")

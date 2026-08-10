@@ -15,15 +15,15 @@ developer opens implementation code.
 Required product release surfaces are `README.md`, `LICENSE`,
 `CONTRIBUTING.md`, `CHANGELOG.md`, and `.ethos/release.toml`. Hosted forge and
 CI files are profile surfaces declared under `.ethos/release.toml`. The
-publication topology has three layers: local verification/install, GitLab
-organization collaboration, and GitHub public distribution. GitLab and GitHub
-are independent forge authority planes. A maintainer may select one configured
-remote for a bounded publication when the other is unavailable, but that choice
-does not assert synchronization, hosted CI success, or authority precedence.
-The `[publication]` table explicitly declares both local repository-native
-commands and each provider's CI surface. ETHOS validates that all paths remain
+publication topology always contains local verification/install and may declare
+zero or more remote peers. Local-only, either one of GitLab or GitHub, and both
+remotes are first-class topologies. No absent provider is inferred or required.
+The `[publication]` table declares the local repository-native commands;
+`[[publication.peers]]` tables declare each peer's ID, provider, role, Git
+remote, capabilities, and optional CI surface. A CI surface is required only
+when that peer declares `ci_cd`. ETHOS validates that declared paths remain
 regular files inside the repository and that local commands are executable; it
-never guesses ETHOS's own script or workflow layout for an adopter.
+never guesses a provider, remote, or tool layout for an adopter.
 
 Release readiness is proven with:
 
@@ -67,15 +67,14 @@ See also: [Documentation Index](../index.md), [Command Plane](../reference/comma
 ## Publication Boundary
 
 `candidate/dev` and every `work/*` branch are local-only integration state and
-MUST NOT be pushed to either declared remote. Remote admission is explicit by
+MUST NOT be pushed to any declared remote. Remote admission is explicit by
 remote name and permits only `dev`, `main`, and `proposal/*`. `ethos publish`
-observes each configured remote independently and never pushes or claims hosted
-CI success; local proof, candidate landing, accepted closeout, and each remote
-publication remain separate evidence states.
+observes each declared remote independently and never pushes or claims hosted
+CI success. With zero peers it reports local-only readiness and performs no
+remote observation. Local proof, candidate landing, accepted closeout, and each
+remote publication remain separate evidence states.
 
-When local closeout is complete and GitLab is unavailable, a non-force push of
-the accepted `dev` and release `main` heads to configured GitHub is permitted
-after GitHub's own ordinary dry-run and hook admission. Campaign terminal
-source-budget progress remains visible as advisory state; it is still required
-for full proof and global compression closeout, not a substitute for the
-per-head proof and accepted-closeout gates.
+When local closeout is complete, a non-force push of accepted `dev`, release
+`main`, or a `proposal/*` branch may target any explicitly declared peer after
+that peer's ordinary dry-run and hook admission. The existence or availability
+of another provider does not affect this authority.

@@ -22,6 +22,8 @@ readiness path; retirement must enforce the same boundary.
   reuse that authority in apply, without granting generic ref mutation.
 - Validate fresh lane Commitment identity and package-runtime provenance in
   dry-run before any lane-start effect.
+- Validate the final renamed package runtime, including its public console
+  entrypoint, before hooks can bind to it.
 
 ## Impact
 

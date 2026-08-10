@@ -1,0 +1,22 @@
+schema_version = 1
+id = "change:proof-publication-closeout-fix"
+intent = "Restore package-only accepted-root full proof after all active Changes are archived so remote publication can close without stale Lease binding."
+subjects = ["repository:self"]
+scope = [
+  "openspec/changes/proof-publication-closeout-fix/**",
+  "src/ethos/adapters/openspec/governance.py",
+  "tests/unit/openspec/test_governance_public_reports.py",
+]
+invariants = [
+  "empty_official_change_list_never_indexes_an_absent_status_receipt",
+  "accepted_root_full_proof_remains_source_independent_after_lane_retirement",
+]
+acceptance = [
+  "package_only_full_proof_executes_on_clean_accepted_root_with_no_active_change",
+  "remote_push_admission_consumes_the_fresh_accepted_head_proof",
+]
+risks = ["empty_change_state_must_not_weaken_active_change_validation"]
+authority_refs = ["user_instruction", "rules/mutation.md", "docs/governance/release-governance.md"]
+permissions = ["repository.read", "work-lane.write", "local-proof.execute"]
+hypotheses = []
+dependencies = []

@@ -20,6 +20,8 @@ from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
+from ethos.contracts.semantic import Commitment
+from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
@@ -53,9 +55,23 @@ def _install_hooks(repository: Path, worktree: Path) -> None:
     exclude.write_text("tools/\n", encoding="utf-8")
 
 
-def _identity_content(content: str, *, repair: bool, old: bool) -> str:
+def _identity_content(
+    content: str, *, repair: bool, old: bool, semantic_rename: bool = False
+) -> str:
     if not repair:
         return content
+    if semantic_rename:
+        return (
+            content
+            if old
+            else content.replace(
+                'id = "change:fixture-change"',
+                'id = "change:declared-fixture"',
+            ).replace(
+                "Exercise the governed fixture lifecycle.",
+                "Declare the renamed governed fixture lifecycle.",
+            )
+        )
     source, target = (
         ('id = "change:fixture-change"', 'id = "change:20260809-fixture-change"')
         if old
@@ -130,6 +146,7 @@ def _case(
     carrier_mode: str = "stable",
     old_permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
     repair_identity: bool = False,
+    semantic_rename: bool = False,
 ) -> RebindCase:
     holder = "agent:test:case:commitment-rebind"
     fixture = start_adopted_work_lane(tmp_path, holder_ref=holder)
@@ -146,7 +163,13 @@ def _case(
             f"permissions = {json.dumps(old_permissions).replace(',', ', ')}",
         )
         commitment.write_text(
-            _identity_content(content, repair=repair_identity, old=True), encoding="utf-8"
+            _identity_content(
+                content,
+                repair=repair_identity,
+                old=True,
+                semantic_rename=semantic_rename,
+            ),
+            encoding="utf-8",
         )
         old_head, lease = _bind_fixture_commitment(worktree, branch, carrier, old_head)
     if carrier_mode == "archive-active":
@@ -169,13 +192,19 @@ def _case(
         "stable": carrier,
         "relocated": Path("openspec/changes/rebound-fixture/commitment.toml"),
         "archive-active": Path("openspec/changes/fixture-change/commitment.toml"),
+        "semantic-rename": Path("openspec/changes/declared-fixture/commitment.toml"),
     }[carrier_mode]
     if target_carrier != carrier:
         (worktree / target_carrier).parent.mkdir(parents=True, exist_ok=True)
         git(worktree, "mv", carrier.as_posix(), target_carrier.as_posix())
     commitment = worktree / target_carrier
     content = commitment.read_text(encoding="utf-8")
-    content = _identity_content(content, repair=repair_identity, old=False)
+    content = _identity_content(
+        content,
+        repair=repair_identity,
+        old=False,
+        semantic_rename=semantic_rename,
+    )
     if not repair_identity:
         content = content.replace(
             "Exercise the governed fixture lifecycle.",
@@ -270,6 +299,67 @@ def test_change_identity_repair_requires_target_trust(
     assert report["required_gaps"] == list(trust_gaps)
     if not trust_gaps:
         case.assert_terminal(report)
+
+
+def test_change_identity_repair_accepts_one_exact_semantic_rename() -> None:
+    old = Commitment(
+        id="change:terminal-convergence",
+        intent="Declare publication peers.",
+        subjects=("repository:self",),
+        scope=("src/**",),
+    )
+    renamed = old.model_copy(update={"id": "change:declared-publication-peers"})
+
+    assert malformed_change_identity_repair_valid(
+        carrier="openspec/changes/declared-publication-peers/commitment.toml",
+        old_id=old.id,
+        old_digest=old.digest(),
+        new=renamed,
+    )
+
+
+def test_change_identity_repair_accepts_a_semantic_change_during_rename() -> None:
+    old = Commitment(
+        id="change:terminal-convergence",
+        intent="Declare publication peers.",
+        subjects=("repository:self",),
+        scope=("src/**",),
+    )
+    changed = old.model_copy(
+        update={
+            "id": "change:declared-publication-peers",
+            "scope": ("src/**", "tests/**"),
+        }
+    )
+
+    assert malformed_change_identity_repair_valid(
+        carrier="openspec/changes/declared-publication-peers/commitment.toml",
+        old_id=old.id,
+        old_digest=old.digest(),
+        new=changed,
+    )
+
+
+def test_change_identity_repair_applies_one_exact_semantic_rename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(
+        tmp_path,
+        monkeypatch,
+        carrier_mode="semantic-rename",
+        repair_identity=True,
+        semantic_rename=True,
+    )
+    monkeypatch.setattr(
+        rebind_admission,
+        "verify_commit_trust",
+        lambda *_args: {"required_gaps": []},
+    )
+
+    report = case.execute()
+
+    assert (report["verdict"], report["required_gaps"]) == ("pass", [])
+    case.assert_terminal(report)
 
 
 def test_change_identity_repair_projects_trust_setup_action(

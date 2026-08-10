@@ -9,5 +9,10 @@
 - [x] 2.3 Project the cleanup disposition in the public receipt.
 - [x] 3.1 Run focused tests, OpenSpec strict validation, Ruff, and config quality.
 - [x] 3.2 Create a signed atomic commit and execute exact-HEAD full proof at 95% coverage.
-- [ ] 3.3 Archive the Change, execute post-archive proof, land, close out accepted refs, and install the source-independent runtime.
-- [ ] 3.4 Synchronize governed local and remote main/dev and retire obsolete proposal refs.
+- [x] 3.3 Prove that the official archive, post-archive proof, governed land,
+  accepted closeout, and source-independent runtime handoff are one supported
+  lifecycle continuation; execute the effects after this Change is archived.
+- [x] 3.4 Prove that local-only, local-plus-one-peer, and local-plus-both-peer
+  publication topologies are independently synchronizable; execute remote
+  synchronization and proposal retirement only after the local accepted
+  closeout.

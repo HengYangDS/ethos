@@ -255,7 +255,7 @@ def test_landed_retirement_readiness_and_apply_share_exact_ref_authority(
     assert_public_decision(planned, verdict="pass", state="planned", gaps=[])
 
     applied = retire_linked_work_lane(
-        root=fixture.repository,
+        root=fixture.worktree,
         mode="landed",
         request=request.model_copy(update={"apply": True}),
     )

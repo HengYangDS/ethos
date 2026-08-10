@@ -13,6 +13,7 @@ scope = [
   "src/ethos/adapters/repo/git_effect_admission.py",
   "src/ethos/adapters/mutation/lane_retirement/absorbed.py",
   "src/ethos/adapters/mutation/lane_retirement/effects.py",
+  "src/ethos/adapters/mutation/lane_retirement/linked_effect.py",
   "src/ethos/adapters/mutation/lane_retirement/linked.py",
   "tests/unit/lanes/retirement/test_absorbed_ref_retirement.py",
   "tests/unit/lanes/retirement/test_linked_public_boundaries.py",

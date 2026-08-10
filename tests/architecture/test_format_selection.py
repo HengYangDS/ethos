@@ -45,11 +45,15 @@ def test_format_selection_receipt_exposes_owner_for_every_tracked_file() -> None
 
 def test_current_openspec_markdown_has_generic_and_semantic_validation() -> None:
     assignments = {entry["path"]: entry for entry in audit(ROOT)["assignments"]}
+    active_tasks = sorted(
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "openspec" / "changes").glob("*/tasks.md")
+    )
 
     for relative in (
         "openspec/config.yaml",
         "openspec/specs/quality/spec.md",
-        "openspec/changes/terminal-convergence/tasks.md",
+        *active_tasks,
     ):
         assignment = assignments[relative]
         assert assignment["format_owner"] == "official-openspec"

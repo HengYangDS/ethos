@@ -141,6 +141,36 @@ def test_governance_reports_malformed_command_payloads(monkeypatch, tmp_path):
     } <= set(malformed_report["required_gaps"])
 
 
+def test_governance_accepts_an_empty_official_change_list(monkeypatch, tmp_path):
+    root = _repo(tmp_path)
+    monkeypatch.setattr(cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(
+        governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
+    )
+
+    def run_empty(_root, _base, args):
+        if args[:2] == ("config", "list"):
+            return _receipt(payload={})
+        if args[:1] == ("doctor",):
+            return _receipt(payload={"root": {"healthy": True}})
+        if args[:1] == ("list",):
+            return _receipt(payload={"changes": []})
+        if args[:1] == ("validate",):
+            return _receipt(payload={"summary": {"totals": {"failed": 0}}})
+        raise AssertionError(args)
+
+    monkeypatch.setattr(cli, "run_json", run_empty)
+
+    report = governance.openspec_governance_report(root)
+
+    assert (report["verdict"], report["change"], report["required_gaps"]) == (
+        "pass",
+        None,
+        [],
+    )
+    assert report["commands"]["status"] == {}
+
+
 def test_governance_reports_invalid_commitment_and_artifact_paths(monkeypatch, tmp_path):
     root = _repo(tmp_path)
     monkeypatch.setattr(

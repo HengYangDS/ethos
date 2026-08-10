@@ -31,6 +31,7 @@ scope = [
   "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/release/test_policy_attestation.py",
   "tests/unit/lanes/lease/test_commitment_rebind.py",
+  "tests/unit/lanes/retirement/test_effect_failure_branches.py",
 ]
 invariants = [
   "only explicitly declared publication peers participate in admission observation reconciliation and publish",

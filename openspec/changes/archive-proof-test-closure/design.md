@@ -25,3 +25,8 @@ and prestate without mutation, and reports that plan in dry-run. Apply executes
 the same plan shape after immediate drift checks. Absorbed-ref authority is
 narrowly bound to `lane.retire`, one `work/*` deletion, an absent Lease and
 worktree binding, and the asserted accepted ancestor; it is not generic CAS.
+
+Fresh lane start follows the same parity rule: dry-run validates the explicit
+Commitment and the current package's immutable wheel provenance before effects.
+Apply therefore cannot first discover either static defect after creating a
+worktree, ref, or Lease.

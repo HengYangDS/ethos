@@ -20,6 +20,8 @@ readiness path; retirement must enforce the same boundary.
   hard-coded historical path.
 - Compile and admit the exact absorbed-ref retirement effect in dry-run and
   reuse that authority in apply, without granting generic ref mutation.
+- Validate fresh lane Commitment identity and package-runtime provenance in
+  dry-run before any lane-start effect.
 
 ## Impact
 

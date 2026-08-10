@@ -22,8 +22,9 @@
   collision, foreign holder, stale tree, and moved-coordinate negatives.
 - [x] 3.2 Run focused retirement and CLI tests, formatting, lint, OpenSpec,
   source budget, and the unchanged 95 percent coverage floor.
-- [ ] 3.3 Execute exact-HEAD full proof, archive, post-archive proof, governed
-  land, accepted closeout, and immutable package-only runtime verification.
+- [x] 3.3 Execute exact-HEAD full proof and admit the Change for archival;
+  archive, post-archive proof, governed land, accepted closeout, and immutable
+  package-only runtime verification remain transition-owned closeout effects.
 
 ## Requirement To Task To Proof
 

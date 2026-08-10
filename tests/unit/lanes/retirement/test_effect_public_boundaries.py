@@ -124,7 +124,11 @@ def test_failed_ref_transition_reports_each_preservation_failure(
         }[branch]
 
     monkeypatch.setattr(effects, "ref_outcome", outcome)
-    monkeypatch.setattr(effects, "restore_worktree", lambda *_args: restored)
+    monkeypatch.setattr(
+        effects,
+        "restore_worktree",
+        lambda *_args: {"state": "recognized" if restored else "blocked"},
+    )
 
     report = effects.failed_ref_transition(
         Path("/control"),
@@ -271,10 +275,20 @@ def test_effect_gaps_recheck_successor_checkout_and_archive_mapping(
 @pytest.mark.parametrize(
     ("path", "branch", "add_error", "expected"),
     [
-        ("", "work/source", False, False),
-        ("/lane", "", False, False),
-        ("/lane", "work/source", True, False),
-        ("/lane", "work/source", False, True),
+        (
+            "",
+            "work/source",
+            False,
+            {"state": "blocked", "error": "worktree_restore_coordinates_missing"},
+        ),
+        (
+            "/lane",
+            "",
+            False,
+            {"state": "blocked", "error": "worktree_restore_coordinates_missing"},
+        ),
+        ("/lane", "work/source", True, {"state": "blocked", "error": "restore rejected"}),
+        ("/lane", "work/source", False, {"state": "recognized"}),
     ],
 )
 def test_restore_worktree_reports_exact_compensation_outcome(
@@ -282,7 +296,7 @@ def test_restore_worktree_reports_exact_compensation_outcome(
     path: str,
     branch: str,
     add_error: int,
-    expected: int,
+    expected: dict[str, str],
 ) -> None:
     def add(*_args: object, **_kwargs: object) -> None:
         if add_error:
@@ -291,9 +305,7 @@ def test_restore_worktree_reports_exact_compensation_outcome(
 
     monkeypatch.setattr(effects, "add_worktree", add)
 
-    assert effects.restore_worktree(Path("/control"), _lane(path=path, branch=branch)) is bool(
-        expected
-    )
+    assert effects.restore_worktree(Path("/control"), _lane(path=path, branch=branch)) == expected
 
 
 @pytest.mark.parametrize(

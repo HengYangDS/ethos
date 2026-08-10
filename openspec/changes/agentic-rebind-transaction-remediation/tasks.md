@@ -18,7 +18,7 @@
   editor-root remediation for a valid Lease.
 - [x] 3.3 Prove checkout and source-independent package-only parity.
 - [x] 4.1 Run focused tests, OpenSpec strict validation, Ruff, and config quality.
-- [ ] 4.2 Create signed atomic commits and execute one exact-HEAD full proof at
+- [x] 4.2 Create signed atomic commits and execute one exact-HEAD full proof at
   the governed coverage floor.
 - [ ] 4.3 Archive, post-archive prove, land, accepted-closeout, and publish a new
   immutable source-independent runtime receipt.

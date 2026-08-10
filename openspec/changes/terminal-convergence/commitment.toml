@@ -5,7 +5,7 @@ subjects = ["repository:self"]
 scope = [
   ".ethos/release.toml",
   "docs/governance/release-governance.md",
-  "openspec/changes/declared-publication-peers/**",
+  "openspec/changes/terminal-convergence/**",
   "openspec/specs/distribution/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "src/ethos/adapters/admission/git_admission.py",

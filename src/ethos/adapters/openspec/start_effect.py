@@ -391,12 +391,18 @@ def _scope(
     source: str = "generation_commit",
 ) -> CurrentGenerationScope:
     selected, dirty_paths = set(paths), set(dirty)
+    archive_paths = set(string_sequence(archive.get("authorized_paths")))
     attributions: list[PathAttribution] = []
     for path in dict.fromkeys((*fallback, *paths)):
-        pattern = next(
-            (item for item in commitment.scope if repository_path_matches(path, item)), ""
-        )
         current = path in selected
+        effect_authorized = current and source == "archive_effect" and path in archive_paths
+        pattern = (
+            "effect:openspec-archive"
+            if effect_authorized
+            else next(
+                (item for item in commitment.scope if repository_path_matches(path, item)), ""
+            )
+        )
         attributions.append(
             PathAttribution(
                 path,

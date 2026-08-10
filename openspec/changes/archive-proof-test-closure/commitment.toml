@@ -8,6 +8,8 @@ scope = [
   "openspec/changes/archive-proof-test-closure/**",
   "tests/architecture/test_product_design_contract.py",
   "tests/architecture/test_format_selection.py",
+  ".config/checks/format/selection.toml",
+  "docs/decisions/DR-0008-metric-domain-budget-contract.md",
   "src/ethos/adapters/mutation/lane_lifecycle/change_rollover.py",
   "tests/unit/cli/test_openspec_change_rollover.py",
   "src/ethos/adapters/repo/git_effect_admission.py",

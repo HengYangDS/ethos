@@ -181,6 +181,17 @@ line count proves design quality. The 95 percent coverage floor, semantic
 ownership, authority/CAS behavior, and module-layout checks remain independently
 blocking.
 
+The terminal test ceiling was subsequently recalibrated through repository
+snapshots (30,000, 32,600, and 33,000). The 33,000 snapshot admitted 32,710
+test ELOC, leaving only 290 ELOC (0.89 percent) while 95 percent branch-aware
+coverage remained independently required. When exact public land and retirement
+regressions raised the measured total to 33,020, preserving 33,000 would again
+reward assertion deletion and test packing. The stable successor is therefore
+34,000: the current exact total rounded upward to the next thousand-ELOC
+guardrail. It leaves 980 ELOC (2.97 percent) bounded reserve, changes no product,
+tool, other-Python, global, file-size, or coverage threshold, and must be
+revisited rather than silently raised if exhausted.
+
 ## Decision Change Ledger
 
 | Version | Date | Change | Reason | Evidence |
@@ -189,3 +200,4 @@ blocking.
 | 2 | 2026-07-28 | Superseded the private vector runtime with direct measurement | Preserve anti-gaming with less machinery | Terminal quality contract and source-budget tests |
 | 3 | 2026-08-09 | Replaced the compensating Python scalar with role-local terminal coordinates | Prevent test deletion from subsidizing product or automation growth while retaining the global ceiling | Terminal quality contract, generation comparison, and non-compensation regressions |
 | 4 | 2026-08-09 | Recalibrated role and global source ceilings while retaining 95 percent coverage | The inherited source thresholds were jointly infeasible with the required coverage floor and distorted implementation toward metric gaming | Exact role measurements, current non-Python footprint, and branch-aware coverage artifact |
+| 5 | 2026-08-10 | Recalibrated the test ceiling to 34,000 while retaining 95 percent coverage | The 33,000 snapshot left 0.89 percent reserve and blocked exact public lifecycle regressions; next-thousand rounding gives a bounded 2.97 percent reserve without changing other coordinates | Snapshot measurements at 32,710 and 33,020 test ELOC, source-budget gate, and branch-aware coverage gate |

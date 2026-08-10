@@ -20,6 +20,7 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git import same_git_repository
+from ethos.adapters.repo.hook_runtime_install import require_runtime_wheel_provenance
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -86,8 +87,6 @@ def start_work_lane(
         }
     if block := profile_block or holder_block:
         return block
-    if not apply:
-        return planned_lane_start(branch=branch, target=target)
     candidate, admission_block = admit_lane_start(repo, branch=branch, target=target)
     if admission_block:
         return admission_block
@@ -101,6 +100,12 @@ def start_work_lane(
     )
     if commitment_block:
         return commitment_block
+    try:
+        require_runtime_wheel_provenance()
+    except ValueError as error:
+        return blocked_lane_start(branch, target, str(error))
+    if not apply:
+        return planned_lane_start(branch=branch, target=target)
     guard = local_state_mutation_guard(repo)
     if guard["required_gaps"]:
         commitment_block = blocked_lane_start(

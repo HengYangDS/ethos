@@ -155,6 +155,65 @@ def test_start_work_lane_rejects_ambiguous_fresh_and_source_inputs(tmp_path: Pat
     assert report["required_gaps"] == ["lane_start_intent_ambiguous"]
 
 
+def test_start_work_lane_dry_run_validates_required_and_bound_commitment(tmp_path: Path) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-fresh-change"
+
+    missing = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        path=target,
+        holder_ref=_HOLDER,
+    )
+    mismatched = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        commitment_path=_fresh_commitment(tmp_path / "commitment.toml", "other-change"),
+        path=target,
+        holder_ref=_HOLDER,
+    )
+    planned = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        commitment_path=_fresh_commitment(tmp_path / "commitment.toml"),
+        path=target,
+        holder_ref=_HOLDER,
+    )
+
+    assert missing["required_gaps"] == ["lane_start_commitment_required"]
+    assert mismatched["required_gaps"] == ["lane_start_commitment_identity_mismatch"]
+    assert (planned["verdict"], planned["state"], planned["required_gaps"]) == (
+        "pass",
+        "planned",
+        [],
+    )
+    assert ref_head(repo, "work/fresh-change") == ""
+    assert not target.exists()
+
+
+def test_start_work_lane_dry_run_rejects_unproven_hook_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-fresh-change"
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.lanes.require_runtime_wheel_provenance",
+        lambda: (_ for _ in ()).throw(ValueError("hook_runtime_wheel_provenance_missing")),
+    )
+
+    report = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        commitment_path=_fresh_commitment(tmp_path / "commitment.toml"),
+        path=target,
+        holder_ref=_HOLDER,
+    )
+
+    assert report["required_gaps"] == ["hook_runtime_wheel_provenance_missing"]
+    assert ref_head(repo, "work/fresh-change") == ""
+    assert not target.exists()
+
+
 @pytest.mark.parametrize(
     ("commitment", "gap"),
     literal_case(

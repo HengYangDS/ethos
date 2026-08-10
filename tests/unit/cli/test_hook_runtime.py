@@ -258,6 +258,24 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     runtime_python = Path(report["data"]["python"])
     package_venv.rename(tmp_path / "retired-package-venv")
     runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
+    rebind_help = subprocess.run(
+        (runtime_ethos, "lane", "rebind-commitment", "--help"),
+        capture_output=True,
+        text=True,
+        check=False,
+        env={key: value for key, value in environment.items() if key != "PYTHONPATH"},
+    )
+    derive_help = subprocess.run(
+        (runtime_ethos, "lane", "rebind-commitment", "derive", "--help"),
+        capture_output=True,
+        text=True,
+        check=False,
+        env={key: value for key, value in environment.items() if key != "PYTHONPATH"},
+    )
+    assert rebind_help.returncode == 0, rebind_help.stderr
+    assert "--receipt" in rebind_help.stdout
+    assert derive_help.returncode == 0, derive_help.stderr
+    assert "--target-commit" in derive_help.stdout
     version = subprocess.run(
         (runtime_ethos, "--version"),
         capture_output=True,

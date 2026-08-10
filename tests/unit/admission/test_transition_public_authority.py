@@ -113,6 +113,42 @@ def test_commitment_rebind_transition_requires_exact_intent_and_cas_coordinates(
     assert report["decision"] == {"action": "allow", "reason": reason}
 
 
+def test_commitment_change_without_intent_projects_one_derive_remediation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _repo, lane, head = _lane(tmp_path, monkeypatch)
+    target = _target_commit(lane, head)
+
+    report = _report(lane, "prepared", head, target)
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["commitment_rebind_required"]
+    assert report["target_commit"] == target
+    assert report["partial_effects"] == {
+        "commit_object_created": True,
+        "ref_updated": False,
+        "lease_updated": False,
+        "index_updated": False,
+    }
+    assert report["next_action"] == (
+        f"ethos lane rebind-commitment derive --target-commit {target} --json"
+    )
+    assert report["remediation"] == [
+        {
+            "gap": "commitment_rebind_required",
+            "kind": "authority_denied",
+            "owner": "lane rebind-commitment",
+            "reason": "active Commitment bytes or semantics changed",
+            "retryable": True,
+            "mutation": False,
+            "user_decision_required": False,
+            "next_command": (
+                f"ethos lane rebind-commitment derive --target-commit {target} --json"
+            ),
+        }
+    ]
+
+
 @pytest.mark.parametrize(
     ("case", "expected"),
     [

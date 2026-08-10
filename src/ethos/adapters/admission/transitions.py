@@ -301,6 +301,43 @@ def _commitment_rebind_report(
     )
     gap = str(intent["gap"] or "")
     if gap:
+        if gap == "ref_intent_missing" and phase == "prepared":
+            report = _report(
+                phase,
+                ref_name,
+                update.expected,
+                update.desired,
+                lease,
+                ["commitment_rebind_required"],
+                "commitment_rebind_required",
+            )
+            next_command = (
+                f"ethos lane rebind-commitment derive --target-commit {update.desired} --json"
+            )
+            report.update(
+                target_commit=update.desired,
+                target_commit_valid=True,
+                partial_effects={
+                    "commit_object_created": True,
+                    "ref_updated": False,
+                    "lease_updated": False,
+                    "index_updated": False,
+                },
+                next_action=next_command,
+                remediation=[
+                    {
+                        "gap": "commitment_rebind_required",
+                        "kind": "authority_denied",
+                        "owner": "lane rebind-commitment",
+                        "reason": "active Commitment bytes or semantics changed",
+                        "retryable": True,
+                        "mutation": False,
+                        "user_decision_required": False,
+                        "next_command": next_command,
+                    }
+                ],
+            )
+            return report
         if gap != "ref_intent_missing":
             gaps[:] = [gap]
         return None

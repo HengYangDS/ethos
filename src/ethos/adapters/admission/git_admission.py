@@ -410,6 +410,13 @@ def _relative(root: Path, path: Path) -> str:
 def _prewrite_block_next_action(admission: dict[str, object]) -> str:
     lease = admission.get("work_lane_lease")
     reason = str(lease.get("reason") or "") if isinstance(lease, dict) else ""
+    if reason.startswith("invocation_actor_missing:"):
+        holder = str(lease.get("holder_ref") or "").strip() if isinstance(lease, dict) else ""
+        return (
+            f"set ETHOS_ACTOR={holder} and rerun the blocked command"
+            if holder
+            else "set ETHOS_ACTOR to the current holder_ref and rerun the blocked command"
+        )
     if reason.startswith("lease_holder_mismatch:"):
         holder = str(lease.get("holder_ref") or "").strip() if isinstance(lease, dict) else ""
         return (
@@ -422,6 +429,11 @@ def _prewrite_block_next_action(admission: dict[str, object]) -> str:
             "ethos lane start <name> --commitment <commitment.toml> "
             "--holder-ref <holder-ref> --apply --json"
         )
+    editor = admission.get("editor_root")
+    editor_reason = str(editor.get("reason") or "") if isinstance(editor, dict) else ""
+    if editor_reason == "editor_root_missing":
+        expected = str(editor.get("expected") or "")
+        return f"ethos lane prewrite <path> --editor-root {expected} --require-editor-root --json"
     return "ethos lane prewrite <path>"
 
 

@@ -105,6 +105,16 @@ def prewrite_guard(
         required_gaps=tuple(gaps),
     )
     decision = _prewrite_decision(root, effective, checked, lease, verdict, tuple(gaps))
+    next_action = ""
+    editor_reason = str(editor.get("reason") or "")
+    if editor_reason == "editor_root_missing":
+        next_action = (
+            f"ethos lane prewrite <path> --editor-root {editor['expected']} "
+            "--require-editor-root --json"
+        )
+    elif str(lease.get("reason") or "").startswith("invocation_actor_missing:"):
+        holder = str(lease.get("holder_ref") or "")
+        next_action = f"set ETHOS_ACTOR={holder} and rerun the blocked command"
     return {
         "verdict": decision.verdict,
         "error": gaps[0] if gaps else "",
@@ -124,6 +134,7 @@ def prewrite_guard(
         "request_binding": decision.subject.model_dump(mode="json"),
         "decision": decision.to_payload(),
         "required_gaps": gaps,
+        "next_action": next_action,
     }
 
 
@@ -268,6 +279,10 @@ def _lease_binding_reason(
         reason = str(exc)
         commitment_reason = f"{reason}:{branch}" if reason.startswith("lease_base_") else reason
     checks = (
+        (
+            not actor,
+            f"invocation_actor_missing:{branch}",
+        ),
         (
             actor != str(lease.get("holder_ref") or ""),
             f"lease_holder_mismatch:{branch}",

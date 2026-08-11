@@ -39,6 +39,8 @@ scope = [
   "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/release/test_policy_attestation.py",
   "tools/ci/local_install_smoke.py",
+  "tools/ci/python_test_gate.py",
+  "tests/architecture/test_release_assets.py",
   "tools/ci/sessions.py",
 ]
 invariants = [

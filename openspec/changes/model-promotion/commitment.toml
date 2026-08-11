@@ -1,0 +1,39 @@
+schema_version = 1
+id = "change:model-promotion"
+intent = "Promote ETHOS to one minimal declarative governance model with derived transitions, receipt-bound exact effects, self-contained package runtime, and evidence-closed local and peer publication."
+subjects = ["repository:ethos"]
+scope = ["**"]
+invariants = [
+  "only_commitment_and_attestation_persist_semantic_authority",
+  "all_mutation_follows_observe_derive_receipt_exact_cas_post_observe_attest",
+  "one_declaration_owner_exists_for_each_policy_and_projection",
+  "adopters_and_foreign_lanes_remain_unmodified",
+  "cross_peer_atomicity_is_never_claimed",
+]
+acceptance = [
+  "semantic_kernel_and_operation_authority_are_single_owner",
+  "work_lane_and_transition_topologies_are_exact_and_recoverable",
+  "local_and_peer_publication_are_independently_attested",
+  "package_only_runtime_is_source_independent_and_cross_version",
+  "quality_profile_schema_help_hooks_and_remediation_are_isomorphic",
+  "fresh_exact_head_full_proof_archive_land_and_accepted_closeout_pass",
+]
+risks = [
+  "destructive_model_replacement_exposes_hidden_duplicate_authority",
+  "provider_native_histories_require_explicit_projection_receipts",
+  "package_runtime_drift_can invalidate_public_recovery",
+]
+authority_refs = [
+  "user_instruction",
+  "AGENTS.md",
+  "docs/governance/product-design-contract.md",
+  "rules/declarative_lifecycle.md",
+]
+permissions = [
+  "repository.read",
+  "work-lane.write",
+  "git.ref.compare-and-swap",
+  "local-proof.execute",
+]
+hypotheses = []
+dependencies = []

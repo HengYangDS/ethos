@@ -27,6 +27,75 @@ if TYPE_CHECKING:
 _ZERO_OID = "0" * 40
 
 
+def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
+    completed = git.run_network_git(root, "ls-remote", remote, ref)
+    if completed.returncode != 0:
+        return {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "unavailable",
+            "head": "",
+            "exit_code": completed.returncode,
+            "stderr": completed.stderr.strip(),
+        }
+    rows = tuple(line.split() for line in completed.stdout.splitlines() if line.strip())
+    if not rows:
+        return {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "absent",
+            "head": _ZERO_OID,
+            "exit_code": 0,
+            "stderr": "",
+        }
+    if len(rows) != 1 or len(rows[0]) != 2 or rows[0][1] != ref:
+        return {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "unavailable",
+            "head": "",
+            "exit_code": 1,
+            "stderr": "remote_ref_observation_ambiguous",
+        }
+    return {
+        "kind": "git_remote_ref_observation",
+        "remote": remote,
+        "ref": ref,
+        "state": "present",
+        "head": rows[0][0],
+        "exit_code": 0,
+        "stderr": "",
+    }
+
+
+def _push_remote_ref_exact(
+    root: Path,
+    *,
+    remote: str,
+    target_ref: str,
+    expected: str,
+    desired: str,
+) -> dict[str, object]:
+    lease = f"--force-with-lease={target_ref}:{'' if expected == _ZERO_OID else expected}"
+    completed = git.run_network_git(
+        root,
+        "push",
+        "--porcelain",
+        lease,
+        remote,
+        f"{desired}:{target_ref}",
+    )
+    return {
+        "state": "applied" if completed.returncode == 0 else "failed",
+        "exit_code": completed.returncode,
+        "stdout": completed.stdout.strip(),
+        "stderr": completed.stderr.strip(),
+    }
+
+
 def observe_remote_publication_effect(
     *,
     root: Path,
@@ -39,7 +108,7 @@ def observe_remote_publication_effect(
     targets: list[RemotePublicationTarget] = []
     gaps: list[str] = []
     for peer_id, remote in remotes.items():
-        observation = git.remote_ref_observation(root, remote, target_ref)
+        observation = _observe_remote_ref(root, remote, target_ref)
         observations[peer_id] = observation
         state = str(observation.get("state") or "unavailable")
         if state == "unavailable":
@@ -147,7 +216,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
     """Execute peer-local CAS pushes after a complete fresh preflight."""
     effect = remote_publication_effect_from_plan(plan)
     observations = {
-        target.id: git.remote_ref_observation(root, target.remote, target.target_ref)
+        target.id: _observe_remote_ref(root, target.remote, target.target_ref)
         for target in effect.targets
     }
     gaps = tuple(
@@ -188,7 +257,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
                 }
             )
             continue
-        result = git.push_remote_ref_exact(
+        result = _push_remote_ref_exact(
             root,
             remote=target.remote,
             target_ref=target.target_ref,
@@ -196,7 +265,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
             desired=target.desired,
         )
         attempts.append({"id": target.id, "remote": target.remote, **result})
-        observed = git.remote_ref_observation(root, target.remote, target.target_ref)
+        observed = _observe_remote_ref(root, target.remote, target.target_ref)
         if result["state"] != "applied" or observed.get("head") != target.desired:
             gap = f"publication_proposal_push_failed:{target.id}:{target.remote}"
             return _terminal_result(

@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import os
-import shlex
-import shutil
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
@@ -106,38 +103,6 @@ def _host_profile(config: dict[str, Any]) -> dict[str, Any]:
     return {"provider": "", "layer": "profile_config", "surfaces": {}}
 
 
-def _local_command_gaps(root: Path, publication: dict[str, Any]) -> list[str]:
-    local = publication.get("local", {})
-    local = local if isinstance(local, dict) else {}
-    resolved_root = root.resolve()
-    gaps: list[str] = []
-    for field in ("verification_command", "installation_command"):
-        command = str(local.get(field) or "")
-        if not command:
-            gaps.append(f"release_local_command_missing:{field}:")
-            continue
-        try:
-            argv = shlex.split(command)
-        except ValueError:
-            gaps.append(f"release_local_command_invalid:{field}:{command}")
-            continue
-        if not argv:
-            gaps.append(f"release_local_command_missing:{field}:")
-            continue
-        command_path = (resolved_root / argv[0]).resolve()
-        if not command_path.is_relative_to(resolved_root):
-            gaps.append(f"release_local_command_path_escape:{field}:{command}")
-        elif not command_path.exists() and not shutil.which(argv[0]):
-            gaps.append(f"release_local_command_missing:{field}:{command}")
-        elif not command_path.exists():
-            continue
-        elif not command_path.is_file():
-            gaps.append(f"release_local_command_not_regular:{field}:{command}")
-        elif not os.access(command_path, os.X_OK):
-            gaps.append(f"release_local_command_not_executable:{field}:{command}")
-    return gaps
-
-
 def release_policy_report(root: Path) -> dict[str, Any]:
     config_path = root / ".ethos" / "release.toml"
     config = release_config(root)
@@ -169,7 +134,6 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     publication_gaps = publication.get("required_gaps", [])
     if isinstance(publication_gaps, list):
         gaps.extend(str(gap) for gap in publication_gaps)
-    gaps.extend(_local_command_gaps(root, publication))
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,

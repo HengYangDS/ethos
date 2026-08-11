@@ -108,12 +108,12 @@ task store, or a speculative forest of lanes.
 | `repository-knowledge-grammar` | `accepted-spec-reconciliation`, `portable-reference-boundary` | Docs, flat DRs, rules, schemas, skills, and specs have narrow owners, strong grammar, and no ambiguous catch-all. |
 | `knowledge-evolution` | `repository-knowledge-grammar` | Novelty, contradiction, overlap, learning, absorption, and retirement change the earliest enforceable owner. |
 | `hermetic-quality-toolchain` | `accepted-spec-reconciliation` | Project `.venv`, uv, Nox, Hatchling, native formatters, and zero-warning checks are the sole local/hosted execution owners. |
-| `forge-projection-homomorphism` | `repository-knowledge-grammar`, `hermetic-quality-toolchain` | GitLab and GitHub are independent complete projections of one portable contract. |
+| `forge-projection-homomorphism` | `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Every declared forge peer is an independent complete projection of one portable contract. |
 | `terminal-compression` | `portable-reference-boundary`, `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Repository-wide architecture, duplication, coverage, and ELOC constraints pass with no suppressions or compatibility residue. |
 | `adopter-product-surfaces` | `openspec-18-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Three adopter shapes and CLI, SDK, JSON, schema, MCP/A2A projections prove the same kernel and first-hour UX. |
 | `workflow-method-evaluation` | `adopter-product-surfaces`, `hermetic-quality-toolchain` | Matched evaluation admits only methods or tools that improve completion, time, token, recovery, and terminal size without a second owner. |
 | `terminal-local-closeout` | all preceding local outcomes | One immutable HEAD passes full local proof, advances candidate and `dev`, and retires every owned lane. |
-| `dual-provider-publication` | `terminal-local-closeout` | One `proposal/*` sequence proves and publishes the same signed artifacts independently on GitLab and GitHub. |
+| `dual-provider-publication` | `terminal-local-closeout` | One `proposal/*` sequence proves and publishes the same signed artifacts independently on every declared peer; zero peers remains a valid local-only topology. |
 
 Each row remains an independently provable phase outcome in the current Change.
 Rows may collaborate concurrently only when their dependency and scope facts
@@ -127,8 +127,8 @@ admit it; completion remains owned solely by the corresponding tasks.
 2. **Compile, do not narrate.** Keep authority, bindings, invalid states, and
    effects in the owning contract and executable verifier; documentation links
    to them as a projection.
-3. **Separate planes.** Local proof, GitLab observation, and GitHub observation
-   produce distinct attestations and cannot imply one another.
+3. **Separate planes.** Local proof and each declared peer observation produce
+   distinct attestations and cannot imply one another.
 4. **Retire only after relation proof.** A carrier is removed only after its
    inbound consumers, preserved history, replacement owner, and projection
    references are checked.

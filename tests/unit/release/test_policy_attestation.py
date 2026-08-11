@@ -195,35 +195,12 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     topology = report["publication_topology"]
     _fields(topology, state="ready", local=_LOCAL)
     assert "legacy" not in topology
-    assert topology["gitlab"]["capabilities"] == ["repository", "ci_cd", "publication"]
-    assert topology["github"]["capabilities"] == ["repository", "ci_cd", "publication"]
-    assert topology["gitlab"]["git_remote"] != topology["github"]["git_remote"]
-
-
-@pytest.mark.parametrize(
-    ("kind", "command", "gap"),
-    literal_case(
-        "release.test_policy_attestation:parametrize:test_release_policy_rejects_invalid_local_install_owner:3"
-    ),
-)
-def test_release_policy_rejects_invalid_local_install_owner(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str, command: str, gap: str
-) -> None:
-    root = _root(tmp_path)
-    if kind == "not_executable":
-        _write(root, command, "#!/bin/sh\n")
-    elif kind == "not_regular":
-        (root / command).mkdir()
-    elif kind == "escape":
-        _write(tmp_path, "outside.sh", "#!/bin/sh\n", executable=True)
-    monkeypatch.setattr(
-        release_core,
-        "publication_topology",
-        lambda _root, _config: {"local": {"installation_command": command}, "required_gaps": ()},
+    peers = {peer["id"]: peer for peer in topology["remotes"]}
+    assert {peer["git_remote"] for peer in peers.values()} == {"origin", "github"}
+    assert all(
+        peer["capabilities"] == ["repository", "ci_cd", "publication"] for peer in peers.values()
     )
-    report = release_policy_report(root)
-    assert report["verdict"] == "block"
-    assert gap in report["required_gaps"]
+    assert not ({"gitlab", "github"} & set(topology))
 
 
 def test_release_policy_ignores_malformed_publication_gap_collection(
@@ -266,11 +243,49 @@ def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
     admission = publication_branch_admission(
         topology,
         branch="dev",
-        candidate_branch="candidate/dev",
+        role="accepted_root",
         remote_name="origin",
-        enforce=False,
     )
     assert admission["enforcement_gaps"] == ["publication_topology_declaration_invalid"]
+
+
+@pytest.mark.parametrize(
+    ("role", "branch", "state"),
+    [
+        ("accepted_root", "dev", "eligible"),
+        ("release_root", "main", "eligible"),
+        ("proposal_lane", "proposal/topic", "eligible"),
+        ("candidate", "candidate/dev", "unavailable"),
+        ("work_lane", "work/topic", "unavailable"),
+    ],
+)
+def test_release_topology_admits_only_positive_remote_publication_roles(
+    tmp_path: Path, role: str, branch: str, state: str
+) -> None:
+    for path in ("dev/verify", "dev/install"):
+        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
+    topology = publication_topology(
+        tmp_path,
+        _declared_publication(_peer("gitlab", "gitlab", "origin")),
+    )
+
+    admission = publication_branch_admission(
+        topology,
+        branch=branch,
+        role=role,
+        remote_name="origin",
+    )
+
+    assert admission["remote_publication_roles"] == [
+        "accepted_root",
+        "proposal_lane",
+        "release_root",
+    ]
+    assert admission["state"] == state
+    assert admission["remote_mutation_allowed"] is (state == "eligible")
+    assert admission["enforcement_gaps"] == (
+        [] if state == "eligible" else [f"publication_remote_role_unavailable:{role}:{branch}"]
+    )
 
 
 def test_release_topology_uses_declared_repository_native_commands_and_ci_surfaces(
@@ -288,8 +303,10 @@ def test_release_topology_uses_declared_repository_native_commands_and_ci_surfac
     _fields(
         topology["local"], verification_command="dev/verify", installation_command="dev/install"
     )
-    assert topology["gitlab"]["ci_surface"] == ".gitlab-ci.yml"
-    assert topology["github"]["ci_surface"] == ".github/workflows/verify.yml"
+    assert {peer["id"]: peer["ci_surface"] for peer in topology["remotes"]} == {
+        "gitlab": ".gitlab-ci.yml",
+        "github": ".github/workflows/verify.yml",
+    }
 
 
 @pytest.mark.parametrize(
@@ -321,10 +338,10 @@ def test_release_topology_supports_every_declared_peer_cardinality(
     _fields(topology, state="ready", required_gaps=[])
     assert topology_remotes(topology) == expected
     assert [peer["id"] for peer in topology["remotes"]] == list(expected)
-    assert not ({"gitlab", "github"} - set(expected)) & set(topology)
+    assert not ({"gitlab", "github"} & set(topology))
 
 
-@pytest.mark.parametrize("field", ["id", "provider", "git_remote"])
+@pytest.mark.parametrize("field", ["id", "git_remote"])
 def test_release_topology_rejects_duplicate_peer_identity(tmp_path: Path, field: str) -> None:
     for path in ("dev/verify", "dev/install"):
         _write(tmp_path, path, "#!/bin/sh\n", executable=True)
@@ -336,6 +353,25 @@ def test_release_topology_rejects_duplicate_peer_identity(tmp_path: Path, field:
 
     assert topology["state"] == "invalid"
     assert f"publication_topology_peer_{field}_duplicate:{left[field]}" in topology["required_gaps"]
+
+
+def test_release_topology_allows_multiple_peers_from_one_provider(tmp_path: Path) -> None:
+    for path in ("dev/verify", "dev/install"):
+        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
+
+    topology = publication_topology(
+        tmp_path,
+        _declared_publication(
+            _peer("gitlab-internal", "gitlab", "origin"),
+            _peer("gitlab-public", "gitlab", "public"),
+        ),
+    )
+
+    _fields(topology, state="ready", required_gaps=[])
+    assert topology_remotes(topology) == {
+        "gitlab-internal": "origin",
+        "gitlab-public": "public",
+    }
 
 
 def test_release_topology_rejects_legacy_scalar_with_declared_peers(tmp_path: Path) -> None:

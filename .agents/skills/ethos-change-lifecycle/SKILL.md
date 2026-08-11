@@ -22,8 +22,14 @@ governs whether a change may land or publish from evidence, not assertion.
    executed proof. Only `--execute` produces HEAD-bound evidence.
 4. Run `ethos land --json`; the verdict gates the fast-forward to the candidate
    role. A blocked verdict refuses (non-zero exit); read `required_gaps`.
-5. Run `ethos publish --json` for local publication readiness. Remote push is a
-   deferred, separately human-authorized step — stop before it.
+5. Run `ethos publish --json` for local publication readiness. In proposal/MR
+   mode, derive the proposal from the proved local candidate branch with
+   `ethos publish --proposal <slug> --probe-remote --expect-head <head> --json`.
+   Add `--apply --authorize` to consume that request in the same operation, or
+   apply the receipt explicitly for restartable execution. Both forms use the
+   same exact-CAS executor and recheck every declared peer before any push.
+   In local-first mode, close candidate into accepted `dev`/`main` and then
+   synchronize those accepted refs; do not create a proposal from accepted.
 
 ## Evidence
 
@@ -34,6 +40,7 @@ ethos status --json
 ethos plan --changed --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ethos land --json
+ethos publish --proposal <slug> --probe-remote --expect-head "$(git rev-parse HEAD)" --json
 ethos status --json
 ```
 

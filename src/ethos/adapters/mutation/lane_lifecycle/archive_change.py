@@ -15,8 +15,8 @@ from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.mutation.proof import persist_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_artifacts import persist_attestation
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report

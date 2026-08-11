@@ -4,6 +4,7 @@ intent = "Complete declared-peer proposal publication through one TransitionPlan
 subjects = ["repository:self"]
 scope = [
   ".agents/skills/ethos-change-lifecycle/SKILL.md",
+  ".agents/skills/ethos-change-lifecycle/package.toml",
   ".agents/skills/ethos-change-lifecycle/references/verdicts-and-gaps.md",
   ".config/checks/format/selection.toml",
   "docs/architecture/runner-and-mutation.md",

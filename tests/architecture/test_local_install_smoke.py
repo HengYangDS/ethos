@@ -33,6 +33,7 @@ def test_package_only_runtime_behavior_remains_owned_by_install_smoke() -> None:
     assert "build/runtime/work/local-install-smoke" in owner
     assert '"external_governance_available": False' in owner
     assert '"hosted_ci_status_claimed": False' in owner
+    assert '"publish", "--proposal"' in owner
 
 
 def test_install_smoke_prepares_frozen_supply_before_offline_install(

@@ -10,6 +10,8 @@ fragments that duplicate the declared peer collection.
 ## What changes
 
 - Compile all declared proposal targets into one immutable `TransitionPlan`.
+- Bind proposal/MR publication to the proved local candidate, while local-first
+  closeout remains candidate to accepted followed by remote synchronization.
 - Persist the dry-run plan in the existing request store and replay it through
   one exact-CAS executor after rechecking repository and remote coordinates.
 - Attest each peer-local result and expose partial effects without claiming

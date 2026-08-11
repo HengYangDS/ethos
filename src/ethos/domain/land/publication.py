@@ -15,23 +15,6 @@ if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
 
 LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
-_NOT_PROBED: dict[str, object] = {
-    "kind": "git_remote_availability",
-    "remote": "origin",
-    "state": "not_probed",
-    "available": False,
-    "blocking": False,
-    "required_gaps": [],
-    "advisory_gaps": [],
-}
-_NOT_CHECKED_SYNC: dict[str, object] = {
-    "kind": "git_remote_tracking_sync",
-    "state": "not_checked",
-    "available": False,
-    "blocking": False,
-    "required_gaps": [],
-    "advisory_gaps": [],
-}
 
 
 def local_ci_fallback_evidence_status(
@@ -39,7 +22,6 @@ def local_ci_fallback_evidence_status(
     *,
     current_head: str,
     command: str,
-    remote_availability_state: str = "not_probed",
 ) -> dict[str, object]:
     """Project whether local-ci fallback evidence is bound to the current HEAD."""
     relative = LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix()
@@ -59,22 +41,6 @@ def local_ci_fallback_evidence_status(
         and evidence_command == command
         and report_verdict(payload) == "pass"
     )
-    action = _fallback_action(command)
-    if current:
-        state = (
-            "not probed"
-            if remote_availability_state == "not_probed"
-            else "unavailable"
-            if remote_availability_state in {"unavailable", "unconfigured"}
-            else "observed"
-        )
-        action = (
-            "remote availability not probed; local-ci fallback evidence is current at HEAD"
-            if state == "not probed"
-            else "remote unavailable; local-ci fallback evidence is current at HEAD"
-            if state == "unavailable"
-            else "remote availability observed; local-ci fallback evidence is current at HEAD"
-        )
     return {
         "state": "current" if current else "stale",
         "path": relative,
@@ -82,7 +48,11 @@ def local_ci_fallback_evidence_status(
         "evidence_head": evidence_head,
         "verdict": "pass" if current else "block",
         "command": evidence_command,
-        "next_action": action,
+        "next_action": (
+            "local-ci fallback evidence is current at HEAD"
+            if current
+            else _fallback_action(command)
+        ),
     }
 
 
@@ -101,20 +71,17 @@ def _evidence_status(state: str, path: str, current_head: str, command: str) -> 
 
 
 def local_ci_fallback_package(
-    remote_availability: dict[str, object] | None = None,
     *,
     root: Path | None = None,
     current_head: str = "",
     command: str = "",
 ) -> dict[str, object]:
     """Describe local fallback evidence without claiming hosted CI success."""
-    availability = remote_availability or dict(_NOT_PROBED)
     status = (
         local_ci_fallback_evidence_status(
             root,
             current_head=current_head,
             command=command,
-            remote_availability_state=str(availability.get("state") or "not_probed"),
         )
         if root
         else _evidence_status(
@@ -129,7 +96,6 @@ def local_ci_fallback_package(
         "evidence_class": "local_fallback",
         "boundary": "local-ci evidence; hosted CI status unclaimed",
         "hosted_ci_status_claimed": False,
-        "remote_availability_state": str(availability.get("state") or "not_probed"),
         "command": command,
         "owner_scripts": local_ci_owner_scripts(root=root, command=command),
         "evidence_status": status,
@@ -161,26 +127,13 @@ def publication_readiness(
     *, branch: str, local_ok: bool, policy: BranchRolePolicy, **options: object
 ) -> dict[str, object]:
     """Assemble local readiness and independent no-push remote observations."""
-    remote_availability = options.get("remote_availability")
     local_ci_fallback = options.get("local_ci_fallback")
     topology = options.get("topology")
     remote_observations = options.get("remote_observations")
-    availability = _object(remote_availability, _NOT_PROBED)
-    sync = (
-        _object(availability.get("tracking_sync"))
-        if isinstance(availability.get("tracking_sync"), dict)
-        else dict(_NOT_CHECKED_SYNC)
-    )
     observations = {key: _object(value) for key, value in _object(remote_observations).items()}
-    primary = next(iter(observations.values()), {})
-    availability, sync = (
-        _object(primary.get("availability"), availability),
-        _object(primary.get("sync"), sync),
-    )
     fallback = _object(
         local_ci_fallback,
         local_ci_fallback_package(
-            remote_availability=availability,
             command=str(options.get("local_verification_command") or ""),
         ),
     )
@@ -192,7 +145,7 @@ def publication_readiness(
         for item in observations.values()
         if _object(item.get("availability")).get("available") is True
     ]
-    synchronized = any(
+    synchronized = bool(observations) and all(
         _object(item.get("sync")).get("state") == "synchronized" for item in observations.values()
     )
     state = (
@@ -221,13 +174,11 @@ def publication_readiness(
         "mode": "local_readiness",
         "remote_push": "not_performed",
         "remote_state": state,
-        "remote_availability": availability,
-        "remote_sync": sync,
         "remote_topology": topology if isinstance(topology, dict) else {"state": "unspecified"},
         "remote_observations": observations,
         "fallback_evidence": fallback,
         "proposal_branch": proposal,
-        "local_proposal_package": _proposal_package(branch, proposal, availability, fallback),
+        "local_proposal_package": _proposal_package(branch, proposal, fallback),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_action": action if local_ok else "resolve local publish readiness gaps",
     }
@@ -236,7 +187,6 @@ def publication_readiness(
 def _proposal_package(
     branch: str,
     proposal: str,
-    availability: dict[str, object],
     fallback: dict[str, object],
 ) -> dict[str, object]:
     """Return the local plan for a future configured proposal branch."""
@@ -247,7 +197,6 @@ def _proposal_package(
         "remote_push": "not_performed",
         "remote_state": "deferred",
         "blocking": False,
-        "remote_availability": availability,
         "local_ci_fallback": fallback,
         "required_steps": [
             "land work lane to candidate role",

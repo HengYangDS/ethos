@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tomllib
 from importlib import import_module
 from pathlib import Path
 from typing import cast
@@ -176,12 +177,18 @@ def repository_hygiene(session) -> None:
 
 
 def prose(session) -> None:
+    policy = ROOT / ".config/checks/prose/codespell.toml"
+    declared = tomllib.loads(policy.read_text(encoding="utf-8")).get("paths", [])
+    paths = tuple(str(path) for path in declared if isinstance(path, str) and path)
+    if not paths:
+        session.error("prose policy paths are missing")
     session.run(
         RUNTIME.script("codespell"),
         "--toml",
-        str(ROOT / ".config/checks/prose/codespell.toml"),
+        str(policy),
         "--count",
         "--quiet-level=2",
+        *paths,
     )
 
 

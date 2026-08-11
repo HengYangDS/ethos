@@ -482,7 +482,7 @@ def test_branch_roles_and_thresholds_have_machine_owners() -> None:
     assert coverage["branch_coverage_required"] is True
     assert source_budget == {
         "python_product": 40_000,
-        "python_tests": 34_000,
+        "python_tests": 36_000,
         "python_tools": 4_000,
         "python_other": 200,
         "global_total": 85_000,

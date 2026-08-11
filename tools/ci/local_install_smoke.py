@@ -128,6 +128,28 @@ material_paths = ["**"]
 id = "repository:installed-cli-adopter"
 intent = "Govern the installed CLI adopter."
 subjects = ["repository:installed-cli-adopter"]
+scope = ["**"]
+permissions = ["repository.read", "git.ref.compare-and-swap", "terminal-publication.execute"]
+""",
+        encoding="utf-8",
+    )
+    dev = root / "dev"
+    dev.mkdir()
+    for name in ("verify", "install"):
+        command = dev / name
+        command.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        command.chmod(0o755)
+    (root / ".ethos/release.toml").write_text(
+        """[publication]
+local_verification_command = "dev/verify"
+local_installation_command = "dev/install"
+
+[[publication.peers]]
+id = "file"
+provider = "git"
+role = "package_smoke"
+git_remote = "origin"
+capabilities = ["repository", "publication"]
 """,
         encoding="utf-8",
     )
@@ -143,6 +165,9 @@ permissions = ["repository.read", "work-lane.write", "git.ref.compare-and-swap"]
         encoding="utf-8",
     )
     (root / "README.md").write_text("# installed CLI adopter\n", encoding="utf-8")
+    peer = root.parent / "publication-peer.git"
+    _run(git, "init", "--quiet", "--bare", str(peer))
+    _run(git, "remote", "add", "origin", str(peer), cwd=root)
     _run(git, "add", ".", cwd=root)
     _run(git, "commit", "--quiet", "-m", "initialize installed CLI adopter", cwd=root)
     return _run(git, "rev-parse", "HEAD", cwd=root)
@@ -219,6 +244,7 @@ def _independent_host_environment() -> tuple[dict[str, str], str]:
 def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
     """Run the installed reader and lane admission surface without a host control plane."""
     env, git = _independent_host_environment()
+    head = run_command(adopter, (git, "rev-parse", "HEAD"), env=env, check=True).stdout.strip()
     holder = "agent:test:package-only:independence"
     commands = (
         ("status", "--root", str(adopter), "--json"),
@@ -248,6 +274,17 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
         ),
         ("prove", "--root", str(adopter), "--json"),
         ("land", "--root", str(adopter), "--json"),
+        (
+            "publish",
+            "--proposal",
+            "package-smoke",
+            "--probe-remote",
+            "--expect-head",
+            head,
+            "--root",
+            str(adopter),
+            "--json",
+        ),
         (
             "lane",
             "retire",
@@ -281,6 +318,14 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
         if payload.get("verdict") not in {"pass", "block", "unknown"}:
             message = f"installed CLI emitted an invalid verdict for {args[:2]}"
             raise RuntimeError(message)
+        if args[:2] == ("publish", "--proposal"):
+            plan = payload.get("data", {}).get("transition_plan", {})
+            gaps = tuple(str(gap) for gap in payload.get("required_gaps", ()))
+            if plan.get("effect", {}).get("operation") != "proposal.create" or any(
+                gap.startswith("publication_topology_") for gap in gaps
+            ):
+                message = "installed proposal publication plan is unavailable"
+                raise RuntimeError(message)
         checked.append(" ".join(executed_args[:2]))
     return {
         "git": git,
@@ -433,7 +478,7 @@ def run(session: nox.Session) -> None:
             "ethos --help and --version",
             (
                 "installed lifecycle commands run without a host control plane: "
-                "status, plan, prewrite, lane start, prove, land, retire"
+                "status, plan, prewrite, lane start, prove, land, publish proposal, retire"
             ),
             "installed archive-change and rebuild dry-runs",
             "repository-declared OpenSpec package identity",

@@ -45,3 +45,12 @@ def test_project_runtime_is_the_only_executable_resolution_owner() -> None:
     )
     for relative in consumers:
         assert "tools.ci.toolchain.environment" in (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_prose_executor_consumes_only_declared_policy_paths() -> None:
+    calls = []
+    sessions.prose(type("Session", (), {"run": lambda _, *args: calls.append(args)})())
+    expected = [sessions.RUNTIME.script("codespell"), "--toml"]
+    expected += [str(ROOT / ".config/checks/prose/codespell.toml"), "--count"]
+    expected += ["--quiet-level=2", "README.md", "CONTRIBUTING.md", "AGENTS.md"]
+    assert calls[0] == (*expected, "docs", "rules", "openspec/specs")

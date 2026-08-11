@@ -12,6 +12,7 @@ import ethos.adapters.mutation.proof_admission
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
+from ethos.adapters.mutation.proof_artifacts import persist_attestation
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.profile import load_profile_commitment
@@ -25,7 +26,6 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
@@ -249,17 +249,6 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> Path:
     if structural_gaps:
         raise ValueError(structural_gaps[0])
     return persist_attestation(root, attestation)
-
-
-def persist_attestation(root: Path, attestation: Attestation) -> Path:
-    """Persist one validated Attestation by its content-addressed identity."""
-    payload = attestation.canonical_json().encode("utf-8")
-    Attestation.model_validate_json(payload)
-    return write_content_addressed(
-        attestation_store_dir(root) / f"{attestation.id}.json",
-        payload,
-        collision="attestation_identity_collision",
-    )
 
 
 def proof_plan(

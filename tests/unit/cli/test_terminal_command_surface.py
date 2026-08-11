@@ -9,7 +9,7 @@ from typing import get_type_hints
 
 import pytest
 
-from ethos.adapters.mutation.proof import persist_attestation
+from ethos.adapters.mutation.proof_artifacts import persist_attestation
 from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups

@@ -152,10 +152,7 @@ def push_admission_report(
     branch_admission = publication_branch_admission(
         topology,
         branch=branch,
-        candidate_branch=policy.candidate_branch,
-        accepted_branch=policy.accepted_branch,
-        release_branch=policy.release_branch,
-        proposal_branch_prefix=policy.proposal_branch_prefix,
+        role=role,
         remote_name=remote_name,
     )
     branch_gaps = list(cast("list[str]", branch_admission["enforcement_gaps"]))
@@ -219,10 +216,8 @@ def push_admission_report(
     if not gaps:
         return base
     reason = (
-        "publication_candidate_branch_remote_forbidden"
-        if branch == policy.candidate_branch and branch_gaps
-        else "publication_remote_branch_forbidden"
-        if any(gap.startswith("publication_remote_branch_forbidden:") for gap in branch_gaps)
+        "publication_remote_role_unavailable"
+        if any(gap.startswith("publication_remote_role_unavailable:") for gap in branch_gaps)
         else "publication_remote_name_missing"
         if "publication_remote_name_missing" in branch_gaps
         else "publication_remote_target_unknown"

@@ -202,8 +202,6 @@ class PythonTestGate:
             ROOT / "junit.xml",
         ):
             remove_generated_path(path)
-        for path in (ROOT / "src").rglob("__pycache__"):
-            remove_generated_path(path)
         if self.s.identity:
             _chown(ROOT / "build", 0, 0)
             _chown(self.s.basetemp, 0, 0)

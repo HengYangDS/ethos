@@ -96,6 +96,38 @@ def test_python_test_evidence_cleanup_propagates_removal_failure(
         python_test_gate.remove_generated_path(target)
 
 
+def test_python_test_cleanup_preserves_shared_interpreter_cache(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "repo"
+    cache = root / "src/ethos/__pycache__"
+    cache.mkdir(parents=True)
+    (cache / "module.pyc").write_bytes(b"cache")
+    (root / ".coverage").write_text("generated", encoding="utf-8")
+    monkeypatch.setattr(python_test_gate, "ROOT", root)
+    gate = python_test_gate.PythonTestGate(
+        python_test_gate.Settings(
+            head="a" * 40,
+            evidence=root / "build/evidence/quality/tests",
+            basetemp=tmp_path / "pytest",
+            workers=1,
+            shards=1,
+            durations=1,
+            timeout=None,
+            lock_wait=0,
+            identity=None,
+        )
+    )
+    monkeypatch.setattr(python_test_gate.PythonTestGate, "_single", lambda _self, _session: None)
+    monkeypatch.setattr(python_test_gate.PythonTestGate, "_stable_head", lambda _self: None)
+
+    gate.run_tests(object())
+
+    assert cache.is_dir()
+    assert not (root / ".coverage").exists()
+
+
 def _write_fake_executable(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR)

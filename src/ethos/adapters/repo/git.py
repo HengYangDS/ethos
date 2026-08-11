@@ -174,6 +174,49 @@ def run_command(
     )
 
 
+def run_network_git(
+    root: Path,
+    *args: str,
+    check: bool = False,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run network Git with effective credential configuration but no ref overlays.
+
+    Remote publication needs the user's effective credential helpers, SSH
+    transport, and explicitly selected global/system config.  It must not inherit
+    repository/ref/index overrides or command-line ``GIT_CONFIG_COUNT`` entries
+    that could redirect the exact effect away from ``root``.
+    """
+    effective_env = dict(os.environ)
+    for key in tuple(effective_env):
+        if key in {
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_NAMESPACE",
+            "GIT_CONFIG_COUNT",
+        } or key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")):
+            effective_env.pop(key, None)
+    effective_env.update(
+        {
+            "LC_ALL": "C",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+    return _execute(
+        root,
+        (git_executable(effective_env), *args),
+        text=True,
+        check=check,
+        env=effective_env,
+        timeout=timeout,
+    )
+
+
 def effective_git_config_value(root: Path, name: str) -> str:
     """Read one effective Git config value without inheriting command overlays."""
     effective_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
@@ -206,6 +249,12 @@ def current_branch(root: Path) -> str:
     """Return the current branch, or an empty string when HEAD is detached."""
     completed = run_git(root, "branch", "--show-current", check=False)
     return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
+def branch_ref_is_valid(root: Path, branch: str) -> bool:
+    """Return whether Git recognizes ``branch`` as a complete branch name."""
+    completed = run_git(root, "check-ref-format", "--branch", branch, check=False)
+    return completed.returncode == 0 and completed.stdout.strip() == branch
 
 
 def current_head(root: Path) -> str:
@@ -492,15 +541,11 @@ def remote_availability(
     if result["state"] == "unconfigured":
         return result
     try:
-        effective_env = {
-            key: value for key, value in os.environ.items() if not key.startswith("GIT_")
-        }
-        completed = _execute(
+        completed = run_network_git(
             root,
-            (git_executable(effective_env), "ls-remote", "--exit-code", remote),
-            text=True,
-            check=False,
-            env=effective_env,
+            "ls-remote",
+            "--exit-code",
+            remote,
             timeout=timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:
@@ -547,4 +592,76 @@ def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[s
         "blocking": False,
         "required_gaps": [],
         "advisory_gaps": [],
+    }
+
+
+def remote_ref_observation(root: Path, remote: str, ref: str) -> dict[str, object]:
+    """Read one exact remote ref directly from its provider."""
+    completed = run_network_git(root, "ls-remote", remote, ref)
+    if completed.returncode != 0:
+        return {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "unavailable",
+            "head": "",
+            "exit_code": completed.returncode,
+            "stderr": completed.stderr.strip(),
+        }
+    rows = tuple(line.split() for line in completed.stdout.splitlines() if line.strip())
+    if not rows:
+        return {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "absent",
+            "head": "0" * 40,
+            "exit_code": 0,
+            "stderr": "",
+        }
+    if len(rows) != 1 or len(rows[0]) != 2 or rows[0][1] != ref:
+        return {
+            "kind": "git_remote_ref_observation",
+            "remote": remote,
+            "ref": ref,
+            "state": "unavailable",
+            "head": "",
+            "exit_code": 1,
+            "stderr": "remote_ref_observation_ambiguous",
+        }
+    return {
+        "kind": "git_remote_ref_observation",
+        "remote": remote,
+        "ref": ref,
+        "state": "present",
+        "head": rows[0][0],
+        "exit_code": 0,
+        "stderr": "",
+    }
+
+
+def push_remote_ref_exact(
+    root: Path,
+    *,
+    remote: str,
+    target_ref: str,
+    expected: str,
+    desired: str,
+) -> dict[str, object]:
+    """Push one remote ref under an exact provider-local lease."""
+    zero = expected and not set(expected) - {"0"}
+    lease = f"--force-with-lease={target_ref}:{'' if zero else expected}"
+    completed = run_network_git(
+        root,
+        "push",
+        "--porcelain",
+        lease,
+        remote,
+        f"{desired}:{target_ref}",
+    )
+    return {
+        "state": "applied" if completed.returncode == 0 else "failed",
+        "exit_code": completed.returncode,
+        "stdout": completed.stdout.strip(),
+        "stderr": completed.stderr.strip(),
     }

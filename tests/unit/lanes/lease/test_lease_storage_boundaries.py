@@ -14,7 +14,7 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.lease as lease_lifecycle
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_takeover
-from ethos.adapters.mutation.proof import persist_attestation
+from ethos.adapters.mutation.proof_artifacts import persist_attestation
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import takeover_lease

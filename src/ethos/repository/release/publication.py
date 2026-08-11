@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import ROLE_PROPOSAL_LANE
+from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
+
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _LOCAL_FIELDS = ("local_verification_command", "local_installation_command")
@@ -18,6 +22,7 @@ _DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers"))
 _PEER_FIELDS = frozenset(("id", "provider", "role", "git_remote", "capabilities", "ci_surface"))
 _REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
 _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
+_REMOTE_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_PROPOSAL_LANE, ROLE_RELEASE_ROOT))
 
 
 def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
@@ -42,20 +47,12 @@ def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, obj
 
 
 def publication_branch_admission(
-    topology: Mapping[str, object], *, branch: str, candidate_branch: str, **policy: object
+    topology: Mapping[str, object], *, branch: str, role: str, remote_name: str
 ) -> dict[str, object]:
-    """Allow only declared targets and remote-eligible branches."""
-    accepted_branch = str(policy.get("accepted_branch") or "dev")
-    release_branch = str(policy.get("release_branch") or "main")
-    proposal_branch_prefix = str(policy.get("proposal_branch_prefix") or "proposal/")
-    remote_name = str(policy["remote_name"]) if "remote_name" in policy else "origin"
+    """Admit a declared target only for roles with remote publication capability."""
     gaps = _strings(topology.get("required_gaps"))
-    if branch == candidate_branch:
-        gaps.append(f"publication_candidate_branch_remote_forbidden:{branch}")
-    elif branch not in {accepted_branch, release_branch} and not branch.startswith(
-        proposal_branch_prefix
-    ):
-        gaps.append(f"publication_remote_branch_forbidden:{branch}")
+    if role not in _REMOTE_PUBLICATION_ROLES:
+        gaps.append(f"publication_remote_role_unavailable:{role}:{branch}")
     elif not remote_name:
         gaps.append("publication_remote_name_missing")
     elif not gaps and remote_name not in topology_remotes(topology).values():
@@ -63,15 +60,12 @@ def publication_branch_admission(
     gaps = list(dict.fromkeys(gaps))
     return {
         "branch": branch,
-        "candidate_branch": candidate_branch,
+        "role": role,
+        "remote_publication_roles": sorted(_REMOTE_PUBLICATION_ROLES),
         "remote_name": remote_name,
         "declared_remote_names": sorted(set(topology_remotes(topology).values())),
         "remote_mutation_allowed": not gaps,
-        "state": "local_only"
-        if branch == candidate_branch
-        else "eligible"
-        if not gaps
-        else "forbidden",
+        "state": "eligible" if not gaps else "unavailable",
         "enforcement_gaps": gaps,
     }
 
@@ -154,7 +148,7 @@ def _peer_ci_surface_gap(root: Path, peer_id: str, ci_surface: str) -> str:
 
 def _duplicate_peer_gaps(peers: list[dict[str, object]]) -> list[str]:
     gaps: list[str] = []
-    for field in ("id", "provider", "git_remote"):
+    for field in ("id", "git_remote"):
         values = [str(peer.get(field) or "") for peer in peers if peer.get(field)]
         gaps.extend(
             f"publication_topology_peer_{field}_duplicate:{value}"
@@ -206,7 +200,6 @@ def _resolved_path_gap(
 def _topology(
     *, local: Mapping[str, str], peers: tuple[dict[str, object], ...], gaps: tuple[str, ...]
 ) -> dict[str, object]:
-    aliases = {str(peer.get("id") or ""): peer for peer in peers if peer.get("id") and not gaps}
     return {
         "kind": "ethos_publication_topology",
         "state": "ready" if not gaps else "invalid",
@@ -218,11 +211,9 @@ def _topology(
             "installation_command": local.get("local_installation_command", ""),
         },
         "branch_admission": {
-            "candidate_role": "local_only",
-            "remote_branches": "accepted_release_proposal_only",
+            "remote_publication_roles": sorted(_REMOTE_PUBLICATION_ROLES),
         },
         "remotes": list(peers),
-        **aliases,
         "required_gaps": list(gaps),
     }
 

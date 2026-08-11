@@ -40,6 +40,17 @@ def attestation_store_dir(root: Path) -> Path:
     return local_state_root(root) / "attestations" if common else root / _DEFAULT_ATTESTATION_DIR
 
 
+def persist_attestation(root: Path, attestation: Attestation) -> Path:
+    """Persist one validated Attestation in the sole local Attestation store."""
+    payload = attestation.canonical_json().encode("utf-8")
+    Attestation.model_validate_json(payload)
+    return write_content_addressed(
+        attestation_store_dir(root) / f"{attestation.id}.json",
+        payload,
+        collision="attestation_identity_collision",
+    )
+
+
 def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]:
     try:
         document = json.loads(payload)

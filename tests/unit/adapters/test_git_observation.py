@@ -99,3 +99,24 @@ def test_run_git_distinguishes_an_invalid_working_directory(
         run_git(missing, "rev-parse", "HEAD")
 
     assert getattr(error.value, "reason", "") == "working_directory_unavailable"
+
+
+def test_network_git_preserves_effective_global_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observed: dict[str, object] = {}
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/tmp/effective-global-gitconfig")
+    monkeypatch.setattr(
+        git_adapter,
+        "_execute",
+        lambda _root, command, **kwargs: (
+            observed.update(command=command, **kwargs)
+            or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        ),
+    )
+
+    git_adapter.run_network_git(init_git_repo(tmp_path / "repo"), "ls-remote", "origin")
+
+    environment = observed["env"]
+    assert environment["GIT_CONFIG_GLOBAL"] == "/tmp/effective-global-gitconfig"
+    assert environment["GIT_TERMINAL_PROMPT"] == "0"

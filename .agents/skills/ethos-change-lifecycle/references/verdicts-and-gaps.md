@@ -44,5 +44,9 @@ A mutation command (`land --apply`, `publish --apply`) with `verdict=block` or
 
 ## The stop line
 
-`publish` reports LOCAL publication readiness. Remote push is a deferred, separately
-human-authorized step. Stop before it — never push as part of the loop.
+`publish --json` reports local readiness. `publish --proposal <slug> --probe-remote
+--expect-head <head> --json` then derives immutable peer-local CAS coordinates.
+Adding `--apply --authorize` consumes that derived receipt in the same command;
+the explicit receipt form is the restartable equivalent. Both re-observe all
+peers before pushing. If a later provider fails, use `partial_effects` and
+resume with the public receipt path rather than replacing it with bare Git.

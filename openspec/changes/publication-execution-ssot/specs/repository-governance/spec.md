@@ -8,11 +8,21 @@ and apply only the exact effect recovered from that request. Apply SHALL recheck
 repository identity, source HEAD, target refs, and peer-local push admission
 before the first mutation.
 
+The proposal source SHALL be the configured proved local candidate. Accepted
+`dev` and `main` are results of local closeout or forge merge, not proposal
+sources.
+
 #### Scenario: dry-run and apply share one plan
 
 - **WHEN** proposal publication derives an admitted request and the coordinates remain unchanged
 - **THEN** receipt-bound apply executes the identical plan
 - **AND** every declared target advances by exact CAS
+
+#### Scenario: proposal source is not the candidate
+
+- **WHEN** proposal publication is requested from accepted `dev`, release `main`, or a Work Lane
+- **THEN** it fails before observing a writable remote effect
+- **AND** it identifies the configured candidate branch as the required source
 
 #### Scenario: a remote target drifts
 

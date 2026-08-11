@@ -6,6 +6,8 @@
 - [x] 1.3 Add RED remote drift, partial-effect, and idempotent retry tests.
 - [x] 1.4 Compile proposal targets into one `TransitionPlan` and execute only
   its admitted exact-CAS effect.
+- [x] 1.5 Keep local-first and proposal/MR-first MECE by requiring the proved
+  candidate as the proposal source and treating accepted refs as outcomes.
 - [x] 2.1 Remove single-peer result aliases, duplicate validators, and the
   publication-specific state tree.
 - [x] 2.2 Keep contracts, mutation adapter, declaration compiler, domain

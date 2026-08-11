@@ -12,8 +12,8 @@ from typing import Any
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.mutation.proof import attestation_store_dir
-from ethos.adapters.mutation.proof import persist_attestation
+from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
+from ethos.adapters.mutation.proof_artifacts import persist_attestation
 from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256

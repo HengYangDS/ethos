@@ -18,8 +18,8 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import change_overlay
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.mutation.proof import attestation_store_dir
-from ethos.adapters.mutation.proof import persist_attestation
+from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
+from ethos.adapters.mutation.proof_artifacts import persist_attestation
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment

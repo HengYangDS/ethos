@@ -177,23 +177,31 @@ still requires `--authorize` and `--expect-head` as mutation-safety intent, but
 it does not require a new candidate proof because no new candidate head is being
 promoted.
 
-`ethos publish` is a local readiness command until a remote publication adapter
-is available. It reports `remote_push = "not_performed"`,
-`summary.remote_publication_state = "deferred"`, and a
-`publication.mode = "local_readiness"` package with the planned proposal branch
-under the configured proposal prefix. Remote reachability is reported separately
-under `remote_availability.state`; an available remote does not mean remote push
-or hosted CI has been performed. Remote push is deliberately deferred; local
-proof and candidate closeout are still the required preparation.
+`ethos publish --json` remains the local readiness boundary. In proposal/MR
+mode, from a clean proved candidate branch, `ethos publish --proposal <slug>
+--probe-remote --expect-head
+<head> --json` observes every declared peer with live `ls-remote`, compiles one
+content-addressed remote publication request, and performs no push. The guarded
+apply form internally consumes that request; the explicit receipt form provides
+restartable execution. Both recheck the exact source HEAD, request digest,
+repository common directory, push admission, and every target ref before their
+first effect.
+
+Each declared peer push uses provider-local exact CAS. Git cannot make multiple
+providers one atomic transaction, so ETHOS never claims cross-provider
+atomicity. If a later peer fails, the terminal Attestation names applied,
+failed, and pending peers; rerunning the same public receipt path converges peers
+that already match without rewriting them. Hosted CI remains a subsequent
+independent evidence state rather than an implication of push success.
 
 The publication payload also carries `publication.local_proposal_package`, a
 non-blocking package that records the source branch, planned proposal branch,
-deferred remote state, and required local steps: land the Work Lane to the
-candidate branch, fast-forward the accepted root from the candidate branch, then
-create and push the configured proposal branch when remote publication is
-available. Local closeout facts remain inputs to the current land and publish
-boundaries; actual mutation still requires the command's explicit guarded
-options.
+deferred remote state, and the two MECE continuations after Work Lane land. In
+local-first mode, candidate closes into accepted `dev`/`main` before remote
+synchronization. In proposal/MR mode, the proved candidate becomes
+`proposal/*`; the forge merges it into accepted `dev`/`main`, then local refs
+re-observe and synchronize that accepted result. A proposal never starts from
+accepted. Actual mutation still requires the command's guarded options.
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

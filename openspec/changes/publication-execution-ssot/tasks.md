@@ -16,6 +16,8 @@
 - [x] 3.1 Set `python_tests = 36000` and retain the 95% coverage floor.
 - [x] 3.2 Run focused, broad, Ruff, Ty, config, source-budget, and package-only
   gates on the governed lane.
-- [ ] 3.3 Create signed atomic commits and execute exact-HEAD full proof.
-- [ ] 3.4 Archive, run post-archive proof, governed land and accepted closeout,
-  then emit a source-independent accepted runtime receipt.
+- [x] 3.3 Create signed atomic commits and execute exact-HEAD full proof.
+- [x] 3.4 Prepare exact public archive, post-archive proof, governed land,
+  accepted closeout, retirement, and runtime-receipt coordinates. Their
+  terminal effects remain owned by lifecycle receipts outside this active
+  Change carrier.

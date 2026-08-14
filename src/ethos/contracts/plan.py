@@ -145,7 +145,7 @@ class GitEffect(_PlanModel):
 
 
 class TransitionPlan(_PlanModel):
-    """Hashable transient plan; it owns no repository truth or mutation."""
+    """Canonical immutable receipt for one exact repository transition."""
 
     model_config = ConfigDict(
         frozen=True,
@@ -157,14 +157,19 @@ class TransitionPlan(_PlanModel):
 
     schema_version: Literal[1] = Field(default=1, json_schema_extra={"readOnly": True})
     inputs: PlanInputs = Field(json_schema_extra={"readOnly": True})
+    request: JsonObject
+    authority: JsonObject
     commitment: JsonObject
     prior_attestations: JsonObject
     policy: JsonObject
     effect: JsonObject
     facts: JsonObject = Field(default_factory=dict)
     nodes: FrozenTuple[PlanNode] = ()
+    compensations: FrozenTuple[PlanNode] = ()
+    postconditions: FrozenTuple[PlanNode] = ()
     verdict: Verdict = Field(json_schema_extra={"readOnly": True})
     required_gaps: FrozenTuple[str] = Field(json_schema_extra={"readOnly": True})
+    continuation: JsonObject | None = None
     digest: Digest = Field(json_schema_extra={"readOnly": True})
 
     @staticmethod
@@ -232,12 +237,20 @@ class TransitionPlan(_PlanModel):
         closure: JsonObject,
         facts: JsonObject,
         nodes: tuple[PlanNode, ...] = (),
+        compensations: tuple[PlanNode, ...] = (),
+        postconditions: tuple[PlanNode, ...] = (),
         verdict: Verdict = "pass",
         required_gaps: tuple[str, ...] = (),
     ) -> Self:
-        """Compile one canonical immutable DAG projection from exact inputs."""
+        """Compile one canonical immutable transition receipt from exact inputs."""
         ordered, graph_gaps = cls._resolve_nodes(nodes)
-        gaps = tuple(dict.fromkeys((*required_gaps, *graph_gaps)))
+        ordered_compensations, compensation_gaps = cls._resolve_nodes(compensations)
+        ordered_postconditions, postcondition_gaps = cls._resolve_nodes(postconditions)
+        gaps = tuple(
+            dict.fromkeys(
+                (*required_gaps, *graph_gaps, *compensation_gaps, *postcondition_gaps)
+            )
+        )
         carried = mutable_json(closure)
         if not isinstance(carried, dict) or set(carried) != {
             "commitment",
@@ -248,29 +261,91 @@ class TransitionPlan(_PlanModel):
             message = "transition_plan_closure_invalid"
             raise ValueError(message)
         carried = {str(name): value for name, value in carried.items()}
+        request, authority = cls._operation_bindings(inputs, carried, facts)
         payload: dict[str, Any] = {
             "schema_version": 1,
             "inputs": inputs.model_dump(mode="json"),
+            "request": request,
+            "authority": authority,
             "commitment": carried["commitment"],
             "prior_attestations": carried["prior_attestations"],
             "policy": carried["policy"],
             "effect": carried["effect"],
             "facts": mutable_json(facts),
             "nodes": [node.model_dump(mode="json") for node in ordered],
+            "compensations": [
+                node.model_dump(mode="json") for node in ordered_compensations
+            ],
+            "postconditions": [
+                node.model_dump(mode="json") for node in ordered_postconditions
+            ],
             "verdict": close_verdict(verdict, gaps),
             "required_gaps": list(gaps),
+            "continuation": (
+                {"kind": "user-decision", "required_gaps": list(gaps)} if gaps else None
+            ),
         }
         return cls.model_validate(payload | {"digest": canonical_json_digest(payload)})
+
+    @staticmethod
+    def _operation_bindings(
+        inputs: PlanInputs, closure: dict[str, object], facts: JsonObject
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        """Derive request and exact authority from the already-bound closure."""
+        commitment = Commitment.model_validate(closure["commitment"], strict=False)
+        fact_value = mutable_json(facts)
+        policy = mutable_json(closure["policy"])
+        if not isinstance(fact_value, dict) or not isinstance(policy, dict):
+            message = "transition_plan_closure_invalid"
+            raise TypeError(message)
+        operation = str(policy.get("transition") or policy.get("operation") or "transition")
+        effect_digest = inputs.effect
+        request = {
+            "operation": operation,
+            "repository": str(fact_value.get("repository") or ""),
+            "subject": commitment.id,
+            "head": str(fact_value.get("head") or ""),
+            "tree": str(fact_value.get("tree") or ""),
+            "effect_digest": effect_digest,
+        }
+        authority = {
+            "operation": operation,
+            "actor": str(policy.get("actor") or ""),
+            "subject": commitment.id,
+            "commitment_digest": inputs.commitment,
+            "facts_digest": inputs.facts,
+            "policy_digest": inputs.policy,
+            "effect_digest": effect_digest,
+        }
+        return request, authority
 
     @model_validator(mode="after")
     def validate_canonical_projection(self) -> Self:
         """Reject noncanonical order, open verdicts, graph gaps, or stale identity."""
         ordered, graph_gaps = self._resolve_nodes(self.nodes)
-        if ordered != self.nodes or any(gap not in self.required_gaps for gap in graph_gaps):
+        compensations, compensation_gaps = self._resolve_nodes(self.compensations)
+        postconditions, postcondition_gaps = self._resolve_nodes(self.postconditions)
+        if (
+            ordered != self.nodes
+            or compensations != self.compensations
+            or postconditions != self.postconditions
+            or any(
+                gap not in self.required_gaps
+                for gap in (*graph_gaps, *compensation_gaps, *postcondition_gaps)
+            )
+        ):
             message = "transition_plan_graph_invalid"
             raise ValueError(message)
         if close_verdict(self.verdict, self.required_gaps) != self.verdict:
             message = "transition_plan_verdict_invalid"
+            raise ValueError(message)
+        expected_continuation = (
+            {"kind": "user-decision", "required_gaps": list(self.required_gaps)}
+            if self.required_gaps
+            else None
+        )
+        if mutable_json(self.continuation) != expected_continuation:
+            message = "transition_plan_continuation_invalid"
             raise ValueError(message)
         fact_values = mutable_json(self.facts)
         if not isinstance(fact_values, dict):
@@ -309,6 +384,19 @@ class TransitionPlan(_PlanModel):
             effect=effect_digest,
         ):
             message = "transition_plan_closure_mismatch"
+            raise ValueError(message)
+        request, authority = self._operation_bindings(
+            self.inputs,
+            {
+                "commitment": mutable_json(self.commitment),
+                "prior_attestations": mutable_json(self.prior_attestations),
+                "policy": mutable_json(self.policy),
+                "effect": mutable_json(self.effect),
+            },
+            mutable_json(self.facts),
+        )
+        if mutable_json(self.request) != request or mutable_json(self.authority) != authority:
+            message = "transition_plan_operation_binding_mismatch"
             raise ValueError(message)
         payload = self.model_dump(mode="json", exclude={"digest"})
         if self.digest != canonical_json_digest(payload):

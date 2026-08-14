@@ -20,6 +20,7 @@ from ethos.contracts.proof.plan import validate_proof_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from tests.support.literal_cases import literal_case
 
@@ -208,14 +209,19 @@ def test_transition_plan_projection_immutability_and_verdict_algebra() -> None:
     assert set(payload) == {
         "schema_version",
         "inputs",
+        "request",
+        "authority",
         "commitment",
         "prior_attestations",
         "policy",
         "effect",
         "facts",
         "nodes",
+        "compensations",
+        "postconditions",
         "verdict",
         "required_gaps",
+        "continuation",
         "digest",
     }
     assert TransitionPlan.model_validate(payload) == plan
@@ -224,6 +230,88 @@ def test_transition_plan_projection_immutability_and_verdict_algebra() -> None:
     unknown = _plan(verdict="unknown", required_gaps=("facts_unavailable",))
     assert (plan.verdict, unknown.verdict, hasattr(unknown, "ok")) == ("pass", "unknown", False)
     assert Verdict.__args__ == ("pass", "block", "unknown")
+
+
+def test_transition_plan_is_the_operation_bound_receipt() -> None:
+    effect = GitEffect(
+        updates={"refs/heads/dev": GitRefUpdate(expected="0" * 40, desired="1" * 40)}
+    )
+    policy = {
+        "operation": "git.ref.compare-and-swap",
+        "transition": "candidate.accept",
+        "actor": "agent:test:transition-plan",
+        "effect_digest": effect.digest(),
+    }
+    compensation = PlanNode(
+        id="restore-dev",
+        kind="effect",
+        command=("git", "update-ref", "--stdin", "-z"),
+    )
+    postcondition = PlanNode(id="observe-dev", kind="check", command=("git", "rev-parse"))
+    plan = TransitionPlan.compile(
+        inputs=PlanInputs(
+            commitment=_COMMITMENT.digest(),
+            facts=_FACTS.digest(),
+            prior_attestations=EMPTY_ATTESTATION_SET_DIGEST,
+            policy=canonical_json_digest(policy),
+            effect=effect.digest(),
+        ),
+        closure={
+            "commitment": _COMMITMENT.identity_projection(),
+            "prior_attestations": {},
+            "policy": policy,
+            "effect": effect.model_dump(mode="json"),
+        },
+        facts=_FACTS.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=(
+            PlanNode(
+                id="git.ref.compare-and-swap",
+                kind="effect",
+                command=("git", "update-ref", "--stdin", "-z"),
+            ),
+        ),
+        compensations=(compensation,),
+        postconditions=(postcondition,),
+    )
+
+    assert plan.request == {
+        "operation": "candidate.accept",
+        "repository": _FACTS.repository,
+        "subject": _COMMITMENT.id,
+        "head": _FACTS.head,
+        "tree": _FACTS.tree,
+        "effect_digest": effect.digest(),
+    }
+    assert plan.authority == {
+        "operation": "candidate.accept",
+        "actor": "agent:test:transition-plan",
+        "subject": _COMMITMENT.id,
+        "commitment_digest": _COMMITMENT.digest(),
+        "facts_digest": _FACTS.digest(),
+        "policy_digest": canonical_json_digest(policy),
+        "effect_digest": effect.digest(),
+    }
+    assert plan.compensations == (compensation,)
+    assert plan.postconditions == (postcondition,)
+    assert plan.continuation is None
+
+
+def test_blocked_transition_receipt_has_one_canonical_continuation() -> None:
+    plan = _plan(
+        verdict="unknown",
+        required_gaps=("facts_unavailable", "actor_unavailable", "facts_unavailable"),
+    )
+
+    assert plan.required_gaps == ("facts_unavailable", "actor_unavailable")
+    assert mutable_json(plan.continuation) == {
+        "kind": "user-decision",
+        "required_gaps": ["facts_unavailable", "actor_unavailable"],
+    }
+
+    payload = plan.model_dump(mode="json")
+    payload["request"]["head"] = "f" * 40
+    with pytest.raises(ValidationError, match="transition_plan_operation_binding_mismatch"):
+        TransitionPlan.model_validate(payload)
 
 
 def test_transition_plan_requires_all_bound_inputs_and_complete_closure() -> None:

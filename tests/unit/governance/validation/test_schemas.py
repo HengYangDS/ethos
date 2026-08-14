@@ -51,7 +51,7 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(
 
     report = schema_validation_report(tmp_path)
 
-    assert report["mode"] == "adopter"
+    assert report["mode"] == "product"
     assert report["verdict"] == "pass"
     assert "ok" not in report
     assert report["schema_count"] >= 24
@@ -59,7 +59,7 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(
     assert report["instances"]["docs-registry"]["verdict"] == "pass"
 
 
-def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contracts(
+def test_schema_validation_adopter_schemas_do_not_replace_product_contracts(
     tmp_path,
 ) -> None:
     schema_dir = tmp_path / "system" / "schemas" / "kernel"
@@ -68,14 +68,17 @@ def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contra
         json.dumps({"$schema": "https://json-schema.org/draft/2020-12/schema"}),
         encoding="utf-8",
     )
+    (schema_dir / "result.schema.json").write_text("{", encoding="utf-8")
     (tmp_path / "docs").mkdir()
 
     report = schema_validation_report(tmp_path)
 
-    assert report["mode"] == "adopter"
+    assert report["mode"] == "product"
     assert report["verdict"] == "pass"
     assert "ok" not in report
     assert report["schema_count"] >= 24
+    assert "custom.schema.json" not in report["schemas"]
+    assert report["schemas"]["result.schema.json"]["verdict"] == "pass"
     assert report["instances"]["docs-registry"]["verdict"] == "pass"
 
 
@@ -169,20 +172,20 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
 
     assert report["verdict"] == "pass"
     assert "ok" not in report
-    assert report["mode"] == "adopter"
+    assert report["mode"] == "product"
     assert report["schema_count"] >= 19
     assert report["instances"]["docs-registry"]["verdict"] == "pass"
 
 
 @pytest.mark.parametrize(
-    ("contents", "error_name"),
+    "contents",
     [
-        ("{", "JSONDecodeError"),
-        (json.dumps({"type": "not-a-json-schema-type"}), "SchemaError"),
+        "{",
+        json.dumps({"type": "not-a-json-schema-type"}),
     ],
 )
-def test_schema_report_blocks_malformed_native_product_schema(
-    tmp_path, contents: str, error_name: str
+def test_schema_report_ignores_malformed_adopter_schema(
+    tmp_path, contents: str
 ) -> None:
     target = tmp_path / "system" / "schemas" / "kernel"
     shutil.copytree(ROOT / "system" / "schemas" / "kernel", target)
@@ -191,9 +194,9 @@ def test_schema_report_blocks_malformed_native_product_schema(
 
     report = schema_validation_report(tmp_path)
 
-    assert report["verdict"] == "block"
-    assert report["schemas"]["result.schema.json"]["verdict"] == "block"
-    assert report["required_gaps"] == [f"result.schema.json:{error_name}"]
+    assert report["verdict"] == "pass"
+    assert report["schemas"]["result.schema.json"]["verdict"] == "pass"
+    assert report["required_gaps"] == []
 
 
 def test_schema_report_blocks_malformed_live_skill_declarations(tmp_path) -> None:
@@ -262,7 +265,7 @@ def test_schema_report_skips_retired_schema_during_native_iteration(
     }
 
 
-def test_validate_schema_instance_preserves_cyclic_native_reference(
+def test_validate_schema_instance_rejects_adopter_schema_shadowing(
     tmp_path,
 ) -> None:
     schema_dir = tmp_path / "system" / "schemas" / "kernel"
@@ -272,6 +275,5 @@ def test_validate_schema_instance_preserves_cyclic_native_reference(
         encoding="utf-8",
     )
 
-    validation = validate_schema_instance("cycle.schema.json", {}, root=tmp_path)
-
-    assert validation == {"verdict": "pass", "required_gaps": []}
+    with pytest.raises(FileNotFoundError):
+        validate_schema_instance("cycle.schema.json", {}, root=tmp_path)

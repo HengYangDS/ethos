@@ -42,9 +42,5 @@ authority_refs = [
   "openspec/specs/command-plane/spec.md",
   "openspec/specs/repository-governance/spec.md",
 ]
-permissions = [
-  "repository.read",
-  "work-lane.write",
-]
 hypotheses = []
 dependencies = []

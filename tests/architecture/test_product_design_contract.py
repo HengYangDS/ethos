@@ -447,7 +447,6 @@ def test_terminal_commitment_claims_complete_campaign_closeout() -> None:
         "local_gitlab_and_github_planes_independently_attested",
     ]
     assert "python_source_roles_do_not_compensate" in commitment["invariants"]
-    assert "terminal-publication.execute" in commitment["permissions"]
     assert commitment["dependencies"] == []
 
 

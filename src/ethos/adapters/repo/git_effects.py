@@ -498,7 +498,7 @@ def _compensate_git_effect(
 
 
 def _ref_operation(plan: TransitionPlan, ref_name: str, update: GitRefUpdate) -> str:
-    operation = str(plan.policy.get("operation") or "")
+    operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     release_ref = f"refs/heads/{plan.policy.get('release_branch') or ''}"
     return (
         "release.mirror"
@@ -512,7 +512,7 @@ def _ref_operation(plan: TransitionPlan, ref_name: str, update: GitRefUpdate) ->
 def _effect_environment(
     root: Path, plan: TransitionPlan, effect: GitEffect
 ) -> dict[str, str] | None:
-    operation = str(plan.policy.get("operation") or "")
+    operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     if operation.startswith("lane.start"):
         return {"ETHOS_ACTOR": str(plan.policy.get("holder_ref") or "")}
     if operation != "candidate.accept":

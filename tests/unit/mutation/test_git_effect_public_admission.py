@@ -28,7 +28,6 @@ def _plan(
     root: Path,
     effect: GitEffect,
     *,
-    permissions: tuple[str, ...] = (),
     values: dict[str, object] | None = None,
     policy: dict[str, object] | None = None,
 ) -> TransitionPlan:
@@ -47,7 +46,6 @@ def _plan(
         id="authority:test:git-effect",
         intent="Admit an exact effect.",
         subjects=(f"repository:{root.name}",),
-        permissions=permissions,
     )
     return compile_git_effect_plan(
         authority,
@@ -138,7 +136,7 @@ def test_plan_prestate_rejects_each_observed_authority_drift(
         updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)},
         assertions={"refs/heads/source": head},
     )
-    carried = _plan(root, effect, permissions=("git.ref.compare-and-swap",))
+    carried = _plan(root, effect)
     monkeypatch.setattr(admission, "require_live_lease", lambda *_args, **_kwargs: None)
     if drift == "refs":
         effect = GitEffect(

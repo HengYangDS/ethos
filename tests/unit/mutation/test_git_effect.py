@@ -172,7 +172,6 @@ def effect(old: str, new: str, ref: str = "refs/heads/dev") -> GitEffect:
 def plan(
     root: Path,
     value: GitEffect,
-    permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
     values: dict[str, object] | None = None,
     policy: dict[str, object] | None = None,
     prior: dict[str, object] | None = None,
@@ -193,13 +192,13 @@ def plan(
         id="authority:test:git-effect",
         intent="Apply CAS.",
         subjects=(identity,),
-        permissions=permissions,
     )
     return compile_git_effect_plan(
         authority,
         facts,
         prior_attestations=prior or {},
-        policy=policy or {"operation": "test.apply"},
+        policy=policy
+        or {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()},
         effect=value,
     )
 
@@ -207,6 +206,7 @@ def plan(
 def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
     value = value or case.effect
     desired = next(iter(value.updates.values())).desired
+    policy = {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()}
     proof = Attestation.issue(
         {
             "predicate": "proof:execution",
@@ -217,13 +217,13 @@ def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
             "verdict": "pass",
             "statement": {"head": desired},
             "commitment_digest": "a" * 64,
-            "policy_digest": canonical_json_digest({"operation": "candidate.integrate"}),
+            "policy_digest": canonical_json_digest(policy),
         }
     )
     return plan(
         case.repo,
         value,
-        policy={"operation": "candidate.integrate"},
+        policy=policy,
         prior={"proof": proof.model_dump(mode="json")},
     )
 
@@ -376,7 +376,7 @@ def test_ref_recovery_and_cas_failure_matrix(tmp_path: Path, kind: str) -> None:
                 "root": case.repo,
                 "ref_name": "refs/heads/dev",
                 "update": update,
-                "operation": "candidate.integrate",
+                "operation": "git.ref.compare-and-swap",
                 "plan_digest": carried.digest,
             }
             write_ref_intent(**options)
@@ -444,7 +444,11 @@ def test_stale_lease_recovery_and_detached_matrix(
             case.repo,
             case.effect,
             values={"lease_generation": lease_generation(current)},
-            policy={"operation": "lane.refresh", "execution_branch": branch},
+            policy={
+                "operation": "git.ref.compare-and-swap",
+                "effect_digest": case.effect.digest(),
+                "execution_branch": branch,
+            },
         )
         original = admission.run_git
         monkeypatch.setattr(
@@ -475,7 +479,7 @@ def candidate_plan(case: Any, flaw: str = "") -> TransitionPlan:
         },
         assertions={f"refs/heads/{'other' if flaw == 'source' else branch}": case.new},
     )
-    digest = plan(case.repo, value, permissions=()).inputs.commitment
+    digest = plan(case.repo, value).inputs.commitment
     recorded["base_commitment_digest"] = digest
     proof_head = case.old if flaw == "proof" else case.new
     proof = Attestation.issue(
@@ -493,7 +497,6 @@ def candidate_plan(case: Any, flaw: str = "") -> TransitionPlan:
     return plan(
         case.repo,
         value,
-        permissions=(),
         values={} if flaw == "lease" else {"lease_generation": recorded},
         policy={"operation": "candidate.integrate", "candidate_branch": target},
         prior={"proof": proof.model_dump(mode="json")},
@@ -516,7 +519,9 @@ def test_permission_non_ff_candidate_authority_matrix(
     reject(
         "git_effect_permission_denied",
         lambda: execute_git_effect(
-            case.repo, plan(case.repo, case.effect, permissions=()), issuer=ISSUER
+            case.repo,
+            plan(case.repo, case.effect, policy={"operation": "test.apply"}),
+            issuer=ISSUER,
         ),
     )
 

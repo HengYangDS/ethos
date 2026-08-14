@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 import subprocess
-from contextlib import closing
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -13,12 +9,9 @@ import pytest
 import ethos.adapters.mutation.accepted as accepted_mutation
 import ethos.adapters.mutation.landing as landing_mutation
 import ethos.adapters.openspec.cli as openspec_cli
-from ethos.adapters.mutation.proof import attestation_store_dir
-from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.cli import openspec_base_command
-from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -26,12 +19,6 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_o
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.plan import PlanInputs
-from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.plan import proof_effect_digest
-from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import Commitment
-from ethos.contracts.semantic import Facts
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -316,60 +303,6 @@ def test_land_readiness_claim_matrix(
 PROOF_CASES = literal_case("cli.test_contracts_land:assign:PROOF_CASES:1")
 
 
-def _assert_narrow_candidate_effect_authority(
-    monkeypatch: pytest.MonkeyPatch, fixture, branch: str, lease: dict
-) -> None:
-    carrier = str(lease["base_commitment_path"])
-    path = fixture.worktree / carrier
-    path.write_text(
-        path.read_text().replace(
-            'permissions = ["git.ref.compare-and-swap"]',
-            'permissions = ["repository.read", "work-lane.write"]',
-        )
-    )
-    git(fixture.worktree, "add", carrier)
-    previous = git(fixture.worktree, "rev-parse", "HEAD")
-    _commit(fixture.worktree, "bind minimal landing commitment")
-    bound = git(fixture.worktree, "rev-parse", "HEAD")
-    binding = exact_commitment_fields(fixture.worktree, head=bound, carrier=carrier)
-    with closing(sqlite3.connect(state_database(fixture.worktree))) as connection, connection:
-        row = connection.execute(
-            "select payload_json from leases where subject = ?", (branch,)
-        ).fetchone()
-        assert row is not None
-        payload = json.loads(row[0])
-        assert payload["expected_head"] == previous
-        payload.update(
-            expected_head=bound,
-            expected_tree=binding["expected_tree"],
-            base_commitment_bytes_sha256=binding["base_commitment_bytes_sha256"],
-            base_commitment_digest=binding["base_commitment_digest"],
-        )
-        connection.execute(
-            "update leases set payload_json = ? where subject = ?",
-            (json.dumps(payload, sort_keys=True, separators=(",", ":")), branch),
-        )
-    commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
-    head = _archive(monkeypatch, fixture.worktree)
-    seed_executed_proof(fixture.worktree, head)
-    readiness = _land(fixture.worktree)
-    plan = readiness["data"]["candidate_update"]
-    assert readiness["verdict"] == "pass"
-    assert plan["state"] == "candidate_transition_admitted"
-    assert plan["effect"]["updates"] == {
-        "refs/heads/candidate/dev": {
-            "expected": git(fixture.candidate, "rev-parse", "HEAD"),
-            "desired": head,
-        }
-    }
-    assert plan["permissions"] == ["repository.read", "work-lane.write"]
-    applied = _land(fixture.worktree, head)
-    attested = applied["data"]["candidate_update"]["attestation"]["statement"]["plan"]
-    assert applied["verdict"] == "pass"
-    assert (attested["digest"], attested["effect"]) == (plan["plan_digest"], plan["effect"])
-    assert git(fixture.candidate, "rev-parse", "HEAD") == head
-
-
 def _assert_proof_invalid_after_handoff(
     monkeypatch: pytest.MonkeyPatch, fixture, head: str, branch: str, lease: dict
 ) -> None:
@@ -428,87 +361,18 @@ def _assert_proof_requires_live_binding(
     assert proof_gaps(fixture.worktree, head) == ["proof_lease_generation_stale"]
 
 
-def _assert_self_granted_proof_authority_is_rejected(fixture, head: str) -> None:
-    before = git(fixture.candidate, "rev-parse", "HEAD")
-    valid = proof_attestation(fixture.worktree, head)
-    assert valid is not None
-    plan = TransitionPlan.model_validate(valid.model_dump(mode="json")["statement"]["plan"])
-    commitment = dict(plan.commitment)
-    commitment["permissions"] = [
-        *commitment["permissions"],
-        "git.ref.update:refs/heads/candidate/dev",
-    ]
-    digest = Commitment.model_validate_json(json.dumps(commitment)).digest()
-    assert digest != valid.commitment_digest
-    values = dict(plan.facts["values"])
-    values["changed_paths"] = ()
-    facts = Facts.model_validate({**plan.facts, "observed_at": datetime.now(UTC), "values": values})
-    effect = proof_effect_digest(
-        commitment=digest, facts=facts.digest(), policy=plan.inputs.policy, nodes=plan.nodes
-    )
-    forged_plan = TransitionPlan.compile(
-        inputs=PlanInputs(
-            commitment=digest,
-            facts=facts.digest(),
-            prior_attestations=plan.inputs.prior_attestations,
-            policy=plan.inputs.policy,
-            effect=effect,
-        ),
-        closure={
-            "commitment": commitment,
-            "prior_attestations": plan.prior_attestations,
-            "policy": plan.policy,
-            "effect": {
-                "operation": "proof.execute",
-                "commitment": digest,
-                "facts": facts.digest(),
-                "policy": plan.inputs.policy,
-                "nodes": [node.model_dump(mode="json") for node in plan.nodes],
-            },
-        },
-        permissions=tuple(commitment["permissions"]),
-        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
-        nodes=plan.nodes,
-    )
-    forged = Attestation.issue(
-        valid.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
-        | {
-            "commitment_digest": digest,
-            "facts_digest": facts.digest(),
-            "plan_digest": forged_plan.digest,
-            "effect_digest": effect,
-            "statement": valid.statement | {"plan": forged_plan.model_dump(mode="json")},
-        }
-    )
-    (attestation_store_dir(fixture.worktree) / f"{valid.id}.json").unlink()
-    persist_proof_attestation(fixture.worktree, forged)
-    assert proof_attestation(fixture.worktree, head) == forged
-    payload = _land(fixture.worktree, head, blocked=True)
-    assert payload["required_gaps"] == ["proof_attestation_authority_binding_mismatch"]
-    assert git(fixture.candidate, "rev-parse", "HEAD") == before
-
-
 @pytest.mark.parametrize("claim", PROOF_CASES, ids=PROOF_CASES)
 def test_proof_authority_claim_matrix(
     claim: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    if claim == PROOF_CASES[0]:
-        fixture = start_adopted_work_lane(tmp_path)
-        head = git(fixture.worktree, "rev-parse", "HEAD")
-    else:
-        fixture, head = _proved_lane(tmp_path, monkeypatch)
+    fixture, head = _proved_lane(tmp_path, monkeypatch)
     branch = git(fixture.worktree, "branch", "--show-current")
     lease = leases_by_branch(fixture.worktree)[branch]
     if claim == PROOF_CASES[0]:
-        _assert_narrow_candidate_effect_authority(monkeypatch, fixture, branch, lease)
-        return
-    if claim == PROOF_CASES[1]:
         _assert_proof_invalid_after_handoff(monkeypatch, fixture, head, branch, lease)
         return
-    if claim in PROOF_CASES[2:5]:
+    if claim in PROOF_CASES[1:]:
         _assert_proof_requires_live_binding(claim, monkeypatch, fixture, head, branch, lease)
-        return
-    _assert_self_granted_proof_authority_is_rejected(fixture, head)
 
 
 REFRESH_CASES = literal_case("cli.test_contracts_land:assign:REFRESH_CASES:2")
@@ -618,38 +482,6 @@ def test_apply_boundary_claim_matrix(claim: str, tmp_path: Path) -> None:
 CLOSEOUT_CASES = literal_case("cli.test_contracts_land:assign:CLOSEOUT_CASES:4")
 
 
-def _assert_candidate_cannot_self_grant_accepted_authority(repo: Path, candidate: Path) -> None:
-    commitment = repo / ".ethos/commitment.toml"
-    commitment.write_text(commitment.read_text().replace(', "git.ref.compare-and-swap"', ""))
-    git(repo, "add", commitment.as_posix())
-    _commit(repo, "remove accepted update authority")
-    accepted = git(repo, "rev-parse", "HEAD")
-    git(candidate, "reset", "--hard", accepted)
-    candidate_commitment = candidate / ".ethos/commitment.toml"
-    candidate_commitment.write_text(
-        candidate_commitment.read_text().replace(
-            'permissions = ["repository.read"]',
-            'permissions = ["repository.read", "git.ref.compare-and-swap"]',
-        )
-    )
-    git(candidate, "add", candidate_commitment.as_posix())
-    _commit(candidate, "self grant accepted update authority")
-    head = git(candidate, "rev-parse", "HEAD")
-    git(repo, "branch", "candidate-selected-accepted", accepted)
-    seed_executed_proof(candidate, head)
-    report = accepted_mutation.promote_candidate(
-        root=repo,
-        policy=load_branch_role_policy(repo),
-        current_head=accepted,
-        candidate_head=head,
-        status=workspace_status(repo),
-    )
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["accepted_atomic_update_rejected"]
-    assert "git_effect_permission_denied" in report["stderr"]
-    assert git(repo, "rev-parse", "dev") == accepted
-
-
 def _assert_first_commitment_can_close(repo: Path, candidate: Path) -> None:
     commitment = repo / ".ethos/commitment.toml"
     text = commitment.read_text()
@@ -700,14 +532,14 @@ def _assert_first_cas_uses_accepted_policy(repo: Path, candidate: Path) -> None:
 
 def _assert_declared_closeout_policy(claim: str, repo: Path, candidate: Path) -> None:
     workspace = repo / ".ethos/workspace.toml"
-    if claim == CLOSEOUT_CASES[3]:
+    if claim == CLOSEOUT_CASES[2]:
         git(repo, "rm", ".ethos/workspace.toml")
         _commit(repo, "use default branch roles")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
         assert (repo / ".ethos/profile.toml").is_file()
         assert not workspace.exists()
-    elif claim == CLOSEOUT_CASES[4]:
+    elif claim == CLOSEOUT_CASES[3]:
         workspace.write_text('[branch_roles]\naccepted_branch = "dev"\n')
         git(repo, "add", workspace.as_posix())
         _commit(repo, "record incomplete branch roles")
@@ -743,7 +575,7 @@ def _assert_declared_closeout_policy(claim: str, repo: Path, candidate: Path) ->
     )
     assert report["verdict"] == "pass"
     assert git(repo, "rev-parse", "dev") == head
-    if claim == CLOSEOUT_CASES[5]:
+    if claim == CLOSEOUT_CASES[4]:
         assert git(repo, "rev-parse", "main") == head
 
 
@@ -751,12 +583,9 @@ def _assert_declared_closeout_policy(claim: str, repo: Path, candidate: Path) ->
 def test_closeout_policy_claim_matrix(claim: str, tmp_path: Path) -> None:
     repo, candidate = start_adopted_candidate(tmp_path)
     if claim == CLOSEOUT_CASES[0]:
-        _assert_candidate_cannot_self_grant_accepted_authority(repo, candidate)
-        return
-    if claim == CLOSEOUT_CASES[1]:
         _assert_first_commitment_can_close(repo, candidate)
         return
-    if claim == CLOSEOUT_CASES[2]:
+    if claim == CLOSEOUT_CASES[1]:
         _assert_first_cas_uses_accepted_policy(repo, candidate)
         return
     _assert_declared_closeout_policy(claim, repo, candidate)

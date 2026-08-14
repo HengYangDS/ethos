@@ -42,11 +42,10 @@ def _case(tmp_path: Path) -> tuple[Path, GitEffect, Any, dict[str, object], dict
             id="authority:test:attestation",
             intent="Exercise attestation boundaries.",
             subjects=("repository:repo",),
-            permissions=("git.ref.compare-and-swap",),
         ),
         facts,
         prior_attestations={},
-        policy={"operation": "test.attestation"},
+        policy={"operation": "git.ref.compare-and-swap", "effect_digest": effect.digest()},
         effect=effect,
     )
     before = {

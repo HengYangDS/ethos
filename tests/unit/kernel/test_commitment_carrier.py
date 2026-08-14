@@ -46,7 +46,6 @@ subjects = ["repository:self"]
 scope = ["src/**"]
 acceptance = ["terminal_state_proven"]
 authority_refs = ["user_instruction"]
-permissions = ["repository.read"]
 dependencies = []
 """,
         encoding="utf-8",

@@ -157,7 +157,6 @@ def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, obje
             "state": "candidate_current",
             "effect": {},
             "plan_digest": "",
-            "permissions": [],
             "cas_attempts": 0,
         }
     try:
@@ -176,7 +175,6 @@ def candidate_transition_readiness(*, root: Path, status=None) -> dict[str, obje
         "state": "candidate_transition_admitted",
         "effect": plan.effect,
         "plan_digest": plan.digest,
-        "permissions": list(plan.permissions),
         "cas_attempts": 0,
     }
 

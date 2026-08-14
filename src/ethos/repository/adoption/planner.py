@@ -146,7 +146,6 @@ def _repository_commitment(repository_id: str) -> str:
         f'subjects = ["{repository_id}"]\n'
         'scope = ["**"]\n'
         'authority_refs = [".ethos/profile.toml"]\n'
-        'permissions = ["repository.read", "git.ref.compare-and-swap"]\n'
     )
 
 
@@ -180,7 +179,6 @@ def _existing_commitment_is_valid(binding: tuple[str | None, bool, bool]) -> boo
             "acceptance",
             "risks",
             "authority_refs",
-            "permissions",
             "hypotheses",
             "dependencies",
         ):

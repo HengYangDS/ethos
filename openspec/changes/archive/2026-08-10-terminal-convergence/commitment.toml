@@ -62,13 +62,6 @@ authority_refs = [
   "docs/governance/product-design-contract.md",
   "docs/plans/terminal-governance-product-design.md",
 ]
-permissions = [
-  "repository.read",
-  "work-lane.write",
-  "git.ref.compare-and-swap",
-  "local-proof.execute",
-  "terminal-publication.execute",
-]
 hypotheses = [
   "all_governance_semantics_reduce_to_commitment_and_attestation",
   "derived_projections_replace_parallel_ledgers_without_capability_loss",

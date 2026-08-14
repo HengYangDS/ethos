@@ -113,7 +113,7 @@ def require_live_lease(
     ):
         message = "git_effect_lease_generation_stale"
         raise ValueError(message)
-    operation = str(plan.policy.get("operation") or "")
+    operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     actor = (
         str(plan.policy.get("holder_ref") or "")
         if operation.startswith("lane.start")

@@ -426,13 +426,18 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     assert set(plan["required"]) == {
         "schema_version",
         "inputs",
+        "request",
+        "authority",
         "commitment",
         "prior_attestations",
         "policy",
         "effect",
         "facts",
         "nodes",
+        "compensations",
+        "postconditions",
         "verdict",
         "required_gaps",
+        "continuation",
         "digest",
     }

@@ -78,6 +78,10 @@ def _proof_plan(
 
 def _canonical_payload(plan: TransitionPlan, **updates: object) -> dict[str, object]:
     payload = plan.model_dump(mode="json") | updates
+    gaps = payload["required_gaps"]
+    payload["continuation"] = (
+        {"kind": "user-decision", "required_gaps": gaps} if gaps else None
+    )
     payload["digest"] = canonical_json_digest(
         {name: value for name, value in payload.items() if name != "digest"}
     )

@@ -171,6 +171,16 @@ def git(root: Path, *args: str) -> str:
 def write_test_profile(root: Path, **updates: object) -> Path:
     """Write one strict profile fixture through the production declaration."""
     payload = RepositoryProfileDeclaration.bootstrap(root.resolve().name).model_dump(mode="python")
+    payload["commit_message"] = {
+        "command": (
+            "python",
+            "-m",
+            "commit_check.main",
+            "--message",
+            "--compact",
+            "{message}",
+        )
+    }
     payload.update(updates)
     profile = root / ".ethos" / "profile.toml"
     profile.parent.mkdir(parents=True, exist_ok=True)
@@ -378,11 +388,17 @@ def _enable_openspec_profile(repo: Path) -> None:
     if not profile.exists():
         write_test_profile(repo)
     text = profile.read_text(encoding="utf-8")
-    if "[openspec]" not in text:
-        profile.write_text(
-            text.rstrip() + '\n\n[openspec]\nmaterial_paths = ["openspec/**"]\n',
-            encoding="utf-8",
+    additions = []
+    if "[commit_message]" not in text:
+        additions.append(
+            "[commit_message]\n"
+            'command = ["python", "-m", "commit_check.main", "--message", '
+            '"--compact", "{message}"]'
         )
+    if "[openspec]" not in text:
+        additions.append('[openspec]\nmaterial_paths = ["openspec/**"]')
+    if additions:
+        profile.write_text(text.rstrip() + "\n\n" + "\n\n".join(additions) + "\n", encoding="utf-8")
 
 
 def write_role_policy(

@@ -11,6 +11,14 @@
 schema = "system/schemas/contracts/tools.schema.json"
 
 [[tool]]
+concern = "commit_message"
+tool = "commit-check"
+config = ".ethos/profile.toml"
+executables = ["commit-check"]
+profile = "minimal"
+gate = "ethos hook run commit-msg <message-file>"
+
+[[tool]]
 concern = "python_format_lint"
 tool = "ruff"
 config = "ruff.toml"

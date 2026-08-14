@@ -17,5 +17,4 @@ authority_refs = [
   "AGENTS.md",
   "docs/governance/product-design-contract.md",
 ]
-permissions = ["repository.read", "git.ref.compare-and-swap"]
 dependencies = []

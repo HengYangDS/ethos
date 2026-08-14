@@ -180,6 +180,90 @@ def test_package_intent_claim_matrix(tmp_path):
     assert gaps == ("model_gap",)
 
 
+def test_package_intent_accepts_prettier_aligned_traceability_table(tmp_path):
+    spec = tmp_path / "openspec/changes/example/specs/contracts/spec.md"
+    tasks = tmp_path / "openspec/changes/example/tasks.md"
+    _write(spec, "## ADDED Requirements\n\n### Requirement: Portable result\n")
+    _write(
+        tasks,
+        """# Tasks
+
+- [ ] 1.1 Prove portable results.
+
+## Requirement To Task To Proof
+
+| Requirement                              | Task     | Proof                           |
+| ---------------------------------------- | -------- | ------------------------------- |
+| `contracts:Portable result`              | `1.1`    | `tests:portable-result`         |
+""",
+    )
+
+    context, gaps = compile_intent_context(
+        tmp_path,
+        commitment=Commitment(
+            id="change:example", intent="Prove portable results.", subjects=("repository:example",)
+        ),
+        config={},
+        status={"changeName": "example", "schemaName": "spec-driven", "artifacts": []},
+        apply={
+            "contextFiles": {"behavior-contracts": [str(spec)], "tasks": [str(tasks)]},
+            "tasks": [{"id": "1", "description": "1.1 Prove portable results.", "done": False}],
+        },
+    )
+
+    assert gaps == ()
+    assert context["requirement_edges"] == [
+        {
+            "requirement": "contracts:Portable result",
+            "task": "1.1",
+            "proof": "tests:portable-result",
+        }
+    ]
+
+
+def test_package_intent_expands_capability_traceability_to_coarse_task(tmp_path):
+    spec = tmp_path / "openspec/changes/example/specs/contracts/spec.md"
+    tasks = tmp_path / "openspec/changes/example/tasks.md"
+    _write(
+        spec,
+        "## ADDED Requirements\n\n"
+        "### Requirement: Portable result\n\n"
+        "### Requirement: Exact receipt\n",
+    )
+    _write(
+        tasks,
+        """# Tasks
+
+- [ ] **1. Promote the model.**
+
+## Requirement To Task To Proof
+
+| Requirement | Task | Proof |
+| --- | --- | --- |
+| `contracts:*` | `1` | `tests:contracts` |
+""",
+    )
+
+    context, gaps = compile_intent_context(
+        tmp_path,
+        commitment=Commitment(
+            id="change:example", intent="Prove portable results.", subjects=("repository:example",)
+        ),
+        config={},
+        status={"changeName": "example", "schemaName": "spec-driven", "artifacts": []},
+        apply={
+            "contextFiles": {"behavior-contracts": [str(spec)], "tasks": [str(tasks)]},
+            "tasks": [{"id": "1", "description": "**1. Promote the model.**", "done": False}],
+        },
+    )
+
+    assert gaps == ()
+    assert context["requirement_edges"] == [
+        {"requirement": "contracts:Portable result", "task": "1", "proof": "tests:contracts"},
+        {"requirement": "contracts:Exact receipt", "task": "1", "proof": "tests:contracts"},
+    ]
+
+
 def test_adopter_config_claim_matrix(tmp_path):
     for claim, content, verdict, gaps in MATRIX["config"]:
         root = tmp_path / claim

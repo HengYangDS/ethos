@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 from importlib import resources
 from pathlib import Path
@@ -36,7 +35,6 @@ _DISTRIBUTION_ENTRY = _DISTRIBUTION_PACKAGE.parent / "bin" / "openspec.js"
 _PACKAGE = _SOURCE_ROOT / "node_modules" / "@fission-ai" / "openspec" / "package.json"
 _ENTRY = _PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"
-_SOURCE_NODE = shutil.which("node")
 
 
 def _packaged_node() -> str | None:
@@ -45,6 +43,9 @@ def _packaged_node() -> str | None:
     relative = ("node.exe",) if os.name == "nt" else ("bin", "node")
     executable = Path(str(package.joinpath(*relative)))
     return executable.as_posix() if executable.is_file() else None
+
+
+_SOURCE_NODE = _packaged_node()
 
 
 def openspec_base_command() -> tuple[str, ...] | None:

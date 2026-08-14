@@ -10,6 +10,8 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive_change as archive
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as refresh
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 BRANCH = "work/feature"
 HEAD = "old-head"
@@ -18,6 +20,14 @@ CHANGE = "fixture-change"
 ARCHIVE_PATH = (
     f"openspec/changes/archive/{datetime.now().astimezone().date().isoformat()}-fixture-change"
 )
+
+
+def test_archive_commit_subject_is_conventional(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    write_test_profile(repo)
+    assert archive.lifecycle_commit_subject(repo, "archive", CHANGE) == (
+        "chore(openspec): archive fixture-change"
+    )
 
 
 class _Dumpable:
@@ -208,6 +218,11 @@ def _stub_archive_public(
     )
     monkeypatch.setattr(archive, "initiating_hook_transaction", lambda _root: nullcontext({}))
     monkeypatch.setattr(archive, "archive_transition_environment", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(
+        archive,
+        "lifecycle_commit_subject",
+        lambda *_args, **_kwargs: "chore(openspec): archive fixture-change",
+    )
 
 
 def test_archive_public_dry_run_and_local_state_guard(

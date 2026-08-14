@@ -12,9 +12,12 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.hook.convergence as hook_convergence
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime_install as runtime_install
+from ethos.adapters.repo.commit_message import validate_commit_message_text
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import execute_hook
@@ -45,6 +48,15 @@ def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "repo"\n\n'
+        "[commit_message]\n"
+        'command = ["python", "-m", "commit_check.main", "--message", '
+        '"--compact", "{message}"]\n',
+        encoding="utf-8",
+    )
     source = tmp_path / "installed" / "a" / "b" / "c" / "d"
     source.mkdir(parents=True)
     wheel = tmp_path / "ethos-test.whl"
@@ -167,7 +179,12 @@ def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) 
     assert payload["runtime_digest"] == report["runtime_digest"]
     assert payload["wheel_sha256"] == report["wheel_sha256"]
     assert len(payload["wheel_sha256"]) == 64
-    assert report["scripts"] == ["pre-commit", "pre-push", "reference-transaction"]
+    assert report["scripts"] == [
+        "pre-commit",
+        "commit-msg",
+        "pre-push",
+        "reference-transaction",
+    ]
     assert report["required_gaps"] == []
     console_script = Path(str(report["python"])).with_name(
         "ethos.exe" if sys.platform == "win32" else "ethos"
@@ -185,6 +202,60 @@ def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) 
         assert text.startswith("#!/bin/sh\n")
         assert checkout_python.as_posix() not in text
         assert 'exec "$HOOK_DIR/../ethos/runtime/' in text
+
+
+def test_commit_message_hook_executes_repository_declared_validator(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "repo"\n\n'
+        "[commit_message]\n"
+        'command = ["python", "-m", "commit_check.main", "--message", '
+        '"--compact", "{message}"]\n',
+        encoding="utf-8",
+    )
+    valid = tmp_path / "valid.txt"
+    valid.write_text("docs: explain policy\n", encoding="utf-8")
+    invalid = tmp_path / "invalid.txt"
+    invalid.write_text("explain policy\n", encoding="utf-8")
+
+    assert execute_hook(repo, "commit-msg", (valid.as_posix(),), stdin=StringIO()) == 0
+    assert execute_hook(repo, "commit-msg", (invalid.as_posix(),), stdin=StringIO()) == 1
+    assert "commit_message_policy_rejected" in capsys.readouterr().err
+
+
+def test_commit_message_hook_requires_exact_message_argument(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert execute_hook(tmp_path, "commit-msg", (), stdin=StringIO()) == 1
+    assert "commit_message_path_invalid" in capsys.readouterr().err
+
+
+def test_lifecycle_text_uses_the_repository_declared_validator(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "repo"\n\n'
+        "[commit_message]\n"
+        'command = ["python", "-m", "commit_check.main", "--message", '
+        '"--compact", "{message}"]\n',
+        encoding="utf-8",
+    )
+
+    assert validate_commit_message_text(repo, "chore(openspec): archive example")["verdict"] == (
+        "pass"
+    )
+    assert validate_commit_message_text(repo, "archive OpenSpec change example")[
+        "required_gaps"
+    ] == ["commit_message_policy_rejected"]
 
 
 @pytest.mark.parametrize("kind", ["file", "symlink"])
@@ -243,6 +314,15 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "repo"\n\n'
+        "[commit_message]\n"
+        'command = ["python", "-m", "commit_check.main", "--message", '
+        '"--compact", "{message}"]\n',
+        encoding="utf-8",
+    )
 
     installed = subprocess.run(
         (_venv_executable(package_venv, "ethos"), "hook", "install", "--root", repo, "--json"),
@@ -284,6 +364,30 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
     )
     assert version.returncode == 0, version.stderr
     assert version.stdout.strip()
+    valid = tmp_path / "valid-message.txt"
+    valid.write_text("docs: package policy\n", encoding="utf-8")
+    invalid = tmp_path / "invalid-message.txt"
+    invalid.write_text("package policy\n", encoding="utf-8")
+    runtime_environment = {key: value for key, value in environment.items() if key != "PYTHONPATH"}
+    valid_result = subprocess.run(
+        (runtime_ethos, "hook", "run", "commit-msg", valid.as_posix()),
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=runtime_environment,
+    )
+    invalid_result = subprocess.run(
+        (runtime_ethos, "hook", "run", "commit-msg", invalid.as_posix()),
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=runtime_environment,
+    )
+    assert valid_result.returncode == 0, valid_result.stderr
+    assert invalid_result.returncode == 1
+    assert "commit_message_policy_rejected" in invalid_result.stderr
 
 
 def test_hook_launcher_uses_a_validated_git_for_windows_sh_runtime() -> None:
@@ -311,6 +415,117 @@ def test_hook_runtime_observation_rejects_launcher_drift(tmp_path: Path) -> None
     assert observed["required_gaps"] == ["write_admission_not_armed:pre-push_launcher_drift"]
 
 
+def test_hook_install_converges_every_linked_worktree_to_one_runtime(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    linked = tmp_path / "linked"
+    assert _git(repo, "worktree", "add", "-b", "work/example", linked).returncode == 0
+    assert _git(repo, "config", "core.hooksPath", ".githooks").returncode == 0
+    assert _git(linked, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert _git(linked, "config", "--worktree", "core.hooksPath", ".split-hooks").returncode == 0
+
+    report = install_hook_launchers(repo)
+
+    expected = str(report["hooks_path"])
+    assert _git(repo, "config", "--worktree", "--get", "core.hooksPath").stdout.strip() == expected
+    assert _git(linked, "config", "--worktree", "--get", "core.hooksPath").stdout.strip() == (
+        expected
+    )
+    assert hook_runtime_binding(repo)["required_gaps"] == []
+    assert hook_runtime_binding(linked)["required_gaps"] == []
+
+
+def test_hook_worktree_convergence_rolls_back_every_binding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    linked = tmp_path / "linked"
+    assert _git(repo, "worktree", "add", "-b", "work/example", linked).returncode == 0
+    for root, hooks in ((repo, ".root-hooks"), (linked, ".linked-hooks")):
+        assert _git(root, "config", "extensions.worktreeConfig", "true").returncode == 0
+        assert _git(root, "config", "--worktree", "core.hooksPath", hooks).returncode == 0
+    original = hook_convergence.set_worktree_config
+    calls = 0
+
+    def fail_second(root: Path, values: dict[str, str]) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            message = "simulated_binding_failure"
+            raise ValueError(message)
+        original(root, values)
+
+    monkeypatch.setattr(hook_convergence, "set_worktree_config", fail_second)
+
+    with pytest.raises(ValueError, match="simulated_binding_failure"):
+        hook_convergence.converge_worktree_hooks(repo, repo / ".git/ethos-hooks")
+
+    assert _git(repo, "config", "--worktree", "--get", "core.hooksPath").stdout.strip() == (
+        ".root-hooks"
+    )
+    assert _git(linked, "config", "--worktree", "--get", "core.hooksPath").stdout.strip() == (
+        ".linked-hooks"
+    )
+
+
+def test_hook_install_restores_launchers_when_worktree_convergence_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    hooks = Path(git_common_dir(repo)) / "ethos-hooks"
+    hooks.mkdir()
+    prior = {name: f"prior {name}\n" for name in HOOK_NAMES}
+    for name, content in prior.items():
+        (hooks / name).write_text(content, encoding="utf-8")
+
+    def fail_convergence(_root: Path, _hooks: Path) -> tuple[Path, ...]:
+        message = "simulated_binding_failure"
+        raise ValueError(message)
+
+    monkeypatch.setattr(hook_runtime, "converge_worktree_hooks", fail_convergence)
+
+    with pytest.raises(ValueError, match="simulated_binding_failure"):
+        install_hook_launchers(repo)
+
+    assert {name: (hooks / name).read_text(encoding="utf-8") for name in prior} == prior
+
+
+def test_launcher_family_replacement_rolls_back_on_partial_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    prior = {name: f"prior {name}\n" for name in HOOK_NAMES}
+    for name, content in prior.items():
+        (hooks / name).write_text(content, encoding="utf-8")
+    original = Path.replace
+    replacements = 0
+
+    def fail_second_replacement(source: Path, target: Path) -> Path:
+        nonlocal replacements
+        if source.name.startswith("."):
+            replacements += 1
+            if replacements == 2:
+                message = "simulated_launcher_failure"
+                raise OSError(message)
+        return original(source, target)
+
+    monkeypatch.setattr(Path, "replace", fail_second_replacement)
+
+    with pytest.raises(OSError, match="simulated_launcher_failure"):
+        runtime_install.replace_launchers(
+            hooks,
+            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
+        )
+
+    assert {name: (hooks / name).read_text(encoding="utf-8") for name in prior} == prior
+
+
 def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_path: Path) -> None:
     fixture = start_adopted_work_lane(tmp_path)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
@@ -318,7 +533,7 @@ def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_p
     readme.write_text("# governed work lane\n", encoding="utf-8")
     assert _git(fixture.worktree, "add", "README.md").returncode == 0
 
-    commit = _git(fixture.worktree, "commit", "-m", "change without secret policy")
+    commit = _git(fixture.worktree, "commit", "-m", "docs: change without secret policy")
 
     assert commit.returncode == 0, commit.stderr
 

@@ -416,6 +416,23 @@ def test_refresh_base_claim_matrix(
             candidate,
         )
         assert head != previous
+        lease = leases_by_branch(fixture.worktree)["work/feature"]
+        assert lease["expected_head"] == head
+        prewrite = run_ethos(
+            "lane",
+            "prewrite",
+            "FEATURE.md",
+            "--editor-root",
+            fixture.worktree.as_posix(),
+            "--require-editor-root",
+            "--json",
+            cwd=fixture.worktree,
+        )
+        assert (prewrite["verdict"], prewrite["state"], prewrite["required_gaps"]) == (
+            "pass",
+            "admitted",
+            [],
+        )
         assert (
             data["rebase_attestation"]["predicate"],
             data["attachment_attestation"]["predicate"],

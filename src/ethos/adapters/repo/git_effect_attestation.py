@@ -314,7 +314,7 @@ def recover_plan(
     if (
         plan.digest != digest
         or attestation.plan_digest != digest
-        or plan.policy.get("operation") != operation
+        or (plan.policy.get("transition") or plan.policy.get("operation")) != operation
         or update is None
         or update.expected != intent["old_value"]
         or update.desired != desired

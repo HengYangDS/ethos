@@ -14,6 +14,7 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import PlanInputs
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.proof.plan import validate_proof_plan
@@ -294,6 +295,34 @@ def test_transition_plan_is_the_operation_bound_receipt() -> None:
     assert plan.compensations == (compensation,)
     assert plan.postconditions == (postcondition,)
     assert plan.continuation is None
+
+
+def test_git_effect_compiler_declares_exact_compensation_and_post_observation() -> None:
+    effect = GitEffect(
+        updates={"refs/heads/dev": GitRefUpdate(expected="0" * 40, desired="1" * 40)}
+    )
+    plan = compile_git_effect_plan(
+        _COMMITMENT,
+        _FACTS,
+        prior_attestations={},
+        policy={"operation": "git.ref.compare-and-swap", "effect_digest": effect.digest()},
+        effect=effect,
+    )
+
+    assert plan.compensations == (
+        PlanNode(
+            id="git.ref.compare-and-swap.compensate",
+            kind="effect",
+            command=("git", "update-ref", "--stdin", "-z"),
+        ),
+    )
+    assert plan.postconditions == (
+        PlanNode(
+            id="git.ref.compare-and-swap.observe",
+            kind="check",
+            command=("git", "show-ref", "--verify"),
+        ),
+    )
 
 
 def test_blocked_transition_receipt_has_one_canonical_continuation() -> None:

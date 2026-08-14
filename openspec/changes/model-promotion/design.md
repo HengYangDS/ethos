@@ -48,18 +48,62 @@ context-dependent aliases are invalid; subjects are explicit.
 - canonical JSON projection; and
 - digest domain.
 
+The wire grammar is closed. Semantic strings and object keys are Unicode
+scalar-value sequences. Lone surrogates are invalid and readers never apply
+Unicode normalization: canonically equivalent NFC and NFD spellings remain
+distinct values. Named fields state separately when empty strings or controls
+are forbidden. Identifiers use lowercase ASCII segments separated by `:`;
+digests are exactly 64 lowercase hexadecimal characters. Relative path patterns
+use `/`, never `.` or `..` segments, NUL, backslash, or a leading slash. Times
+use a strict RFC 3339 UTC subset: seconds and `Z` are mandatory, zero fractions
+are omitted, non-zero fractions use one to six digits without trailing zero,
+and offsets, leap seconds, naive times, and invalid calendar values are rejected.
+
+Canonical JSON is the RFC 8785 string and object-key algorithm over a deliberately
+smaller numeric algebra. It is UTF-8 without BOM, trailing newline, or
+insignificant whitespace. Its value grammar is `null`, boolean, Unicode string,
+I-JSON safe integer
+`[-9007199254740991, 9007199254740991]`, array, or object. Floating-point values
+are forbidden rather than delegated to a runtime-specific formatter. Object
+keys are unique and recursively sorted by RFC 8785 UTF-16 code-unit order; array
+order is preserved. Integers use the shortest base-10 spelling without plus
+sign or leading zero. `/` and non-ASCII scalars are not escaped; quotation mark,
+reverse solidus, and controls use RFC 8785 escapes. Carrier readers reject
+duplicate keys, noncanonical member bytes, and unsupported values before model
+construction.
+
 The digest is:
 
 ```text
 SHA256("ethos.commitment.v2\0" || canonical_json(identity_projection))
 ```
 
-The projection contains intent, subject, scope, invariants, acceptance, risks,
+The projection contains intent, subjects, scope, invariants, acceptance, risks,
 authority refs, predecessor Commitment digests, selected Attestation IDs, typed
-dependencies, typed hypotheses/falsifiers, and typed experiment protocols.
-Collections have declared canonical order and reject duplicates. Changing the
-v2 interpreter without changing the version is a contract failure caught by
-packaged golden vectors.
+dependencies, typed hypotheses/falsifiers, and typed experiment protocols. All
+fields are required in the carrier, including empty collections.
+
+The value contracts and canonical orders are:
+
+- `subjects`, `scope`, `invariants`, `acceptance`, `risks`, and
+  `authority_refs`: unique strings sorted by canonical JSON bytes;
+- `predecessors` and `selected_attestations`: unique digests sorted
+  lexicographically;
+- dependency: `{kind, target, attributes}`, sorted by
+  `(kind, target, canonical_json(attributes))`;
+- hypothesis: `{id, kind, body}`, sorted by `(id, kind,
+  canonical_json(body))`;
+- falsifier: `{id, hypothesis_id, kind, body}`, sorted by
+  `(hypothesis_id, id, kind, canonical_json(body))`;
+- experiment protocol: `{id, hypothesis_ids, kind, body}`, where
+  `hypothesis_ids` is a unique sorted digest-or-identifier set, sorted by
+  `(id, kind, canonical_json(hypothesis_ids), canonical_json(body))`.
+
+Every nested field is required; `attributes` and `body` use the canonical JSON
+grammar above. Carrier collections must already be in canonical order; readers
+reject rather than silently sort them. Duplicate identity keys or duplicate
+complete values fail closed. Changing this interpreter without changing the
+version is a contract failure caught by packaged golden vectors.
 
 The Lease retains the minimal exact binding:
 
@@ -81,8 +125,18 @@ An Attestation v2 contains:
 - evidence refs and exact Commitment/Facts/Plan/Policy/Effect bindings; and
 - invariant `mints_authority=false`.
 
+Every field is explicit. Optional digest and validity bindings are required
+nullable fields and therefore project as `null`, never as an interpreter
+default. `advisories` and `evidence_refs` are unique strings sorted by canonical
+JSON bytes. Payload is exactly `{kind, body}`. Relation is exactly
+`{kind, target_kind, target_id, attributes}`. Kinds and target identifiers use
+the identifier grammar above; bodies and attributes use the same canonical JSON
+grammar. At least one evidence reference, exact digest binding, or relation is
+required.
+
 Relations sort by `(kind, target_kind, target_id, canonical_json(attributes))`
-and reject duplicates. Evidence refs and advisories are sorted and unique.
+and reject duplicate complete values and duplicate `(kind, target_kind,
+target_id)` identity keys.
 Identity is:
 
 ```text
@@ -156,9 +210,13 @@ These are projections of the set contract, not workflow or task owners.
 
 ## Decision 5: Destructive V1-To-V2 Bootstrap
 
-The existing Commitment rebind family owns the only migration. Its bootstrap
-plan binds the current v1 Lease tuple opaquely and the exact new v2 carrier bytes,
-digest, target tree/head, actor, index, and overlay.
+The existing Commitment rebind family owns the only migration through one
+explicit `v1-to-v2-bootstrap` operation. There is no repository-rebind command
+or general compatibility reader. Bootstrap derive binds the current v1 Lease
+tuple opaquely, reads only the minimal old repository carrier identity and byte
+digest through a private bootstrap decoder, validates both exact new v2
+carriers, and creates the signed dangling target commit from the exact staged
+index. The request binds target tree/head, actor, index, and overlay.
 
 ```text
 V1_BOUND
@@ -170,10 +228,21 @@ V1_BOUND
 ```
 
 Bootstrap does not parse v1 with the v2 model or recalculate its digest. It
-compares the persisted old tuple exactly. Interruption may recover only to the
-exact old tuple or exact v2 tuple plus effect Attestation. Once active v1
-generations are migrated or retired, current mutation rejects v1 before plan
-compilation. Historical v1 bytes remain history only.
+compares the persisted old lane tuple exactly. Its receipt also binds old and
+new repository carrier paths, byte digests, stable repository identity, and the
+new v2 semantic digest. Plan compilation, admission, apply, and every recovery
+branch use the same opaque-old validator; none call the normal v2 reader for old
+bytes. Interruption may recover only to the exact old tuple or exact v2 tuple
+plus the effect Attestation in the sole set. Once active v1 generations are
+migrated or retired, normal status, plan, prewrite, and mutation reject v1
+before plan compilation. The private bootstrap decoder is unreachable from
+those readers. Historical v1 bytes remain history only.
+
+The public derive step owns target construction so an operator never runs raw
+`commit-tree`, `update-ref`, or SQLite mutation. Apply performs one branch CAS,
+one Lease epoch advance, and one Attestation-set union. Recovery re-observes
+those exact three carriers and returns one typed continuation; operation-local
+JSON may stage request bytes but is not current evidence authority.
 
 ## Decision 6: Parallel Authorities Are Removed
 

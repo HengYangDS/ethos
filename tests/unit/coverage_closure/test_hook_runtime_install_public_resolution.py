@@ -286,6 +286,32 @@ def test_final_runtime_rejects_console_entrypoint_bound_to_staging(
         install.require_runtime(runtime, "a" * 64, "b" * 64, "cpython-test")
 
 
+@pytest.mark.parametrize("drift", ["missing", "incomplete", "hash"])
+def test_runtime_manifest_rejects_launcher_family_drift(
+    tmp_path: Path, drift: str
+) -> None:
+    runtime = tmp_path / ("a" * 64)
+    python = runtime / "venv/bin/python"
+    entrypoint = runtime / "venv/bin/ethos"
+    python.parent.mkdir(parents=True)
+    python.write_bytes(b"python")
+    entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
+    entrypoint.chmod(0o755)
+    install.write_runtime_manifest(runtime, runtime.name, "b" * 64, "cpython-test", python)
+    manifest = runtime / "manifest.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    if drift == "missing":
+        payload.pop("hook_launchers")
+    elif drift == "incomplete":
+        payload["hook_launchers"].pop("commit-msg")
+    else:
+        payload["hook_launchers"]["commit-msg"] = "0" * 64
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+        install.require_runtime(runtime, runtime.name, "b" * 64, "cpython-test")
+
+
 def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

@@ -24,10 +24,12 @@ does not append work here unless this Commitment already requires it.
   and negative authority tests.
 
 - [ ] **4. Execute the destructive bootstrap.** Extend existing Commitment
-  rebind with one exact v1-tuple to v2-generation plan, interruption recovery,
-  effect Attestation, and terminal rejection of v1 current mutation. Rebind this
-  lane and repository through public commands only. **Proof:** boundary mutation
-  matrix plus package-only dry-run/apply/readback.
+  rebind with one `v1-to-v2-bootstrap` operation, opaque old lane/repository
+  bindings, public staged-index target construction, one exact v2-generation
+  plan, interruption recovery across branch/Lease/Attestation set, and terminal
+  rejection of v1 current mutation. Rebind this lane and repository through
+  public commands only. **Proof:** boundary mutation matrix plus package-only
+  dry-run/apply/readback.
 
 - [ ] **5. Accept the foundation.** Delete out-of-scope and superseded residue;
   run OpenSpec 1.8 strict validation, focused quality gates, code and ponytail

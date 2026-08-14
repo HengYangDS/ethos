@@ -3,9 +3,14 @@ id = "change:model-promotion"
 intent = "Establish non-drifting Commitment and Attestation semantics, one durable Attestation set, and one destructive v1-to-v2 bootstrap."
 subjects = ["repository:ethos"]
 scope = [
+  ".ethos/commitment.toml",
   "src/ethos/contracts/semantic.py",
   "src/ethos/contracts/plan.py",
   "src/ethos/contracts/coordination.py",
+  "src/ethos/adapters/admission/commitment_rebind_transition.py",
+  "src/ethos/adapters/repo/commitment.py",
+  "src/ethos/adapters/repo/git_effect_observation.py",
+  "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/adapters/repo/attestation_set.py",
   "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind.py",
   "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_admission.py",

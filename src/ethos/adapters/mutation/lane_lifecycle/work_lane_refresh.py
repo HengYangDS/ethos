@@ -414,9 +414,7 @@ def _refresh_transition_plan(
         head=rebased_head,
         prior_attestations={"rebase": rebase_attestation.model_dump(mode="json")},
         policy={
-            "operation": "git.ref.compare-and-swap",
-            "transition": "lane.refresh",
-            "effect_digest": effect.digest(),
+            "operation": "lane.refresh",
             "execution_branch": branch,
         },
         values={"lease_generation": lease_generation(lease)},

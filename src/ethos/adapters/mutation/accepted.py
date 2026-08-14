@@ -232,9 +232,7 @@ def _accepted_transition_plan(
     prior_attestations: JsonObject,
 ) -> TransitionPlan:
     effect_policy = {
-        "operation": "git.ref.compare-and-swap",
-        "effect_digest": effect.digest(),
-        "transition": "candidate.accept",
+        "operation": "candidate.accept",
         "release_branch": role_policy.release_branch,
         "accepted_branch": role_policy.accepted_branch,
         "candidate_branch": role_policy.candidate_branch,

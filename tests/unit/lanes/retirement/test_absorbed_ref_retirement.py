@@ -276,7 +276,8 @@ def test_absorbed_ref_retires_through_installed_reference_transaction_hook(
     )
     assert applied["data"]["retired"]["ref_state"] == "absent"
     assert git(repo, "branch", "--list", "work/absorbed") == ""
-    assert observed_policy["operation"] == "lane.retire"
+    assert observed_policy["operation"] == "git.ref.compare-and-swap"
+    assert observed_policy["transition"] == "lane.retire"
     assert observed_policy["retirement_kind"] == "absorbed-ref"
     assert {
         branch: git(repo, "rev-parse", branch) for branch in protected_before

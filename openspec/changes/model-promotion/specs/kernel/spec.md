@@ -1,73 +1,55 @@
-## REMOVED Requirements
+## MODIFIED Requirements
 
-### Requirement: Deterministic TransitionPlan
+### Requirement: Minimal Semantic Kernel
 
-**Reason**: A plan that does not bind exact operation authority, compensation,
-postconditions, and continuation is not a lossless transition model.
+ETHOS SHALL persist exactly Commitment and Attestation as semantic roots. Facts
+and `TransitionPlan` SHALL remain derived. No Claim, Chronicle, Ledger, Campaign,
+shared inbox, Lease, ref, task, or stored plan SHALL own normative intent or
+reusable authority.
 
-**Migration**: Replace every plan compiler and consumer with the single
-receipt-bound transition reducer.
+#### Scenario: Repository operation is represented
+
+- **WHEN** ETHOS records a repository operation
+- **THEN** the operation is expressible through Commitment, Attestation, Facts,
+  and `TransitionPlan` without higher-layer semantic owners
+- **AND** Attestations bind evidence without minting authority
+
+#### Scenario: semantic attestation remains optional and bounded
+
+- **WHEN** semantic assurance rather than digest-only proof is required
+- **THEN** assurance is a candidate-external, non-authorizing Attestation bound
+  to subject, scope, exact HEAD, verifier, verdict, and validity
+- **AND** digest-only proof requires no external account or network
 
 ## ADDED Requirements
 
-### Requirement: Single receipt-bound transition reducer
+### Requirement: Semantic identity is schema-versioned and runtime-independent
 
-ETHOS SHALL reduce one typed operation request, Commitment, fresh Facts, prior
-Attestations, and tracked declarations into one deterministic immutable
-transition receipt. The reducer SHALL be pure and SHALL own all validation,
-authority derivation, effect ordering, compensation, postconditions, and
-continuation semantics.
+A supported semantic carrier SHALL be interpreted by exactly one immutable
+schema-version protocol. Identity-bearing defaults, normalization, canonical
+projection, and digest domain SHALL NOT vary between source, wheel, package-only
+runtime, host, or process.
 
-#### Scenario: Identical observations are reduced twice
+#### Scenario: The same v2 carrier is interpreted in several runtimes
 
-- **WHEN** the same canonical inputs are reduced more than once
-- **THEN** every receipt byte and digest is identical
-- **AND** no runtime, command, store, hook, or provider adapter contributes
-  hidden lifecycle state
+- **WHEN** exact bytes are loaded from the same Git tree
+- **THEN** every runtime produces the same semantic identity
+- **AND** a changed interpreter requires a new schema version
 
-#### Scenario: One authority-bearing fact changes
+#### Scenario: A current v1 carrier is encountered after cutover
 
-- **WHEN** the actor, holder, Commitment, Attestation, ref, tree, Lease
-  generation, worktree, declaration, or requested effect changes
-- **THEN** the receipt identity changes or the reducer blocks
+- **WHEN** normal plan compilation or mutation loads it
+- **THEN** ETHOS blocks before deriving current semantic authority
+- **AND** only the exact one-shot bootstrap may consume its persisted Lease tuple
 
-### Requirement: Transition effects are complete or explicitly partial
+### Requirement: Unknown semantic input is lossless and non-authorizing
 
-Terminal success SHALL require post-observation of every declared postcondition.
-An externally visible effect without complete postconditions SHALL reduce to a
-typed partial result bound to the original receipt and exactly one resumable or
-compensating continuation.
+The kernel SHALL preserve structurally canonical unknown predicates, payloads,
+and relations. Only values understood by the selected operation evaluator MAY
+satisfy an authority query.
 
-#### Scenario: Ref CAS succeeds and Lease projection fails
+#### Scenario: A future input kind is received
 
-- **WHEN** a transition advances a ref but cannot advance the exact Lease
-  generation
-- **THEN** ETHOS either proves exact compensation restored the prestate or
-  returns `partial`
-- **AND** it SHALL NOT report the operation as applied or done
-
-### Requirement: Semantic persistence is minimal
-
-Only Commitment and Attestation SHALL persist as semantic roots. Facts,
-TransitionPlan, Effect, operation authority, Continuation, Lease/controller
-views, runtime selection, status, and provider observations SHALL be derived
-from current inputs and immutable evidence.
-
-#### Scenario: A derived model is inspected
-
-- **WHEN** architecture tests inspect storage, tracked carriers, and schemas
-- **THEN** no derived model owns durable lifecycle progress or reusable authority
-- **AND** removing its cache or local projection does not remove repository truth
-
-### Requirement: Dry-run and apply are homomorphic
-
-Dry-run and apply SHALL consume the same reducer and canonical observations.
-Apply SHALL accept the exact passing receipt produced by derive and SHALL NOT
-recompile a semantically different plan.
-
-#### Scenario: Invocation environment changes after derive
-
-- **WHEN** working directory, `PWD`, `OLDPWD`, process, host, or presentation
-  context changes without changing the receipt-bound repository facts
-- **THEN** the transition meaning remains identical
-- **AND** changed authoritative facts invalidate the receipt before effects
+- **WHEN** its canonical envelope is valid but its semantic kind is unknown
+- **THEN** ETHOS round-trips it without reinterpretation
+- **AND** it cannot authorize an effect or satisfy required evidence

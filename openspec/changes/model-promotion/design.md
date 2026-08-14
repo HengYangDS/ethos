@@ -1,173 +1,218 @@
 ## Context
 
-The defect family has one cause: lifecycle meaning is reconstructed by several
-procedural owners. A Git ref may advance while its Lease does not; a source tree
-may declare a role transition that the target checkout cannot see; a package may
-emit JSON rejected by its own schema; hook launchers may select different
-runtimes; proof and transition code may compare unrelated Commitment digests.
-Each local fix strengthens one interpretation while leaving the duplicated
-model intact.
-
-The product contract already names the correct semantic roots:
+The product has two semantic roots:
 
 ```text
-(Commitment, Facts, prior Attestations) -> TransitionPlan -> Attestation
+Commitment   immutable normative intent
+Attestation  immutable input, observation, judgment, proof, or effect
 ```
 
-This Change makes that equation executable across the complete lifecycle.
+Facts and `TransitionPlan` are derived. The implementation nevertheless retains
+parallel intent/progress owners, while Commitment v1 allowed its Python
+interpreter to change without a schema-version change. The same carrier bytes
+have already produced different semantic digests in installed runtimes.
+
+The terminal model must preserve continuous input without making a Change
+unbounded, and make semantic identity independent of runtime defaults.
 
 ## Goals
 
-- One typed operation declaration and one pure reducer.
-- One immutable receipt binding observation, authority, plan, effect,
-  compensation, and postcondition.
-- One exact apply engine and one structured continuation envelope.
-- One package manifest binding source, wheel, resources, schemas, CLI, hooks,
-  runtime interpreter, and health proof.
-- One positive gate graph and one repository-declared commit policy.
-- No reusable permission in Commitment and no second workflow state store.
-- No compatibility reader, alias, fallback, blacklist, or adopter-specific
-  lifecycle engine.
+- Exactly two durable semantic roots.
+- Same supported-schema bytes always produce the same semantic identity.
+- Every relevant input occurrence can be preserved without authorizing effects.
+- Unknown predicates, payloads, and relations remain lossless and fail closed.
+- Selection is evidence; successor Commitment is normative adoption.
+- One Commitment binds one bounded Change, lane generation, and task authority.
+- One current Attestation carrier and no mutable ledger or inbox.
+- One exact destructive v1-to-v2 bootstrap, then no compatibility path.
 
 ## Non-Goals
 
-- Preserving old state payloads, commands, Campaign carriers, or profile shapes.
-- Encoding AIGW, Proxy, Cocogitto, GitLab, GitHub, uv, Go, or any repository's
-  branch names in ETHOS.
-- Treating SQLite, worktrees, Lease rows, operation logs, runtime locators, or
-  provider status as semantic roots.
+- A closed ontology for future input.
+- Treating text hashes, set membership, selection, tasks, refs, Lease, SQLite, or
+  views as normative authority.
+- Migrating lifecycle effects beyond Commitment rebind.
+- Claiming remote protection or replication for the Attestation ref.
 
-## Decision 1: One Transaction Algebra
+## Decision 1: Commitment V2 Has A Frozen Interpreter
 
-Every mutating public operation is data:
+A v2 carrier explicitly writes every identity-bearing field. Omitted Python or
+schema defaults never participate in identity. `repository:self` and other
+context-dependent aliases are invalid; subjects are explicit.
+
+`schema_version = 2` freezes:
+
+- allowed and required fields;
+- tuple ordering and uniqueness;
+- path and identifier normalization;
+- canonical JSON projection; and
+- digest domain.
+
+The digest is:
 
 ```text
-OperationRequest
-  + Commitment
-  + fresh Facts
-  + prior Attestations
-  + repository declarations
-    -> reduce()
-    -> TransitionReceipt
+SHA256("ethos.commitment.v2\0" || canonical_json(identity_projection))
 ```
 
-`reduce()` is pure. It returns a closed verdict, ordered gaps, exact operation
-authority, preconditions, effects, compensations, postconditions, and one
-continuation. It performs no I/O and persists no progress.
+The projection contains intent, subject, scope, invariants, acceptance, risks,
+authority refs, predecessor Commitment digests, selected Attestation IDs, typed
+dependencies, typed hypotheses/falsifiers, and typed experiment protocols.
+Collections have declared canonical order and reject duplicates. Changing the
+v2 interpreter without changing the version is a contract failure caught by
+packaged golden vectors.
 
-`apply(receipt)` accepts only the exact immutable receipt. It re-observes every
-precondition, executes the declared effects in order, post-observes all declared
-postconditions, and issues an Attestation. If an effect is visible but terminal
-postconditions are not, the result is `partial`, retains the same receipt, and
-names exactly one public resume or compensate action.
+The Lease retains the minimal exact binding:
 
-## Decision 2: Operation-Bound Authority
+```text
+(expected_head, expected_tree, carrier_path, SHA256(carrier_bytes), semantic_digest)
+```
 
-Commitment declares intent, subject, scope, invariants, acceptance, risk, and
-authority references only. It carries no reusable permission.
+Loading proceeds in that order: exact bytes, bytes digest, schema version, v2
+interpretation, semantic digest, Lease comparison. Plan compilation and effects
+occur only afterward.
 
-Authority is derived for one operation from:
+## Decision 2: Attestation V2 Is Open And Non-Authorizing
 
-- the selected tracked operation declaration;
-- exact actor/holder/maintainer facts;
-- exact Commitment and Attestation bindings;
-- exact observed refs, trees, Lease generation, worktrees, and provider facts;
-- the exact requested effect.
+An Attestation v2 contains:
 
-The receipt carries that derivation. Changing any input changes the receipt and
-invalidates apply. No authority survives as a general capability for another
-operation.
+- open predicate, verifier, subject, issued time, validity, and closed verdict;
+- payload `{kind, body}`, where `kind` is open;
+- relations `{kind, target_kind, target_id, attributes}`;
+- evidence refs and exact Commitment/Facts/Plan/Policy/Effect bindings; and
+- invariant `mints_authority=false`.
 
-## Decision 3: Resource Coordination Is A Projection
+Relations sort by `(kind, target_kind, target_id, canonical_json(attributes))`
+and reject duplicates. Evidence refs and advisories are sorted and unique.
+Identity is:
 
-Git refs are the repository substrate. Lease and worktree attachment coordinate
-exclusive mutation but do not own lifecycle truth. Their mutations are explicit
-effects and their complete terminal relation is a postcondition.
+```text
+SHA256("ethos.attestation.v2\0" || canonical_json(all_fields_except_id))
+```
 
-For `refresh-base`, terminal success means all of the following are observed in
-one receipt closure:
+Root validation preserves any structurally canonical body. Operation-specific
+evaluators decide which predicates, payloads, relations, bindings, and validity
+can support a verdict. Unknown values remain queryable but cannot satisfy a
+required predicate or authority query.
 
-- the work ref equals the rebased head;
-- the candidate assertion remains exact;
-- the Lease generation binds the new head/tree/Commitment;
-- the worktree is attached to that branch and head;
-- the effect Attestation binds the receipt and post-observation.
+An input occurrence carries source identity and occurrence coordinates in its
+payload. Identical text in different contexts therefore remains distinct. Raw
+bytes may be evidence; text digest is never occurrence identity.
 
-If Lease advancement or attachment fails after ref CAS, apply compensates the
-ref when exact rollback remains valid. Otherwise it returns a typed partial
-receipt whose only continuation resumes or compensates that exact transition.
+## Decision 3: Selection Does Not Adopt
 
-## Decision 4: Commands And Results Are Projections
+A selection Attestation maps input occurrences to exactly one disposition:
 
-Cyclopts declarations own names and parameters. A command may collect request
-arguments and render results; it may not implement lifecycle policy. `status`,
-`plan`, hooks, SDK, JSON, schemas, and docs reduce or project the same contracts.
+- named semantic owner plus composable relations;
+- explicit absence reason;
+- contradiction with bound evidence; or
+- model gap requiring promotion.
 
-Every public result uses one closed envelope:
+Selection never mutates an active Commitment, Change, scope, acceptance, or task
+graph. Contradiction/model-gap predicates block only affected authority queries.
 
-- `verdict`;
-- `state` (`ready`, `applied`, `partial`, `blocked`, `done`);
-- `required_gaps`;
-- receipt and Attestation identities when present;
-- one `next_action` or one explicit user decision;
-- bounded diagnostics with no traceback.
+Normative adoption creates a successor Commitment binding predecessor digests
+and selected Attestation IDs. It owns one OpenSpec Change, writable lane
+generation, and task graph. Independent successors may proceed concurrently
+only when dependencies, scopes, and exact effects are disjoint. Moving an
+obligation never marks it implemented.
 
-## Decision 5: Package And Hook Identity
+## Decision 4: One Git-Native Attestation Set
 
-The immutable package manifest binds accepted source commit/tree, wheel and
-entrypoint bytes, dependency lock, bundled schemas/resources, CLI help digest,
-OpenSpec runtime, interpreter strategy, hook launchers, and black-box receipts.
-Activation selects exactly one healthy runtime only after final-path tests pass.
-All linked worktrees and all declared hooks converge atomically; obsolete broken
-runtimes retire only after active-runtime and launcher readback proof.
+The sole current carrier is:
 
-Runtime launchers may not embed a temporary staging path or Homebrew patch-level
-interpreter path. A missing interpreter triggers package-owned repair before
-activation rather than leaving a half-installed runtime current.
+```text
+refs/ethos/attestations-set
+  -> deterministic parentless commit
+  -> canonical Git tree
+  -> evidence/attestations/<id[0:2]>/<id>.json
+```
 
-## Decision 6: Repository Declarations, Not Repository Engines
+The commit uses fixed author, committer, timestamp, encoding, and message, no
+parents, and the repository object format. Equal members produce an equal root.
+The only mutation is:
 
-Profiles declare policy facts:
+```text
+new_set = old_set union validated_inputs
+```
 
-- branch roles and role-transition edges;
-- commit-message argv, placeholder, and locked inputs;
-- gate graph, required execution contexts, SSOT and derived carriers;
-- actor/signature/trust policies and provider identity profiles;
-- provider projection topology and release policy.
+A writer observes the ref, validates member bytes/path identity, builds the
+union tree, and exact-CAS updates the ref. Stale CAS re-observes and recomputes
+union. Duplicate bytes are idempotent; different bytes for one ID are an
+identity collision. There is no sequence, offset, latest pointer, processed
+flag, tombstone, mutable inbox, or reflog semantics.
 
-ETHOS compiles and executes those declarations. Adopters do not provide wrapper
-scripts, second hook owners, history-rewrite engines, lifecycle commands, or
-provider-specific orchestration engines.
+Git-common JSON directories are staging/cache only after cutover. Existing
+tracked Claims, Chronicle, and other historical bytes remain inert Git history
+with no current producer, selector, or verdict authority. Current Attestations
+are not duplicated onto accepted branch trees.
 
-## Decision 7: One Change, One Task Graph
+The public surface is deliberately narrow:
 
-`openspec/changes/model-promotion/tasks.md` is the only progress authority for
-this promotion. The terminal product plan links to it and contains no Campaign,
-delivery queue, compatibility roadmap, or second checklist. Work may land in
-small commits, but all commits advance this one dependency graph and one Change.
+- record one canonical Attestation, or issue one from explicit payload input,
+  then CAS-union it into the set;
+- query set identity and members by exact semantic filters.
 
-## Vertical Migration Order
+These are projections of the set contract, not workflow or task owners.
 
-1. Freeze the new contracts with reducer property tests.
-2. Migrate `refresh-base` end to end and delete its command-local orchestration.
-3. Migrate land/closeout and source-to-target role transitions.
-4. Migrate Lease recovery, rebind, retirement, and history replacement.
-5. Migrate hooks, package runtime selection, and state cutover.
-6. Migrate proof execution and required-gate completeness.
-7. Migrate provider-native proposal projection and independent ingestion.
-8. Delete Campaign, reusable permissions, duplicate effect admission, old
-   schemas, compatibility code, and stale documentation.
+## Decision 5: Destructive V1-To-V2 Bootstrap
+
+The existing Commitment rebind family owns the only migration. Its bootstrap
+plan binds the current v1 Lease tuple opaquely and the exact new v2 carrier bytes,
+digest, target tree/head, actor, index, and overlay.
+
+```text
+V1_BOUND
+  -> exact rebind plan
+  -> ref/head CAS
+  -> Lease epoch+1 with v2 bytes and digest
+  -> effect Attestation
+  -> V2_BOUND
+```
+
+Bootstrap does not parse v1 with the v2 model or recalculate its digest. It
+compares the persisted old tuple exactly. Interruption may recover only to the
+exact old tuple or exact v2 tuple plus effect Attestation. Once active v1
+generations are migrated or retired, current mutation rejects v1 before plan
+compilation. Historical v1 bytes remain history only.
+
+## Decision 6: Parallel Authorities Are Removed
+
+Useful meanings map into the two roots:
+
+- normative intent, hypothesis, protocol, dependency -> Commitment;
+- input, observation, evaluation, selection, decision, proof, effect ->
+  Attestation payload/predicate/relation;
+- progress -> one OpenSpec Change task graph;
+- current coordination -> fresh Facts and local Lease fencing;
+- historical bytes -> inert Git history.
+
+Claim/Chronicle readers, evolution ledger, Campaign state, shared inbox state,
+reusable permissions, and operation-specific current Attestation indexes are
+removed. No compatibility facade or dual reader remains.
+
+## Alternatives Rejected
+
+- **Append to active Change:** loses bounded closure.
+- **Mutable inbox, ledger, Campaign, or Chronicle:** creates another currentness
+  and progress authority.
+- **Text-hash deduplication:** collapses distinct occurrences.
+- **Closed relation/payload enums:** cannot preserve future valid input.
+- **Accepted-branch Attestation files:** every input mutates protected trees.
+- **Several operation-specific stores:** duplicates selection/currentness.
+- **Long-lived v1/v2 readers:** preserves the ambiguity being removed.
 
 ## Verification
 
-- Property tests prove reducer determinism, input sensitivity, closed verdicts,
-  exact authority, compensation, and resumability.
-- Mutation tests interrupt every effect boundary and prove either complete
-  postconditions or one exact partial continuation.
-- Package-only black boxes run CLI, schemas, hooks, OpenSpec, migration, proof,
-  land, transition, retire, and publish without source checkout.
-- Real read-only AIGW and Proxy probes prove declarations and current facts can
-  compile. Their owners alone apply mutations.
-- Final acceptance requires exact-HEAD full proof, OpenSpec archive, post-archive
-  proof, signed land/closeout, accepted runtime activation, and safe runtime
-  housekeeping.
+- Golden vectors run from source, built wheel, and package-only runtime.
+- Mutating a v2 default/interpreter without a version bump fails vectors.
+- Property tests cover relation ordering, duplicate rejection, opaque
+  round-trip, non-authorizing selection, set-union commutativity/idempotence,
+  and stale-CAS retry.
+- Real local Git tests prove deterministic parentless roots and collision safety.
+- Bootstrap interruption tests permit only exact `V1_BOUND` or `V2_BOUND` plus
+  effect Attestation.
+- Architecture/residue tests prove no active Claim, Chronicle, Ledger, Campaign,
+  shared-inbox, v1, or duplicate Attestation authority remains.
+- OpenSpec strict validation, focused gates, code/ponytail review, exact-HEAD
+  full proof, archive, post-archive proof, and governed closeout complete
+  acceptance.

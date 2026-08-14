@@ -1,40 +1,48 @@
 # Tasks
 
-This is the only Model Promotion task ledger. Specifications own behavioral
-coverage; tests and receipts prove it. Defect examples do not become tasks.
+This is the only progress authority for this bounded model foundation. New
+feedback is recorded as an Attestation and may be selected by a successor; it
+does not append work here unless this Commitment already requires it.
 
-- [ ] **1. Promote the model.** Establish the single pure reducer, immutable
-  transition receipt, operation-bound authority, and closed result contract;
-  remove reusable Commitment permissions, Campaign, and parallel lifecycle
-  state. **Proof:** contract/property tests and zero retired-owner residue.
+- [ ] **1. Freeze semantic identity.** Implement strict Commitment v2 and
+  Attestation v2 value contracts, explicit identity-bearing fields,
+  domain-separated digests, typed lineage/hypothesis/protocol values,
+  composable canonical relations, opaque payload round-trip, and packaged golden
+  vectors. **Proof:** source/wheel/package parity and property tests.
 
-- [ ] **2. Prove one complete transaction.** Move `refresh-base` onto
-  `observe -> receipt -> exact-CAS apply -> post-observe -> Attestation`; terminal
-  success requires converged ref, Lease, attachment, and fresh prewrite, while
-  interruption yields exact compensation or one resumable partial receipt.
-  **Proof:** mutation tests and a package-only vertical black box.
+- [ ] **2. Establish the sole Attestation carrier.** Implement deterministic
+  parentless Git set roots, hash-sharded canonical members, exact-CAS union,
+  collision rejection, and minimal record/query projections. Remove current
+  local and operation-specific Attestation authority; local bytes become staging
+  or cache only. **Proof:** pure properties and real concurrent Git tests.
 
-- [ ] **3. Complete the cutover.** Compile every remaining lifecycle, runtime,
-  proof, and peer operation through the same reducer; derive command/help/schema
-  projections from the same contracts; delete superseded orchestration and all
-  compatibility paths. **Proof:** generated requirement-to-test matrix is
-  complete and the full package-only topology matrix passes.
+- [ ] **3. Close intent promotion.** Enforce non-authorizing selection,
+  predecessor/selection binding, and one Commitment to one Change/lane/task
+  authority. Remove current Claim, Chronicle, Ledger, Campaign, shared-inbox,
+  reusable-permission, and duplicate-store selectors/producers while retaining
+  historical bytes as inert history. **Proof:** architecture, import, residue,
+  and negative authority tests.
 
-- [ ] **4. Accept the product.** Run read-only adopter compilation, fresh
-  exact-HEAD full proof, OpenSpec archive, post-archive proof, signed governed
-  land/closeout, immutable runtime activation, peer synchronization, and public
-  housekeeping. **Proof:** one accepted source-independent runtime receipt binds
-  source, tree, signature, wheel, entrypoint, schemas, proof, and runtime hashes.
+- [ ] **4. Execute the destructive bootstrap.** Extend existing Commitment
+  rebind with one exact v1-tuple to v2-generation plan, interruption recovery,
+  effect Attestation, and terminal rejection of v1 current mutation. Rebind this
+  lane and repository through public commands only. **Proof:** boundary mutation
+  matrix plus package-only dry-run/apply/readback.
+
+- [ ] **5. Accept the foundation.** Delete out-of-scope and superseded residue;
+  run OpenSpec 1.8 strict validation, focused quality gates, code and ponytail
+  review, exact-HEAD full proof, archive, post-archive proof, governed
+  land/closeout, and accepted package-only readback. Record refresh and every
+  other lifecycle family as selected successor Commitments, not tasks here.
+  **Proof:** accepted exact-HEAD evidence and zero in-scope parallel authority.
 
 ## Requirement To Task To Proof
 
-| Outcome | Requirement families | Evidence |
-| --- | --- | --- |
-| `kernel:*` | `1` | `tests:transaction-algebra` |
-| `contracts:*` | `1` | `tests:operation-authority` |
-| `adapters:*` | `2` | `tests:refresh-transaction` |
-| `repository-governance:*` | `2` | `tests:lifecycle-reducer` |
-| `command-plane:*` | `3` | `tests:command-projection` |
-| `distribution:*` | `3` | `evidence:package-only` |
-| `quality:*` | `3` | `evidence:positive-quality` |
-| `proof-hosts:*` | `3` | `evidence:topology-matrix` |
+| Outcome | Task | Evidence |
+| --- | ---: | --- |
+| Commitment and Attestation v2 identity | 1 | `tests:semantic-v2-vectors` |
+| Open payload and composable relations | 1 | `tests:semantic-v2-properties` |
+| Deterministic Attestation set | 2 | `tests:attestation-set` |
+| Bounded successor adoption | 3 | `tests:intent-promotion` |
+| Exact one-shot v1-to-v2 cutover | 4 | `tests:commitment-v2-bootstrap` |
+| Accepted bounded foundation | 5 | `evidence:model-promotion-closeout` |

@@ -1,79 +1,72 @@
 ## Why
 
-ETHOS currently implements one repository transition several times: commands,
-Git effects, Lease storage, hook admission, package runtime selection, proof,
-and publication each reconstruct part of the lifecycle and then attempt to
-repair disagreement. The observed failures are therefore not independent bugs;
-they are lossless-model failures caused by duplicated transition ownership.
+ETHOS cannot yet guarantee that rapidly arriving human or agent intent is both
+preserved and kept outside an active Change until normatively adopted. Prior
+attempts accumulated Claims, Chronicle, evolution ledgers, Campaign state,
+shared inbox views, and oversized Changes. Those carriers either lost intent,
+duplicated authority, or prevented closure.
 
-The terminal correction is a model promotion, not another compatibility layer.
-ETHOS needs one declarative transaction spine whose immutable inputs and outputs
-are shared by every lifecycle command:
+A second defect makes the same Commitment bytes mean different things under
+different package versions: schema v1 changed identity-bearing defaults without
+changing its version. A Lease can therefore bind a digest that another runtime
+cannot reproduce.
 
-```text
-observe -> derive receipt -> exact-CAS apply -> post-observe -> attest
-```
-
-Only Commitment and Attestation remain durable semantic roots. Facts,
-TransitionPlan, operation authority, receipts, continuations, status, Lease
-views, hook views, runtime views, and provider views are derived projections.
+This Change promotes the smallest model that closes both gaps. Commitment and
+Attestation remain the only durable semantic roots. One Git-native Attestation
+set preserves concurrent occurrences without expanding an active Change.
+Selection remains non-authorizing; only a schema-v2 successor Commitment adopts
+intent.
 
 ## What Changes
 
-- Replace reusable Commitment permissions with exact operation-bound authority
-  derived from the selected declaration, actor, current facts, and requested
-  effect.
-- Make one pure reducer compile every lifecycle operation into one immutable,
-  content-addressed receipt with exact preconditions, effects, compensations,
-  postconditions, and continuation.
-- Make apply consume only that receipt, perform exact compare-and-swap effects,
-  post-observe the complete transition, and issue an Attestation. A partial
-  effect remains resumable through the same receipt; it is never reported as
-  terminal success.
-- Migrate refresh-base first, proving that ref, Lease, attachment, and receipt
-  cannot silently diverge. Then move land, role transition, retirement,
-  Commitment rebind, hook/runtime convergence, proof, publication, and history
-  replacement onto the same reducer and delete their duplicate orchestration.
-- Bind source, package, schemas, help, hooks, and runtime selection to one
-  immutable package manifest and one structured result envelope.
-- Keep adopter policy declarative: branch roles, commit policy, gates, provider
-  identity, signing, and projection topology are repository declarations;
-  ETHOS owns compilation, validation, exact effects, and evidence.
-- Retire Campaign orchestration and any parallel lifecycle/task store. This
-  Change's `tasks.md` is the sole implementation task graph.
-- Preserve the already implemented formatter-safe Markdown parsing,
-  repository-declared commit-message execution, Conventional lifecycle
-  subjects, and four-hook convergence as projections of the same terminal
-  model.
+- Replace Commitment v1 with explicit schema v2. Version 2 freezes fields,
+  normalization, canonical projection, digest domain, and empty values; it
+  forbids contextual aliases and reusable permissions.
+- Add predecessor Commitment digests, selected Attestation identities, typed
+  dependencies, hypotheses, falsifiers, and experiment protocols.
+- Replace Attestation v1 with schema v2: open predicate, discriminated payload,
+  composable canonical relations, exact bindings, and invariant
+  `mints_authority=false`. Unknown kinds round-trip but never authorize effects.
+- Replace current Attestation authorities with one Git-native set at
+  `refs/ethos/attestations-set`. Its deterministic parentless root contains
+  hash-sharded canonical members. Exact-CAS set union preserves concurrency;
+  membership proves preservation only.
+- Add one narrow record/query projection over that set. It owns no workflow,
+  selection policy, lifecycle, or task state.
+- Make selection an Attestation disposition: semantic owner, absence reason,
+  contradiction, or model gap. Normative adoption requires a successor
+  Commitment, one OpenSpec Change, one writable lane generation, and one task
+  authority.
+- Remove current Claim, Chronicle, evolution-ledger, Campaign, shared-inbox,
+  reusable-permission, and duplicate Attestation-store authority. Historical
+  tracked bytes remain inert and never enter a current verdict.
+- Extend the existing exact Commitment rebind operation with one destructive
+  v1-to-v2 bootstrap. It treats the old Lease tuple as opaque CAS input,
+  validates only the new v2 carrier, advances one generation, and emits an
+  Attestation. No general v1 reader remains after cutover.
 
 ## Capabilities
 
 ### Modified Capabilities
 
-- `kernel`: one reducer and one receipt-bound transaction algebra.
-- `contracts`: operation-bound authority and immutable receipt/result contracts.
-- `command-plane`: lifecycle commands become projections over the reducer and
-  return one structured continuation envelope.
-- `adapters`: effects execute exact receipts and expose typed partial recovery.
-- `repository-governance`: Work Lane, Lease, transition, retirement, history,
-  and provider projection share one transition owner.
-- `proof-hosts`: required gate execution and provider observations remain
-  explicit, independent attestations.
-- `distribution`: source/package/schema/help/runtime/hook identity and portable
-  runtime health converge through one manifest.
-- `quality`: one commit semantics owner and positive, complete gate execution.
+- `kernel`: immutable versioned identity and open fail-closed input.
+- `contracts`: Commitment v2, Attestation v2, typed lineage and experiment
+  values, and packaged golden vectors.
+- `adapters`: deterministic Attestation-set observation and CAS union.
+- `repository-governance`: bounded successor adoption and removal of parallel
+  intent/progress authority.
+- `command-plane`: minimal Attestation record/query and one-shot Commitment v2
+  bootstrap through the existing rebind family.
 
 ### Removed Capabilities
 
-- Campaign manifests, Campaign lifecycle state, Campaign command authority,
-  reusable Commitment permissions, compatibility readers, and command-local
-  lifecycle state machines.
+- Commitment v1 current mutation, reusable Commitment permissions, active Claim
+  and Chronicle authority, evolution ledger, Campaign lifecycle/progress,
+  shared-inbox truth, and multiple current Attestation stores.
 
-## Impact
+## Out Of Scope
 
-This is an intentional destructive cutover. Existing state and declarations are
-not preserved through dual readers or aliases. The accepted package exposes one
-public migration/recovery operation that observes current Git truth, derives an
-exact receipt, and either establishes the terminal model or fails closed without
-claiming success. AIGW, Proxy, and other adopters remain unmodified until their
-owners execute accepted package-only receipts.
+This Change does not migrate refresh, land, release transitions, retirement,
+history replacement, hooks/runtime installation, proof execution, or provider
+publication. It does not modify AIGW, Proxy, or foreign lanes. Remote protection
+and replication of the Attestation set remain unverified successor work.

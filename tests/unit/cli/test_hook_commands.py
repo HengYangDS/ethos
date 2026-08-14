@@ -31,6 +31,24 @@ def test_hook_run_propagates_semantic_runtime_exit(
     assert stopped.value.code == 23
 
 
+def test_hook_run_accepts_commit_message_hook(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        hook_commands,
+        "execute_hook",
+        lambda _root, name, arguments, **_kwargs: calls.append((name, arguments)) or 0,
+    )
+
+    with pytest.raises(SystemExit) as stopped:
+        hook_commands.run_hook("commit-msg", ("message.txt",))
+
+    assert stopped.value.code == 0
+    assert calls == [("commit-msg", ("message.txt",))]
+
+
 @pytest.mark.parametrize("failure", [OSError("readonly"), ValueError("invalid runtime")])
 def test_hook_install_emits_fail_closed_error_surface(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception
@@ -59,7 +77,7 @@ def test_hook_install_emits_runtime_binding_on_success(
     runtime = {
         "hooks_path": str(tmp_path / "hooks"),
         "python": str(tmp_path / "python"),
-        "scripts": ["pre-commit", "pre-push", "reference-transaction"],
+        "scripts": ["pre-commit", "commit-msg", "pre-push", "reference-transaction"],
     }
     monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(hook_commands, "install_hook_launchers", lambda _root: runtime)

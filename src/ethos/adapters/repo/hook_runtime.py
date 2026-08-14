@@ -18,15 +18,18 @@ from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.repo.config_effects import set_worktree_config
+from ethos.adapters.repo.commit_message import validate_commit_message
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HookRuntimeBinding
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.convergence import converge_worktree_hooks
 from ethos.adapters.repo.hook_runtime_install import materialize_hook_runtime
 from ethos.adapters.repo.hook_runtime_install import replace_launchers
+from ethos.adapters.repo.hook_runtime_install import restore_launchers
 from ethos.adapters.repo.hook_runtime_install import runtime_locator
+from ethos.adapters.repo.hook_runtime_install import snapshot_launchers
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -36,7 +39,7 @@ from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 
-HookName = Literal["pre-commit", "pre-push", "reference-transaction"]
+HookName = Literal["pre-commit", "commit-msg", "pre-push", "reference-transaction"]
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
@@ -50,8 +53,13 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
     runtime = materialize_hook_runtime(repo, source_python)
     hooks = Path(git_common_dir(repo)) / "ethos-hooks"
     locator = runtime_locator(runtime)
+    prior = snapshot_launchers(hooks)
     replace_launchers(hooks, locator)
-    set_worktree_config(repo, {"core.hooksPath": hooks.as_posix(), "gc.packRefs": "false"})
+    try:
+        worktrees = converge_worktree_hooks(repo, hooks)
+    except (OSError, ValueError):
+        restore_launchers(hooks, prior)
+        raise
     binding = hook_runtime_binding(repo)
     if binding["required_gaps"]:
         return binding
@@ -65,6 +73,7 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
         "state": "retired" if present else "absent",
         "removed": present,
     }
+    cast("dict[str, object]", binding)["worktrees"] = [path.as_posix() for path in worktrees]
     return binding
 
 
@@ -80,6 +89,8 @@ def execute_hook(
     try:
         if name == "pre-commit":
             reports = (_pre_commit(repo),)
+        elif name == "commit-msg":
+            reports = (_commit_message(repo, args),)
         elif name == "pre-push":
             reports = _pre_push(repo, args, stdin)
         else:
@@ -91,6 +102,12 @@ def execute_hook(
         sys.stderr.write(json.dumps(failed[0], sort_keys=True) + "\n")
         return 1
     return 0
+
+
+def _commit_message(root: Path, args: tuple[str, ...]) -> dict[str, object]:
+    if len(args) != 1:
+        return _blocked("commit-msg", "commit_message_path_invalid")
+    return validate_commit_message(root, Path(args[0]))
 
 
 def _pre_commit(root: Path) -> dict[str, object]:

@@ -23,6 +23,7 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_environment
 from ethos.adapters.openspec.lifecycle.archive_transition import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
+from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.commitment import relocated_commitment_fields_to
@@ -243,7 +244,7 @@ def _apply_archive(
             archive_commit = commit_git_worktree(
                 repo,
                 previous=head,
-                message=f"archive OpenSpec change {change}",
+                message=lifecycle_commit_subject(repo, "archive", change),
                 environment=hook_environment
                 | archive_transition_environment(
                     repo,

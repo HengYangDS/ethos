@@ -35,6 +35,7 @@ from ethos.contracts.value import mutable_json
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
@@ -47,6 +48,7 @@ def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
+    write_test_profile(repo)
     public_key = repo / "signing-key.pub"
     public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")
     git(repo, "config", "commit.gpgsign", "true")
@@ -100,6 +102,7 @@ def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
+    write_test_profile(repo)
     key = tmp_path / "signing-key"
     subprocess.run(
         ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)),

@@ -3,5 +3,9 @@ profile_id = "ethos"
 [openspec]
 material_paths = ["**"]
 
+[commit_message]
+command = ["python", "-m", "commit_check.main", "--message", "--compact", "{message}"]
+locked_inputs = ["pyproject.toml", "uv.lock"]
+
 [proof]
 gate_registry = "system/gates.toml"

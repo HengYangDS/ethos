@@ -78,6 +78,48 @@ def test_profile_can_explicitly_select_commitment_and_openspec_carriers(tmp_path
     assert declaration.proof.gate_registry == "system/gates.toml"
 
 
+def test_profile_declares_one_structured_commit_message_validator(tmp_path: Path) -> None:
+    _write_profile(
+        tmp_path,
+        'profile_id = "self"\n\n'
+        "[commit_message]\n"
+        'command = ["python", "-m", "commitizen", "check", "--commit-msg-file", "{message}"]\n'
+        'locked_inputs = ["pyproject.toml", "uv.lock"]\n',
+    )
+
+    declaration = load_repository_profile(tmp_path).declaration
+
+    assert declaration is not None
+    assert declaration.commit_message is not None
+    assert declaration.commit_message.command == (
+        "python",
+        "-m",
+        "commitizen",
+        "check",
+        "--commit-msg-file",
+        "{message}",
+    )
+    assert declaration.commit_message.locked_inputs == ("pyproject.toml", "uv.lock")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'profile_id = "self"\n\n[commit_message]\ncommand = ["sh", "-c", "check {message}"]\n',
+        'profile_id = "self"\n\n[commit_message]\ncommand = ["validator"]\n',
+        (
+            'profile_id = "self"\n\n[commit_message]\n'
+            'command = ["validator", "{message}", "{message}"]\n'
+        ),
+        'profile_id = "self"\n\n[commit_message]\ncommand = ["/personal/validator", "{message}"]\n',
+    ],
+)
+def test_profile_rejects_ambiguous_or_shell_owned_commit_message_validator(
+    tmp_path: Path, text: str
+) -> None:
+    _assert_invalid_profile(tmp_path, text)
+
+
 @pytest.mark.parametrize(
     "proof",
     literal_case(

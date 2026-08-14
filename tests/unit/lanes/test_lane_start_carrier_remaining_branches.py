@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.lane_start_carrier as carrier
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -86,6 +88,14 @@ def _fresh_context(tmp_path: Path) -> SimpleNamespace:
         source_commitment_path="openspec/changes/change/commitment.toml",
         source_root=source,
         run=lambda *_a, **_k: _result(0, "tree\n"),
+    )
+
+
+def test_lane_carrier_commit_subject_is_conventional(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    write_test_profile(repo)
+    assert carrier.lifecycle_commit_subject(repo, "materialize", "change") == (
+        "chore(openspec): materialize change"
     )
 
 

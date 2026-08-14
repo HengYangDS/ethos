@@ -16,6 +16,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import PlainSerializer
 from pydantic import ValidationError
+from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos.contracts.gates import Gate
@@ -134,6 +135,32 @@ class AdoptionBoundaryPolicy(_ProfileModel):
     forbidden_external_product_roots: RepositoryPathTuple = ()
 
 
+class CommitMessagePolicy(_ProfileModel):
+    """One repository-owned validator executed by the ETHOS hook authority."""
+
+    command: NonEmptyTuple
+    locked_inputs: RepositoryPathTuple = ()
+
+    @field_validator("command")
+    @classmethod
+    def require_exact_message_placeholder(cls, command: tuple[str, ...]) -> tuple[str, ...]:
+        """Reject shell programs, personal paths, and ambiguous message binding."""
+        if command.count("{message}") != 1:
+            message = "commit_message_command_requires_one_message_placeholder"
+            raise ValueError(message)
+        executable = command[0].casefold()
+        if executable in {"bash", "cmd", "fish", "powershell", "pwsh", "sh", "zsh"}:
+            message = "commit_message_shell_forbidden"
+            raise ValueError(message)
+        if Path(command[0]).is_absolute():
+            message = "commit_message_absolute_executable_forbidden"
+            raise ValueError(message)
+        if any("\x00" in token or "\n" in token or "\r" in token for token in command):
+            message = "commit_message_command_token_invalid"
+            raise ValueError(message)
+        return command
+
+
 class RepositoryProfileDeclaration(_ProfileModel):
     """The one typed repository binding shared by every profile reader."""
 
@@ -143,6 +170,7 @@ class RepositoryProfileDeclaration(_ProfileModel):
     normative_sources: RepositoryPathTuple = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
     evidence: EvidenceRoots = Field(default_factory=EvidenceRoots)
+    commit_message: CommitMessagePolicy | None = None
     proof: ProofPolicy = Field(default_factory=ProofPolicy)
     independent_verification: IndependentVerificationPolicy = Field(
         default_factory=IndependentVerificationPolicy

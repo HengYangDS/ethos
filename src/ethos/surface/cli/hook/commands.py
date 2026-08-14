@@ -322,7 +322,7 @@ def run_hook(
     arguments: Annotated[tuple[str, ...], Parameter(consume_multiple=True)] = (),
 ) -> None:
     """Execute one installed Git hook through the Python semantic owner."""
-    if name not in {"pre-commit", "pre-push", "reference-transaction"}:
+    if name not in {"pre-commit", "commit-msg", "pre-push", "reference-transaction"}:
         raise SystemExit(1)
     repo = resolve_root(None)
     raise SystemExit(execute_hook(repo, name, arguments, stdin=sys.stdin))

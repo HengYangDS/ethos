@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -126,6 +127,12 @@ def test_hook_runtime_manifest_and_runtime_locator_bind_exact_package(
     assert runtime_install.runtime_locator(runtime / "venv") == (
         f"../ethos/runtime/{runtime.name}/venv/{executable}"
     )
+    payload = json.loads((runtime / "manifest.json").read_text(encoding="utf-8"))
+    locator = runtime_install.runtime_locator(runtime / "venv")
+    assert payload["hook_launchers"] == {
+        name: hashlib.sha256(hook_launcher(locator, name).encode()).hexdigest()
+        for name in HOOK_NAMES
+    }
 
 
 def test_hook_runtime_wheel_provenance_and_tool_fail_closed(
@@ -415,6 +422,24 @@ def test_hook_runtime_observation_rejects_launcher_drift(tmp_path: Path) -> None
     assert observed["required_gaps"] == ["write_admission_not_armed:pre-push_launcher_drift"]
 
 
+def test_hook_runtime_observation_rejects_valid_launchers_split_across_runtimes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, first = _materialize_runtime_case(tmp_path, monkeypatch)
+    hooks = Path(git_common_dir(repo)) / "ethos-hooks"
+    runtime_install.replace_launchers(hooks, runtime_install.runtime_locator(first))
+    other = "../ethos/runtime/" + "f" * 64 + "/venv/bin/python"
+    (hooks / "commit-msg").write_text(hook_launcher(other, "commit-msg"), encoding="utf-8")
+    (hooks / "commit-msg").chmod(0o755)
+    assert _git(repo, "config", "core.hooksPath", hooks.as_posix()).returncode == 0
+
+    observed = hook_runtime_binding(repo)
+
+    assert observed["required_gaps"] == [
+        "write_admission_not_armed:commit-msg_launcher_runtime_split"
+    ]
+
+
 def test_hook_install_converges_every_linked_worktree_to_one_runtime(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -524,6 +549,35 @@ def test_launcher_family_replacement_rolls_back_on_partial_failure(
         )
 
     assert {name: (hooks / name).read_text(encoding="utf-8") for name in prior} == prior
+
+
+def test_launcher_family_replacement_rolls_back_on_readback_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    prior = {name: f"prior {name}\n" for name in HOOK_NAMES}
+    for name, content in prior.items():
+        (hooks / name).write_text(content, encoding="utf-8")
+    original = Path.read_text
+
+    def drift_commit_message(path: Path, *args: object, **kwargs: object) -> str:
+        text = original(path, *args, **kwargs)
+        if path == hooks / "commit-msg" and text.startswith("#!/bin/sh\n"):
+            return text + "drift\n"
+        return text
+
+    monkeypatch.setattr(Path, "read_text", drift_commit_message)
+
+    with pytest.raises(ValueError, match="hook_launcher_family_readback_invalid"):
+        runtime_install.replace_launchers(
+            hooks,
+            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
+        )
+
+    assert {name: (hooks / name).read_bytes() for name in prior} == {
+        name: content.encode() for name, content in prior.items()
+    }
 
 
 def test_pre_commit_skips_unselected_staged_secret_capability(monkeypatch, tmp_path: Path) -> None:

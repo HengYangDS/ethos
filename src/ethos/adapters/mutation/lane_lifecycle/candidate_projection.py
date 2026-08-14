@@ -64,11 +64,7 @@ def _candidate_plan(
         effect,
         head=desired,
         prior_attestations={},
-        policy={
-            "operation": "git.ref.compare-and-swap",
-            "transition": operation,
-            "effect_digest": effect.digest(),
-        },
+        policy={"operation": operation},
     )
 
 

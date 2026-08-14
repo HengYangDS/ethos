@@ -467,55 +467,12 @@ def test_stale_lease_recovery_and_detached_matrix(
     )
 
 
-def candidate_plan(case: Any, flaw: str = "") -> TransitionPlan:
-    branch, target = "work/example", "candidate/dev"
-    git(case.repo, "reset", "--hard", case.new)
-    recorded = generation(case, branch) | {"expected_head": case.new}
-    value = GitEffect(
-        updates={
-            f"refs/heads/{'other' if flaw == 'ref' else target}": GitRefUpdate(
-                expected=case.old, desired=case.old if flaw == "non_ff" else case.new
-            )
-        },
-        assertions={f"refs/heads/{'other' if flaw == 'source' else branch}": case.new},
-    )
-    digest = plan(case.repo, value).inputs.commitment
-    recorded["base_commitment_digest"] = digest
-    proof_head = case.old if flaw == "proof" else case.new
-    proof = Attestation.issue(
-        {
-            "predicate": "proof:execution",
-            "verifier": ISSUER,
-            "subject": f"git:commit:{proof_head}",
-            "issued_at": datetime(2026, 8, 8, tzinfo=UTC),
-            "valid_from": datetime(2026, 8, 8, tzinfo=UTC),
-            "verdict": "pass",
-            "statement": {"head": proof_head},
-            "commitment_digest": digest,
-        }
-    )
-    return plan(
-        case.repo,
-        value,
-        values={} if flaw == "lease" else {"lease_generation": recorded},
-        policy={"operation": "candidate.integrate", "candidate_branch": target},
-        prior={"proof": proof.model_dump(mode="json")},
-    )
-
-
-@pytest.mark.parametrize("flaw", ["", "ref", "source", "non_ff", "proof", "lease"])
-def test_permission_non_ff_candidate_authority_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flaw: str
+def test_only_exact_effect_authority_is_admitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     case = fixture(tmp_path)
-    if flaw:
-        reject(
-            "git_effect_permission_denied",
-            lambda: admit_git_effect(case.repo, candidate_plan(case, flaw)),
-        )
-        return
     monkeypatch.setattr(runtime, "_admit_git_effect", lambda *_args, **_kwargs: None)
-    admit_git_effect(case.repo, candidate_plan(case))
+    admit_git_effect(case.repo, plan(case.repo, case.effect))
     reject(
         "git_effect_permission_denied",
         lambda: execute_git_effect(

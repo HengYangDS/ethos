@@ -96,6 +96,13 @@ def compile_observed_git_effect(
 ) -> TransitionPlan:
     """Compile one Git effect directly from fresh repository observations."""
     extra = dict(values or {})
+    semantic_operation = str(policy.get("transition") or policy["operation"])
+    effect_policy = {
+        **policy,
+        "operation": "git.ref.compare-and-swap",
+        "transition": semantic_operation,
+        "effect_digest": effect.digest(),
+    }
     return compile_git_effect_plan(
         commitment,
         Facts(
@@ -116,6 +123,6 @@ def compile_observed_git_effect(
             ),
         ),
         prior_attestations=prior_attestations or {},
-        policy=policy,
+        policy=effect_policy,
         effect=effect,
     )

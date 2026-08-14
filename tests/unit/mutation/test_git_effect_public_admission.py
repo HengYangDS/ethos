@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.repo.git_effect_admission as admission
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -22,6 +23,37 @@ if TYPE_CHECKING:
 
 ZERO = "0" * 40
 ACTOR = "agent:test:case:owner"
+
+
+def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authority(
+    tmp_path: Path,
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    head = git(root, "rev-parse", "HEAD")
+    effect = GitEffect(
+        updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)}
+    )
+    authority = Commitment(
+        id=f"repository:{root.name}",
+        intent="Compile one exact effect.",
+        subjects=(f"repository:{root.name}",),
+    )
+
+    carried = compile_observed_git_effect(
+        root,
+        authority,
+        effect,
+        head=head,
+        policy={"operation": "lane.refresh", "execution_branch": "work/example"},
+    )
+
+    assert carried.policy == {
+        "operation": "git.ref.compare-and-swap",
+        "transition": "lane.refresh",
+        "effect_digest": effect.digest(),
+        "execution_branch": "work/example",
+    }
+    admission.require_effect_permission(effect, carried)
 
 
 def _plan(
@@ -73,7 +105,7 @@ def _generation(root: Path, branch: str, head: str) -> dict[str, object]:
     }
 
 
-def test_commitment_rebind_command_authority_is_exact_and_narrow(tmp_path: Path) -> None:
+def test_raw_semantic_operation_never_authorizes_an_effect(tmp_path: Path) -> None:
     root = init_git_repo(tmp_path / "repo")
     old = git(root, "rev-parse", "HEAD")
     new = git(root, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "target")
@@ -105,25 +137,8 @@ def test_commitment_rebind_command_authority_is_exact_and_narrow(tmp_path: Path)
         },
     )
 
-    admission.require_effect_permission(effect, carried)
-
-    for corrupt in (
-        values | {"lease_successor": successor | {"holder_ref": "agent:test:case:other"}},
-        values | {"new_commitment_digest": "0" * 64},
-        {"lease_generation": generation},
-    ):
-        rejected = _plan(
-            root,
-            effect,
-            values=corrupt,
-            policy={
-                "operation": "commitment.rebind",
-                "old_commitment_digest": generation["base_commitment_digest"],
-                "new_commitment_digest": successor["base_commitment_digest"],
-            },
-        )
-        with pytest.raises(ValueError, match="git_effect_permission_denied"):
-            admission.require_effect_permission(effect, rejected)
+    with pytest.raises(ValueError, match="git_effect_permission_denied"):
+        admission.require_effect_permission(effect, carried)
 
 
 @pytest.mark.parametrize("drift", ["refs", "assertions", "head", "tree"])

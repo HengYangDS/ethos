@@ -12,7 +12,7 @@ from typing import TypedDict
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 
-HOOK_NAMES = ("pre-commit", "pre-push", "reference-transaction")
+HOOK_NAMES = ("pre-commit", "commit-msg", "pre-push", "reference-transaction")
 _RUNTIME_LOCATOR = (
     r"\.\./ethos/runtime/(?P<digest>[a-f0-9]{64})/venv/(?P<python>bin/python|Scripts/python\.exe)"
 )

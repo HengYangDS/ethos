@@ -9,6 +9,8 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
 from ethos.contracts.semantic import Attestation
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -56,6 +58,11 @@ def _common(monkeypatch: pytest.MonkeyPatch, lease: dict[str, object] | None = N
         "run_json",
         lambda *_args, **_kwargs: {"exit_code": 0, "parse_error": "", "json": {"changes": []}},
     )
+    monkeypatch.setattr(
+        rollover,
+        "lifecycle_commit_subject",
+        lambda *_args, **_kwargs: "chore(openspec): start next-change",
+    )
 
 
 def _start(root: Path, *, apply: bool = False) -> dict[str, object]:
@@ -66,6 +73,14 @@ def _start(root: Path, *, apply: bool = False) -> dict[str, object]:
         scope=("src/**",),
         expect_head=HEAD,
         apply=apply,
+    )
+
+
+def test_change_start_commit_subject_is_conventional(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    write_test_profile(repo)
+    assert rollover.lifecycle_commit_subject(repo, "start", CHANGE) == (
+        "chore(openspec): start next-change"
     )
 
 

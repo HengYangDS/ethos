@@ -316,14 +316,50 @@ def runtime_locator(venv: Path) -> str:
 
 
 def replace_launchers(hooks: Path, locator: str) -> None:
-    """Replace each launcher atomically; every visible launcher is complete."""
+    """Replace the complete launcher family or restore its prior bytes."""
     hooks.mkdir(parents=True, exist_ok=True)
-    for name in HOOK_NAMES:
-        target = hooks / name
-        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}")
-        try:
+    prior = {
+        name: (hooks / name).read_bytes() if (hooks / name).is_file() else None
+        for name in HOOK_NAMES
+    }
+    try:
+        for name in HOOK_NAMES:
+            target = hooks / name
+            temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}")
             temporary.write_text(hook_launcher(locator, name), encoding="utf-8", newline="\n")
             temporary.chmod(0o755)
+            try:
+                temporary.replace(target)
+            finally:
+                temporary.unlink(missing_ok=True)
+    except OSError:
+        _restore_launchers(hooks, prior)
+        raise
+
+
+def restore_launchers(hooks: Path, prior: dict[str, bytes | None]) -> None:
+    """Restore one exact launcher-family snapshot."""
+    _restore_launchers(hooks, prior)
+
+
+def snapshot_launchers(hooks: Path) -> dict[str, bytes | None]:
+    """Read the exact prior launcher-family bytes."""
+    return {
+        name: (hooks / name).read_bytes() if (hooks / name).is_file() else None
+        for name in HOOK_NAMES
+    }
+
+
+def _restore_launchers(hooks: Path, prior: dict[str, bytes | None]) -> None:
+    for name, content in prior.items():
+        target = hooks / name
+        if content is None:
+            target.unlink(missing_ok=True)
+            continue
+        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}")
+        temporary.write_bytes(content)
+        temporary.chmod(0o755)
+        try:
             temporary.replace(target)
         finally:
             temporary.unlink(missing_ok=True)

@@ -22,6 +22,7 @@ import ethos.adapters.mutation.lane_start_rollback as rollback
 from ethos.adapters.mutation.lane_start_receipt import started_lane_report
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
+from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -347,7 +348,7 @@ def initialize_lane_carrier(
             "-p",
             candidate_head,
             "-m",
-            f"materialize {context.source_change_id} carrier",
+            lifecycle_commit_subject(context.target, "materialize", context.source_change_id),
             check=False,
             env=metadata,
         )

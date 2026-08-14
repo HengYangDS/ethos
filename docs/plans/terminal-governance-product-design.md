@@ -90,34 +90,19 @@ acceptance, and proof—or records its explicit absence reason. Deletion is
 preferred when that mapping shows a carrier duplicates another owner. No
 historical wording is preserved merely to satisfy a text-shaped test.
 
-### Campaign Projection And Convergence Route
+### Model Promotion Convergence Route
 
-The terminal Campaign is carried by the sole active `terminal-convergence`
-OpenSpec Change and its `tasks.md`. The dependency graph below orders atomic
-phase outcomes and their evidence without creating successor Changes, another
-task store, or a speculative forest of lanes.
+The sole active convergence carrier is
+[`model-promotion`](../../openspec/changes/model-promotion/). Its
+[`tasks.md`](../../openspec/changes/model-promotion/tasks.md) is the only task
+and dependency graph. This plan owns no queue, Campaign, phase state, or progress
+projection.
 
-| Phase outcome | Depends on | Independent acceptance |
-| --- | --- | --- |
-| `accepted-spec-reconciliation` | terminal slice accepted | Stable specs describe implemented behavior and no archived carrier remains current authority. |
-| `portable-reference-boundary` | `accepted-spec-reconciliation` | Product references and variable values have positive native owners across every product surface. |
-| `transition-invariant-proof` | `accepted-spec-reconciliation` | Reducers and Git/Lease effects have bounded property, mutation, and model evidence. |
-| `openspec-18-cutover` | `accepted-spec-reconciliation` | One exact OpenSpec 1.8 executable owns complete-adopter lifecycle semantics; no older reader or prediction path remains. |
-| `coordination-reconstruction` | `accepted-spec-reconciliation` | Lane, Lease, handoff, takeover, inbox, family, and record behavior reconstructs from Git, Facts, Commitment, and Attestations. |
-| `integration-throughput-housekeeping` | `coordination-reconstruction` | Adaptive admission and short candidate CAS preserve throughput; every authorized residue has one absorption or retirement result. |
-| `repository-knowledge-grammar` | `accepted-spec-reconciliation`, `portable-reference-boundary` | Docs, flat DRs, rules, schemas, skills, and specs have narrow owners, strong grammar, and no ambiguous catch-all. |
-| `knowledge-evolution` | `repository-knowledge-grammar` | Novelty, contradiction, overlap, learning, absorption, and retirement change the earliest enforceable owner. |
-| `hermetic-quality-toolchain` | `accepted-spec-reconciliation` | Project `.venv`, uv, Nox, Hatchling, native formatters, and zero-warning checks are the sole local/hosted execution owners. |
-| `forge-projection-homomorphism` | `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Every declared forge peer is an independent complete projection of one portable contract. |
-| `terminal-compression` | `portable-reference-boundary`, `repository-knowledge-grammar`, `hermetic-quality-toolchain` | Repository-wide architecture, duplication, coverage, and ELOC constraints pass with no suppressions or compatibility residue. |
-| `adopter-product-surfaces` | `openspec-18-cutover`, `coordination-reconstruction`, `hermetic-quality-toolchain` | Three adopter shapes and CLI, SDK, JSON, schema, MCP/A2A projections prove the same kernel and first-hour UX. |
-| `workflow-method-evaluation` | `adopter-product-surfaces`, `hermetic-quality-toolchain` | Matched evaluation admits only methods or tools that improve completion, time, token, recovery, and terminal size without a second owner. |
-| `terminal-local-closeout` | all preceding local outcomes | One immutable HEAD passes full local proof, advances candidate and `dev`, and retires every owned lane. |
-| `dual-provider-publication` | `terminal-local-closeout` | One `proposal/*` sequence proves and publishes the same signed artifacts independently on every declared peer; zero peers remains a valid local-only topology. |
-
-Each row remains an independently provable phase outcome in the current Change.
-Rows may collaborate concurrently only when their dependency and scope facts
-admit it; completion remains owned solely by the corresponding tasks.
+The implementation order is one-way: freeze the transaction algebra; prove it
+through the refresh-base vertical slice; migrate the remaining local lifecycle,
+package/state, proof, and provider projections; then delete the superseded
+owners and close the one Change. Small commits are encouraged, but no successor
+Change or parallel backlog may split semantic ownership.
 
 ## Convergence Rules
 

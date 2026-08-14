@@ -21,6 +21,7 @@ from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import persist_attestation
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
+from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -270,7 +271,7 @@ def _apply(
     committed = commit_git_worktree(
         root,
         previous=previous_head,
-        message=f"start OpenSpec change {change}",
+        message=lifecycle_commit_subject(root, "start", change),
     )
     if committed["verdict"] != "pass":
         compensate_created_paths(

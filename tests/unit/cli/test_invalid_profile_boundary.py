@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.cli as cli
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.cli import main
 from ethos.contracts.admission import root_command
@@ -152,3 +153,36 @@ def test_git_execution_failures_emit_structured_json_without_traceback(
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == [code]
     assert payload["data"]["reason"] == reason
+
+
+@pytest.mark.parametrize(
+    ("phase", "error"),
+    [
+        ("registration", ValueError("branch_roles contains unknown fields")),
+        ("dispatch", RuntimeError("state_schema_lease_table_definition_mismatch")),
+    ],
+)
+def test_public_boundary_normalizes_contract_failures_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    phase: str,
+    error: Exception,
+) -> None:
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise error
+
+    monkeypatch.setattr(cli, "load_command_groups" if phase == "registration" else "app", fail)
+    monkeypatch.setattr(sys, "argv", ["ethos", "status", "--json"])
+
+    with pytest.raises(SystemExit, match="1"):
+        main()
+
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.out + captured.err
+    payload = json.loads(captured.out)
+    assert (payload["verdict"], payload["state"], payload["continuation"]) == (
+        "block",
+        "gapped",
+        "blocked",
+    )
+    assert payload["required_gaps"] == [str(error)]

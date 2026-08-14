@@ -436,6 +436,20 @@ def compile_git_effect_plan(
                 command=("git", "update-ref", "--stdin", "-z"),
             ),
         ),
+        compensations=(
+            PlanNode(
+                id="git.ref.compare-and-swap.compensate",
+                kind="effect",
+                command=("git", "update-ref", "--stdin", "-z"),
+            ),
+        ),
+        postconditions=(
+            PlanNode(
+                id="git.ref.compare-and-swap.observe",
+                kind="check",
+                command=("git", "show-ref", "--verify"),
+            ),
+        ),
     )
 
 
@@ -457,6 +471,18 @@ def git_effect_from_plan(plan: TransitionPlan) -> GitEffect:
             id="git.ref.compare-and-swap",
             kind="effect",
             command=("git", "update-ref", "--stdin", "-z"),
+        ),
+    ) or validated.compensations != (
+        PlanNode(
+            id="git.ref.compare-and-swap.compensate",
+            kind="effect",
+            command=("git", "update-ref", "--stdin", "-z"),
+        ),
+    ) or validated.postconditions != (
+        PlanNode(
+            id="git.ref.compare-and-swap.observe",
+            kind="check",
+            command=("git", "show-ref", "--verify"),
         ),
     ):
         message = "git_effect_plan_mismatch"

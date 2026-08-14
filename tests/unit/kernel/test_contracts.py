@@ -99,7 +99,6 @@ def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -
         "acceptance": [],
         "risks": ["cutover"],
         "authority_refs": [],
-        "permissions": [],
         "hypotheses": ["compiler"],
         "dependencies": ["git"],
     }
@@ -158,6 +157,11 @@ def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path:
 def test_commitment_rejects_process_and_distribution_fields(field: str) -> None:
     with pytest.raises(ValidationError):
         _contract(**{field: "retired"})
+
+
+def test_commitment_rejects_reusable_permissions() -> None:
+    with pytest.raises(ValidationError):
+        _contract(permissions=("git.ref.compare-and-swap",))
 
 
 @pytest.mark.parametrize(
@@ -426,7 +430,6 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "prior_attestations",
         "policy",
         "effect",
-        "permissions",
         "facts",
         "nodes",
         "verdict",

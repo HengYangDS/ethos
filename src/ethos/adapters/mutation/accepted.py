@@ -231,22 +231,25 @@ def _accepted_transition_plan(
     candidate_worktree_path: str,
     prior_attestations: JsonObject,
 ) -> TransitionPlan:
+    effect_policy = {
+        "operation": "git.ref.compare-and-swap",
+        "effect_digest": effect.digest(),
+        "transition": "candidate.accept",
+        "release_branch": role_policy.release_branch,
+        "accepted_branch": role_policy.accepted_branch,
+        "candidate_branch": role_policy.candidate_branch,
+        "release_mirror": role_policy.release_mirror,
+        "repository_commitment_bootstrap": not committed_file_bytes(
+            root, head, ".ethos/commitment.toml"
+        ),
+    }
     return compile_observed_git_effect(
         root,
         authority,
         effect,
         head=head,
         prior_attestations=prior_attestations,
-        policy={
-            "operation": "candidate.accept",
-            "release_branch": role_policy.release_branch,
-            "accepted_branch": role_policy.accepted_branch,
-            "candidate_branch": role_policy.candidate_branch,
-            "release_mirror": role_policy.release_mirror,
-            "repository_commitment_bootstrap": not committed_file_bytes(
-                root, head, ".ethos/commitment.toml"
-            ),
-        },
+        policy=effect_policy,
         values={"candidate_worktree_path": candidate_worktree_path},
     )
 

@@ -35,16 +35,6 @@ if TYPE_CHECKING:
 def _absorbed_ref(tmp_path: Path) -> tuple[Path, str, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    commitment = repo / ".ethos" / "commitment.toml"
-    commitment.write_text(
-        commitment.read_text(encoding="utf-8").replace(
-            'permissions = ["repository.read", "git.ref.compare-and-swap"]',
-            'permissions = ["repository.read"]',
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", commitment.relative_to(repo).as_posix())
-    git(repo, "commit", "-m", "use minimal repository authority")
     source = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "work/absorbed", source)
     marker = repo / "accepted.txt"
@@ -115,7 +105,6 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
             "desired": "0" * len(source),
         }
     }
-    assert transition["permissions"] == ["repository.read"]
     assert transition["plan_digest"]
     applied = _retire(repo, branch="work/absorbed", source=source, accepted=accepted)
 

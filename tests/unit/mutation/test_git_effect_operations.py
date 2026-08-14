@@ -34,13 +34,12 @@ def _cas_plan(repo: Path, old: str, new: str):
         id="authority:test:git-effect",
         intent="Apply exact ref CAS.",
         subjects=(facts.repository,),
-        permissions=("git.ref.compare-and-swap",),
     )
     return effect, compile_git_effect_plan(
         authority,
         facts,
         prior_attestations={},
-        policy={"operation": "test.apply"},
+        policy={"operation": "git.ref.compare-and-swap", "effect_digest": effect.digest()},
         effect=effect,
     )
 

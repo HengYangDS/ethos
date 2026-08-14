@@ -64,7 +64,6 @@ class Commitment(_SemanticModel):
     acceptance: tuple[str, ...] = ()
     risks: tuple[str, ...] = ()
     authority_refs: tuple[str, ...] = ()
-    permissions: tuple[str, ...] = ()
     hypotheses: tuple[str, ...] = ()
     dependencies: tuple[str, ...] = ()
 
@@ -97,7 +96,6 @@ class Commitment(_SemanticModel):
             "acceptance": list(self.acceptance),
             "risks": list(self.risks),
             "authority_refs": list(self.authority_refs),
-            "permissions": list(self.permissions),
             "hypotheses": list(self.hypotheses),
             "dependencies": list(self.dependencies),
         }
@@ -113,7 +111,6 @@ _COMMITMENT_TUPLE_FIELDS = {
     "acceptance",
     "risks",
     "authority_refs",
-    "permissions",
     "hypotheses",
     "dependencies",
 }

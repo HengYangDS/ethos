@@ -76,7 +76,6 @@ def _recovery_plan(
             id="authority:test:refresh",
             intent="Recover one refresh effect.",
             subjects=("repository:test",),
-            permissions=effect.permissions,
         ),
         Facts(
             repository="repository:test",

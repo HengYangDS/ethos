@@ -51,6 +51,5 @@ risks = [
   "optional CI must not silently claim hosted verification",
 ]
 authority_refs = ["user_instruction", "rules/release.md", "docs/governance/release-governance.md"]
-permissions = ["repository.read", "work-lane.write", "local-proof.execute"]
 hypotheses = []
 dependencies = ["change:terminal-convergence"]

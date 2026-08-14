@@ -31,7 +31,6 @@ _TUPLE_FIELDS = {
     "acceptance",
     "risks",
     "authority_refs",
-    "permissions",
     "hypotheses",
     "dependencies",
 }

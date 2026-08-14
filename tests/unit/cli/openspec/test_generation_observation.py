@@ -32,7 +32,6 @@ def test_archive_reactivation_is_one_current_generation(
         'schema_version = 1\nid = "change:restored-change"\n'
         'intent = "Restore one exact accepted archive."\nsubjects = ["repository:self"]\n'
         'scope = ["README.md", "openspec/changes/restored-change/**"]\n'
-        'permissions = ["repository.read", "work-lane.write"]\n'
     )
     git(candidate, "add", archive.relative_to(candidate).as_posix())
     git(candidate, "commit", "-m", "archive restored change")

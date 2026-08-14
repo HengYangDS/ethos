@@ -107,12 +107,12 @@ def _proof() -> Attestation:
 
 def _effect_plan(proof: Attestation):
     old, new = _oid("old"), _oid("new")
+    effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
     return compile_git_effect_plan(
         Commitment(
             id="commitment:test:ref-effect",
             intent="Test one exact proof-bound ref effect.",
             subjects=("repository:test",),
-            permissions=("git.ref.compare-and-swap",),
         ),
         Facts(
             repository="repository:test",
@@ -122,8 +122,11 @@ def _effect_plan(proof: Attestation):
             values={"refs": {"refs/heads/dev": old}, "assertions": {}},
         ),
         prior_attestations={"proof": proof.model_dump(mode="json")},
-        policy={"operation": "candidate.accept"},
-        effect=GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)}),
+        policy={
+            "operation": "git.ref.compare-and-swap",
+            "effect_digest": effect.digest(),
+        },
+        effect=effect,
     )
 
 

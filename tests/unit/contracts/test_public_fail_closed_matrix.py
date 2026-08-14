@@ -34,15 +34,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _commitment(
-    *, scope: tuple[str, ...] = ("src/**",), permissions: tuple[str, ...] = ()
-) -> Commitment:
+def _commitment(*, scope: tuple[str, ...] = ("src/**",)) -> Commitment:
     return Commitment(
         id="change:contract-matrix",
         intent="Keep public contract validation fail-closed.",
         subjects=("repository:test",),
         scope=scope,
-        permissions=permissions,
     )
 
 
@@ -118,7 +115,7 @@ def test_transition_plan_public_projection_rejects_noncanonical_state() -> None:
 
 
 def test_git_effect_public_reader_rejects_wrong_or_blocked_plan() -> None:
-    commitment = _commitment(permissions=("git.ref.update:refs/heads/dev",))
+    commitment = _commitment()
     facts = _facts()
     effect = GitEffect(
         updates={"refs/heads/dev": GitRefUpdate(expected="0" * 40, desired="1" * 40)}
@@ -137,7 +134,6 @@ def test_git_effect_public_reader_rejects_wrong_or_blocked_plan() -> None:
             "policy": {},
             "effect": effect.model_dump(mode="json"),
         },
-        permissions=commitment.permissions,
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=(PlanNode(id="observe", kind="check"),),
     )

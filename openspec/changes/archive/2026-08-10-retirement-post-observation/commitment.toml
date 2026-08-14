@@ -20,6 +20,5 @@ acceptance = [
 ]
 risks = []
 authority_refs = ["user_instruction", "rules/mutation.md"]
-permissions = ["repository.read", "work-lane.write"]
 hypotheses = []
 dependencies = []

@@ -149,29 +149,19 @@ def test_transition_plan_orders_and_canonicalizes_dag() -> None:
 
 
 def test_transition_plan_canonicalizes_set_like_inputs() -> None:
-    commitment = _COMMITMENT.model_copy(
-        update={"permissions": ("repository.read", "repository.write")}
-    )
-    bound = _INPUTS | {
-        "inputs": _INPUTS["inputs"].model_copy(update={"commitment": commitment.digest()}),
-        "closure": _INPUTS["closure"] | {"commitment": commitment.identity_projection()},
-    }
     checks = (PlanNode(id="lint", kind="check"), PlanNode(id="test", kind="check"))
     first = TransitionPlan.compile(
-        **bound,
-        permissions=("repository.write", "repository.read", "repository.write"),
+        **_INPUTS,
         nodes=(*checks, PlanNode(id="publish", kind="effect", depends_on=("test", "lint", "test"))),
     )
     second = TransitionPlan.compile(
-        **bound,
-        permissions=("repository.read", "repository.write"),
+        **_INPUTS,
         nodes=(
             *reversed(checks),
             PlanNode(id="publish", kind="effect", depends_on=("lint", "test")),
         ),
     )
     assert first == second
-    assert first.permissions == ("repository.read", "repository.write")
     assert first.nodes[-1].depends_on == ("lint", "test")
 
 
@@ -222,7 +212,6 @@ def test_transition_plan_projection_immutability_and_verdict_algebra() -> None:
         "prior_attestations",
         "policy",
         "effect",
-        "permissions",
         "facts",
         "nodes",
         "verdict",
@@ -325,7 +314,6 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
         intent="Preserve",
         subjects=("repository:test",),
         acceptance=("behavior_preserved",),
-        permissions=("repository.read",),
     )
     facts = _facts("src/ethos/result.py")
     node = PlanNode(id="status", kind="check")
@@ -336,7 +324,6 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
                 update={
                     "intent": "Replace",
                     "acceptance": ("replacement_proven",),
-                    "permissions": ("repository.write",),
                 }
             ),
             facts=facts,
@@ -357,7 +344,6 @@ def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
         "policy": base.inputs.policy,
         "effect": base.inputs.effect,
     }
-    assert base.permissions == ("repository.read",)
 
 
 @pytest.mark.parametrize(

@@ -97,11 +97,6 @@ class GitEffect(_PlanModel):
     updates: FrozenMapping[GitRefUpdate] = Field(min_length=1)
     assertions: FrozenMapping[str] = Field(default_factory=dict)
 
-    @property
-    def permissions(self) -> tuple[str, ...]:
-        """Derive the exact permission set from the mutated refs."""
-        return tuple(f"git.ref.update:{ref}" for ref in self.updates)
-
     @model_validator(mode="after")
     def bind_permissions(self) -> Self:
         refs_valid = all(
@@ -166,7 +161,6 @@ class TransitionPlan(_PlanModel):
     prior_attestations: JsonObject
     policy: JsonObject
     effect: JsonObject
-    permissions: FrozenTuple[str] = Field(default=(), json_schema_extra={"uniqueItems": True})
     facts: JsonObject = Field(default_factory=dict)
     nodes: FrozenTuple[PlanNode] = ()
     verdict: Verdict = Field(json_schema_extra={"readOnly": True})
@@ -236,7 +230,6 @@ class TransitionPlan(_PlanModel):
         *,
         inputs: PlanInputs,
         closure: JsonObject,
-        permissions: tuple[str, ...] = (),
         facts: JsonObject,
         nodes: tuple[PlanNode, ...] = (),
         verdict: Verdict = "pass",
@@ -262,7 +255,6 @@ class TransitionPlan(_PlanModel):
             "prior_attestations": carried["prior_attestations"],
             "policy": carried["policy"],
             "effect": carried["effect"],
-            "permissions": sorted(set(permissions)),
             "facts": mutable_json(facts),
             "nodes": [node.model_dump(mode="json") for node in ordered],
             "verdict": close_verdict(verdict, gaps),
@@ -315,7 +307,7 @@ class TransitionPlan(_PlanModel):
             prior_attestations=canonical_json_digest(self.prior_attestations),
             policy=canonical_json_digest(self.policy),
             effect=effect_digest,
-        ) or self.permissions != tuple(sorted(set(commitment.permissions))):
+        ):
             message = "transition_plan_closure_mismatch"
             raise ValueError(message)
         payload = self.model_dump(mode="json", exclude={"digest"})
@@ -348,7 +340,6 @@ def compile_git_effect_plan(
             "policy": policy,
             "effect": effect.model_dump(mode="json"),
         },
-        permissions=commitment.permissions,
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=(
             PlanNode(
@@ -424,7 +415,6 @@ def compile_plan(
                 nodes=nodes,
             ),
         },
-        permissions=commitment.permissions,
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=nodes,
         required_gaps=tuple(dict.fromkeys(gaps)),

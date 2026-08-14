@@ -32,9 +32,5 @@ invariants = []
 acceptance = []
 risks = []
 authority_refs = []
-permissions = [
-  "repository.read",
-  "work-lane.write",
-]
 hypotheses = []
 dependencies = []

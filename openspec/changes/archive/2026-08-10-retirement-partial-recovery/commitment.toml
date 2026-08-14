@@ -25,6 +25,5 @@ acceptance = [
 ]
 risks = ["recovery_must_not_clobber_a_reused_path_or_moved_ref"]
 authority_refs = ["user_instruction", "rules/mutation.md", "openspec/specs/repository-governance/spec.md"]
-permissions = ["repository.read", "work-lane.write"]
 hypotheses = []
 dependencies = []

@@ -1,28 +1,69 @@
 schema_version = 1
 id = "change:model-promotion"
-intent = "Replace duplicated lifecycle orchestration with one declarative receipt-bound reducer and one destructive terminal cutover."
+intent = "Establish non-drifting Commitment and Attestation semantics, one durable Attestation set, and one destructive v1-to-v2 bootstrap."
 subjects = ["repository:ethos"]
-scope = ["**"]
+scope = [
+  "src/ethos/contracts/semantic.py",
+  "src/ethos/contracts/plan.py",
+  "src/ethos/contracts/coordination.py",
+  "src/ethos/adapters/repo/attestation_set.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_admission.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_derivation.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_evidence.py",
+  "src/ethos/surface/cli/root/attestation.py",
+  "src/ethos/surface/cli/lane/rebind.py",
+  "src/ethos/surface/cli/application.py",
+  "src/ethos/repository/profile.py",
+  "src/ethos/repository/policy/schema.py",
+  "system/schemas/kernel/commitment.schema.json",
+  "system/schemas/kernel/attestation.schema.json",
+  "system/schemas/kernel/transition-plan.schema.json",
+  "system/policies/evidence-layout.toml",
+  "system/axioms.md",
+  "docs/governance/product-design-contract.md",
+  "docs/governance/provenance-and-attestation.md",
+  "docs/governance/evolution-campaign.md",
+  "docs/architecture/generated-artifact-topology.md",
+  "docs/evidence/README.md",
+  "evidence/README.md",
+  "rules/declarative_lifecycle.md",
+  "openspec/changes/model-promotion/**",
+  "openspec/specs/kernel/spec.md",
+  "openspec/specs/contracts/spec.md",
+  "openspec/specs/adapters/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/specs/command-plane/spec.md",
+  "tests/fixtures/semantic-v2/**",
+  "tests/unit/kernel/test_semantic_v2.py",
+  "tests/unit/kernel/test_attestation_set.py",
+  "tests/unit/lanes/lease/test_commitment_rebind.py",
+  "tests/unit/cli/test_attestation_commands.py",
+  "tests/architecture/test_product_design_contract.py",
+  "tests/architecture/test_declarative_governance_spine.py",
+]
 invariants = [
   "commitment_and_attestation_are_the_only_durable_semantic_roots",
-  "every_lifecycle_effect_is_derived_by_one_pure_reducer",
-  "operation_authority_is_exact_and_non_reusable",
-  "partial_effects_are_resumable_and_never_reported_as_terminal_success",
-  "source_package_schema_help_hook_and_runtime_identity_are_manifest_bound",
+  "schema_v2_identity_is_explicit_domain_separated_and_runtime_independent",
+  "selection_and_attestation_membership_never_mint_authority",
+  "unknown_payloads_and_relations_round_trip_but_cannot_authorize_effects",
+  "one_commitment_binds_one_bounded_change_lane_generation_and_task_authority",
+  "exactly_one_current_attestation_set_exists",
+  "v1_bootstrap_is_exact_one_shot_and_not_a_compatibility_reader",
   "adopters_and_foreign_lanes_remain_unmodified",
 ]
 acceptance = [
-  "refresh_ref_lease_attachment_and_receipt_converge",
-  "all_lifecycle_commands_project_one_transaction_contract",
-  "campaign_and_duplicate_state_machines_are_absent",
-  "required_gates_prove_complete_execution",
-  "provider_projections_are_peer_native_and_independently_attested",
-  "package_only_runtime_is_accepted_source_independent_and_self_healing",
+  "commitment_v2_golden_identity_matches_source_wheel_and_package_runtime",
+  "attestation_v2_preserves_occurrences_relations_and_unknown_payloads",
+  "attestation_set_union_is_deterministic_commutative_idempotent_and_collision_safe",
+  "successor_commitment_adopts_only_explicit_selected_attestations",
+  "v1_to_v2_rebind_recovers_only_to_exact_old_or_new_generation",
+  "parallel_claim_chronicle_ledger_campaign_inbox_and_store_authorities_are_absent",
 ]
 risks = [
-  "destructive_contract_cutover_invalidates_old_runtime_and_state_payloads",
-  "transaction_migration_can_expose_unmodeled_partial_effects",
-  "deleting_duplicate_orchestration_can temporarily reduce command coverage",
+  "destructive_v2_cutover_invalidates_old_current_carriers_and_attestations",
+  "remote_attestation_set_replication_is_unverified_and_out_of_scope",
+  "removing_parallel_authorities_can_expose_unmapped_historical_semantics",
 ]
 authority_refs = [
   "user_instruction",
@@ -30,5 +71,9 @@ authority_refs = [
   "docs/governance/product-design-contract.md",
   "rules/declarative_lifecycle.md",
 ]
-hypotheses = []
+hypotheses = [
+  "an_out_of_band_git_set_preserves_concurrent_intent_without_expanding_active_changes",
+  "explicit_v2_fields_and_domain_separation_prevent_runtime_identity_drift",
+  "successor_commitment_selection_preserves_intent_without_parallel_progress_state",
+]
 dependencies = []

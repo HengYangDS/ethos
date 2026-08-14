@@ -1,79 +1,66 @@
-## REMOVED Requirements
+## MODIFIED Requirements
 
 ### Requirement: TransitionPlan Transition Contract
 
-**Reason**: Reusable permissions and effect-only plans allow commands and
-adapters to reconstruct missing lifecycle semantics independently.
+`TransitionPlan` SHALL remain immutable, deterministic, operation-bound derived
+IR. Commitment SHALL NOT carry reusable permissions. Stored plan bytes MAY
+support exact recovery but SHALL NOT become a semantic root.
 
-**Migration**: Use operation-bound authority and the immutable transition
-receipt contract.
+#### Scenario: A transition plan is inspected
+
+- **WHEN** ETHOS compiles a governed change
+- **THEN** it exposes ordered checks, decisions, effects, exact operation
+  authority, and a closed verdict
+- **AND** every dependency is acyclic and effect authority is plan-bound
 
 ## ADDED Requirements
 
-### Requirement: Operation-bound authority contract
+### Requirement: Commitment v2 identity is explicit and bounded
 
-Commitment SHALL NOT carry reusable execution permissions. ETHOS SHALL derive
-authority for exactly one operation and effect from the operation declaration,
-actor facts, Commitment, prior Attestations, and fresh repository observations.
+Commitment v2 SHALL require every identity-bearing field explicitly and compute
+a domain-separated digest over its canonical projection. It SHALL include typed
+predecessors, selected Attestations, dependencies, hypotheses, falsifiers, and
+experiment protocols, and SHALL exclude reusable permissions and mutable state.
 
-#### Scenario: An admitted receipt is reused for another effect
+#### Scenario: A v2 Commitment is loaded
 
-- **WHEN** any operation, actor, subject, binding, or effect differs from the
-  receipt
-- **THEN** apply rejects the receipt before mutation
+- **WHEN** carrier bytes omit an identity field, contain a duplicate, use a
+  context-dependent subject alias, or fail a typed value contract
+- **THEN** validation blocks before a semantic digest is produced
 
-#### Scenario: Commitment is inspected
+#### Scenario: Selected intent becomes normative
 
-- **WHEN** a Commitment carrier or schema is read
-- **THEN** it contains intent, subjects, scope, invariants, acceptance, risks,
-  authority references, hypotheses, and dependencies
-- **AND** it contains no permission or mutable workflow field
+- **WHEN** input is accepted for implementation
+- **THEN** a successor Commitment binds predecessor and selection identities
+- **AND** the predecessor Change is not silently expanded
 
-### Requirement: Immutable transition receipt contract
+### Requirement: Attestation v2 payload and relations are open and composable
 
-The transition receipt SHALL bind the request, complete input digests, exact
-operation authority, closed verdict, ordered gaps, preconditions, effects,
-compensations, postconditions, and singular continuation in canonical bytes.
+Attestation v2 SHALL bind an open predicate, `{kind, body}` payload, canonical
+relations, evidence, validity, closed verdict, exact digests, and
+`mints_authority=false`. Relations SHALL sort by kind, target kind, target id,
+and canonical attributes and SHALL reject duplicates.
 
-#### Scenario: Receipt bytes are changed after derivation
+#### Scenario: Identical text occurs twice
 
-- **WHEN** apply validates a modified or non-canonical receipt
-- **THEN** it blocks before any effect with a stable structured diagnostic
+- **WHEN** it appears at distinct source occurrence coordinates
+- **THEN** two Attestations retain distinct identities
+- **AND** text digest alone is not occurrence identity
 
-#### Scenario: Receipt has a blocking verdict
+#### Scenario: Known and future relations coexist
 
-- **WHEN** the receipt verdict is not pass
-- **THEN** no effect is executable
-- **AND** the receipt exposes exactly one next action or explicit user decision
+- **WHEN** an Attestation carries several known relations and an unknown one
+- **THEN** all canonical values round-trip in deterministic order
+- **AND** only evaluator-understood relations participate in a verdict
 
-### Requirement: Commitment scope is positive and recursive
+### Requirement: Selection Attestations never mint authority
 
-Commitment scope SHALL use positive repository-relative recursive patterns that
-describe the intended semantic area. It SHALL support greenfield creation and
-receipt-bound rebind without enumerating every future file or granting mutation
-authority.
+A selection Attestation SHALL dispose input to a named semantic owner, explicit
+absence reason, contradiction, or model gap. It SHALL NOT mutate an active
+Commitment, Change, scope, acceptance set, or task graph.
 
-#### Scenario: A greenfield subtree is created
+#### Scenario: Feedback arrives outside the active Commitment
 
-- **WHEN** a positive coarse scope covers a not-yet-existing nested path
-- **THEN** recursive matching admits the path without a negative exception list
-- **AND** sibling paths outside the declared area remain blocked
-
-#### Scenario: Scope meaning changes
-
-- **WHEN** an owned lane needs a different Commitment scope
-- **THEN** one rebind receipt binds old and new bytes, semantic identity, head,
-  tree, Lease generation, actor, and overlay before apply
-
-### Requirement: Operation requests are context-independent values
-
-Every operation request SHALL name repository identity and exact resource
-coordinates explicitly. Host launch context, current directory basename,
-environment history, personal path, or hidden global state SHALL NOT complete
-missing request semantics.
-
-#### Scenario: Hostile invocation context is supplied
-
-- **WHEN** `PWD`, `OLDPWD`, process cwd, and editor root disagree
-- **THEN** the declared repository and worktree bindings determine the request
-- **AND** ambiguity blocks with one typed remediation
+- **WHEN** it is relevant but not already required by the bounded Change
+- **THEN** its selection remains available to a successor Commitment
+- **AND** current effect scope remains unchanged

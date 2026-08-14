@@ -401,17 +401,23 @@ def _refresh_transition_plan(
     rebase_attestation: Attestation,
 ) -> TransitionPlan:
     lease = leases_by_branch(root).get(branch, {})
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{branch}": GitRefUpdate(expected=current_head, desired=rebased_head)
+        },
+        assertions={f"refs/heads/{candidate_branch}": candidate_head},
+    )
     return compile_observed_git_effect(
         root,
         load_repository_commitment(root, tree_ref=rebased_head),
-        GitEffect(
-            updates={
-                f"refs/heads/{branch}": GitRefUpdate(expected=current_head, desired=rebased_head)
-            },
-            assertions={f"refs/heads/{candidate_branch}": candidate_head},
-        ),
+        effect,
         head=rebased_head,
         prior_attestations={"rebase": rebase_attestation.model_dump(mode="json")},
-        policy={"operation": "lane.refresh", "execution_branch": branch},
+        policy={
+            "operation": "git.ref.compare-and-swap",
+            "transition": "lane.refresh",
+            "effect_digest": effect.digest(),
+            "execution_branch": branch,
+        },
         values={"lease_generation": lease_generation(lease)},
     )

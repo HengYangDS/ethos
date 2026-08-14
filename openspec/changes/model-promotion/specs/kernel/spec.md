@@ -21,6 +21,71 @@ reusable authority.
   to subject, scope, exact HEAD, verifier, verdict, and validity
 - **AND** digest-only proof requires no external account or network
 
+### Requirement: Semantic attestation is receipt-bound and non-authorizing
+
+ETHOS SHALL admit assurance only by validating one Attestation v2 whose
+predicate, payload, relations, verifier, validity, exact bindings, and selected
+Commitment satisfy the operation query. Membership and digest equality alone
+SHALL NOT satisfy the query.
+
+#### Scenario: Attestation is absent or mismatched
+
+- **WHEN** an Attestation is missing, stale, structurally unknown to the
+  evaluator, or mismatched
+- **THEN** the operation fails closed with a machine-readable gap
+- **AND** no Claim mode or receipt-directory fallback is consulted
+
+#### Scenario: Digest-only claim remains portable
+
+- **WHEN** an operation requires only digest-bound proof
+- **THEN** it does not require or inspect a semantic receipt directory, account,
+  daemon, credential, network operation, or dedicated user
+- **AND** no Claim compatibility mode is created
+
+#### Scenario: Semantic attestation has a current semantic scope
+
+- **WHEN** an operation requires semantic assurance
+- **THEN** the Attestation binds exact subject, semantic scope, and current HEAD
+- **AND** validity and operation-specific predicate evaluation remain required
+
+### Requirement: Event entities require an executable dataflow
+
+ETHOS SHALL retain a durable event-like value only as an Attestation consumed by
+a current evaluator or derived projection. Declaration-only streams, generic
+event logs, Campaign state, mutable inbox state, and Chronicle authority SHALL
+be absent.
+
+#### Scenario: lifecycle declaration is loaded
+
+- **WHEN** lifecycle declaration is validated and projected
+- **THEN** it contains only currently consumed transition and Lease policies
+- **AND** no Campaign or generic event owner is emitted
+
+#### Scenario: local state is initialized
+
+- **WHEN** ignored local state is created
+- **THEN** it creates only tables consumed by current behavior
+- **AND** generic event and Chronicle CRUD is absent
+
+#### Scenario: ignored local state uses the current contract
+
+- **WHEN** ETHOS initializes disposable coordination state
+- **THEN** it creates only the current Lease contract
+- **AND** no migration ledger or retired local format persists
+
+#### Scenario: Git-common state stays outside checkouts
+
+- **WHEN** ETHOS resolves mutable state for any linked worktree
+- **THEN** staging, cache, and Lease state use the shared Git common directory
+- **AND** no checkout gains untracked runtime truth
+
+#### Scenario: Chronicle remains authoritative evidence
+
+- **WHEN** a governance decision becomes durable
+- **THEN** it is one Attestation v2 in the sole set, not Chronicle
+- **AND** no campaign CEL, event table, migration ledger, acknowledgement,
+  consumed flag, or inbox cursor is created
+
 ## ADDED Requirements
 
 ### Requirement: Semantic identity is schema-versioned and runtime-independent

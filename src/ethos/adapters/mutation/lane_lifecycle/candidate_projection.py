@@ -52,18 +52,23 @@ def _candidate_plan(
     desired: str,
     operation: str,
 ) -> TransitionPlan:
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{candidate_branch}": GitRefUpdate(expected=expected, desired=desired)
+        },
+        assertions={f"refs/heads/{accepted_branch}": desired},
+    )
     return compile_observed_git_effect(
         root,
         load_repository_commitment(root, tree_ref=desired),
-        GitEffect(
-            updates={
-                f"refs/heads/{candidate_branch}": GitRefUpdate(expected=expected, desired=desired)
-            },
-            assertions={f"refs/heads/{accepted_branch}": desired},
-        ),
+        effect,
         head=desired,
         prior_attestations={},
-        policy={"operation": operation},
+        policy={
+            "operation": "git.ref.compare-and-swap",
+            "transition": operation,
+            "effect_digest": effect.digest(),
+        },
     )
 
 

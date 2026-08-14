@@ -260,7 +260,9 @@ def _plan(replacement: _Replacement, effect: GitEffect):
         head=replacement.new,
         prior_attestations=replacement.evidence,
         policy={
-            "operation": "commit.identity-replace",
+            "operation": "git.ref.compare-and-swap",
+            "transition": "commit.identity-replace",
+            "effect_digest": effect.digest(),
             "execution_branch": replacement.branch,
         },
         values={

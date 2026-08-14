@@ -172,7 +172,6 @@ def retire_absorbed_ref(
         "state": "git_effect_admitted",
         "effect": plan.effect,
         "plan_digest": plan.digest,
-        "permissions": list(plan.permissions),
     }
     report["transition"] = transition
     if not apply:

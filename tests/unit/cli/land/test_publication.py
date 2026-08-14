@@ -282,16 +282,7 @@ def _proposal_fixture(
 ) -> tuple[Path, dict[str, Path], str]:
     repo = init_git_repo(tmp_path / "proposal-repo")
     adopt_and_commit(repo)
-    commitment = repo / ".ethos/commitment.toml"
-    commitment.write_text(
-        commitment.read_text(encoding="utf-8").replace(
-            'permissions = ["repository.read", "git.ref.compare-and-swap"]',
-            'permissions = ["repository.read", "git.ref.compare-and-swap", '
-            '"terminal-publication.execute"]',
-        ),
-        encoding="utf-8",
-    )
-    head = commit_fixture(repo, "declare proposal publication authority")
+    head = git(repo, "rev-parse", "HEAD")
     if source_branch != "dev":
         git(repo, "branch", source_branch, head)
         git(repo, "checkout", source_branch)
@@ -390,23 +381,6 @@ def test_publish_proposal_dry_run_and_apply_share_one_plan_and_attestation(
     assert applied["state"] == "proposal_published"
     assert attestation["statement"]["plan"] == applied["data"]["transition_plan"]
     assert {_proposal_ref(remote) for remote in remotes.values()} == {head}
-
-
-def test_publish_proposal_requires_positive_commitment_authority(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    git(repo, "branch", "candidate/dev", head)
-    git(repo, "checkout", "candidate/dev")
-    seed_executed_proof(repo, head)
-    for remote in ("origin", "github"):
-        target = tmp_path / f"{remote}.git"
-        git(tmp_path, "init", "--bare", target.as_posix())
-        git(repo, "remote", "add", remote, target.as_posix())
-        git(repo, "push", remote, "HEAD:refs/heads/dev")
-    assert _proposal(repo, head, blocked=True)["required_gaps"] == [
-        "terminal_publication_authority_missing"
-    ]
 
 
 def test_publish_proposal_preflights_all_peers_and_retry_converges(tmp_path: Path) -> None:

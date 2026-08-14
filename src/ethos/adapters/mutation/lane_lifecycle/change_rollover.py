@@ -378,7 +378,6 @@ def _commitment(*, change: str, intent: str, scope: tuple[str, ...]) -> Commitme
         intent=intent.strip(),
         subjects=("repository:self",),
         scope=bounded_scope,
-        permissions=("repository.read", "work-lane.write"),
     )
 
 

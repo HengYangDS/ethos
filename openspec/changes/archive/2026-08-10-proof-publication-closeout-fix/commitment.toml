@@ -17,6 +17,5 @@ acceptance = [
 ]
 risks = ["empty_change_state_must_not_weaken_active_change_validation"]
 authority_refs = ["user_instruction", "rules/mutation.md", "docs/governance/release-governance.md"]
-permissions = ["repository.read", "work-lane.write", "local-proof.execute"]
 hypotheses = []
 dependencies = []

@@ -72,11 +72,5 @@ authority_refs = [
   "docs/plans/terminal-governance-product-design.md",
   "rules/release.md",
 ]
-permissions = [
-  "repository.read",
-  "work-lane.write",
-  "local-proof.execute",
-  "terminal-publication.execute",
-]
 hypotheses = []
 dependencies = ["change:declared-publication-peers", "change:terminal-convergence"]

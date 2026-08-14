@@ -31,7 +31,6 @@ def _fresh_commitment(path: Path, change: str = "fresh-change") -> Path:
                 'intent = "Exercise atomic fresh Change bootstrap."',
                 'subjects = ["repository:self"]',
                 'scope = ["src/**"]',
-                'permissions = ["repository.read", "work-lane.write"]',
                 "",
             )
         ),

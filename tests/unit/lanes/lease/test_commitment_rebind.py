@@ -145,7 +145,6 @@ def _case(
     monkeypatch: pytest.MonkeyPatch,
     *,
     carrier_mode: str = "stable",
-    old_permissions: tuple[str, ...] = ("git.ref.compare-and-swap",),
     repair_identity: bool = False,
     semantic_rename: bool = False,
 ) -> RebindCase:
@@ -157,15 +156,11 @@ def _case(
     lease = leases_by_branch(worktree)[branch]
     carrier = Path(str(lease["base_commitment_path"]))
     old_head = git(worktree, "rev-parse", "HEAD")
-    if old_permissions != ("git.ref.compare-and-swap",) or repair_identity:
+    if repair_identity:
         commitment = worktree / carrier
-        content = commitment.read_text(encoding="utf-8").replace(
-            'permissions = ["git.ref.compare-and-swap"]',
-            f"permissions = {json.dumps(old_permissions).replace(',', ', ')}",
-        )
         commitment.write_text(
             _identity_content(
-                content,
+                commitment.read_text(encoding="utf-8"),
                 repair=repair_identity,
                 old=True,
                 semantic_rename=semantic_rename,
@@ -259,7 +254,7 @@ def _case(
 
 
 @pytest.mark.parametrize(
-    ("mode", "permissions", "raw_gap"),
+    ("mode", "raw_gap"),
     literal_case(
         "lanes.lease.test_commitment_rebind:parametrize:test_rebind_owns_carrier_and_authority:0"
     ),
@@ -268,10 +263,9 @@ def test_rebind_owns_carrier_and_authority(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     mode: str,
-    permissions: tuple[str, ...],
     raw_gap: str | None,
 ) -> None:
-    case = _case(tmp_path, monkeypatch, carrier_mode=mode, old_permissions=permissions)
+    case = _case(tmp_path, monkeypatch, carrier_mode=mode)
     if raw_gap:
         raw = work_lane_ref_transition_report(
             root=case.worktree,

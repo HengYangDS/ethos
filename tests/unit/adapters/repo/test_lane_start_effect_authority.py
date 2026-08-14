@@ -90,7 +90,6 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
         id="authority:test:lane-start",
         intent="Create one leased work lane.",
         subjects=("repository:repo",),
-        permissions=("repository.read",) if flaw == "permission" else ("work-lane.write",),
     )
     return compile_git_effect_plan(
         commitment,
@@ -112,7 +111,6 @@ def test_lane_start_authority_accepts_only_the_bound_creation(tmp_path: Path, mo
     "flaw",
     [
         "operation",
-        "permission",
         "ref",
         "expected",
         "desired",

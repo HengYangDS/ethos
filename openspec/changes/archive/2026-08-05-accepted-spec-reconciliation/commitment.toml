@@ -44,12 +44,6 @@ authority_refs = [
   "docs/governance/product-design-contract.md",
   "docs/plans/terminal-governance-product-design.md",
 ]
-permissions = [
-  "repository.read",
-  "work-lane.write",
-  "git.ref.compare-and-swap",
-  "local-proof.execute",
-]
 hypotheses = [
   "atomic_fresh_bootstrap_removes_campaign_successor_deadlock",
   "executable_owner_reconciliation_reduces_stale_spec_authority",

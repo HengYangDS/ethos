@@ -353,8 +353,7 @@ def _write_active_change_carrier(
         f'id = "change:{change_id}"\n'
         'intent = "Exercise the governed fixture lifecycle."\n'
         'subjects = ["repository:self"]\n'
-        f"scope = {list(scope)!r}\n".replace("'", '"')
-        + 'permissions = ["git.ref.compare-and-swap"]\n',
+        f"scope = {list(scope)!r}\n".replace("'", '"'),
         encoding="utf-8",
     )
     (carrier / "tasks.md").write_text(

@@ -264,22 +264,20 @@
       "id": "cli.test_contracts_land:assign:PROOF_CASES:1",
       "source": {
         "kind": "assign",
-        "line": 325,
+        "line": 302,
         "owner": "PROOF_CASES",
         "path": "tests/unit/cli/test_contracts_land.py"
       },
       "value": {
         "items": [
-          "test_land_readiness_and_apply_share_narrow_candidate_effect_authority",
           "test_work_lane_proof_is_invalid_after_same_head_lease_handoff",
           "test_work_lane_proof_requires_a_live_commitment_bound_lease[expired-expired]",
           "test_work_lane_proof_requires_a_live_commitment_bound_lease[unknown-unknown]",
-          "test_work_lane_proof_requires_a_live_commitment_bound_lease[valid-mismatch]",
-          "test_land_rejects_proof_self_granted_candidate_authority"
+          "test_work_lane_proof_requires_a_live_commitment_bound_lease[valid-mismatch]"
         ],
         "type": "tuple"
       },
-      "value_sha256": "39cef39fb65ceefb3d0b60f6c9f49efa541087e42c0eadec3faf505ead2d6801"
+      "value_sha256": "64fb14a7395be9775db53f501bd354bae39b12629ed8636b21ec8f9599613249"
     },
     {
       "id": "cli.test_contracts_land:assign:REFRESH_CASES:2",
@@ -321,13 +319,12 @@
       "id": "cli.test_contracts_land:assign:CLOSEOUT_CASES:4",
       "source": {
         "kind": "assign",
-        "line": 642,
+        "line": 481,
         "owner": "CLOSEOUT_CASES",
         "path": "tests/unit/cli/test_contracts_land.py"
       },
       "value": {
         "items": [
-          "test_closeout_rejects_candidate_self_granted_accepted_authority",
           "test_closeout_bootstraps_the_first_repository_commitment_from_an_authorized_candidate",
           "test_closeout_first_cas_uses_the_accepted_policy_when_candidate_changes_topology",
           "test_closeout_uses_default_policy_when_profile_has_no_workspace",
@@ -336,7 +333,7 @@
         ],
         "type": "tuple"
       },
-      "value_sha256": "91e74ad391510f35d4d348a1126f6d1baf3d5714fc180494359da805761e0631"
+      "value_sha256": "05abe9aa9e73673ef713a0f42fe641f2e2afce53ebcd631239eaf9d776ef8c51"
     },
     {
       "id": "cli.test_contracts_land:assign:CAS_CASES:5",
@@ -1775,7 +1772,7 @@
       "id": "lanes.lease.test_commitment_rebind:parametrize:test_rebind_owns_carrier_and_authority:0",
       "source": {
         "kind": "parametrize",
-        "line": 231,
+        "line": 256,
         "owner": "test_rebind_owns_carrier_and_authority",
         "path": "tests/unit/lanes/lease/test_commitment_rebind.py"
       },
@@ -1784,12 +1781,6 @@
           {
             "items": [
               "relocated",
-              {
-                "items": [
-                  "git.ref.compare-and-swap"
-                ],
-                "type": "tuple"
-              },
               "commitment_rebind_required"
             ],
             "type": "tuple"
@@ -1797,26 +1788,6 @@
           {
             "items": [
               "archive-active",
-              {
-                "items": [
-                  "git.ref.compare-and-swap"
-                ],
-                "type": "tuple"
-              },
-              null
-            ],
-            "type": "tuple"
-          },
-          {
-            "items": [
-              "stable",
-              {
-                "items": [
-                  "repository.read",
-                  "work-lane.write"
-                ],
-                "type": "tuple"
-              },
               null
             ],
             "type": "tuple"
@@ -1824,7 +1795,7 @@
         ],
         "type": "list"
       },
-      "value_sha256": "ab0b5e0ec46d086e4e735742ad4479d0fba05ab35de1ccaf5dfd2185ad4f2c37"
+      "value_sha256": "521d6291c12483a5995b9c7456361ce01665bb19791fefeae91f6d37cfe6711b"
     },
     {
       "id": "lanes.lease.test_lease_lifecycle:parametrize:test_retirement_authority_transaction_matrix:0",

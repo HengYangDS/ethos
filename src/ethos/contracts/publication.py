@@ -19,8 +19,6 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import JsonObject
 from ethos.contracts.value import mutable_json
 
-_PUBLICATION_PERMISSION = "terminal-publication.execute"
-
 
 class RemotePublicationTarget(BaseModel):
     """One provider-local exact-CAS proposal ref target."""
@@ -111,11 +109,6 @@ def compile_remote_publication_plan(
         "cross_provider_atomicity": False,
     }
     projection = effect.model_dump(mode="json")
-    gaps = (
-        ()
-        if _PUBLICATION_PERMISSION in commitment.permissions
-        else ("terminal_publication_authority_missing",)
-    )
     return TransitionPlan.compile(
         inputs=PlanInputs(
             commitment=commitment.digest(),
@@ -130,10 +123,8 @@ def compile_remote_publication_plan(
             "policy": policy,
             "effect": projection,
         },
-        permissions=commitment.permissions,
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=(_PUBLICATION_NODE,),
-        required_gaps=gaps,
     )
 
 

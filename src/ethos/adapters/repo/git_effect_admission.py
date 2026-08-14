@@ -21,12 +21,10 @@ if TYPE_CHECKING:
 
 
 def require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
-    """Admit one CAS through its Commitment or narrow command authority."""
-    admitted = set(plan.permissions)
-    if "git.ref.compare-and-swap" in admitted or set(effect.permissions) <= admitted:
-        return
+    """Admit one CAS only through exact operation-bound authority."""
     if (
-        _is_commitment_rebind_authority(effect, plan)
+        _is_exact_effect_authority(effect, plan)
+        or _is_commitment_rebind_authority(effect, plan)
         or _is_candidate_integration_authority(effect, plan)
         or _is_lane_start_authority(effect, plan)
         or _is_linked_lane_retirement_authority(effect, plan)
@@ -35,6 +33,14 @@ def require_effect_permission(effect: GitEffect, plan: TransitionPlan) -> None:
         return
     message = "git_effect_permission_denied"
     raise ValueError(message)
+
+
+def _is_exact_effect_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
+    """Admit the primitive only when policy binds this exact effect digest."""
+    return (
+        plan.policy.get("operation") == "git.ref.compare-and-swap"
+        and plan.policy.get("effect_digest") == effect.digest()
+    )
 
 
 def _is_commitment_rebind_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
@@ -103,7 +109,7 @@ def _is_candidate_integration_authority(effect: GitEffect, plan: TransitionPlan)
 
 def _is_lane_start_authority(effect: GitEffect, plan: TransitionPlan) -> bool:
     """Admit only the exact zero-to-leased-head ref creation owned by lane start."""
-    if plan.policy.get("operation") != "lane.start" or "work-lane.write" not in plan.permissions:
+    if plan.policy.get("operation") != "lane.start":
         return False
     values = plan.facts.get("values")
     facts = values if isinstance(values, Mapping) else {}

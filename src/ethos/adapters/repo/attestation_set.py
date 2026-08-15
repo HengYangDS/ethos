@@ -246,6 +246,21 @@ def _zero_object_id(repo: Path) -> str:
     return "0" * (64 if object_format == "sha256" else 40)
 
 
+def _compare_and_swap_root(repo: Path, *, desired: str, observed: str) -> bool:
+    return (
+        run_git(
+            repo,
+            "update-ref",
+            "--no-deref",
+            ATTESTATION_SET_REF,
+            desired,
+            observed or _zero_object_id(repo),
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
 def read_attestation_set(repo: Path) -> tuple[str, tuple[Attestation, ...]]:
     """Read and validate the selected immutable Attestation set."""
     root = _selected_root(repo)
@@ -271,16 +286,7 @@ def record_attestations(
             return {"root": observed, "added": ()}
         union = current | incoming
         desired = _root_identity(repo, _write_tree(repo, union), write=True)
-        updated = run_git(
-            repo,
-            "update-ref",
-            "--no-deref",
-            ATTESTATION_SET_REF,
-            desired,
-            observed or _zero_object_id(repo),
-            check=False,
-        )
-        if updated.returncode == 0:
+        if _compare_and_swap_root(repo, desired=desired, observed=observed):
             return {"root": desired, "added": added}
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)
@@ -305,16 +311,7 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
         incoming = _canonical_inputs((attestation,))
         union = current | incoming
         desired = _root_identity(repo, _write_tree(repo, union), write=True)
-        updated = run_git(
-            repo,
-            "update-ref",
-            "--no-deref",
-            ATTESTATION_SET_REF,
-            desired,
-            observed or _zero_object_id(repo),
-            check=False,
-        )
-        if updated.returncode == 0:
+        if _compare_and_swap_root(repo, desired=desired, observed=observed):
             return attestation
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)

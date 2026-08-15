@@ -270,7 +270,12 @@ def rebind_generation_authority(
     new_commitment = statement.get("new_commitment")
     result = statement.get("result")
     claim = statement.get("claim")
-    if not all(isinstance(value, dict) for value in (old, new, new_commitment, result)):
+    if (
+        not isinstance(old, dict)
+        or not isinstance(new, dict)
+        or not isinstance(new_commitment, dict)
+        or not isinstance(result, dict)
+    ):
         return {}
     validated = None
     try:
@@ -319,6 +324,7 @@ def rebind_generation_authority(
     plan_successor = mutable_json(plan_values.get("lease_successor"))
     planned_new = {name: value for name, value in new.items() if name != "payload_sha256"}
     now = datetime.now(UTC)
+    valid_from = attestation.valid_from
     try:
         bootstrap = expected_transition == "v1-to-v2-bootstrap"
         origin_head = generation_head if bootstrap else previous_head
@@ -419,8 +425,9 @@ def rebind_generation_authority(
             "lease_generation": new,
             "working_overlay_sha256": statement.get("working_overlay_sha256"),
         }
-        and attestation.valid_from == attestation.issued_at
-        and attestation.valid_from <= now
+        and valid_from == attestation.issued_at
+        and valid_from is not None
+        and valid_from <= now
         and (attestation.valid_until is None or now <= attestation.valid_until)
         and bool(generation_base)
         and mutable_json(new_commitment) == binding

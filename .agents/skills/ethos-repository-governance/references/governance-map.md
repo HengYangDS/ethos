@@ -14,5 +14,5 @@ command plane.
 | OpenSpec lifecycle | official `openspec` CLI | Official command JSON |
 | Repo-local skills | `playbooks-v2` proof gate | Proof result |
 
-Repository source, tests, schemas, docs, OpenSpec, claims, and evidence remain
+Repository source, tests, schemas, docs, OpenSpec, Commitments, and Attestations remain
 above this map. The map routes work; it does not create durable truth.

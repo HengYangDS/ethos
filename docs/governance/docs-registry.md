@@ -32,23 +32,15 @@ The registry lifecycle is:
 observe -> shape -> canonize -> project -> retire
 ```
 
-For `role: decision`, the registry additionally enforces a flat `DR-*.md`
-surface, the shared record/invariants/alternatives/decision/consequences/evidence/
-revisit/change-ledger grammar, comparable alternatives tables, and a single
-Decision Index. Current accepted/proposed records appear first by descending
-decision-change date; superseded records follow as history. Dependencies and
-code/evidence references remain inside each record rather than duplicated into
-parallel maps.
-
 Archive material may preserve old vocabulary. Canonical docs must lead with the
 single `ethos ...` command plane.
 
-Superseded documents live only as flat Decision Records or explicit
-`docs/history/` carriers. Current architecture, governance, reference, start,
-and plan surfaces must not retain redirect or locator pages for retired
-concepts; they link directly to the historical carrier when historical context
-is necessary. Retirement removes only the redundant current-surface carrier,
-never immutable OpenSpec archives or historical evidence bytes.
+Superseded documents live only as explicit `docs/history/` carriers. Current
+architecture, governance, reference, start, and plan surfaces must not retain
+redirect or locator pages for retired concepts; they link directly to the
+historical carrier when historical context is necessary. Retirement removes
+only the redundant current-surface carrier, never immutable OpenSpec archives
+or historical evidence bytes.
 
 ## Portability Boundary
 

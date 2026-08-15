@@ -1,7 +1,7 @@
 ---
 subject: ethos:commitment-relations
 role: explanation
-state: projection
+state: active
 relations:
   projects:
     - docs/governance/product-design-contract.md#semantic-kernel

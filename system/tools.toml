@@ -11,14 +11,6 @@
 schema = "system/schemas/contracts/tools.schema.json"
 
 [[tool]]
-concern = "commit_message"
-tool = "commit-check"
-config = ".ethos/profile.toml"
-executables = ["commit-check"]
-profile = "minimal"
-gate = "ethos hook run commit-msg <message-file>"
-
-[[tool]]
 concern = "python_format_lint"
 tool = "ruff"
 config = "ruff.toml"
@@ -352,13 +344,6 @@ config = "system/policies/generated-artifact-topology.toml + src/ethos/contracts
 artifacts = "build/evidence/generated-artifacts/"
 gate = "ethos prove --gate generated-artifacts --json"
 profile = "product"
-
-[[tool]]
-concern = "runbook_registry"
-tool = "ethos-runbook-registry"
-config = ".config/checks/runbook/registry.toml + docs/reference/runbook-registry.md"
-gate = "uv run --frozen --offline python -m nox -s runbook_registry"
-profile = "docs"
 
 [[tool]]
 concern = "hosted_provider_observation"

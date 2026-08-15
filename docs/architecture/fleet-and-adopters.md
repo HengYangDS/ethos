@@ -28,5 +28,5 @@ ethos prove --root <repo> --full --json
 
 Adopter evidence remains in that repository's tracked surfaces. Provider state,
 editor state, and generated projections are adapters. They must be promoted
-into source, tests, schemas, docs, OpenSpec, claims, or evidence before they
+into source, tests, schemas, docs, OpenSpec, Commitments, or Attestations before they
 support an adopter claim.

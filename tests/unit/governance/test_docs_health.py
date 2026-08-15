@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 import pytest
@@ -13,6 +12,9 @@ from ethos.repository.registry.docs.health import ethos_command_tokens
 from ethos.repository.registry.docs.health import shell_commands
 from ethos.surface.cli.root.reference import docs_registry_report
 from tests.support.literal_cases import literal_case
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def write_active_doc(root: Path, command: str) -> None:
@@ -289,53 +291,23 @@ def test_observational_roles_do_not_require_reader_sections(tmp_path: Path) -> N
     assert report["missing_visible_sections"] == []
 
 
-def test_docs_registry_gate_declares_only_its_owned_dimensions() -> None:
-    """Links and durable evidence remain owned by their dedicated gates."""
-    registry = tomllib.loads(
-        (Path(__file__).resolve().parents[3] / "system" / "gates.toml").read_text(encoding="utf-8")
-    )
-    docs = next(gate for gate in registry["gates"] if gate["id"] == "docs-registry")
-
-    assert docs["dimensions"] == [
-        "front-matter",
-        "taxonomy",
-        "visible-sections",
-        "command-examples",
-        "plan-discoverability",
-        "decision-records",
-    ]
-
-
-def test_decision_records_use_one_comparison_table_shape() -> None:
-    """Every durable ruling compares options through the canonical table grammar."""
-    root = Path(__file__).resolve().parents[3] / "docs" / "decisions"
-    for path in [root / "decision-record-template.md", *sorted(root.glob("DR-*.md"))]:
-        alternatives = (
-            path.read_text(encoding="utf-8")
-            .split("## Alternatives Considered", 1)[1]
-            .split("## Selected Approach And Rationale", 1)[0]
-        )
-        assert "| Option | Verdict | Pros | Cons | Decision basis |" in alternatives
-        assert not {"**Pros**", "**Cons**", "**Why Rejected**"} & set(alternatives.splitlines())
-
-
-def test_decision_records_require_the_single_concise_grammar(tmp_path: Path) -> None:
-    """A durable ruling is incomplete when its comparable decision grammar is partial."""
-    path = tmp_path / "docs" / "decisions" / "DR-0001-example.md"
+def test_docs_health_has_no_decision_record_specific_grammar(tmp_path: Path) -> None:
+    """Docs health validates portable metadata, not a parallel decision authority."""
+    path = tmp_path / "docs" / "reference" / "decision-shaped-note.md"
     path.parent.mkdir(parents=True)
     path.write_text(
         """---
-subject: example:decision
-role: decision
+subject: example:decision-shaped-note
+role: reference
 state: canonical
 relations: none
 ---
 
-# DR-0001: Example
+# Decision-shaped note
 
-Status: accepted.
+Status: canonical.
 
-Purpose: expose an incomplete durable ruling.
+Purpose: prove the registry has no Decision Record grammar or index authority.
 
 See also: none.
 
@@ -343,162 +315,12 @@ See also: none.
 
 | Field | Value |
 | --- | --- |
-| Decision ID | DR-0001 |
-| Status | accepted |
-| Decision Date | 2026-08-06 |
-| Decision Change Date | 2026-08-06 |
+| Decision ID | deliberately malformed |
 """,
         encoding="utf-8",
     )
 
     report = docs_registry_report(tmp_path)
 
-    assert report["decision_record_gaps"] == [
-        (
-            "decision_record_sections_missing:docs/decisions/DR-0001-example.md:"
-            "Context,Invariants,Alternatives Considered,Decision,Consequences,Proof Or Evidence,"
-            "Revisit Trigger,Decision Change Ledger"
-        ),
-        (
-            "decision_record_fields_missing:docs/decisions/DR-0001-example.md:"
-            "Supersedes,Superseded By,Depends On"
-        ),
-    ]
-    assert report["verdict"] == "block"
-
-
-def test_decision_graph_and_index_negatives(tmp_path: Path) -> None:
-    scenarios = [
-        (
-            "newest-current-first",
-            (("DR-0001", "example", {"changed": "2026-08-01"}), ("DR-0002", "example", {})),
-            ("DR-0001", "DR-0002"),
-            ["decision_index_order_invalid:docs/decisions/decision-index.md:DR-0002,DR-0001"],
-        ),
-        (
-            "reciprocal-supersession",
-            (
-                (
-                    "DR-0001",
-                    "first",
-                    {"changed": "2026-08-01", "status": "superseded", "superseded_by": "DR-0002"},
-                ),
-                ("DR-0002", "second", {}),
-            ),
-            ("DR-0002", "DR-0001"),
-            ["decision_record_supersession_not_reciprocal:DR-0001:DR-0002"],
-        ),
-        (
-            "dependency-closure",
-            (
-                ("DR-0001", "first", {"changed": "2026-08-01", "depends_on": "DR-0002"}),
-                ("DR-0002", "second", {"depends_on": "DR-0001, DR-0003"}),
-            ),
-            ("DR-0002", "DR-0001"),
-            [
-                "decision_record_dependency_cycle:DR-0001,DR-0002",
-                "decision_record_reference_missing:DR-0002:Depends On:DR-0003",
-            ],
-        ),
-        (
-            "index-identity",
-            (("DR-0001", "example", {}), ("DR-0002", "example", {})),
-            ("DR-0001", "DR-0001"),
-            [
-                "decision_index_coverage_invalid:docs/decisions/decision-index.md:missing=DR-0002:duplicate=DR-0001:unknown="
-            ],
-        ),
-        (
-            "record-identity",
-            (("DR-0001", "first", {}), ("DR-0001", "second", {})),
-            ("DR-0001",),
-            [
-                "decision_record_id_duplicate:DR-0001:docs/decisions/DR-0001-first.md,docs/decisions/DR-0001-second.md"
-            ],
-        ),
-    ]
-    for label, records, index, expected in scenarios:
-        decisions = tmp_path / label / "docs" / "decisions"
-        decisions.mkdir(parents=True)
-        for decision_id, slug, values in records:
-            fields = dict(values)
-            changed = fields.pop("changed", "2026-08-06")
-            (decisions / f"{decision_id}-{slug}.md").write_text(
-                _decision_record(decision_id, changed, **fields), encoding="utf-8"
-            )
-        (decisions / "decision-index.md").write_text(_decision_index(index), encoding="utf-8")
-        assert docs_registry_report(tmp_path / label)["decision_record_gaps"] == expected, label
-
-
-def test_decision_record_name_and_status_use_the_closed_grammar(tmp_path: Path) -> None:
-    decisions = tmp_path / "docs" / "decisions"
-    decisions.mkdir(parents=True)
-    invalid = decisions / "DR-0001-Bad_Name.md"
-    invalid.write_text(_decision_record("DR-0001", "2026-08-06", status="draft"), encoding="utf-8")
-    assert docs_registry_report(tmp_path)["decision_record_gaps"] == [
-        "decision_record_name_invalid:docs/decisions/DR-0001-Bad_Name.md"
-    ]
-    invalid.rename(decisions / "DR-0001-bad-name.md")
-    (decisions / "decision-index.md").write_text(_decision_index(("DR-0001",)), encoding="utf-8")
-    assert docs_registry_report(tmp_path)["decision_record_gaps"] == [
-        "decision_record_status_invalid:docs/decisions/DR-0001-bad-name.md:draft"
-    ]
-
-
-def _decision_record(
-    decision_id: str,
-    changed: str,
-    *,
-    status: str = "accepted",
-    supersedes: str = "None",
-    superseded_by: str = "None",
-    depends_on: str = "None",
-) -> str:
-    fields = {
-        "Decision ID": decision_id,
-        "Status": status,
-        "Decision Date": changed,
-        "Decision Change Date": changed,
-        "Supersedes": supersedes,
-        "Superseded By": superseded_by,
-        "Depends On": depends_on,
-    }
-    record = "\n".join(f"| {name} | {value} |" for name, value in fields.items())
-    sections = {
-        "Context": "Context.",
-        "Invariants": "- One invariant.",
-        "Alternatives Considered": (
-            "| Option | Verdict | Pros | Cons | Decision basis |\n"
-            "| --- | --- | --- | --- | --- |\n"
-            "| One | selected | Clear. | Cost. | Best fit. |"
-        ),
-        "Decision": "Select one.",
-        "Consequences": "One consequence.",
-        "Proof Or Evidence": "- One check.",
-        "Revisit Trigger": "One falsifiable trigger.",
-        "Decision Change Ledger": (
-            "| Version | Date | Change | Reason | Evidence |\n"
-            "| --- | --- | --- | --- | --- |\n"
-            f"| 1 | {changed} | Initial ruling | Select | Check |"
-        ),
-    }
-    body = "\n\n".join(f"## {heading}\n\n{content}" for heading, content in sections.items())
-    return (
-        _document(
-            f"example:decision:{decision_id.lower()}",
-            "decision",
-            "canonical",
-            f"{decision_id}: Example",
-        )
-        + f"\n## Record\n\n| Field | Value |\n| --- | --- |\n{record}\n\n{body}\n"
-    )
-
-
-def _decision_index(decision_ids: tuple[str, ...]) -> str:
-    rows = "\n".join(
-        f"| [{decision_id}]({decision_id}-example.md) | Example | accepted | 2026-08-06 |"
-        for decision_id in decision_ids
-    )
-    return _document("example:decision:index", "index", "canonical", "Decision Index") + (
-        "\n| ID | Title | Status | Changed |\n| --- | --- | --- | --- |\n" + rows + "\n"
-    )
+    assert report["verdict"] == "pass"
+    assert "decision_record_gaps" not in report

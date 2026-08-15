@@ -68,10 +68,10 @@ def test_packaged_vector_derives_a_complete_strict_v2_commitment(
 
     carrier = tmp_path / "commitment.toml"
     carrier.write_text(
-        local_install_smoke._commitment_carrier_from_packaged_vector(  # noqa: SLF001
+        local_install_smoke.commitment_carrier_from_packaged_vector(
             Path("ethos.whl"),
             Path("python"),
-            id="change:install-smoke",
+            commitment_id="change:install-smoke",
             intent="Prove the installed package carrier.",
             subjects=("repository:install-smoke",),
             scope=("README.md",),

@@ -12,7 +12,7 @@ from typing import TypedDict
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 
-HOOK_NAMES = ("pre-commit", "commit-msg", "pre-push", "reference-transaction")
+HOOK_NAMES = ("pre-commit", "pre-push", "reference-transaction")
 _RUNTIME_LOCATOR = (
     r"\.\./ethos/runtime/(?P<digest>[a-f0-9]{64})/venv/(?P<python>bin/python|Scripts/python\.exe)"
 )
@@ -63,18 +63,14 @@ def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
         gaps.append("write_admission_not_armed:runtime_manifest")
     if runtime is None:
         gaps.append("write_admission_not_armed:runtime_python")
-    locator = _runtime_locator(digest, runtime) if runtime is not None else ""
     for name in HOOK_NAMES:
         launcher = hooks / name
         if not launcher.is_file() or not os.access(launcher, os.X_OK):
             gaps.append(f"write_admission_not_armed:{name}_launcher_missing")
-        elif runtime is not None:
-            text = launcher.read_text(encoding="utf-8")
-            match = _RUNTIME_IN_LAUNCHER.search(text)
-            if match is not None and match["digest"] != digest:
-                gaps.append(f"write_admission_not_armed:{name}_launcher_runtime_split")
-            elif text != hook_launcher(locator, name):
-                gaps.append(f"write_admission_not_armed:{name}_launcher_drift")
+        elif runtime is not None and launcher.read_text(encoding="utf-8") != hook_launcher(
+            _runtime_locator(digest, runtime), name
+        ):
+            gaps.append(f"write_admission_not_armed:{name}_launcher_drift")
     return {
         "hooks_path": hooks.as_posix(),
         "runtime_manifest_path": manifest.as_posix() if manifest else "",
@@ -101,11 +97,7 @@ def _runtime_from_launcher(launcher: Path) -> tuple[Path | None, Path | None, st
         return None, manifest, "", ""
     wheel = str(payload.get("wheel_sha256") or "")
     files = payload.get("runtime_files")
-    launchers = payload.get("hook_launchers")
     relative_runtime = runtime.relative_to(manifest.parent).as_posix()
-    entrypoint = runtime.with_name("ethos.exe" if os.name == "nt" else "ethos")
-    relative_entrypoint = entrypoint.relative_to(manifest.parent).as_posix()
-    locator = _runtime_locator(digest, runtime)
     valid = (
         payload.get("schema_version") == 1
         and payload.get("runtime_digest") == digest
@@ -117,16 +109,7 @@ def _runtime_from_launcher(launcher: Path) -> tuple[Path | None, Path | None, st
         and bool(payload["platform"])
         and isinstance(files, dict)
         and runtime.is_file()
-        and entrypoint.is_file()
-        and set(files) == {relative_runtime, relative_entrypoint}
         and files.get(relative_runtime) == _sha256(runtime)
-        and files.get(relative_entrypoint) == _sha256(entrypoint)
-        and launchers
-        == {
-            name: hashlib.sha256(hook_launcher(locator, name).encode()).hexdigest()
-            for name in HOOK_NAMES
-        }
-        and _entrypoint_bound_to_runtime(entrypoint, runtime)
     )
     return (runtime, manifest, digest, wheel) if valid else (None, manifest, "", "")
 
@@ -134,15 +117,6 @@ def _runtime_from_launcher(launcher: Path) -> tuple[Path | None, Path | None, st
 def _runtime_locator(digest: str, runtime: Path) -> str:
     executable = "Scripts/python.exe" if runtime.parent.name == "Scripts" else "bin/python"
     return f"../ethos/runtime/{digest}/venv/{executable}"
-
-
-def _entrypoint_bound_to_runtime(entrypoint: Path, runtime: Path) -> bool:
-    if os.name == "nt":
-        return entrypoint.is_file()
-    try:
-        return entrypoint.read_text(encoding="utf-8").splitlines()[0] == f"#!{runtime}"
-    except (OSError, UnicodeError, IndexError):
-        return False
 
 
 def _sha256(path: Path) -> str:

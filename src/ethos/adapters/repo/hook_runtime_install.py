@@ -212,7 +212,6 @@ def write_runtime_manifest(
     if not entrypoint.is_file():
         message = "hook_runtime_entrypoint_missing"
         raise ValueError(message)
-    locator = _runtime_locator_for_digest(digest)
     payload = {
         "schema_version": 1,
         "runtime_digest": digest,
@@ -221,10 +220,6 @@ def write_runtime_manifest(
         "platform": platform.system().lower(),
         "runtime_files": {
             path.relative_to(runtime).as_posix(): _sha256(path) for path in (python, entrypoint)
-        },
-        "hook_launchers": {
-            name: hashlib.sha256(hook_launcher(locator, name).encode()).hexdigest()
-            for name in HOOK_NAMES
         },
     }
     (runtime / "manifest.json").write_text(
@@ -242,7 +237,6 @@ def require_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: s
         message = "hook_runtime_manifest_invalid"
         raise ValueError(message) from error
     files = payload.get("runtime_files")
-    launchers = payload.get("hook_launchers")
     expected = {
         path.relative_to(runtime).as_posix(): _sha256(path)
         for path in (python, entrypoint)
@@ -260,13 +254,6 @@ def require_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: s
             entrypoint.relative_to(runtime).as_posix(),
         }
         or files != expected
-        or launchers
-        != {
-            name: hashlib.sha256(
-                hook_launcher(_runtime_locator_for_digest(digest), name).encode()
-            ).hexdigest()
-            for name in HOOK_NAMES
-        }
         or not _entrypoint_bound_to_final_runtime(entrypoint, python)
     ):
         message = "hook_runtime_manifest_invalid"
@@ -323,75 +310,20 @@ def finalize_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: 
 
 
 def runtime_locator(venv: Path) -> str:
-    return _runtime_locator_for_digest(venv.parent.name)
-
-
-def _runtime_locator_for_digest(digest: str) -> str:
+    digest = venv.parent.name
     executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
     return f"../ethos/runtime/{digest}/venv/{executable}"
 
 
 def replace_launchers(hooks: Path, locator: str) -> None:
-    """Replace the complete launcher family or restore its prior bytes."""
+    """Replace each launcher atomically; every visible launcher is complete."""
     hooks.mkdir(parents=True, exist_ok=True)
-    prior = {
-        name: (hooks / name).read_bytes() if (hooks / name).is_file() else None
-        for name in HOOK_NAMES
-    }
-    expected: dict[str, str] = {}
-    try:
-        for name in HOOK_NAMES:
-            target = hooks / name
-            temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}")
-            expected[name] = hook_launcher(locator, name)
-            temporary.write_text(expected[name], encoding="utf-8", newline="\n")
-            temporary.chmod(0o755)
-            try:
-                temporary.replace(target)
-            finally:
-                temporary.unlink(missing_ok=True)
-    except OSError:
-        _restore_launchers(hooks, prior)
-        raise
-    try:
-        invalid = any(
-            not (hooks / name).is_file()
-            or not os.access(hooks / name, os.X_OK)
-            or (hooks / name).read_text(encoding="utf-8") != expected[name]
-            for name in HOOK_NAMES
-        )
-    except (OSError, UnicodeError):
-        _restore_launchers(hooks, prior)
-        raise
-    if invalid:
-        _restore_launchers(hooks, prior)
-        message = "hook_launcher_family_readback_invalid"
-        raise ValueError(message)
-
-
-def restore_launchers(hooks: Path, prior: dict[str, bytes | None]) -> None:
-    """Restore one exact launcher-family snapshot."""
-    _restore_launchers(hooks, prior)
-
-
-def snapshot_launchers(hooks: Path) -> dict[str, bytes | None]:
-    """Read the exact prior launcher-family bytes."""
-    return {
-        name: (hooks / name).read_bytes() if (hooks / name).is_file() else None
-        for name in HOOK_NAMES
-    }
-
-
-def _restore_launchers(hooks: Path, prior: dict[str, bytes | None]) -> None:
-    for name, content in prior.items():
+    for name in HOOK_NAMES:
         target = hooks / name
-        if content is None:
-            target.unlink(missing_ok=True)
-            continue
         temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}")
-        temporary.write_bytes(content)
-        temporary.chmod(0o755)
         try:
+            temporary.write_text(hook_launcher(locator, name), encoding="utf-8", newline="\n")
+            temporary.chmod(0o755)
             temporary.replace(target)
         finally:
             temporary.unlink(missing_ok=True)

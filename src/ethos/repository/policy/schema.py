@@ -41,7 +41,7 @@ def _schema_dir(root: Path) -> Path:
 
 def _product_schema_dir() -> Path:
     return Path(
-        metadata.distribution("ethos").locate_file("ethos/data/schemas/kernel")
+        str(metadata.distribution("ethos").locate_file("ethos/data/schemas/kernel"))
     ).resolve()
 
 

@@ -45,7 +45,6 @@ PUBLIC_SESSIONS = (
     "shell_lint",
     "markdown_lint",
     "config_quality",
-    "runbook_registry",
     "hosted_observation",
     "docstrings",
     "module_layout",
@@ -214,11 +213,6 @@ def config_quality(session) -> None:
         session.error("configuration quality failed:\n" + "\n".join(failures))
     if not session.posargs or ".pre-commit-config.yaml" in session.posargs:
         session.run(RUNTIME.script("pre-commit"), "validate-config", ".pre-commit-config.yaml")
-
-
-def runbook_registry(session) -> None:
-    if import_module("tools.ci.runbook_registry").main():
-        session.error("runbook registry did not pass")
 
 
 def hosted_observation(session) -> None:

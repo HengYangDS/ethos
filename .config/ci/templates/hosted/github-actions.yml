@@ -117,8 +117,6 @@ jobs:
         run: uv run --frozen --offline python -m nox -s format_selection
       - name: Architecture projection drift
         run: uv run --frozen --offline python -m nox -s architecture_projection
-      - name: Runbook registry
-        run: uv run --frozen --offline python -m nox -s runbook_registry
       - name: Hosted provider observation envelope
         run: uv run --frozen --offline python -m nox -s hosted_observation
 

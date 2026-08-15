@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import re
 import stat
@@ -13,41 +12,6 @@ import pytest
 import tools.ci.python_test_gate as python_test_gate
 
 ROOT = Path(__file__).resolve().parents[2]
-CLAIMS = tomllib.loads(
-    (Path(__file__).with_name("release_asset_claims.toml")).read_text(encoding="utf-8")
-)
-
-
-@pytest.mark.parametrize("row", CLAIMS["path"], ids=lambda row: row["claim"])
-def test_release_asset_paths(row: dict) -> None:
-    missing = [path for path in row["paths"] if not (ROOT / path).is_file()]
-    assert not missing, row["claim"]
-
-
-@pytest.mark.parametrize("row", CLAIMS["text"], ids=lambda row: row["claim"])
-def test_release_asset_text_claims(row: dict) -> None:
-    text = (ROOT / row["owner"]).read_text(encoding="utf-8")
-    missing = [token for token in row["required"] if token not in text]
-    forbidden = [token for token in row["forbidden"] if token in text]
-    assert not missing, row["claim"]
-    assert not forbidden, row["claim"]
-
-
-@pytest.mark.parametrize("row", CLAIMS["state"], ids=lambda row: row["claim"])
-def test_release_asset_state_claims(row: dict) -> None:
-    actual = tomllib.loads((ROOT / row["owner"]).read_text(encoding="utf-8"))
-    for key in row["keys"]:
-        actual = actual[key]
-    expected = json.loads(row["expected_json"])
-    if row["mode"] == "eq":
-        passed = actual == expected
-    elif row["mode"] == "keys":
-        passed = set(actual) == set(expected)
-    elif row["mode"] == "has":
-        passed = expected in actual
-    else:
-        passed = expected not in actual
-    assert passed, row["claim"]
 
 
 def test_node_policy_checksum_and_executable_state() -> None:

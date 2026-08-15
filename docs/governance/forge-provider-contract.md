@@ -15,8 +15,7 @@ hosted forge into repository truth or a second command plane.
 
 See also: [Product Design Contract](product-design-contract.md),
 [Adoption Profiles](../architecture/adoption-profiles.md),
-[Gate Runner](../architecture/gate-runner.md), and
-[Tooling Adoption Roadmap](../plans/tooling-adoption-roadmap.md).
+[Gate Runner](../architecture/gate-runner.md).
 
 ## Contract
 
@@ -40,8 +39,8 @@ repository owner scripts + ETHOS commands
   -> hosted provider observations
 ```
 
-The repository-owned scripts, command JSON, schemas, claims, OpenSpec records,
-and evidence decide truth. GitHub Actions and GitLab CI project that truth into
+The repository-owned scripts, command JSON, schemas, OpenSpec records,
+Commitments, and Attestations decide truth. GitHub Actions and GitLab CI project that truth into
 provider runtimes. A hosted forge may provide review UI, branch protection,
 runner status, artifacts, or remote publication observations; it does not own
 ETHOS lifecycle state.

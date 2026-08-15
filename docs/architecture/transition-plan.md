@@ -4,7 +4,7 @@ role: explanation
 state: canonical
 relations:
   canonical_for: transient transition planning
-  decided_by: docs/decisions/DR-0005-declarative-lifecycle-spine.md
+  derives_from: ../governance/product-design-contract.md#semantic-kernel
 ---
 
 # Transition Plan
@@ -14,7 +14,7 @@ Status: canonical.
 Purpose: define the one transient planning algebra without creating a durable
 workflow or truth store.
 
-See also: [Kernel Model](../concepts/kernel-model.md), [Declarative Governance Compiler](declarative-governance-compiler.md), [Protocol Contracts](protocol-contracts.md), and [DR-0005](../decisions/DR-0005-declarative-lifecycle-spine.md).
+See also: [Kernel Model](../concepts/kernel-model.md), [Declarative Governance Compiler](declarative-governance-compiler.md), and [Protocol Contracts](protocol-contracts.md).
 
 A `TransitionPlan` is the transient, deterministic projection of one
 `Commitment` against freshly observed `Facts` and applicable `Attestations`. It

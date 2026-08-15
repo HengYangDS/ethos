@@ -14,14 +14,12 @@ Purpose: define ETHOS's own physical documentation shape without turning that
 shape into an adopter contract or a second navigation index.
 
 See also: [Product Index](index.md), [Docs Registry](governance/docs-registry.md),
-[Decision Records](decisions/README.md), [Evidence Docs](evidence/README.md), and
-[Reference Docs](reference/README.md).
+[Evidence Docs](evidence/README.md), and [Reference Docs](reference/README.md).
 
 ## ETHOS Documentation Shape
 
 | Lane | Owns |
 | --- | --- |
-| `decisions/` | Durable rulings with explicit scope and revisit trigger. |
 | `evidence/` | Dated proof, manifests, smoke notes, and closeout records. |
 | `reference/` | Stable vocabulary, boundaries, and governance references. |
 | `history/` | Retired rationale and archival logs. |

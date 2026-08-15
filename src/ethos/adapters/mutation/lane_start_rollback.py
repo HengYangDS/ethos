@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import NamedTuple
+from typing import cast
 
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import ref_head
@@ -216,7 +218,9 @@ def compensate_lease(context: LaneStartRollback, *, repo: Path, branch: str) -> 
         replace_lease_authority(
             state_database(repo),
             request=request,
-            lease=LaneLease.from_payload(dict(context.source_lease["payload"])),
+            lease=LaneLease.from_payload(
+                dict(cast("dict[str, Any]", context.source_lease["payload"]))
+            ),
         )
         return
     revoke_lease(state_database(repo), request=request)

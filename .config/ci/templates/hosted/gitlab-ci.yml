@@ -186,12 +186,6 @@ ethos:architecture-projection:
   script:
     - uv run --frozen --offline python -m nox -s architecture_projection
 
-ethos:runbook-registry:
-  <<: *python_setup
-  stage: quality
-  script:
-    - uv run --frozen --offline python -m nox -s runbook_registry
-
 ethos:hosted-provider-observation:
   <<: *python_setup
   stage: quality

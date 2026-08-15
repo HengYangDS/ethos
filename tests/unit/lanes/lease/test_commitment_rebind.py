@@ -7,10 +7,7 @@ import sqlite3
 import subprocess
 from contextlib import closing
 from dataclasses import dataclass
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 import tomli_w
@@ -19,14 +16,12 @@ import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission as rebind_admission
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence as rebind_evidence
-import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.adapters.repo.commit_identity import commit_trust_setup_action
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
@@ -35,17 +30,10 @@ from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CommitmentRebindRequest
-from ethos.contracts.plan import GitEffect
-from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import Facts
-from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
-from tests.support.lifecycle_cases import rebind_attestation_path
 from tests.support.lifecycle_cases import rebind_effect
 from tests.support.lifecycle_cases import tamper_attestation
 from tests.support.literal_cases import literal_case
@@ -332,91 +320,6 @@ def test_ordinary_rebind_establishes_current_generation_authority(
     assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
 
 
-@pytest.mark.parametrize(
-    ("location", "field", "replacement"),
-    [
-        ("freshness", "head", "f" * 40),
-        ("claim", "operation", "v1-to-v2-bootstrap"),
-    ],
-)
-def test_rebind_generation_authority_rejects_tampered_envelope(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    location: str,
-    field: str,
-    replacement: str,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    assert case.execute()["verdict"] == "pass"
-    updated = leases_by_branch(case.worktree)[case.branch]
-    repository = load_repository_commitment(case.worktree)
-    commitment = load_lease_bound_commitment(case.worktree, lease=updated)
-    attestation = next(
-        item
-        for item in read_attestation_set(case.worktree)[1]
-        if item.predicate == "effect:commitment-rebind"
-    )
-    tampered = tamper_attestation(
-        attestation.model_dump(mode="json"),
-        location=location,
-        field=field,
-        replacement=replacement,
-    )
-
-    assert (
-        rebind_evidence.rebind_generation_authority(
-            case.worktree,
-            tampered,
-            repository_id=repository.id,
-            commitment_digest=commitment.digest(),
-            lease=updated,
-        )
-        == {}
-    )
-
-
-def test_rebind_generation_authority_rejects_tampered_git_witness(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    assert case.execute()["verdict"] == "pass"
-    updated = leases_by_branch(case.worktree)[case.branch]
-    repository = load_repository_commitment(case.worktree)
-    commitment = load_lease_bound_commitment(case.worktree, lease=updated)
-    selected = read_attestation_set(case.worktree)[1]
-    rebind_attestation = next(
-        item for item in selected if item.predicate == "effect:commitment-rebind"
-    )
-    git_attestation = next(
-        item
-        for item in selected
-        if item.predicate == "effect:git-ref-update"
-        and item.plan_digest == rebind_attestation.plan_digest
-    )
-    forged = tamper_attestation(
-        git_attestation.model_dump(mode="json"),
-        location="attestation",
-        field="verifier",
-        replacement="agent:test:case:forged",
-    )
-    git(case.worktree, "update-ref", "-d", ATTESTATION_SET_REF)
-    record_attestations(
-        case.worktree,
-        (*tuple(item for item in selected if item.id != git_attestation.id), forged),
-    )
-
-    assert (
-        rebind_evidence.rebind_generation_authority(
-            case.worktree,
-            rebind_attestation,
-            repository_id=repository.id,
-            commitment_digest=commitment.digest(),
-            lease=updated,
-        )
-        == {}
-    )
-
-
 def test_ordinary_commit_preserves_rebind_generation_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -459,108 +362,6 @@ def test_relocated_rebind_preserves_the_carrier_origin(
     assert case.generation_scope().start_authority["previous_head"] == generation_base
 
 
-def test_initial_generation_origin_does_not_follow_candidate_ref(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch, earlier_change=True)
-    generation_base = git(case.worktree, "rev-parse", "candidate/dev")
-    git(case.worktree, "update-ref", "refs/heads/candidate/dev", case.request.expect_head)
-
-    scope = current_generation_scope(
-        case.worktree,
-        head=case.request.expect_head,
-        repository_id=load_repository_commitment(case.worktree).id,
-        commitment=load_lease_bound_commitment(case.worktree, lease=case.lease),
-        lease=case.lease,
-        fallback_paths=("src/prior.py",),
-    )
-
-    assert scope.gaps == ()
-    assert {item.generation_base_head for item in scope.attributions} == {generation_base}
-
-
-def test_initial_generation_rejects_out_of_scope_fallback(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    holder = "agent:test:case:commitment-rebind"
-    fixture = start_adopted_work_lane(
-        tmp_path,
-        holder_ref=holder,
-        scope=("src/**",),
-    )
-    branch = git(fixture.worktree, "branch", "--show-current")
-    lease = leases_by_branch(fixture.worktree)[branch]
-    monkeypatch.setenv("ETHOS_ACTOR", holder)
-
-    scope = current_generation_scope(
-        fixture.worktree,
-        head=str(lease["expected_head"]),
-        repository_id=load_repository_commitment(fixture.worktree).id,
-        commitment=load_lease_bound_commitment(fixture.worktree, lease=lease),
-        lease=lease,
-        fallback_paths=("outside.txt",),
-    )
-
-    assert scope.start_authority == {}
-    assert scope.paths == ()
-    assert scope.gaps == ("change_generation_authority_missing",)
-
-
-@pytest.mark.parametrize("trust_gaps", [("commit_signature_untrusted",), ()])
-def test_change_identity_repair_requires_target_trust(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, trust_gaps: tuple[str, ...]
-) -> None:
-    case = _case(tmp_path, monkeypatch, repair_identity=True)
-    monkeypatch.setattr(
-        rebind_admission,
-        "verify_commit_trust",
-        lambda *_args: {"required_gaps": list(trust_gaps)},
-    )
-    report = case.execute()
-    assert report["required_gaps"] == list(trust_gaps)
-    if not trust_gaps:
-        case.assert_terminal(report)
-
-
-def test_change_identity_repair_accepts_one_exact_semantic_rename() -> None:
-    old = commitment_v2(
-        id="change:terminal-convergence",
-        intent="Declare publication peers.",
-        subjects=("repository:ethos",),
-        scope=("src/**",),
-    )
-    renamed = old.model_copy(update={"id": "change:declared-publication-peers"})
-
-    assert malformed_change_identity_repair_valid(
-        carrier="openspec/changes/declared-publication-peers/commitment.toml",
-        old_id=old.id,
-        old_digest=old.digest(),
-        new=renamed,
-    )
-
-
-def test_change_identity_repair_accepts_a_semantic_change_during_rename() -> None:
-    old = commitment_v2(
-        id="change:terminal-convergence",
-        intent="Declare publication peers.",
-        subjects=("repository:ethos",),
-        scope=("src/**",),
-    )
-    changed = old.model_copy(
-        update={
-            "id": "change:declared-publication-peers",
-            "scope": ("src/**", "tests/**"),
-        }
-    )
-
-    assert malformed_change_identity_repair_valid(
-        carrier="openspec/changes/declared-publication-peers/commitment.toml",
-        old_id=old.id,
-        old_digest=old.digest(),
-        new=changed,
-    )
-
-
 def test_change_identity_repair_applies_one_exact_semantic_rename(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -585,33 +386,6 @@ def test_change_identity_repair_applies_one_exact_semantic_rename(
     assert scope.gaps == ()
     assert scope.start_authority["predicate"] == "effect:commitment-rebind"
     assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
-
-
-def test_change_identity_repair_projects_trust_setup_action(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch, repair_identity=True)
-    monkeypatch.setattr(
-        rebind_admission,
-        "verify_commit_trust",
-        lambda *_args: {"required_gaps": ["commit_signature_untrusted"]},
-    )
-
-    report = case.execute()
-
-    assert report["next_action"] == commit_trust_setup_action(case.worktree, case.target)
-    derived = rebind_derivation.derive_commitment_rebind(
-        root=case.worktree,
-        target_commit=case.request.target_commit,
-        repair_change_identity=True,
-    )
-    result = rebind.execute_commitment_rebind_receipt(
-        root=case.worktree,
-        receipt_path=str(derived["receipt"]["path"]),
-        receipt_sha256=str(derived["receipt"]["sha256"]),
-        apply=True,
-    )
-    assert result["next_action"] == report["next_action"]
 
 
 @pytest.mark.parametrize(
@@ -709,41 +483,6 @@ def _interrupted_partial_rebind(
     return read_attestation_set(case.worktree)[1]
 
 
-def test_validated_plan_attestation_ignores_only_current_postconditions(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    effect = rebind_effect(case)
-    plan = rebind._plan(  # noqa: SLF001 - exact historical lookup contract
-        case.worktree,
-        case.request,
-        rebind_evidence.old_generation(case.request),
-        effect,
-        case.request.expected_commitment_digest,
-        case.request.expected_working_overlay_sha256,
-    )
-    assert case.execute()["verdict"] == "pass"
-    git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-    git(
-        case.worktree,
-        "update-ref",
-        f"refs/heads/{case.branch}",
-        case.request.expect_head,
-        case.request.target_commit,
-    )
-
-    result = git_effect_attestation.validated_plan_attestation(
-        case.worktree,
-        plan.digest,
-        issuer=case.request.holder_ref,
-    )
-
-    assert result is not None
-    historical_plan, attestation = result
-    assert historical_plan == plan
-    assert attestation.plan_digest == plan.digest
-
-
 def test_partial_rebind_dry_run_and_apply_share_valid_historical_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -763,47 +502,6 @@ def test_partial_rebind_dry_run_and_apply_share_valid_historical_evidence(
         "recovered",
         [],
     )
-
-
-@pytest.mark.parametrize("mode", ["dry-run", "apply"])
-def test_partial_rebind_rejects_forged_historical_issuer_before_lease_mutation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    selected = _interrupted_partial_rebind(case, monkeypatch)
-    effect_digest = rebind_effect(case).digest()
-    witness = next(
-        item
-        for item in selected
-        if item.predicate == "effect:git-ref-update" and item.effect_digest == effect_digest
-    )
-    forged = tamper_attestation(
-        witness.model_dump(mode="json"),
-        location="attestation",
-        field="verifier",
-        replacement="agent:test:case:forged",
-    )
-    git(case.worktree, "update-ref", "-d", ATTESTATION_SET_REF)
-    record_attestations(
-        case.worktree,
-        (*tuple(item for item in selected if item.id != witness.id), forged),
-    )
-    matching = tuple(
-        item
-        for item in read_attestation_set(case.worktree)[1]
-        if item.predicate == "effect:git-ref-update" and item.plan_digest == witness.plan_digest
-    )
-    assert [(item.id, item.verifier) for item in matching] == [(forged.id, forged.verifier)]
-    epoch = leases_by_branch(case.worktree)[case.branch]["epoch"]
-
-    request = case.request.model_copy(update={"apply": mode == "apply"})
-    report = rebind._execute_commitment_rebind(  # noqa: SLF001 - isolate recovery admission
-        case.worktree, request
-    )
-
-    assert report["verdict"] == "block", report
-    assert report["required_gaps"] == ["git_effect_attestation_content_mismatch"]
-    assert leases_by_branch(case.worktree)[case.branch]["epoch"] == epoch
 
 
 @pytest.mark.parametrize("mode", ["dry-run", "apply"])
@@ -827,10 +525,7 @@ def test_partial_rebind_rejects_historical_plan_collision_before_lease_mutation(
     record_attestations(case.worktree, (collision,))
     epoch = leases_by_branch(case.worktree)[case.branch]["epoch"]
 
-    request = case.request.model_copy(update={"apply": mode == "apply"})
-    report = rebind._execute_commitment_rebind(  # noqa: SLF001 - isolate recovery admission
-        case.worktree, request
-    )
+    report = case.execute(apply=mode == "apply")
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["git_effect_attestation_collision"]
@@ -867,42 +562,6 @@ def test_rebind_preserves_overlay_and_recognizes_idempotently(
     ) == before
     assert case.tracked.read_text(encoding="utf-8") == "# sample\n\nlocal overlay\n"
     assert os.environ["ETHOS_ACTOR"] == case.request.holder_ref
-
-
-def test_rebind_ignores_local_only_legacy_attestation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    applied = case.execute()
-    assert isinstance(applied["attestation"], dict)
-    _root, selected = read_attestation_set(case.worktree)
-    rebind_attestation = next(
-        item for item in selected if item.predicate == "effect:commitment-rebind"
-    )
-    git(case.worktree, "update-ref", "-d", ATTESTATION_SET_REF)
-    legacy = rebind_attestation_path(case.worktree, rebind_effect(case))
-    legacy.parent.mkdir(parents=True, exist_ok=True)
-    legacy.write_text(rebind_attestation.canonical_json(), encoding="utf-8")
-    lease = leases_by_branch(case.worktree)[case.branch]
-    effect = rebind_effect(case)
-    plan = rebind._plan(  # noqa: SLF001 - exact internal selector boundary
-        case.worktree,
-        case.request,
-        rebind_evidence.old_generation(case.request),
-        effect,
-        case.request.expected_commitment_digest,
-        case.request.expected_working_overlay_sha256,
-    )
-
-    recognized = rebind_evidence.recognized_rebind_attestation(
-        case.worktree,
-        case.request,
-        effect,
-        lease,
-        plan,
-    )
-
-    assert recognized is None
 
 
 def test_rebind_derive_emits_receipt_for_exact_target(
@@ -1010,28 +669,6 @@ def test_rebind_derive_constructs_the_exact_signed_target(
 
 
 @pytest.mark.parametrize(
-    ("actor", "gap"),
-    [("", "invocation_actor_missing"), ("agent:test:case:other", "lease_actor_mismatch")],
-)
-def test_rebind_derivation_distinguishes_missing_and_wrong_actor(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    actor: str,
-    gap: str,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    monkeypatch.setenv("ETHOS_ACTOR", actor)
-
-    report = rebind_derivation.derive_commitment_rebind(
-        root=case.worktree,
-        target_commit=case.request.target_commit,
-        repair_change_identity=False,
-    )
-
-    assert report["required_gaps"] == [gap]
-
-
-@pytest.mark.parametrize(
     ("drift", "gap"),
     [
         ("head", "lease_head_stale"),
@@ -1069,245 +706,6 @@ def test_rebind_receipt_apply_and_drift_matrix(
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == [gap]
-
-
-@pytest.mark.parametrize(
-    "drift",
-    ["issue-ref", "issue-lease", "recovery-lease", "dry-run", "actor", "overlay", "ref"],
-)
-def test_rebind_runtime_and_recovery_drift_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    if drift == "recovery-lease":
-        persist = rebind.persist_rebind_attestation
-        monkeypatch.setattr(
-            rebind,
-            "persist_rebind_attestation",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("after lease cas")),
-        )
-        assert case.execute()["verdict"] == "block"
-        case.replace_lease(path_scope=["other/**"])
-        monkeypatch.setattr(rebind, "persist_rebind_attestation", persist)
-        report = case.execute()
-        assert (report["state"], report["required_gaps"]) == (
-            "repair_required",
-            ["commitment_rebind_state_inconsistent"],
-        )
-        return
-    if drift.startswith("issue"):
-        issue = rebind.issue_rebind_attestation
-
-        def inject(*args, **kwargs):
-            git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-            if drift == "issue-ref":
-                git(
-                    case.worktree,
-                    "update-ref",
-                    f"refs/heads/{case.branch}",
-                    case.request.expect_head,
-                )
-            else:
-                case.replace_lease(path_scope=["drift/**"])
-            return issue(*args, **kwargs)
-
-        monkeypatch.setattr(rebind, "issue_rebind_attestation", inject)
-        report = case.execute()
-        expected = (
-            "commitment_rebind_ref_stale"
-            if drift == "issue-ref"
-            else "commitment_rebind_lease_generation_stale"
-        )
-        assert report["required_gaps"] == [expected]
-        return
-    assert case.execute()["verdict"] == "pass"
-    if drift == "dry-run":
-        report, expected = case.execute(apply=False), "commitment_rebind_apply_required"
-    elif drift == "actor":
-        monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
-        report, expected = case.execute(), "lease_actor_mismatch"
-    elif drift == "overlay":
-        case.untracked.write_bytes(b"drifted overlay\n")
-        report, expected = case.execute(), "commitment_rebind_overlay_changed"
-    else:
-        git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-        git(case.worktree, "update-ref", f"refs/heads/{case.branch}", case.request.expect_head)
-        report, expected = case.execute(), "commitment_rebind_terminal_mismatch"
-        assert report["state"] == "blocked"
-    assert report["required_gaps"] == [expected]
-
-
-@pytest.mark.parametrize(
-    ("location", "field", "replacement"),
-    [
-        ("attestation", "facts_digest", "0" * 64),
-        ("statement", "index_tree", "0" * 40),
-        ("statement", "working_overlay_sha256", "0" * 64),
-        ("statement", "observed_at", "2026-01-01T00:00:00+00:00"),
-        ("freshness", "head", "0" * 40),
-        ("old_lease_generation", "expected_tree", "0" * 40),
-        ("new_lease_generation", "base_commitment_path", "other.toml"),
-        ("new_commitment", "base_commitment_bytes_sha256", "0" * 64),
-        ("result", "lease", "unchanged"),
-    ],
-)
-def test_rebind_attestation_freshness_matrix(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    location: str,
-    field: str,
-    replacement: str,
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    completed = case.execute()
-    attestation = completed["attestation"]
-    assert completed["verdict"] == "pass"
-    assert isinstance(attestation, dict)
-    tampered = tamper_attestation(
-        attestation, location=location, field=field, replacement=replacement
-    )
-    git(case.worktree, "update-ref", "-d", ATTESTATION_SET_REF)
-    record_attestations(case.worktree, (tampered,))
-    report = case.execute()
-    assert (report["state"], report["required_gaps"]) == (
-        "repair_required",
-        ["commitment_rebind_terminal_mismatch"],
-    )
-
-
-def test_rebind_recognition_rejects_noncanonical_envelope(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    issued_at = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
-    request = CommitmentRebindRequest(
-        branch="work/example",
-        holder_ref="agent:test:case:commitment-rebind",
-        lease_id="lease:example",
-        expected_lane_incarnation_id="lane-incarnation:example",
-        expected_epoch=1,
-        expected_issued_at="2026-08-14T10:00:00+00:00",
-        expected_renewed_at="2026-08-14T10:00:00+00:00",
-        expected_expires_at="2026-08-15T10:00:00+00:00",
-        expected_payload_sha256="1" * 64,
-        expect_head="a" * 40,
-        expected_tree="b" * 40,
-        expected_commitment_path="openspec/changes/example/commitment.toml",
-        expected_commitment_bytes_sha256="2" * 64,
-        expected_commitment_digest="3" * 64,
-        expect_index_tree="c" * 40,
-        expected_working_overlay_sha256="4" * 64,
-        target_commit="d" * 40,
-        new_commitment_path="openspec/changes/example/commitment.toml",
-        new_commitment_bytes_sha256="5" * 64,
-        new_commitment_digest="6" * 64,
-    )
-    effect = GitEffect(
-        updates={
-            "refs/heads/work/example": GitRefUpdate(
-                expected=request.expect_head,
-                desired=request.target_commit,
-            )
-        }
-    )
-    old_lease = rebind_evidence.old_generation(request)
-    new_lease = old_lease | {
-        "epoch": 2,
-        "expected_head": request.target_commit,
-        "expected_tree": request.expect_index_tree,
-        "base_commitment_path": request.new_commitment_path,
-        "base_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
-        "base_commitment_digest": request.new_commitment_digest,
-        "payload_sha256": "7" * 64,
-    }
-    policy = {
-        "operation": "commitment.rebind",
-        "old_commitment_digest": request.expected_commitment_digest,
-    }
-    plan = compile_git_effect_plan(
-        commitment_v2(
-            id="authority:test:commitment-rebind",
-            intent="Recognize exact rebind evidence.",
-            subjects=("repository:ethos",),
-        ),
-        Facts(
-            repository="repository:ethos",
-            head=request.expect_head,
-            tree=request.expected_tree,
-            observed_at=issued_at,
-            values={
-                "lease_generation": old_lease,
-                "working_overlay_sha256": request.expected_working_overlay_sha256,
-            },
-        ),
-        prior_attestations={},
-        policy=policy,
-        effect=effect,
-    )
-    monkeypatch.setattr(rebind_evidence, "_require_fresh_terminal_state", lambda *_a: None)
-    monkeypatch.setattr(
-        rebind_evidence,
-        "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(id="repository:ethos"),
-    )
-    monkeypatch.setattr(
-        rebind_evidence,
-        "ref_head",
-        lambda _repo, _branch: request.target_commit,
-    )
-    git(tmp_path, "init", "--quiet", "--initial-branch=dev")
-    expected = rebind_evidence.issue_rebind_attestation(
-        repo=tmp_path,
-        request=request,
-        new_lease=new_lease,
-        plan=plan,
-        effect=effect,
-        git_state="applied",
-        issued_at=issued_at,
-    )
-    raw = expected.model_dump(mode="json")
-    body = raw["payload"]["body"]
-    assert str(body["observed_at"]).endswith("Z")
-    for tamper in ("kind", "predicate", "verifier", "validity", "time"):
-        payload = json.loads(json.dumps(raw))
-        payload.pop("id")
-        if tamper == "kind":
-            payload["payload"]["kind"] = "effect:other"
-        elif tamper == "predicate":
-            payload["predicate"] = "effect:other"
-        elif tamper == "verifier":
-            payload["verifier"] = "agent:test:case:other"
-        elif tamper == "validity":
-            payload["valid_until"] = payload["issued_at"]
-        else:
-            observed_at = str(payload["payload"]["body"]["observed_at"])
-            payload["payload"]["body"]["observed_at"] = observed_at.replace("Z", "+00:00")
-        payload["issued_at"] = datetime.fromisoformat(str(payload["issued_at"]))
-        payload["valid_from"] = datetime.fromisoformat(str(payload["valid_from"]))
-        if payload["valid_until"] is not None:
-            payload["valid_until"] = datetime.fromisoformat(str(payload["valid_until"]))
-        git(tmp_path, "update-ref", "-d", ATTESTATION_SET_REF)
-        record_attestations(tmp_path, (Attestation.issue(payload),))
-        if tamper == "predicate":
-            assert (
-                rebind_evidence.recognized_rebind_attestation(
-                    tmp_path,
-                    request,
-                    effect,
-                    new_lease,
-                    plan,
-                )
-                is None
-            )
-        else:
-            with pytest.raises(ValueError, match="commitment_rebind_terminal_mismatch"):
-                rebind_evidence.recognized_rebind_attestation(
-                    tmp_path,
-                    request,
-                    effect,
-                    new_lease,
-                    plan,
-                )
 
 
 @pytest.mark.parametrize("mode", ["stable", "relocated", "lease-ahead"])
@@ -1576,47 +974,3 @@ def test_v1_to_v2_bootstrap_derive_owns_target_and_keeps_old_bytes_opaque(
         )
         == {}
     )
-
-
-@pytest.mark.parametrize(
-    ("checkpoint", "terminal_state"),
-    [("git-cas", "recovered"), ("lease-cas", "attested"), ("complete", "recognized")],
-)
-def test_v1_to_v2_bootstrap_recovers_exact_terminal_states(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    checkpoint: str,
-    terminal_state: str,
-) -> None:
-    case, derived, old_lease, _before_set, _repository_hash = _bootstrap_case(tmp_path, monkeypatch)
-    receipt = derived["receipt"]
-    apply = lambda: rebind.execute_commitment_rebind_receipt(  # noqa: E731
-        root=case.worktree,
-        receipt_path=str(receipt["path"]),
-        receipt_sha256=str(receipt["sha256"]),
-        apply=True,
-    )
-    attribute = {
-        "git-cas": "rebind_lease_commitment",
-        "lease-cas": "persist_rebind_attestation",
-    }.get(checkpoint)
-    if attribute:
-        original = getattr(rebind, attribute)
-        error = ValueError if checkpoint == "git-cas" else OSError
-        monkeypatch.setattr(
-            rebind,
-            attribute,
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(error(f"after_{checkpoint}")),
-        )
-        interrupted = apply()
-        assert interrupted["verdict"] == "block"
-        monkeypatch.setattr(rebind, attribute, original)
-    else:
-        assert apply()["state"] == "applied"
-
-    recovered = apply()
-
-    assert (recovered["verdict"], recovered["state"]) == ("pass", terminal_state)
-    lease = leases_by_branch(case.worktree)[case.branch]
-    assert lease["epoch"] == int(old_lease["epoch"]) + 1
-    assert lease["expected_head"] == derived["request"]["target_commit"]

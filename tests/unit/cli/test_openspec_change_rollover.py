@@ -14,7 +14,6 @@ from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
@@ -25,6 +24,7 @@ from ethos.normalization.coercion import integer
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
+from tests.support.lifecycle_cases import tamper_attestation
 from tests.support.openspec_lifecycle import OpenSpecLifecycle
 from tests.support.openspec_lifecycle import completed_lifecycle
 from tools.ci.delivery.pipeline import DeliveryPipeline
@@ -46,6 +46,17 @@ def _archived_lane(
     archived = lifecycle.apply_archive()
     assert archived["verdict"] == "pass", archived
     return lifecycle
+
+
+def _commit_without_ref_hook(
+    root: Path,
+    *,
+    previous: str,
+    message: str,
+) -> dict[str, object]:
+    assert current_tracked_head(root) == previous
+    git(root, "commit", "--no-verify", "-m", message)
+    return {"verdict": "pass"}
 
 
 def _selection_pair(
@@ -375,9 +386,7 @@ def test_start_change_apply_rejects_selection_expired_after_preflight(
     )
 
     assert report["verdict"] == "block", report
-    assert report["required_gaps"] == [
-        f"selected_attestation_disposition_invalid:{selection.id}"
-    ]
+    assert report["required_gaps"] == [f"selected_attestation_disposition_invalid:{selection.id}"]
     assert current_tracked_head(worktree) == archived_head
     assert not (worktree / "openspec/changes/selection-expiry").exists()
 
@@ -607,7 +616,7 @@ def test_start_change_does_not_recognize_a_forged_selected_member(
     assert repeated["state"] == "blocked"
 
 
-def test_start_change_recovers_after_commit_before_commitment_rebind(
+def test_start_change_recovers_after_commit_before_lease_head_advance(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -618,11 +627,19 @@ def test_start_change_recovers_after_commit_before_commitment_rebind(
         lifecycle.lease,
     )
     archived_head = current_tracked_head(worktree)
-    apply_rebind = rollover.rebind_lease_commitment
+    commit = rollover.commit_git_worktree
+    advance = rollover.advance_committed_lease
     monkeypatch.setattr(
         rollover,
-        "rebind_lease_commitment",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("injected_after_commit")),
+        "commit_git_worktree",
+        _commit_without_ref_hook,
+    )
+    monkeypatch.setattr(
+        rollover,
+        "advance_committed_lease",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ValueError("injected_before_lease_head_advance")
+        ),
     )
 
     interrupted = start_change(
@@ -636,30 +653,20 @@ def test_start_change_recovers_after_commit_before_commitment_rebind(
 
     committed_head = current_tracked_head(worktree)
     assert interrupted["state"] == "repair_required"
-    assert interrupted["required_gaps"] == ["injected_after_commit"]
+    assert interrupted["required_gaps"] == ["injected_before_lease_head_advance"]
     assert committed_head != archived_head
-    assert leases_by_branch(worktree)[branch]["expected_head"] == committed_head
+    assert leases_by_branch(worktree)[branch]["expected_head"] == archived_head
     prepared_root, prepared = read_attestation_set(worktree)
-    witness = next(item for item in prepared if item.predicate == "effect:openspec-change-start")
+    witness = next(
+        item for item in prepared if item.predicate == "effect:openspec-change-start-prepared"
+    )
     assert witness.payload.body["result"] == {
         "state": "prepared",
         "executed": False,
         "exit_code": None,
     }
-    assert not rollover.start_effect_authority(
-        worktree,
-        witness,
-        committed_head,
-        load_repository_commitment(worktree).id,
-        load_commitment(
-            worktree,
-            carrier="openspec/changes/hosted-verification-fix/commitment.toml",
-            change_id="hosted-verification-fix",
-            tree_ref=committed_head,
-        ),
-        leases_by_branch(worktree)[branch],
-    )
-    monkeypatch.setattr(rollover, "rebind_lease_commitment", apply_rebind)
+    monkeypatch.setattr(rollover, "commit_git_worktree", commit)
+    monkeypatch.setattr(rollover, "advance_committed_lease", advance)
 
     drifted = start_change(
         root=worktree,
@@ -689,7 +696,134 @@ def test_start_change_recovers_after_commit_before_commitment_rebind(
         "openspec/changes/hosted-verification-fix/commitment.toml"
     )
     assert integer(lease["epoch"]) == integer(previous_lease["epoch"]) + 1
-    assert read_attestation_set(worktree)[0] == prepared_root
+    recovered_root, recovered_attestations = read_attestation_set(worktree)
+    assert recovered_root != prepared_root
+    assert witness in recovered_attestations
+    assert sum(
+        item.predicate == "effect:openspec-change-start"
+        for item in recovered_attestations
+    ) == 1
+
+
+def test_start_change_recovers_after_lease_head_advance_before_commitment_rebind(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree, branch, previous_lease = (
+        lifecycle.worktree,
+        lifecycle.branch,
+        lifecycle.lease,
+    )
+    archived_head = current_tracked_head(worktree)
+    apply_rebind = rollover.rebind_lease_commitment
+    monkeypatch.setattr(
+        rollover,
+        "rebind_lease_commitment",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ValueError("injected_after_lease_head_advance")
+        ),
+    )
+
+    interrupted = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Repair hosted verification.",
+        scope=("tests/**",),
+        expect_head=archived_head,
+        apply=True,
+    )
+
+    committed_head = current_tracked_head(worktree)
+    assert interrupted["required_gaps"] == ["injected_after_lease_head_advance"]
+    assert leases_by_branch(worktree)[branch]["expected_head"] == committed_head
+    prepared_root, prepared_attestations = read_attestation_set(worktree)
+    witness = next(
+        item
+        for item in prepared_attestations
+        if item.predicate == "effect:openspec-change-start-prepared"
+    )
+    monkeypatch.setattr(rollover, "rebind_lease_commitment", apply_rebind)
+
+    recovered = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Repair hosted verification.",
+        scope=("tests/**",),
+        expect_head=archived_head,
+        apply=True,
+    )
+
+    lease = leases_by_branch(worktree)[branch]
+    assert recovered["verdict"] == "pass", recovered
+    assert recovered["state"] == "recovered"
+    assert lease["base_commitment_path"] == (
+        "openspec/changes/hosted-verification-fix/commitment.toml"
+    )
+    assert integer(lease["epoch"]) == integer(previous_lease["epoch"]) + 1
+    recovered_root, recovered_attestations = read_attestation_set(worktree)
+    assert recovered_root == prepared_root
+    assert witness in recovered_attestations
+    assert sum(
+        item.predicate == "effect:openspec-change-start"
+        for item in recovered_attestations
+    ) == 1
+
+
+def test_start_change_recovery_rejects_a_malformed_prepared_witness(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree, branch = lifecycle.worktree, lifecycle.branch
+    archived_head = current_tracked_head(worktree)
+    apply_rebind = rollover.rebind_lease_commitment
+    monkeypatch.setattr(
+        rollover,
+        "rebind_lease_commitment",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ValueError("injected_after_lease_head_advance")
+        ),
+    )
+    assert (
+        start_change(
+            root=worktree,
+            change="hosted-verification-fix",
+            intent="Repair hosted verification.",
+            scope=("tests/**",),
+            expect_head=archived_head,
+            apply=True,
+        )["state"]
+        == "repair_required"
+    )
+    selected = read_attestation_set(worktree)[1]
+    witness = next(
+        item for item in selected if item.predicate == "effect:openspec-change-start-prepared"
+    )
+    forged = tamper_attestation(
+        witness.model_dump(mode="json"),
+        location="attestation",
+        field="verifier",
+        replacement="agent:test:case:forged",
+    )
+    record_attestations(worktree, (forged,))
+    monkeypatch.setattr(rollover, "rebind_lease_commitment", apply_rebind)
+
+    recovered = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Repair hosted verification.",
+        scope=("tests/**",),
+        expect_head=archived_head,
+        apply=True,
+    )
+
+    assert recovered["verdict"] == "block"
+    assert recovered["state"] == "repair_required"
+    assert recovered["required_gaps"] == ["openspec_change_start_attestation_collision"]
+    assert leases_by_branch(worktree)[branch]["base_commitment_path"].startswith(
+        "openspec/changes/archive/"
+    )
 
 
 def _start_change_arguments(

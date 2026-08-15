@@ -427,16 +427,10 @@ class CommitmentRebindRequest(BaseModel):
     new_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     new_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     old_repository_commitment_path: RepositoryRelativePath = ".ethos/commitment.toml"
-    old_repository_commitment_bytes_sha256: str = Field(
-        default="0" * 64, pattern=r"^[a-f0-9]{64}$"
-    )
+    old_repository_commitment_bytes_sha256: str = Field(default="0" * 64, pattern=r"^[a-f0-9]{64}$")
     old_repository_id: str = ""
     new_repository_commitment_path: RepositoryRelativePath = ".ethos/commitment.toml"
-    new_repository_commitment_bytes_sha256: str = Field(
-        default="0" * 64, pattern=r"^[a-f0-9]{64}$"
-    )
-    new_repository_commitment_digest: str = Field(
-        default="0" * 64, pattern=r"^[a-f0-9]{64}$"
-    )
+    new_repository_commitment_bytes_sha256: str = Field(default="0" * 64, pattern=r"^[a-f0-9]{64}$")
+    new_repository_commitment_digest: str = Field(default="0" * 64, pattern=r"^[a-f0-9]{64}$")
     repair_change_identity: bool = False
     apply: bool = False

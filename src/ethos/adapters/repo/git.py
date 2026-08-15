@@ -382,8 +382,8 @@ def committed_file_bytes(
     return completed.stdout if completed.returncode == 0 else b""
 
 
-def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> str:
-    """Return the sole target of one exact Git rename from ``source``."""
+def _exact_rename_pairs(root: Path, old_ref: str, new_ref: str) -> tuple[tuple[str, str], ...]:
+    """Return every exact rename pair on one Git edge, or no pairs if malformed."""
     completed = run_git(
         root,
         "diff",
@@ -391,7 +391,7 @@ def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> 
         "--name-status",
         "-z",
         "--find-renames=100%",
-        "--find-copies=100%",
+        "--diff-filter=R",
         old_ref,
         new_ref,
         check=False,
@@ -399,30 +399,42 @@ def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> 
         observation=True,
     )
     if completed.returncode != 0:
-        return ""
+        return ()
     fields = completed.stdout.split(b"\0")
-    renames: list[str] = []
-    exact_targets = 0
+    pairs: list[tuple[str, str]] = []
     index = 0
     while index < len(fields) and fields[index]:
         status = fields[index]
         index += 1
-        has_target = status.startswith((b"R", b"C"))
-        width = 2 if has_target else 1
-        if index + width > len(fields):
-            return ""
-        paths = fields[index : index + width]
-        index += width
+        if status != b"R100" or index + 2 > len(fields):
+            return ()
+        paths = fields[index : index + 2]
+        index += 2
         try:
-            old_path = paths[0].decode()
-            new_path = paths[1].decode() if has_target else ""
+            pairs.append((paths[0].decode(), paths[1].decode()))
         except UnicodeDecodeError:
-            return ""
-        if status in {b"R100", b"C100"} and old_path == source:
-            exact_targets += 1
-            if status == b"R100":
-                renames.append(new_path)
-    return renames[0] if exact_targets == len(renames) == 1 else ""
+            return ()
+    return tuple(pairs)
+
+
+def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> str:
+    """Return the sole target of one exact Git rename from ``source``."""
+    targets = tuple(
+        target
+        for previous, target in _exact_rename_pairs(root, old_ref, new_ref)
+        if previous == source
+    )
+    return targets[0] if len(targets) == 1 else ""
+
+
+def exact_rename_source(root: Path, old_ref: str, new_ref: str, target: str) -> str:
+    """Return the sole source of one exact Git rename to ``target``."""
+    sources = tuple(
+        previous
+        for previous, current in _exact_rename_pairs(root, old_ref, new_ref)
+        if current == target
+    )
+    return sources[0] if len(sources) == 1 else ""
 
 
 def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:

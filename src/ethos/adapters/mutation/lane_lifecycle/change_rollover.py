@@ -50,6 +50,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
+from ethos.contracts.value import mutable_json
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 _ARCHIVE_PREFIX = "openspec/changes/archive/"
@@ -73,7 +74,7 @@ class _FinishRequest(NamedTuple):
     change: str
     previous_head: str
     head: str
-    old_lease: dict[str, object]
+    old_generation: dict[str, object]
     command: tuple[str, ...]
     state: str
 
@@ -84,6 +85,7 @@ class _RecoveryRequest(NamedTuple):
     previous_head: str
     head: str
     lease: dict[str, object]
+    old_generation: dict[str, object]
     command: tuple[str, ...]
     apply: bool
 
@@ -120,9 +122,20 @@ def start_change(
             change=change,
         )
     recognized = _recognized(repo, branch, change, expect_head, lease)
+    recovery = None
+    if recognized is None:
+        try:
+            recovery = _recoverable(repo, change, expect_head, lease)
+        except (OSError, TypeError, ValueError) as error:
+            recognized = lifecycle_report(
+                branch,
+                head,
+                "repair_required",
+                [str(error)],
+                change=change,
+            )
     if recognized is not None:
         return recognized
-    recovery = _recoverable(repo, change, expect_head, lease)
     if recovery is not None:
         guard = local_state_mutation_guard(repo) if apply else {"required_gaps": []}
         if guard["required_gaps"]:
@@ -130,7 +143,16 @@ def start_change(
         else:
             return _recover(
                 repo,
-                _RecoveryRequest(branch, change, expect_head, head, lease, recovery, apply),
+                _RecoveryRequest(
+                    branch,
+                    change,
+                    expect_head,
+                    head,
+                    lease,
+                    recovery[0],
+                    recovery[1],
+                    apply,
+                ),
             )
     request = _StartRequest(
         branch,
@@ -174,7 +196,7 @@ def _recover(
     root: Path,
     request: _RecoveryRequest,
 ) -> dict[str, object]:
-    branch, change, previous_head, head, lease, command, apply = request
+    branch, change, previous_head, head, lease, old_generation, command, apply = request
     if not apply:
         return lifecycle_report(
             branch,
@@ -185,6 +207,14 @@ def _recover(
             previous_head=previous_head,
         )
     try:
+        if lease.get("expected_head") == previous_head:
+            advance_committed_lease(
+                root,
+                branch=branch,
+                previous_head=previous_head,
+                head=head,
+                failure_gap="openspec_change_lease_head_transition_failed",
+            )
         return _finish(
             root,
             _FinishRequest(
@@ -192,7 +222,7 @@ def _recover(
                 change,
                 previous_head,
                 head,
-                lease,
+                old_generation,
                 command,
                 "recovered",
             ),
@@ -357,6 +387,24 @@ def _apply(
     )
     overlay_paths = tuple(str(path) for path in overlay.get("paths", ()))
     stage_git_paths(root, (*overlay_paths, *created_paths))
+    target_tree = git_stdout(root, "write-tree")
+    commitment = load_commitment(
+        root,
+        carrier=commitment_path,
+        change_id=change,
+        tree_ref=target_tree,
+    )
+    repository = load_repository_commitment(root, tree_ref=target_tree)
+    _prepared_start(
+        root,
+        change=change,
+        previous_head=previous_head,
+        target_tree=target_tree,
+        current_lease=old_lease,
+        commitment=commitment,
+        repository_id=repository.id,
+        create=True,
+    )
     committed = commit_git_worktree(
         root,
         previous=previous_head,
@@ -386,7 +434,7 @@ def _apply(
             change,
             previous_head,
             head,
-            old_lease,
+            lease_generation(old_lease),
             tuple(str(item) for item in result["command"]),
             "started",
         ),
@@ -397,7 +445,7 @@ def _finish(
     root: Path,
     request: _FinishRequest,
 ) -> dict[str, object]:
-    branch, change, previous_head, head, old_lease, command, state = request
+    branch, change, previous_head, head, old_generation, command, state = request
     carrier = f"openspec/changes/{change}/commitment.toml"
     current_lease = leases_by_branch(root).get(branch, {})
     target = exact_commitment_fields(root, head=head, carrier=carrier, change_id=change)
@@ -406,6 +454,19 @@ def _finish(
     successor_record = project_lease(successor)
     commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)
     repository = load_repository_commitment(root, tree_ref=head)
+    prepared_old = _prepared_start(
+        root,
+        change=change,
+        previous_head=previous_head,
+        target_tree=str(target["expected_tree"]),
+        current_lease=current_lease,
+        commitment=commitment,
+        repository_id=repository.id,
+        create=False,
+    )
+    if old_generation != prepared_old:
+        message = "openspec_change_start_attestation_collision"
+        raise ValueError(message)
     _selected_root, attestations = read_attestation_set(root)
     prepared = tuple(
         item
@@ -417,20 +478,24 @@ def _finish(
     if len(prepared) > 1:
         message = "openspec_change_start_attestation_collision"
         raise ValueError(message)
-    attestation = prepared[0] if prepared else _attestation(
+    expected = _attestation(
         root,
         change=change,
         command=command,
         previous_head=previous_head,
         head=head,
-        old_lease=old_lease,
-        new_lease=successor_record,
+        old_generation=old_generation,
+        new_generation=lease_generation(successor_record),
         issued_at=datetime.fromtimestamp(
             int(git_stdout(root, "show", "-s", "--format=%ct", head)), UTC
         ),
         commitment=commitment,
         repository_id=repository.id,
     )
+    if prepared and prepared[0] != expected:
+        message = "openspec_change_start_attestation_collision"
+        raise ValueError(message)
+    attestation = prepared[0] if prepared else expected
     if not prepared:
         record_attestations(root, (attestation,))
     updated = rebind_lease_commitment(
@@ -463,6 +528,108 @@ def _finish(
         command=list(command),
         attestation=attestation.model_dump(mode="json"),
     )
+
+
+def _prepared_start(
+    root: Path,
+    *,
+    change: str,
+    previous_head: str,
+    target_tree: str,
+    current_lease: Mapping[str, object],
+    commitment: Commitment,
+    repository_id: str,
+    create: bool,
+) -> dict[str, object]:
+    """Persist or recognize one exact write-ahead start witness."""
+    command = _start_command(change)
+    subject = {"change": change, "previous_head": previous_head, "tree": target_tree}
+    _root, attestations = read_attestation_set(root)
+    candidates = tuple(
+        candidate
+        for candidate in attestations
+        if candidate.predicate == "effect:openspec-change-start-prepared"
+        and candidate.payload.body.get("freshness", {}).get("subject") == subject
+    )
+    if len(candidates) > 1:
+        message = "openspec_change_start_attestation_collision"
+        raise ValueError(message)
+    old = (
+        lease_generation(dict(current_lease))
+        if create
+        else _prepared_old_generation(root, candidates, previous_head, current_lease)
+    )
+    issued_at = candidates[0].issued_at if candidates else datetime.now(UTC)
+    expected = issue_native_effect(
+        root,
+        effect=NativeEffect(
+            predicate="effect:openspec-change-start-prepared",
+            operation="openspec.change.start",
+            command=command,
+            subject=subject,
+            before={"head": previous_head, "lease": old},
+            after={
+                "tree": target_tree,
+                "commitment_path": f"openspec/changes/{change}/commitment.toml",
+                "commitment_digest": commitment.digest(),
+            },
+        ),
+        state="prepared",
+        commitment_digest=commitment.digest(),
+        repository_id=repository_id,
+        issued_at=issued_at,
+    )
+    if candidates and candidates[0] != expected:
+        message = "openspec_change_start_attestation_collision"
+        raise ValueError(message)
+    if not candidates:
+        if not create:
+            message = "openspec_change_start_attestation_missing"
+            raise ValueError(message)
+        record_attestations(root, (expected,))
+    return old
+
+
+def _prepared_old_generation(
+    root: Path,
+    candidates: tuple[Attestation, ...],
+    previous_head: str,
+    current_lease: Mapping[str, object],
+) -> dict[str, object]:
+    if len(candidates) != 1:
+        message = "openspec_change_start_attestation_missing"
+        raise ValueError(message)
+    before = candidates[0].payload.body.get("input")
+    old = before.get("lease") if isinstance(before, Mapping) else None
+    if not isinstance(old, Mapping):
+        message = "openspec_change_start_attestation_collision"
+        raise TypeError(message)
+    normalized = mutable_json(old)
+    if not isinstance(normalized, dict):
+        message = "openspec_change_start_attestation_collision"
+        raise TypeError(message)
+    old = normalized
+    current = lease_generation(dict(current_lease))
+    mutable_coordinates = {"expected_head", "expected_tree", "payload_sha256"}
+    valid = (
+        old.get("expected_head") == previous_head
+        and old.get("expected_tree") == git_stdout(root, "rev-parse", f"{previous_head}^{{tree}}")
+        and {name: value for name, value in old.items() if name not in mutable_coordinates}
+        == {name: value for name, value in current.items() if name not in mutable_coordinates}
+        and current.get("expected_head") in {previous_head, current_tracked_head(root)}
+    )
+    if not valid:
+        message = "openspec_change_start_attestation_collision"
+        raise ValueError(message)
+    return old
+
+
+def _start_command(change: str) -> tuple[str, ...]:
+    command = openspec_cli.openspec_base_command()
+    if command is None:
+        message = "openspec_official_cli_missing"
+        raise ValueError(message)
+    return (*command, "new", "change", change, "--json")
 
 
 def _empty_overlay() -> ChangeOverlay:
@@ -692,8 +859,8 @@ def _attestation(
     command: tuple[str, ...],
     previous_head: str,
     head: str,
-    old_lease: Mapping[str, object],
-    new_lease: Mapping[str, object],
+    old_generation: Mapping[str, object],
+    new_generation: Mapping[str, object],
     issued_at: datetime,
     commitment: Commitment,
     repository_id: str,
@@ -705,8 +872,8 @@ def _attestation(
             operation="openspec.change.start",
             command=command,
             subject={"change": change, "previous_head": previous_head, "head": head},
-            before={"head": previous_head, "lease": lease_generation(dict(old_lease))},
-            after={"head": head, "lease": lease_generation(dict(new_lease))},
+            before={"head": previous_head, "lease": dict(old_generation)},
+            after={"head": head, "lease": dict(new_generation)},
         ),
         state="prepared",
         commitment_digest=commitment.digest(),
@@ -727,7 +894,7 @@ def _recognized(
     if (
         lease.get("lease_state") != "valid"
         or lease.get("holder_ref") != os.environ.get("ETHOS_ACTOR", "").strip()
-        or lease.get("expected_head") != head
+        or lease.get("expected_head") not in {previous_head, head}
         or lease.get("base_commitment_path") != carrier
         or run_git(root, "rev-parse", f"{head}^").stdout.strip() != previous_head
     ):
@@ -761,12 +928,13 @@ def _recognized(
         attestation=validated[0].model_dump(mode="json"),
     )
 
+
 def _recoverable(
     root: Path,
     change: str,
     previous_head: str,
     lease: dict[str, object],
-) -> tuple[str, ...] | None:
+) -> tuple[dict[str, object], tuple[str, ...]] | None:
     head = current_tracked_head(root)
     carrier = f"openspec/changes/{change}/commitment.toml"
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
@@ -774,15 +942,23 @@ def _recoverable(
         head == previous_head
         or lease.get("lease_state") != "valid"
         or lease.get("holder_ref") != actor
-        or lease.get("expected_head") != head
+        or lease.get("expected_head") not in {previous_head, head}
         or not str(lease.get("base_commitment_path") or "").startswith(_ARCHIVE_PREFIX)
         or run_git(root, "rev-parse", f"{head}^").stdout.strip() != previous_head
         or git_stdout(root, "status", "--short")
     ):
         return None
-    try:
-        exact_commitment_fields(root, head=head, carrier=carrier, change_id=change)
-    except ValueError:
-        return None
-    command = openspec_cli.openspec_base_command()
-    return (*command, "new", "change", change, "--json") if command else None
+    target = exact_commitment_fields(root, head=head, carrier=carrier, change_id=change)
+    commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)
+    repository = load_repository_commitment(root, tree_ref=head)
+    old = _prepared_start(
+        root,
+        change=change,
+        previous_head=previous_head,
+        target_tree=str(target["expected_tree"]),
+        current_lease=lease,
+        commitment=commitment,
+        repository_id=repository.id,
+        create=False,
+    )
+    return old, _start_command(change)

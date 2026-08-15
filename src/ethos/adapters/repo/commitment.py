@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import exact_rename_source
 from ethos.adapters.repo.git import exact_rename_target
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
@@ -192,6 +193,51 @@ def exact_commitment_fields(
             environment=environment,
         ).digest(),
     }
+
+
+def commitment_generation_origin(
+    repo: Path,
+    *,
+    head: str,
+    carrier: str,
+    change_id: str,
+) -> str:
+    """Return the unique parent before one Change carrier entered this ancestry."""
+    try:
+        path = _relative_carrier(carrier)
+        load_commitment(repo, carrier=path, change_id=change_id, tree_ref=head)
+    except ValueError:
+        return ""
+    commit = head
+    while commit:
+        lineage = run_git(
+            repo, "rev-list", "--parents", "-n", "1", commit, check=False
+        ).stdout.split()
+        if len(lineage) != 2 or lineage[0] != commit:
+            return ""
+        parent = lineage[1]
+        source = exact_rename_source(repo, parent, commit, path)
+        if source:
+            path = source
+        raw = committed_file_bytes(repo, parent, path)
+        if not raw:
+            return parent
+        try:
+            load_commitment(repo, carrier=path, change_id=change_id, tree_ref=parent)
+        except ValueError:
+            try:
+                identifier = terminal_v1_binding(
+                    repo,
+                    tree_ref=parent,
+                    carrier=path,
+                    repository=False,
+                )["id"]
+            except ValueError:
+                return ""
+            if identifier != f"change:{change_id}":
+                return ""
+        commit = parent
+    return ""
 
 
 def terminal_v1_binding(

@@ -245,7 +245,7 @@ def recognized_rebind_attestation(
     return attestation
 
 
-def bootstrap_generation_authority(
+def rebind_generation_authority(
     repo: Path,
     attestation: Attestation,
     *,
@@ -253,7 +253,7 @@ def bootstrap_generation_authority(
     commitment_digest: str,
     lease: dict[str, object],
 ) -> dict[str, object]:
-    """Project one exact completed bootstrap as current Change continuity."""
+    """Project one exact completed rebind as current Change continuity."""
     statement = mutable_json(attestation.payload.body)
     if not isinstance(statement, dict):
         return {}
@@ -262,6 +262,7 @@ def bootstrap_generation_authority(
     new = statement.get("new_lease_generation")
     new_commitment = statement.get("new_commitment")
     result = statement.get("result")
+    claim = statement.get("claim")
     if not all(
         isinstance(value, dict)
         for value in (old, new, new_commitment, result)
@@ -292,7 +293,11 @@ def bootstrap_generation_authority(
         and attestation.verifier == current.get("holder_ref")
         and attestation.subject == f"commitment-rebind:{effect.digest()}"
         and attestation.effect_digest == effect.digest()
-        and statement.get("claim") == {"operation": "v1-to-v2-bootstrap", "branch": branch}
+        and claim
+        in (
+            {"operation": "commitment-rebind", "branch": branch},
+            {"operation": "v1-to-v2-bootstrap", "branch": branch},
+        )
         and statement.get("repository") == repository_id
         and statement.get("target_commit") == head
         and statement.get("index_tree") == current.get("expected_tree")
@@ -321,7 +326,7 @@ def bootstrap_generation_authority(
             "attestation_id": attestation.id,
             "claim": statement["claim"],
             "previous_head": previous_head,
-            "source": "bootstrap_generation",
+            "source": "rebind_generation",
         }
         if valid
         else {}

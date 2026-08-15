@@ -65,6 +65,7 @@ scope = [
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/adapters/store/state/lease/lifecycle/effects.py",
   "src/ethos/adapters/store/state/lease/lifecycle/transitions.py",
+  "src/ethos/adapters/store/state/lease/projection.py",
   "src/ethos/contracts/coordination.py",
   "src/ethos/contracts/evidence/layout.py",
   "src/ethos/contracts/plan.py",

@@ -21,8 +21,8 @@ from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import records
 from ethos.adapters.repo.git_effects import admit_git_effect
-from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.git_effects import commit_git_worktree
+from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.plan import GitEffect
@@ -204,9 +204,7 @@ def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
     assert signer_record.read_text(encoding="utf-8").strip() == str(public_key)
 
 
-def test_create_git_commit_binds_effective_signing_configuration(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_create_git_commit_binds_effective_signing_configuration(tmp_path: Path) -> None:
     repo, previous = _staged_repo(tmp_path)
     public_key = repo / "signing-key.pub"
     public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")

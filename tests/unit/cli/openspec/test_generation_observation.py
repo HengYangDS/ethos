@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import tomli_w
@@ -10,13 +11,18 @@ import tomli_w
 import ethos.adapters.openspec.generation.attestation as effect_authority
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.openspec.start_effect import current_generation_scope
-from ethos.adapters.repo.commitment import load_commitment, load_repository_commitment
-from ethos.adapters.repo.git_effect_attestation import NativeEffect, issue_native_effect
-from ethos.adapters.repo.status.bindings import lease_generation, leases_by_branch
+from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.git_effect_attestation import NativeEffect
+from ethos.adapters.repo.git_effect_attestation import issue_native_effect
+from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.semantic import Attestation
-from tests.support.governed_repository import exact_lease, git, start_adopted_candidate
+from tests.support.governed_repository import exact_lease
+from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
@@ -162,7 +168,9 @@ def test_start_effect_requires_the_old_lease_commitment_as_the_only_predecessor(
             "holder_ref": "agent:test",
             "expected_head": previous_head,
             "expected_tree": "3" * 40,
-            "base_commitment_path": "openspec/changes/archive/2026-08-14-test-change/commitment.toml",
+            "base_commitment_path": (
+                "openspec/changes/archive/2026-08-14-test-change/commitment.toml"
+            ),
             "base_commitment_bytes_sha256": "c" * 64,
             "base_commitment_digest": predecessor,
             "issued_at": "2026-08-15T00:00:00Z",

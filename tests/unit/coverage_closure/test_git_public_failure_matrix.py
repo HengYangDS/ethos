@@ -85,13 +85,13 @@ def test_exact_rename_rejects_copy_ambiguity(
     assert git.exact_rename_target(tmp_path, "old", "new", "source") == ""
 
 
-def test_exact_rename_skips_non_matching_records_before_exact_target(
+def test_exact_rename_rejects_unexpected_diff_records(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     payload = b"M\0other\0R100\0source\0target\0"
     monkeypatch.setattr(git, "run_git", lambda *_args, **_kwargs: _completed(0, payload))
 
-    assert git.exact_rename_target(tmp_path, "old", "new", "source") == "target"
+    assert git.exact_rename_target(tmp_path, "old", "new", "source") == ""
 
 
 def test_remote_tracking_reports_unknown_and_malformed_counts(monkeypatch, tmp_path: Path) -> None:

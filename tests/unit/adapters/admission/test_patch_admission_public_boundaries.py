@@ -84,17 +84,21 @@ def test_patch_admission_rejects_nonlist_scope(tmp_path: Path) -> None:
     carrier = repo / "openspec/changes/fixture-change/commitment.toml"
     carrier.write_text(carrier.read_text().replace('scope = ["safe.txt"]', 'scope = "safe.txt"'))
     git(repo, "add", carrier.as_posix())
-    git(
+    parent = git(repo, "rev-parse", "HEAD")
+    head = git(
         repo,
         "-c",
         "user.name=Test User",
         "-c",
         "user.email=test@example.com",
-        "commit",
+        "commit-tree",
+        git(repo, "write-tree"),
+        "-p",
+        parent,
         "-m",
         "corrupt scope",
     )
-    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/heads/dev", head, parent)
 
     report = patch_admission(
         root=repo,

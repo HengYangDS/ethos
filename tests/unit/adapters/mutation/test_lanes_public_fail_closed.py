@@ -60,6 +60,7 @@ def test_source_lane_start_invalid_root_and_repository_fail_closed(
         tmp_path,
         branch="work/test",
         target=target,
+        holder_ref="agent:test:case:owner",
         source_root=tmp_path / "source",
     )
     assert blocked is not None
@@ -71,6 +72,7 @@ def test_source_lane_start_invalid_root_and_repository_fail_closed(
         tmp_path,
         branch="work/test",
         target=target,
+        holder_ref="agent:test:case:owner",
         source_root=tmp_path / "foreign",
     )
     assert blocked is not None
@@ -146,7 +148,11 @@ def test_source_lane_start_maps_commitment_binding_failure(
 ) -> None:
     source = tmp_path / "source"
     target = tmp_path / "target"
-    lease = {"lease_state": "valid", "expected_head": "head"}
+    lease = {
+        "lease_state": "valid",
+        "holder_ref": "agent:test:case:owner",
+        "expected_head": "head",
+    }
     monkeypatch.setattr(lanes, "repository_root", Path)
     monkeypatch.setattr(lanes, "same_git_repository", lambda *_args: True)
     monkeypatch.setattr(
@@ -173,7 +179,11 @@ def test_source_lane_start_maps_commitment_binding_failure(
     )
 
     _source, blocked = lanes.source_lane_start_commitment(
-        tmp_path, branch="work/test", target=target, source_root=source
+        tmp_path,
+        branch="work/test",
+        target=target,
+        holder_ref="agent:test:case:owner",
+        source_root=source,
     )
 
     assert blocked is not None

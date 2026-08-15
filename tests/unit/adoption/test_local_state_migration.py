@@ -301,7 +301,7 @@ def test_public_migration_and_clean_lane_start_matrix(case: str, tmp_path: Path)
         "--source-root",
         source.as_posix(),
         "--holder-ref",
-        "agent:test:case:next",
+        "agent:test:case:source",
         "--apply",
     )
     _expect(migrated, "pass", "migrated")

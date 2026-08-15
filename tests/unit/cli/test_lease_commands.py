@@ -9,11 +9,11 @@ from datetime import datetime
 import pytest
 
 import ethos.surface.cli.lane.lease as lease_cli
-from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.lane.lease import TakeoverOptions
 from ethos.surface.cli.lane.lease import emit_lease_result
 from ethos.surface.cli.lane.lease import lane_lease_takeover
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.semantic import attestation_v2
 
 
 @pytest.mark.parametrize(
@@ -111,19 +111,17 @@ def test_takeover_cli_loads_authorization_and_projects_exact_request(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     now = datetime.now(UTC)
-    authorization = Attestation.issue(
-        {
-            "predicate": "lane-resolution:takeover",
-            "verifier": "maintainer:test:case:reviewer",
-            "subject": "git:branch:work/example",
-            "issued_at": now,
-            "verdict": "pass",
-            "evidence_refs": ("evidence:test:takeover",),
-            "statement": {"authorization": {"test": "cli"}},
-        }
+    authorization = attestation_v2(
+        predicate="lane-resolution:takeover",
+        verifier="maintainer:test:case:reviewer",
+        subject="git:branch:work/example",
+        issued_at=now,
+        payload_kind="authorization:lane-takeover",
+        payload_body={"authorization": {"test": "cli"}},
+        evidence_refs=("evidence:test:takeover",),
     )
     path = tmp_path / "authorization.json"
-    path.write_text(authorization.model_dump_json(), encoding="utf-8")
+    path.write_text(authorization.canonical_json(), encoding="utf-8")
     captured = {}
     monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
     monkeypatch.setattr(

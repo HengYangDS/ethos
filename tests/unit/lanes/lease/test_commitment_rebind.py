@@ -42,6 +42,7 @@ from ethos.contracts.semantic import Facts
 from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lifecycle_cases import rebind_attestation_path
@@ -318,6 +319,24 @@ def test_ordinary_rebind_establishes_current_generation_authority(
 
     assert (report["verdict"], report["required_gaps"]) == ("pass", [])
     scope = case.generation_scope()
+    assert scope.gaps == ()
+    assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
+
+
+def test_ordinary_commit_preserves_rebind_generation_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    assert case.execute()["verdict"] == "pass"
+    commit_fixture_file(
+        case.worktree,
+        "src/example.py",
+        "VALUE = 1\n",
+        "feat: advance rebound generation",
+    )
+
+    scope = case.generation_scope()
+
     assert scope.gaps == ()
     assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
 

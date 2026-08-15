@@ -12,6 +12,7 @@ from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -270,9 +271,10 @@ def rebind_generation_authority(
         return {}
     branch = str(current.get("branch") or "")
     previous_head = str(old.get("expected_head") or "")
+    generation_head = str(new.get("expected_head") or "")
     head = str(current.get("expected_head") or "")
     binding = {
-        name: current.get(name)
+        name: new.get(name)
         for name in (
             "expected_head",
             "expected_tree",
@@ -283,7 +285,9 @@ def rebind_generation_authority(
     }
     effect = GitEffect(
         updates={
-            f"refs/heads/{branch}": GitRefUpdate(expected=previous_head, desired=head)
+            f"refs/heads/{branch}": GitRefUpdate(
+                expected=previous_head, desired=generation_head
+            )
         }
     )
     valid = (
@@ -299,15 +303,31 @@ def rebind_generation_authority(
             {"operation": "v1-to-v2-bootstrap", "branch": branch},
         )
         and statement.get("repository") == repository_id
-        and statement.get("target_commit") == head
-        and statement.get("index_tree") == current.get("expected_tree")
+        and statement.get("target_commit") == generation_head
+        and statement.get("index_tree") == new.get("expected_tree")
         and result
         in (
             {"git": "applied", "lease": "epoch_advanced"},
             {"git": "recovered", "lease": "epoch_advanced"},
         )
-        and new == current
-        and new_commitment == binding
+        and mutable_json(new_commitment) == binding
+        and all(
+            new.get(name) == current.get(name)
+            for name in (
+                "branch",
+                "lane_incarnation_id",
+                "lease_id",
+                "holder_ref",
+                "epoch",
+                "issued_at",
+                "renewed_at",
+                "expires_at",
+                "path_scope",
+                "base_commitment_path",
+                "base_commitment_bytes_sha256",
+                "base_commitment_digest",
+            )
+        )
         and all(
             old.get(name) == new.get(name)
             for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
@@ -318,7 +338,9 @@ def rebind_generation_authority(
         and commitment_digest == current.get("base_commitment_digest")
         and ref_head(repo, branch) == head
         and current_tree(repo, head) == current.get("expected_tree")
-        and git_stdout(repo, "rev-parse", f"{head}^") == previous_head
+        and current_tree(repo, generation_head) == new.get("expected_tree")
+        and git_stdout(repo, "rev-parse", f"{generation_head}^") == previous_head
+        and is_ancestor(repo, generation_head, head)
     )
     return (
         {

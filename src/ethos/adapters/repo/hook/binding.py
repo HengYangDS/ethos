@@ -14,7 +14,7 @@ from ethos.adapters.repo.git import run_git
 
 HOOK_NAMES = ("pre-commit", "pre-push", "reference-transaction")
 _RUNTIME_LOCATOR = (
-    r"\.\./ethos/runtime/(?P<digest>[a-f0-9]{64})/venv/(?P<python>bin/python|Scripts/python\.exe)"
+    r"\.\./\.\./runtime/(?P<digest>[a-f0-9]{64})/venv/(?P<python>bin/python|Scripts/python\.exe)"
 )
 _RUNTIME_RELATIVE = re.compile(f"^{_RUNTIME_LOCATOR}$")
 _RUNTIME_IN_LAUNCHER = re.compile(_RUNTIME_LOCATOR)
@@ -49,28 +49,60 @@ def hook_launcher(runtime: str, name: str) -> str:
     )
 
 
+def runtime_locator(venv: Path) -> str:
+    """Return the validated relative Python locator for one runtime venv."""
+    digest = venv.parent.name
+    executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    return f"../../runtime/{digest}/venv/{executable}"
+
+
+def hook_generation_digest(launchers: dict[str, str]) -> str:
+    """Return the canonical identity of one complete declared launcher set."""
+    if tuple(launchers) != HOOK_NAMES:
+        message = "hook_launcher_projection_invalid"
+        raise ValueError(message)
+    return hashlib.sha256(
+        b"".join(
+            name.encode() + b"\0" + content.encode() + b"\0" for name, content in launchers.items()
+        )
+    ).hexdigest()
+
+
 def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
     """Observe the configured common-dir runtime and its generated launchers."""
     repo = root.resolve()
     common = Path(git_common_dir(repo))
-    hooks = common / "ethos-hooks"
+    generations = common / "ethos" / "hooks"
     configured = _configured_hooks_path(repo)
-    runtime, manifest, digest, wheel = _runtime_from_launcher(hooks / "pre-commit")
+    hooks = configured or generations
+    valid_generation = (
+        configured is not None
+        and configured.parent == generations
+        and not generations.parent.is_symlink()
+        and not generations.is_symlink()
+        and not configured.is_symlink()
+        and len(configured.name) == 64
+        and not (set(configured.name) - set("0123456789abcdef"))
+    )
+    runtime, manifest, digest, wheel = (
+        _runtime_from_launcher(hooks / "pre-commit", common / "ethos" / "runtime")
+        if valid_generation
+        else (None, None, "", "")
+    )
     gaps: list[str] = []
-    if configured != hooks:
+    if not valid_generation:
         gaps.append("write_admission_not_armed:core.hooksPath")
     if runtime is None or manifest is None:
         gaps.append("write_admission_not_armed:runtime_manifest")
     if runtime is None:
         gaps.append("write_admission_not_armed:runtime_python")
-    for name in HOOK_NAMES:
-        launcher = hooks / name
-        if not launcher.is_file() or not os.access(launcher, os.X_OK):
-            gaps.append(f"write_admission_not_armed:{name}_launcher_missing")
-        elif runtime is not None and launcher.read_text(encoding="utf-8") != hook_launcher(
-            _runtime_locator(digest, runtime), name
-        ):
-            gaps.append(f"write_admission_not_armed:{name}_launcher_drift")
+    gaps.extend(gap for name in HOOK_NAMES if (gap := _launcher_gap(hooks / name, name, runtime)))
+    if runtime is not None:
+        expected = {
+            name: hook_launcher(runtime_locator(runtime.parent.parent), name) for name in HOOK_NAMES
+        }
+        if hooks.name != hook_generation_digest(expected):
+            gaps.append("write_admission_not_armed:hook_generation_digest")
     return {
         "hooks_path": hooks.as_posix(),
         "runtime_manifest_path": manifest.as_posix() if manifest else "",
@@ -82,14 +114,33 @@ def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
     }
 
 
-def _runtime_from_launcher(launcher: Path) -> tuple[Path | None, Path | None, str, str]:
+def _launcher_gap(launcher: Path, name: str, runtime: Path | None) -> str:
+    if launcher.is_symlink() or not launcher.is_file() or not os.access(launcher, os.X_OK):
+        return f"write_admission_not_armed:{name}_launcher_missing"
+    if runtime is None:
+        return ""
+    try:
+        current = launcher.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        current = ""
+    expected = hook_launcher(runtime_locator(runtime.parent.parent), name)
+    return "" if current == expected else f"write_admission_not_armed:{name}_launcher_drift"
+
+
+def _runtime_from_launcher(
+    launcher: Path, runtime_root: Path
+) -> tuple[Path | None, Path | None, str, str]:
     if not launcher.is_file():
         return None, None, "", ""
-    match = _RUNTIME_IN_LAUNCHER.search(launcher.read_text(encoding="utf-8"))
+    try:
+        content = launcher.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None, None, "", ""
+    match = _RUNTIME_IN_LAUNCHER.search(content)
     if match is None:
         return None, None, "", ""
     digest = match["digest"]
-    runtime = launcher.parent.parent / "ethos" / "runtime" / digest / "venv" / match["python"]
+    runtime = runtime_root / digest / "venv" / match["python"]
     manifest = runtime.parents[2] / "manifest.json"
     try:
         payload = json.loads(manifest.read_text(encoding="utf-8"))
@@ -114,18 +165,15 @@ def _runtime_from_launcher(launcher: Path) -> tuple[Path | None, Path | None, st
     return (runtime, manifest, digest, wheel) if valid else (None, manifest, "", "")
 
 
-def _runtime_locator(digest: str, runtime: Path) -> str:
-    executable = "Scripts/python.exe" if runtime.parent.name == "Scripts" else "bin/python"
-    return f"../ethos/runtime/{digest}/venv/{executable}"
-
-
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _configured_hooks_path(root: Path) -> Path | None:
-    completed = run_git(root, "config", "--path", "--get", "core.hooksPath", check=False)
+    completed = run_git(
+        root, "config", "--worktree", "--path", "--get", "core.hooksPath", check=False
+    )
     if completed.returncode or not completed.stdout.strip():
         return None
     configured = Path(completed.stdout.strip())
-    return configured if configured.is_absolute() else (root / configured).resolve()
+    return configured.absolute() if configured.is_absolute() else (root / configured).absolute()

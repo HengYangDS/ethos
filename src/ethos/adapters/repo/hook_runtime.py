@@ -24,9 +24,9 @@ from ethos.adapters.repo.git import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import HookRuntimeBinding
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.binding import runtime_locator
+from ethos.adapters.repo.hook_runtime_install import materialize_hook_launchers
 from ethos.adapters.repo.hook_runtime_install import materialize_hook_runtime
-from ethos.adapters.repo.hook_runtime_install import replace_launchers
-from ethos.adapters.repo.hook_runtime_install import runtime_locator
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -48,11 +48,15 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
         message = "hook_runtime_python_invalid"
         raise ValueError(message)
     runtime = materialize_hook_runtime(repo, source_python)
-    hooks = Path(git_common_dir(repo)) / "ethos-hooks"
-    locator = runtime_locator(runtime)
-    replace_launchers(hooks, locator)
-    set_worktree_config(repo, {"core.hooksPath": hooks.as_posix(), "gc.packRefs": "false"})
+    hooks = materialize_hook_launchers(
+        Path(git_common_dir(repo)) / "ethos" / "hooks", runtime_locator(runtime)
+    )
+    set_worktree_config(repo, {"gc.packRefs": "false"})
+    set_worktree_config(repo, {"core.hooksPath": hooks.as_posix()})
     binding = hook_runtime_binding(repo)
+    if binding["hooks_path"] != hooks.as_posix():
+        message = "hook_runtime_activation_drift"
+        raise ValueError(message)
     if binding["required_gaps"]:
         return binding
     common = Path(git_common_dir(repo))

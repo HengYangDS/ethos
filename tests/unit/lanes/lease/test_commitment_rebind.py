@@ -771,7 +771,12 @@ def test_partial_rebind_rejects_forged_historical_issuer_before_lease_mutation(
 ) -> None:
     case = _case(tmp_path, monkeypatch)
     selected = _interrupted_partial_rebind(case, monkeypatch)
-    witness = next(item for item in selected if item.predicate == "effect:git-ref-update")
+    effect_digest = rebind_effect(case).digest()
+    witness = next(
+        item
+        for item in selected
+        if item.predicate == "effect:git-ref-update" and item.effect_digest == effect_digest
+    )
     forged = tamper_attestation(
         witness.model_dump(mode="json"),
         location="attestation",
@@ -807,7 +812,12 @@ def test_partial_rebind_rejects_historical_plan_collision_before_lease_mutation(
 ) -> None:
     case = _case(tmp_path, monkeypatch)
     selected = _interrupted_partial_rebind(case, monkeypatch)
-    witness = next(item for item in selected if item.predicate == "effect:git-ref-update")
+    effect_digest = rebind_effect(case).digest()
+    witness = next(
+        item
+        for item in selected
+        if item.predicate == "effect:git-ref-update" and item.effect_digest == effect_digest
+    )
     collision = tamper_attestation(
         witness.model_dump(mode="json"),
         location="attestation",

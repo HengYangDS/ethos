@@ -24,6 +24,7 @@ from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.openspec.generation.attestation import start_effect_authority
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestation_once
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.commitment import exact_commitment_fields
@@ -282,16 +283,17 @@ def _preflight(
     selected_set_root = ""
     if not gaps:
         try:
+            predecessor = load_lease_bound_commitment(root, lease=lease)
             _commitment(
                 root=root,
                 change=change,
                 intent=intent,
                 scope=scope,
-                predecessor=load_lease_bound_commitment(root, lease=lease),
+                predecessor=predecessor,
                 selected_attestations=selected_attestations,
             )
-        except ValueError:
-            gaps.append("openspec_change_commitment_invalid")
+        except ValueError as error:
+            gaps.append(str(error))
     if not gaps:
         selected_set_root, selection_gaps = _selection_observation(
             root,
@@ -307,11 +309,6 @@ def _preflight(
             apply=apply,
         )
         gaps.extend(str(gap) for gap in overlay["required_gaps"])
-    if not gaps:
-        try:
-            load_lease_bound_commitment(root, lease=lease)
-        except ValueError as error:
-            gaps.append(str(error))
     if not gaps:
         gaps.extend(_openspec_start_gaps(root))
     return gaps, overlay, selected_set_root
@@ -560,20 +557,21 @@ def _prepared_start(
         else _prepared_old_generation(root, candidates, previous_head, current_lease)
     )
     issued_at = candidates[0].issued_at if candidates else datetime.now(UTC)
+    effect = NativeEffect(
+        predicate="effect:openspec-change-start-prepared",
+        operation="openspec.change.start",
+        command=command,
+        subject=subject,
+        before={"head": previous_head, "lease": old},
+        after={
+            "tree": target_tree,
+            "commitment_path": f"openspec/changes/{change}/commitment.toml",
+            "commitment_digest": commitment.digest(),
+        },
+    )
     expected = issue_native_effect(
         root,
-        effect=NativeEffect(
-            predicate="effect:openspec-change-start-prepared",
-            operation="openspec.change.start",
-            command=command,
-            subject=subject,
-            before={"head": previous_head, "lease": old},
-            after={
-                "tree": target_tree,
-                "commitment_path": f"openspec/changes/{change}/commitment.toml",
-                "commitment_digest": commitment.digest(),
-            },
-        ),
+        effect=effect,
         state="prepared",
         commitment_digest=commitment.digest(),
         repository_id=repository_id,
@@ -586,7 +584,19 @@ def _prepared_start(
         if not create:
             message = "openspec_change_start_attestation_missing"
             raise ValueError(message)
-        record_attestations(root, (expected,))
+        selected = record_attestation_once(root, expected)
+        if selected != expected:
+            expected = issue_native_effect(
+                root,
+                effect=effect,
+                state="prepared",
+                commitment_digest=commitment.digest(),
+                repository_id=repository_id,
+                issued_at=selected.issued_at,
+            )
+            if selected != expected:
+                message = "openspec_change_start_attestation_collision"
+                raise ValueError(message)
     return old
 
 
@@ -617,6 +627,8 @@ def _prepared_old_generation(
         and {name: value for name, value in old.items() if name not in mutable_coordinates}
         == {name: value for name, value in current.items() if name not in mutable_coordinates}
         and current.get("expected_head") in {previous_head, current_tracked_head(root)}
+        and current.get("expected_tree")
+        == git_stdout(root, "rev-parse", f"{current.get('expected_head')}^{{tree}}")
     )
     if not valid:
         message = "openspec_change_start_attestation_collision"

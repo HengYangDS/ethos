@@ -284,3 +284,37 @@ def record_attestations(
             return {"root": desired, "added": added}
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)
+
+
+def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation:
+    """Select exactly one Attestation for a predicate and subject."""
+    for _attempt in range(_MAX_CAS_ATTEMPTS):
+        observed = _selected_root(repo)
+        current = _validated_members(repo, observed)
+        members = tuple(Attestation.model_validate_json(raw) for raw in current.values())
+        matches = tuple(
+            item
+            for item in members
+            if item.predicate == attestation.predicate and item.subject == attestation.subject
+        )
+        if len(matches) > 1:
+            message = "attestation_set_semantic_collision"
+            raise ValueError(message)
+        if matches:
+            return matches[0]
+        incoming = _canonical_inputs((attestation,))
+        union = current | incoming
+        desired = _root_identity(repo, _write_tree(repo, union), write=True)
+        updated = run_git(
+            repo,
+            "update-ref",
+            "--no-deref",
+            ATTESTATION_SET_REF,
+            desired,
+            observed or _zero_object_id(repo),
+            check=False,
+        )
+        if updated.returncode == 0:
+            return attestation
+    message = "attestation_set_cas_retry_exhausted"
+    raise ValueError(message)

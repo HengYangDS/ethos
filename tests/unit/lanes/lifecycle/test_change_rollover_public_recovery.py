@@ -6,8 +6,12 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
+from ethos.adapters.repo.git_effect_attestation import NativeEffect
+from ethos.adapters.repo.git_effect_attestation import issue_native_effect
+from ethos.adapters.store.state.lease.projection import project_lease
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
+from tests.support.lifecycle_cases import strict_lease
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -18,6 +22,9 @@ if TYPE_CHECKING:
 BRANCH = "work/feature"
 HEAD = "a" * 40
 NEW_HEAD = "b" * 40
+OLD_TREE = "c" * 40
+NEW_TREE = "e" * 40
+HOLDER = "agent:test:case:holder"
 ARCHIVE = "openspec/changes/archive/2026-08-10-finished/commitment.toml"
 CHANGE = "next-change"
 
@@ -25,9 +32,9 @@ CHANGE = "next-change"
 def _lease(**updates: object) -> dict[str, object]:
     lease: dict[str, object] = {
         "lease_state": "valid",
-        "holder_ref": "agent:test",
+        "holder_ref": HOLDER,
         "expected_head": HEAD,
-        "expected_tree": "c" * 40,
+        "expected_tree": OLD_TREE,
         "base_commitment_path": ARCHIVE,
         "lease_id": "lease:1",
         "epoch": 1,
@@ -39,7 +46,7 @@ def _lease(**updates: object) -> dict[str, object]:
 
 
 def _common(monkeypatch: pytest.MonkeyPatch, lease: dict[str, object] | None = None) -> None:
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
+    monkeypatch.setenv("ETHOS_ACTOR", HOLDER)
     monkeypatch.setattr(rollover, "git_stdout", lambda *_args, **_kwargs: BRANCH)
     monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: HEAD)
     monkeypatch.setattr(rollover, "leases_by_branch", lambda _root: {BRANCH: lease or _lease()})
@@ -55,7 +62,19 @@ def _common(monkeypatch: pytest.MonkeyPatch, lease: dict[str, object] | None = N
         "load_repository_commitment",
         lambda *_args, **_kwargs: SimpleNamespace(id="repository:test"),
     )
-    monkeypatch.setattr(rollover, "load_lease_bound_commitment", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        rollover,
+        "load_lease_bound_commitment",
+        lambda *_args, **_kwargs: SimpleNamespace(digest=lambda: "f" * 64),
+    )
+    monkeypatch.setattr(
+        rollover,
+        "load_commitment",
+        lambda *_args, **_kwargs: _change_commitment(),
+    )
+    monkeypatch.setattr(rollover, "record_attestation_once", lambda _root, item: item)
+    monkeypatch.setattr(rollover, "record_attestations", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(rollover, "state_database", lambda root: root / "state.sqlite")
     monkeypatch.setattr(rollover.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
         rollover.openspec_cli,
@@ -89,7 +108,90 @@ def test_change_start_commit_subject_is_conventional(tmp_path: Path) -> None:
 
 
 def _branch_status(_root: Path, *args: str, **_kwargs: object) -> str:
-    return BRANCH if args[:2] == ("branch", "--show-current") else ""
+    if args[:2] == ("branch", "--show-current"):
+        return BRANCH
+    if "--format=%ct" in args:
+        return "1786791600"
+    if args[-1:] == (f"{HEAD}^{{tree}}",):
+        return OLD_TREE
+    if args[-1:] == (f"{NEW_HEAD}^{{tree}}",):
+        return NEW_TREE
+    return ""
+
+
+def _prepare_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    root: Path,
+    lease: dict[str, object],
+    *,
+    target_tree: str = NEW_TREE,
+) -> None:
+    old_model = strict_lease(
+        branch=BRANCH,
+        holder=HOLDER,
+        expected_head=HEAD,
+        expected_tree=OLD_TREE,
+        base_commitment_path=ARCHIVE,
+    )
+    old_lease = project_lease(old_model)
+    current_lease = project_lease(
+        old_model.model_copy(
+            update={
+                "expected_head": str(lease["expected_head"]),
+                "expected_tree": str(lease["expected_tree"]),
+            }
+        )
+    )
+    old = rollover.lease_generation(old_lease)
+    commitment = _change_commitment()
+    effect = NativeEffect(
+        predicate="effect:openspec-change-start-prepared",
+        operation="openspec.change.start",
+        command=("openspec", "new", "change", CHANGE, "--json"),
+        subject={"change": CHANGE, "previous_head": HEAD, "tree": target_tree},
+        before={"head": HEAD, "lease": old},
+        after={
+            "tree": target_tree,
+            "commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
+            "commitment_digest": commitment.digest(),
+        },
+    )
+    witness = issue_native_effect(
+        root,
+        effect=effect,
+        state="prepared",
+        commitment_digest=commitment.digest(),
+        repository_id="repository:test",
+    )
+    _common(monkeypatch, current_lease)
+    monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: NEW_HEAD)
+    monkeypatch.setattr(rollover, "read_attestation_set", lambda _root: ("", (witness,)))
+    monkeypatch.setattr(rollover, "load_commitment", lambda *_args, **_kwargs: commitment)
+    monkeypatch.setattr(
+        rollover,
+        "exact_commitment_fields",
+        lambda *_args, **_kwargs: {
+            "expected_head": NEW_HEAD,
+            "expected_tree": target_tree,
+            "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
+            "base_commitment_bytes_sha256": "a" * 64,
+            "base_commitment_digest": commitment.digest(),
+        },
+    )
+    monkeypatch.setattr(
+        rollover,
+        "run_git",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=HEAD + "\n"),
+    )
+
+
+def _change_commitment() -> SimpleNamespace:
+    return SimpleNamespace(
+        intent="Continue exact governed work.",
+        scope=(f"openspec/changes/{CHANGE}/**", "src/**"),
+        selected_attestations=(),
+        digest=lambda: "e" * 64,
+    )
 
 
 def _recognized_attestation(*, change: str, previous_head: str, head: str) -> Attestation:
@@ -108,22 +210,13 @@ def _recognized_attestation(*, change: str, previous_head: str, head: str) -> At
 def test_start_change_public_recovery_dry_run_and_finish_failure_are_closed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    lease = _lease(expected_head=NEW_HEAD, expected_tree="new-tree")
-    _common(monkeypatch, lease)
-    monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(
-        rollover,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=HEAD + "\n"),
-    )
-    monkeypatch.setattr(rollover, "exact_commitment_fields", lambda *_args, **_kwargs: {})
-
+    lease = _lease(expected_head=NEW_HEAD, expected_tree=NEW_TREE)
+    _prepare_recovery(monkeypatch, tmp_path, lease)
     monkeypatch.setattr(rollover, "git_stdout", _branch_status)
     ready = _start(tmp_path)
-    assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_recover")
+    assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_recover"), ready
 
     monkeypatch.setattr(rollover, "local_state_mutation_guard", lambda _root: {"required_gaps": []})
-    monkeypatch.setattr(rollover, "state_database", lambda _root: tmp_path / "state.sqlite")
     monkeypatch.setattr(
         rollover,
         "rebind_lease_commitment",
@@ -134,18 +227,35 @@ def test_start_change_public_recovery_dry_run_and_finish_failure_are_closed(
     assert failed["state"] == "repair_required"
 
 
+def test_prepared_recovery_rejects_current_lease_tree_not_bound_to_head(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    current = _lease(expected_head=NEW_HEAD, expected_tree="d" * 40)
+    _prepare_recovery(monkeypatch, tmp_path, current, target_tree="f" * 40)
+
+    def observed(_root: Path, *args: str, **_kwargs: object) -> str:
+        if args[:2] == ("branch", "--show-current"):
+            return BRANCH
+        if args[-1:] == (f"{HEAD}^{{tree}}",):
+            return OLD_TREE
+        if args[-1:] == (f"{NEW_HEAD}^{{tree}}",):
+            return "f" * 40
+        return ""
+
+    monkeypatch.setattr(rollover, "git_stdout", observed)
+
+    report = _start(tmp_path)
+
+    assert report["required_gaps"] == ["openspec_change_start_attestation_collision"]
+    assert report["state"] == "repair_required"
+
+
 def test_start_change_recovery_guard_falls_back_to_public_preflight(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    lease = _lease(expected_head=NEW_HEAD, expected_tree="new-tree")
-    _common(monkeypatch, lease)
-    monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(
-        rollover,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=HEAD + "\n"),
-    )
-    monkeypatch.setattr(rollover, "exact_commitment_fields", lambda *_args, **_kwargs: {})
+    lease = _lease(expected_head=NEW_HEAD, expected_tree=NEW_TREE)
+    _prepare_recovery(monkeypatch, tmp_path, lease)
     monkeypatch.setattr(rollover, "git_stdout", _branch_status)
     monkeypatch.setattr(
         rollover,
@@ -354,7 +464,6 @@ def test_start_change_public_reader_recognizes_exact_receipt(
         "work_lane_transition_gaps",
         lambda *_args, **_kwargs: ["not_recoverable"],
     )
-    monkeypatch.setattr(rollover, "load_commitment", lambda *_args, **_kwargs: object())
     monkeypatch.setattr(
         rollover,
         "load_repository_commitment",

@@ -396,3 +396,35 @@ def test_concurrent_attestation_set_writers_recompute_union_after_stale_cas(
     root, members = attestation_set.read_attestation_set(repo)
     assert root in {str(result["root"]) for result in results}
     assert members == tuple(sorted((one, two), key=lambda item: item.id))
+
+
+def test_concurrent_single_winner_attestations_select_one_semantic_witness(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    first = _attestation(7)
+    payload = first.model_dump(mode="python", exclude={"id"})
+    payload["issued_at"] = datetime(2026, 8, 14, 0, 0, 1, tzinfo=UTC)
+    second = Attestation.issue(payload)
+    barrier = Barrier(2)
+    original = attestation_set.run_git
+    synchronized = 0
+
+    def synchronized_update(root: Path, *args: str, **kwargs):
+        nonlocal synchronized
+        if args[:2] == ("update-ref", attestation_set.ATTESTATION_SET_REF) and synchronized < 2:
+            synchronized += 1
+            barrier.wait(timeout=10)
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(attestation_set, "run_git", synchronized_update)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = (
+            executor.submit(attestation_set.record_attestation_once, repo, first),
+            executor.submit(attestation_set.record_attestation_once, repo, second),
+        )
+        selected = tuple(future.result(timeout=20) for future in futures)
+
+    _root, members = attestation_set.read_attestation_set(repo)
+    assert selected[0] == selected[1]
+    assert members == (selected[0],)

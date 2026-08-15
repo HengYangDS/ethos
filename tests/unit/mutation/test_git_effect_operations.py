@@ -6,16 +6,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,7 +31,7 @@ def _cas_plan(repo: Path, old: str, new: str):
         observed_at=datetime(2026, 8, 10, tzinfo=UTC),
         values={"refs": {"refs/heads/dev": old}, "assertions": {}},
     )
-    authority = Commitment(
+    authority = commitment_v2(
         id="authority:test:git-effect",
         intent="Apply exact ref CAS.",
         subjects=(facts.repository,),
@@ -120,8 +121,13 @@ def test_exact_ref_cas_compensates_a_failed_postcondition(
     repository = repo / ".ethos/commitment.toml"
     repository.parent.mkdir(parents=True, exist_ok=True)
     repository.write_text(
-        'schema_version = 1\nid = "repository:repo"\nintent = "Govern."\n'
-        'subjects = ["repository:repo"]\n',
+        tomli_w.dumps(
+            commitment_v2(
+                id="repository:repo",
+                intent="Govern.",
+                subjects=("repository:repo",),
+            ).model_dump(mode="python")
+        ),
         encoding="utf-8",
     )
     git(repo, "add", ".ethos/commitment.toml")

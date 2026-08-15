@@ -15,6 +15,7 @@ import ethos.adapters.admission.evidence.external as evidence
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.rules import stable_digest
+from ethos.contracts.semantic import canonical_json_digest
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -139,7 +140,7 @@ def test_control_subject_and_request_bind_exact_signed_git_state(tmp_path: Path)
     assert before["control_digest"] != after["control_digest"]
     assert after["proof"] == {
         "attestation": proof.id,
-        "statement": proof.statement_digest,
+        "statement": canonical_json_digest(proof.payload.body),
         "plan": proof.plan_digest,
     }
     request = cast("dict[str, object]", report["verification_request"])

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+from collections.abc import Mapping
 
 
 def string_list(value: object, *, drop_empty: bool = False) -> list[str]:
@@ -30,7 +31,7 @@ def object_sequence(value: object) -> list[object]:
 
 def string_mapping(value: object) -> dict[str, object]:
     """Return a string-keyed mapping projection, or an empty mapping otherwise."""
-    if not isinstance(value, dict):
+    if not isinstance(value, Mapping):
         return {}
     return {str(key): item for key, item in value.items()}
 

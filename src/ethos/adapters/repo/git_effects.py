@@ -31,6 +31,8 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 
+_COMMIT_TRANSITION_ENVIRONMENT = frozenset({"ETHOS_ARCHIVE_TRANSITION"})
+
 if TYPE_CHECKING:
     from typing import Any
 
@@ -95,6 +97,12 @@ def commit_git_worktree(
     if current_tracked_head(root) != previous:
         message = "git_effect_head_stale"
         raise ValueError(message)
+    if hook_gaps := hook_runtime_binding(root)["required_gaps"]:
+        raise ValueError(str(hook_gaps[0]))
+    environment_keys = frozenset(environment or ())
+    if not environment_keys <= _COMMIT_TRANSITION_ENVIRONMENT:
+        message = "git_effect_commit_environment_forbidden"
+        raise ValueError(message)
     admission = validate_commit_message_text(root, message)
     if admission["verdict"] != "pass":
         gap = str(admission["required_gaps"][0])
@@ -111,6 +119,32 @@ def commit_git_worktree(
         "verdict": "pass" if completed.returncode == 0 else "block",
         "error": completed.stderr.strip(),
     }
+
+
+def create_git_commit(
+    root: Path,
+    *,
+    tree: str,
+    parent: str,
+    message: str,
+    sign: bool = False,
+    environment: Mapping[str, str] | None = None,
+    runner: Callable[..., Any] = run_git,
+) -> Any:
+    """Create one commit object through the sole Git mutation owner."""
+    commit_environment_binding = commit_environment(root, environment) if sign else environment
+    return runner(
+        root,
+        "commit-tree",
+        *(("-S",) if sign else ()),
+        tree,
+        "-p",
+        parent,
+        "-m",
+        message,
+        check=False,
+        env=commit_environment_binding,
+    )
 
 
 def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") -> None:
@@ -373,6 +407,10 @@ def _admit_git_effect(
         observed,
         environment=environment,
         allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
+        prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
+        prestate_repository_bytes_sha256=str(
+            plan.policy.get("prestate_repository_bytes_sha256") or ""
+        ),
     )
     if refs != expected:
         message = "git_effect_cas_mismatch"

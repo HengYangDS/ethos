@@ -77,10 +77,10 @@ import tests.support.governed_repository as fixture
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.profile import completed_active_changes_report
-from ethos.contracts.semantic import Commitment
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import official_config_report
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.semantic import commitment_v2
 
 ROOT = Path(__file__).resolve().parents[3]
 MATRIX, _ = json.JSONDecoder().raw_decode(__doc__[__doc__.index("{") :])
@@ -170,7 +170,7 @@ def test_package_intent_claim_matrix(tmp_path):
     _write(spec, "## ADDED Requirements\n\n### Requirement: Portable result\n")
     _, gaps = compile_intent_context(
         tmp_path,
-        commitment=Commitment(
+        commitment=commitment_v2(
             id="change:example", intent="Prove portable results.", subjects=("repository:example",)
         ),
         config={},
@@ -200,7 +200,7 @@ def test_package_intent_accepts_prettier_aligned_traceability_table(tmp_path):
 
     context, gaps = compile_intent_context(
         tmp_path,
-        commitment=Commitment(
+        commitment=commitment_v2(
             id="change:example", intent="Prove portable results.", subjects=("repository:example",)
         ),
         config={},
@@ -246,7 +246,7 @@ def test_package_intent_expands_capability_traceability_to_coarse_task(tmp_path)
 
     context, gaps = compile_intent_context(
         tmp_path,
-        commitment=Commitment(
+        commitment=commitment_v2(
             id="change:example", intent="Prove portable results.", subjects=("repository:example",)
         ),
         config={},
@@ -373,7 +373,7 @@ def test_adopter_lifecycle_claim_matrix(monkeypatch, tmp_path):
     )
 
 
-def test_adopter_plan_claim_matrix(tmp_path):
+def test_adopter_plan_claim_matrix_rejects_legacy_commitment_carrier(tmp_path):
     repo = _repo(tmp_path)
     data = run_ethos("plan", "--root", repo.as_posix(), "--json")["data"]
     assert ("transition_plan" in data, "workflow_runtime" in data, "domain_contracts" in data) == (
@@ -399,4 +399,4 @@ def test_adopter_plan_claim_matrix(tmp_path):
     fixture.git(repo, "commit", "-m", "select foreign contract")
     blocked = run_ethos("plan", "--change", "foreign", "--root", repo.as_posix(), "--json")
     assert (blocked["verdict"], blocked["state"]) == ("block", "gapped")
-    assert "repository_subject_mismatch" in blocked["required_gaps"]
+    assert "commitment_invalid:governance/commitment.toml" in blocked["required_gaps"]

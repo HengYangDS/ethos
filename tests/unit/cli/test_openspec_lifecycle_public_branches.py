@@ -13,9 +13,12 @@ import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.archive_binding as binding
 import ethos.adapters.openspec.lifecycle.archive_transition as transition
 import ethos.adapters.openspec.lifecycle.report as report
-from ethos.contracts.semantic import Commitment
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
+from tests.support.semantic import commitment_v2
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import Commitment
 
 
 def _completed(name: str = "change") -> dict[str, object]:
@@ -27,7 +30,7 @@ def _result(*, returncode: int = 0, stdout: str = "") -> SimpleNamespace:
 
 
 def _commitment(scope: tuple[str, ...] = ("openspec/changes/change/**",)) -> Commitment:
-    return Commitment(
+    return commitment_v2(
         id="change:change", intent="Archive exactly.", subjects=("repository:test",), scope=scope
     )
 

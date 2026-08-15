@@ -1,12 +1,6 @@
 """Shared pytest fixtures for the ETHOS test suite.
 
-Some in-process CLI tests run `ethos prove --execute`, which persists a generic
-content-addressed proof Attestation under local `.ethos/state/attestations/`. A
-single shared test store races under xdist, so this autouse fixture points each
-worker at its own ignored Attestation store and clears only that worker-owned
-store around each test.
-
-A second autouse fixture gives the suite a HERMETIC git identity: many tests shell out
+The autouse Git fixture gives the suite a HERMETIC identity: many tests shell out
 to `git commit` in throwaway repos, which fails when the runner has no global
 user.name/user.email (the case in CI's clean container — the dominant cause of
 "passes locally, red in CI"). Binding GIT_AUTHOR_*/GIT_COMMITTER_* per test makes
@@ -25,7 +19,6 @@ monitor.
 from __future__ import annotations
 
 import os
-import shutil
 from pathlib import Path
 
 import pytest
@@ -34,17 +27,11 @@ from hypothesis.configuration import set_hypothesis_home_dir
 from tests.support.hook_runtime_cache import install_session_hook_runtime_cache
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
 set_hypothesis_home_dir(
     _REPO_ROOT
     / "build/runtime/tool-cache/hypothesis"
     / os.environ.get("PYTEST_XDIST_WORKER", "local")
 )
-
-
-def _worker_attestation_dir() -> Path:
-    worker = os.environ.get("PYTEST_XDIST_WORKER", "local")
-    return Path(".ethos") / "state" / f"attestations-{worker}"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -59,17 +46,6 @@ def _cache_immutable_hook_runtime(tmp_path_factory: pytest.TempPathFactory) -> o
             tmp_path_factory.mktemp("ethos-hook-runtime-cache"),
         )
         yield
-
-
-@pytest.fixture(autouse=True)
-def _isolate_attestations(monkeypatch: pytest.MonkeyPatch) -> object:
-    store = _worker_attestation_dir()
-    monkeypatch.setenv(_TEST_ATTESTATION_STATE_DIR_ENV, store.as_posix())
-    if store.exists():
-        shutil.rmtree(store)
-    yield
-    if store.exists():
-        shutil.rmtree(store)
 
 
 @pytest.fixture(autouse=True)

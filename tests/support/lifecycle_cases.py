@@ -138,23 +138,19 @@ def tamper_attestation(
     if location == "attestation":
         payload[field] = replacement
     else:
-        statement = payload["statement"]
-        assert isinstance(statement, dict)
-        target = statement if location == "statement" else statement[location]
+        envelope = payload["payload"]
+        assert isinstance(envelope, dict)
+        body = envelope["body"]
+        assert isinstance(body, dict)
+        target = body if location == "statement" else body[location]
         assert isinstance(target, dict)
         target[field] = replacement
-    payload.update(statement_digest="0" * 64, id="0" * 64)
+    payload["id"] = "0" * 64
     payload["issued_at"] = datetime.fromisoformat(str(payload["issued_at"]))
     payload["valid_from"] = datetime.fromisoformat(str(payload["valid_from"]))
     payload["advisories"] = tuple(payload["advisories"])
     payload["evidence_refs"] = tuple(payload["evidence_refs"])
-    return Attestation.issue(
-        {
-            name: value
-            for name, value in payload.items()
-            if name not in {"schema_version", "id", "statement_digest"}
-        }
-    )
+    return Attestation.issue({name: value for name, value in payload.items() if name != "id"})
 
 
 def strict_lease(

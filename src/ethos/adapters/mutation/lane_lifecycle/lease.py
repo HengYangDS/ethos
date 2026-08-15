@@ -12,9 +12,8 @@ from typing import Any
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
-from ethos.adapters.mutation.proof_artifacts import persist_attestation
-from ethos.adapters.mutation.proof_artifacts import scan_attestations
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
 from ethos.adapters.repo.git import current_head
@@ -35,10 +34,11 @@ from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.coordination import lease_operation
-from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Attestation
 
 
 def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> dict[str, object]:
@@ -235,15 +235,10 @@ def execute_lease_takeover(*, root: Path, request: LeaseTakeoverRequest) -> dict
                 state="applied",
                 commitment_digest=str(observed.get("base_commitment_digest") or ""),
                 repository_id=repository.id,
+                issued_at=datetime.fromisoformat(str(lease["renewed_at"])),
             )
-            attestations, store_gaps = scan_attestations(attestation_store_dir(repo))
-            if store_gaps:
-                raise ValueError(store_gaps[0])
-            attestation = next(
-                (item for item in attestations if item.effect_digest == candidate.effect_digest),
-                candidate,
-            )
-            persist_attestation(repo, attestation)
+            record_attestations(repo, (candidate,))
+            attestation = candidate
     state = (
         "taken_over"
         if verdict == "pass" and request.apply
@@ -341,10 +336,10 @@ def _takeover_authorization_gaps(
     repo: Path, request: LeaseTakeoverRequest, observed: dict[str, object]
 ) -> tuple[str, ...]:
     authorization = request.authorization
-    path = attestation_store_dir(repo) / f"{authorization.id}.json"
     try:
-        accepted = Attestation.model_validate_json(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        _root, attestations = read_attestation_set(repo)
+        accepted = next((item for item in attestations if item.id == authorization.id), None)
+    except ValueError:
         accepted = None
     now = datetime.now(UTC)
     checks = (
@@ -368,7 +363,7 @@ def _takeover_authorization_gaps(
             "lease_takeover_authorization_stale",
         ),
         (
-            authorization.statement.get("authorization") == _takeover_authorized_state(request),
+            authorization.payload.body.get("authorization") == _takeover_authorized_state(request),
             "lease_takeover_authorization_drift",
         ),
     )

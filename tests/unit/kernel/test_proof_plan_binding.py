@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
@@ -7,18 +8,21 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.openspec.profile as openspec_profile
-from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import former_official_statement_projection
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
@@ -35,6 +39,7 @@ from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_script_gate_policy
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -69,14 +74,19 @@ def _issue(
 
 
 def _reissue(record: Attestation, **updates: object) -> Attestation:
-    payload = record.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+    body = updates.pop("body", None)
+    payload = record.model_dump(mode="python", exclude={"id"})
+    if body is not None:
+        payload["payload"] = {"kind": record.payload.kind, "body": body}
     return Attestation.issue(payload | updates)
 
 
-def _store(root: Path, record: Attestation) -> None:
-    store = attestation_store_dir(root)
+def _store(root: Path, record: Attestation, *, selected: bool = True) -> None:
+    store = proof_artifact_root(root)
     store.mkdir(parents=True, exist_ok=True)
     (store / f"{record.id}.json").write_text(record.canonical_json(), encoding="utf-8")
+    if selected:
+        record_attestations(root, (record,))
 
 
 def _assert_proof(
@@ -93,7 +103,12 @@ def test_work_lane_proof_plan_uses_the_current_active_commitment(
     root = start_adopted_work_lane(tmp_path, holder_ref=holder).worktree
     lease = proof_module.leases_by_branch(root)["work/feature"]
     carrier = root / str(lease["base_commitment_path"])
-    carrier.write_text(carrier.read_text() + 'acceptance=["current"]\n')
+    current = Commitment.model_validate(tomllib.loads(carrier.read_text()))
+    carrier.write_text(
+        tomli_w.dumps(
+            current.model_copy(update={"acceptance": ("current",)}).model_dump(mode="python")
+        )
+    )
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     plan = proof_plan(root, head=git(root, "rev-parse", "HEAD"))
     dated = Commitment.model_validate(plan.commitment | {"id": "change:20260809-proof-binding"})
@@ -105,8 +120,9 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     repo, head = _adopted_repo(tmp_path / "repo")
     plan = proof_plan(repo, head=head)
     record = _issue(repo, head)
-    path = persist_proof_attestation(repo, record)
-    assert path.read_text() == record.canonical_json()
+    selected = persist_proof_attestation(repo, record)
+    assert selected["root"]
+    assert read_attestation_set(repo)[1] == (record,)
     assert record.predicate == "proof:execution"
     assert record.subject == f"git:commit:{head}"
     assert record.verdict == "pass"
@@ -114,13 +130,13 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert record.facts_digest == plan.inputs.facts
     assert record.plan_digest == plan.digest
     assert record.policy_digest == plan.inputs.policy
-    artifact = record.statement["artifact"]
+    artifact = record.payload.body["artifact"]
     assert isinstance(artifact, Mapping)
     digest = str(artifact["sha256"]).removeprefix("sha256:")
     assert record.effect_digest == plan.inputs.effect != digest
     assert record.evidence_refs == (f"sha256:{digest}",)
-    assert mutable_json(record.statement["plan"]) == plan.model_dump(mode="json")
-    assert set(record.statement) == {
+    assert mutable_json(record.payload.body["plan"]) == plan.model_dump(mode="json")
+    assert set(record.payload.body) == {
         "artifact",
         "boundary",
         "claim",
@@ -144,7 +160,7 @@ def test_proof_predicate_evidence_drift_fails_closed(
 ) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     valid = _issue(repo, head)
-    _store(repo, _reissue(valid, statement=valid.statement | {field: value}))
+    _store(repo, _reissue(valid, body=valid.payload.body | {field: value}))
     _assert_proof(repo, head, gap=gap)
 
 
@@ -164,24 +180,37 @@ def test_proof_envelope_binding_drift_fails_closed(
     _assert_proof(repo, head, gap=gap)
 
 
+def test_unknown_proof_payload_kind_cannot_authorize(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    valid = _issue(repo, head)
+    payload = valid.model_dump(mode="python", exclude={"id"})
+    payload["payload"] = {
+        "kind": "proof:future-execution",
+        "body": valid.payload.body,
+    }
+    _store(repo, Attestation.issue(payload))
+
+    _assert_proof(repo, head, gap="proof_attestation_payload_kind_invalid")
+
+
 @pytest.mark.parametrize("case", ["descriptor", "digest"])
 def test_proof_artifact_binding_drift_fails_closed(tmp_path: Path, case: str) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     valid = _issue(repo, head)
     persist_proof_attestation(repo, valid)
-    descriptor = valid.statement["artifact"]
+    descriptor = valid.payload.body["artifact"]
     assert isinstance(descriptor, Mapping)
     if case == "descriptor":
         forged = _reissue(
             valid,
-            statement=valid.statement
+            body=valid.payload.body
             | {"artifact": descriptor | {"media_type": "text/plain", "extra": "unbound"}},
         )
-        assert artifact_checks(attestation_store_dir(repo), forged)[1] == [
+        assert artifact_checks(proof_artifact_root(repo), forged)[1] == [
             "proof_attestation_artifact_binding_mismatch"
         ]
     else:
-        (attestation_store_dir(repo) / str(descriptor["path"])).write_text("tampered")
+        (proof_artifact_root(repo) / str(descriptor["path"])).write_text("tampered")
         _assert_proof(repo, head, gap="proof_attestation_artifact_digest_mismatch")
 
 
@@ -332,10 +361,10 @@ def test_proof_statement_shape_validation_matrix(
 ) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     record = _issue(repo, head)
-    checks, artifact_gaps = artifact_checks(attestation_store_dir(repo), record)
+    checks, artifact_gaps = artifact_checks(proof_artifact_root(repo), record)
     assert checks is not None
     assert not artifact_gaps
-    candidate = _reissue(record, statement=record.statement | {field: value})
+    candidate = _reissue(record, body=record.payload.body | {field: value})
 
     assert gap in proof_statement_gaps(candidate, checks)
 
@@ -356,7 +385,7 @@ def test_proof_result_and_policy_validation_matrix(
 ) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     record = _issue(repo, head)
-    checks, artifact_gaps = artifact_checks(attestation_store_dir(repo), record)
+    checks, artifact_gaps = artifact_checks(proof_artifact_root(repo), record)
     assert checks is not None
     assert not artifact_gaps
     candidate = _reissue(record, plan_digest="0" * 64) if case == "binding" else record
@@ -374,13 +403,13 @@ def test_proof_result_and_policy_validation_matrix(
 def test_former_official_proof_projection_is_exact_or_rejected(tmp_path: Path) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     record = _issue(repo, head)
-    checks, artifact_gaps = artifact_checks(attestation_store_dir(repo), record)
+    checks, artifact_gaps = artifact_checks(proof_artifact_root(repo), record)
     assert checks is not None
     assert not artifact_gaps
-    plan = TransitionPlan.model_validate(mutable_json(record.statement["plan"]))
-    statement = dict(record.statement) | former_official_statement_projection(record, plan)
+    plan = TransitionPlan.model_validate(mutable_json(record.payload.body["plan"]))
+    statement = dict(record.payload.body) | former_official_statement_projection(record, plan)
     statement["head"] = "0" * 40
-    candidate = _reissue(record, statement=statement)
+    candidate = _reissue(record, body=statement)
 
     assert "proof_attestation_former_projection_mismatch:head" in proof_statement_gaps(
         candidate, checks
@@ -417,7 +446,7 @@ def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, g
             plan_digest=forged.digest,
             policy_digest=forged.inputs.policy,
             effect_digest=forged.inputs.effect,
-            statement=valid.statement | {"plan": forged.model_dump(mode="json")},
+            body=valid.payload.body | {"plan": forged.model_dump(mode="json")},
         ),
     )
     _assert_proof(repo, head, gap=gap)
@@ -428,8 +457,10 @@ def test_persistence_identity_and_self_contained_closure(
 ) -> None:
     repo, head = _adopted_repo(tmp_path / "repo")
     record = _issue(repo, head)
-    path = persist_proof_attestation(repo, record)
-    assert persist_proof_attestation(repo, record) == path
+    selected = persist_proof_attestation(repo, record)
+    repeated = persist_proof_attestation(repo, record)
+    assert repeated["root"] == selected["root"]
+    assert repeated["added"] == ()
     monkeypatch.setattr(
         proof_module,
         "load_profile_commitment",
@@ -441,22 +472,67 @@ def test_persistence_identity_and_self_contained_closure(
         lambda *_a, **_k: (_ for _ in ()).throw(AssertionError()),
     )
     _assert_proof(repo, head, selected=record)
-    path.write_text("{}")
-    with pytest.raises(ValueError, match="attestation_identity_collision"):
-        persist_proof_attestation(repo, record)
+
+
+def test_local_only_proof_outside_selected_attestation_set_is_ignored(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _issue(repo, head)
+    _store(repo, record, selected=False)
+
+    _assert_proof(repo, head, gap="proof_not_proven")
+
+
+def test_selected_attestation_member_with_exact_local_artifact_can_authorize(
+    tmp_path: Path,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _issue(repo, head)
+    selected = persist_proof_attestation(repo, record)
+
+    root, members = read_attestation_set(repo)
+
+    assert root == selected["root"]
+    assert members == (record,)
+    _assert_proof(repo, head, selected=record)
+
+
+def test_selected_attestation_membership_without_exact_local_artifact_cannot_authorize(
+    tmp_path: Path,
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _issue(repo, head)
+    record_attestations(repo, (record,))
+    artifact = record.payload.body["artifact"]
+    assert isinstance(artifact, Mapping)
+    (proof_artifact_root(repo) / str(artifact["path"])).unlink()
+
+    _assert_proof(repo, head, gap="proof_attestation_artifact_missing")
 
 
 def test_repository_admission_prefers_full_proof(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_script_gate_policy(repo, full=True)
     (repo / ".ethos/commitment.toml").write_text(
-        'schema_version=1\nid="repository:repo"\nintent="govern"\n'
-        'subjects=["repository:repo"]\nscope=["**"]\n'
+        tomli_w.dumps(
+            commitment_v2(
+                id="repository:repo",
+                intent="govern",
+                subjects=("repository:repo",),
+                scope=("**",),
+            ).model_dump(mode="python")
+        )
     )
     commitment = repo / "openspec/changes/proof-binding"
     commitment.mkdir(parents=True)
     (commitment / "commitment.toml").write_text(
-        'schema_version=1\nid="change:proof-binding"\nintent="proof"\nsubjects=["repository:self"]\nscope=["**"]\n'
+        tomli_w.dumps(
+            commitment_v2(
+                id="change:proof-binding",
+                intent="proof",
+                subjects=("repository:repo",),
+                scope=("**",),
+            ).model_dump(mode="python")
+        )
     )
     head = commit_fixture(repo, "full floor")
     default = _issue(repo, head)
@@ -483,7 +559,7 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(tmp_p
     conflict = _reissue(
         first,
         verifier="agent:test:case:conflict",
-        statement=first.statement | {"claim": {"objective": "conflict", "verdict": "pass"}},
+        body=first.payload.body | {"claim": {"objective": "conflict", "verdict": "pass"}},
     )
     persist_proof_attestation(repo, conflict)
     _assert_proof(repo, head, gap="contradiction")
@@ -548,9 +624,9 @@ def test_expired_or_other_query_proofs_do_not_pollute_current_authority(
             issued_at=issued,
             valid_from=issued,
             valid_until=issued + timedelta(minutes=1),
-            **({"statement": current.statement | {"novel_semantics": True}} if novel else {}),
+            **({"body": current.payload.body | {"novel_semantics": True}} if novel else {}),
         ),
     )
     _assert_proof(repo, head, selected=current)
-    _store(repo, _reissue(current, statement=current.statement | {"scope": ("workspace",)}))
+    _store(repo, _reissue(current, body=current.payload.body | {"scope": ("workspace",)}))
     _assert_proof(repo, head, selected=current)

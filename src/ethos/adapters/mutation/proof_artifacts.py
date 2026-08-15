@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
-from ethos.contracts.semantic import Attestation
 from ethos.repository.policy.gates import canonical_gate_command
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import Attestation
 
 _ARTIFACT_SUBDIR = Path("artifacts")
 _HEX = frozenset("0123456789abcdef")
@@ -22,33 +24,13 @@ _ARTIFACT_CONTENT_MISMATCH = "proof_attestation_artifact_content_mismatch"
 _ARTIFACT_INVALID = "proof_attestation_artifact_invalid"
 _CHECK_INVALID = "proof_attestation_check_invalid"
 _CHECKS_REQUIRED = "proof_attestation_checks_required"
-_DEFAULT_ATTESTATION_DIR = Path(".ethos") / "state" / "attestations"
-_TEST_ATTESTATION_STATE_DIR_ENV = "ETHOS_TEST_ATTESTATION_STATE_DIR"
+_DEFAULT_PROOF_ARTIFACT_ROOT = Path(".ethos") / "state"
 
 
-def attestation_store_dir(root: Path) -> Path:
-    """Return the one ignored content-addressed local Attestation store."""
-    override = os.environ.get(_TEST_ATTESTATION_STATE_DIR_ENV, "").strip()
-    pytest_active = os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYTEST_XDIST_WORKER")
-    if override and pytest_active:
-        path = Path(override).expanduser()
-        if path.is_absolute():
-            return path
-        common = git_common_dir(root)
-        return (Path(common) if common else root) / path
+def proof_artifact_root(root: Path) -> Path:
+    """Return the ignored root containing only digest-bound proof artifacts."""
     common = git_common_dir(root)
-    return local_state_root(root) / "attestations" if common else root / _DEFAULT_ATTESTATION_DIR
-
-
-def persist_attestation(root: Path, attestation: Attestation) -> Path:
-    """Persist one validated Attestation in the sole local Attestation store."""
-    payload = attestation.canonical_json().encode("utf-8")
-    Attestation.model_validate_json(payload)
-    return write_content_addressed(
-        attestation_store_dir(root) / f"{attestation.id}.json",
-        payload,
-        collision="attestation_identity_collision",
-    )
+    return local_state_root(root) if common else root / _DEFAULT_PROOF_ARTIFACT_ROOT
 
 
 def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]:
@@ -144,33 +126,11 @@ def write_proof_artifact(
     }
 
 
-def scan_attestations(store: Path) -> tuple[tuple[Attestation, ...], list[str]]:
-    """Load all valid content-addressed Attestations from one local store."""
-    if not store.is_dir():
-        return (), []
-    attestations: list[Attestation] = []
-    gaps: list[str] = []
-    for path in sorted(item for item in store.iterdir() if item.is_file()):
-        if not _is_identity_name(path):
-            gaps.append(f"attestation_store_filename_invalid:{path.name}")
-            continue
-        try:
-            attestation = Attestation.model_validate_json(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, ValueError):
-            gaps.append(f"attestation_store_invalid:{path.name}")
-            continue
-        if attestation.id != path.stem:
-            gaps.append(f"attestation_store_identity_mismatch:{path.name}")
-            continue
-        attestations.append(attestation)
-    return tuple(attestations), gaps
-
-
 def artifact_checks(
     store: Path, attestation: Attestation
 ) -> tuple[tuple[dict[str, Any], ...] | None, list[str]]:
     """Load checks only when the Attestation binds their immutable artifact."""
-    artifact = attestation.statement.get("artifact")
+    artifact = attestation.payload.body.get("artifact")
     gap = ""
     payload = b""
     if not isinstance(artifact, Mapping):
@@ -204,18 +164,10 @@ def artifact_checks(
     if gap:
         return None, [gap]
     try:
-        plan = attestation.statement.get("plan")
+        plan = attestation.payload.body.get("plan")
         facts = plan.get("facts") if isinstance(plan, Mapping) else None
         head = facts.get("head") if isinstance(facts, Mapping) else None
         checks = _decode_artifact(payload, head)
     except (TypeError, ValueError) as error:
         return None, [str(error)]
     return checks, []
-
-
-def _is_identity_name(path: Path) -> bool:
-    return (
-        path.suffix == ".json"
-        and len(path.stem) == _SHA256_HEX_LENGTH
-        and not (set(path.stem) - _HEX)
-    )

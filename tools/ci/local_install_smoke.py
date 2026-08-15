@@ -107,7 +107,68 @@ def _single_wheel() -> Path:
     return wheels[0]
 
 
-def _initialize_adopter(root: Path) -> str:
+def _toml_string_assignment(key: str, value: str) -> str:
+    return f"{key} = {json.dumps(value)}\n"
+
+
+def _toml_string_array(key: str, values: tuple[str, ...]) -> str:
+    return f"{key} = [\n" + "".join(f"    {json.dumps(value)},\n" for value in values) + "]\n"
+
+
+def _commitment_carrier_from_packaged_vector(
+    wheel: Path,
+    python: Path,
+    *,
+    id: str,  # noqa: A002 - mirrors the semantic contract field
+    intent: str,
+    subjects: tuple[str, ...],
+    scope: tuple[str, ...],
+) -> str:
+    vector = json.loads(
+        _run(
+            str(python),
+            "-I",
+            "-c",
+            "import importlib.resources,sys; "
+            "sys.path.insert(0, sys.argv[1]); "
+            "print(importlib.resources.files('ethos').joinpath("
+            "'data/semantic-v2/vectors.json').read_text())",
+            str(wheel),
+        )
+    )
+    template = vector["commitment"]["carrier_toml"]
+    payload = tomllib.loads(template)
+    replacements = {
+        "id": _toml_string_assignment("id", id),
+        "intent": _toml_string_assignment("intent", intent),
+        "subjects": _toml_string_array("subjects", subjects),
+        "scope": _toml_string_array("scope", scope),
+    }
+    for key, value in payload.items():
+        if (
+            key not in replacements
+            and isinstance(value, list)
+            and all(isinstance(item, str) for item in value)
+        ):
+            replacements[key] = _toml_string_array(key, ())
+    for key, replacement in replacements.items():
+        value = payload[key]
+        expected = (
+            _toml_string_array(key, tuple(value))
+            if isinstance(value, list)
+            else _toml_string_assignment(key, value)
+        )
+        if expected not in template:
+            message = f"packaged semantic-v2 vector has no {key} carrier field"
+            raise RuntimeError(message)
+        template = template.replace(expected, replacement, 1)
+    if "\n[[dependencies]]" not in template:
+        message = "packaged semantic-v2 vector has no structured commitment fields"
+        raise RuntimeError(message)
+    return template
+
+
+def _initialize_adopter(root: Path, wheel: Path, python: Path) -> str:
     git = _executable("git")
     _run(git, "init", "--quiet", "--initial-branch=dev", str(root))
     _run(git, "config", "user.name", "ETHOS Install Smoke", cwd=root)
@@ -124,13 +185,14 @@ material_paths = ["**"]
         encoding="utf-8",
     )
     (root / ".ethos/commitment.toml").write_text(
-        """schema_version = 1
-id = "repository:installed-cli-adopter"
-intent = "Govern the installed CLI adopter."
-subjects = ["repository:installed-cli-adopter"]
-scope = ["**"]
-permissions = ["repository.read", "git.ref.compare-and-swap", "terminal-publication.execute"]
-""",
+        _commitment_carrier_from_packaged_vector(
+            wheel,
+            python,
+            id="repository:installed-cli-adopter",
+            intent="Govern the installed CLI adopter.",
+            subjects=("repository:installed-cli-adopter",),
+            scope=("**",),
+        ),
         encoding="utf-8",
     )
     dev = root / "dev"
@@ -155,13 +217,14 @@ capabilities = ["repository", "publication"]
     )
     shutil.copy2(ROOT / "openspec/config.yaml", root / "openspec/config.yaml")
     (change / "commitment.toml").write_text(
-        """schema_version = 1
-id = "change:smoke-change"
-intent = "Exercise installed CLI repository binding."
-subjects = ["repository:self"]
-scope = ["README.md"]
-permissions = ["repository.read", "work-lane.write", "git.ref.compare-and-swap"]
-""",
+        _commitment_carrier_from_packaged_vector(
+            wheel,
+            python,
+            id="change:smoke-change",
+            intent="Exercise installed CLI repository binding.",
+            subjects=("repository:installed-cli-adopter",),
+            scope=("README.md",),
+        ),
         encoding="utf-8",
     )
     (root / "README.md").write_text("# installed CLI adopter\n", encoding="utf-8")
@@ -393,13 +456,17 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
         str(python),
         "-I",
         "-c",
-        "import json,sys; from ethos.contracts.semantic import Commitment; "
+        "import importlib.resources,json,sys,tempfile; from pathlib import Path; "
+        "from ethos.contracts.semantic import load_commitment_file; "
         "from ethos.result import EthosResult; "
         "result=EthosResult.from_payload(json.loads(sys.argv[1])); "
         "assert result.command=='status' and result.verdict in {'pass','block','unknown'}; "
-        "print(Commitment(id='change:conformance', "
-        "intent='Prove the installed Python SDK boundary.', "
-        "subjects=('repository:self',), scope=('README.md',)).digest())",
+        "vectors=json.loads(importlib.resources.files('ethos').joinpath("
+        "'data/semantic-v2/vectors.json').read_text()); "
+        "carrier=Path(tempfile.mkdtemp())/'commitment.toml'; "
+        "carrier.write_text(vectors['commitment']['carrier_toml']); "
+        "commitment=load_commitment_file(carrier); "
+        " print(commitment.digest())",
         status_json,
         cwd=adopter,
     )
@@ -439,7 +506,7 @@ def run(session: nox.Session) -> None:
         str(_venv_executable(smoke, "python")),
         str(wheel),
     )
-    adopter_head = _initialize_adopter(adopter)
+    adopter_head = _initialize_adopter(adopter, wheel, _venv_executable(smoke, "python"))
     line_endings = _line_ending_conformance(adopter)
     origin, version, sdk_digest = _installed_cli_checks(smoke, adopter, adopter_head)
     independent_host = _independent_cli_checks(_venv_executable(smoke, "ethos"), adopter)

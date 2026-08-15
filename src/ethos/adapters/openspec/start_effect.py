@@ -6,12 +6,11 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
-from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
-from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.openspec.generation.attestation import archive_effect_authority
 from ethos.adapters.openspec.generation.attestation import start_effect_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
@@ -248,7 +247,8 @@ def _effect_authorities(
 ) -> tuple[tuple[JsonObject, ...], tuple[JsonObject, ...]]:
     start: list[JsonObject] = []
     archive: list[JsonObject] = []
-    for attestation in scan_attestations(attestation_store_dir(root))[0]:
+    _selected_root, attestations = read_attestation_set(root)
+    for attestation in attestations:
         if attestation.predicate == "effect:openspec-change-start":
             projection = start_effect_authority(
                 root, attestation, head, repository_id, commitment, lease

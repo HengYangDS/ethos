@@ -6,6 +6,7 @@ import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
@@ -59,7 +60,8 @@ def require_plan_prestate(
     )
     head = str(plan.facts.get("head") or "")
     current = current_tracked_head(root)
-    if plan.policy.get("operation") == "lane.start.compensate":
+    operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
+    if operation == "lane.start.compensate":
         if head not in {update.expected for update in effect.updates.values()}:
             message = "git_effect_plan_prestate_stale"
             raise ValueError(message)
@@ -91,6 +93,7 @@ def require_live_lease(
     stable = ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
     recovery_match = recovering and all(generation.get(key) == live.get(key) for key in stable)
     successor = facts.get("lease_successor")
+    operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     if isinstance(successor, Mapping):
         recovery_match = (
             recovery_match
@@ -106,14 +109,17 @@ def require_live_lease(
             and live.get("expected_head")
             in {generation.get("expected_head"), plan.facts.get("head")}
         )
+    binding_valid = current.get("commitment_binding") == "bound" or (
+        operation == "v1-to-v2-bootstrap"
+        and _bootstrap_lease_binding(root, plan, current, environment=environment)
+    )
     if (
         current.get("lease_state") != "valid"
-        or current.get("commitment_binding") != "bound"
+        or not binding_valid
         or not (mutable_json(generation) == mutable_json(live) or recovery_match)
     ):
         message = "git_effect_lease_generation_stale"
         raise ValueError(message)
-    operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     actor = (
         str(plan.policy.get("holder_ref") or "")
         if operation.startswith("lane.start")
@@ -136,3 +142,40 @@ def require_live_lease(
         ):
             message = "git_effect_lease_branch_mismatch"
             raise ValueError(message)
+
+
+def _bootstrap_lease_binding(
+    root: Path,
+    plan: TransitionPlan,
+    lease: dict[str, object],
+    *,
+    environment: Mapping[str, str] | None,
+) -> bool:
+    """Verify one exact terminal-v1 Lease selected by a bootstrap plan."""
+    try:
+        lane = terminal_v1_binding(
+            root,
+            tree_ref=str(lease.get("expected_head") or ""),
+            carrier=str(lease.get("base_commitment_path") or ""),
+            repository=False,
+            environment=dict(environment or {}),
+        )
+        repository = terminal_v1_binding(
+            root,
+            tree_ref=str(lease.get("expected_head") or ""),
+            carrier=".ethos/commitment.toml",
+            repository=True,
+            environment=dict(environment or {}),
+        )
+        commitment = mutable_json(plan.commitment)
+    except (TypeError, ValueError):
+        return False
+    return bool(
+        isinstance(commitment, dict)
+        and lane["id"] == commitment.get("id")
+        and lane["subjects"] == (repository["id"],)
+        and lane["bytes_sha256"] == lease.get("base_commitment_bytes_sha256")
+        and repository["id"] == plan.policy.get("prestate_repository_id")
+        and repository["bytes_sha256"]
+        == plan.policy.get("prestate_repository_bytes_sha256")
+    )

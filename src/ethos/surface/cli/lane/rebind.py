@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 from typing import cast
 
+from cyclopts import App
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind import execute_commitment_rebind
@@ -16,15 +17,22 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation import 
 )
 from ethos.contracts.coordination import CommitmentRebindRequest
 from ethos.normalization.coercion import integer
-from ethos.surface.cli.application import lane_rebind_app
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
+from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
+_app = App(
+    name="rebind-commitment",
+    help="Derive or apply one exact Commitment replacement.",
+)
+lane_app.command(_app)
+
 
 class _CommitmentRebind(AppliedLaneCommandOptions):
     command = "lane rebind-commitment"
+    operation: Annotated[str, Parameter(name="--operation")] = "commitment-rebind"
     branch: Annotated[str, Parameter(name="--branch")]
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
     lease_id: Annotated[str, Parameter(name="--lease-id")]
@@ -49,6 +57,22 @@ class _CommitmentRebind(AppliedLaneCommandOptions):
     new_commitment_path: Annotated[str, Parameter(name="--new-commitment-path")]
     new_commitment_bytes_sha256: Annotated[str, Parameter(name="--new-commitment-bytes-sha256")]
     new_commitment_digest: Annotated[str, Parameter(name="--new-commitment-digest")]
+    old_repository_commitment_path: Annotated[
+        str, Parameter(name="--old-repository-commitment-path")
+    ] = ".ethos/commitment.toml"
+    old_repository_commitment_bytes_sha256: Annotated[
+        str, Parameter(name="--old-repository-commitment-bytes-sha256")
+    ] = "0" * 64
+    old_repository_id: Annotated[str, Parameter(name="--old-repository-id")] = ""
+    new_repository_commitment_path: Annotated[
+        str, Parameter(name="--new-repository-commitment-path")
+    ] = ".ethos/commitment.toml"
+    new_repository_commitment_bytes_sha256: Annotated[
+        str, Parameter(name="--new-repository-commitment-bytes-sha256")
+    ] = "0" * 64
+    new_repository_commitment_digest: Annotated[
+        str, Parameter(name="--new-repository-commitment-digest")
+    ] = "0" * 64
     repair_change_identity: Annotated[bool, Parameter(name="--repair-change-identity")] = False
     expected_path_scope: Annotated[tuple[str, ...], Parameter(name="--expected-path-scope")] = ()
 
@@ -59,7 +83,7 @@ class _CommitmentRebindReceipt(AppliedLaneCommandOptions):
     receipt_sha256: Annotated[str, Parameter(name="--receipt-sha256")] = ""
 
 
-@lane_rebind_app.default
+@_app.default
 def lane_rebind_commitment(
     options: Annotated[_CommitmentRebindReceipt, Parameter(name="*")],
 ) -> None:
@@ -78,7 +102,7 @@ def lane_rebind_commitment(
     )
 
 
-@lane_rebind_app.command(name="exact")
+@_app.command(name="exact")
 def lane_rebind_commitment_exact(
     options: Annotated[_CommitmentRebind, Parameter(name="*")],
 ) -> None:
@@ -100,12 +124,15 @@ def lane_rebind_commitment_exact(
     )
 
 
-@lane_rebind_app.command(name="derive")
+@_app.command(name="derive")
 def lane_rebind_commitment_derive(
     target_commit: Annotated[str, Parameter(name="--target-commit")] = "",
     *,
     root: RootOption | None = None,
     repair_change_identity: Annotated[bool, Parameter(name="--repair-change-identity")] = False,
+    operation: Annotated[
+        str, Parameter(name="--operation", help="Exact rebind operation discriminator.")
+    ] = "commitment-rebind",
     json_output: Annotated[bool, Parameter(name="--json")] = False,
 ) -> None:
     """Derive and persist one exact request receipt without mutation."""
@@ -113,6 +140,7 @@ def lane_rebind_commitment_derive(
         root=resolve_root(root),
         target_commit=target_commit,
         repair_change_identity=repair_change_identity,
+        operation=operation,
     )
     project_lane_result(
         "lane rebind-commitment derive",

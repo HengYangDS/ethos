@@ -59,6 +59,7 @@ packages = ["src/ethos"]
 "package.json" = "ethos/data/supply-chain/package.json"
 "package-lock.json" = "ethos/data/supply-chain/package-lock.json"
 "system/schemas/kernel" = "ethos/data/schemas/kernel"
+"tests/fixtures/semantic-v2/vectors.json" = "ethos/data/semantic-v2/vectors.json"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "tools/ci/openspec_runtime_hook.py"
@@ -72,6 +73,7 @@ include = [
   "/package.json",
   "/package-lock.json",
   "/pyproject.toml",
+  "/tests/fixtures/semantic-v2/vectors.json",
   "/tools/ci/openspec_runtime_hook.py",
 ]
 

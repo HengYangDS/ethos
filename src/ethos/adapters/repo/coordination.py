@@ -9,11 +9,8 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
     from pathlib import Path
 
 FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS = ("write", "land", "retire")
@@ -293,86 +290,6 @@ def _queue_age_seconds(lane: dict[str, object], observed_at: datetime) -> int:
     if instant.tzinfo is None:
         return 0
     return max(0, int((observed_at - instant).total_seconds()))
-
-
-def shared_inbox_projection(
-    inputs: Iterable[dict[str, object]], *, attestations: tuple[Attestation, ...]
-) -> dict[str, object]:
-    """Rebuild a collaboration inbox from semantic inputs and Attestations."""
-    grouped: dict[str, list[dict[str, object]]] = {}
-    for item in inputs:
-        semantic = {
-            "kind": str(item.get("kind") or "observation"),
-            "subject": str(item.get("subject") or ""),
-            "claim": str(item.get("claim") or ""),
-        }
-        digest = canonical_json_digest(semantic)
-        refs = item.get("source_refs")
-        source_refs = tuple(map(str, refs)) if isinstance(refs, (list, tuple)) else ()
-        grouped.setdefault(digest, []).append(
-            {
-                **semantic,
-                "source_refs": sorted(set(source_refs)),
-                "next_action": str(item.get("next_action") or ""),
-            }
-        )
-    items: list[dict[str, object]] = []
-    for digest, alternatives in sorted(grouped.items()):
-        actions = sorted({str(item["next_action"]) for item in alternatives})
-        conflict = len(actions) > 1
-
-        def attestors(predicate: str, item_digest: str = digest) -> list[str]:
-            return sorted(
-                {
-                    str(attestation.statement.get("actor") or attestation.verifier)
-                    for attestation in attestations
-                    if attestation.predicate == predicate
-                    and attestation.statement.get("item_digest") == item_digest
-                    and attestation.verdict == "pass"
-                    and (
-                        predicate != "inbox:consumed"
-                        or (
-                            bool(attestation.effect_digest)
-                            and bool(attestation.statement.get("accepted_result"))
-                        )
-                    )
-                }
-            )
-
-        acknowledgements = attestors("inbox:acknowledged")
-        consumers = attestors("inbox:consumed") if not conflict else []
-        exemplar = alternatives[0]
-        items.append(
-            {
-                "digest": digest,
-                "kind": exemplar["kind"],
-                "subject": exemplar["subject"],
-                "claim": exemplar["claim"],
-                "source_refs": sorted(
-                    {
-                        source
-                        for item in alternatives
-                        for source in cast("list[str]", item["source_refs"])
-                    }
-                ),
-                "next_actions": actions,
-                "conflict": conflict,
-                "acknowledged_by": acknowledgements,
-                "consumed_by": consumers,
-            }
-        )
-    state = (
-        "conflict"
-        if any(item["conflict"] for item in items)
-        else "consumed"
-        if items and all(item["consumed_by"] for item in items)
-        else "open"
-    )
-    return {
-        "state": state,
-        "item_count": len(items),
-        "items": items,
-    }
 
 
 def scopes_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:

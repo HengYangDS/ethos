@@ -6,11 +6,13 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.openspec.lifecycle.archive_transition as archive
-from ethos.contracts.semantic import Commitment
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Commitment
 
 
 HEAD = "a" * 40
@@ -20,12 +22,13 @@ ACTIVE = "openspec/changes/change/commitment.toml"
 
 
 def _commitment(*, change_identity: bool = True) -> Commitment:
-    return Commitment(
-        id="change:change" if change_identity else "change",
+    commitment = commitment_v2(
+        id="change:change",
         intent="Archive exact governed work.",
         subjects=("repository:test",),
         scope=("openspec/changes/change/**",),
     )
+    return commitment if change_identity else commitment.model_copy(update={"id": "change"})
 
 
 def _lease(**updates: object) -> dict[str, object]:

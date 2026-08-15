@@ -33,20 +33,20 @@ declaration in a checkout or the wheel resource elsewhere, then evaluates paths
 through strict frozen contract models. It is not a second hand-written topology
 table.
 
-| Path family | Boundary | Generated output allowed? | Tracked? |
-| --- | --- | --- | --- |
-| `.config/ethos/` | Declarative config, policy, and adopter interface only. | No | Yes |
-| `<git-common-dir>/ethos/` | ETHOS leases, local Attestations, and transaction state shared by worktrees. | Yes | Outside checkout |
-| `.cache/local-state/` | Repository-native host-local state. | Yes | No |
-| `build/runtime/tool-cache/` | Tool runtime caches keyed by tool name. | Yes | No |
-| `.venv/` | Repository-local Python environment selected by `uv.lock`. | Yes | No |
-| `build/runtime/work/` | Provider emulator state and scratch working state. | Yes | No |
-| `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
-| `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
-| `build/artifacts/` | Local package and build artifacts, grouped by artifact kind. | Yes | No |
-| `docs/evidence/`, `evidence/` | Curated summaries, durable Attestations, and immutable historical evidence. | No raw output | Yes, after review |
-| `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No | Yes, after review |
-| `packages/`, `src/`, `tests/`, `rules/`, `system/` | Source, tests, rules, schemas, and contracts. | No | Yes, after review |
+| Path family                                                                                                                                                       | Boundary                                                                                               | Generated output allowed? | Tracked?          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------- | ----------------- |
+| `.config/ethos/`                                                                                                                                                  | Declarative config, policy, and adopter interface only.                                                | No                        | Yes               |
+| `<git-common-dir>/ethos/`                                                                                                                                         | ETHOS leases, runtime artifacts, and transaction state shared by worktrees.                            | Yes                       | Outside checkout  |
+| `.cache/local-state/`                                                                                                                                             | Repository-native host-local state.                                                                    | Yes                       | No                |
+| `build/runtime/tool-cache/`                                                                                                                                       | Tool runtime caches keyed by tool name.                                                                | Yes                       | No                |
+| `.venv/`                                                                                                                                                          | Repository-local Python environment selected by `uv.lock`.                                             | Yes                       | No                |
+| `build/runtime/work/`                                                                                                                                             | Provider emulator state and scratch working state.                                                     | Yes                       | No                |
+| `build/ethos/`                                                                                                                                                    | Machine proof, logs, reports, artifacts, and projections.                                              | Yes                       | No                |
+| `build/evidence/`                                                                                                                                                 | Machine evidence bundles before review/promotion.                                                      | Yes                       | No                |
+| `build/artifacts/`                                                                                                                                                | Local package and build artifacts, grouped by artifact kind.                                           | Yes                       | No                |
+| `docs/evidence/`, `evidence/`                                                                                                                                     | Curated summaries and immutable historical evidence.                                                   | No raw output             | Yes, after review |
+| `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No                        | Yes, after review |
+| `packages/`, `src/`, `tests/`, `rules/`, `system/`                                                                                                                | Source, tests, rules, schemas, and contracts.                                                          | No                        | Yes, after review |
 
 Evidence root topology is also declaration-first. The kernel `evidence/`
 subroots, profile-curated `docs/evidence` mode, allowed root entrypoints, glob
@@ -58,11 +58,12 @@ of owning a second hand-written layout table.
 
 Profile-mapped durable evidence roots preserve the same logical evidence
 boundary without forcing every repository to copy the product repository's
-physical layout. `evidence/attestations/` is the only current durable carrier.
-The retained `claims`, `chronicle`, and `parity` directories are immutable
-historical bytes: they have no current producer or authority. A repository that
-declares `[roots] durable_evidence = "docs/evidence"` keeps curated summaries
-there without creating a parallel evidence owner.
+physical layout. The sole current Attestation authority is
+`refs/ethos/attestations-set`. Physically retained `evidence/attestations/`,
+`claims`, `chronicle`, and `parity` directories are immutable historical bytes:
+they have no current producer, selector, or authority. A repository that declares
+`[roots] durable_evidence = "docs/evidence"` keeps curated summaries there
+without creating a parallel evidence owner.
 
 Package metadata and lock files such as `package.json`, `package-lock.json`,
 `pyproject.toml`, and `uv.lock` remain source/package authority. They are not
@@ -91,12 +92,12 @@ The topology is a lifecycle model, not a prettier flat cache directory. Every
 generated home answers four questions: can it be tracked, can it be promoted,
 how is it regenerated, and how is it cleaned up?
 
-| Lifecycle | Homes | Truth boundary | Cleanup / promotion rule |
-| --- | --- | --- | --- |
-| Runtime cache | `<git-common-dir>/ethos/`, `.cache/local-state/`, `.venv/`, `build/runtime/tool-cache/`, `build/runtime/work/` | Disposable host-local or provider-local state. | Never promote. Delete or recreate from source commands. |
-| Machine evidence | `build/evidence/`, `build/ethos/` | Generated, HEAD-bound command output before review. | Regenerate on HEAD movement. Promote only by explicit review or command into curated evidence. |
-| Local artifact | `build/artifacts/` | Rebuildable package/build output. | Never treat as repository truth. Rebuild from package metadata or release commands. |
-| Curated evidence | `docs/evidence/`, `evidence/` | Durable Attestations plus immutable historical evidence. | Review or supersede current records; do not clean historical bytes as cache. |
+| Lifecycle        | Homes                                                                                                          | Truth boundary                                        | Cleanup / promotion rule                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Runtime cache    | `<git-common-dir>/ethos/`, `.cache/local-state/`, `.venv/`, `build/runtime/tool-cache/`, `build/runtime/work/` | Disposable host-local or provider-local state.        | Never promote. Delete or recreate from source commands.                                        |
+| Machine evidence | `build/evidence/`, `build/ethos/`                                                                              | Generated, HEAD-bound command output before review.   | Regenerate on HEAD movement. Promote only by explicit review or command into curated evidence. |
+| Local artifact   | `build/artifacts/`                                                                                             | Rebuildable package/build output.                     | Never treat as repository truth. Rebuild from package metadata or release commands.            |
+| Curated evidence | `docs/evidence/`, `evidence/`                                                                                  | Curated summaries plus immutable historical evidence. | Review summaries; preserve historical bytes without selecting them as current.                 |
 
 This is the reason `.import_linter_cache/` in repo root is wrong even when it is
 ignored: it has a tool owner but no semantic lifecycle home. The right location
@@ -108,17 +109,17 @@ are cache, provider work, evidence, or package output.
 
 Machine evidence does not become repository truth by living under
 `build/evidence/` or `build/ethos/`. Those homes are ignored, generated, and
-HEAD-bound. A reviewer or explicit ETHOS command must summarize the bounded
-claim, bind the command, scope, verifier, digest, and HEAD, and then promote the
-reviewed Attestation into `evidence/attestations/` and may publish a
-curated summary under `docs/evidence/`.
+HEAD-bound. An explicit ETHOS command records a canonical Attestation in
+`refs/ethos/attestations-set`; a reviewer may separately publish a curated
+summary under `docs/evidence/`. Tracked historical evidence never selects the
+current set.
 
 The path is therefore:
 
 ```text
 runtime command -> build/evidence/<concern>/... or build/ethos/<concern>/...
-  -> reviewed summary with command, scope, verifier, digest, HEAD
-  -> durable Attestation under evidence/attestations/ and curated summary under docs/evidence/
+  -> canonical Attestation selected by refs/ethos/attestations-set
+  -> optional curated summary under docs/evidence/
 ```
 
 Runtime caches under `<git-common-dir>/ethos/`, `.cache/local-state/`,

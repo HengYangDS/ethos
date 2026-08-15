@@ -12,15 +12,16 @@ from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
-from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def _plan(*, gap: str = ""):
-    commitment = Commitment(
+    commitment = commitment_v2(
         id="repository:proof-command",
         intent="Exercise the proof command.",
         subjects=("repository:proof-command",),
@@ -65,11 +66,30 @@ def _check(*, verdict: str = "pass", trust_bearing: bool = True) -> dict[str, ob
 
 
 def _attestation(verdict: str = "pass") -> SimpleNamespace:
-    return SimpleNamespace(
-        id="c" * 64,
-        verdict=verdict,
-        statement={"artifact": {"path": "artifact.json", "sha256": "sha256:" + "d" * 64}},
-        model_dump=lambda **_kwargs: {"id": "c" * 64, "verdict": verdict},
+    return Attestation.issue(
+        {
+            "schema_version": 2,
+            "predicate": "proof:repository",
+            "verifier": "agent:test:proof-command",
+            "subject": "repository:proof-command",
+            "issued_at": datetime(2026, 1, 1, tzinfo=UTC),
+            "valid_from": None,
+            "valid_until": None,
+            "verdict": verdict,
+            "payload": {
+                "kind": "proof:repository",
+                "body": {"artifact": {"path": "artifact.json", "sha256": "sha256:" + "d" * 64}},
+            },
+            "relations": (),
+            "advisories": (),
+            "evidence_refs": (),
+            "commitment_digest": "a" * 64,
+            "facts_digest": None,
+            "plan_digest": None,
+            "policy_digest": None,
+            "effect_digest": None,
+            "mints_authority": False,
+        }
     )
 
 
@@ -344,7 +364,7 @@ def test_prove_execute_stops_at_the_exact_local_state_migration(
 def test_resolve_generation_uses_the_shared_active_carrier_selector(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, invalid: bool
 ) -> None:
-    commitment = Commitment(
+    commitment = commitment_v2(
         id="repository:proof-command",
         intent="Exercise the proof command.",
         subjects=("repository:proof-command",),
@@ -377,7 +397,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
 ) -> None:
     emitted = []
     scope = CurrentGenerationScope(("a.py",), {})
-    commitment = Commitment(
+    commitment = commitment_v2(
         id="change:proof-command",
         intent="Exercise the proof command.",
         subjects=("repository:proof-command",),

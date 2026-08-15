@@ -17,6 +17,7 @@ from ethos.adapters.admission.evidence.external import verify_independent_receip
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.contracts.rules import stable_digest
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
@@ -145,7 +146,7 @@ def _verification_subject(
             "control_digest": candidate_digest,
             "proof": {
                 "attestation": proof.id,
-                "statement": proof.statement_digest,
+                "statement": canonical_json_digest(proof.payload.body),
                 "plan": proof.plan_digest,
             },
         },

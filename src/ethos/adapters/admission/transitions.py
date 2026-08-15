@@ -288,11 +288,12 @@ def _commitment_rebind_report(
     if terminal or not gaps or any(gap not in _COMMITMENT_REBIND_GAPS for gap in gaps):
         return None
     ref_name = f"refs/heads/{lease.get('lane_ref') or ''}"
+    operation = commitment_rebind_operation(repo, update, lease, target)
     intent = claim_ref_intent(
         root=repo,
         ref_name=ref_name,
         update=update,
-        operation=commitment_rebind_operation(repo, update, lease, target),
+        operation=operation,
         phase=cast(
             "Literal['prepared', 'committed', 'aborted']",
             {"committed": "committed", "aborted": "aborted"}.get(phase, "prepared"),
@@ -321,6 +322,7 @@ def _commitment_rebind_report(
         target,
         old_value=update.expected,
         new_value=update.desired,
+        operation=operation,
     ):
         gaps[:] = [gap]
         return None

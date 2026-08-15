@@ -554,7 +554,7 @@ def prove(
     lifecycle_change_count = lifecycle_summary.get("change_count")
     check_summaries = _check_summaries(checks)
     attestation_data = attestation.model_dump(mode="json") if attestation is not None else {}
-    artifact = attestation.statement.get("artifact") if attestation is not None else {}
+    artifact = attestation.payload.body.get("artifact") if attestation is not None else {}
     artifact_reference = dict(artifact) if isinstance(artifact, Mapping) else {}
     data = (
         {

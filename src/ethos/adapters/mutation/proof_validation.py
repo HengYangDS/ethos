@@ -42,12 +42,12 @@ _FORMER_STATEMENT_FIELDS = (
 
 def plan_from_statement(attestation: Attestation) -> TransitionPlan:
     """Return the exact immutable plan carried by a proof statement."""
-    closure = string_mapping(attestation.model_dump(mode="json").get("statement")).get("plan")
+    closure = string_mapping(attestation.payload.body).get("plan")
     if not isinstance(closure, Mapping):
         message = "proof_attestation_plan_missing"
         raise TypeError(message)
     try:
-        return TransitionPlan.model_validate(closure)
+        return TransitionPlan.model_validate(mutable_json(closure))
     except (TypeError, ValueError) as error:
         detail = str(error)
         message = (
@@ -120,7 +120,7 @@ def former_official_statement_projection(
     attestation: Attestation, plan: TransitionPlan
 ) -> dict[str, object]:
     """Derive the exact redundant projection emitted by the former official runtime."""
-    statement = string_mapping(attestation.model_dump(mode="json").get("statement"))
+    statement = string_mapping(attestation.payload.body)
     claim = string_mapping(statement.get("claim"))
     artifact = string_mapping(statement.get("artifact"))
     facts_value = mutable_json(plan.facts)
@@ -220,7 +220,9 @@ def proof_statement_gaps(
     checks: tuple[dict[str, Any], ...],
 ) -> list[str]:
     """Validate a proof envelope without recompiling its semantic closure."""
-    statement = string_mapping(attestation.model_dump(mode="json").get("statement"))
+    if attestation.payload.kind != "proof:execution":
+        return ["proof_attestation_payload_kind_invalid"]
+    statement = string_mapping(attestation.payload.body)
     required_gaps = statement.get("required_gaps")
     if not isinstance(required_gaps, tuple | list):
         return ["proof_attestation_required_gaps_invalid"]

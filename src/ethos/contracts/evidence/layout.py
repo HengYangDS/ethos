@@ -23,7 +23,6 @@ class KernelEvidenceLayout(BaseModel):
 
     mode: str = "kernel_evidence"
     allowed_root_files: FrozenTuple[str]
-    allowed_root_dirs: FrozenTuple[str]
     historical_root_dirs: FrozenTuple[str]
     root_file_not_allowed_gap_prefix: str
     root_dir_not_allowed_gap_prefix: str
@@ -60,17 +59,12 @@ class EvidenceLayoutDeclaration(BaseModel):
                 "root": root,
                 "mode": self.curated_profile.mode,
                 "allowed_root_files": list(self.curated_profile.allowed_root_files),
-                "allowed_root_dirs": ["*"],
-                "attestation_root": f"{root}/attestations",
-                "historical_roots": [],
                 "source_refs": list(self.source_refs),
             }
         return {
             "root": root,
             "mode": self.kernel.mode,
             "allowed_root_files": list(self.kernel.allowed_root_files),
-            "allowed_root_dirs": list(self.kernel.allowed_root_dirs),
-            "attestation_root": f"{root}/attestations",
             "historical_roots": [
                 f"{root}/{directory}" for directory in self.kernel.historical_root_dirs
             ],

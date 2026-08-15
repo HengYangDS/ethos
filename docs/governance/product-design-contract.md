@@ -202,26 +202,25 @@ absence reason. A refinement may change a carrier only after its invariant,
 owner, acceptance, and verifier remain traceable. This preserves intent while
 allowing deletion of redundant prose and mechanisms.
 
-## Campaign And Change Granularity
+## Bounded Change And Successor Granularity
 
-A Campaign is one governed intent with one task-progress owner. Its acceptance
-graph may be carried by one OpenSpec Change or by dependency-linked Changes, but
-never by parallel task lists, progress stores, or lifecycle ledgers. Choose the
-smallest carrier topology that preserves one obvious progress authority and
-independently verifiable phase outcomes.
+One Commitment binds one bounded OpenSpec Change, Work Lane generation, and
+`tasks.md` progress owner. It is too large when its open obligations cannot be
+ordered, reviewed, proved, and closed as one coherent intent. Split only when
+each successor can land a useful semantic outcome without duplicating scope,
+authority, or progress. Moving an obligation never counts as implementing it.
 
-A Change is too large when its open obligations cannot be ordered, reviewed, or
-proved independently inside one coherent intent. Split only when the resulting
-Changes can each land a useful semantic outcome without duplicating scope,
-authority, or progress. If splitting would create long-lived lanes, repeated
-context, or competing task owners, retain one Change and make its phase exits
-atomic instead. Moving an obligation never counts as implementing it.
+New intent does not expand an active Change merely because it arrives before
+closeout. Record it as a non-authorizing Attestation; a dependency-linked
+successor Commitment may select it after the current boundary closes. The
+successor names predecessor and selected Attestation identities and owns its own
+Change, lane generation, task list, acceptance, and proof.
 
-Only independent phase outcomes or Changes whose dependencies are satisfied and
-whose scopes do not conflict may run concurrently. Capacity, risk, overlap, and
-proof cost select concurrency; there is no fixed global WIP number. Integration
-remains a short exact-CAS boundary, and a Campaign publishes remotely only after
-its single progress owner proves every required outcome locally.
+Only Commitments whose declared dependencies are satisfied and whose scopes and
+effects do not conflict may run concurrently. Capacity, risk, overlap, and proof
+cost select concurrency; there is no fixed global WIP number. Integration remains
+a short exact-CAS boundary. No queue, mutable program state, parallel task list,
+progress store, or lifecycle ledger selects current work.
 
 ## Projection Homomorphism
 

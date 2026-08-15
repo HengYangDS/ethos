@@ -90,19 +90,19 @@ acceptance, and proof—or records its explicit absence reason. Deletion is
 preferred when that mapping shows a carrier duplicates another owner. No
 historical wording is preserved merely to satisfy a text-shaped test.
 
-### Model Promotion Convergence Route
+### Bounded Change Convergence Route
 
 The sole active convergence carrier is
 [`model-promotion`](../../openspec/changes/model-promotion/). Its
 [`tasks.md`](../../openspec/changes/model-promotion/tasks.md) is the only task
-and dependency graph. This plan owns no queue, Campaign, phase state, or progress
-projection.
+and progress owner. Its Commitment carries any declared dependency edges. This
+plan owns no queue, phase state, dependency ledger, or progress projection.
 
-The implementation order is one-way: freeze the transaction algebra; prove it
-through the refresh-base vertical slice; migrate the remaining local lifecycle,
-package/state, proof, and provider projections; then delete the superseded
-owners and close the one Change. Small commits are encouraged, but no successor
-Change or parallel backlog may split semantic ownership.
+The implementation order is the order in that task owner. Small commits are
+encouraged, but no parallel backlog may split semantic ownership. Intent outside
+the current Commitment is recorded as a non-authorizing Attestation and may be
+selected only by a dependency-linked successor Commitment after this Change
+closes.
 
 ## Convergence Rules
 

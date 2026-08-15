@@ -7,6 +7,7 @@ from typing import ClassVar
 from typing import Literal
 from typing import cast
 
+from cyclopts import App
 from cyclopts import Parameter
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -20,11 +21,14 @@ from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
-from ethos.surface.cli.application import lane_lease_app
+from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
+
+_app = App(name="lease", help="Generation-bound local Lane Lease lifecycle.")
+lane_app.command(_app)
 
 
 class LeaseCommandOptions(BaseModel):
@@ -131,19 +135,19 @@ def execute_declared_lease_operation(options: DeclaredLeaseOperationOptions) -> 
     emit_lease_result(options.command, report, json_output=options.json_output)
 
 
-@lane_lease_app.command(name="renew")
+@_app.command(name="renew")
 def lane_lease_renew(options: Annotated[_RenewOptions, Parameter(name="*")]) -> None:
     """Renew one exact unexpired local lease generation."""
     execute_declared_lease_operation(options)
 
 
-@lane_lease_app.command(name="resume")
+@_app.command(name="resume")
 def lane_lease_resume(options: Annotated[_ResumeOptions, Parameter(name="*")]) -> None:
     """Resume an expired lease for the same holder and generation."""
     execute_declared_lease_operation(options)
 
 
-@lane_lease_app.command(name="takeover")
+@_app.command(name="takeover")
 def lane_lease_takeover(options: Annotated[TakeoverOptions, Parameter(name="*")]) -> None:
     """Apply one accepted exact-CAS Lease takeover without transcript authority."""
     report = execute_lease_takeover(

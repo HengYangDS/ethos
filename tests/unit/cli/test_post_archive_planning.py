@@ -8,11 +8,15 @@ from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.openspec.start_effect import current_generation_scope
+from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.semantic import Attestation
 from ethos.surface.cli.root.proof import resolve_generation_scope
@@ -24,6 +28,13 @@ from tests.support.openspec_lifecycle import completed_lifecycle
 
 if TYPE_CHECKING:
     import pytest
+
+
+def _clear_selected_attestations(root: Path) -> None:
+    existing = run_git(root, "show-ref", "--verify", "--hash", ATTESTATION_SET_REF, check=False)
+    if existing.returncode == 0:
+        run_git(root, "update-ref", "-d", ATTESTATION_SET_REF)
+    assert read_attestation_set(root) == ("", ())
 
 
 def _advance_current_generation(worktree: Path, overlay: Path) -> None:
@@ -42,7 +53,7 @@ def _advance_current_generation(worktree: Path, overlay: Path) -> None:
     assert advanced["state"] == "lease_ref_advanced"
 
 
-def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect(
+def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect(  # noqa: PLR0915
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     fixture = start_adopted_work_lane(
@@ -100,6 +111,7 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     assert archived["no_op"] is True
     archived_head = str(archived["head"])
     archive_paths = tuple(str(path) for path in archived["changed_paths"])
+    _clear_selected_attestations(worktree)
 
     scope = current_generation_scope(
         worktree,
@@ -115,15 +127,34 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
         fallback_paths=("openspec/specs/contracts/spec.md", *archive_paths),
     )
 
-    assert scope.paths == archive_paths
-    assert scope.archive_authority["predicate"] == "effect:openspec-archive"
-    assert {item.path for item in scope.attributions} == set(archive_paths) | {
+    assert scope.archive_authority == {}
+    assert scope.paths == ()
+    assert {item.state for item in scope.attributions} == {"unknown"}
+    receipt = Attestation.model_validate(archived["attestation"])
+    record_attestations(worktree, (receipt,))
+    selected = current_generation_scope(
+        worktree,
+        head=archived_head,
+        repository_id=load_repository_commitment(worktree).id,
+        commitment=load_commitment(
+            worktree,
+            carrier=str(leases_by_branch(worktree)["work/feature"]["base_commitment_path"]),
+            change_id="fixture-change",
+            tree_ref=archived_head,
+        ),
+        lease=leases_by_branch(worktree)["work/feature"],
+        fallback_paths=("openspec/specs/contracts/spec.md", *archive_paths),
+    )
+
+    assert selected.paths == archive_paths
+    assert selected.archive_authority["predicate"] == "effect:openspec-archive"
+    assert {item.path for item in selected.attributions} == set(archive_paths) | {
         "openspec/specs/contracts/spec.md"
     }
-    assert {item.state for item in scope.attributions if item.path in set(archive_paths)} == {
+    assert {item.state for item in selected.attributions if item.path in set(archive_paths)} == {
         "authorized"
     }
-    assert {item.source for item in scope.attributions if item.path in set(archive_paths)} == {
+    assert {item.source for item in selected.attributions if item.path in set(archive_paths)} == {
         "archive_effect"
     }
     status_payload = run_ethos("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
@@ -134,20 +165,12 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
         for item in status_payload["data"]["path_attributions"]
         if item["state"] == "authorized"
     } == set(archive_paths)
-    receipt_path = attestation_store_dir(worktree) / f"{archived['attestation']['id']}.json"
-    receipt = Attestation.model_validate_json(receipt_path.read_text(encoding="utf-8"))
-    forged = Attestation.issue(
-        receipt.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
-        | {
-            "statement": receipt.statement
-            | {
-                "output": receipt.statement["output"]
-                | {"changed_paths": [*archive_paths, "README.md"]}
-            }
-        }
-    )
-    receipt_path.unlink()
-    (attestation_store_dir(worktree) / f"{forged.id}.json").write_text(
+    payload = receipt.model_dump(mode="python", exclude={"id"})
+    payload["payload"]["body"]["output"]["changed_paths"] = [*archive_paths, "README.md"]
+    forged = Attestation.issue(payload)
+    poison = proof_artifact_root(worktree) / f"{forged.id}.json"
+    poison.parent.mkdir(parents=True, exist_ok=True)
+    poison.write_text(
         forged.canonical_json(), encoding="utf-8"
     )
     tampered = current_generation_scope(
@@ -163,10 +186,12 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
         lease=leases_by_branch(worktree)["work/feature"],
         fallback_paths=("README.md", *archive_paths),
     )
-    assert tampered.archive_authority == {}
-    assert tampered.paths == ()
+    assert tampered.archive_authority["attestation_id"] == receipt.id
+    assert tampered.paths == archive_paths
     assert tampered.gaps == ()
-    assert {item.state for item in tampered.attributions} == {"unknown"}
+    assert {item.state for item in tampered.attributions if item.path in set(archive_paths)} == {
+        "authorized"
+    }
 
 
 def _start_forward_fix_generation(
@@ -191,6 +216,9 @@ def _start_forward_fix_generation(
         apply=True,
     )
     assert started["verdict"] == "pass", started
+    _clear_selected_attestations(worktree)
+    start_attestation = Attestation.model_validate(started["attestation"])
+    record_attestations(worktree, (start_attestation,))
     carrier = "openspec/changes/hosted-verification-fix/commitment.toml"
     before_commitment = load_commitment(
         worktree, carrier=carrier, change_id="hosted-verification-fix"

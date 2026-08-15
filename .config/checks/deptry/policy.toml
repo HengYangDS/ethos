@@ -10,6 +10,7 @@ config = "pyproject.toml"
 known_first_party = ["ethos", "noxfile"]
 package_module_name_map = [
   "cel-expr-python=cel_expr_python",
+  "markdown-it-py=markdown_it",
   "nodejs-wheel-binaries=nodejs_wheel",
   "pillow=PIL",
   "pyyaml=yaml",

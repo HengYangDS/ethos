@@ -1,14 +1,15 @@
 ---
 subject: ethos:decision:generated-artifact-topology-contract
 role: decision
-state: canonical
+state: superseded
 relations:
-  canonical_for: generated artifact topology contract decision
+  superseded_by: model-promotion
 ---
 
 # DR-0001: Generated Artifact Topology Contract
 
-Status: accepted.
+Status: superseded by `model-promotion` for current Attestation carrier
+semantics; retained as historical decision context.
 
 Purpose: record the durable ruling that generated artifact placement is an ETHOS product
 contract, not housekeeping, while governed repositories preserve evidence boundaries.
@@ -26,7 +27,7 @@ contract, not housekeeping, while governed repositories preserve evidence bounda
 | Decision Change Date | 2026-07-27 |
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
-| Superseded By | None |
+| Superseded By | `model-promotion` |
 | Depends On | None |
 | Scope | Generated artifact topology, producer-entrypoint routing, lifecycle classes, adopter-neutral product roots, Attestation promotion, proof/report placement, and immutable historical evidence. |
 | Boundary | Owns generic path policy, path router behavior, entrypoint audit behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
@@ -66,8 +67,9 @@ Adopt the Generated Artifact Topology Contract:
 - `build/ethos/` owns machine generated ETHOS proof, logs, reports, artifacts,
   and projections.
 - `build/evidence/` owns machine generated quality/proof evidence artifacts.
-- `evidence/attestations/` is the current durable carrier; retained historical
-  bytes remain immutable context, while `docs/evidence/` may publish summaries.
+- `refs/ethos/attestations-set` is the current durable carrier;
+  `evidence/attestations/` and other retained historical bytes are immutable
+  context, while `docs/evidence/` may publish summaries.
 - Runtime cache, machine evidence, local artifacts, and curated evidence are
   distinct lifecycle classes: runtime cache is disposable and never promoted;
   machine evidence is generated and HEAD-bound before review; local artifacts are

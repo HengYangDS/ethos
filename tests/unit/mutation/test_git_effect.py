@@ -9,17 +9,19 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
+import tomli_w
 
+import ethos.adapters.repo.attestation_set as attestation_set
 import ethos.adapters.repo.git_effect_admission as admission
 import ethos.adapters.repo.git_effect_attestation as attest
 import ethos.adapters.repo.git_effects as runtime
-import ethos.adapters.repo.git_signing as git_signing
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import records
 from ethos.adapters.repo.git_effects import admit_git_effect
+from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.git_effects import commit_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -28,7 +30,6 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
@@ -37,6 +38,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,24 +46,86 @@ if TYPE_CHECKING:
 ISSUER = "agent:test:case:one"
 
 
+def _staged_repo(tmp_path: Path) -> tuple[Path, str]:
+    repo = init_git_repo(tmp_path / "repo")
+    write_test_profile(repo)
+    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
+    git(repo, "add", "README.md")
+    return repo, git(repo, "rev-parse", "HEAD")
+
+
+def test_commit_git_worktree_rejects_unarmed_repository_hooks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, previous = _staged_repo(tmp_path)
+    monkeypatch.setattr(
+        runtime,
+        "hook_runtime_binding",
+        lambda _root: {"required_gaps": ["write_admission_not_armed:runtime_manifest"]},
+    )
+
+    with pytest.raises(ValueError, match="write_admission_not_armed:runtime_manifest"):
+        commit_git_worktree(repo, previous=previous, message="fix: governed commit")
+
+
+def test_commit_git_worktree_rejects_undeclared_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, previous = _staged_repo(tmp_path)
+    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
+
+    for environment in (
+        {"GIT_DIR": "/tmp/foreign"},
+        {"ETHOS_FAKE_TRANSITION": "{}"},
+    ):
+        with pytest.raises(ValueError, match="git_effect_commit_environment_forbidden"):
+            commit_git_worktree(
+                repo,
+                previous=previous,
+                message="fix: governed commit",
+                environment=environment,
+            )
+
+
+def test_commit_git_worktree_does_not_inherit_transition_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    previous = "a" * 40
+    monkeypatch.setattr(runtime, "current_tracked_head", lambda _root: previous)
+    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
+    monkeypatch.setattr(
+        runtime,
+        "validate_commit_message_text",
+        lambda *_args: {"verdict": "pass", "required_gaps": []},
+    )
+    monkeypatch.setattr(runtime, "commit_environment", lambda *_args: None)
+    monkeypatch.setenv("ETHOS_ARCHIVE_TRANSITION", "forged")
+    environments: list[dict[str, str]] = []
+
+    def capture_commit(*_args: object, **kwargs: object) -> object:
+        environments.append(dict(kwargs["env"]))
+        return type("Result", (), {"returncode": 0, "stderr": ""})()
+
+    monkeypatch.setattr("ethos.adapters.repo.git._execute", capture_commit)
+
+    commit_git_worktree(repo, previous=previous, message="fix: governed commit")
+
+    assert "ETHOS_ARCHIVE_TRANSITION" not in environments[0]
+
+
 def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    write_test_profile(repo)
+    repo, previous = _staged_repo(tmp_path)
     public_key = repo / "signing-key.pub"
     public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")
     git(repo, "config", "commit.gpgsign", "true")
     git(repo, "config", "gpg.format", "ssh")
     git(repo, "config", "user.signingkey", public_key.as_posix())
-    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
-    git(repo, "add", "README.md")
-    previous = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
     calls: list[dict[str, str]] = []
-    original = git_signing.run_git
-
-    def capture_signing(_root: Path, *args: str, **kwargs: object) -> object:
-        return original(_root, *args, **kwargs)
 
     def capture_commit(_root: Path, *args: str, **kwargs: object) -> object:
         assert args == ("commit", "-m", "fix: signed effect")
@@ -70,30 +134,22 @@ def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
         calls.append(environment)
         return type("Result", (), {"returncode": 0, "stderr": ""})()
 
-    monkeypatch.setattr(git_signing, "run_git", capture_signing)
     monkeypatch.setattr(runtime, "run_git", capture_commit)
 
     result = commit_git_worktree(
         repo,
         previous=previous,
         message="fix: signed effect",
-        environment={
-            "GIT_CONFIG_COUNT": "1",
-            "GIT_CONFIG_KEY_0": "core.hooksPath",
-            "GIT_CONFIG_VALUE_0": "/exact/hooks",
-        },
     )
 
     assert result["verdict"] == "pass"
     assert calls == [
         {
-            "GIT_CONFIG_COUNT": "3",
-            "GIT_CONFIG_KEY_0": "core.hooksPath",
-            "GIT_CONFIG_VALUE_0": "/exact/hooks",
-            "GIT_CONFIG_KEY_1": "gpg.format",
-            "GIT_CONFIG_VALUE_1": "ssh",
-            "GIT_CONFIG_KEY_2": "user.signingkey",
-            "GIT_CONFIG_VALUE_2": "key::ssh-ed25519 AAAATEST exact-signing-key",
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_0": "gpg.format",
+            "GIT_CONFIG_VALUE_0": "ssh",
+            "GIT_CONFIG_KEY_1": "user.signingkey",
+            "GIT_CONFIG_VALUE_1": "key::ssh-ed25519 AAAATEST exact-signing-key",
         }
     ]
 
@@ -101,8 +157,7 @@ def test_commit_git_worktree_binds_an_explicit_ssh_public_key(
 def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    write_test_profile(repo)
+    repo, previous = _staged_repo(tmp_path)
     key = tmp_path / "signing-key"
     subprocess.run(
         ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
@@ -140,9 +195,7 @@ def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
     git(repo, "config", "commit.gpgsign", "true")
     git(repo, "config", "gpg.format", "ssh")
     git(repo, "config", "user.signingkey", str(public_key))
-    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
-    git(repo, "add", "README.md")
-    previous = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
 
     result = commit_git_worktree(repo, previous=previous, message="fix: signed effect")
 
@@ -151,13 +204,62 @@ def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
     assert signer_record.read_text(encoding="utf-8").strip() == str(public_key)
 
 
+def test_create_git_commit_binds_effective_signing_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, previous = _staged_repo(tmp_path)
+    public_key = repo / "signing-key.pub"
+    public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")
+    git(repo, "config", "gpg.format", "ssh")
+    git(repo, "config", "user.signingkey", public_key.as_posix())
+    calls: list[dict[str, str]] = []
+
+    def capture_commit(_root: Path, *args: str, **kwargs: object) -> object:
+        assert args == (
+            "commit-tree",
+            "-S",
+            git(repo, "write-tree"),
+            "-p",
+            previous,
+            "-m",
+            "bootstrap Commitment v2",
+        )
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        calls.append(environment)
+        return type("Result", (), {"returncode": 0, "stdout": "b" * 40, "stderr": ""})()
+
+    create_git_commit(
+        repo,
+        tree=git(repo, "write-tree"),
+        parent=previous,
+        message="bootstrap Commitment v2",
+        sign=True,
+        runner=capture_commit,
+    )
+
+    assert calls == [
+        {
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_0": "gpg.format",
+            "GIT_CONFIG_VALUE_0": "ssh",
+            "GIT_CONFIG_KEY_1": "user.signingkey",
+            "GIT_CONFIG_VALUE_1": "key::ssh-ed25519 AAAATEST exact-signing-key",
+        }
+    ]
+
+
 ZERO_OID, ZERO_DIGEST = "0" * 40, "0" * 64
 
 
 def fixture(root: Path, identity: str = "repository:repo") -> SimpleNamespace:
     repo = init_git_repo(root / "repo")
-    carrier = (
-        f'schema_version = 1\nid = "{identity}"\nintent = "Govern."\nsubjects = ["{identity}"]\n'
+    carrier = tomli_w.dumps(
+        commitment_v2(
+            id=identity,
+            intent="Govern.",
+            subjects=(identity,),
+        ).model_dump(mode="python")
     )
     commit_fixture_file(repo, ".ethos/commitment.toml", carrier, "declare identity")
     old = git(repo, "rev-parse", "HEAD")
@@ -188,7 +290,7 @@ def plan(
             **(values or {}),
         },
     )
-    authority = Commitment(
+    authority = commitment_v2(
         id="authority:test:git-effect",
         intent="Apply CAS.",
         subjects=(identity,),
@@ -197,8 +299,7 @@ def plan(
         authority,
         facts,
         prior_attestations=prior or {},
-        policy=policy
-        or {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()},
+        policy=policy or {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()},
         effect=value,
     )
 
@@ -209,15 +310,24 @@ def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
     policy = {"operation": "git.ref.compare-and-swap", "effect_digest": value.digest()}
     proof = Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": "proof:execution",
             "verifier": ISSUER,
             "subject": f"git:commit:{desired}",
             "issued_at": datetime(2026, 8, 1, tzinfo=UTC),
             "valid_from": datetime(2026, 8, 1, tzinfo=UTC),
+            "valid_until": None,
             "verdict": "pass",
-            "statement": {"head": desired},
+            "payload": {"kind": "proof:execution", "body": {"head": desired}},
+            "relations": (),
+            "advisories": (),
+            "evidence_refs": (),
             "commitment_digest": "a" * 64,
+            "facts_digest": None,
+            "plan_digest": None,
             "policy_digest": canonical_json_digest(policy),
+            "effect_digest": None,
+            "mints_authority": False,
         }
     )
     return plan(
@@ -245,7 +355,10 @@ def generation(case: Any, branch: str) -> dict[str, object]:
 
 
 def reissue(value: Attestation, **updates: object) -> Attestation:
-    payload = value.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+    body = updates.pop("body", None)
+    payload = value.model_dump(mode="python", exclude={"id"})
+    if body is not None:
+        payload["payload"] = {"kind": value.payload.kind, "body": body}
     return Attestation.issue(payload | updates)
 
 
@@ -284,7 +397,7 @@ def test_exact_multiref_cas_attestation_recognition_and_cleanup(
     )
     carried = proof_plan(case, value)
     applied = execute_git_effect(case.repo, carried, issuer=ISSUER)
-    statement = applied.statement
+    statement = applied.payload.body
     assert programs == [(value.program(), False)]
     assert (applied.predicate, applied.subject, applied.verdict) == (
         "effect:git-ref-update",
@@ -353,7 +466,9 @@ def test_repository_worktree_identity_matrix(tmp_path: Path, kind: str) -> None:
         assert git_stdout(case.repo, "rev-parse", "--verify", "refs/heads/dev") == case.old
     else:
         assert (
-            execute_git_effect(root, plan(root, case.effect), issuer=ISSUER).statement["repository"]
+            execute_git_effect(root, plan(root, case.effect), issuer=ISSUER).payload.body[
+                "repository"
+            ]
             == identity
         )
 
@@ -364,7 +479,10 @@ def test_ref_recovery_and_cas_failure_matrix(tmp_path: Path, kind: str) -> None:
     if kind == "zero":
         value = effect(ZERO_OID, case.old, "refs/heads/work/new")
         record = execute_git_effect(case.repo, plan(case.repo, value), issuer=ISSUER)
-        assert (git(case.repo, "rev-parse", "work/new"), record.statement["input"]["refs"]) == (
+        assert (
+            git(case.repo, "rev-parse", "work/new"),
+            record.payload.body["input"]["refs"],
+        ) == (
             case.old,
             {"refs/heads/work/new": ZERO_OID},
         )
@@ -383,7 +501,7 @@ def test_ref_recovery_and_cas_failure_matrix(tmp_path: Path, kind: str) -> None:
             claim_ref_intent(**options, phase="prepared")
         git(case.repo, "update-ref", "refs/heads/dev", case.new, case.old)
         if kind == "owned":
-            result = execute_git_effect(case.repo, carried, issuer=ISSUER).statement["result"]
+            result = execute_git_effect(case.repo, carried, issuer=ISSUER).payload.body["result"]
             assert (result["state"], result["executed"]) == ("recovered", False)
         else:
             reject(
@@ -539,11 +657,11 @@ def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
             "repository": "git:other",
             "command": ("git", "update-ref"),
             "program_sha256": ZERO_DIGEST,
-            "result": record.statement["result"] | {"exit_code": 7},
+            "result": record.payload.body["result"] | {"exit_code": 7},
             "inputs": {},
             "output_digest": ZERO_DIGEST,
         }
-        record = reissue(record, statement=record.statement | {kind: replacements[kind]})
+        record = reissue(record, body=record.payload.body | {kind: replacements[kind]})
     reject(error, lambda: records(case.repo, carried, record))
 
 
@@ -629,9 +747,52 @@ def test_atomic_compensation_and_retry_matrix(
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
     recovered = run()
     assert git(case.repo, "rev-parse", "dev") == case.new
-    assert recovered.statement["result"]["state"] == "applied"
+    assert recovered.payload.body["result"]["state"] == "applied"
     assert (saved == [recovered]) if failure == "persistence" else (not saved)
     assert not list(ref_intent_dir(case.repo).glob("*.json"))
+
+
+def test_execute_ignores_legacy_plan_receipt_when_attestation_set_is_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = fixture(tmp_path)
+    carried = proof_plan(case)
+    legacy = attest.issue(
+        case.effect,
+        plan=carried,
+        issuer=ISSUER,
+        evidence=(
+            f"repository:{case.repo.name}",
+            "applied",
+            {
+                "head": case.old,
+                "tree": git(case.repo, "rev-parse", "HEAD^{tree}"),
+                "refs": {"refs/heads/dev": case.old},
+                "assertions": {},
+                "observed_at": "2026-08-01T00:00:00+00:00",
+            },
+            {
+                "head": case.new,
+                "tree": git(case.repo, "rev-parse", "HEAD^{tree}"),
+                "refs": {"refs/heads/dev": case.new},
+                "observed_at": "2026-08-01T00:00:01+00:00",
+            },
+        ),
+    )
+    legacy_path = ref_intent_dir(case.repo).parent / "git-effects" / f"{carried.digest}.json"
+    legacy_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_path.write_text(legacy.canonical_json(), encoding="utf-8")
+    git(case.repo, "update-ref", "refs/heads/dev", case.new, case.old)
+    monkeypatch.setattr(
+        runtime,
+        "_apply_git_ref_transaction",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("legacy receipt reused")),
+    )
+
+    reject(
+        "git_effect_recovery_intent_missing",
+        lambda: execute_git_effect(case.repo, carried, issuer=ISSUER),
+    )
 
 
 @pytest.mark.parametrize("failure", ["corrupt", "collision"])
@@ -639,15 +800,21 @@ def test_attestation_store_public_failure_matrix(tmp_path: Path, failure: str) -
     case = fixture(tmp_path)
     carried = plan(case.repo, case.effect)
     record = execute_git_effect(case.repo, carried, issuer=ISSUER)
-    path = ref_intent_dir(case.repo).parent / "git-effects" / f"{carried.digest}.json"
 
     if failure == "corrupt":
-        path.write_text("{}", encoding="utf-8")
+        root = git(case.repo, "show-ref", "--verify", "--hash", attestation_set.ATTESTATION_SET_REF)
+        git(
+            case.repo,
+            "update-ref",
+            attestation_set.ATTESTATION_SET_REF,
+            git(case.repo, "rev-parse", "HEAD"),
+            root,
+        )
         reject("git_effect_attestation_invalid", lambda: records(case.repo, carried))
     else:
-        other = reissue(record, verifier="agent:test:case:other")
+        other = reissue(record, verifier="agent:test:case:other", subject="git-effect:other")
         reject(
-            "git_effect_attestation_collision",
+            "git_effect_identity_collision",
             lambda: records(case.repo, carried, other),
         )
 

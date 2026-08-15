@@ -5,10 +5,12 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.prewrite as prewrite
-from ethos.contracts.semantic import Commitment
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Commitment
 
 
 def _status(root: Path, *, role: str = "work_lane") -> dict[str, object]:
@@ -38,7 +40,7 @@ def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "wo
 
 
 def _commitment(*scope: str) -> Commitment:
-    return Commitment(
+    return commitment_v2(
         id="change:example",
         intent="Govern exact paths.",
         subjects=("repository:example",),

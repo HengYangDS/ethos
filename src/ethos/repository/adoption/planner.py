@@ -8,6 +8,7 @@ import tomllib
 import uuid
 from pathlib import Path
 
+import tomli_w
 from pydantic import ValidationError
 
 from ethos.contracts.openspec.models import OpenSpecPolicy
@@ -34,7 +35,7 @@ def adoption_plan(
     repository_id: str | None = None,
     expect_plan_digest: str | None = None,
 ) -> dict[str, object]:
-    repository_id = repository_id or f"repository:{uuid.uuid4()}"
+    repository_id = repository_id or f"repository:id-{uuid.uuid4()}"
     current_profile = _current_binding(root, root / PROFILE_PATH)
     current_commitment = _current_binding(root, root / COMMITMENT_PATH)
     repository_id = _repository_id(current_commitment) or repository_id
@@ -139,14 +140,24 @@ def adoption_plan(
 
 
 def _repository_commitment(repository_id: str) -> str:
-    return (
-        "schema_version = 1\n"
-        f'id = "{repository_id}"\n'
-        'intent = "Govern repository change through ETHOS."\n'
-        f'subjects = ["{repository_id}"]\n'
-        'scope = ["**"]\n'
-        'authority_refs = [".ethos/profile.toml"]\n'
+    commitment = Commitment(
+        schema_version=2,
+        id=repository_id,
+        intent="Govern repository change through ETHOS.",
+        subjects=(repository_id,),
+        scope=("**",),
+        invariants=(),
+        acceptance=(),
+        risks=(),
+        authority_refs=(PROFILE_PATH,),
+        predecessors=(),
+        selected_attestations=(),
+        dependencies=(),
+        hypotheses=(),
+        falsifiers=(),
+        experiment_protocols=(),
     )
+    return tomli_w.dumps(commitment.model_dump(mode="python"))
 
 
 def _openspec_config(repository: str) -> str:
@@ -171,20 +182,7 @@ def _existing_commitment_is_valid(binding: tuple[str | None, bool, bool]) -> boo
     if not current or not safe:
         return False
     try:
-        payload = tomllib.loads(current)
-        for field in (
-            "subjects",
-            "scope",
-            "invariants",
-            "acceptance",
-            "risks",
-            "authority_refs",
-            "hypotheses",
-            "dependencies",
-        ):
-            if isinstance(payload.get(field), list):
-                payload[field] = tuple(payload[field])
-        commitment = Commitment.model_validate(payload)
+        commitment = Commitment.model_validate(tomllib.loads(current))
     except (tomllib.TOMLDecodeError, ValidationError):
         return False
     return commitment.id.startswith("repository:") and commitment.subjects == (commitment.id,)

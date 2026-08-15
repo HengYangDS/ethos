@@ -29,13 +29,14 @@ from ethos.contracts.review import review_schema_documents
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def _commitment(*, scope: tuple[str, ...] = ("src/**",)) -> Commitment:
-    return Commitment(
+    return commitment_v2(
         id="change:contract-matrix",
         intent="Keep public contract validation fail-closed.",
         subjects=("repository:test",),
@@ -79,9 +80,7 @@ def _proof_plan(
 def _canonical_payload(plan: TransitionPlan, **updates: object) -> dict[str, object]:
     payload = plan.model_dump(mode="json") | updates
     gaps = payload["required_gaps"]
-    payload["continuation"] = (
-        {"kind": "user-decision", "required_gaps": gaps} if gaps else None
-    )
+    payload["continuation"] = {"kind": "user-decision", "required_gaps": gaps} if gaps else None
     payload["digest"] = canonical_json_digest(
         {name: value for name, value in payload.items() if name != "digest"}
     )

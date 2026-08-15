@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Annotated
 
+from cyclopts import App
 from cyclopts import Group
 from cyclopts import Parameter
 
@@ -30,11 +31,14 @@ from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
-from ethos.surface.cli.application import hook_app
+from ethos.surface.cli.application import app as root_app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
+
+_app = App(name="hook", help="Hook admission and guard reports.", show=False)
+root_app.command(_app)
 
 _LANE_PREWRITE_ACTION = "ethos lane prewrite <path>"
 _HEAD_BOUND_PROOF_ACTION = "ethos prove --execute --expect-head <head>"
@@ -103,7 +107,7 @@ def _decision_action(report: dict[str, object]) -> str:
     return str(decision.get("action") or "") if isinstance(decision, dict) else ""
 
 
-@hook_app.command
+@_app.command
 def admit(
     layer: str,
     paths: Annotated[tuple[pathlib.Path, ...], Parameter(consume_multiple=True)] = (),
@@ -151,7 +155,7 @@ def _hook_admit_next_action(report: dict[str, object], verdict: Verdict) -> str:
     return str(report.get("next_action") or _LANE_PREWRITE_ACTION)
 
 
-@hook_app.command
+@_app.command
 def pre_push(
     target_ref: str,
     pushed_head: str,
@@ -195,7 +199,7 @@ def pre_push(
     emit(result, json_output=options.json_output, enforce=True)
 
 
-@hook_app.command(name="reconciliation-receipt")
+@_app.command(name="reconciliation-receipt")
 def reconciliation_receipt_command(
     proposal_branch: str,
     source_head: str,
@@ -254,7 +258,7 @@ def _parse_peer_heads(values: tuple[str, ...]) -> tuple[tuple[str, str, str], ..
     return tuple(rows)
 
 
-@hook_app.command
+@_app.command
 def ref_transaction(
     ref_name: str,
     old_value: str,
@@ -316,7 +320,7 @@ def ref_transaction(
     emit(result, json_output=json_output, enforce=True)
 
 
-@hook_app.command(name="run")
+@_app.command(name="run")
 def run_hook(
     name: str,
     arguments: Annotated[tuple[str, ...], Parameter(consume_multiple=True)] = (),
@@ -328,7 +332,7 @@ def run_hook(
     raise SystemExit(execute_hook(repo, name, arguments, stdin=sys.stdin))
 
 
-@hook_app.command
+@_app.command
 def install(
     *,
     root: RootOption | None = None,

@@ -7,11 +7,13 @@ from contextlib import closing
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.coordination import LaneLease
     from ethos.contracts.coordination import LeaseOperationRequest
 
 
@@ -63,3 +65,26 @@ def revoke_lease_from_connection(
         "expires_at": row.expires_at,
         "payload_sha256": row.payload_sha256,
     }
+
+
+def replace_lease_authority(
+    db_path: Path,
+    *,
+    request: LeaseOperationRequest,
+    lease: LaneLease,
+) -> dict[str, object]:
+    """Atomically move one exact writable authority to its same-holder successor."""
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        revoked = revoke_lease_from_connection(connection, request=request)
+        if (
+            revoked["holder_ref"] != lease.holder_ref.serialize()
+            or revoked["base_commitment_digest"] != lease.base_commitment_digest
+            or revoked["subject"] == lease.lane_ref
+        ):
+            message = "lane_successor_lease_authority_mismatch"
+            raise ValueError(message)
+        acquired = acquire_lease_from_connection(connection, lease=lease)
+        connection.commit()
+    return acquired

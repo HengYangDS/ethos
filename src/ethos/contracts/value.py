@@ -34,7 +34,9 @@ FrozenTuple = Annotated[tuple[T, ...], BeforeValidator(frozen_tuple)]
 def mutable_json(value: object) -> object:
     """Return the portable mutable JSON projection of an immutable value."""
     if isinstance(value, Mapping):
-        return {str(key): mutable_json(item) for key, item in value.items()}
+        if not all(isinstance(key, str) for key in value):
+            raise TypeError(_JSON_OBJECT_KEY_INVALID)
+        return {key: mutable_json(item) for key, item in value.items()}
     if isinstance(value, tuple | list):
         return [mutable_json(item) for item in value]
     return value

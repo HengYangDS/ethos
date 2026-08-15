@@ -10,8 +10,8 @@ from cyclopts import Parameter
 from ethos.adapters.mutation.lane_lifecycle.identity_repair import repair_commit_identity
 from ethos.adapters.repo.commit_identity import authorize_configured_commit_signer
 from ethos.adapters.repo.commit_identity import commit_trust_setup_action
-from ethos.surface.cli.application import lane_app
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
+from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
 from ethos.surface.cli.root_binding import resolve_root
 

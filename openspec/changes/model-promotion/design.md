@@ -105,6 +105,12 @@ reject rather than silently sort them. Duplicate identity keys or duplicate
 complete values fail closed. Changing this interpreter without changing the
 version is a contract failure caught by packaged golden vectors.
 
+The generated JSON Schema is a structural interchange projection, not a second
+semantic interpreter. It admits field shape and portable types;
+`Commitment.model_validate` and the strict carrier reader remain the sole
+admission authority for canonical ordering, duplicate semantic identities,
+cross-field closure, and context-dependent aliases.
+
 The Lease retains the minimal exact binding:
 
 ```text

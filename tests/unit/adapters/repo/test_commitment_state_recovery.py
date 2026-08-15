@@ -4,21 +4,30 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.adapters.repo.commitment as commitment
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _repository_commitment(root: Path) -> None:
+def _repository_commitment(root: Path) -> str:
+    repository_id = "repository:test"
     path = root / ".ethos/commitment.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
-        'subjects = ["repository:test"]\n',
+        tomli_w.dumps(
+            commitment_v2(
+                id=repository_id,
+                intent="Govern.",
+                subjects=(repository_id,),
+            ).model_dump(mode="python")
+        ),
         encoding="utf-8",
     )
+    return repository_id
 
 
 def _change(root: Path, change_id: str) -> str:
@@ -26,8 +35,13 @@ def _change(root: Path, change_id: str) -> str:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        f'schema_version = 1\nid = "change:{change_id}"\nintent = "Change."\n'
-        'subjects = ["repository:self"]\n',
+        tomli_w.dumps(
+            commitment_v2(
+                id=f"change:{change_id}",
+                intent="Change.",
+                subjects=(commitment.load_repository_commitment(root).id,),
+            ).model_dump(mode="python")
+        ),
         encoding="utf-8",
     )
     return relative

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import uuid
@@ -11,11 +12,14 @@ from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple
 
+import tomli_w
+
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.repo.commitment import exact_commitment_fields
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
@@ -30,6 +34,7 @@ from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.semantic import commitment_v2
 
 
 class WorkLaneFixture(NamedTuple):
@@ -253,17 +258,15 @@ def write_active_commitment(
     _enable_openspec_profile(repo)
     repository_commitment = repo / ".ethos" / "commitment.toml"
     if not repository_commitment.exists():
-        repository_id = f"repository:{repo.name}"
+        repository_id = f"repository:fixture-{hashlib.sha256(repo.name.encode()).hexdigest()[:16]}"
         repository_commitment.parent.mkdir(parents=True, exist_ok=True)
         repository_commitment.write_text(
-            "\n".join(
-                (
-                    "schema_version = 1",
-                    f'id = "{repository_id}"',
-                    'intent = "Govern the fixture repository."',
-                    f'subjects = ["{repository_id}"]',
-                    "",
-                )
+            tomli_w.dumps(
+                commitment_v2(
+                    id=repository_id,
+                    intent="Govern the fixture repository.",
+                    subjects=(repository_id,),
+                ).model_dump(mode="python")
             ),
             encoding="utf-8",
         )
@@ -317,6 +320,7 @@ def _write_active_change_carrier(
 ) -> None:
     """Write only one selected active OpenSpec Change carrier."""
     openspec = repo / "openspec"
+    repository_id = load_repository_commitment(repo).id
     carrier = openspec / "changes" / change_id
     carrier.mkdir(parents=True, exist_ok=True)
     (carrier / "proposal.md").write_text(
@@ -349,11 +353,14 @@ def _write_active_change_carrier(
         encoding="utf-8",
     )
     (carrier / "commitment.toml").write_text(
-        "schema_version = 1\n"
-        f'id = "change:{change_id}"\n'
-        'intent = "Exercise the governed fixture lifecycle."\n'
-        'subjects = ["repository:self"]\n'
-        f"scope = {list(scope)!r}\n".replace("'", '"'),
+        tomli_w.dumps(
+            commitment_v2(
+                id=f"change:{change_id}",
+                intent="Exercise the governed fixture lifecycle.",
+                subjects=(repository_id,),
+                scope=scope,
+            ).model_dump(mode="python")
+        ),
         encoding="utf-8",
     )
     (carrier / "tasks.md").write_text(

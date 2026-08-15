@@ -91,7 +91,12 @@ def run_git(
     effective_env = (
         {"PATH": os.environ.get("PATH", os.defpath)}
         if observation
-        else {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+        else {
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith("GIT_")
+            and not (key.startswith("ETHOS_") and key.endswith("_TRANSITION"))
+        }
     )
     effective_env.update(
         {

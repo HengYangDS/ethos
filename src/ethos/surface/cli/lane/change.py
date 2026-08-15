@@ -7,11 +7,9 @@ from typing import Annotated
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
-from ethos.surface.cli.lane.lifecycle import (
-    AppliedLaneCommandOptions,
-    lane_app,
-    project_lane_result,
-)
+from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
+from ethos.surface.cli.lane.lifecycle import lane_app
+from ethos.surface.cli.lane.lifecycle import project_lane_result
 from ethos.surface.cli.root_binding import resolve_root
 
 

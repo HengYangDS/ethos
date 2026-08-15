@@ -3,51 +3,42 @@
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any
+from typing import NamedTuple
 
 import yaml
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.mutation.lane_lifecycle.change_overlay import (
-    lifecycle_report,
-    work_lane_transition_gaps,
-)
+from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
+from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
-from ethos.adapters.openspec.governance import (
-    artifact_output_paths,
-    openspec_governance_report,
-)
-from ethos.adapters.openspec.lifecycle.archive_transition import (
-    archive_transition_environment,
-    collision_preservation_path,
-    lease_bound_archive_scope_report,
-)
-from ethos.adapters.repo.attestation_set import (
-    read_attestation_set,
-    record_attestations,
-)
+from ethos.adapters.openspec.governance import artifact_output_paths
+from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_environment
+from ethos.adapters.openspec.lifecycle.archive_transition import collision_preservation_path
+from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit_message import lifecycle_commit_subject
-from ethos.adapters.repo.commitment import (
-    load_commitment,
-    load_repository_commitment,
-    relocated_commitment_fields_to,
-)
-from ethos.adapters.repo.dirty.change_provenance import (
-    changed_paths as dirty_changed_paths,
-)
-from ethos.adapters.repo.git import current_tracked_head, current_tree, git_stdout
-from ethos.adapters.repo.git_effect_attestation import NativeEffect, issue_native_effect
-from ethos.adapters.repo.git_effects import (
-    commit_git_worktree,
-    compensate_git_worktree,
-    move_tracked_tree,
-    stage_git_worktree,
-)
+from ethos.adapters.repo.commitment import load_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import relocated_commitment_fields_to
+from ethos.adapters.repo.dirty.change_provenance import changed_paths as dirty_changed_paths
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git_effect_attestation import NativeEffect
+from ethos.adapters.repo.git_effect_attestation import issue_native_effect
+from ethos.adapters.repo.git_effects import commit_git_worktree
+from ethos.adapters.repo.git_effects import compensate_git_worktree
+from ethos.adapters.repo.git_effects import move_tracked_tree
+from ethos.adapters.repo.git_effects import stage_git_worktree
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -510,9 +501,9 @@ def _archive_attestation_recovery(
             changed_paths=list(changed),
         )
     if any(item.canonical_json() == receipt.canonical_json() for item in selected):
-        return None
-    if not apply:
-        return lifecycle_report(
+        outcome = None
+    elif not apply:
+        outcome = lifecycle_report(
             branch,
             head,
             "ready_to_recover_archive_attestation",
@@ -523,30 +514,33 @@ def _archive_attestation_recovery(
             changed_paths=list(changed),
             attestation=receipt.model_dump(mode="json"),
         )
-    try:
-        record_attestations(root, (receipt,))
-    except (OSError, TypeError, ValueError) as error:
-        return _archive_attestation_pending(
-            branch,
-            head,
-            change=change,
-            previous_head=previous_head,
-            archive_path=archive_path,
-            changed_paths=changed,
-            reason=str(error),
-        )
-    return lifecycle_report(
-        branch,
-        head,
-        "archive_attestation_recovered",
-        [],
-        change=change,
-        previous_head=previous_head,
-        archive_path=archive_path,
-        changed_paths=list(changed),
-        lease=lease,
-        attestation=receipt.model_dump(mode="json"),
-    )
+    else:
+        try:
+            record_attestations(root, (receipt,))
+        except (OSError, TypeError, ValueError) as error:
+            outcome = _archive_attestation_pending(
+                branch,
+                head,
+                change=change,
+                previous_head=previous_head,
+                archive_path=archive_path,
+                changed_paths=changed,
+                reason=str(error),
+            )
+        else:
+            outcome = lifecycle_report(
+                branch,
+                head,
+                "archive_attestation_recovered",
+                [],
+                change=change,
+                previous_head=previous_head,
+                archive_path=archive_path,
+                changed_paths=list(changed),
+                lease=lease,
+                attestation=receipt.model_dump(mode="json"),
+            )
+    return outcome
 
 
 def _archive_attestation_pending(

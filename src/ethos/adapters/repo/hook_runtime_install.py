@@ -11,7 +11,6 @@ import stat
 import subprocess
 import sys
 import uuid
-from contextlib import suppress
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
@@ -21,6 +20,7 @@ from urllib.parse import urlparse
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
+from ethos.adapters.repo.hook.binding import hook_generation_digest
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.store.content_addressed import write_content_addressed
 
@@ -29,7 +29,11 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
     """Build and atomically install one wheel-qualified common-dir runtime."""
     source = Path(__file__).resolve().parents[4]
     common = Path(git_common_dir(repo))
-    runtime_root = common / "ethos" / "runtime"
+    ethos_root = common / "ethos"
+    if ethos_root.is_symlink():
+        message = "hook_runtime_root_invalid"
+        raise ValueError(message)
+    runtime_root = ethos_root / "runtime"
     work = runtime_root / f".build-{uuid.uuid4().hex}"
     wheel_dir = work / "wheel"
     try:
@@ -311,21 +315,22 @@ def finalize_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: 
         raise ValueError(message)
 
 
-def runtime_locator(venv: Path) -> str:
-    digest = venv.parent.name
-    executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
-    return f"../ethos/runtime/{digest}/venv/{executable}"
-
-
-def replace_launchers(hooks: Path, locator: str) -> None:
-    """Replace the complete declared launcher directory or preserve its predecessor."""
-    hooks.parent.mkdir(parents=True, exist_ok=True)
-    transaction = uuid.uuid4().hex
-    staging = hooks.with_name(f".{hooks.name}.stage-{transaction}")
-    backup = hooks.with_name(f".{hooks.name}.backup-{transaction}")
+def materialize_hook_launchers(generations: Path, locator: str) -> Path:
+    """Materialize one immutable content-addressed hook generation."""
+    if generations.parent.is_symlink() or generations.is_symlink():
+        message = "hook_generation_root_invalid"
+        raise ValueError(message)
     expected = {name: hook_launcher(locator, name) for name in HOOK_NAMES}
-    backed_up = False
-    activated = False
+    digest = hook_generation_digest(expected)
+    target = generations / digest
+    if target.is_symlink():
+        message = "hook_launcher_projection_invalid"
+        raise ValueError(message)
+    if target.is_dir():
+        _require_launcher_projection(target, expected)
+        return target
+    generations.mkdir(parents=True, exist_ok=True)
+    staging = generations / f".generation-{digest[:12]}-{uuid.uuid4().hex}"
     try:
         staging.mkdir()
         for name, content in expected.items():
@@ -333,60 +338,30 @@ def replace_launchers(hooks: Path, locator: str) -> None:
             launcher.write_text(content, encoding="utf-8", newline="\n")
             launcher.chmod(0o755)
         _require_launcher_projection(staging, expected)
-        if hooks.exists() or hooks.is_symlink():
-            hooks.rename(backup)
-            backed_up = True
-        staging.rename(hooks)
-        activated = True
-        _require_launcher_projection(hooks, expected)
-    except BaseException:
-        _restore_launcher_directory(
-            hooks,
-            staging,
-            backup,
-            activated=activated,
-            backed_up=backed_up,
-        )
-        raise
-    finally:
-        _remove_launcher_directory(staging)
-    with suppress(OSError):
-        _remove_launcher_directory(backup)
-
-
-def _restore_launcher_directory(
-    hooks: Path,
-    staging: Path,
-    backup: Path,
-    *,
-    activated: bool,
-    backed_up: bool,
-) -> None:
-    if activated:
         try:
-            hooks.rename(staging)
+            staging.rename(target)
         except OSError:
-            _remove_launcher_directory(hooks)
-    if backed_up:
-        backup.rename(hooks)
-
-
-def _remove_launcher_directory(path: Path) -> None:
-    if path.is_dir() and not path.is_symlink():
-        shutil.rmtree(path)
-    else:
-        path.unlink(missing_ok=True)
+            if not target.is_dir():
+                raise
+        _require_launcher_projection(target, expected)
+        return target
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 def _require_launcher_projection(hooks: Path, expected: dict[str, str]) -> None:
     try:
         names = {path.name for path in hooks.iterdir()}
-        valid = names == expected.keys() and all(
-            not (path := hooks / name).is_symlink()
-            and path.is_file()
-            and path.read_bytes() == content.encode()
-            and (os.name == "nt" or stat.S_IMODE(path.stat().st_mode) == 0o755)
-            for name, content in expected.items()
+        valid = (
+            not hooks.is_symlink()
+            and names == expected.keys()
+            and all(
+                not (path := hooks / name).is_symlink()
+                and path.is_file()
+                and path.read_bytes() == content.encode()
+                and (os.name == "nt" or stat.S_IMODE(path.stat().st_mode) == 0o755)
+                for name, content in expected.items()
+            )
         )
     except OSError as error:
         message = "hook_launcher_projection_invalid"

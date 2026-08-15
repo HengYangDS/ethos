@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import stat
 import subprocess
 import sys
 from importlib import import_module
@@ -19,6 +18,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook.binding import runtime_locator
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -41,22 +41,6 @@ def _venv_executable(venv: Path, name: str) -> Path:
     directory = "Scripts" if os.name == "nt" else "bin"
     suffix = ".exe" if os.name == "nt" else ""
     return venv / directory / f"{name}{suffix}"
-
-
-def _hook_directory_state(hooks: Path) -> dict[str, tuple[bytes, int]]:
-    return {
-        path.name: (path.read_bytes(), stat.S_IMODE(path.stat().st_mode))
-        for path in hooks.iterdir()
-    }
-
-
-def _legacy_hook_directory(hooks: Path) -> tuple[int, dict[str, tuple[bytes, int]]]:
-    hooks.mkdir()
-    for index, name in enumerate(("pre-commit", "commit-msg")):
-        path = hooks / name
-        path.write_text(f"legacy-{name}\n", encoding="utf-8")
-        path.chmod(0o700 + index)
-    return hooks.stat().st_ino, _hook_directory_state(hooks)
 
 
 def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
@@ -129,9 +113,7 @@ def test_hook_runtime_manifest_and_runtime_locator_bind_exact_package(
     runtime = venv.parent
 
     executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
-    assert runtime_install.runtime_locator(runtime / "venv") == (
-        f"../ethos/runtime/{runtime.name}/venv/{executable}"
-    )
+    assert runtime_locator(runtime / "venv") == f"../../runtime/{runtime.name}/venv/{executable}"
 
 
 def test_hook_runtime_wheel_provenance_and_tool_fail_closed(
@@ -202,7 +184,7 @@ def test_hook_install_materializes_a_common_dir_package_runtime(tmp_path: Path) 
         text = (Path(str(report["hooks_path"])) / name).read_text(encoding="utf-8")
         assert text.startswith("#!/bin/sh\n")
         assert checkout_python.as_posix() not in text
-        assert 'exec "$HOOK_DIR/../ethos/runtime/' in text
+        assert 'exec "$HOOK_DIR/../../runtime/' in text
 
 
 @pytest.mark.parametrize("kind", ["file", "symlink"])
@@ -228,159 +210,216 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(tmp_path: Path, 
     }
 
 
-def test_launcher_projection_removes_files_outside_the_declared_hook_set(tmp_path: Path) -> None:
-    hooks = tmp_path / "ethos-hooks"
-    hooks.mkdir()
-    prior_inode = hooks.stat().st_ino
-    (hooks / "commit-msg").write_text("stale\n", encoding="utf-8")
+def test_hook_generations_are_content_addressed_and_immutable(tmp_path: Path) -> None:
+    root = tmp_path / "ethos" / "hooks"
+    locator = "../../runtime/" + "a" * 64 + "/venv/bin/python"
 
-    locator = "../ethos/runtime/" + "a" * 64 + "/venv/bin/python"
+    generation = runtime_install.materialize_hook_launchers(root, locator)
+    inode = generation.stat().st_ino
+    repeated = runtime_install.materialize_hook_launchers(root, locator)
 
-    runtime_install.replace_launchers(hooks, locator)
-
-    assert hooks.stat().st_ino != prior_inode
-    assert {path.name for path in hooks.iterdir()} == set(HOOK_NAMES)
-    for name in HOOK_NAMES:
-        launcher = hooks / name
-        assert launcher.read_text(encoding="utf-8") == hook_launcher(locator, name)
-        if os.name != "nt":
-            assert stat.S_IMODE(launcher.stat().st_mode) == 0o755
-    assert not tuple(tmp_path.glob(".ethos-hooks.*"))
-
-
-def test_launcher_projection_staging_failure_preserves_prior_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    hooks = tmp_path / "ethos-hooks"
-    inode, prior = _legacy_hook_directory(hooks)
-    write_text = Path.write_text
-
-    def fail_second_launcher(
-        path: Path,
-        data: str,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> int:
-        if "pre-push" in path.name and (
-            path.parent == hooks or path.parent.name.startswith(".ethos-hooks.stage-")
-        ):
-            message = "staging failed"
-            raise OSError(message)
-        return write_text(path, data, encoding=encoding, errors=errors, newline=newline)
-
-    monkeypatch.setattr(Path, "write_text", fail_second_launcher)
-
-    with pytest.raises(OSError, match="staging failed"):
-        runtime_install.replace_launchers(
-            hooks,
-            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
-        )
-
-    assert hooks.stat().st_ino == inode
-    assert _hook_directory_state(hooks) == prior
-
-
-def test_launcher_projection_swap_failure_restores_prior_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    hooks = tmp_path / "ethos-hooks"
-    inode, prior = _legacy_hook_directory(hooks)
-    rename = Path.rename
-
-    def fail_activation(path: Path, target: Path) -> Path:
-        if path.name.startswith(".ethos-hooks.stage-") and Path(target) == hooks:
-            message = "activation failed"
-            raise OSError(message)
-        return rename(path, target)
-
-    monkeypatch.setattr(Path, "rename", fail_activation)
-
-    with pytest.raises(OSError, match="activation failed"):
-        runtime_install.replace_launchers(
-            hooks,
-            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
-        )
-
-    assert hooks.stat().st_ino == inode
-    assert _hook_directory_state(hooks) == prior
-
-
-def test_launcher_projection_readback_failure_restores_prior_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    hooks = tmp_path / "ethos-hooks"
-    inode, prior = _legacy_hook_directory(hooks)
-    rename = Path.rename
-
-    def corrupt_activated_directory(path: Path, target: Path) -> Path:
-        activated = rename(path, target)
-        if path.name.startswith(".ethos-hooks.stage-") and Path(target) == hooks:
-            (hooks / "pre-push").chmod(0o644)
-        return activated
-
-    monkeypatch.setattr(Path, "rename", corrupt_activated_directory)
-
-    with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
-        runtime_install.replace_launchers(
-            hooks,
-            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
-        )
-
-    assert hooks.stat().st_ino == inode
-    assert _hook_directory_state(hooks) == prior
-
-
-def test_launcher_projection_rollback_removes_invalid_active_when_quarantine_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    hooks = tmp_path / "ethos-hooks"
-    _inode, prior = _legacy_hook_directory(hooks)
-    rename = Path.rename
-
-    def corrupt_then_fail_quarantine(path: Path, target: Path) -> Path:
-        if path == hooks and Path(target).name.startswith(".ethos-hooks.stage-"):
-            message = "quarantine failed"
-            raise OSError(message)
-        activated = rename(path, target)
-        if path.name.startswith(".ethos-hooks.stage-") and Path(target) == hooks:
-            (hooks / "pre-push").chmod(0o644)
-        return activated
-
-    monkeypatch.setattr(Path, "rename", corrupt_then_fail_quarantine)
-
-    with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
-        runtime_install.replace_launchers(
-            hooks,
-            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
-        )
-
-    assert _hook_directory_state(hooks) == prior
-
-
-def test_launcher_projection_backup_cleanup_is_best_effort_after_commit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    hooks = tmp_path / "ethos-hooks"
-    _legacy_hook_directory(hooks)
-    remove = runtime_install.shutil.rmtree
-
-    def fail_backup_cleanup(path: Path, *args: object, **kwargs: object) -> None:
-        if Path(path).name.startswith(".ethos-hooks.backup-"):
-            message = "cleanup failed"
-            raise OSError(message)
-        remove(path, *args, **kwargs)
-
-    monkeypatch.setattr(runtime_install.shutil, "rmtree", fail_backup_cleanup)
-    locator = "../ethos/runtime/" + "a" * 64 + "/venv/bin/python"
-
-    runtime_install.replace_launchers(hooks, locator)
-
-    assert {path.name for path in hooks.iterdir()} == set(HOOK_NAMES)
+    assert repeated == generation
+    assert repeated.stat().st_ino == inode
+    assert generation.parent == root
+    assert len(generation.name) == 64
+    assert {path.name for path in generation.iterdir()} == set(HOOK_NAMES)
     assert all(
-        (hooks / name).read_text(encoding="utf-8") == hook_launcher(locator, name)
+        (generation / name).read_text(encoding="utf-8") == hook_launcher(locator, name)
         for name in HOOK_NAMES
     )
+
+
+def test_hook_generation_failure_never_mutates_an_existing_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "ethos" / "hooks"
+    old = runtime_install.materialize_hook_launchers(
+        root, "../../runtime/" + "a" * 64 + "/venv/bin/python"
+    )
+    before = {path.name: path.read_bytes() for path in old.iterdir()}
+    write_text = Path.write_text
+
+    def fail_pre_push(path: Path, data: str, **kwargs: object) -> int:
+        if path.name == "pre-push" and path.parent.name.startswith(".generation-"):
+            message = "staging failed"
+            raise OSError(message)
+        return write_text(path, data, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_pre_push)
+
+    with pytest.raises(OSError, match="staging failed"):
+        runtime_install.materialize_hook_launchers(
+            root, "../../runtime/" + "b" * 64 + "/venv/bin/python"
+        )
+
+    assert {path.name: path.read_bytes() for path in old.iterdir()} == before
+    assert {path.name for path in root.iterdir()} == {old.name}
+
+
+def test_hook_binding_follows_the_exact_configured_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    generation = runtime_install.materialize_hook_launchers(
+        common / "ethos" / "hooks", runtime_locator(venv)
+    )
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert (
+        _git(repo, "config", "--worktree", "core.hooksPath", generation.as_posix()).returncode == 0
+    )
+
+    observed = hook_runtime_binding(repo)
+
+    assert observed["hooks_path"] == generation.as_posix()
+    assert observed["required_gaps"] == []
+
+
+def test_hook_binding_rejects_a_configured_path_outside_the_common_generation_root(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    external = tmp_path / "external-hooks"
+    external.mkdir()
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert _git(repo, "config", "--worktree", "core.hooksPath", external.as_posix()).returncode == 0
+
+    observed = hook_runtime_binding(repo)
+
+    assert observed["hooks_path"] == external.as_posix()
+    assert "write_admission_not_armed:core.hooksPath" in observed["required_gaps"]
+
+
+@pytest.mark.parametrize("configured_form", ["absolute", "relative"])
+def test_hook_binding_rejects_a_symlinked_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, configured_form: str
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    generation = runtime_install.materialize_hook_launchers(
+        common / "ethos" / "hooks", runtime_locator(venv)
+    )
+    alias = generation.with_name("f" * 64)
+    alias.symlink_to(generation, target_is_directory=True)
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    configured = (
+        alias.relative_to(repo).as_posix() if configured_form == "relative" else alias.as_posix()
+    )
+    assert _git(repo, "config", "--worktree", "core.hooksPath", configured).returncode == 0
+
+    observed = hook_runtime_binding(repo)
+
+    assert "write_admission_not_armed:core.hooksPath" in observed["required_gaps"]
+
+
+def test_hook_binding_rejects_a_symlinked_generation_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    real = common / "external-hooks"
+    root = common / "ethos" / "hooks"
+    real.mkdir()
+    root.parent.mkdir(parents=True, exist_ok=True)
+    root.symlink_to(real, target_is_directory=True)
+    with pytest.raises(ValueError, match="hook_generation_root_invalid"):
+        runtime_install.materialize_hook_launchers(root, runtime_locator(venv))
+
+
+def test_hook_generation_rejects_a_symlinked_ethos_ancestor(tmp_path: Path) -> None:
+    common = tmp_path / "common"
+    external = tmp_path / "external"
+    common.mkdir()
+    external.mkdir()
+    (common / "ethos").symlink_to(external, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="hook_generation_root_invalid"):
+        runtime_install.materialize_hook_launchers(
+            common / "ethos" / "hooks",
+            "../../runtime/" + "a" * 64 + "/venv/bin/python",
+        )
+
+
+def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    common = Path(git_common_dir(repo))
+    external = tmp_path / "external"
+    external.mkdir()
+    (common / "ethos").symlink_to(external, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="hook_runtime_root_invalid"):
+        runtime_install.materialize_hook_runtime(repo, Path(sys.executable))
+
+    assert not tuple(external.iterdir())
+
+
+def test_hook_generation_rejects_an_existing_symlink_target(tmp_path: Path) -> None:
+    root = tmp_path / "ethos" / "hooks"
+    locator = "../../runtime/" + "a" * 64 + "/venv/bin/python"
+    generation = runtime_install.materialize_hook_launchers(root, locator)
+    real = generation.with_name("real")
+    generation.rename(real)
+    generation.symlink_to(real, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
+        runtime_install.materialize_hook_launchers(root, locator)
+
+
+def test_hook_binding_reports_non_utf8_launcher_as_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    generation = runtime_install.materialize_hook_launchers(
+        common / "ethos" / "hooks", runtime_locator(venv)
+    )
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert (
+        _git(repo, "config", "--worktree", "core.hooksPath", generation.as_posix()).returncode == 0
+    )
+    (generation / "pre-push").write_bytes(b"\xff")
+
+    observed = hook_runtime_binding(repo)
+
+    assert "write_admission_not_armed:pre-push_launcher_drift" in observed["required_gaps"]
+
+
+def test_hook_activation_failure_keeps_the_old_generation_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    root = Path(git_common_dir(repo)) / "ethos" / "hooks"
+    old = runtime_install.materialize_hook_launchers(
+        root, "../../runtime/" + "a" * 64 + "/venv/bin/python"
+    )
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert _git(repo, "config", "--worktree", "core.hooksPath", old.as_posix()).returncode == 0
+    fake_venv = Path(git_common_dir(repo)) / "ethos" / "runtime" / ("b" * 64) / "venv"
+    monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", lambda *_args: fake_venv)
+    real_set = hook_runtime.set_worktree_config
+
+    def fail_activation(root_path: Path, values: dict[str, str]) -> None:
+        if "core.hooksPath" in values:
+            message = "activation failed"
+            raise ValueError(message)
+        real_set(root_path, values)
+
+    monkeypatch.setattr(hook_runtime, "set_worktree_config", fail_activation)
+
+    with pytest.raises(ValueError, match="activation failed"):
+        install_hook_launchers(repo)
+
+    assert (
+        _git(repo, "config", "--path", "--get", "core.hooksPath").stdout.strip() == old.as_posix()
+    )
+    assert old.is_dir()
+    assert len(tuple(root.iterdir())) == 2
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
@@ -461,7 +500,7 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
 
 def test_hook_launcher_uses_a_validated_git_for_windows_sh_runtime() -> None:
     """Git-for-Windows invokes hooks through sh; this is not a PowerShell launcher."""
-    runtime = "../ethos/runtime/" + "a" * 64 + "/venv/Scripts/python.exe"
+    runtime = "../../runtime/" + "a" * 64 + "/venv/Scripts/python.exe"
 
     text = hook_launcher(runtime, "pre-commit")
 

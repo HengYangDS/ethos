@@ -15,6 +15,7 @@ from ethos.adapters.repo.git_effect_attestation import native_effect_result
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
+from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
@@ -60,7 +61,7 @@ def start_effect_authority(
     valid = (
         attestation.verdict == "pass"
         and started is not None
-        and started.digest() == commitment.digest()
+        and started.id == commitment.id
         and attestation.commitment_digest == started.digest()
         and statement.get("repository") == repository_id
         and claim == {"operation": "openspec.change.start", "effect": attestation.effect_digest}
@@ -70,7 +71,7 @@ def start_effect_authority(
         and new.get("branch") == current.get("branch")
         and new.get("lane_incarnation_id") == current.get("lane_incarnation_id")
         and new.get("lease_id") == current.get("lease_id")
-        and _same_generation(new, current)
+        and integer(new.get("epoch"), default=-1) <= integer(current.get("epoch"), default=-1)
         and new.get("expected_head") == start_head
         and new.get("expected_tree") == current_tree(root, start_head)
         and current.get("expected_head") == head
@@ -230,10 +231,6 @@ def _generation(value: object) -> JsonObject | None:
         }
     )
     return normalized if mutable_json(expected) == normalized else None
-
-
-def _same_generation(left: JsonObject, right: JsonObject) -> bool:
-    return canonical_json_digest(left) == canonical_json_digest(right)
 
 
 def _lease_binding(value: object) -> dict[str, object]:

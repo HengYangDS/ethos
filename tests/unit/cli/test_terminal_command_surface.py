@@ -3,20 +3,21 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime
 from typing import get_type_hints
 
 import pytest
 
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.semantic import Attestation
-from ethos.surface.cli.application import app, load_command_groups
+from ethos.surface.cli.application import app
+from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.lane.lease import TakeoverOptions
-from tests.support.ethos_cli_runner import run_ethos, run_ethos_raw
-from tests.support.governed_repository import (
-    commit_fixture_file,
-    start_adopted_work_lane,
-)
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.literal_cases import literal_case
 
 PUBLIC_ROOT_COMMANDS = literal_case(

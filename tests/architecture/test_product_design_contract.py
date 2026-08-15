@@ -3,14 +3,16 @@ from __future__ import annotations
 import ast
 import re
 import shutil
+import tomllib
 from pathlib import Path
 
 import pytest
-import tomllib
 
-from ethos.repository.design.integrity import design_integrity_report, front_matter_ok
+from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.openspec.audit import active_change_names_from_paths
-from ethos.surface.cli.application import app, load_command_groups
+from ethos.surface.cli.application import app
+from ethos.surface.cli.application import load_command_groups
 
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_OWNER = "docs/governance/product-design-contract.md"

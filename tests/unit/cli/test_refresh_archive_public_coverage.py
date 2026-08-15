@@ -9,13 +9,15 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive_change as archive
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as refresh
-from tests.support.governed_repository import init_git_repo, write_test_profile
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 BRANCH = "work/feature"
 HEAD = "old-head"
 NEW_HEAD = "new-head"
 CHANGE = "fixture-change"
-ARCHIVE_PATH = f"openspec/changes/archive/{datetime.now().astimezone().date().isoformat()}-fixture-change"
+ARCHIVE_DATE = datetime.now().astimezone().date().isoformat()
+ARCHIVE_PATH = f"openspec/changes/archive/{ARCHIVE_DATE}-fixture-change"
 
 
 def test_archive_commit_subject_is_conventional(tmp_path: Path) -> None:
@@ -672,12 +674,12 @@ def test_archive_public_recovers_attestation_after_the_git_effect_completed(
 
 @pytest.mark.parametrize(
     "gap",
-    (
+    [
         "attestation_set_ref_dangling",
         "attestation_set_root_invalid",
         "attestation_set_member_invalid",
         "attestation_set_symbolic_ref_forbidden",
-    ),
+    ],
 )
 def test_archive_recovery_fails_closed_when_the_attestation_set_is_damaged(
     monkeypatch: pytest.MonkeyPatch,

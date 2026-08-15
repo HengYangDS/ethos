@@ -284,6 +284,10 @@ def _preflight(
     if not gaps:
         try:
             predecessor = load_lease_bound_commitment(root, lease=lease)
+        except ValueError as error:
+            gaps.append(str(error))
+    if not gaps:
+        try:
             _commitment(
                 root=root,
                 change=change,
@@ -292,8 +296,8 @@ def _preflight(
                 predecessor=predecessor,
                 selected_attestations=selected_attestations,
             )
-        except ValueError as error:
-            gaps.append(str(error))
+        except ValueError:
+            gaps.append("openspec_change_commitment_invalid")
     if not gaps:
         selected_set_root, selection_gaps = _selection_observation(
             root,

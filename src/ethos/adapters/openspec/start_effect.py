@@ -7,7 +7,7 @@ from dataclasses import field
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
-    bootstrap_generation_authority,
+    rebind_generation_authority,
 )
 from ethos.adapters.openspec.generation.attestation import archive_effect_authority
 from ethos.adapters.openspec.generation.attestation import start_effect_authority
@@ -266,7 +266,7 @@ def _effect_authorities(
             if projection:
                 archive.append(projection)
         elif attestation.predicate == "effect:commitment-rebind":
-            projection = bootstrap_generation_authority(
+            projection = rebind_generation_authority(
                 root,
                 attestation,
                 repository_id=repository_id,

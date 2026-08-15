@@ -157,6 +157,17 @@ class RebindCase:
         )
         assert not list(ref_intent_dir(self.worktree).glob("*.json"))
 
+    def generation_scope(self) -> object:
+        updated = leases_by_branch(self.worktree)[self.branch]
+        return current_generation_scope(
+            self.worktree,
+            head=str(updated["expected_head"]),
+            repository_id=load_repository_commitment(self.worktree).id,
+            commitment=load_lease_bound_commitment(self.worktree, lease=updated),
+            lease=updated,
+            fallback_paths=("src/example.py",),
+        )
+
 
 def _case(
     tmp_path: Path,
@@ -296,6 +307,19 @@ def test_rebind_owns_carrier_and_authority(
     report = case.execute()
     assert (report["verdict"], report["required_gaps"]) == ("pass", [])
     case.assert_terminal(report)
+
+
+def test_ordinary_rebind_establishes_current_generation_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+
+    report = case.execute()
+
+    assert (report["verdict"], report["required_gaps"]) == ("pass", [])
+    scope = case.generation_scope()
+    assert scope.gaps == ()
+    assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
 
 
 @pytest.mark.parametrize("trust_gaps", [("commit_signature_untrusted",), ()])
@@ -1184,7 +1208,7 @@ def test_v1_to_v2_bootstrap_derive_owns_target_and_keeps_old_bytes_opaque(
     assert scope.start_authority["predicate"] == "effect:commitment-rebind"
     assert scope.start_authority["claim"]["operation"] == "v1-to-v2-bootstrap"
     assert {item.source for item in scope.attributions if item.state == "authorized"} == {
-        "bootstrap_generation",
+        "rebind_generation",
         "dirty_overlay",
     }
     forged = tamper_attestation(
@@ -1194,7 +1218,7 @@ def test_v1_to_v2_bootstrap_derive_owns_target_and_keeps_old_bytes_opaque(
         replacement="lease:forged",
     )
     assert (
-        rebind_evidence.bootstrap_generation_authority(
+        rebind_evidence.rebind_generation_authority(
             case.worktree,
             forged,
             repository_id=repository.id,

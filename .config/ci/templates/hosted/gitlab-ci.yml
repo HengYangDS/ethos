@@ -49,7 +49,7 @@ default:
 # (architecture), docstrings, product-boundary/contributor policy, Ruff S rules,
 # Python vulnerability audit, gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
 # markdown lint, lychee (doc links), provider projection drift, local emulator
-# boundaries, format selection, architecture projection, runbook/MCP smoke,
+# boundaries, format selection, architecture projection, MCP smoke,
 # generated-artifact and release supply-chain checks.
 # A gate that does not run in CI is not a gate.
 .python_setup: &python_setup

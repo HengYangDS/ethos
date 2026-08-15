@@ -16,6 +16,7 @@ import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission as rebind_admission
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence as rebind_evidence
+import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.openspec.start_effect import current_generation_scope
@@ -386,6 +387,27 @@ def test_change_identity_repair_applies_one_exact_semantic_rename(
     assert scope.gaps == ()
     assert scope.start_authority["predicate"] == "effect:commitment-rebind"
     assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
+
+
+def test_ref_transition_does_not_scan_unrelated_lease_bindings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        status_bindings,
+        "lease_observations",
+        lambda *_args, **_kwargs: pytest.fail("global Lease projection used"),
+    )
+
+    report = work_lane_ref_transition_report(
+        root=case.worktree,
+        phase="prepared",
+        ref_name=f"refs/heads/{case.branch}",
+        old_value=case.request.expect_head,
+        new_value=case.request.target_commit,
+    )
+
+    assert report["required_gaps"] == ["commitment_rebind_required"]
 
 
 @pytest.mark.parametrize(

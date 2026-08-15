@@ -14,8 +14,7 @@ Purpose: define where generated outputs may exist, where curated evidence is
 promoted, and which repository paths must never accumulate generated drift.
 
 See also: [Command Plane](../reference/command-plane.md), [Local State](local-state.md),
-[Provenance And Attestation](../governance/provenance-and-attestation.md), and
-[Generated Artifact Topology Decision](../decisions/DR-0001-generated-artifact-topology-contract.md).
+and [Provenance And Attestation](../governance/provenance-and-attestation.md).
 
 ## Contract
 

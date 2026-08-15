@@ -287,7 +287,7 @@ than by `current`/`future` directory names.
 
 - **WHEN** `ethos prove --gate docs-topology --json` runs
 - **THEN** ETHOS requires the common docs kernel: `docs/README.md`,
-  `docs/decisions/`, `docs/evidence/`, `docs/history/`, and `docs/reference/`
+  `docs/evidence/`, `docs/history/`, and `docs/reference/`
 - **AND** the required kernel is invariant across single-repository, monorepo,
   and multi-repository governed subjects
 - **AND** product or adopter extension roots remain optional and domain-bounded

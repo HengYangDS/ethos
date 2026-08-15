@@ -19,9 +19,10 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import relocated_commitment_fields
 from ethos.adapters.repo.git import ref_head
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.lease.projection import observe_lease
+from ethos.adapters.store.state.schema import observed_state_database
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitRefUpdate
@@ -72,7 +73,8 @@ def work_lane_ref_transition_report(
     )
     if early is not None:
         return early
-    lease = leases_by_branch(repo).get(branch, {})
+    observation = observe_lease(observed_state_database(repo), branch)
+    lease = {} if observation.state == "missing" else observation.record()
     update = GitRefUpdate(expected=old_value, desired=new_value)
     if not lease:
         return _missing_lease_report(

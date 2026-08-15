@@ -6,10 +6,14 @@ subjects = [
 ]
 scope = [
   ".agents/skills/ethos-adoption-profile-governance/SKILL.md",
+  ".agents/skills/ethos-adoption-profile-governance/package.toml",
   ".agents/skills/ethos-change-lifecycle/SKILL.md",
+  ".agents/skills/ethos-change-lifecycle/package.toml",
   ".agents/skills/ethos-repository-governance/SKILL.md",
+  ".agents/skills/ethos-repository-governance/package.toml",
   ".agents/skills/ethos-repository-governance/references/governance-map.md",
   ".agents/skills/ethos-skill-portfolio-governance/SKILL.md",
+  ".agents/skills/ethos-skill-portfolio-governance/package.toml",
   ".config/README.md",
   ".config/checks/architecture/models/ethos_repository.c4",
   ".config/checks/deptry/policy.toml",

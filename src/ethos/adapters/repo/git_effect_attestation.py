@@ -219,6 +219,7 @@ def validate(
     issuer: str,
     plan: TransitionPlan,
     environment: Mapping[str, str] | None = None,
+    current_postconditions: bool = True,
 ) -> None:
     """Validate immutable typed evidence, validity, and current postconditions."""
     if git_effect_from_plan(plan) != effect:
@@ -288,7 +289,7 @@ def validate(
         or attestation.canonical_json() != expected.canonical_json()
     ):
         raise ValueError(_CONTENT_MISMATCH)
-    if not _matches(
+    if current_postconditions and not _matches(
         root,
         effect,
         evidence,
@@ -329,6 +330,33 @@ def _matching_plan_attestations(root: Path, plan_digest: str) -> tuple[Attestati
         message = "git_effect_attestation_collision"
         raise ValueError(message)
     return matches
+
+
+def validated_plan_attestation(
+    root: Path,
+    plan_digest: str,
+    *,
+    issuer: str,
+    environment: Mapping[str, str] | None = None,
+) -> tuple[TransitionPlan, Attestation] | None:
+    """Return the sole validated plan and its exact Git-effect Attestation."""
+    matches = _matching_plan_attestations(root, plan_digest)
+    if not matches:
+        return None
+    attestation = matches[0]
+    if attestation.verifier != issuer:
+        raise ValueError(_CONTENT_MISMATCH)
+    plan = plan_from_attestation(attestation)
+    validate(
+        root,
+        git_effect_from_plan(plan),
+        attestation,
+        issuer=issuer,
+        plan=plan,
+        environment=environment,
+        current_postconditions=False,
+    )
+    return plan, attestation
 
 
 def recover_plan(

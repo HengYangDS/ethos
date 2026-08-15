@@ -219,9 +219,7 @@ def _derive_v1_to_v2_bootstrap(
     return _persist_request(repo, branch=branch, request=request, observed_targets=[target_commit])
 
 
-def _opaque_v1_binding(
-    repo: Path, tree_ref: str, path: str, *, repository: bool
-) -> dict[str, str]:
+def _opaque_v1_binding(repo: Path, tree_ref: str, path: str, *, repository: bool) -> dict[str, str]:
     binding = terminal_v1_binding(
         repo,
         tree_ref=tree_ref,
@@ -231,9 +229,7 @@ def _opaque_v1_binding(
     return {"id": str(binding["id"]), "bytes_sha256": str(binding["bytes_sha256"])}
 
 
-def _v2_binding(
-    repo: Path, tree_ref: str, path: str, *, repository: bool
-) -> dict[str, str]:
+def _v2_binding(repo: Path, tree_ref: str, path: str, *, repository: bool) -> dict[str, str]:
     raw = run_git(repo, "show", f"{tree_ref}:{path}", text=False).stdout
     commitment = (
         load_repository_commitment(repo, tree_ref=tree_ref)

@@ -33,9 +33,7 @@ def start_effect_authority(
     commitment: Commitment,
     lease: dict[str, object],
 ) -> JsonObject:
-    if not _recognized_operation_attestation(
-        attestation, "effect:openspec-change-start"
-    ):
+    if not _recognized_operation_attestation(attestation, "effect:openspec-change-start"):
         return {}
     statement = attestation.payload.body
     values = tuple(
@@ -56,11 +54,7 @@ def start_effect_authority(
         lease_generation(lease),
     )
     try:
-        started = (
-            load_lease_bound_commitment(root, lease=new, change_id=change)
-            if new
-            else None
-        )
+        started = load_lease_bound_commitment(root, lease=new, change_id=change) if new else None
     except ValueError:
         started = None
     valid = (
@@ -69,8 +63,7 @@ def start_effect_authority(
         and started.digest() == commitment.digest()
         and attestation.commitment_digest == started.digest()
         and statement.get("repository") == repository_id
-        and claim
-        == {"operation": "openspec.change.start", "effect": attestation.effect_digest}
+        and claim == {"operation": "openspec.change.start", "effect": attestation.effect_digest}
         and result in (native_effect_result("applied"), native_effect_result("prepared"))
         and old is not None
         and new is not None
@@ -82,8 +75,7 @@ def start_effect_authority(
         and new.get("expected_tree") == current_tree(root, start_head)
         and current.get("expected_head") == head
         and current.get("expected_tree") == current_tree(root, head)
-        and current.get("base_commitment_path")
-        == f"openspec/changes/{change}/commitment.toml"
+        and current.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml"
         and old.get("expected_head") == previous_head
         and old.get("expected_tree") == current_tree(root, previous_head)
         and commitment.predecessors == (str(old.get("base_commitment_digest")),)
@@ -92,11 +84,8 @@ def start_effect_authority(
             for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
         )
         and old.get("epoch") == new.get("epoch", 0) - 1
-        and str(old.get("base_commitment_path") or "").startswith(
-            "openspec/changes/archive/"
-        )
-        and new.get("base_commitment_path")
-        == f"openspec/changes/{change}/commitment.toml"
+        and str(old.get("base_commitment_path") or "").startswith("openspec/changes/archive/")
+        and new.get("base_commitment_path") == f"openspec/changes/{change}/commitment.toml"
         and git_stdout(root, "rev-parse", f"{start_head}^") == previous_head
         and is_ancestor(root, start_head, head)
         and freshness.get("repository") == repository_id
@@ -132,8 +121,7 @@ def archive_effect_authority(
         return {}
     statement = attestation.payload.body
     output, claim, result, freshness = (
-        _mapping(statement.get(name))
-        for name in ("output", "claim", "result", "freshness")
+        _mapping(statement.get(name)) for name in ("output", "claim", "result", "freshness")
     )
     if None in (output, claim, result, freshness):
         return {}
@@ -148,8 +136,7 @@ def archive_effect_authority(
         attestation.verdict == "pass"
         and attestation.commitment_digest == commitment.digest()
         and statement.get("repository") == repository_id
-        and claim
-        == {"operation": "openspec.archive", "effect": attestation.effect_digest}
+        and claim == {"operation": "openspec.archive", "effect": attestation.effect_digest}
         and result == {"state": "applied", "executed": True, "exit_code": 0}
         and output.get("head") == head
         and output.get("tree") == current_tree(root, head)
@@ -267,20 +254,14 @@ def _lease_binding(value: object) -> dict[str, object]:
     }
 
 
-def _exact_archive_paths(
-    root: Path, head: str, archive_path: str, paths: tuple[str, ...]
-) -> bool:
+def _exact_archive_paths(root: Path, head: str, archive_path: str, paths: tuple[str, ...]) -> bool:
     parent = git_stdout(root, "rev-parse", f"{head}^")
     actual = tuple(
-        git_stdout(
-            root, "diff", "--name-only", "--diff-filter=ACMRTD", parent, head
-        ).splitlines()
+        git_stdout(root, "diff", "--name-only", "--diff-filter=ACMRTD", parent, head).splitlines()
     )
     return (
         archive_path.startswith("openspec/changes/archive/")
         and bool(parent and actual)
         and actual == paths
-        and all(
-            path.startswith((f"{archive_path}/", "openspec/specs/")) for path in paths
-        )
+        and all(path.startswith((f"{archive_path}/", "openspec/specs/")) for path in paths)
     )

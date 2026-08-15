@@ -107,9 +107,9 @@ def test_archive_reactivation_is_one_current_generation(
 
     assert scope.gaps == ()
     assert scope.start_authority["predicate"] == "effect:openspec-archive-reactivation"
-    assert {
-        item.source for item in scope.attributions if item.state == "authorized"
-    } == {"archive_reactivation"}
+    assert {item.source for item in scope.attributions if item.state == "authorized"} == {
+        "archive_reactivation"
+    }
 
 
 def test_start_effect_rejects_unknown_round_tripped_attestation_kind(

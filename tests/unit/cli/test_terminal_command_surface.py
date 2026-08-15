@@ -30,9 +30,7 @@ RETIRED_ROOT_COMMANDS = literal_case(
 
 def test_registered_command_roots_are_exactly_the_terminal_surface() -> None:
     load_command_groups([])
-    registered = {
-        command for command in app.resolved_commands() if not command.startswith("-")
-    }
+    registered = {command for command in app.resolved_commands() if not command.startswith("-")}
 
     assert registered == {*PUBLIC_ROOT_COMMANDS, "lane", "hook", "attestation"}
 
@@ -204,9 +202,7 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
     _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
-    completed = run_ethos_raw(
-        "status", "--root", worktree.as_posix(), "--json", cwd=worktree
-    )
+    completed = run_ethos_raw("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
 
     assert completed.returncode == 0, completed.stderr
     payload = json.loads(completed.stdout)

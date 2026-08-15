@@ -101,11 +101,7 @@ def archive_change(
             collision = _archive_collision(repo, head, change)
         except ValueError as error:
             gaps = [str(error)]
-    guard = (
-        local_state_mutation_guard(repo)
-        if apply and not gaps
-        else {"required_gaps": []}
-    )
+    guard = local_state_mutation_guard(repo) if apply and not gaps else {"required_gaps": []}
     if guard["required_gaps"]:
         gaps = ["local_state_migration_required"]
     if gaps or not apply:
@@ -116,11 +112,7 @@ def archive_change(
             gaps,
             change=change,
             **({"next_action": guard["next_action"]} if guard["required_gaps"] else {}),
-            **(
-                {"archive_collision": _collision_payload(collision)}
-                if collision
-                else {}
-            ),
+            **({"archive_collision": _collision_payload(collision)} if collision else {}),
         )
     try:
         return _apply_archive(repo, branch, head, change, collision=collision)
@@ -137,11 +129,7 @@ def archive_change(
             "repair_required",
             [str(error)],
             change=change,
-            **(
-                {"archive_collision": _collision_payload(collision)}
-                if collision
-                else {}
-            ),
+            **({"archive_collision": _collision_payload(collision)} if collision else {}),
         )
 
 
@@ -233,11 +221,7 @@ def _apply_archive(
             mutation_gaps,
             change=change,
             command=result.get("command", []),
-            **(
-                {"archive_collision": _collision_payload(collision)}
-                if collision
-                else {}
-            ),
+            **({"archive_collision": _collision_payload(collision)} if collision else {}),
         )
 
     normalize_projected_specs(
@@ -246,9 +230,7 @@ def _apply_archive(
     )
     stage_git_worktree(repo, previous=head)
     changed = tuple(
-        git_stdout(
-            repo, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD"
-        ).splitlines()
+        git_stdout(repo, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD").splitlines()
     )
     scope = lease_bound_archive_scope_report(
         repo,
@@ -256,9 +238,7 @@ def _apply_archive(
         requested_change=change,
         official_change_complete=official_complete,
         completion_artifacts=completion_artifacts,
-        preserved_archive=(collision.path, collision.preserved_path)
-        if collision
-        else None,
+        preserved_archive=(collision.path, collision.preserved_path) if collision else None,
     )
     if (
         scope is None
@@ -385,9 +365,7 @@ def _finish_archive(
     try:
         receipt = _archive_attestation(
             repo,
-            transition=_ArchiveTransition(
-                change, head, archived_head, archive_path, changed
-            ),
+            transition=_ArchiveTransition(change, head, archived_head, archive_path, changed),
             lease=archived_lease,
         )
         record_attestations(repo, (receipt,))
@@ -413,9 +391,7 @@ def _finish_archive(
         changed_paths=list(changed),
         tool_version=openspec_cli.OFFICIAL_VERSION,
         command=result["command"],
-        warnings=[
-            line for line in str(result.get("stderr") or "").splitlines() if line
-        ],
+        warnings=[line for line in str(result.get("stderr") or "").splitlines() if line],
         no_op=not bool(archive_payload.get("specsUpdated")),
         totals=archive_payload.get("totals", {}),
         lease=archived_lease,
@@ -434,12 +410,9 @@ def _archive_attestation_recovery(
     apply: bool,
 ) -> dict[str, object] | None:
     """Recognize and finish the exact archive effect already selected by Git and Lease."""
-    archive_path = str(lease.get("base_commitment_path") or "").removesuffix(
-        "/commitment.toml"
-    )
+    archive_path = str(lease.get("base_commitment_path") or "").removesuffix("/commitment.toml")
     if not (
-        archive_path.startswith("openspec/changes/archive/")
-        and archive_path.endswith(f"-{change}")
+        archive_path.startswith("openspec/changes/archive/") and archive_path.endswith(f"-{change}")
     ):
         return None
     gaps = work_lane_transition_gaps(
@@ -482,9 +455,7 @@ def _archive_attestation_recovery(
         return None
     receipt = _archive_attestation(
         root,
-        transition=_ArchiveTransition(
-            change, previous_head, head, archive_path, changed
-        ),
+        transition=_ArchiveTransition(change, previous_head, head, archive_path, changed),
         lease=lease,
     )
     try:
@@ -554,10 +525,7 @@ def _archive_attestation_pending(
     reason: str,
 ) -> dict[str, object]:
     """Project the sole resumable state after archive Git and Lease effects complete."""
-    command = (
-        f"ethos lane archive-change --change {change} "
-        f"--expect-head {head} --apply --json"
-    )
+    command = f"ethos lane archive-change --change {change} --expect-head {head} --apply --json"
     return lifecycle_report(
         branch,
         head,
@@ -743,19 +711,14 @@ def _precondition_gaps(
         role_gap="archive_requires_work_lane",
         require_clean=True,
     )
-    if (
-        lease.get("base_commitment_path")
-        != f"openspec/changes/{change}/commitment.toml"
-    ):
+    if lease.get("base_commitment_path") != f"openspec/changes/{change}/commitment.toml":
         gaps.append(f"openspec_active_change_missing:{change}")
     if not gaps:
         gaps.extend(proof_gaps(root, head))
     return list(dict.fromkeys(gaps))
 
 
-def _official_result_gaps(
-    root: Path, change: str, result: dict[str, Any]
-) -> tuple[list[str], str]:
+def _official_result_gaps(root: Path, change: str, result: dict[str, Any]) -> tuple[list[str], str]:
     payload = result.get("json")
     archive = payload.get("archive") if isinstance(payload, dict) else None
     archive_path = ""

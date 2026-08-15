@@ -176,6 +176,5 @@ def _bootstrap_lease_binding(
         and lane["subjects"] == (repository["id"],)
         and lane["bytes_sha256"] == lease.get("base_commitment_bytes_sha256")
         and repository["id"] == plan.policy.get("prestate_repository_id")
-        and repository["bytes_sha256"]
-        == plan.policy.get("prestate_repository_bytes_sha256")
+        and repository["bytes_sha256"] == plan.policy.get("prestate_repository_bytes_sha256")
     )

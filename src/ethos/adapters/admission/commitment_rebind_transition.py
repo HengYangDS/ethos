@@ -17,6 +17,7 @@ from ethos.repository.openspec.identifiers import malformed_change_identity_repa
 if TYPE_CHECKING:
     from pathlib import Path
 
+
 def commitment_rebind_operation(
     repo: Path,
     update: GitRefUpdate,
@@ -135,8 +136,7 @@ def _bootstrap_transition_gap(
         parents = run_git(root, "rev-list", "--parents", "-n", "1", update.desired).stdout.split()
         checks = (
             (
-                old_lane["bytes_sha256"]
-                == str(lease.get("base_commitment_bytes_sha256") or ""),
+                old_lane["bytes_sha256"] == str(lease.get("base_commitment_bytes_sha256") or ""),
                 "lease_base_commitment_bytes_mismatch",
             ),
             (
@@ -157,8 +157,7 @@ def _bootstrap_transition_gap(
                 "commitment_rebind_target_parent_mismatch",
             ),
             (
-                run_git(root, "write-tree").stdout.strip()
-                == observed_target["expected_tree"],
+                run_git(root, "write-tree").stdout.strip() == observed_target["expected_tree"],
                 "commitment_rebind_index_tree_mismatch",
             ),
             (

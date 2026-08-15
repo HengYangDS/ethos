@@ -17,7 +17,6 @@ current reusable owner is the [Docs Registry](../governance/docs-registry.md);
 ETHOS's own physical documentation shape is handled by the ETHOS repository
 self-audit. No replacement Decision Record was created.
 
-
 ## Historical Contract
 
 The former docs-topology capability audited one repository-form-invariant

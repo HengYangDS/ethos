@@ -6,6 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import pytest
 import tomli_w
 
 import ethos.adapters.openspec.generation.attestation as effect_authority
@@ -27,8 +28,6 @@ from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 def test_archive_reactivation_is_one_current_generation(
@@ -147,9 +146,11 @@ def test_start_effect_rejects_unknown_round_tripped_attestation_kind(
     )
 
 
-def test_start_effect_requires_the_old_lease_commitment_as_the_only_predecessor(
+@pytest.mark.parametrize("flaw", ["predecessor", "current-holder"])
+def test_start_effect_requires_predecessor_and_current_holder_continuity(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    flaw: str,
 ) -> None:
     repository, previous_head, head = "repository:test", "1" * 40, "2" * 40
     predecessor = "a" * 64
@@ -157,7 +158,7 @@ def test_start_effect_requires_the_old_lease_commitment_as_the_only_predecessor(
         id="change:test-change",
         intent="Test successor authority.",
         subjects=(repository,),
-        predecessors=("b" * 64,),
+        predecessors=(("b" * 64) if flaw == "predecessor" else predecessor,),
     )
     old = lease_generation(
         {
@@ -226,7 +227,11 @@ def test_start_effect_requires_the_old_lease_commitment_as_the_only_predecessor(
             head,
             repository,
             successor,
-            {"lane_ref": "work/test-change", **new},
+            {
+                "lane_ref": "work/test-change",
+                **new,
+                **({"holder_ref": "agent:other"} if flaw == "current-holder" else {}),
+            },
         )
         == {}
     )

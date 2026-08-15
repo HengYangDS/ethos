@@ -71,6 +71,7 @@ def start_effect_authority(
         and new.get("branch") == current.get("branch")
         and new.get("lane_incarnation_id") == current.get("lane_incarnation_id")
         and new.get("lease_id") == current.get("lease_id")
+        and new.get("holder_ref") == current.get("holder_ref")
         and integer(new.get("epoch"), default=-1) <= integer(current.get("epoch"), default=-1)
         and new.get("expected_head") == start_head
         and new.get("expected_tree") == current_tree(root, start_head)

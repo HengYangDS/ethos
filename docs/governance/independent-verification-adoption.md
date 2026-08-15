@@ -13,8 +13,7 @@ Status: canonical.
 Purpose: define the optional boundary for re-executing proof under an
 independent trust identity.
 
-See also: [DR-0006](../decisions/DR-0006-proof-trust-boundary.md) and
-[Adoption Profiles](../architecture/adoption-profiles.md).
+See also: [Adoption Profiles](../architecture/adoption-profiles.md).
 
 ETHOS remains local-first by default. An adopter may require an independent
 verifier, but that verifier is a separately configured adapter and does not

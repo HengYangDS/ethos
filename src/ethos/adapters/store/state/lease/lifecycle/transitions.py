@@ -340,18 +340,27 @@ def rebind_lease_commitment(
         result = replace_exact_lease_from_connection(
             connection,
             current=row,
-            replacement=_validated_reissue(
-                current,
-                holder_ref=current.holder_ref,
-                epoch=current.epoch + 1,
-                renewed_at=current.renewed_at,
-                expires_at=current.expires_at,
-                handoff=None,
-                binding=binding,
-            ),
+            replacement=commitment_rebind_successor(current, binding=binding),
         )
         connection.commit()
     return result
+
+
+def commitment_rebind_successor(
+    current: LaneLease,
+    *,
+    binding: dict[str, str],
+) -> LaneLease:
+    """Purely derive the exact next Commitment-bound Lease generation."""
+    return _validated_reissue(
+        current,
+        holder_ref=current.holder_ref,
+        epoch=current.epoch + 1,
+        renewed_at=current.renewed_at,
+        expires_at=current.expires_at,
+        handoff=None,
+        binding=binding,
+    )
 
 
 def expected_current_lease(

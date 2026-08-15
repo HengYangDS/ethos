@@ -41,9 +41,12 @@ from ethos.adapters.repo.git_effects import remove_untracked_tree
 from ethos.adapters.repo.git_effects import stage_git_paths
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.lease.lifecycle.transitions import commitment_rebind_successor
 from ethos.adapters.store.state.lease.lifecycle.transitions import rebind_lease_commitment
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.lease.projection import project_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
@@ -398,21 +401,56 @@ def _finish(
     carrier = f"openspec/changes/{change}/commitment.toml"
     current_lease = leases_by_branch(root).get(branch, {})
     target = exact_commitment_fields(root, head=head, carrier=carrier, change_id=change)
-    updated = rebind_lease_commitment(
-        state_database(root),
-        request=_lease_request(branch, current_lease, head),
-        binding=target,
+    current = LaneLease.from_payload(dict(current_lease["payload"]))
+    successor = commitment_rebind_successor(current, binding=target)
+    successor_record = project_lease(successor)
+    commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)
+    repository = load_repository_commitment(root, tree_ref=head)
+    _selected_root, attestations = read_attestation_set(root)
+    prepared = tuple(
+        item
+        for item in attestations
+        if item.predicate == "effect:openspec-change-start"
+        and item.payload.body.get("freshness", {}).get("subject")
+        == {"change": change, "previous_head": previous_head, "head": head}
     )
-    attestation = _attestation(
+    if len(prepared) > 1:
+        message = "openspec_change_start_attestation_collision"
+        raise ValueError(message)
+    attestation = prepared[0] if prepared else _attestation(
         root,
         change=change,
         command=command,
         previous_head=previous_head,
         head=head,
         old_lease=old_lease,
-        new_lease=updated,
+        new_lease=successor_record,
+        issued_at=datetime.fromtimestamp(
+            int(git_stdout(root, "show", "-s", "--format=%ct", head)), UTC
+        ),
+        commitment=commitment,
+        repository_id=repository.id,
     )
-    record_attestations(root, (attestation,))
+    if not prepared:
+        record_attestations(root, (attestation,))
+    updated = rebind_lease_commitment(
+        state_database(root),
+        request=_lease_request(branch, current_lease, head),
+        binding=target,
+    )
+    if lease_generation(updated) != lease_generation(successor_record):
+        message = "openspec_change_lease_successor_mismatch"
+        raise ValueError(message)
+    if not start_effect_authority(
+        root,
+        attestation,
+        head,
+        repository.id,
+        commitment,
+        updated,
+    ):
+        message = "openspec_change_start_attestation_invalid"
+        raise ValueError(message)
     return lifecycle_report(
         branch,
         head,
@@ -656,14 +694,10 @@ def _attestation(
     head: str,
     old_lease: Mapping[str, object],
     new_lease: Mapping[str, object],
+    issued_at: datetime,
+    commitment: Commitment,
+    repository_id: str,
 ) -> Attestation:
-    commitment = load_commitment(
-        root,
-        carrier=f"openspec/changes/{change}/commitment.toml",
-        change_id=change,
-        tree_ref=head,
-    )
-    repository = load_repository_commitment(root, tree_ref=head)
     return issue_native_effect(
         root,
         effect=NativeEffect(
@@ -674,9 +708,10 @@ def _attestation(
             before={"head": previous_head, "lease": lease_generation(dict(old_lease))},
             after={"head": head, "lease": lease_generation(dict(new_lease))},
         ),
-        state="applied",
+        state="prepared",
         commitment_digest=commitment.digest(),
-        repository_id=repository.id,
+        repository_id=repository_id,
+        issued_at=issued_at,
     )
 
 
@@ -725,7 +760,6 @@ def _recognized(
         tool_version=openspec_cli.OFFICIAL_VERSION,
         attestation=validated[0].model_dump(mode="json"),
     )
-
 
 def _recoverable(
     root: Path,

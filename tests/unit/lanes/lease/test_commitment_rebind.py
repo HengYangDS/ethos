@@ -21,11 +21,13 @@ import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as re
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence as rebind_evidence
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.adapters.openspec.start_effect import current_generation_scope
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit_identity import commit_trust_setup_action
 from ethos.adapters.repo.commitment import exact_commitment_fields
+from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
@@ -594,38 +596,18 @@ def test_rebind_derive_emits_receipt_for_exact_target(
     }
 
 
-def test_rebind_derive_discovers_the_sole_compatible_dangling_target(
+def test_rebind_derive_constructs_the_exact_signed_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-
-    report = rebind_derivation.derive_commitment_rebind(
-        root=case.worktree,
-        target_commit="",
-        repair_change_identity=False,
+    signing_key = tmp_path / "derive-target-signing-key"
+    subprocess.run(
+        ["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", signing_key.as_posix()],
+        check=True,
     )
-
-    assert report["verdict"] == "pass", report["required_gaps"]
-    assert report["request"]["target_commit"] == case.request.target_commit
-    assert report["observed_targets"] == [case.request.target_commit]
-
-    projected = run_ethos(
-        "lane",
-        "rebind-commitment",
-        "derive",
-        "--root",
-        case.worktree.as_posix(),
-        "--json",
-        cwd=case.worktree,
-    )
-    assert projected["verdict"] == "pass"
-    assert projected["data"]["observed_targets"] == [case.request.target_commit]
-
-
-def test_rebind_derive_rejects_missing_compatible_dangling_target(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch)
+    git(case.worktree, "config", "gpg.format", "ssh")
+    git(case.worktree, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
     git(
         case.worktree,
         "update-ref",
@@ -639,34 +621,26 @@ def test_rebind_derive_rejects_missing_compatible_dangling_target(
         repair_change_identity=False,
     )
 
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["commitment_rebind_target_missing"]
-    assert report["observed_targets"] == []
+    assert report["verdict"] == "pass", report["required_gaps"]
+    target = report["request"]["target_commit"]
+    assert target != case.request.target_commit
+    assert git(case.worktree, "rev-parse", f"{target}^") == case.request.expect_head
+    assert git(case.worktree, "rev-parse", f"{target}^{{tree}}") == case.request.expect_index_tree
+    assert "gpgsig " in git(case.worktree, "cat-file", "commit", target)
+    assert report["observed_targets"] == [target]
 
-
-def test_rebind_derive_rejects_multiple_compatible_dangling_targets(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    second = git(
-        case.worktree,
-        "commit-tree",
-        case.request.expect_index_tree,
-        "-p",
-        case.request.expect_head,
-        "-m",
-        "second compatible rebind target",
+    projected = run_ethos(
+        "lane",
+        "rebind-commitment",
+        "derive",
+        "--root",
+        case.worktree.as_posix(),
+        "--json",
+        cwd=case.worktree,
     )
-
-    report = rebind_derivation.derive_commitment_rebind(
-        root=case.worktree,
-        target_commit="",
-        repair_change_identity=False,
-    )
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["commitment_rebind_target_ambiguous"]
-    assert report["observed_targets"] == sorted([case.request.target_commit, second])
+    assert projected["verdict"] == "pass"
+    projected_target = projected["data"]["request"]["target_commit"]
+    assert projected["data"]["observed_targets"] == [projected_target]
 
 
 @pytest.mark.parametrize(
@@ -1123,7 +1097,8 @@ def _bootstrap_case(
         check=True,
     )
     git(case.worktree, "config", "gpg.format", "ssh")
-    git(case.worktree, "config", "user.signingkey", signing_key.as_posix())
+    git(case.worktree, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
     before_lease = leases_by_branch(case.worktree)[case.branch]
     before_set = git(case.worktree, "rev-parse", "--verify", ATTESTATION_SET_REF)
     report = rebind_derivation.derive_commitment_rebind(
@@ -1184,10 +1159,49 @@ def test_v1_to_v2_bootstrap_derive_owns_target_and_keeps_old_bytes_opaque(
     assert updated["expected_head"] == request["target_commit"]
     set_root, attestations = read_attestation_set(case.worktree)
     assert set_root != before_set
-    assert any(
-        item.predicate == "effect:commitment-rebind"
-        and item.payload.body["claim"]["operation"] == "v1-to-v2-bootstrap"
+    bootstrap = next(
+        item
         for item in attestations
+        if item.predicate == "effect:commitment-rebind"
+        and item.payload.body["claim"]["operation"] == "v1-to-v2-bootstrap"
+    )
+    lane_commitment = load_lease_bound_commitment(
+        case.worktree,
+        lease=updated,
+        change_id="fixture-change",
+    )
+    repository = load_repository_commitment(case.worktree)
+    scope = current_generation_scope(
+        case.worktree,
+        head=str(updated["expected_head"]),
+        repository_id=repository.id,
+        commitment=lane_commitment,
+        lease=updated,
+        fallback_paths=(),
+    )
+
+    assert scope.gaps == ()
+    assert scope.start_authority["predicate"] == "effect:commitment-rebind"
+    assert scope.start_authority["claim"]["operation"] == "v1-to-v2-bootstrap"
+    assert {item.source for item in scope.attributions if item.state == "authorized"} == {
+        "bootstrap_generation",
+        "dirty_overlay",
+    }
+    forged = tamper_attestation(
+        bootstrap.model_dump(mode="json"),
+        location="new_lease_generation",
+        field="lease_id",
+        replacement="lease:forged",
+    )
+    assert (
+        rebind_evidence.bootstrap_generation_authority(
+            case.worktree,
+            forged,
+            repository_id=repository.id,
+            commitment_digest=lane_commitment.digest(),
+            lease=updated,
+        )
+        == {}
     )
 
 

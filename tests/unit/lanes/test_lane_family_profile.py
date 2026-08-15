@@ -378,9 +378,9 @@ def test_start_work_lane_restores_source_after_post_ref_failure(
         ),
         pytest.param(
             ["lane_creation_compensation_failed", "lane_start_ref_changed"],
-            "retained",
+            "revoked",
             True,
-            id="start_work_lane_preserves_foreign_ref_created_during_failed_cas",
+            id="start_work_lane_preserves_foreign_ref_and_restores_source_lease",
         ),
     ],
 )
@@ -392,6 +392,7 @@ def test_start_work_lane_ref_creation_transaction_claims(
     *,
     foreign_ref: bool,
 ) -> None:
+    source_lease = leases_by_branch(lane_case.repo)["work/change-source"]
     foreign_head = git(lane_case.candidate, "rev-parse", "HEAD")
 
     def fail_ref_creation(*_args: object, **_kwargs: object) -> None:
@@ -406,8 +407,10 @@ def test_start_work_lane_ref_creation_transaction_claims(
     assert report["required_gaps"] == gaps
     leases = leases_by_branch(lane_case.repo)
     if foreign_ref:
-        lane_case.assert_retained(head=foreign_head)
-        assert "work/change-source" not in leases
+        assert ref_head(lane_case.repo, "work/feature") == foreign_head
+        assert "work/feature" not in leases
+        assert leases["work/change-source"] == source_lease
+        assert report["source_lease_state"] == "restored"
     else:
         lane_case.assert_absent()
         assert leases["work/change-source"]["lease_state"] == "valid"

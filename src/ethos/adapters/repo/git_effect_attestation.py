@@ -52,7 +52,7 @@ def issue_native_effect(
     """Issue one digest-bound effect Attestation from exact pre/post facts."""
     payload = effect._asdict()
     effect_digest = canonical_json_digest(payload)
-    result = {"state": state, "executed": state == "applied", "exit_code": 0}
+    result = native_effect_result(state)
     issued = issued_at or datetime.now(UTC)
     return Attestation.issue(
         {
@@ -97,6 +97,12 @@ def issue_native_effect(
             "mints_authority": False,
         }
     )
+
+
+def native_effect_result(state: str) -> dict[str, object]:
+    """Return the canonical result envelope for one native effect state."""
+    executed = state in {"applied", "recognized"}
+    return {"state": state, "executed": executed, "exit_code": 0 if executed else None}
 
 
 Evidence = tuple[str, str, dict[str, object], dict[str, object]]

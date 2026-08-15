@@ -144,6 +144,7 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
     if not gap and current_head and current_head != owned_ref_head:
         gap = "lane_start_ref_changed"
     ref_removed = not current_head if not gap else False
+    lease_compensated = False
     if not gap and current_head:
         try:
             delete_lane_start_ref(repo, branch, owned_ref_head, context.lease)
@@ -153,8 +154,9 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
     if not ref_removed:
         gap = gap or "lane_start_ref_cleanup_failed"
     try:
-        if not gap and context.lease:
+        if context.lease:
             compensate_lease(context, repo=repo, branch=branch)
+            lease_compensated = True
     except (RuntimeError, ValueError) as exc:
         gap = str(exc)
     if gap:
@@ -165,6 +167,7 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
             worktree_removed=worktree_removed,
             ref_removed=ref_removed,
             lease=context.lease,
+            source_lease_restored=lease_compensated and bool(context.source_lease),
             gap=gap,
         )
     return compensated_lane_start_report(context, branch=branch, target=target)
@@ -279,10 +282,11 @@ def retained_lane_start_report(
     worktree_removed: bool,
     ref_removed: bool,
     lease: dict[str, object] | None,
+    source_lease_restored: bool,
     gap: str,
 ) -> dict[str, object]:
     """Report the evidence and retained authority after incomplete compensation."""
-    return {
+    report: dict[str, object] = {
         "verdict": "block",
         "state": "blocked",
         "branch": branch,
@@ -293,9 +297,14 @@ def retained_lane_start_report(
             "worktree_removed": worktree_removed,
             "ref_removed": ref_removed,
         },
-        "lease_state": "retained" if lease else "not_acquired",
+        "lease_state": (
+            "revoked" if source_lease_restored else "retained" if lease else "not_acquired"
+        ),
         "required_gaps": ["lane_creation_compensation_failed", gap],
     }
+    if source_lease_restored:
+        report["source_lease_state"] = "restored"
+    return report
 
 
 def child_process_evidence(completed: subprocess.CompletedProcess[str]) -> dict[str, object]:

@@ -22,6 +22,7 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -638,7 +639,7 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
     holder = str(leases_by_branch(repo).get(branch, {}).get("holder_ref") or "")
     original = os.environ.get("ETHOS_ACTOR")
     hooks_path = git(repo, "config", "--get", "core.hooksPath")
-    installed_hooks = Path(hooks_path).name == "ethos-hooks"
+    installed_hooks = not hook_runtime_binding(repo)["required_gaps"]
     if holder:
         os.environ["ETHOS_ACTOR"] = holder
     if installed_hooks:

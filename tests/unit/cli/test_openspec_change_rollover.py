@@ -6,7 +6,8 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
 from ethos.adapters.admission.prewrite import prewrite_guard
@@ -28,9 +29,6 @@ from tests.support.openspec_lifecycle import OpenSpecLifecycle
 from tests.support.openspec_lifecycle import completed_lifecycle
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
-
-if TYPE_CHECKING:
-    import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 RUNTIME = ProjectRuntime.discover(ROOT)
@@ -337,36 +335,40 @@ def test_start_change_rejects_an_unselected_or_wrongly_disposed_input(
     assert current_tracked_head(worktree) == archived_head
 
 
-def test_selection_freshness_rejects_blocked_future_and_expired(
+@pytest.mark.parametrize(
+    ("label", "update"),
+    [
+        ("blocked", {"verdict": "block"}),
+        ("future", {"valid_from": datetime(2100, 1, 1, tzinfo=UTC)}),
+        ("expired", {"valid_until": datetime(2021, 1, 1, tzinfo=UTC)}),
+    ],
+)
+def test_selection_freshness_rejects_non_current_attestation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    label: str,
+    update: dict[str, object],
 ) -> None:
-    cases = {
-        "blocked": {"verdict": "block"},
-        "future": {"valid_from": datetime(2100, 1, 1, tzinfo=UTC)},
-        "expired": {"valid_until": datetime(2021, 1, 1, tzinfo=UTC)},
-    }
-    for label, update in cases.items():
-        change = f"freshness-{label}"
-        lifecycle = _archived_lane(tmp_path / label, monkeypatch)
-        worktree = lifecycle.worktree
-        occurrence, selection = _selection_pair(change)
-        payload = selection.model_dump(mode="python", exclude={"id"}) | update
-        invalid = Attestation.issue(payload)
-        record_attestations(worktree, (occurrence, invalid))
+    change = f"freshness-{label}"
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree = lifecycle.worktree
+    occurrence, selection = _selection_pair(change)
+    payload = selection.model_dump(mode="python", exclude={"id"}) | update
+    invalid = Attestation.issue(payload)
+    record_attestations(worktree, (occurrence, invalid))
 
-        report = start_change(
-            root=worktree,
-            change=change,
-            intent="Reject a non-current selected Attestation.",
-            scope=("tests/**",),
-            expect_head=current_tracked_head(worktree),
-            selected_attestations=(invalid.id,),
-            apply=True,
-        )
+    report = start_change(
+        root=worktree,
+        change=change,
+        intent="Reject a non-current selected Attestation.",
+        scope=("tests/**",),
+        expect_head=current_tracked_head(worktree),
+        selected_attestations=(invalid.id,),
+        apply=True,
+    )
 
-        assert report["verdict"] == "block"
-        assert report["required_gaps"] == [f"selected_attestation_disposition_invalid:{invalid.id}"]
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == [f"selected_attestation_disposition_invalid:{invalid.id}"]
 
 
 def test_start_change_rejects_a_different_holder_without_mutation(

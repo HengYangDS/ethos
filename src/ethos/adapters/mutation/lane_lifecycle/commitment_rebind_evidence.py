@@ -12,6 +12,7 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import commitment_generation_origin
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -319,11 +320,25 @@ def rebind_generation_authority(
     planned_new = {name: value for name, value in new.items() if name != "payload_sha256"}
     now = datetime.now(UTC)
     try:
-        previous = load_commitment(
-            repo,
-            carrier=str(old.get("base_commitment_path") or ""),
-            tree_ref=previous_head,
-            expected_digest=str(old.get("base_commitment_digest") or ""),
+        bootstrap = expected_transition == "v1-to-v2-bootstrap"
+        origin_head = generation_head if bootstrap else previous_head
+        origin_carrier = str(
+            (
+                new_commitment.get("base_commitment_path")
+                if bootstrap
+                else old.get("base_commitment_path")
+            )
+            or ""
+        )
+        origin_id = (
+            terminal_v1_binding(
+                repo,
+                tree_ref=previous_head,
+                carrier=str(old.get("base_commitment_path") or ""),
+                repository=False,
+            )["id"]
+            if bootstrap
+            else plan.commitment.get("id")
         )
         load_commitment(
             repo,
@@ -333,9 +348,9 @@ def rebind_generation_authority(
         )
         generation_base = commitment_generation_origin(
             repo,
-            head=previous_head,
-            carrier=str(old.get("base_commitment_path") or ""),
-            change_id=previous.id.removeprefix("change:"),
+            head=origin_head,
+            carrier=origin_carrier,
+            change_id=str(origin_id or "").removeprefix("change:"),
         )
     except ValueError:
         generation_base = ""

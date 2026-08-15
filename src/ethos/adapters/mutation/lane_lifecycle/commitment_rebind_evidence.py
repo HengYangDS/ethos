@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.commitment import commitment_generation_origin
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
@@ -15,11 +19,13 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_attestation import validated_plan_attestation
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.semantic import canonical_utc_time
@@ -27,7 +33,6 @@ from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import integer
 
 if TYPE_CHECKING:
-    from datetime import datetime
     from pathlib import Path
 
     from ethos.contracts.coordination import CommitmentRebindRequest
@@ -264,10 +269,23 @@ def rebind_generation_authority(
     new_commitment = statement.get("new_commitment")
     result = statement.get("result")
     claim = statement.get("claim")
-    if not all(
-        isinstance(value, dict)
-        for value in (old, new, new_commitment, result)
-    ):
+    if not all(isinstance(value, dict) for value in (old, new, new_commitment, result)):
+        return {}
+    validated = None
+    try:
+        if attestation.plan_digest:
+            validated = validated_plan_attestation(
+                repo,
+                attestation.plan_digest,
+                issuer=attestation.verifier,
+            )
+    except ValueError:
+        pass
+    if validated is None:
+        return {}
+    plan, _git_attestation = validated
+    plan_values = mutable_json(plan.facts.get("values"))
+    if not isinstance(plan_values, dict):
         return {}
     branch = str(current.get("branch") or "")
     previous_head = str(old.get("expected_head") or "")
@@ -285,11 +303,42 @@ def rebind_generation_authority(
     }
     effect = GitEffect(
         updates={
-            f"refs/heads/{branch}": GitRefUpdate(
-                expected=previous_head, desired=generation_head
-            )
+            f"refs/heads/{branch}": GitRefUpdate(expected=previous_head, desired=generation_head)
         }
     )
+    operation = str(plan.policy.get("operation") or "")
+    expected_transition = (
+        "v1-to-v2-bootstrap"
+        if claim == {"operation": "v1-to-v2-bootstrap", "branch": branch}
+        else "change.identity-repair"
+        if plan.policy.get("transition") == "change.identity-repair"
+        else "commitment.rebind"
+    )
+    freshness = mutable_json(statement.get("freshness"))
+    plan_successor = mutable_json(plan_values.get("lease_successor"))
+    planned_new = {name: value for name, value in new.items() if name != "payload_sha256"}
+    now = datetime.now(UTC)
+    try:
+        previous = load_commitment(
+            repo,
+            carrier=str(old.get("base_commitment_path") or ""),
+            tree_ref=previous_head,
+            expected_digest=str(old.get("base_commitment_digest") or ""),
+        )
+        load_commitment(
+            repo,
+            carrier=str(new_commitment.get("base_commitment_path") or ""),
+            tree_ref=generation_head,
+            expected_digest=str(new_commitment.get("base_commitment_digest") or ""),
+        )
+        generation_base = commitment_generation_origin(
+            repo,
+            head=previous_head,
+            carrier=str(old.get("base_commitment_path") or ""),
+            change_id=previous.id.removeprefix("change:"),
+        )
+    except ValueError:
+        generation_base = ""
     valid = (
         attestation.predicate == "effect:commitment-rebind"
         and attestation.payload.kind == "effect:commitment-rebind"
@@ -302,6 +351,24 @@ def rebind_generation_authority(
             {"operation": "commitment-rebind", "branch": branch},
             {"operation": "v1-to-v2-bootstrap", "branch": branch},
         )
+        and operation == "git.ref.compare-and-swap"
+        and plan.policy.get("transition") == expected_transition
+        and expected_transition
+        in {"v1-to-v2-bootstrap", "commitment.rebind", "change.identity-repair"}
+        and git_effect_from_plan(plan) == effect
+        and attestation.commitment_digest == plan.policy.get("old_commitment_digest")
+        and attestation.facts_digest == plan.inputs.facts
+        and attestation.plan_digest == plan.digest
+        and attestation.policy_digest == plan.inputs.policy
+        and attestation.effect_digest == plan.inputs.effect
+        and plan_values.get("lease_generation") == old
+        and plan_successor == planned_new
+        and plan_values.get("index_tree") == statement.get("index_tree")
+        and plan_values.get("working_overlay_sha256") == statement.get("working_overlay_sha256")
+        and plan_values.get("new_commitment_path") == new_commitment.get("base_commitment_path")
+        and plan_values.get("new_commitment_bytes_sha256")
+        == new_commitment.get("base_commitment_bytes_sha256")
+        and plan_values.get("new_commitment_digest") == new_commitment.get("base_commitment_digest")
         and statement.get("repository") == repository_id
         and statement.get("target_commit") == generation_head
         and statement.get("index_tree") == new.get("expected_tree")
@@ -310,6 +377,37 @@ def rebind_generation_authority(
             {"git": "applied", "lease": "epoch_advanced"},
             {"git": "recovered", "lease": "epoch_advanced"},
         )
+        and statement.get("old_commitment")
+        == {"head": previous_head, "digest": old.get("base_commitment_digest")}
+        and statement.get("input_digest")
+        == canonical_json_digest(
+            {
+                "lease": old,
+                "head": previous_head,
+                "index_tree": statement.get("index_tree"),
+                "old_commitment_digest": old.get("base_commitment_digest"),
+            }
+        )
+        and statement.get("output_digest")
+        == canonical_json_digest(
+            {
+                "lease": new,
+                "head": generation_head,
+                "new_commitment": new_commitment,
+            }
+        )
+        and freshness
+        == {
+            "mode": "semantic_scope",
+            "repository": repository_id,
+            "head": generation_head,
+            "lease_generation": new,
+            "working_overlay_sha256": statement.get("working_overlay_sha256"),
+        }
+        and attestation.valid_from == attestation.issued_at
+        and attestation.valid_from <= now
+        and (attestation.valid_until is None or now <= attestation.valid_until)
+        and bool(generation_base)
         and mutable_json(new_commitment) == binding
         and all(
             new.get(name) == current.get(name)
@@ -332,8 +430,7 @@ def rebind_generation_authority(
             old.get(name) == new.get(name)
             for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
         )
-        and integer(old.get("epoch"), default=-1) + 1
-        == integer(new.get("epoch"), default=-1)
+        and integer(old.get("epoch"), default=-1) + 1 == integer(new.get("epoch"), default=-1)
         and attestation.commitment_digest == old.get("base_commitment_digest")
         and commitment_digest == current.get("base_commitment_digest")
         and ref_head(repo, branch) == head
@@ -347,7 +444,7 @@ def rebind_generation_authority(
             "predicate": attestation.predicate,
             "attestation_id": attestation.id,
             "claim": statement["claim"],
-            "previous_head": previous_head,
+            "previous_head": generation_base,
             "source": "rebind_generation",
         }
         if valid

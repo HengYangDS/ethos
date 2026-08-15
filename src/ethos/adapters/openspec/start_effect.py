@@ -14,6 +14,7 @@ from ethos.adapters.openspec.generation.attestation import start_effect_authorit
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.commitment import commitment_generation_origin
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
@@ -210,7 +211,7 @@ def current_generation_scope(
             carrier,
             source="archive_reactivation",
         )
-    if _initial_generation(root, head, commitment, carrier, fallback_paths):
+    if base := _initial_generation(root, head, commitment, carrier, fallback_paths):
         return _scope(
             fallback_paths,
             {},
@@ -219,7 +220,7 @@ def current_generation_scope(
             dirty,
             commitment,
             change,
-            "",
+            base,
             carrier,
             source="initial_active_generation",
         )
@@ -284,29 +285,30 @@ def _initial_generation(
     commitment: Commitment,
     carrier: str,
     fallback_paths: tuple[str, ...],
-) -> bool:
-    policy = load_branch_role_policy(root)
-    bases = tuple(
-        base
-        for branch in (policy.candidate_branch, policy.accepted_branch)
-        if (base := git_stdout(root, "rev-parse", "--verify", branch))
-        and is_ancestor(root, base, head)
-    )
-    if not bases or not carrier or not fallback_paths:
-        return False
-    base = min(
-        bases, key=lambda item: len(git_stdout(root, "rev-list", f"{item}..{head}").splitlines())
+) -> str:
+    if not carrier or not fallback_paths:
+        return ""
+    base = commitment_generation_origin(
+        root,
+        head=head,
+        carrier=carrier,
+        change_id=commitment.id.removeprefix("change:"),
     )
     return (
-        carrier.startswith("openspec/changes/")
-        and not carrier.startswith("openspec/changes/archive/")
-        and not committed_file_bytes(root, base, carrier)
-        and bool(committed_file_bytes(root, head, carrier))
-        and not _archived_carriers(root, base, commitment.id.removeprefix("change:"))
-        and all(
-            any(repository_path_matches(path, pattern) for pattern in commitment.scope)
-            for path in fallback_paths
+        base
+        if (
+            base
+            and carrier.startswith("openspec/changes/")
+            and not carrier.startswith("openspec/changes/archive/")
+            and not committed_file_bytes(root, base, carrier)
+            and bool(committed_file_bytes(root, head, carrier))
+            and not _archived_carriers(root, base, commitment.id.removeprefix("change:"))
+            and all(
+                any(repository_path_matches(path, pattern) for pattern in commitment.scope)
+                for path in fallback_paths
+            )
         )
+        else ""
     )
 
 

@@ -67,8 +67,7 @@ def admit_rebind_state(
             "lease_commitment_digest_stale",
         ),
         (
-            request.operation == "v1-to-v2-bootstrap"
-            or lease.get("commitment_binding") == "bound",
+            request.operation == "v1-to-v2-bootstrap" or lease.get("commitment_binding") == "bound",
             "lease_commitment_binding_mismatch",
         ),
         (
@@ -301,8 +300,7 @@ def bootstrap_target_binding(
                 "commitment_rebind_repository_identity_mismatch",
             ),
             (
-                old_repository["bytes_sha256"]
-                == request.old_repository_commitment_bytes_sha256,
+                old_repository["bytes_sha256"] == request.old_repository_commitment_bytes_sha256,
                 "commitment_rebind_repository_bytes_stale",
             ),
             (

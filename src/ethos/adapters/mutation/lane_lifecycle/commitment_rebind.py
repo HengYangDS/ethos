@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_old_generation
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_request
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_state
@@ -46,6 +47,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import TransitionPlan
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
@@ -170,7 +172,7 @@ def _execute_commitment_rebind(
         admit_rebind_request(repo, request, require_apply=False)
         if _is_head_only_partial_target(repo, request, lease):
             if not request.apply:
-                return _project_partial_target_recovery(repo, request, lease)
+                return _project_partial_target_recovery(repo, request, effect, lease)
             return _recover_head_only_partial_target(repo, request, effect, lease)
         admit_rebind_request(repo, request, require_apply=True)
         if integer_value(lease.get("epoch")) == request.expected_epoch:
@@ -283,13 +285,7 @@ def _recover_head_only_partial_target(
     lease: dict[str, object],
 ) -> dict[str, object]:
     """Finish Lease/Attestation after the ref CAS already succeeded."""
-    prior_coordinates = {
-        **lease,
-        "expected_head": request.expect_head,
-        "expected_tree": request.expected_tree,
-        "payload_sha256": request.expected_payload_sha256,
-    }
-    target = _target_binding(repo, request, prior_coordinates)
+    target, plan = _admit_partial_target(repo, request, effect, lease)
     current_request = request.model_copy(
         update={
             "expect_head": str(lease["expected_head"]),
@@ -301,14 +297,6 @@ def _recover_head_only_partial_target(
         state_database(repo),
         request=_lease_request(current_request),
         binding=target,
-    )
-    plan = _plan(
-        repo,
-        request,
-        old_generation(request),
-        effect,
-        request.expected_commitment_digest,
-        working_overlay_sha256(repo),
     )
     attestation = issue_rebind_attestation(
         repo=repo,
@@ -326,16 +314,11 @@ def _recover_head_only_partial_target(
 def _project_partial_target_recovery(
     repo: Path,
     request: CommitmentRebindRequest,
+    effect: GitEffect,
     lease: dict[str, object],
 ) -> dict[str, object]:
     """Validate an exact partial target without mutating its Lease."""
-    prior_coordinates = {
-        **lease,
-        "expected_head": request.expect_head,
-        "expected_tree": request.expected_tree,
-        "payload_sha256": request.expected_payload_sha256,
-    }
-    _target_binding(repo, request, prior_coordinates)
+    _admit_partial_target(repo, request, effect, lease)
     return {
         "verdict": "pass",
         "state": "ready_to_recover",
@@ -344,6 +327,43 @@ def _project_partial_target_recovery(
         "attestation": {},
         "required_gaps": [],
     }
+
+
+def _admit_partial_target(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    effect: GitEffect,
+    lease: dict[str, object],
+) -> tuple[dict[str, str], TransitionPlan]:
+    """Validate the target and sole historical Git witness without mutation."""
+    prior_coordinates = {
+        **lease,
+        "expected_head": request.expect_head,
+        "expected_tree": request.expected_tree,
+        "payload_sha256": request.expected_payload_sha256,
+    }
+    target = _target_binding(repo, request, prior_coordinates)
+    plan = _plan(
+        repo,
+        request,
+        old_generation(request),
+        effect,
+        request.expected_commitment_digest,
+        working_overlay_sha256(repo),
+    )
+    validated = git_effect_attestation.validated_plan_attestation(
+        repo,
+        plan.digest,
+        issuer=request.holder_ref,
+    )
+    if validated is None:
+        message = "commitment_rebind_partial_git_attestation_missing"
+        raise ValueError(message)
+    historical_plan, _attestation = validated
+    if historical_plan != plan:
+        message = "git_effect_attestation_collision"
+        raise ValueError(message)
+    return target, plan
 
 
 def _plan(
@@ -371,9 +391,7 @@ def _plan(
             ),
             "repository_commitment_bootstrap": request.operation == "v1-to-v2-bootstrap",
             "prestate_repository_id": request.old_repository_id,
-            "prestate_repository_bytes_sha256": (
-                request.old_repository_commitment_bytes_sha256
-            ),
+            "prestate_repository_bytes_sha256": (request.old_repository_commitment_bytes_sha256),
             "old_commitment_digest": old_commitment_digest,
             "new_commitment_digest": request.new_commitment_digest,
         },

@@ -7,9 +7,11 @@ import json
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import sys
 import uuid
+from contextlib import suppress
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
@@ -316,23 +318,82 @@ def runtime_locator(venv: Path) -> str:
 
 
 def replace_launchers(hooks: Path, locator: str) -> None:
-    """Project exactly the declared launcher set with complete atomic files."""
-    hooks.mkdir(parents=True, exist_ok=True)
-    for name in HOOK_NAMES:
-        target = hooks / name
-        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}")
+    """Replace the complete declared launcher directory or preserve its predecessor."""
+    hooks.parent.mkdir(parents=True, exist_ok=True)
+    transaction = uuid.uuid4().hex
+    staging = hooks.with_name(f".{hooks.name}.stage-{transaction}")
+    backup = hooks.with_name(f".{hooks.name}.backup-{transaction}")
+    expected = {name: hook_launcher(locator, name) for name in HOOK_NAMES}
+    backed_up = False
+    activated = False
+    try:
+        staging.mkdir()
+        for name, content in expected.items():
+            launcher = staging / name
+            launcher.write_text(content, encoding="utf-8", newline="\n")
+            launcher.chmod(0o755)
+        _require_launcher_projection(staging, expected)
+        if hooks.exists() or hooks.is_symlink():
+            hooks.rename(backup)
+            backed_up = True
+        staging.rename(hooks)
+        activated = True
+        _require_launcher_projection(hooks, expected)
+    except BaseException:
+        _restore_launcher_directory(
+            hooks,
+            staging,
+            backup,
+            activated=activated,
+            backed_up=backed_up,
+        )
+        raise
+    finally:
+        _remove_launcher_directory(staging)
+    with suppress(OSError):
+        _remove_launcher_directory(backup)
+
+
+def _restore_launcher_directory(
+    hooks: Path,
+    staging: Path,
+    backup: Path,
+    *,
+    activated: bool,
+    backed_up: bool,
+) -> None:
+    if activated:
         try:
-            temporary.write_text(hook_launcher(locator, name), encoding="utf-8", newline="\n")
-            temporary.chmod(0o755)
-            temporary.replace(target)
-        finally:
-            temporary.unlink(missing_ok=True)
-    for residual in hooks.iterdir():
-        if residual.name not in HOOK_NAMES:
-            if residual.is_dir() and not residual.is_symlink():
-                shutil.rmtree(residual)
-            else:
-                residual.unlink(missing_ok=True)
+            hooks.rename(staging)
+        except OSError:
+            _remove_launcher_directory(hooks)
+    if backed_up:
+        backup.rename(hooks)
+
+
+def _remove_launcher_directory(path: Path) -> None:
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
+
+
+def _require_launcher_projection(hooks: Path, expected: dict[str, str]) -> None:
+    try:
+        names = {path.name for path in hooks.iterdir()}
+        valid = names == expected.keys() and all(
+            not (path := hooks / name).is_symlink()
+            and path.is_file()
+            and path.read_bytes() == content.encode()
+            and (os.name == "nt" or stat.S_IMODE(path.stat().st_mode) == 0o755)
+            for name, content in expected.items()
+        )
+    except OSError as error:
+        message = "hook_launcher_projection_invalid"
+        raise ValueError(message) from error
+    if not valid:
+        message = "hook_launcher_projection_invalid"
+        raise ValueError(message)
 
 
 def _sha256(path: Path) -> str:

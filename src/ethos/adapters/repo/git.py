@@ -391,7 +391,9 @@ def _exact_rename_pairs(root: Path, old_ref: str, new_ref: str) -> tuple[tuple[s
         "--name-status",
         "-z",
         "--find-renames=100%",
-        "--diff-filter=R",
+        "--find-copies=100%",
+        "--find-copies-harder",
+        "--diff-filter=RC",
         old_ref,
         new_ref,
         check=False,
@@ -406,10 +408,13 @@ def _exact_rename_pairs(root: Path, old_ref: str, new_ref: str) -> tuple[tuple[s
     while index < len(fields) and fields[index]:
         status = fields[index]
         index += 1
-        if status != b"R100" or index + 2 > len(fields):
+        path_count = 2 if status in {b"R100", b"C100"} else 1
+        if index + path_count > len(fields):
             return ()
-        paths = fields[index : index + 2]
-        index += 2
+        paths = fields[index : index + path_count]
+        index += path_count
+        if path_count == 1:
+            continue
         try:
             pairs.append((paths[0].decode(), paths[1].decode()))
         except UnicodeDecodeError:

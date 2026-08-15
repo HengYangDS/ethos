@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
 import sys
 from importlib import import_module
@@ -40,6 +41,22 @@ def _venv_executable(venv: Path, name: str) -> Path:
     directory = "Scripts" if os.name == "nt" else "bin"
     suffix = ".exe" if os.name == "nt" else ""
     return venv / directory / f"{name}{suffix}"
+
+
+def _hook_directory_state(hooks: Path) -> dict[str, tuple[bytes, int]]:
+    return {
+        path.name: (path.read_bytes(), stat.S_IMODE(path.stat().st_mode))
+        for path in hooks.iterdir()
+    }
+
+
+def _legacy_hook_directory(hooks: Path) -> tuple[int, dict[str, tuple[bytes, int]]]:
+    hooks.mkdir()
+    for index, name in enumerate(("pre-commit", "commit-msg")):
+        path = hooks / name
+        path.write_text(f"legacy-{name}\n", encoding="utf-8")
+        path.chmod(0o700 + index)
+    return hooks.stat().st_ino, _hook_directory_state(hooks)
 
 
 def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
@@ -214,14 +231,156 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(tmp_path: Path, 
 def test_launcher_projection_removes_files_outside_the_declared_hook_set(tmp_path: Path) -> None:
     hooks = tmp_path / "ethos-hooks"
     hooks.mkdir()
+    prior_inode = hooks.stat().st_ino
     (hooks / "commit-msg").write_text("stale\n", encoding="utf-8")
 
-    runtime_install.replace_launchers(
-        hooks,
-        "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
-    )
+    locator = "../ethos/runtime/" + "a" * 64 + "/venv/bin/python"
+
+    runtime_install.replace_launchers(hooks, locator)
+
+    assert hooks.stat().st_ino != prior_inode
+    assert {path.name for path in hooks.iterdir()} == set(HOOK_NAMES)
+    for name in HOOK_NAMES:
+        launcher = hooks / name
+        assert launcher.read_text(encoding="utf-8") == hook_launcher(locator, name)
+        if os.name != "nt":
+            assert stat.S_IMODE(launcher.stat().st_mode) == 0o755
+    assert not tuple(tmp_path.glob(".ethos-hooks.*"))
+
+
+def test_launcher_projection_staging_failure_preserves_prior_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hooks = tmp_path / "ethos-hooks"
+    inode, prior = _legacy_hook_directory(hooks)
+    write_text = Path.write_text
+
+    def fail_second_launcher(
+        path: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        if "pre-push" in path.name and (
+            path.parent == hooks or path.parent.name.startswith(".ethos-hooks.stage-")
+        ):
+            message = "staging failed"
+            raise OSError(message)
+        return write_text(path, data, encoding=encoding, errors=errors, newline=newline)
+
+    monkeypatch.setattr(Path, "write_text", fail_second_launcher)
+
+    with pytest.raises(OSError, match="staging failed"):
+        runtime_install.replace_launchers(
+            hooks,
+            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
+        )
+
+    assert hooks.stat().st_ino == inode
+    assert _hook_directory_state(hooks) == prior
+
+
+def test_launcher_projection_swap_failure_restores_prior_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hooks = tmp_path / "ethos-hooks"
+    inode, prior = _legacy_hook_directory(hooks)
+    rename = Path.rename
+
+    def fail_activation(path: Path, target: Path) -> Path:
+        if path.name.startswith(".ethos-hooks.stage-") and Path(target) == hooks:
+            message = "activation failed"
+            raise OSError(message)
+        return rename(path, target)
+
+    monkeypatch.setattr(Path, "rename", fail_activation)
+
+    with pytest.raises(OSError, match="activation failed"):
+        runtime_install.replace_launchers(
+            hooks,
+            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
+        )
+
+    assert hooks.stat().st_ino == inode
+    assert _hook_directory_state(hooks) == prior
+
+
+def test_launcher_projection_readback_failure_restores_prior_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hooks = tmp_path / "ethos-hooks"
+    inode, prior = _legacy_hook_directory(hooks)
+    rename = Path.rename
+
+    def corrupt_activated_directory(path: Path, target: Path) -> Path:
+        activated = rename(path, target)
+        if path.name.startswith(".ethos-hooks.stage-") and Path(target) == hooks:
+            (hooks / "pre-push").chmod(0o644)
+        return activated
+
+    monkeypatch.setattr(Path, "rename", corrupt_activated_directory)
+
+    with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
+        runtime_install.replace_launchers(
+            hooks,
+            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
+        )
+
+    assert hooks.stat().st_ino == inode
+    assert _hook_directory_state(hooks) == prior
+
+
+def test_launcher_projection_rollback_removes_invalid_active_when_quarantine_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hooks = tmp_path / "ethos-hooks"
+    _inode, prior = _legacy_hook_directory(hooks)
+    rename = Path.rename
+
+    def corrupt_then_fail_quarantine(path: Path, target: Path) -> Path:
+        if path == hooks and Path(target).name.startswith(".ethos-hooks.stage-"):
+            message = "quarantine failed"
+            raise OSError(message)
+        activated = rename(path, target)
+        if path.name.startswith(".ethos-hooks.stage-") and Path(target) == hooks:
+            (hooks / "pre-push").chmod(0o644)
+        return activated
+
+    monkeypatch.setattr(Path, "rename", corrupt_then_fail_quarantine)
+
+    with pytest.raises(ValueError, match="hook_launcher_projection_invalid"):
+        runtime_install.replace_launchers(
+            hooks,
+            "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
+        )
+
+    assert _hook_directory_state(hooks) == prior
+
+
+def test_launcher_projection_backup_cleanup_is_best_effort_after_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hooks = tmp_path / "ethos-hooks"
+    _legacy_hook_directory(hooks)
+    remove = runtime_install.shutil.rmtree
+
+    def fail_backup_cleanup(path: Path, *args: object, **kwargs: object) -> None:
+        if Path(path).name.startswith(".ethos-hooks.backup-"):
+            message = "cleanup failed"
+            raise OSError(message)
+        remove(path, *args, **kwargs)
+
+    monkeypatch.setattr(runtime_install.shutil, "rmtree", fail_backup_cleanup)
+    locator = "../ethos/runtime/" + "a" * 64 + "/venv/bin/python"
+
+    runtime_install.replace_launchers(hooks, locator)
 
     assert {path.name for path in hooks.iterdir()} == set(HOOK_NAMES)
+    assert all(
+        (hooks / name).read_text(encoding="utf-8") == hook_launcher(locator, name)
+        for name in HOOK_NAMES
+    )
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:

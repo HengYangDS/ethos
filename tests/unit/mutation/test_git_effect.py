@@ -95,11 +95,6 @@ def test_commit_git_worktree_does_not_inherit_transition_authority(
     previous = "a" * 40
     monkeypatch.setattr(runtime, "current_tracked_head", lambda _root: previous)
     monkeypatch.setattr(runtime, "hook_runtime_binding", lambda _root: {"required_gaps": []})
-    monkeypatch.setattr(
-        runtime,
-        "validate_commit_message_text",
-        lambda *_args: {"verdict": "pass", "required_gaps": []},
-    )
     monkeypatch.setattr(runtime, "commit_environment", lambda *_args: None)
     monkeypatch.setenv("ETHOS_ARCHIVE_TRANSITION", "forged")
     environments: list[dict[str, str]] = []

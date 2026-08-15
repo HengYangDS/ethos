@@ -23,9 +23,6 @@ REQUIRED_DOCS = (
     "docs/reference/README.md",
     "docs/evidence/README.md",
     "docs/history/README.md",
-    "docs/decisions/README.md",
-    "docs/decisions/decision-index.md",
-    "docs/decisions/decision-record-template.md",
     "docs/architecture/distribution.md",
     "docs/concepts/kernel-model.md",
     "docs/architecture/transition-plan.md",
@@ -74,8 +71,6 @@ REQUIRED_SCHEMAS = (
     "quality-asset.schema.json",
     "quality-gate-plan.schema.json",
     "quality-profile.schema.json",
-    "review-plan.schema.json",
-    "review-result.schema.json",
     "host-capability.schema.json",
 )
 

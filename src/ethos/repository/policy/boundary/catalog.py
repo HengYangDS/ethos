@@ -33,7 +33,6 @@ PRODUCT_SURFACES = (
     "docs/evidence",
     "docs/governance",
     "docs/reference",
-    "docs/decisions",
     "docs/plans",
     "docs/start",
     "evidence/README.md",

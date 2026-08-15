@@ -115,11 +115,11 @@ def _toml_string_array(key: str, values: tuple[str, ...]) -> str:
     return f"{key} = [\n" + "".join(f"    {json.dumps(value)},\n" for value in values) + "]\n"
 
 
-def _commitment_carrier_from_packaged_vector(
+def commitment_carrier_from_packaged_vector(
     wheel: Path,
     python: Path,
     *,
-    id: str,  # noqa: A002 - mirrors the semantic contract field
+    commitment_id: str,
     intent: str,
     subjects: tuple[str, ...],
     scope: tuple[str, ...],
@@ -139,7 +139,7 @@ def _commitment_carrier_from_packaged_vector(
     template = vector["commitment"]["carrier_toml"]
     payload = tomllib.loads(template)
     replacements = {
-        "id": _toml_string_assignment("id", id),
+        "id": _toml_string_assignment("id", commitment_id),
         "intent": _toml_string_assignment("intent", intent),
         "subjects": _toml_string_array("subjects", subjects),
         "scope": _toml_string_array("scope", scope),
@@ -185,10 +185,10 @@ material_paths = ["**"]
         encoding="utf-8",
     )
     (root / ".ethos/commitment.toml").write_text(
-        _commitment_carrier_from_packaged_vector(
+        commitment_carrier_from_packaged_vector(
             wheel,
             python,
-            id="repository:installed-cli-adopter",
+            commitment_id="repository:installed-cli-adopter",
             intent="Govern the installed CLI adopter.",
             subjects=("repository:installed-cli-adopter",),
             scope=("**",),
@@ -217,10 +217,10 @@ capabilities = ["repository", "publication"]
     )
     shutil.copy2(ROOT / "openspec/config.yaml", root / "openspec/config.yaml")
     (change / "commitment.toml").write_text(
-        _commitment_carrier_from_packaged_vector(
+        commitment_carrier_from_packaged_vector(
             wheel,
             python,
-            id="change:smoke-change",
+            commitment_id="change:smoke-change",
             intent="Exercise installed CLI repository binding.",
             subjects=("repository:installed-cli-adopter",),
             scope=("README.md",),

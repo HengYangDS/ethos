@@ -3,11 +3,11 @@ flowchart LR
   ETHOS["Evidence-grounded repository governance"]
   Git["Git substrate Branches, refs, worktrees, HEAD binding"]
   OpenSpec["OpenSpec governance Official specs and active changes"]
-  Evidence["Evidence and claims HEAD-bound proof, claims, chronicle"]
+  Evidence["Attestations HEAD-bound proof and effect receipts"]
   CI["Provider projections GitHub/GitLab templates and local emulators"]
   Agents["Agent projections Skills and optional protocol adapters"]
   ETHOS -->|"classifies repository role and mutation authority"| Git
   ETHOS -->|"validates promoted specification obligations"| OpenSpec
-  ETHOS -->|"binds proof to claims and chronicle"| Evidence
+  ETHOS -->|"binds proof and effects to Attestations"| Evidence
   CI -->|"invokes owner scripts and command JSON"| ETHOS
   Agents -->|"consume repository truth without owning it"| ETHOS

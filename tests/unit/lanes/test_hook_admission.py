@@ -662,4 +662,4 @@ def test_attestation_validity_matrix(tmp_path: Path) -> None:
     persist_proof_attestation(repo, complete)
     assert proof_attestation(repo, head) == complete
     assert proof_gaps(repo, head) == []
-    assert proof_gaps(tmp_path, "f" * 40) == ["proof_not_proven"]
+    assert proof_gaps(tmp_path, "f" * 40) == ["attestation_set_repository_invalid"]

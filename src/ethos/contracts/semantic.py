@@ -128,9 +128,12 @@ def _validate_canonical_time(value: object) -> object:
     if isinstance(value, datetime):
         canonical_utc_time(value)
         return value
-    if not isinstance(value, str) or not _CANONICAL_TIME_PATTERN.fullmatch(value):
+    if not isinstance(value, str):
+        raise TypeError(_ATTESTATION_VALIDITY_INVALID)
+    match = _CANONICAL_TIME_PATTERN.fullmatch(value)
+    if match is None:
         raise ValueError(_ATTESTATION_VALIDITY_INVALID)
-    fraction = _CANONICAL_TIME_PATTERN.fullmatch(value).group("fraction")
+    fraction = match.group("fraction")
     if fraction and fraction.endswith("0"):
         raise ValueError(_ATTESTATION_VALIDITY_INVALID)
     try:

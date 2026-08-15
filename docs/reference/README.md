@@ -18,9 +18,3 @@ See also: [Documentation Root](../README.md), [Command Plane](command-plane.md),
 
 Reference docs explain terms and boundaries. Runtime truth still comes from
 source, tests, state-marked canonical docs, and evidence.
-
-## Mechanism References
-
-- [Mechanism Comparison Audit](mechanism-comparison-audit.md) records the
-  reusable mechanism-family assessment behind the tooling adoption roadmap
-  without making any named external repository product authority.

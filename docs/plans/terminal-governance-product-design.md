@@ -14,8 +14,7 @@ Status: canonical terminal plan.
 Purpose: project the product contract into the shortest convergence order for
 implementation, proof, deletion, adoption, and publication.
 
-See also: [Product Design Contract](../governance/product-design-contract.md) and
-[Decision Records](../decisions/README.md).
+See also: [Product Design Contract](../governance/product-design-contract.md).
 
 ## Role
 

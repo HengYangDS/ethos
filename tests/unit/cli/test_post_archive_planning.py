@@ -53,9 +53,9 @@ def _advance_current_generation(worktree: Path, overlay: Path) -> None:
     assert advanced["state"] == "lease_ref_advanced"
 
 
-def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect(  # noqa: PLR0915
+def _archive_skip_specs_fixture(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+) -> tuple[Path, str, tuple[str, ...], Attestation]:
     fixture = start_adopted_work_lane(
         tmp_path,
         scope=(
@@ -112,6 +112,20 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     archived_head = str(archived["head"])
     archive_paths = tuple(str(path) for path in archived["changed_paths"])
     _clear_selected_attestations(worktree)
+    return (
+        worktree,
+        archived_head,
+        archive_paths,
+        Attestation.model_validate(archived["attestation"]),
+    )
+
+
+def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    worktree, archived_head, archive_paths, receipt = _archive_skip_specs_fixture(
+        monkeypatch, tmp_path
+    )
 
     scope = current_generation_scope(
         worktree,
@@ -130,7 +144,6 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     assert scope.archive_authority == {}
     assert scope.paths == ()
     assert {item.state for item in scope.attributions} == {"unknown"}
-    receipt = Attestation.model_validate(archived["attestation"])
     record_attestations(worktree, (receipt,))
     selected = current_generation_scope(
         worktree,
@@ -170,9 +183,7 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     forged = Attestation.issue(payload)
     poison = proof_artifact_root(worktree) / f"{forged.id}.json"
     poison.parent.mkdir(parents=True, exist_ok=True)
-    poison.write_text(
-        forged.canonical_json(), encoding="utf-8"
-    )
+    poison.write_text(forged.canonical_json(), encoding="utf-8")
     tampered = current_generation_scope(
         worktree,
         head=archived_head,

@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
-from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -18,21 +15,10 @@ from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.proof.plan import validate_proof_plan
-from ethos.contracts.review import ReviewFinding
-from ethos.contracts.review import ReviewLens
-from ethos.contracts.review import ReviewLensDeclaration
-from ethos.contracts.review import ReviewResult
-from ethos.contracts.review import compile_review_plan
-from ethos.contracts.review import load_review_results
-from ethos.contracts.review import reduce_review_results
-from ethos.contracts.review import review_schema_documents
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from tests.support.semantic import commitment_v2
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _commitment(*, scope: tuple[str, ...] = ("src/**",)) -> Commitment:
@@ -189,158 +175,3 @@ def test_validate_proof_plan_rejects_malformed_gate_declarations() -> None:
     missing_fields = plan.model_copy(update={"policy": {"gates": [{"id": "check"}], "gaps": []}})
     with pytest.raises(ValueError, match="transition_plan_policy_invalid"):
         validate_proof_plan(missing_fields, commitment, facts)
-
-
-def _lens(
-    lens_id: str,
-    *,
-    requires: tuple[str, ...] = (),
-    triggers: tuple[str, ...] = (),
-) -> ReviewLens:
-    return ReviewLens(
-        id=lens_id,
-        phases=("pre-implementation",),
-        requires=requires,
-        triggers=triggers,
-        owner=f"owner:{lens_id}",
-        output_schema="review-result.schema.json",
-        max_tokens=0,
-    )
-
-
-def _review_facts(**updates: object) -> dict[str, object]:
-    return {
-        "head": "a" * 40,
-        "tree": "b" * 40,
-        "phase": "pre-implementation",
-        "requirements": ["contract:closed"],
-        "requirement_edges": [
-            {"requirement": "contract:closed", "task": "test", "proof": "focused"}
-        ],
-        "risks": [],
-        "affected_capabilities": [],
-        "changed_paths": [],
-        "ambiguities": [],
-        **updates,
-    }
-
-
-def test_review_declaration_and_compilation_fail_closed_at_public_boundary() -> None:
-    lens = _lens("base")
-    with pytest.raises(ValidationError, match="review_lens_duplicate"):
-        ReviewLensDeclaration(lenses=(lens, lens))
-
-    declaration = ReviewLensDeclaration(lenses=(lens,))
-    invalid_facts = cast("dict[str, object]", ["not", "an", "object"])
-    with pytest.raises(TypeError, match="review_facts_invalid"):
-        compile_review_plan(declaration, invalid_facts)
-    with pytest.raises(ValueError, match="review_phase_invalid"):
-        compile_review_plan(declaration, _review_facts(phase="retired"))
-
-    unresolved = compile_review_plan(
-        declaration,
-        _review_facts(
-            requirements=["contract:closed", "contract:missing"],
-            conflicts=["two incompatible intents"],
-            ambiguities=["which intent"],
-            risks=["trust-bound-publication"],
-        ),
-    )
-    assert unresolved.verdict == "block"
-    assert unresolved.required_gaps == (
-        "review_traceability_incomplete",
-        "review_intent_conflict",
-        "review_intent_ambiguous",
-    )
-    assert unresolved.escalation == (
-        "unresolved-intent",
-        "trust-bound-publication",
-        "final-product-judgment",
-    )
-    assert unresolved.next_action == "resolve the selected OpenSpec intent before implementation"
-
-
-def test_review_dependency_and_decision_boundaries_preserve_fail_closed_state() -> None:
-    dependency = ReviewLensDeclaration(
-        lenses=(
-            _lens("base", triggers=("select-base-explicitly",)),
-            _lens("child", requires=("base",)),
-        )
-    )
-    dependency_plan = compile_review_plan(dependency, _review_facts())
-    assert [lens.id for lens in dependency_plan.lenses] == ["base", "child"]
-
-    missing = ReviewLensDeclaration(lenses=(_lens("child", requires=("absent",)),))
-    missing_plan = compile_review_plan(missing, _review_facts())
-    assert missing_plan.required_gaps == ("review_lens_dependency_missing:child:absent",)
-
-    cyclic = ReviewLensDeclaration(
-        lenses=(
-            _lens("first", requires=("second",)),
-            _lens("second", requires=("first",)),
-        )
-    )
-    cycle_plan = compile_review_plan(cyclic, _review_facts())
-    assert cycle_plan.required_gaps == ("review_lens_dependency_cycle",)
-    assert cycle_plan.lenses == ()
-
-    declaration = ReviewLensDeclaration(lenses=(_lens("base"),))
-    plan = compile_review_plan(declaration, _review_facts())
-    result = ReviewResult(
-        review_plan=plan.digest,
-        inputs=plan.inputs,
-        head=plan.head,
-        tree=plan.tree,
-        phase=plan.phase,
-        lens="base",
-        verifier="reviewer:independent",
-        verdict="block",
-        findings=(
-            ReviewFinding(
-                code="contract:unsafe",
-                message="manual judgment is required",
-                repairable=False,
-            ),
-        ),
-        next_action="stop the governed lifecycle",
-    )
-    decision = reduce_review_results(plan, (result,))
-    assert (decision.verdict, decision.state, decision.required_gaps) == (
-        "block",
-        "gapped",
-        (),
-    )
-    assert decision.next_action == "stop the governed lifecycle"
-
-
-def test_review_result_loader_and_schema_reject_authority_invention(tmp_path: Path) -> None:
-    invalid = tmp_path / "results.json"
-    invalid.write_text(
-        json.dumps(
-            [
-                {
-                    "review_plan": "a" * 64,
-                    "inputs": "b" * 64,
-                    "head": "c" * 40,
-                    "tree": "d" * 40,
-                    "phase": "pre-implementation",
-                    "lens": "base",
-                    "verifier": "reviewer:independent",
-                    "verdict": "pass",
-                    "next_action": "continue",
-                    "mints_authority": True,
-                }
-            ]
-        ),
-        encoding="utf-8",
-    )
-    with pytest.raises(ValueError, match="review_results_invalid"):
-        load_review_results(invalid)
-
-    documents = review_schema_documents()
-    assert set(documents) == {"review-plan.schema.json", "review-result.schema.json"}
-    for name, schema in documents.items():
-        assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-        assert schema["$id"] == f"https://ethos.local/schemas/{name}"
-    result_schema = documents["review-result.schema.json"]
-    assert result_schema["properties"]["mints_authority"]["const"] is False

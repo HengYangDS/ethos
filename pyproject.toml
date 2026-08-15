@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "cel-expr-python>=0.1.3",
-  "commit-check>=2.15.0",
   "cyclopts>=4.22.5",
   "jsonschema>=4.26.0",
   "markdown-it-py>=4.2.0",
@@ -55,7 +54,6 @@ packages = ["src/ethos"]
 "system/gates.toml" = "ethos/data/gates.toml"
 "system/policies/evidence-layout.toml" = "ethos/data/evidence_layout.toml"
 "system/policies/generated-artifact-topology.toml" = "ethos/data/generated_artifact_topology.toml"
-"system/review-lenses.toml" = "ethos/data/review_lenses.toml"
 "package.json" = "ethos/data/supply-chain/package.json"
 "package-lock.json" = "ethos/data/supply-chain/package-lock.json"
 "system/schemas/kernel" = "ethos/data/schemas/kernel"

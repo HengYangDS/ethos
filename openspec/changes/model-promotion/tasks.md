@@ -31,7 +31,7 @@ does not append work here unless this Commitment already requires it.
   public commands only. **Proof:** boundary mutation matrix plus package-only
   dry-run/apply/readback.
 
-- [x] **5. Accept the foundation.** Delete out-of-scope and superseded residue;
+- [ ] **5. Accept the foundation.** Delete out-of-scope and superseded residue;
   run OpenSpec 1.8 strict validation, focused quality gates, code and ponytail
   review, exact-HEAD full proof, archive, post-archive proof, governed
   land/closeout, and accepted package-only readback. Record refresh and every

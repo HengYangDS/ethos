@@ -51,8 +51,6 @@ configuration plane, not a truth center.
 - `.config/checks/architecture/projection.toml` owns architecture projection
   drift checks from `.config/checks/architecture/models/` source to generated Mermaid. The generated
   diagram is review aid, not architecture truth.
-- `.config/checks/runbook/registry.toml` owns runbook registry drift;
-  `docs/reference/runbook-registry.md` is the human-facing registry.
 - `.config/checks/local-state/audit.toml` owns local/generated state boundary
   checks. Runtime state remains ignored unless promoted into reviewed evidence.
 - `.config/release/supply-chain.toml` binds Syft `1.50.0` to the exact built

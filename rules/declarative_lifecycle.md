@@ -5,7 +5,7 @@ repository truth with framework state.
 
 | Field | Rule |
 | --- | --- |
-| Authority | [DR-0005](../docs/decisions/DR-0005-declarative-lifecycle-spine.md), [Declarative Governance Compiler](../docs/architecture/declarative-governance-compiler.md), [TransitionPlan](../docs/architecture/transition-plan.md) |
+| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), [Declarative Governance Compiler](../docs/architecture/declarative-governance-compiler.md), [TransitionPlan](../docs/architecture/transition-plan.md) |
 | Trigger | Adding or changing contracts, facts, rules, plans, commands, effects, projections, or protocol payloads. |
 | Action | Select one typed declaration or mature native mechanism before writing procedural Python. |
 | Evidence | Contract/schema checks, deterministic and property tests, projection drift checks, focused command JSON, and HEAD-bound proof. |

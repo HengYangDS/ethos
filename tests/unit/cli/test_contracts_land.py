@@ -19,6 +19,8 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_o
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -268,7 +270,8 @@ def _assert_archived_land_readiness(
     if claim == LAND_CASES[6]:
         proof = proof_attestation(fixture.worktree, head)
         assert proof is not None
-        plan = payload["data"]["candidate_update"]["attestation"]["statement"]["plan"]
+        attestation = Attestation.model_validate(payload["data"]["candidate_update"]["attestation"])
+        plan = mutable_json(attestation.payload.body["plan"])
         assert plan["prior_attestations"] == {"proof": proof.model_dump(mode="json")}
 
 

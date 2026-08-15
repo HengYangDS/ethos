@@ -15,6 +15,8 @@ from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
@@ -29,7 +31,6 @@ if TYPE_CHECKING:
     import pytest
 
     from ethos.contracts.plan import TransitionPlan
-    from ethos.contracts.semantic import Attestation
 
 
 def _absorbed_ref(tmp_path: Path) -> tuple[Path, str, str]:
@@ -124,7 +125,8 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(tmp_path: Path) ->
     }
     assert git(repo, "branch", "--list", "work/absorbed") == ""
     assert observe_lease(state_database(repo), "work/absorbed").state == "missing"
-    attested = applied["data"]["transition"]["attestation"]["statement"]["plan"]
+    attestation = Attestation.model_validate(applied["data"]["transition"]["attestation"])
+    attested = mutable_json(attestation.payload.body["plan"])
     assert (attested["digest"], attested["effect"]) == (
         transition["plan_digest"],
         transition["effect"],

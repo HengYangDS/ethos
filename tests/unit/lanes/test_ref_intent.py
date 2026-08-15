@@ -17,6 +17,7 @@ from typing import Literal
 
 import pytest
 
+import ethos.adapters.repo.git_effect_attestation
 import ethos.adapters.repo.git_effects
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
@@ -28,8 +29,9 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
+from tests.support.semantic import attestation_v2
 from tests.support.semantic import commitment_v2
 
 
@@ -89,23 +91,26 @@ def _expire(root: Path, nonce: object, value: str | None = None) -> None:
     path.write_text(json.dumps(stored), encoding="utf-8")
 
 
-def _proof() -> Attestation:
+def _proof():
     issued = datetime(2026, 8, 1, tzinfo=UTC)
-    return Attestation.issue(
-        {
-            "predicate": "proof:execution",
-            "verifier": "agent:test:case:ref-effect",
-            "subject": f"git:commit:{_oid('new')}",
-            "issued_at": issued,
-            "valid_from": issued,
-            "verdict": "pass",
-            "statement": {},
-            "commitment_digest": "a" * 64,
-        }
+    policy = {
+        "operation": "git.ref.compare-and-swap",
+        "effect_digest": GitEffect(updates={"refs/heads/dev": _update()}).digest(),
+    }
+    return attestation_v2(
+        predicate="proof:execution",
+        verifier="agent:test:case:ref-effect",
+        subject=f"git:commit:{_oid('new')}",
+        issued_at=issued,
+        valid_from=issued,
+        payload_kind="proof:execution",
+        payload_body={"head": _oid("new")},
+        commitment_digest="a" * 64,
+        policy_digest=canonical_json_digest(policy),
     )
 
 
-def _effect_plan(proof: Attestation):
+def _effect_plan(proof):
     old, new = _oid("old"), _oid("new")
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
     return compile_git_effect_plan(
@@ -344,6 +349,11 @@ def test_intent_path_is_linked_worktree_safe(tmp_path: Path) -> None:
 def test_git_effect_does_not_reread_proof_store_before_intent_or_cas(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(
+        ethos.adapters.repo.git_effect_attestation,
+        "records",
+        lambda *_args, **_kwargs: (),
+    )
     monkeypatch.setattr(
         ethos.adapters.repo.git_effects,
         "current_tracked_head",

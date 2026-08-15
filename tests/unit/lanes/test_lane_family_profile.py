@@ -273,9 +273,7 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(
         "worktree_binding": "linked",
     }
     assert lease == {
-        key: value
-        for key, value in leases["work/feature"].items()
-        if key != "commitment_binding"
+        key: value for key, value in leases["work/feature"].items() if key != "commitment_binding"
     }
     assert "work/change-source" not in leases
     assert report["source_lease_state"] == "revoked"
@@ -724,12 +722,15 @@ def test_start_work_lane_carrier_failure_claims(
         assert (report["verdict"], report["state"], report["lease_state"]) == (
             "block",
             "blocked",
-            "retained",
+            "revoked",
         )
         assert report["required_gaps"] == [
             "lane_creation_compensation_failed",
             "lane_start_target_path_ownership_unknown",
         ]
-        assert "work/feature" in leases_by_branch(lane_case.repo)
+        leases = leases_by_branch(lane_case.repo)
+        assert "work/feature" not in leases
+        assert leases["work/change-source"]["lease_state"] == "valid"
+        assert report["source_lease_state"] == "restored"
         assert ref_head(lane_case.repo, "work/feature")
         assert lane_case.target.exists()

@@ -15,7 +15,6 @@ import ethos.adapters.repo.git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
-from ethos.adapters.repo.commit_message import validate_commit_message_text
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -103,10 +102,6 @@ def commit_git_worktree(
     if not environment_keys <= _COMMIT_TRANSITION_ENVIRONMENT:
         message = "git_effect_commit_environment_forbidden"
         raise ValueError(message)
-    admission = validate_commit_message_text(root, message)
-    if admission["verdict"] != "pass":
-        gap = str(admission["required_gaps"][0])
-        raise ValueError(gap)
     completed = run_git(
         root,
         "commit",

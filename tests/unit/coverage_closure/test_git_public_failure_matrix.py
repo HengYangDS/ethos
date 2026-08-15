@@ -76,6 +76,15 @@ def test_exact_rename_rejects_failed_truncated_and_non_utf8(monkeypatch, tmp_pat
     assert git.exact_rename_target(tmp_path, "old", "new", "source") == ""
 
 
+def test_exact_rename_rejects_copy_ambiguity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    payload = b"C100\0source\0copy\0R100\0source\0target\0"
+    monkeypatch.setattr(git, "run_git", lambda *_args, **_kwargs: _completed(0, payload))
+
+    assert git.exact_rename_target(tmp_path, "old", "new", "source") == ""
+
+
 def test_exact_rename_skips_non_matching_records_before_exact_target(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

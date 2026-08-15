@@ -168,16 +168,33 @@ def test_package_projection_claim_matrices():
 def test_package_intent_claim_matrix(tmp_path):
     spec = tmp_path / "openspec/changes/example/specs/contracts/spec.md"
     _write(spec, "## ADDED Requirements\n\n### Requirement: Portable result\n")
-    _, gaps = compile_intent_context(
+    context, gaps = compile_intent_context(
         tmp_path,
         commitment=commitment_v2(
-            id="change:example", intent="Prove portable results.", subjects=("repository:example",)
+            id="change:example",
+            intent="Prove portable results.",
+            subjects=("repository:example",),
+            hypotheses=(
+                {
+                    "id": "hypothesis:bounded-input",
+                    "kind": "hypothesis:causal",
+                    "body": {"proposition": "A bounded input remains serializable."},
+                },
+            ),
         ),
         config={},
         status={"changeName": "example", "schemaName": "spec-driven", "artifacts": []},
         apply={"contextFiles": {"behavior-contracts": [str(spec)]}, "tasks": []},
     )
     assert gaps == ("model_gap",)
+    assert context["assumptions"] == [
+        {
+            "id": "hypothesis:bounded-input",
+            "kind": "hypothesis:causal",
+            "body": {"proposition": "A bounded input remains serializable."},
+        }
+    ]
+    json.dumps(context)
 
 
 def test_package_intent_accepts_prettier_aligned_traceability_table(tmp_path):

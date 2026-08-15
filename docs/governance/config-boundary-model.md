@@ -16,11 +16,11 @@ and machine contracts. No single directory owns every governance fact.
 | Surface | Role | Owns | Does Not Own |
 | --- | --- | --- | --- |
 | `.ethos/` | ETHOS binding layer | tracked profile and Commitment entrypoints | tool-native config, domain truth, durable evidence, mutable runtime state |
-| `<git-common-dir>/ethos/` | host-local runtime layer | leases, local Attestations, and transaction state shared by worktrees | tracked repository truth or portable configuration |
+| `<git-common-dir>/ethos/` | host-local runtime layer | leases, Attestation staging/cache, and transaction state shared by worktrees | current Attestation selection, tracked repository truth, or portable configuration |
 | `.config/` | execution/config layer | tool configuration, reusable gate policy, CI scripts, boundary configs, worktree configs | ETHOS ontology, evidence truth, user decisions |
 | `rules/` | governance rule layer | human and agent rules, domain contracts, projection policies | tool implementation details, generated state |
 | `docs/` | explanation layer | canonical docs, decisions, reference material | local runtime state, durable evidence ownership |
-| `evidence/` | durable evidence layer | Attestations and immutable historical evidence | generated output, local runtime state, parallel lifecycle ownership |
+| `evidence/` | historical evidence layer | immutable historical Attestation and evidence bytes | current Attestation selection, generated output, local runtime state, parallel lifecycle ownership |
 | `system/` | optional machine-contract layer | machine-readable product or system contracts | adopter-only domain truth when absent |
 | `openspec/` | specification projection | official OpenSpec changes and specs | promoted runtime truth by itself |
 | `.agents/` | repo-local agent projection | skills and activation projections | independent truth store |
@@ -44,19 +44,6 @@ system contract layer exists.
 If `system/` exists, ETHOS may treat it as a machine-contract surface according
 to the repository authority order. If it is absent, absence is not a profile gap
 unless the profile explicitly requires it.
-
-## Evidence Boundaries
-
-Durable evidence belongs in the repository's durable evidence root. Current
-records are Attestations; retained historical bytes remain readable without
-becoming a current owner. Generated evidence belongs in generated artifact roots,
-commonly `build/evidence/`. ETHOS host-local state belongs under
-`<git-common-dir>/ethos/`; repository-native tools may use declared ignored
-state roots such as `.cache/local-state/`.
-
-ETHOS must not turn generated artifacts or host-local state into durable truth.
-A proof can cite generated evidence for a current HEAD, but a durable Attestation
-requires reviewed evidence and an accepted repository authority surface.
 
 ## Tool Boundary
 

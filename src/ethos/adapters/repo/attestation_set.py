@@ -96,9 +96,12 @@ def _tree_entries(repo: Path, root: str) -> tuple[tuple[str, str, str], ...]:
         raise ValueError(message)
     listed = listed_result.stdout
     entries: list[tuple[str, str, str]] = []
+    paths: set[bytes] = set()
     try:
         for record in (item for item in listed.split(b"\0") if item):
             metadata, raw_path = record.split(b"\t", maxsplit=1)
+            _require_entry(valid=raw_path not in paths)
+            paths.add(raw_path)
             mode, kind, _object_id = metadata.decode().split(" ", maxsplit=2)
             entries.append((mode, kind, raw_path.decode()))
     except (UnicodeError, ValueError) as error:

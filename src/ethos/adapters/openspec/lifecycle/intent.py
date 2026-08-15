@@ -67,7 +67,7 @@ def compile_intent_context(
         "invariants": list(commitment.invariants),
         "acceptance": list(commitment.acceptance),
         "risks": list(commitment.risks),
-        "assumptions": list(commitment.hypotheses),
+        "assumptions": [value.model_dump(mode="json") for value in commitment.hypotheses],
         "negative_scope": _negative_scope(root, values),
         "ambiguities": _open_questions(root, values),
         "conflicts": conflicts,

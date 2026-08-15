@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING, cast
+from datetime import UTC
+from datetime import datetime
+from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.git import current_tree, git_stdout, is_ancestor
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git_effect_attestation import native_effect_result
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
-from ethos.normalization.coercion import integer, string_sequence
+from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.contracts.semantic import Attestation, Commitment
+    from ethos.contracts.semantic import Attestation
+    from ethos.contracts.semantic import Commitment
     from ethos.contracts.value import JsonObject
 
 
@@ -65,14 +71,13 @@ def start_effect_authority(
         and statement.get("repository") == repository_id
         and claim
         == {"operation": "openspec.change.start", "effect": attestation.effect_digest}
-        and result == {"state": "applied", "executed": True, "exit_code": 0}
+        and result in (native_effect_result("applied"), native_effect_result("prepared"))
         and old is not None
         and new is not None
         and new.get("branch") == current.get("branch")
         and new.get("lane_incarnation_id") == current.get("lane_incarnation_id")
         and new.get("lease_id") == current.get("lease_id")
-        and integer(new.get("epoch"), default=-1)
-        <= integer(current.get("epoch"), default=-1)
+        and _same_generation(new, current)
         and new.get("expected_head") == start_head
         and new.get("expected_tree") == current_tree(root, start_head)
         and current.get("expected_head") == head
@@ -81,7 +86,7 @@ def start_effect_authority(
         == f"openspec/changes/{change}/commitment.toml"
         and old.get("expected_head") == previous_head
         and old.get("expected_tree") == current_tree(root, previous_head)
-        and commitment.predecessors == (old.get("base_commitment_digest"),)
+        and commitment.predecessors == (str(old.get("base_commitment_digest")),)
         and all(
             old.get(name) == new.get(name)
             for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
@@ -238,6 +243,10 @@ def _generation(value: object) -> JsonObject | None:
         }
     )
     return normalized if mutable_json(expected) == normalized else None
+
+
+def _same_generation(left: JsonObject, right: JsonObject) -> bool:
+    return canonical_json_digest(left) == canonical_json_digest(right)
 
 
 def _lease_binding(value: object) -> dict[str, object]:

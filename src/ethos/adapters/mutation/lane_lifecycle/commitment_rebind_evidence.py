@@ -11,22 +11,25 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.coordination import LaneLease
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.semantic import canonical_utc_time
 from ethos.contracts.value import mutable_json
+from ethos.normalization.coercion import integer
 
 if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
     from ethos.contracts.coordination import CommitmentRebindRequest
-    from ethos.contracts.plan import GitEffect
     from ethos.contracts.plan import TransitionPlan
 
 
@@ -240,3 +243,86 @@ def recognized_rebind_attestation(
         message = "commitment_rebind_terminal_mismatch"
         raise ValueError(message)
     return attestation
+
+
+def bootstrap_generation_authority(
+    repo: Path,
+    attestation: Attestation,
+    *,
+    repository_id: str,
+    commitment_digest: str,
+    lease: dict[str, object],
+) -> dict[str, object]:
+    """Project one exact completed bootstrap as current Change continuity."""
+    statement = mutable_json(attestation.payload.body)
+    if not isinstance(statement, dict):
+        return {}
+    current = lease_generation(lease)
+    old = statement.get("old_lease_generation")
+    new = statement.get("new_lease_generation")
+    new_commitment = statement.get("new_commitment")
+    result = statement.get("result")
+    if not all(
+        isinstance(value, dict)
+        for value in (old, new, new_commitment, result)
+    ):
+        return {}
+    branch = str(current.get("branch") or "")
+    previous_head = str(old.get("expected_head") or "")
+    head = str(current.get("expected_head") or "")
+    binding = {
+        name: current.get(name)
+        for name in (
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    }
+    effect = GitEffect(
+        updates={
+            f"refs/heads/{branch}": GitRefUpdate(expected=previous_head, desired=head)
+        }
+    )
+    valid = (
+        attestation.predicate == "effect:commitment-rebind"
+        and attestation.payload.kind == "effect:commitment-rebind"
+        and attestation.verdict == "pass"
+        and attestation.verifier == current.get("holder_ref")
+        and attestation.subject == f"commitment-rebind:{effect.digest()}"
+        and attestation.effect_digest == effect.digest()
+        and statement.get("claim") == {"operation": "v1-to-v2-bootstrap", "branch": branch}
+        and statement.get("repository") == repository_id
+        and statement.get("target_commit") == head
+        and statement.get("index_tree") == current.get("expected_tree")
+        and result
+        in (
+            {"git": "applied", "lease": "epoch_advanced"},
+            {"git": "recovered", "lease": "epoch_advanced"},
+        )
+        and new == current
+        and new_commitment == binding
+        and all(
+            old.get(name) == new.get(name)
+            for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
+        )
+        and integer(old.get("epoch"), default=-1) + 1
+        == integer(new.get("epoch"), default=-1)
+        and attestation.commitment_digest == old.get("base_commitment_digest")
+        and commitment_digest == current.get("base_commitment_digest")
+        and ref_head(repo, branch) == head
+        and current_tree(repo, head) == current.get("expected_tree")
+        and git_stdout(repo, "rev-parse", f"{head}^") == previous_head
+    )
+    return (
+        {
+            "predicate": attestation.predicate,
+            "attestation_id": attestation.id,
+            "claim": statement["claim"],
+            "previous_head": previous_head,
+            "source": "bootstrap_generation",
+        }
+        if valid
+        else {}
+    )

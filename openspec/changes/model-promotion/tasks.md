@@ -10,20 +10,20 @@ does not append work here unless this Commitment already requires it.
   composable canonical relations, opaque payload round-trip, and packaged golden
   vectors. **Proof:** source/wheel/package parity and property tests.
 
-- [ ] **2. Establish the sole Attestation carrier.** Implement deterministic
+- [x] **2. Establish the sole Attestation carrier.** Implement deterministic
   parentless Git set roots, hash-sharded canonical members, exact-CAS union,
   collision rejection, and minimal record/query projections. Remove current
   local and operation-specific Attestation authority; local bytes become staging
   or cache only. **Proof:** pure properties and real concurrent Git tests.
 
-- [ ] **3. Close intent promotion.** Enforce non-authorizing selection,
+- [x] **3. Close intent promotion.** Enforce non-authorizing selection,
   predecessor/selection binding, and one Commitment to one Change/lane/task
   authority. Remove current Claim, Chronicle, Ledger, Campaign, shared-inbox,
   reusable-permission, and duplicate-store selectors/producers while retaining
   historical bytes as inert history. **Proof:** architecture, import, residue,
   and negative authority tests.
 
-- [ ] **4. Execute the destructive bootstrap.** Extend existing Commitment
+- [x] **4. Execute the destructive bootstrap.** Extend existing Commitment
   rebind with one `v1-to-v2-bootstrap` operation, opaque old lane/repository
   bindings, public staged-index target construction, one exact v2-generation
   plan, interruption recovery across branch/Lease/Attestation set, and terminal

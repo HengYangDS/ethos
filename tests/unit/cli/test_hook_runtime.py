@@ -15,6 +15,7 @@ import pytest
 import ethos.adapters.repo.hook_runtime as hook_runtime
 import ethos.adapters.repo.hook_runtime_install as runtime_install
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook_runtime import execute_hook
@@ -208,6 +209,19 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(tmp_path: Path, 
         "state": "retired",
         "removed": True,
     }
+
+
+def test_launcher_projection_removes_files_outside_the_declared_hook_set(tmp_path: Path) -> None:
+    hooks = tmp_path / "ethos-hooks"
+    hooks.mkdir()
+    (hooks / "commit-msg").write_text("stale\n", encoding="utf-8")
+
+    runtime_install.replace_launchers(
+        hooks,
+        "../ethos/runtime/" + "a" * 64 + "/venv/bin/python",
+    )
+
+    assert {path.name for path in hooks.iterdir()} == set(HOOK_NAMES)
 
 
 def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:

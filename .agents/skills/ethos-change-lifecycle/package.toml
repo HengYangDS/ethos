@@ -10,7 +10,7 @@ include = [
   "references/verdicts-and-gaps.md",
 ]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:d4f51d5e966dc1d865a7d48bada70e23cb06ab8e6083d8e9716c6ac370c99424"
+expected_digest = "sha256:5d9bf6a67427d68c6f709d501f64142857dcb70cdb9b9b550261be26f00d26b5"
 
 [quality]
 placeholder_allowed = false

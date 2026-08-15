@@ -316,7 +316,7 @@ def runtime_locator(venv: Path) -> str:
 
 
 def replace_launchers(hooks: Path, locator: str) -> None:
-    """Replace each launcher atomically; every visible launcher is complete."""
+    """Project exactly the declared launcher set with complete atomic files."""
     hooks.mkdir(parents=True, exist_ok=True)
     for name in HOOK_NAMES:
         target = hooks / name
@@ -327,6 +327,12 @@ def replace_launchers(hooks: Path, locator: str) -> None:
             temporary.replace(target)
         finally:
             temporary.unlink(missing_ok=True)
+    for residual in hooks.iterdir():
+        if residual.name not in HOOK_NAMES:
+            if residual.is_dir() and not residual.is_symlink():
+                shutil.rmtree(residual)
+            else:
+                residual.unlink(missing_ok=True)
 
 
 def _sha256(path: Path) -> str:

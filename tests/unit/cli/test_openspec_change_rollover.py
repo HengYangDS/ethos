@@ -218,72 +218,7 @@ def test_start_change_binds_only_selected_input_disposed_to_the_successor(
     worktree = lifecycle.worktree
     archived_head = current_tracked_head(worktree)
     predecessor_digest = load_lease_bound_commitment(worktree, lease=lifecycle.lease).digest()
-    occurrence = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "observation:feedback",
-            "verifier": "agent:test:intent-promotion",
-            "subject": "input:occurrence:successor",
-            "issued_at": datetime(2026, 8, 15, tzinfo=UTC),
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {
-                "kind": "input:feedback",
-                "body": {"occurrence": {"ordinal": 1, "source": "test"}},
-            },
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": ("evidence:test:successor",),
-            "commitment_digest": None,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
-    )
-    selection = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "selection:input",
-            "verifier": "agent:test:intent-promotion",
-            "subject": occurrence.id,
-            "issued_at": datetime(2026, 8, 15, tzinfo=UTC),
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {
-                "kind": "selection:disposition",
-                "body": {
-                    "disposition": "semantic-owner",
-                    "owner": "change:hosted-verification-fix",
-                },
-            },
-            "relations": (
-                {
-                    "kind": "relation:disposes",
-                    "target_kind": "semantic:attestation",
-                    "target_id": occurrence.id,
-                    "attributes": {},
-                },
-                {
-                    "kind": "relation:selected-for",
-                    "target_kind": "semantic:commitment",
-                    "target_id": "change:hosted-verification-fix",
-                    "attributes": {},
-                },
-            ),
-            "advisories": (),
-            "evidence_refs": (occurrence.id,),
-            "commitment_digest": None,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
-    )
+    occurrence, selection = _selection_pair("hosted-verification-fix")
     record_attestations(worktree, (occurrence, selection))
 
     report = start_change(

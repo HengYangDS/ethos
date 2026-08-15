@@ -166,8 +166,7 @@ accepted and candidate HEADs, changed control paths, both control-tree digests,
 the executed-proof digest, provider implementation digest, and signature,
 and bootstrap decision bindings before allowing closeout. The receipt is one-shot,
 mints no authority, and does not claim cryptographic independence from the local
-OS identity boundary described in DR-0006; stronger trust anchors remain an
-operator deployment choice.
+OS identity boundary; stronger trust anchors remain an operator deployment choice.
 
 If the accepted root and candidate branch already resolve to the same HEAD,
 closeout is current rather than ready-to-mutate. `ethos land --closeout --json`

@@ -42,9 +42,17 @@ does not append work here unless this Commitment already requires it.
 
 | Outcome | Task | Evidence |
 | --- | ---: | --- |
-| Commitment and Attestation v2 identity | 1 | `tests:semantic-v2-vectors` |
-| Open payload and composable relations | 1 | `tests:semantic-v2-properties` |
-| Deterministic Attestation set | 2 | `tests:attestation-set` |
-| Bounded successor adoption | 3 | `tests:intent-promotion` |
-| Exact one-shot v1-to-v2 cutover | 4 | `tests:commitment-v2-bootstrap` |
-| Accepted bounded foundation | 5 | `evidence:model-promotion-closeout` |
+| `contracts:Commitment v2 identity is explicit and bounded` | `1` | `tests:semantic-v2-vectors` |
+| `contracts:Attestation v2 payload and relations are open and composable` | `1` | `tests:semantic-v2-properties` |
+| `contracts:Selection Attestations never mint authority` | `3` | `tests:intent-promotion` |
+| `adapters:Attestations use one deterministic Git set carrier` | `2` | `tests:attestation-set` |
+| `adapters:Non-authoritative Attestation stores are not current readers` | `2` | `tests:attestation-set-authority` |
+| `command-plane:Attestation record and query project one set contract` | `2` | `tests:attestation-command-plane` |
+| `command-plane:Commitment rebind owns one destructive v2 bootstrap` | `4` | `tests:commitment-v2-bootstrap` |
+| `repository-governance:Continuous intent preserves bounded Changes` | `3` | `tests:intent-promotion` |
+| `repository-governance:One Commitment binds one Change and lane generation` | `3` | `tests:generation-binding` |
+| `adapters:*` | `2` | `tests:adapter-model-promotion` |
+| `command-plane:*` | `4` | `tests:command-plane-model-promotion` |
+| `contracts:*` | `1` | `tests:semantic-v2` |
+| `kernel:*` | `3` | `tests:semantic-kernel-reduction` |
+| `repository-governance:*` | `3` | `tests:repository-governance-reduction` |

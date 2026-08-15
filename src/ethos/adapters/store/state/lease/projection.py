@@ -161,6 +161,20 @@ def lease_record(row: sqlite3.Row | tuple[Any, ...]) -> dict[str, Any]:
     return observation.record()
 
 
+def project_lease(lease: LaneLease) -> dict[str, Any]:
+    """Project one in-memory Lease through the canonical storage shape."""
+    payload_json = json.dumps(lease.to_payload(), sort_keys=True)
+    return lease_record(
+        (
+            lease.lease_id,
+            lease.lane_ref,
+            lease.holder_ref.serialize(),
+            lease.expires_at.isoformat(),
+            payload_json,
+        )
+    )
+
+
 def lease_row(row: sqlite3.Row | tuple[Any, ...]) -> LeaseRow:
     """Capture the complete exact row coordinates used by compare-and-swap."""
     payload_json = str(row[4])

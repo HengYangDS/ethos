@@ -265,6 +265,26 @@ def test_attestation_set_reader_rejects_extra_empty_subtree(tmp_path: Path) -> N
         attestation_set.read_attestation_set(repo)
 
 
+def test_attestation_set_reader_rejects_duplicate_raw_tree_paths(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    record = _attestation(72)
+    attestation_set.record_attestations(repo, (record,))
+    original = attestation_set.run_git
+
+    def duplicate_ls_tree(root: Path, *args: str, **kwargs):
+        result = original(root, *args, **kwargs)
+        if args[:4] == ("ls-tree", "-r", "-t", "-z"):
+            result.stdout += result.stdout
+        return result
+
+    monkeypatch.setattr(attestation_set, "run_git", duplicate_ls_tree)
+
+    with pytest.raises(ValueError, match="attestation_set_root_invalid"):
+        attestation_set.read_attestation_set(repo)
+
+
 def test_attestation_set_rejects_noncanonical_commit_metadata(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     record = _attestation(8)

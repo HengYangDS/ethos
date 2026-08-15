@@ -7,7 +7,7 @@ Purpose: define what can support a bounded repository verdict.
 | Authority | `ethos prove --json`, `ethos status --json`, docs registry, OpenSpec records, Git facts |
 | Trigger | Evaluating readiness, assurance, proof, completion, landability, or publishability. |
 | Action | Bind the verdict to current command output or an Attestation, exact HEAD, scope, and evidence location. |
-| Evidence | Passing command JSON or a tracked Attestation. |
+| Evidence | Passing command JSON or an Attestation selected by `refs/ethos/attestations-set`. |
 | Stop | Verdict lacks HEAD binding, command, scope, or verifier output. |
 
 ## Rules

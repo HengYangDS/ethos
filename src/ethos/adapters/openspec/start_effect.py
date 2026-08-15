@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
+    bootstrap_generation_authority,
+)
 from ethos.adapters.openspec.generation.attestation import archive_effect_authority
 from ethos.adapters.openspec.generation.attestation import start_effect_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
@@ -160,6 +163,7 @@ def current_generation_scope(
             change,
             base,
             carrier,
+            source=str(authority.get("source") or "generation_commit"),
         )
     if len(archive) == 1:
         authority = archive[0]
@@ -261,6 +265,16 @@ def _effect_authorities(
             )
             if projection:
                 archive.append(projection)
+        elif attestation.predicate == "effect:commitment-rebind":
+            projection = bootstrap_generation_authority(
+                root,
+                attestation,
+                repository_id=repository_id,
+                commitment_digest=commitment.digest(),
+                lease=lease,
+            )
+            if projection:
+                start.append(projection)
     return tuple(start), tuple(archive)
 
 

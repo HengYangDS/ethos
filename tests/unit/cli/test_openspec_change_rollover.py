@@ -14,6 +14,7 @@ from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
@@ -638,6 +639,26 @@ def test_start_change_recovers_after_commit_before_commitment_rebind(
     assert interrupted["required_gaps"] == ["injected_after_commit"]
     assert committed_head != archived_head
     assert leases_by_branch(worktree)[branch]["expected_head"] == committed_head
+    prepared_root, prepared = read_attestation_set(worktree)
+    witness = next(item for item in prepared if item.predicate == "effect:openspec-change-start")
+    assert witness.payload.body["result"] == {
+        "state": "prepared",
+        "executed": False,
+        "exit_code": None,
+    }
+    assert not rollover.start_effect_authority(
+        worktree,
+        witness,
+        committed_head,
+        load_repository_commitment(worktree).id,
+        load_commitment(
+            worktree,
+            carrier="openspec/changes/hosted-verification-fix/commitment.toml",
+            change_id="hosted-verification-fix",
+            tree_ref=committed_head,
+        ),
+        leases_by_branch(worktree)[branch],
+    )
     monkeypatch.setattr(rollover, "rebind_lease_commitment", apply_rebind)
 
     drifted = start_change(
@@ -668,6 +689,7 @@ def test_start_change_recovers_after_commit_before_commitment_rebind(
         "openspec/changes/hosted-verification-fix/commitment.toml"
     )
     assert integer(lease["epoch"]) == integer(previous_lease["epoch"]) + 1
+    assert read_attestation_set(worktree)[0] == prepared_root
 
 
 def _start_change_arguments(

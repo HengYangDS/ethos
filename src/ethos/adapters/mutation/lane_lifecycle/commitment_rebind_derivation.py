@@ -116,27 +116,20 @@ def _derive_exact_rebind(
             )
             observed_targets = [target_commit]
         else:
-            candidates = _compatible_dangling_targets(
+            target_commit = _signed_target_commit(
+                repo,
+                tree=git_stdout(repo, "write-tree"),
+                parent=str(lease.get("expected_head") or ""),
+            )
+            target = _target_fields(
                 repo,
                 old=old,
                 old_head=str(lease.get("expected_head") or ""),
                 index_tree=git_stdout(repo, "write-tree"),
+                target_commit=target_commit,
                 repair_change_identity=repair_change_identity,
             )
-            observed_targets = [candidate for candidate, _fields in candidates]
-            if not candidates:
-                return _blocked(
-                    branch,
-                    "commitment_rebind_target_missing",
-                    observed_targets=observed_targets,
-                )
-            if len(candidates) != 1:
-                return _blocked(
-                    branch,
-                    "commitment_rebind_target_ambiguous",
-                    observed_targets=observed_targets,
-                )
-            target_commit, target = candidates[0]
+            observed_targets = [target_commit]
         request = CommitmentRebindRequest(
             branch=branch,
             holder_ref=actor,
@@ -336,48 +329,6 @@ def _receipt(request: CommitmentRebindRequest) -> CommitmentRebindReceipt:
     return CommitmentRebindReceipt.model_validate(
         payload | {"digest": canonical_json_digest(payload)}
     )
-
-
-def _compatible_dangling_targets(
-    repo: Path,
-    *,
-    old: Commitment,
-    old_head: str,
-    index_tree: str,
-    repair_change_identity: bool,
-) -> list[tuple[str, dict[str, str]]]:
-    completed = run_git(
-        repo,
-        "fsck",
-        "--unreachable",
-        "--no-reflogs",
-        "--no-progress",
-        check=False,
-        observation=True,
-    )
-    object_ids = sorted(
-        {
-            parts[2]
-            for line in completed.stdout.splitlines()
-            if len(parts := line.split()) == 3
-            and parts[:2] in (["unreachable", "commit"], ["dangling", "commit"])
-        }
-    )
-    candidates: list[tuple[str, dict[str, str]]] = []
-    for object_id in object_ids:
-        try:
-            fields = _target_fields(
-                repo,
-                old=old,
-                old_head=old_head,
-                index_tree=index_tree,
-                target_commit=object_id,
-                repair_change_identity=repair_change_identity,
-            )
-        except ValueError:
-            continue
-        candidates.append((object_id, fields))
-    return candidates
 
 
 def _target_fields(

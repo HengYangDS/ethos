@@ -16,6 +16,17 @@ def _completed(stderr: str = "initialization failed") -> subprocess.CompletedPro
     return subprocess.CompletedProcess(("git",), 1, "", stderr)
 
 
+def _lease() -> dict[str, object]:
+    return {
+        "holder_ref": "agent:test:case:owner",
+        "lease_id": "lease:1",
+        "epoch": 3,
+        "expected_head": "a" * 40,
+        "expires_at": "2026-08-10T00:00:00+00:00",
+        "payload_sha256": "b" * 64,
+    }
+
+
 def _run_worktree_list(
     target: Path,
     *,
@@ -78,6 +89,7 @@ def test_rollback_retains_unknown_carrier_ownership(
         completed=_completed(),
         run=lambda *_args, **_kwargs: subprocess.CompletedProcess(("git",), 0, "", ""),
         lease=None,
+        source_lease={},
         failure_gap="lane_start_failed",
     )
 
@@ -99,6 +111,8 @@ def test_rollback_reports_cleanup_failure_without_deleting_ref(
         "delete_lane_start_ref",
         lambda *_args, **_kwargs: pytest.fail("ref deletion must not run"),
     )
+    monkeypatch.setattr(rollback, "state_database", lambda _repo: tmp_path / "state.sqlite")
+    monkeypatch.setattr(rollback, "revoke_lease", lambda *_args, **_kwargs: {})
     context = rollback.LaneStartRollback(
         repo=tmp_path,
         target=target,
@@ -106,7 +120,8 @@ def test_rollback_reports_cleanup_failure_without_deleting_ref(
         ownership=("work/example", "a" * 40, "a" * 40),
         completed=_completed(),
         run=_run_worktree_list(target),
-        lease={"lease_id": "lease:1"},
+        lease=_lease(),
+        source_lease={},
         failure_gap="lane_start_failed",
     )
 
@@ -125,6 +140,8 @@ def test_rollback_reports_ref_drift_before_delete(
     heads = iter(("a" * 40, "b" * 40))
     monkeypatch.setattr(rollback, "ref_head", lambda *_args: next(heads))
     monkeypatch.setattr(rollback, "remove_lane_start_worktree", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(rollback, "state_database", lambda _repo: tmp_path / "state.sqlite")
+    monkeypatch.setattr(rollback, "revoke_lease", lambda *_args, **_kwargs: {})
     context = rollback.LaneStartRollback(
         repo=tmp_path,
         target=tmp_path / "lane",
@@ -132,7 +149,8 @@ def test_rollback_reports_ref_drift_before_delete(
         ownership=("work/example", "a" * 40, "a" * 40),
         completed=_completed(),
         run=_run_worktree_list(tmp_path / "lane"),
-        lease={"lease_id": "lease:1"},
+        lease=_lease(),
+        source_lease={},
         failure_gap="lane_start_failed",
     )
 
@@ -158,6 +176,8 @@ def test_rollback_translates_ref_delete_and_lease_revoke_failures(
         raise ValueError(message)
 
     monkeypatch.setattr(rollback, "delete_lane_start_ref", fail_delete)
+    monkeypatch.setattr(rollback, "state_database", lambda _repo: tmp_path / "state.sqlite")
+    monkeypatch.setattr(rollback, "revoke_lease", lambda *_args, **_kwargs: {})
     context = rollback.LaneStartRollback(
         repo=tmp_path,
         target=target,
@@ -165,7 +185,8 @@ def test_rollback_translates_ref_delete_and_lease_revoke_failures(
         ownership=("work/example", "a" * 40, "a" * 40),
         completed=_completed(),
         run=_run_worktree_list(target),
-        lease={"lease_id": "lease:1"},
+        lease=_lease(),
+        source_lease={},
         failure_gap="lane_start_failed",
     )
 
@@ -182,14 +203,7 @@ def test_successful_rollback_revokes_exact_lease(
 ) -> None:
     target = tmp_path / "lane"
     target.mkdir()
-    lease = {
-        "holder_ref": "agent:test:case:owner",
-        "lease_id": "lease:1",
-        "epoch": 3,
-        "expected_head": "a" * 40,
-        "expires_at": "2026-08-10T00:00:00+00:00",
-        "payload_sha256": "b" * 64,
-    }
+    lease = _lease()
     heads = iter(("a" * 40, "a" * 40, ""))
     revoked: list[object] = []
     monkeypatch.setattr(rollback, "ref_head", lambda *_args: next(heads))
@@ -209,6 +223,7 @@ def test_successful_rollback_revokes_exact_lease(
         completed=_completed(""),
         run=_run_worktree_list(target),
         lease=lease,
+        source_lease={},
         failure_gap="lane_start_postcondition_failed",
     )
 
@@ -238,6 +253,7 @@ def test_rollback_preserves_child_process_diagnostics_after_cleanup(
         completed=completed,
         run=_run_worktree_list(target, branch="detached"),
         lease=None,
+        source_lease={},
         failure_gap="openspec_change_creation_failed",
     )
 

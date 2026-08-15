@@ -16,11 +16,11 @@ import ethos.adapters.store.state.lease.projection as projection
 import ethos.surface.cli.lane.lease as lease_cli
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
-from ethos.contracts.semantic import Attestation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lifecycle_cases import strict_lease
+from tests.support.semantic import attestation_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -184,18 +184,16 @@ def test_takeover_storage_rechecks_incarnation_tree_and_repository_after_cas(
             "expected_payload_sha256": stored["payload_sha256"],
             "expected_dirty_content_sha256": expected_repository[2],
             "source_state": "source_lost",
-            "authorization": Attestation.issue(
-                {
-                    "subject": "git:branch:work/takeover",
-                    "predicate": "lane-resolution:takeover",
-                    "verdict": "pass",
-                    "statement": {"authorization": {}},
-                    "issued_at": datetime.now(UTC),
-                    "valid_from": datetime.now(UTC),
-                    "verifier": "maintainer:test:case:reviewer",
-                    "evidence_refs": ("evidence:test:takeover",),
-                    "commitment_digest": "d" * 64,
-                }
+            "authorization": attestation_v2(
+                subject="git:branch:work/takeover",
+                predicate="lane-resolution:takeover",
+                verifier="maintainer:test:case:reviewer",
+                issued_at=datetime.now(UTC),
+                valid_from=datetime.now(UTC),
+                payload_kind="authorization:lane-takeover",
+                payload_body={"authorization": {}},
+                evidence_refs=("evidence:test:takeover",),
+                commitment_digest="d" * 64,
             ),
             "apply": True,
         }

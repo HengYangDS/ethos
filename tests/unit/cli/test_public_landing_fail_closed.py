@@ -9,12 +9,14 @@ import pytest
 
 import ethos.adapters.mutation.landing as landing
 from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.contracts.semantic import Attestation
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.semantic import attestation_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Attestation
 
 
 def _pass_decision() -> SimpleNamespace:
@@ -22,16 +24,14 @@ def _pass_decision() -> SimpleNamespace:
 
 
 def _attestation() -> Attestation:
-    return Attestation.issue(
-        {
-            "predicate": "effect:git-ref-transaction",
-            "verifier": "agent:test:case:landing",
-            "subject": "git:ref:candidate/dev",
-            "issued_at": datetime(2026, 8, 10, tzinfo=UTC),
-            "verdict": "pass",
-            "statement": {},
-            "effect_digest": "a" * 64,
-        }
+    return attestation_v2(
+        predicate="effect:git-ref-transaction",
+        verifier="agent:test:case:landing",
+        subject="git:ref:candidate/dev",
+        issued_at=datetime(2026, 8, 10, tzinfo=UTC),
+        payload_kind="effect:git-ref-transaction",
+        payload_body={},
+        effect_digest="a" * 64,
     )
 
 

@@ -63,15 +63,18 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert accepted_update["previous_head"] == accepted_head
     assert accepted_update["required_gaps"] == []
     attestation = accepted_update["attestation"]
+    body = attestation["payload"]["body"]
+    assert attestation["schema_version"] == 2
     assert attestation["predicate"] == "effect:git-ref-update"
     assert attestation["subject"]
-    assert attestation["statement"]["result"]["state"] == "applied"
-    assert attestation["statement"]["repository"].startswith("repository:")
-    assert attestation["statement"]["input"]["head"] == accepted_head
-    assert attestation["statement"]["output"]["head"] == candidate_head
-    assert attestation["statement"]["freshness"]["head"] == candidate_head
-    assert attestation["statement"]["output_digest"]
-    assert not {"kind", "content", "mints_authority"} & set(attestation)
+    assert attestation["payload"]["kind"] == "effect:git-ref-update"
+    assert body["result"]["state"] == "applied"
+    assert body["repository"].startswith("repository:")
+    assert body["input"]["head"] == accepted_head
+    assert body["output"]["head"] == candidate_head
+    assert body["freshness"]["head"] == candidate_head
+    assert body["output_digest"]
+    assert attestation["mints_authority"] is False
     assert git(repo, "rev-parse", "dev") == candidate_head
     assert git(repo, "rev-parse", "HEAD") == candidate_head
 

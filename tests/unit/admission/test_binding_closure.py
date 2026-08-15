@@ -144,6 +144,49 @@ def test_native_owner_closure_rejects_an_unowned_reference(tmp_path: Path) -> No
     ]
 
 
+def test_native_command_owner_closes_cross_module_cyclopts_registration(
+    tmp_path: Path,
+) -> None:
+    _write_files(
+        tmp_path,
+        {
+            "system/surfaces.toml": """
+schema = "system/schemas/contracts/surfaces.schema.json"
+[[surface]]
+name = "cli"
+carrier = "src/example"
+""",
+            "pyproject.toml": """
+[project]
+name = "example"
+version = "1"
+dependencies = ["cyclopts"]
+[project.scripts]
+ethos = "example.application:main"
+""",
+            "src/example/application.py": """
+from cyclopts import App
+app = App(name="ethos")
+""",
+            "src/example/lane.py": """
+from cyclopts import App
+from example.application import app as root_app
+lane_app = App(name="lane")
+root_app.command(lane_app)
+@lane_app.command(name="start")
+def start() -> None:
+    pass
+""",
+            "src/example/guidance.py": 'NEXT = "ethos lane start feature"',
+        },
+    )
+
+    owned = native_owned_references(tmp_path)
+
+    assert "ethos lane start" in owned["command"]
+    assert repository_product_reference_gaps(tmp_path) == []
+
+
 def test_native_owner_closure_does_not_promote_observed_consumers(tmp_path: Path) -> None:
     _minimal_product(
         tmp_path,

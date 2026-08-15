@@ -479,7 +479,7 @@ def restore_worktree(control_root: Path, lane: dict[str, object]) -> dict[str, o
         }
     if attestation is None:
         return {"state": "recognized"}
-    result = attestation.statement.get("result")
+    result = attestation.payload.body.get("result")
     state = str(result.get("state") or "") if isinstance(result, Mapping) else ""
     return {"state": state, "attestation_id": attestation.id}
 

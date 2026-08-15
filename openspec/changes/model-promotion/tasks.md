@@ -4,7 +4,7 @@ This is the only progress authority for this bounded model foundation. New
 feedback is recorded as an Attestation and may be selected by a successor; it
 does not append work here unless this Commitment already requires it.
 
-- [ ] **1. Freeze semantic identity.** Implement strict Commitment v2 and
+- [x] **1. Freeze semantic identity.** Implement strict Commitment v2 and
   Attestation v2 value contracts, explicit identity-bearing fields,
   domain-separated digests, typed lineage/hypothesis/protocol values,
   composable canonical relations, opaque payload round-trip, and packaged golden

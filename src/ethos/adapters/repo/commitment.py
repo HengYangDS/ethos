@@ -15,7 +15,6 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
-from ethos.normalization.coercion import object_sequence
 from ethos.repository.openspec.identifiers import malformed_change_identity_repair_valid
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -63,22 +62,16 @@ def _load(
     relative: str,
     *,
     tree_ref: str | None = None,
-    repository_id: str = "",
     environment: dict[str, str] | None = None,
 ) -> Commitment:
     try:
         if tree_ref is None:
-            return load_commitment_file(repo / relative, repository_id=repository_id)
+            return load_commitment_file(repo / relative)
         raw = committed_file_bytes(repo, tree_ref, relative, environment=environment)
         if not raw:
             raise FileNotFoundError(relative)
         text = raw.decode("utf-8")
         payload = _normalized(tomllib.loads(text))
-        if repository_id:
-            payload["subjects"] = tuple(
-                repository_id if subject == "repository:self" else str(subject)
-                for subject in object_sequence(payload.get("subjects"))
-            )
         return Commitment.model_validate(payload)
     except (OSError, UnicodeError, tomllib.TOMLDecodeError, TypeError, ValueError) as exc:
         message = f"commitment_invalid:{relative}"
@@ -152,7 +145,6 @@ def load_commitment(
             repo,
             relative,
             tree_ref=tree_ref,
-            repository_id=repository.id,
             environment=environment,
         )
     )
@@ -199,6 +191,42 @@ def exact_commitment_fields(
             tree_ref=tree,
             environment=environment,
         ).digest(),
+    }
+
+
+def terminal_v1_binding(
+    repo: Path,
+    *,
+    tree_ref: str,
+    carrier: str,
+    repository: bool,
+    environment: dict[str, str] | None = None,
+) -> dict[str, object]:
+    """Read only the identity and exact bytes of one terminal v1 carrier."""
+    try:
+        relative = _relative_carrier(carrier)
+        raw = committed_file_bytes(repo, tree_ref, relative, environment=environment)
+        payload = tomllib.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValueError) as error:
+        message = "commitment_v1_terminal_invalid"
+        raise ValueError(message) from error
+    identifier = payload.get("id")
+    subjects = payload.get("subjects")
+    if (
+        not raw
+        or payload.get("schema_version") != 1
+        or not isinstance(identifier, str)
+        or not identifier
+        or not isinstance(subjects, list)
+        or any(not isinstance(subject, str) or not subject for subject in subjects)
+        or (repository and (not identifier.startswith("repository:") or subjects != [identifier]))
+    ):
+        message = "commitment_v1_terminal_invalid"
+        raise ValueError(message)
+    return {
+        "id": identifier,
+        "subjects": tuple(subjects),
+        "bytes_sha256": hashlib.sha256(raw).hexdigest(),
     }
 
 

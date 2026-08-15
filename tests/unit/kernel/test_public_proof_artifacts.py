@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.proof_artifacts as proof_artifacts
-from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from tests.support.governed_repository import git
 from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import start_adopted_candidate
@@ -21,7 +22,10 @@ if TYPE_CHECKING:
 
 
 def _reissue(record: Attestation, **updates: object) -> Attestation:
-    payload = record.model_dump(mode="python", exclude={"id", "schema_version", "statement_digest"})
+    body = updates.pop("body", None)
+    payload = record.model_dump(mode="python", exclude={"id"})
+    if body is not None:
+        payload["payload"] = {"kind": record.payload.kind, "body": body}
     return type(record).issue(payload | updates)
 
 
@@ -77,10 +81,10 @@ def test_public_proof_artifact_binding_fails_closed(
     head = git(candidate, "rev-parse", "HEAD")
     record = issue_conformant_proof(candidate, head)
     persist_proof_attestation(candidate, record)
-    raw_descriptor = record.statement["artifact"]
+    raw_descriptor = record.payload.body["artifact"]
     assert isinstance(raw_descriptor, Mapping)
     descriptor = dict(raw_descriptor)
-    store = attestation_store_dir(candidate)
+    store = proof_artifact_root(candidate)
     path = store / str(descriptor["path"])
 
     if mutation == "missing":
@@ -88,7 +92,7 @@ def test_public_proof_artifact_binding_fails_closed(
     elif mutation == "size":
         forged = _reissue(
             record,
-            statement=record.statement
+            body=record.payload.body
             | {"artifact": descriptor | {"size_bytes": path.stat().st_size + 1}},
         )
         assert proof_artifacts.artifact_checks(store, forged)[1] == [gap]
@@ -111,7 +115,7 @@ def test_public_proof_artifact_binding_fails_closed(
         target.write_bytes(payload)
         forged = _reissue(
             record,
-            statement=record.statement | {"artifact": rebound},
+            body=record.payload.body | {"artifact": rebound},
             evidence_refs=(f"sha256:{digest}",),
         )
         assert proof_artifacts.artifact_checks(store, forged)[1] == [gap]
@@ -120,23 +124,18 @@ def test_public_proof_artifact_binding_fails_closed(
     assert proof_artifacts.artifact_checks(store, record)[1] == [gap]
 
 
-def test_public_attestation_scan_rejects_filename_payload_and_identity_drift(
+def test_poisoned_local_attestation_copy_cannot_block_selected_set(
     tmp_path: Path,
 ) -> None:
     _repo, candidate = start_adopted_candidate(tmp_path)
     head = git(candidate, "rev-parse", "HEAD")
     record = issue_conformant_proof(candidate, head)
-    store = attestation_store_dir(candidate)
-    store.mkdir(parents=True, exist_ok=True)
-    (store / "not-an-identity.json").write_text("{}")
-    (store / f"{'0' * 64}.json").write_text("not-json")
-    (store / f"{'1' * 64}.json").write_text(record.canonical_json())
+    poison = proof_artifact_root(candidate) / f"{record.id}.json"
+    poison.parent.mkdir(parents=True, exist_ok=True)
+    poison.write_text("{}", encoding="utf-8")
 
-    records, gaps = proof_artifacts.scan_attestations(store)
+    persist_proof_attestation(candidate, record)
 
-    assert records == ()
-    assert gaps == [
-        f"attestation_store_invalid:{'0' * 64}.json",
-        f"attestation_store_identity_mismatch:{'1' * 64}.json",
-        "attestation_store_filename_invalid:not-an-identity.json",
-    ]
+    _root, selected = read_attestation_set(candidate)
+    assert selected == (record,)
+    assert poison.read_text(encoding="utf-8") == "{}"

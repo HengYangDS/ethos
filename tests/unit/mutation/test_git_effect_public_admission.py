@@ -12,10 +12,10 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,10 +30,8 @@ def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authorit
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     head = git(root, "rev-parse", "HEAD")
-    effect = GitEffect(
-        updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)}
-    )
-    authority = Commitment(
+    effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
+    authority = commitment_v2(
         id=f"repository:{root.name}",
         intent="Compile one exact effect.",
         subjects=(f"repository:{root.name}",),
@@ -74,7 +72,7 @@ def _plan(
             **(values or {}),
         },
     )
-    authority = Commitment(
+    authority = commitment_v2(
         id="authority:test:git-effect",
         intent="Admit an exact effect.",
         subjects=(f"repository:{root.name}",),

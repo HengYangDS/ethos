@@ -31,24 +31,34 @@ if TYPE_CHECKING:
 def acquire_lease(db_path: Path, *, lease: LaneLease) -> dict[str, object]:
     """Persist one complete strict Lease before any lane carrier effect."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    payload_json = _payload_json(lease)
-    owner = lease.holder_ref.serialize()
-    expires_at = lease.expires_at.isoformat()
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("pragma journal_mode = wal")
         connection.execute("begin immediate")
-        try:
-            initialize_state_connection(connection)
-            connection.execute(
-                "insert into leases(id, subject, owner, expires_at, payload_json) "
-                "values (?, ?, ?, ?, ?)",
-                (lease.lease_id, lease.lane_ref, owner, expires_at, payload_json),
-            )
-        except sqlite3.IntegrityError as exc:
-            message = f"lane_lease_conflict:{lease.lane_ref}"
-            raise ValueError(message) from exc
+        result = acquire_lease_from_connection(connection, lease=lease)
         connection.commit()
+    return result
+
+
+def acquire_lease_from_connection(
+    connection: sqlite3.Connection,
+    *,
+    lease: LaneLease,
+) -> dict[str, object]:
+    """Insert one strict Lease inside the caller's active transaction."""
+    initialize_state_connection(connection)
+    payload_json = _payload_json(lease)
+    owner = lease.holder_ref.serialize()
+    expires_at = lease.expires_at.isoformat()
+    try:
+        connection.execute(
+            "insert into leases(id, subject, owner, expires_at, payload_json) "
+            "values (?, ?, ?, ?, ?)",
+            (lease.lease_id, lease.lane_ref, owner, expires_at, payload_json),
+        )
+    except sqlite3.IntegrityError as exc:
+        message = f"lane_lease_conflict:{lease.lane_ref}"
+        raise ValueError(message) from exc
     return lease_record((lease.lease_id, lease.lane_ref, owner, expires_at, payload_json))
 
 

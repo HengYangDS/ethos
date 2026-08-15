@@ -8,8 +8,7 @@ freshness_expression = "facts.components.all(component, component.verdict == 'pa
 [kernel]
 mode = "kernel_evidence"
 allowed_root_files = ["README.md"]
-allowed_root_dirs = ["attestations"]
-historical_root_dirs = ["claims", "chronicle", "parity"]
+historical_root_dirs = ["attestations", "claims", "chronicle", "parity"]
 root_file_not_allowed_gap_prefix = "evidence_root_file_not_allowed"
 root_dir_not_allowed_gap_prefix = "evidence_root_dir_not_allowed"
 

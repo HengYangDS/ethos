@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
+import pytest
+
+import ethos.adapters.mutation.remote_publication as remote_publication
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.value import mutable_json
 from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos.domain.land.publication import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
@@ -372,15 +375,60 @@ def test_publish_proposal_dry_run_and_apply_share_one_plan_and_attestation(
         git(remote, "update-ref", "-d", _PROPOSAL_REF)
 
     applied = _receipt(repo, receipt, head)
-    attestation = json.loads(
-        Path(applied["data"]["remote_effect"]["attestation"]["path"]).read_text()
-    )
-    assert Path(
-        applied["data"]["remote_effect"]["attestation"]["path"]
-    ).parent == attestation_store_dir(repo)
+    set_root, selected = read_attestation_set(repo)
+    attestation = next(item for item in selected if item.predicate == "publication:remote-effect")
     assert applied["state"] == "proposal_published"
-    assert attestation["statement"]["plan"] == applied["data"]["transition_plan"]
+    assert applied["data"]["remote_effect"]["attestation"]["set_root"] == set_root
+    assert mutable_json(attestation.payload.body["plan"]) == applied["data"]["transition_plan"]
     assert {_proposal_ref(remote) for remote in remotes.values()} == {head}
+
+
+def test_publish_proposal_retry_records_one_terminal_attestation_after_interruption(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retry records the one terminal effect after remote refs already moved."""
+    repo, remotes, head = _proposal_fixture(tmp_path)
+    receipt = _proposal(repo, head)["data"]["request_receipt"]
+
+    with monkeypatch.context() as interrupted:
+        interrupted.setattr(
+            remote_publication,
+            "record_attestations",
+            lambda _root, _attestation: (_ for _ in ()).throw(RuntimeError("interrupted")),
+        )
+        with pytest.raises(RuntimeError, match="interrupted"):
+            _receipt(repo, receipt, head)
+
+    assert {_proposal_ref(remote) for remote in remotes.values()} == {head}
+
+    recovered = _receipt(repo, receipt, head)
+    root, attestations = read_attestation_set(repo)
+    remote_effects = [
+        attestation
+        for attestation in attestations
+        if attestation.predicate == "publication:remote-effect"
+    ]
+
+    assert recovered["state"] == "proposal_published"
+    assert root == git(repo, "rev-parse", "refs/ethos/attestations-set")
+    assert recovered["data"]["remote_effect"]["attempts"] == [
+        {
+            "id": "gitlab",
+            "remote": "origin",
+            "state": "already_applied",
+            "exit_code": 0,
+            "stderr": "",
+        },
+        {
+            "id": "github",
+            "remote": "github",
+            "state": "already_applied",
+            "exit_code": 0,
+            "stderr": "",
+        },
+    ]
+    assert len(remote_effects) == 1
+    assert remote_effects[0].payload.body["state"] == "applied"
 
 
 def test_publish_proposal_preflights_all_peers_and_retry_converges(tmp_path: Path) -> None:

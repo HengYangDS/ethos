@@ -1,22 +1,21 @@
 from __future__ import annotations
 
+import ast
 import re
 import shutil
-import tomllib
 from pathlib import Path
 
 import pytest
-import yaml
+import tomllib
 
-from ethos.repository.design.integrity import design_integrity_report
-from ethos.repository.design.integrity import front_matter_ok
-from ethos.surface.cli.application import app
-from ethos.surface.cli.application import load_command_groups
+from ethos.repository.design.integrity import design_integrity_report, front_matter_ok
+from ethos.repository.openspec.audit import active_change_names_from_paths
+from ethos.surface.cli.application import app, load_command_groups
 
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_OWNER = "docs/governance/product-design-contract.md"
 PLAN = "docs/plans/terminal-governance-product-design.md"
-SOURCE_CHANGE_ID = "change:terminal-convergence"
+ACTIVE_CHANGE_ID = "change:model-promotion"
 AXIOMS = "system/axioms.md"
 PROJECTIONS = {
     "README.md",
@@ -31,49 +30,91 @@ PUBLIC_ROOTS = {
     "land",
     "publish",
     "adopt",
+    "attestation",
     "migrate-local-state",
 }
 HIDDEN_ROOTS = {"lane", "hook"}
-SUCCESSOR_OUTCOMES = {
-    "accepted-spec-reconciliation",
-    "portable-reference-boundary",
-    "transition-invariant-proof",
-    "openspec-18-cutover",
-    "coordination-reconstruction",
-    "integration-throughput-housekeeping",
-    "repository-knowledge-grammar",
-    "knowledge-evolution",
-    "hermetic-quality-toolchain",
-    "forge-projection-homomorphism",
-    "terminal-compression",
-    "adopter-product-surfaces",
-    "workflow-method-evaluation",
-    "terminal-local-closeout",
-    "dual-provider-publication",
-}
 
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def change_carrier(change_id: str) -> Path:
-    carriers = tuple(
-        path.parent
-        for path in (ROOT / "openspec" / "changes").glob("**/commitment.toml")
-        if tomllib.loads(path.read_text(encoding="utf-8"))["id"] == change_id
+def _cyclopts_app_assignment_lines(path: Path) -> tuple[int, ...]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    app_names = {
+        alias.asname or alias.name
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "cyclopts"
+        for alias in node.names
+        if alias.name == "App"
+    }
+    cyclopts_names = {
+        alias.asname or alias.name
+        for node in tree.body
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == "cyclopts"
+    }
+    return tuple(
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Assign, ast.AnnAssign))
+        and isinstance(node.value, ast.Call)
+        and (
+            (isinstance(node.value.func, ast.Name) and node.value.func.id in app_names)
+            or (
+                isinstance(node.value.func, ast.Attribute)
+                and isinstance(node.value.func.value, ast.Name)
+                and node.value.func.value.id in cyclopts_names
+                and node.value.func.attr == "App"
+            )
+        )
     )
-    assert len(carriers) == 1, carriers
-    return carriers[0]
+
+
+def active_change_carriers(root: Path = ROOT) -> tuple[Path, ...]:
+    return tuple(
+        sorted(
+            path
+            for path in root.joinpath("openspec", "changes").iterdir()
+            if path.is_dir() and path.name != "archive"
+        )
+    )
+
+
+def declared_change_dependencies(commitment: dict[str, object]) -> tuple[str, ...]:
+    dependencies = commitment.get("dependencies", [])
+    assert isinstance(dependencies, list)
+    return tuple(
+        target
+        for dependency in dependencies
+        if isinstance(dependency, dict)
+        and isinstance(target := dependency.get("target"), str)
+        and target.startswith("change:")
+    )
 
 
 def tracked_markdown(root: Path) -> tuple[str, ...]:
     return tuple(path.relative_to(root).as_posix() for path in root.rglob("*.md"))
 
 
+def test_each_production_module_owns_at_most_one_cyclopts_application() -> None:
+    source_root = ROOT / "src" / "ethos"
+    offenders = {
+        path.relative_to(ROOT).as_posix(): lines
+        for path in source_root.rglob("*.py")
+        if len(lines := _cyclopts_app_assignment_lines(path)) > 1
+    }
+
+    assert offenders == {}
+
+
 def headings(text: str) -> set[str]:
     return {
-        re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", match.group(2).lower())).strip("-")
+        re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", match.group(2).lower())).strip(
+            "-"
+        )
         for match in re.finditer(r"^(#{1,6})\s+(.+?)\s*$", text, re.MULTILINE)
     }
 
@@ -82,7 +123,9 @@ def section(text: str, heading: str, *, level: int = 2) -> str:
     marker = "#" * level
     match = re.search(rf"^{marker} {re.escape(heading)}$", text, re.MULTILINE)
     assert match, heading
-    following = re.search(rf"^#{{1,{level}}} [^#].+$", text[match.end() :], re.MULTILINE)
+    following = re.search(
+        rf"^#{{1,{level}}} [^#].+$", text[match.end() :], re.MULTILINE
+    )
     end = match.end() + following.start() if following else len(text)
     return text[match.start() : end]
 
@@ -108,7 +151,9 @@ def test_design_integrity_uses_owner_relations_not_prose_equivalence() -> None:
     assert PLAN in report["references"]
 
 
-def test_design_integrity_uses_supplied_tracked_document_facts(design_tree: Path) -> None:
+def test_design_integrity_uses_supplied_tracked_document_facts(
+    design_tree: Path,
+) -> None:
     """Filesystem visibility must not create a second tracked-document truth."""
     rogue = design_tree / "docs/rogue.md"
     rogue.parent.mkdir(parents=True, exist_ok=True)
@@ -166,7 +211,10 @@ def test_canonical_contract_uses_a_closed_machine_grammar_for_model_promotion() 
     assert {"contradiction", "model_gap", "model_promotion_required"} <= set(
         re.findall(r"\b[a-z_]+\b", text)
     )
-    assert all(token in text for token in ("block effects", "retirement", "Preserve", "recompile"))
+    assert all(
+        token in text
+        for token in ("block effects", "retirement", "Preserve", "recompile")
+    )
     assert {"alias", "fallback", "shim"} <= set(re.findall(r"\b[a-z]+\b", text))
 
 
@@ -174,7 +222,10 @@ def test_axioms_are_a_derived_constraint_not_a_second_truth() -> None:
     axioms = read(AXIOMS)
 
     assert axioms.startswith("---\n")
-    assert "derives: ../docs/governance/product-design-contract.md#root-constraint" in axioms
+    assert (
+        "derives: ../docs/governance/product-design-contract.md#root-constraint"
+        in axioms
+    )
     assert "second semantic owner" in axioms
     assert "道隐无名" not in axioms
     assert {"Commitment", "Attestation", "proposition"} <= set(
@@ -185,14 +236,19 @@ def test_axioms_are_a_derived_constraint_not_a_second_truth() -> None:
 def test_design_integrity_rejects_missing_owner_anchor(design_tree: Path) -> None:
     contract = design_tree / CANONICAL_OWNER
     contract.write_text(
-        contract.read_text(encoding="utf-8").replace("## Projection Homomorphism", "## Projection"),
+        contract.read_text(encoding="utf-8").replace(
+            "## Projection Homomorphism", "## Projection"
+        ),
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
     assert (
-        "design_canonical_owner_anchor_missing:projection-homomorphism" in report["required_gaps"]
+        "design_canonical_owner_anchor_missing:projection-homomorphism"
+        in report["required_gaps"]
     )
 
 
@@ -206,7 +262,9 @@ def test_design_integrity_rejects_unlinked_projection(design_tree: Path) -> None
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
     assert (
         "design_projection_owner_link_missing:docs/concepts/kernel-model.md"
@@ -224,7 +282,9 @@ def test_design_integrity_rejects_non_derived_axioms(design_tree: Path) -> None:
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
     assert "design_axioms_derivation_metadata_invalid" in report["required_gaps"]
 
@@ -233,7 +293,9 @@ def test_design_integrity_rejects_duplicated_root_text(design_tree: Path) -> Non
     axioms = design_tree / AXIOMS
     root_line = next(
         line.removeprefix("> ")
-        for line in (design_tree / CANONICAL_OWNER).read_text(encoding="utf-8").splitlines()
+        for line in (design_tree / CANONICAL_OWNER)
+        .read_text(encoding="utf-8")
+        .splitlines()
         if line.startswith("> ")
     )
     axioms.write_text(
@@ -241,7 +303,9 @@ def test_design_integrity_rejects_duplicated_root_text(design_tree: Path) -> Non
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
     assert "design_axioms_duplicates_root_verse" in report["required_gaps"]
 
@@ -253,7 +317,9 @@ def test_design_integrity_reports_missing_native_owner_projection_and_axioms(
     (design_tree / "README.md").unlink()
     (design_tree / AXIOMS).unlink()
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
     assert {
         f"design_canonical_owner_missing:{CANONICAL_OWNER}",
@@ -262,7 +328,9 @@ def test_design_integrity_reports_missing_native_owner_projection_and_axioms(
     } <= set(report["required_gaps"])
 
 
-def test_design_integrity_reports_invalid_owner_and_projection_metadata(design_tree: Path) -> None:
+def test_design_integrity_reports_invalid_owner_and_projection_metadata(
+    design_tree: Path,
+) -> None:
     owner = design_tree / CANONICAL_OWNER
     owner.write_text(
         owner.read_text(encoding="utf-8").replace("state: canonical", "state: active"),
@@ -276,7 +344,9 @@ def test_design_integrity_reports_invalid_owner_and_projection_metadata(design_t
         encoding="utf-8",
     )
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
     assert "design_canonical_owner_front_matter_invalid" in report["required_gaps"]
     assert (
@@ -285,15 +355,21 @@ def test_design_integrity_reports_invalid_owner_and_projection_metadata(design_t
     )
 
 
-def test_design_integrity_reports_each_missing_axiom_boundary(design_tree: Path) -> None:
+def test_design_integrity_reports_each_missing_axiom_boundary(
+    design_tree: Path,
+) -> None:
     axioms = design_tree / AXIOMS
     text = axioms.read_text(encoding="utf-8")
-    text = text.replace("product-design-contract.md#root-constraint", "product-design-contract.md")
+    text = text.replace(
+        "product-design-contract.md#root-constraint", "product-design-contract.md"
+    )
     text = text.replace("second semantic owner", "parallel text")
     text = text.replace("Commitment", "Intent")
     axioms.write_text(text, encoding="utf-8")
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
     assert {
         "design_axioms_derivation_metadata_invalid",
@@ -303,19 +379,32 @@ def test_design_integrity_reports_each_missing_axiom_boundary(design_tree: Path)
     } <= set(report["required_gaps"])
 
 
-def test_design_integrity_deduplicates_forbidden_native_projection_gaps(design_tree: Path) -> None:
+def test_design_integrity_deduplicates_forbidden_native_projection_gaps(
+    design_tree: Path,
+) -> None:
     forbidden = design_tree / ".claude"
     forbidden.mkdir()
 
-    report = design_integrity_report(design_tree, tracked_documents=tracked_markdown(design_tree))
+    report = design_integrity_report(
+        design_tree, tracked_documents=tracked_markdown(design_tree)
+    )
 
-    assert report["required_gaps"].count("design_integrity_forbidden_projection_path:.claude") == 1
+    assert (
+        report["required_gaps"].count(
+            "design_integrity_forbidden_projection_path:.claude"
+        )
+        == 1
+    )
 
 
-def test_front_matter_ok_fails_closed_for_missing_and_partial_documents(tmp_path: Path) -> None:
+def test_front_matter_ok_fails_closed_for_missing_and_partial_documents(
+    tmp_path: Path,
+) -> None:
     missing = tmp_path / "missing.md"
     partial = tmp_path / "partial.md"
-    partial.write_text("---\nsubject: example\nrole: reference\n---\n", encoding="utf-8")
+    partial.write_text(
+        "---\nsubject: example\nrole: reference\n---\n", encoding="utf-8"
+    )
     complete = tmp_path / "complete.md"
     complete.write_text(
         "---\nsubject: example\nrole: reference\nstate: active\nrelations: none\n---\n",
@@ -327,7 +416,9 @@ def test_front_matter_ok_fails_closed_for_missing_and_partial_documents(tmp_path
     assert front_matter_ok(complete) is True
 
 
-def test_terminal_plan_projects_canonical_semantics_without_repeating_its_model() -> None:
+def test_terminal_plan_projects_canonical_semantics_without_repeating_its_model() -> (
+    None
+):
     plan = read(PLAN)
 
     assert "product-design-contract.md#semantic-kernel" in plan
@@ -338,7 +429,7 @@ def test_terminal_plan_projects_canonical_semantics_without_repeating_its_model(
         "git-native-transaction-boundary",
         "adopter-isomorphism-and-first-hour-ux",
         "feedback-intent-preservation",
-        "campaign-projection-and-convergence-route",
+        "bounded-change-convergence-route",
     }
     assert "The only durable semantic roots" not in plan
 
@@ -364,109 +455,86 @@ def test_live_cyclopts_tree_has_exact_public_and_hidden_roots() -> None:
     }
 
     assert {name for name, command in commands.items() if command.show} == PUBLIC_ROOTS
-    assert {name for name, command in commands.items() if not command.show} == HIDDEN_ROOTS
+    assert {
+        name for name, command in commands.items() if not command.show
+    } == HIDDEN_ROOTS
 
 
-def test_campaign_has_one_progress_owner_and_acyclic_phase_outcomes() -> None:
-    contract = section(read(CANONICAL_OWNER), "Campaign And Change Granularity")
-    route = section(read(PLAN), "Campaign Projection And Convergence Route", level=3)
-    rows = re.findall(r"^\| `([^`]+)` \| (.+?) \| (.+?) \|$", route, re.MULTILINE)
-    order = {outcome: index for index, (outcome, _dependencies, _acceptance) in enumerate(rows)}
+def test_one_bounded_active_change_owns_commitment_tasks_and_proof_mapping() -> None:
+    carriers = active_change_carriers()
+    assert tuple(carrier.name for carrier in carriers) == ("model-promotion",)
 
-    assert set(order) == SUCCESSOR_OUTCOMES
-    assert all(acceptance.strip() for _outcome, _dependencies, acceptance in rows)
-    for outcome, dependencies, _acceptance in rows:
-        for dependency in re.findall(r"`([^`]+)`", dependencies):
-            assert dependency in order, (outcome, dependency)
-            assert order[dependency] < order[outcome], (outcome, dependency)
-    assert "one task-progress owner" in contract
-    assert "independently verifiable phase outcomes" in contract
-    assert "Moving an obligation never counts as implementing it" in contract
-    assert "no fixed global WIP number" in contract
-
-
-def test_openspec_workspace_owns_atomic_change_lifecycle() -> None:
-    workspace = read("openspec/README.md")
-
-    assert "every\nmutation-capable adopter" in workspace
-    assert "A Campaign has one OpenSpec task-progress owner" in workspace
-    assert "migration as implementation" in workspace
-    assert "terminal-convergence Campaign deliberately remains one active Change" in workspace
-
-
-def test_terminal_change_keeps_every_remaining_obligation_once() -> None:
-    carrier = change_carrier(SOURCE_CHANGE_ID)
-    design = section(
-        carrier.joinpath("design.md").read_text(encoding="utf-8"), "Campaign Dependency Graph"
+    carrier = carriers[0]
+    assert carrier.joinpath("commitment.toml").is_file()
+    assert carrier.joinpath("tasks.md").is_file()
+    commitment = tomllib.loads(
+        carrier.joinpath("commitment.toml").read_text(encoding="utf-8")
     )
     tasks = carrier.joinpath("tasks.md").read_text(encoding="utf-8")
-    rows = re.findall(r"^\| `([^`]+)` \| (.+?) \| (.+?) \| (.+?) \|$", design, re.MULTILINE)
-    mapped = [
-        task
-        for _outcome, tasks, _dependencies, _acceptance in rows
-        for task in re.findall(r"`([3-7]\.\d+)`", tasks)
-    ]
-    expected = [
-        "3.4",
-        "3.5",
-        "3.6",
-        *(f"4.{index}" for index in range(1, 7)),
-        *(f"5.{index}" for index in range(1, 8)),
-        *(f"6.{index}" for index in range(1, 11)),
-        *(f"7.{index}" for index in range(1, 5)),
-    ]
+    task_ids = re.findall(r"^- \[[ x]\] \*\*(\d+)\.", tasks, re.MULTILINE)
+    proof_task_ids = re.findall(r"^\| .+? \| (\d+) \| `[^`]+` \|$", tasks, re.MULTILINE)
 
-    assert len(rows) == len(SUCCESSOR_OUTCOMES)
-    assert sorted(mapped) == sorted(expected)
-    assert len(mapped) == len(set(mapped))
-    assert "Migrated without implementation" not in tasks
-    pre_archive = [task for task in expected if not task.startswith("7.")]
-    post_archive = [task for task in expected if task.startswith("7.")]
-    assert all(
-        re.search(rf"^- \[x\] {re.escape(task)} ", tasks, re.MULTILINE) for task in pre_archive
+    assert commitment["id"] == ACTIVE_CHANGE_ID
+    assert f"openspec/changes/{carrier.name}/**" in commitment["scope"]
+    assert task_ids == ["1", "2", "3", "4", "5"]
+    assert set(proof_task_ids) == set(task_ids)
+    assert len(task_ids) == len(set(task_ids))
+    assert "the only progress authority for this bounded model foundation" in tasks
+
+
+def test_active_change_dependencies_are_acyclic_when_declared() -> None:
+    commitments = {
+        commitment["id"]: commitment
+        for carrier in active_change_carriers()
+        for commitment in [
+            tomllib.loads(
+                carrier.joinpath("commitment.toml").read_text(encoding="utf-8")
+            )
+        ]
+    }
+
+    def visit(change_id: str, path: tuple[str, ...]) -> None:
+        assert change_id not in path, (*path, change_id)
+        for dependency in declared_change_dependencies(commitments[change_id]):
+            assert dependency in commitments, dependency
+            visit(dependency, (*path, change_id))
+
+    for change_id in commitments:
+        visit(change_id, ())
+
+
+def test_archived_changes_do_not_select_current_progress() -> None:
+    archived = ROOT / "openspec/changes/archive/2026-08-10-terminal-convergence"
+    active = (
+        "openspec/changes/model-promotion/commitment.toml",
+        "openspec/changes/model-promotion/tasks.md",
     )
-    assert all(
-        re.search(rf"^- \*\*{re.escape(effect)}\*\* ", tasks, re.MULTILINE)
-        for effect in post_archive
-    )
-    assert "- [ ]" not in tasks
-    assert "Post-archive effects are not OpenSpec completion tasks" in tasks
-
-
-def test_terminal_commitment_claims_complete_campaign_closeout() -> None:
-    commitment = tomllib.loads(
-        change_carrier(SOURCE_CHANGE_ID).joinpath("commitment.toml").read_text(encoding="utf-8")
+    poisoned = (
+        *active,
+        "openspec/changes/archive/2026-08-10-terminal-convergence/commitment.toml",
+        "openspec/changes/archive/2026-08-10-terminal-convergence/tasks.md",
+        "openspec/changes/archive/contradictory-current-owner/tasks.md",
     )
 
-    assert commitment["acceptance"] == [
-        "contract_attestation_plan_and_effect_chain_proven",
-        "campaign_lane_records_docs_skills_and_ci_are_derived",
-        "three_adopter_profiles_conform",
-        "warnings_and_suppressions_zero",
-        "terminal_role_local_source_budget_met",
-        "local_gitlab_and_github_planes_independently_attested",
-    ]
-    assert "python_source_roles_do_not_compensate" in commitment["invariants"]
-    assert commitment["dependencies"] == []
-
-
-def test_terminal_archive_preserves_already_reconciled_specs() -> None:
-    carrier = change_carrier(SOURCE_CHANGE_ID)
-    metadata = yaml.safe_load(carrier.joinpath(".openspec.yaml").read_text(encoding="utf-8"))
-
-    assert metadata["skip_specs"] is True
-    assert not carrier.joinpath("specs").exists()
-    assert "already carry the terminal behavior" in carrier.joinpath("README.md").read_text(
-        encoding="utf-8"
+    assert archived.is_dir()
+    assert (
+        active_change_names_from_paths("HEAD", poisoned)
+        == active_change_names_from_paths("HEAD", active)
+        == {
+            "verdict": "pass",
+            "ref": "HEAD",
+            "changes": ["model-promotion"],
+            "required_gaps": [],
+        }
     )
 
 
 def test_branch_roles_and_thresholds_have_machine_owners() -> None:
     routing = tomllib.loads(read("system/routing.toml"))["branch_roles"]
     coverage = tomllib.loads(read(".config/checks/coverage/policy.toml"))
-    source_budget = tomllib.loads(read(".config/checks/format/selection.toml"))["source_budget"][
-        "terminal"
-    ]
+    source_budget = tomllib.loads(read(".config/checks/format/selection.toml"))[
+        "source_budget"
+    ]["terminal"]
     release = read("docs/governance/release-governance.md")
 
     assert routing == {
@@ -501,14 +569,20 @@ def test_current_docs_do_not_depend_on_one_active_change_path() -> None:
     assert "openspec/changes/terminal-convergence" not in current_docs
 
 
-def test_entrypoints_do_not_resurrect_global_authority_or_retired_kernel_names() -> None:
+def test_entrypoints_do_not_resurrect_global_authority_or_retired_kernel_names() -> (
+    None
+):
     agents = read("AGENTS.md")
     authority = read("docs/governance/authority.md")
     readme = read("README.md")
 
     assert "## Authority Order" not in agents
-    assert all(token in authority for token in ("subject", "context", "valid Attestations"))
-    assert all(token not in readme for token in ("ChangeContract", "RepositoryFacts", "PlanIR"))
+    assert all(
+        token in authority for token in ("subject", "context", "valid Attestations")
+    )
+    assert all(
+        token not in readme for token in ("ChangeContract", "RepositoryFacts", "PlanIR")
+    )
     assert "(Commitment, Facts, prior Attestations) -> TransitionPlan" in readme
     assert "Only Commitment and Attestation persist" in readme
 

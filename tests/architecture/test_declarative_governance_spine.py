@@ -105,7 +105,7 @@ def test_reference_and_entrypoint_scanners_share_one_carrier_declaration_owner()
     assert "_ENTRYPOINT_GLOB_PATTERNS" not in entrypoints
 
 
-def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
+def test_git_ref_mutation_has_one_owner_per_semantic_ref_family() -> None:
     references, executions, intents = set(), [], []
     for _path, relative, tree in _sources():
         for node in ast.walk(tree):
@@ -124,12 +124,19 @@ def test_git_ref_mutation_has_one_declared_execution_owner() -> None:
             if isinstance(node, ast.Call) and _call(node) == "write_ref_intent":
                 intents.append(relative)
     assert references == {
+        "adapters/repo/attestation_set.py",
         "adapters/repo/git_effect_attestation.py",
         "adapters/repo/git_effects.py",
         "contracts/plan.py",
     }
-    assert executions == ["adapters/repo/git_effects.py"]
+    assert executions == [
+        "adapters/repo/attestation_set.py",
+        "adapters/repo/git_effects.py",
+    ]
     assert intents == ["adapters/repo/git_effects.py"]
+    attestation_set = _read("src/ethos/adapters/repo/attestation_set.py")
+    assert 'ATTESTATION_SET_REF = "refs/ethos/attestations-set"' in attestation_set
+    assert '"--no-deref",\n            ATTESTATION_SET_REF' in attestation_set
 
 
 def test_effect_attestation_has_one_semantic_owner() -> None:
@@ -174,7 +181,7 @@ def test_git_mutation_commands_have_one_declared_owner_each() -> None:
         "rebase": {"adapters/mutation/lane_lifecycle/work_lane_refresh.py"},
         "checkout": {"adapters/mutation/lane_start_carrier.py"},
         "index-add": {"adapters/repo/git_effects.py"},
-        "commit-tree": {"adapters/mutation/lane_start_carrier.py"},
+        "commit-tree": {"adapters/repo/git_effects.py"},
         "config-write": {"adapters/repo/config_effects.py"},
         "init": {"adapters/mutation/lane_lifecycle/handoff/destination_objects.py"},
         "bundle-create": {"adapters/mutation/lane_lifecycle/handoff/package.py"},
@@ -293,16 +300,20 @@ def test_declaration_backed_policies_are_first_class() -> None:
         token in layout
         for token in (
             "component.verdict",
-            'allowed_root_dirs = ["attestations"]',
-            'historical_root_dirs = ["claims", "chronicle", "parity"]',
+            'historical_root_dirs = ["attestations", "claims", "chronicle", "parity"]',
         )
     )
+    assert "allowed_root_dirs" not in layout
     assert "providers =" in _read("system/gates.toml")
 
 
-def test_evidence_topology_separates_current_attestations_from_historical_bytes(
+def test_evidence_topology_treats_tracked_attestations_as_inert_history(
     tmp_path: Path,
 ) -> None:
+    evidence_readme = _read("docs/evidence/README.md")
+    assert "`refs/ethos/attestations-set`" in evidence_readme
+    assert "carried only by `evidence/attestations/`" not in evidence_readme
+
     evidence = tmp_path / "evidence"
     (evidence / "attestations").mkdir(parents=True)
     (evidence / "attestations/current.json").write_text("{}\n")
@@ -316,14 +327,16 @@ def test_evidence_topology_separates_current_attestations_from_historical_bytes(
     report = evidence_topology_report(tmp_path)
     assert (report["verdict"], report["counts"]) == (
         "pass",
-        {"attestation_files": 1, "historical_artifacts": 3},
+        {"historical_artifacts": 4},
     )
-    assert report["layout"]["attestation_root"] == "evidence/attestations"
     assert report["layout"]["historical_roots"] == [
+        "evidence/attestations",
         "evidence/claims",
         "evidence/chronicle",
         "evidence/parity",
     ]
+    assert "attestation_root" not in report["layout"]
+    assert "allowed_root_dirs" not in report["layout"]
 
 
 def test_evidence_topology_blocks_invalid_or_missing_root(tmp_path: Path) -> None:

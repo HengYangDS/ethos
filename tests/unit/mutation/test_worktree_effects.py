@@ -22,12 +22,12 @@ def test_add_worktree_recognizes_exact_terminal_state(tmp_path) -> None:
     applied = add_worktree(repo, target, head=head, branch="linked")
     recognized = add_worktree(repo, target, head=head, branch="linked")
 
-    assert applied.statement["result"]["state"] == "applied"
-    assert recognized.statement["result"]["state"] == "recognized"
-    assert recognized.statement["output"]["head"] == head
-    assert recognized.statement["output"]["branch"] == "linked"
+    assert applied.payload.body["result"]["state"] == "applied"
+    assert recognized.payload.body["result"]["state"] == "recognized"
+    assert recognized.payload.body["output"]["head"] == head
+    assert recognized.payload.body["output"]["branch"] == "linked"
     assert recognized.predicate == "effect:git-worktree"
-    assert recognized.statement["command"] == ("git", "worktree", "add")
+    assert recognized.payload.body["command"] == ("git", "worktree", "add")
     assert recognized.effect_digest
 
 
@@ -54,10 +54,10 @@ def test_remove_worktree_recognizes_absent_terminal_state(tmp_path) -> None:
     applied = remove_worktree(repo, target, head=head, branch="linked")
     recognized = remove_worktree(repo, target, head=head, branch="linked")
 
-    assert applied.statement["result"]["state"] == "applied"
-    assert recognized.statement["result"]["state"] == "recognized"
+    assert applied.payload.body["result"]["state"] == "applied"
+    assert recognized.payload.body["result"]["state"] == "recognized"
     assert recognized.predicate == "effect:git-worktree"
-    assert recognized.statement["command"] == ("git", "worktree", "remove")
+    assert recognized.payload.body["command"] == ("git", "worktree", "remove")
     assert not target.exists()
 
 
@@ -88,12 +88,12 @@ def test_sync_worktree_attests_exact_index_and_terminal_recognition(tmp_path) ->
     applied = sync_worktree(repo, target, branch="linked", previous=previous, head=head)
     recognized = sync_worktree(repo, target, branch="linked", previous=previous, head=head)
 
-    assert applied.statement["result"]["state"] == "applied"
-    assert recognized.statement["result"]["state"] == "recognized"
+    assert applied.payload.body["result"]["state"] == "applied"
+    assert recognized.payload.body["result"]["state"] == "recognized"
     assert recognized.predicate == "effect:git-worktree-index"
-    assert recognized.statement["command"] == ("git", "read-tree", "-u", "-m")
-    assert recognized.statement["output"]["head"] == head
-    assert recognized.statement["freshness"]["head"] == head
+    assert recognized.payload.body["command"] == ("git", "read-tree", "-u", "-m")
+    assert recognized.payload.body["output"]["head"] == head
+    assert recognized.payload.body["freshness"]["head"] == head
 
 
 def test_attach_worktree_attests_switch_and_terminal_recognition(tmp_path) -> None:
@@ -107,10 +107,10 @@ def test_attach_worktree_attests_switch_and_terminal_recognition(tmp_path) -> No
     applied = attach_worktree(repo, target, branch="linked", head=head)
     recognized = attach_worktree(repo, target, branch="linked", head=head)
 
-    assert applied.statement["result"]["state"] == "applied"
-    assert recognized.statement["result"]["state"] == "recognized"
+    assert applied.payload.body["result"]["state"] == "applied"
+    assert recognized.payload.body["result"]["state"] == "recognized"
     assert recognized.predicate == "effect:git-worktree"
-    assert recognized.statement["command"] == ("git", "switch")
+    assert recognized.payload.body["command"] == ("git", "switch")
     assert git(target, "branch", "--show-current") == "linked"
 
 
@@ -122,8 +122,8 @@ def test_local_config_attests_apply_and_terminal_recognition(tmp_path) -> None:
     applied = set_local_config(repo, values)
     recognized = set_local_config(repo, values)
 
-    assert applied.statement["result"]["state"] == "applied"
-    assert recognized.statement["result"]["state"] == "recognized"
-    assert recognized.statement["output"] == values
+    assert applied.payload.body["result"]["state"] == "applied"
+    assert recognized.payload.body["result"]["state"] == "recognized"
+    assert recognized.payload.body["output"] == values
     assert recognized.predicate == "effect:git-config"
     assert git(repo, "config", "--local", "--get", "core.hooksPath") == ".githooks"

@@ -4,6 +4,7 @@ import pathlib
 from typing import Annotated
 from typing import ClassVar
 
+from cyclopts import App
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import export_cross_host_handoff
@@ -12,13 +13,16 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import revoke_cross
 from ethos.contracts.coordination import CrossHostHandoffExportRequest
 from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
-from ethos.surface.cli.application import lane_handoff_app
 from ethos.surface.cli.lane.lease import LeaseCommandOptions
 from ethos.surface.cli.lane.lease import LeaseHolderOperationOptions
 from ethos.surface.cli.lane.lease import LeaseProofOptions
 from ethos.surface.cli.lane.lease import emit_lease_result
 from ethos.surface.cli.lane.lease import execute_declared_lease_operation
+from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.root_binding import resolve_root
+
+_app = App(name="handoff", help="Local and cross-host Work Lane handoff.")
+lane_app.command(_app)
 
 
 class _OfferOptions(LeaseHolderOperationOptions):
@@ -61,19 +65,19 @@ class _RevokeOptions(LeaseProofOptions):
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
 
 
-@lane_handoff_app.command(name="offer")
+@_app.command(name="offer")
 def lane_handoff_offer(options: Annotated[_OfferOptions, Parameter(name="*")]) -> None:
     """Offer one same-common-directory holder handoff."""
     execute_declared_lease_operation(options)
 
 
-@lane_handoff_app.command(name="accept")
+@_app.command(name="accept")
 def lane_handoff_accept(options: Annotated[_AcceptOptions, Parameter(name="*")]) -> None:
     """Accept one exact handoff offer after explicit quiescence confirmation."""
     execute_declared_lease_operation(options)
 
 
-@lane_handoff_app.command(name="export")
+@_app.command(name="export")
 def lane_handoff_export(options: Annotated[_ExportOptions, Parameter(name="*")]) -> None:
     """Export content-addressed Git/context state for another common directory."""
     report = export_cross_host_handoff(
@@ -96,7 +100,7 @@ def lane_handoff_export(options: Annotated[_ExportOptions, Parameter(name="*")])
     emit_lease_result(options.command, report, json_output=options.json_output)
 
 
-@lane_handoff_app.command(name="import")
+@_app.command(name="import")
 def lane_handoff_import(options: Annotated[_ImportOptions, Parameter(name="*")]) -> None:
     """Import a verified package and create destination-local coordination."""
     report = import_cross_host_handoff(
@@ -110,7 +114,7 @@ def lane_handoff_import(options: Annotated[_ImportOptions, Parameter(name="*")])
     emit_lease_result(options.command, report, json_output=options.json_output)
 
 
-@lane_handoff_app.command(name="revoke-source")
+@_app.command(name="revoke-source")
 def lane_handoff_revoke_source(options: Annotated[_RevokeOptions, Parameter(name="*")]) -> None:
     """Revoke the exact source lease after destination acknowledgement."""
     report = revoke_cross_host_source(

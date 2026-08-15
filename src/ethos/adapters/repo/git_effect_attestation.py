@@ -5,25 +5,27 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 
 from ethos.adapters.admission.ref_intent import committed_ref_intent
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
-from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.semantic import canonical_utc_time
 from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from ethos.contracts.value import JsonObject
 
 
@@ -45,39 +47,54 @@ def issue_native_effect(
     state: str,
     commitment_digest: str,
     repository_id: str,
+    issued_at: datetime | None = None,
 ) -> Attestation:
     """Issue one digest-bound effect Attestation from exact pre/post facts."""
     payload = effect._asdict()
     effect_digest = canonical_json_digest(payload)
     result = {"state": state, "executed": state == "applied", "exit_code": 0}
-    issued = datetime.now(UTC)
+    issued = issued_at or datetime.now(UTC)
     return Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": effect.predicate,
             "verifier": "git",
             "subject": f"{effect.predicate}:{effect_digest}",
             "issued_at": issued,
             "valid_from": issued,
+            "valid_until": None,
             "verdict": "pass",
-            "commitment_digest": commitment_digest,
-            "effect_digest": effect_digest,
-            "statement": {
-                "claim": {"operation": effect.operation, "effect": effect_digest},
-                "repository": repository_id,
-                "command": effect.command,
-                "input": effect.before,
-                "result": result,
-                "output": effect.after,
-                "input_digest": canonical_json_digest(effect.before),
-                "output_digest": canonical_json_digest({"result": result, "output": effect.after}),
-                "freshness": {
-                    "mode": "semantic_scope",
+            "payload": {
+                "kind": "effect:native",
+                "body": {
+                    "claim": {"operation": effect.operation, "effect": effect_digest},
                     "repository": repository_id,
-                    "subject": effect.subject,
-                    **effect.subject,
-                    "output_digest": canonical_json_digest(effect.after),
+                    "command": effect.command,
+                    "input": effect.before,
+                    "result": result,
+                    "output": effect.after,
+                    "input_digest": canonical_json_digest(effect.before),
+                    "output_digest": canonical_json_digest(
+                        {"result": result, "output": effect.after}
+                    ),
+                    "freshness": {
+                        "mode": "semantic_scope",
+                        "repository": repository_id,
+                        "subject": effect.subject,
+                        **effect.subject,
+                        "output_digest": canonical_json_digest(effect.after),
+                    },
                 },
             },
+            "relations": (),
+            "advisories": (),
+            "evidence_refs": (),
+            "commitment_digest": commitment_digest,
+            "facts_digest": None,
+            "plan_digest": None,
+            "policy_digest": None,
+            "effect_digest": effect_digest,
+            "mints_authority": False,
         }
     )
 
@@ -89,7 +106,7 @@ _STALE = "git_effect_attestation_stale"
 
 
 def _statement(attestation: Attestation) -> dict[str, object]:
-    projected = mutable_json(attestation.statement)
+    projected = mutable_json(attestation.payload.body)
     if not isinstance(projected, dict):
         message = "git_effect_attestation_statement_invalid"
         raise TypeError(message)
@@ -109,7 +126,14 @@ def issue(
 ) -> Attestation:
     """Issue one effect-time Attestation from pre/post observations."""
     repository, state, before, after = evidence
-    issued = datetime.fromisoformat(str(after["observed_at"]))
+    try:
+        issued = datetime.fromisoformat(str(after["observed_at"]))
+        observed_at = {
+            "before": canonical_utc_time(datetime.fromisoformat(str(before["observed_at"]))),
+            "after": canonical_utc_time(issued),
+        }
+    except ValueError:
+        raise ValueError(_CONTENT_MISMATCH) from None
     input_observation = {name: before[name] for name in ("head", "tree", "refs", "assertions")}
     output_observation = {name: after[name] for name in ("head", "tree", "refs")}
     result = {
@@ -130,44 +154,53 @@ def issue(
     }
     return Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": "effect:git-ref-update",
             "verifier": issuer,
             "subject": subject,
             "issued_at": issued,
             "valid_from": issued,
+            "valid_until": None,
             "verdict": "pass",
+            "payload": {
+                "kind": "effect:git-ref-update",
+                "body": {
+                    "claim": {"operation": "git.ref.compare-and-swap", "effect": subject},
+                    "repository": repository,
+                    "command": ("git", "update-ref", "--stdin", "-z"),
+                    "program_sha256": effect_digest,
+                    "plan": plan.model_dump(mode="json"),
+                    "effect": effect.model_dump(mode="json"),
+                    "input": input_observation,
+                    "result": result,
+                    "output": output_observation,
+                    "inputs": inputs,
+                    "input_digest": canonical_json_digest(
+                        {"input": input_observation, "inputs": inputs}
+                    ),
+                    "output_digest": canonical_json_digest(
+                        {"result": result, "output": output_observation}
+                    ),
+                    "observed_at": {
+                        "before": observed_at["before"],
+                        "after": observed_at["after"],
+                    },
+                    "freshness": {
+                        "mode": "semantic_scope",
+                        "repository": repository,
+                        **output_observation,
+                    },
+                },
+            },
+            "relations": (),
+            "advisories": (),
+            "evidence_refs": (),
             "commitment_digest": plan.inputs.commitment,
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
             "effect_digest": effect_digest,
-            "statement": {
-                "claim": {"operation": "git.ref.compare-and-swap", "effect": subject},
-                "repository": repository,
-                "command": ("git", "update-ref", "--stdin", "-z"),
-                "program_sha256": effect_digest,
-                "plan": plan.model_dump(mode="json"),
-                "effect": effect.model_dump(mode="json"),
-                "input": input_observation,
-                "result": result,
-                "output": output_observation,
-                "inputs": inputs,
-                "input_digest": canonical_json_digest(
-                    {"input": input_observation, "inputs": inputs}
-                ),
-                "output_digest": canonical_json_digest(
-                    {"result": result, "output": output_observation}
-                ),
-                "observed_at": {
-                    "before": before["observed_at"],
-                    "after": after["observed_at"],
-                },
-                "freshness": {
-                    "mode": "semantic_scope",
-                    "repository": repository,
-                    **output_observation,
-                },
-            },
+            "mints_authority": False,
         }
     )
 
@@ -232,6 +265,10 @@ def validate(
         before,
         environment=environment,
         allow_missing_prestate=allow_missing_prestate,
+        prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
+        prestate_repository_bytes_sha256=str(
+            plan.policy.get("prestate_repository_bytes_sha256") or ""
+        ),
     )
     evidence = (
         repository,
@@ -251,6 +288,7 @@ def validate(
         evidence,
         observed_at,
         _object_mapping(statement.get("freshness")),
+        plan=plan,
         environment=environment,
         allow_missing_prestate=allow_missing_prestate,
     ):
@@ -266,8 +304,25 @@ def plan_from_attestation(attestation: Attestation) -> TransitionPlan:
     except (KeyError, TypeError, ValueError) as error:
         message = "git_effect_attestation_plan_invalid"
         raise ValueError(message) from error
-    else:
-        return plan
+    return plan
+
+
+def _matching_plan_attestations(root: Path, plan_digest: str) -> tuple[Attestation, ...]:
+    try:
+        _root_identity, members = read_attestation_set(root)
+    except ValueError as error:
+        message = "git_effect_attestation_invalid"
+        raise ValueError(message) from error
+    matches = tuple(
+        attestation
+        for attestation in members
+        if attestation.predicate == "effect:git-ref-update"
+        and attestation.plan_digest == plan_digest
+    )
+    if len(matches) > 1:
+        message = "git_effect_attestation_collision"
+        raise ValueError(message)
+    return matches
 
 
 def recover_plan(
@@ -295,9 +350,8 @@ def recover_plan(
             else "git_effect_recovery_unproven"
         )
     digest = str(intent["plan_digest"])
-    path = Path(git_common_dir(root), "ethos", "git-effects", f"{digest}.json")
     try:
-        attestation = Attestation.model_validate_json(path.read_text(encoding="utf-8"))
+        attestation = next(iter(_matching_plan_attestations(root, digest)))
         plan = plan_from_attestation(attestation)
         validate(
             root,
@@ -308,7 +362,7 @@ def recover_plan(
         )
         effect = git_effect_from_plan(plan)
         update = effect.updates.get(str(intent["ref_name"]))
-    except (OSError, ValueError) as error:
+    except (StopIteration, ValueError) as error:
         msg = "git_effect_recovery_unproven"
         raise ValueError(msg) from error
     if (
@@ -334,29 +388,31 @@ def records(
 ) -> tuple[Attestation, ...]:
     """Read or atomically persist the sole Attestation for one exact plan."""
     effect = git_effect_from_plan(plan)
-    path = Path(git_common_dir(root), "ethos", "git-effects", f"{plan.digest}.json")
     if record is None:
-        if not path.exists():
+        existing = _matching_plan_attestations(root, plan.digest)
+        if not existing:
             return ()
-        try:
-            return (Attestation.model_validate_json(path.read_text(encoding="utf-8")),)
-        except (OSError, ValueError) as error:
-            message = "git_effect_attestation_invalid"
-            raise ValueError(message) from error
+        plan_from_attestation(existing[0])
+        if git_effect_from_plan(plan_from_attestation(existing[0])) != effect:
+            message = "git_effect_attestation_collision"
+            raise ValueError(message)
+        return existing
     plan_from_attestation(record)
     validate(root, effect, record, issuer=record.verifier, plan=plan, environment=environment)
-    existing = records(root, plan)
+    existing = _matching_plan_attestations(root, plan.digest)
     if existing:
         if existing[0].canonical_json() != record.canonical_json():
             message = "git_effect_attestation_collision"
             raise ValueError(message)
         return existing
-    write_content_addressed(
-        path,
-        record.canonical_json().encode("utf-8"),
-        collision="git_effect_attestation_collision",
-    )
-    return (record,)
+    try:
+        record_attestations(root, (record,))
+    except ValueError as error:
+        if str(error).startswith("attestation_set_identity_collision:"):
+            message = "git_effect_attestation_collision"
+            raise ValueError(message) from error
+        raise
+    return _matching_plan_attestations(root, plan.digest)
 
 
 def _matches(
@@ -366,6 +422,7 @@ def _matches(
     observed_at: dict[str, object],
     freshness: dict[str, object],
     *,
+    plan: TransitionPlan,
     environment: Mapping[str, str] | None = None,
     allow_missing_prestate: bool = False,
 ) -> bool:
@@ -397,6 +454,10 @@ def _matches(
             before,
             environment=environment,
             allow_missing_prestate=allow_missing_prestate,
+            prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
+            prestate_repository_bytes_sha256=str(
+                plan.policy.get("prestate_repository_bytes_sha256") or ""
+            ),
         )
     except ValueError:
         return False

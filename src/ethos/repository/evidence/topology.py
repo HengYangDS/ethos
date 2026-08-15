@@ -43,13 +43,7 @@ def evidence_topology_report(root: Path) -> dict[str, Any]:
 
 
 def _empty_counts(*, curated_profile: bool = False) -> dict[str, int]:
-    counts = {
-        "attestation_files": 0,
-        "historical_artifacts": 0,
-    }
-    if curated_profile:
-        counts["curated_artifacts"] = 0
-    return counts
+    return {"curated_artifacts" if curated_profile else "historical_artifacts": 0}
 
 
 def _files(root: Path) -> list[Path]:
@@ -73,14 +67,12 @@ def _kernel_evidence_report(
             "counts": _empty_counts(),
         }
 
-    allowed_dirs = {*kernel.allowed_root_dirs, *kernel.historical_root_dirs}
     for item in sorted(evidence_root.iterdir(), key=lambda path: path.name):
         if item.is_file() and item.name not in kernel.allowed_root_files:
             gaps.append(f"{kernel.root_file_not_allowed_gap_prefix}:{item.name}")
-        if item.is_dir() and item.name not in allowed_dirs:
+        if item.is_dir() and item.name not in kernel.historical_root_dirs:
             gaps.append(f"{kernel.root_dir_not_allowed_gap_prefix}:{item.name}")
 
-    attestation_files = _files(evidence_root / kernel.allowed_root_dirs[0])
     historical_artifacts = sum(
         len(_files(evidence_root / directory)) for directory in kernel.historical_root_dirs
     )
@@ -88,10 +80,7 @@ def _kernel_evidence_report(
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "layout": declaration.layout_payload(evidence_root_relative),
-        "counts": {
-            "attestation_files": len(attestation_files),
-            "historical_artifacts": historical_artifacts,
-        },
+        "counts": {"historical_artifacts": historical_artifacts},
     }
 
 
@@ -126,9 +115,5 @@ def _curated_profile_evidence_report(
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "layout": declaration.layout_payload(evidence_root_relative, curated_profile=True),
-        "counts": {
-            "attestation_files": len(_files(evidence_root / "attestations")),
-            "historical_artifacts": 0,
-            "curated_artifacts": len(curated_artifacts),
-        },
+        "counts": {"curated_artifacts": len(curated_artifacts)},
     }

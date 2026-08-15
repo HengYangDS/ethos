@@ -11,9 +11,11 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import remove_worktree
+from ethos.adapters.store.state.lease.lifecycle.effects import replace_lease_authority
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -35,6 +37,7 @@ class LaneStartRollback(NamedTuple):
     completed: subprocess.CompletedProcess[str]
     run: Callable[..., subprocess.CompletedProcess[str]]
     lease: dict[str, object] | None
+    source_lease: dict[str, object]
     failure_gap: str
 
 
@@ -56,6 +59,7 @@ def compensate(
             completed=completed,
             run=context.run,
             lease=lease,
+            source_lease=context.source_lease,
             failure_gap=gap or completed.stderr.strip() or "lane_start_initialization_failed",
         )
     )
@@ -150,20 +154,7 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
         gap = gap or "lane_start_ref_cleanup_failed"
     try:
         if not gap and context.lease:
-            revoke_lease(
-                state_database(repo),
-                request=LeaseOperationRequest(
-                    operation="lane_start_compensation",
-                    branch=branch,
-                    holder_ref=str(context.lease["holder_ref"]),
-                    lease_id=str(context.lease["lease_id"]),
-                    expected_epoch=integer_value(context.lease["epoch"]),
-                    expect_head=str(context.lease["expected_head"]),
-                    expected_expires_at=str(context.lease["expires_at"]),
-                    expected_payload_sha256=str(context.lease["payload_sha256"]),
-                    apply=True,
-                ),
-            )
+            compensate_lease(context, repo=repo, branch=branch)
     except (RuntimeError, ValueError) as exc:
         gap = str(exc)
     if gap:
@@ -176,7 +167,17 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
             lease=context.lease,
             gap=gap,
         )
-    return {
+    return compensated_lane_start_report(context, branch=branch, target=target)
+
+
+def compensated_lane_start_report(
+    context: LaneStartRollback,
+    *,
+    branch: str,
+    target: Path,
+) -> dict[str, object]:
+    """Report complete compensation without inventing a second lifecycle state."""
+    report: dict[str, object] = {
         "verdict": "block",
         "state": "blocked",
         "branch": branch,
@@ -187,6 +188,35 @@ def rollback_lane_start(context: LaneStartRollback) -> dict[str, object]:
         "lease_state": "revoked" if context.lease else "not_acquired",
         "required_gaps": [context.failure_gap],
     }
+    if context.lease and context.source_lease:
+        report["source_lease_state"] = "restored"
+    return report
+
+
+def compensate_lease(context: LaneStartRollback, *, repo: Path, branch: str) -> None:
+    """Revoke the failed target authority or atomically restore its source."""
+    lease = context.lease
+    if lease is None:
+        return
+    request = LeaseOperationRequest(
+        operation="lane_start_compensation",
+        branch=branch,
+        holder_ref=str(lease["holder_ref"]),
+        lease_id=str(lease["lease_id"]),
+        expected_epoch=integer_value(lease["epoch"]),
+        expect_head=str(lease["expected_head"]),
+        expected_expires_at=str(lease["expires_at"]),
+        expected_payload_sha256=str(lease["payload_sha256"]),
+        apply=True,
+    )
+    if context.source_lease:
+        replace_lease_authority(
+            state_database(repo),
+            request=request,
+            lease=LaneLease.from_payload(dict(context.source_lease["payload"])),
+        )
+        return
+    revoke_lease(state_database(repo), request=request)
 
 
 def delete_lane_start_ref(

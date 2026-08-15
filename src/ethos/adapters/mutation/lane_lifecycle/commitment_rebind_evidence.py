@@ -3,26 +3,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.semantic import canonical_utc_time
 from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from pathlib import Path
 
     from ethos.contracts.coordination import CommitmentRebindRequest
     from ethos.contracts.plan import GitEffect
@@ -87,7 +88,7 @@ def issue_rebind_attestation(
     repository = load_repository_commitment(repo, tree_ref=request.target_commit).id
     overlay = str(fact_values.get("working_overlay_sha256") or "")
     statement = {
-        "claim": {"operation": "commitment.rebind", "branch": request.branch},
+        "claim": {"operation": request.operation, "branch": request.branch},
         "repository": repository,
         "old_lease_generation": dict(old_lease),
         "new_lease_generation": new_generation,
@@ -112,7 +113,7 @@ def issue_rebind_attestation(
                 "new_commitment": target,
             }
         ),
-        "observed_at": issued_at.isoformat(),
+        "observed_at": canonical_utc_time(issued_at),
         "freshness": {
             "mode": "semantic_scope",
             "repository": repository,
@@ -123,18 +124,24 @@ def issue_rebind_attestation(
     }
     return Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": "effect:commitment-rebind",
             "verifier": request.holder_ref,
             "subject": f"commitment-rebind:{effect.digest()}",
             "issued_at": issued_at,
             "valid_from": issued_at,
+            "valid_until": None,
             "verdict": "pass",
+            "payload": {"kind": "effect:commitment-rebind", "body": statement},
+            "relations": (),
+            "advisories": (),
+            "evidence_refs": (),
             "commitment_digest": old_digest,
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
             "effect_digest": effect.digest(),
-            "statement": statement,
+            "mints_authority": False,
         }
     )
 
@@ -172,12 +179,11 @@ def _require_fresh_terminal_state(
 
 
 def persist_rebind_attestation(repo: Path, effect: GitEffect, attestation: Attestation) -> None:
-    """Persist one content-addressed rebind attestation."""
-    write_content_addressed(
-        _attestation_path(repo, effect),
-        attestation.canonical_json().encode(),
-        collision="commitment_rebind_attestation_collision",
-    )
+    """Select one exact rebind Attestation in the sole repository set."""
+    if attestation.effect_digest != effect.digest():
+        message = "commitment_rebind_attestation_invalid"
+        raise ValueError(message)
+    record_attestations(repo, (attestation,))
 
 
 def recognized_rebind_attestation(
@@ -188,15 +194,24 @@ def recognized_rebind_attestation(
     plan: TransitionPlan,
 ) -> Attestation | None:
     """Return an exact fresh terminal attestation, or reject mismatched evidence."""
-    path = _attestation_path(repo, effect)
-    if not path.exists():
-        return None
     try:
-        attestation = Attestation.model_validate_json(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
+        _root, attestations = read_attestation_set(repo)
+    except ValueError as error:
         message = "commitment_rebind_attestation_invalid"
         raise ValueError(message) from error
-    statement = mutable_json(attestation.statement)
+    matches = tuple(
+        attestation
+        for attestation in attestations
+        if attestation.predicate == "effect:commitment-rebind"
+        and attestation.effect_digest == effect.digest()
+    )
+    if not matches:
+        return None
+    if len(matches) != 1:
+        message = "commitment_rebind_attestation_collision"
+        raise ValueError(message)
+    attestation = matches[0]
+    statement = mutable_json(attestation.payload.body)
     result = statement.get("result") if isinstance(statement, dict) else None
     if not isinstance(result, dict) or result not in (
         {"git": "applied", "lease": "epoch_advanced"},
@@ -225,13 +240,3 @@ def recognized_rebind_attestation(
         message = "commitment_rebind_terminal_mismatch"
         raise ValueError(message)
     return attestation
-
-
-def _attestation_path(repo: Path, effect: GitEffect) -> Path:
-    return (
-        Path(git_common_dir(repo))
-        / "ethos"
-        / "attestations"
-        / "commitment-rebind"
-        / f"{effect.digest()}.json"
-    )

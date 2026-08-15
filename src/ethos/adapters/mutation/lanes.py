@@ -5,6 +5,7 @@ import re
 import subprocess
 from datetime import UTC
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import cast
 
@@ -14,7 +15,6 @@ from ethos.adapters.mutation.lane_start_carrier import create_lane_start_carrier
 from ethos.adapters.mutation.lane_start_receipt import runner_bootstrap
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
@@ -22,7 +22,9 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git import same_git_repository
 from ethos.adapters.repo.hook_runtime_install import require_runtime_wheel_provenance
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.store.state.lease.lifecycle.effects import replace_lease_authority
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -31,6 +33,7 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import HolderRef
+from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.semantic import load_commitment_file
 
 
@@ -95,6 +98,7 @@ def start_work_lane(
         name=name,
         branch=branch,
         target=target,
+        holder_ref=normalized_holder_ref,
         source_root=source_root,
         commitment_path=commitment_path,
     )
@@ -133,9 +137,25 @@ def _create_started_lane(
     target: Path,
     holder_ref: str,
     candidate: dict[str, object],
-    source: tuple[Path, str, str, str, str, str],
+    source: tuple[Path, str, str, str, str, str, dict[str, object]],
 ) -> dict[str, object]:
-    source_root, source_change_id, carrier, base_digest, source_head, source_branch = source
+    (
+        source_root,
+        source_change_id,
+        carrier,
+        base_digest,
+        source_head,
+        source_branch,
+        source_lease,
+    ) = source
+    acquire = (
+        partial(
+            replace_lease_authority,
+            request=lease_operation_request(source_lease),
+        )
+        if source_lease
+        else acquire_lease
+    )
     return create_lane_start_carrier(
         LaneStartContext(
             repo=repo,
@@ -150,8 +170,9 @@ def _create_started_lane(
             source_commitment_path=carrier,
             source_head=source_head,
             source_branch=source_branch,
+            source_lease=source_lease,
             run=run_git,
-            acquire=acquire_lease,
+            acquire=acquire,
         )
     )
 
@@ -248,15 +269,18 @@ def lane_start_commitment(
     name: str,
     branch: str,
     target: Path,
+    holder_ref: str,
     source_root: Path | None,
     commitment_path: Path | None,
-) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object] | None]:
+) -> tuple[
+    tuple[Path, str, str, str, str, str, dict[str, object]],
+    dict[str, object] | None,
+]:
     """Bind lane start to one exact active Commitment in a source Work Lane."""
     if source_root is not None and commitment_path is not None:
         return blocked_commitment(branch, target, "lane_start_intent_ambiguous")
     if commitment_path is not None:
         return fresh_lane_start_commitment(
-            repo,
             name=name,
             branch=branch,
             target=target,
@@ -268,29 +292,35 @@ def lane_start_commitment(
         repo,
         branch=branch,
         target=target,
+        holder_ref=holder_ref,
         source_root=source_root,
     )
 
 
 def fresh_lane_start_commitment(
-    repo: Path,
     *,
     name: str,
     branch: str,
     target: Path,
     commitment_path: Path,
-) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object] | None]:
+) -> tuple[
+    tuple[Path, str, str, str, str, str, dict[str, object]],
+    dict[str, object] | None,
+]:
     """Validate one explicit Commitment for a fresh atomic Change."""
     change_id = slug(name)
     try:
-        commitment = load_commitment_file(
-            commitment_path,
-            repository_id=load_repository_commitment(repo).id,
-        )
+        commitment = load_commitment_file(commitment_path)
     except (OSError, ValueError):
         return blocked_commitment(branch, target, "lane_start_commitment_invalid")
     if commitment.id != f"change:{change_id}":
         return blocked_commitment(branch, target, "lane_start_commitment_identity_mismatch")
+    if commitment.predecessors or commitment.selected_attestations or commitment.dependencies:
+        return blocked_commitment(
+            branch,
+            target,
+            "lane_start_successor_commitment_requires_start_change",
+        )
     return (
         (
             commitment_path.resolve(),
@@ -299,6 +329,7 @@ def fresh_lane_start_commitment(
             commitment.digest(),
             "",
             "",
+            {},
         ),
         None,
     )
@@ -309,8 +340,12 @@ def source_lane_start_commitment(
     *,
     branch: str,
     target: Path,
+    holder_ref: str,
     source_root: Path,
-) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object] | None]:
+) -> tuple[
+    tuple[Path, str, str, str, str, str, dict[str, object]],
+    dict[str, object] | None,
+]:
     """Read one exact active Commitment from a live source Work Lane."""
     source = Path()
     source_branch = ""
@@ -318,6 +353,7 @@ def source_lane_start_commitment(
     change_id = ""
     carrier = ""
     commitment_digest = ""
+    source_lease: dict[str, object] = {}
     try:
         source = repository_root(source_root)
     except (OSError, subprocess.CalledProcessError):
@@ -338,6 +374,11 @@ def source_lane_start_commitment(
                 or bool(changed_paths(source)),
             ),
             ("source_work_lane_invalid", source_lease.get("lease_state") != "valid"),
+            (
+                "source_lease_holder_mismatch",
+                str(source_lease.get("holder_ref") or "") != holder_ref,
+            ),
+            ("source_lease_handoff_pending", source_lease.get("handoff") is not None),
             (
                 "source_lease_head_mismatch",
                 str(source_lease.get("expected_head") or "") != source_head,
@@ -360,9 +401,10 @@ def source_lane_start_commitment(
         commitment_digest,
         source_head,
         source_branch,
+        source_lease,
     )
     return (
-        ((Path(), "", "", "", "", ""), blocked_lane_start(branch, target, gap))
+        ((Path(), "", "", "", "", "", {}), blocked_lane_start(branch, target, gap))
         if gap
         else (source_commitment, None)
     )
@@ -370,9 +412,27 @@ def source_lane_start_commitment(
 
 def blocked_commitment(
     branch: str, target: Path, gap: str
-) -> tuple[tuple[Path, str, str, str, str, str], dict[str, object]]:
+) -> tuple[
+    tuple[Path, str, str, str, str, str, dict[str, object]],
+    dict[str, object],
+]:
     """Return one pre-effect lane-start Commitment rejection."""
-    return (Path(), "", "", "", "", ""), blocked_lane_start(branch, target, gap)
+    return (Path(), "", "", "", "", "", {}), blocked_lane_start(branch, target, gap)
+
+
+def lease_operation_request(lease: dict[str, object]) -> LeaseOperationRequest:
+    """Bind one exact source Lease generation for successor authority transfer."""
+    return LeaseOperationRequest(
+        operation="lane_start_successor",
+        branch=str(lease["lane_ref"]),
+        holder_ref=str(lease["holder_ref"]),
+        lease_id=str(lease["lease_id"]),
+        expected_epoch=integer_value(lease["epoch"]),
+        expect_head=str(lease["expected_head"]),
+        expected_expires_at=str(lease["expires_at"]),
+        expected_payload_sha256=str(lease["payload_sha256"]),
+        apply=True,
+    )
 
 
 def lane_start_carrier_gap(repo: Path, *, target: Path, branch: str) -> str:

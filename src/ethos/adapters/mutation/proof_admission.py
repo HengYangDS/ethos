@@ -8,9 +8,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
-from ethos.adapters.mutation.proof_artifacts import scan_attestations
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -51,14 +51,17 @@ def _admitted_proofs(
     *,
     store: Path,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
-    attestations, store_gaps = scan_attestations(store)
+    try:
+        _selected_root, attestations = read_attestation_set(root)
+    except ValueError as error:
+        return (), [str(error)]
     candidates = tuple(
         item
         for item in attestations
         if item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
     )
-    if store_gaps or not candidates:
-        return (), store_gaps or ["proof_not_proven"]
+    if not candidates:
+        return (), ["proof_not_proven"]
     instant = datetime.now(UTC)
     current = tuple(item for item in candidates if _current_at(item, instant))
     if not current:
@@ -131,7 +134,7 @@ def _current_at(attestation: Attestation, instant: datetime) -> bool:
 
 
 def _query_gaps(attestation: Attestation) -> list[str]:
-    statement = attestation.statement
+    statement = attestation.payload.body
     return [
         gap
         for gap, mismatch in (
@@ -151,7 +154,7 @@ def _bindings(attestation: Attestation) -> tuple[str, ...]:
 
 
 def _assertion_digest(attestation: Attestation) -> str:
-    statement = attestation.statement
+    statement = attestation.payload.body
     return canonical_json_digest(
         {
             "claim": statement.get("claim"),

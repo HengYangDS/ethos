@@ -14,12 +14,15 @@ from pydantic import model_validator
 from ethos.adapters.repo.commitment import changed_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.coordination import CommitmentRebindRequest
@@ -57,16 +60,48 @@ def derive_commitment_rebind(
     root: Path,
     target_commit: str,
     repair_change_identity: bool,
+    operation: str = "commitment-rebind",
 ) -> dict[str, object]:
     """Observe one exact old/new generation and persist its request receipt."""
     repo = repository_root(root)
     branch = git_stdout(repo, "branch", "--show-current")
     lease = leases_by_branch(repo).get(branch, {})
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    if not actor:
-        return _blocked(branch, "invocation_actor_missing")
-    if actor != str(lease.get("holder_ref") or ""):
-        return _blocked(branch, "lease_actor_mismatch")
+    actor_gap = (
+        "invocation_actor_missing"
+        if not actor
+        else "lease_actor_mismatch"
+        if actor != str(lease.get("holder_ref") or "")
+        else ""
+    )
+    if actor_gap:
+        return _blocked(branch, actor_gap)
+    if operation == "v1-to-v2-bootstrap":
+        try:
+            return _derive_v1_to_v2_bootstrap(repo, branch=branch, lease=lease, actor=actor)
+        except (OSError, TypeError, ValueError) as error:
+            return _blocked(branch, str(error))
+    if operation != "commitment-rebind":
+        return _blocked(branch, "commitment_rebind_operation_unknown")
+    return _derive_exact_rebind(
+        repo,
+        branch=branch,
+        lease=lease,
+        actor=actor,
+        target_commit=target_commit,
+        repair_change_identity=repair_change_identity,
+    )
+
+
+def _derive_exact_rebind(
+    repo: Path,
+    *,
+    branch: str,
+    lease: dict[str, object],
+    actor: str,
+    target_commit: str,
+    repair_change_identity: bool,
+) -> dict[str, object]:
     observed_targets: list[str] = []
     try:
         old = load_lease_bound_commitment(repo, lease=lease)
@@ -127,18 +162,124 @@ def derive_commitment_rebind(
             repair_change_identity=repair_change_identity,
             apply=False,
         )
-        receipt = _receipt(request)
-        payload = receipt.canonical_json().encode()
-        payload_sha256 = hashlib.sha256(payload).hexdigest()
-        path = _receipt_path(repo, payload_sha256)
-        write_content_addressed(
-            path,
-            payload,
-            collision="commitment_rebind_receipt_collision",
-        )
     except (OSError, TypeError, ValueError) as error:
         gap = str(error)
         return _blocked(branch, gap, observed_targets=observed_targets)
+    return _persist_request(repo, branch=branch, request=request, observed_targets=observed_targets)
+
+
+def _derive_v1_to_v2_bootstrap(
+    repo: Path,
+    *,
+    branch: str,
+    lease: dict[str, object],
+    actor: str,
+) -> dict[str, object]:
+    old_head = str(lease.get("expected_head") or "")
+    lane_path = str(lease.get("base_commitment_path") or "")
+    repository_path = ".ethos/commitment.toml"
+    old_repository = _opaque_v1_binding(repo, old_head, repository_path, repository=True)
+    old_lane = _opaque_v1_binding(repo, old_head, lane_path, repository=False)
+    if old_lane["bytes_sha256"] != str(lease.get("base_commitment_bytes_sha256") or ""):
+        message = "lease_commitment_bytes_stale"
+        raise ValueError(message)
+    index_tree = git_stdout(repo, "write-tree")
+    new_repository = _v2_binding(repo, index_tree, repository_path, repository=True)
+    new_lane = _v2_binding(repo, index_tree, lane_path, repository=False)
+    if new_repository["id"] != old_repository["id"]:
+        message = "commitment_rebind_repository_identity_mismatch"
+        raise ValueError(message)
+    if new_lane["id"] != old_lane["id"]:
+        message = "commitment_rebind_identity_mismatch"
+        raise ValueError(message)
+    target_commit = _signed_target_commit(repo, tree=index_tree, parent=old_head)
+    request = CommitmentRebindRequest(
+        operation="v1-to-v2-bootstrap",
+        branch=branch,
+        holder_ref=actor,
+        lease_id=str(lease.get("lease_id") or ""),
+        expected_lane_incarnation_id=str(lease.get("lane_incarnation_id") or ""),
+        expected_epoch=integer(lease.get("epoch")),
+        expected_issued_at=str(lease.get("issued_at") or ""),
+        expected_renewed_at=str(lease.get("renewed_at") or ""),
+        expected_expires_at=str(lease.get("expires_at") or ""),
+        expected_path_scope=tuple(string_sequence(lease.get("path_scope"))),
+        expected_payload_sha256=str(lease.get("payload_sha256") or ""),
+        expect_head=old_head,
+        expected_tree=str(lease.get("expected_tree") or ""),
+        expected_commitment_path=lane_path,
+        expected_commitment_bytes_sha256=str(lease.get("base_commitment_bytes_sha256") or ""),
+        expected_commitment_digest=str(lease.get("base_commitment_digest") or ""),
+        expect_index_tree=index_tree,
+        expected_working_overlay_sha256=working_overlay_sha256(repo),
+        target_commit=target_commit,
+        new_commitment_path=lane_path,
+        new_commitment_bytes_sha256=new_lane["bytes_sha256"],
+        new_commitment_digest=new_lane["digest"],
+        old_repository_commitment_path=repository_path,
+        old_repository_commitment_bytes_sha256=old_repository["bytes_sha256"],
+        old_repository_id=old_repository["id"],
+        new_repository_commitment_path=repository_path,
+        new_repository_commitment_bytes_sha256=new_repository["bytes_sha256"],
+        new_repository_commitment_digest=new_repository["digest"],
+    )
+    return _persist_request(repo, branch=branch, request=request, observed_targets=[target_commit])
+
+
+def _opaque_v1_binding(
+    repo: Path, tree_ref: str, path: str, *, repository: bool
+) -> dict[str, str]:
+    binding = terminal_v1_binding(
+        repo,
+        tree_ref=tree_ref,
+        carrier=path,
+        repository=repository,
+    )
+    return {"id": str(binding["id"]), "bytes_sha256": str(binding["bytes_sha256"])}
+
+
+def _v2_binding(
+    repo: Path, tree_ref: str, path: str, *, repository: bool
+) -> dict[str, str]:
+    raw = run_git(repo, "show", f"{tree_ref}:{path}", text=False).stdout
+    commitment = (
+        load_repository_commitment(repo, tree_ref=tree_ref)
+        if repository
+        else load_commitment(repo, carrier=path, tree_ref=tree_ref)
+    )
+    return {
+        "id": commitment.id,
+        "bytes_sha256": hashlib.sha256(raw).hexdigest(),
+        "digest": commitment.digest(),
+    }
+
+
+def _signed_target_commit(repo: Path, *, tree: str, parent: str) -> str:
+    completed = create_git_commit(
+        repo,
+        tree=tree,
+        parent=parent,
+        message="bootstrap Commitment v2",
+        sign=True,
+    )
+    if completed.returncode or not completed.stdout.strip():
+        message = "commitment_rebind_target_creation_failed"
+        raise ValueError(message)
+    return completed.stdout.strip()
+
+
+def _persist_request(
+    repo: Path,
+    *,
+    branch: str,
+    request: CommitmentRebindRequest,
+    observed_targets: list[str],
+) -> dict[str, object]:
+    receipt = _receipt(request)
+    payload = receipt.canonical_json().encode()
+    payload_sha256 = hashlib.sha256(payload).hexdigest()
+    path = _receipt_path(repo, payload_sha256)
+    write_content_addressed(path, payload, collision="commitment_rebind_receipt_collision")
     return {
         "verdict": "pass",
         "state": "derived",

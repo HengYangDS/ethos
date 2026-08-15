@@ -36,7 +36,6 @@ PRODUCT_SURFACES = (
     "docs/decisions",
     "docs/plans",
     "docs/start",
-    "evidence/attestations",
     "evidence/README.md",
     "openspec/README.md",
     "openspec/config.yaml",
@@ -47,6 +46,7 @@ PRODUCT_SURFACES = (
     "tools",
 )
 HISTORICAL_SURFACE_PREFIXES = (
+    "evidence/attestations/",
     "evidence/claims/",
     "evidence/chronicle/",
     "evidence/parity/",

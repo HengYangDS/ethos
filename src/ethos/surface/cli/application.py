@@ -9,25 +9,6 @@ from cyclopts import App
 from ethos.contracts.admission import root_command
 
 app = App(name="ethos", help="ETHOS command plane.")
-lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
-lane_rebind_app = App(
-    name="rebind-commitment",
-    help="Derive or apply one exact Commitment replacement.",
-)
-lane_lease_app = App(name="lease", help="Generation-bound local Lane Lease lifecycle.")
-lane_handoff_app = App(name="handoff", help="Local and cross-host Work Lane handoff.")
-lane_retire_app = App(name="retire", help="Bounded Work Lane retirement lifecycle.")
-hook_app = App(name="hook", help="Hook admission and guard reports.", show=False)
-
-for command_group in (
-    lane_rebind_app,
-    lane_lease_app,
-    lane_handoff_app,
-    lane_retire_app,
-):
-    lane_app.command(command_group)
-for command_group in (lane_app, hook_app):
-    app.command(command_group)
 
 _COMMAND_MODULES = {
     "status": "ethos.surface.cli.root.inspection",
@@ -39,6 +20,7 @@ _COMMAND_MODULES = {
     "migrate-local-state": "ethos.surface.cli.root.adoption",
     "lane": "ethos.surface.cli.lane.lifecycle",
     "hook": "ethos.surface.cli.hook.commands",
+    "attestation": "ethos.surface.cli.root.attestation",
 }
 
 

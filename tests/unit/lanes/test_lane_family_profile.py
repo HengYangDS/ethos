@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 import ethos.adapters.mutation.lanes as lanes
@@ -22,9 +23,12 @@ from ethos.adapters.repo.status.bindings import closeout_support
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.coordination import LaneLease
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
@@ -34,6 +38,7 @@ from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.lifecycle_cases import LaneStartCase
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -232,6 +237,7 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(
     lane_case: LaneStartCase,
 ) -> None:
     report = lane_case.start(holder=_HOLDER)
+    leases = leases_by_branch(lane_case.repo)
     lease = report["lease"]
     assert isinstance(lease, dict)
     assert {
@@ -268,9 +274,11 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(
     }
     assert lease == {
         key: value
-        for key, value in leases_by_branch(lane_case.repo)["work/feature"].items()
+        for key, value in leases["work/feature"].items()
         if key != "commitment_binding"
     }
+    assert "work/change-source" not in leases
+    assert report["source_lease_state"] == "revoked"
     assert (
         lease["base_commitment_digest"],
         lease["expected_head"],
@@ -301,6 +309,62 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(
     )
     assert {f"lease_{name}": lease[name] for name in names}.items() <= support.items()
     assert support["base_commitment_digest"] == lease["base_commitment_digest"]
+
+
+def test_start_work_lane_rejects_foreign_source_lease_holder(
+    tmp_path: Path,
+) -> None:
+    case = LaneStartCase.create(tmp_path, holder="agent:test:case:source")
+
+    report = case.start(holder=_HOLDER)
+
+    _assert_absent(case, report, "source_lease_holder_mismatch")
+    assert leases_by_branch(case.repo)["work/change-source"]["lease_state"] == "valid"
+
+
+def test_start_work_lane_preserves_source_when_successor_lease_conflicts(
+    lane_case: LaneStartCase,
+) -> None:
+    before = leases_by_branch(lane_case.repo)["work/change-source"]
+    conflict = LaneLease.from_payload(dict(before["payload"])).model_copy(
+        update={
+            "lane_incarnation_id": "lane-incarnation:conflict",
+            "lease_id": "lease:conflict",
+            "lane_ref": "work/feature",
+        }
+    )
+    acquire_lease(state_database(lane_case.repo), lease=conflict)
+
+    report = lane_case.start(holder=_HOLDER)
+
+    leases = leases_by_branch(lane_case.repo)
+    assert report["required_gaps"] == ["lane_lease_conflict:work/feature"]
+    assert leases["work/change-source"] == before
+    assert leases["work/feature"]["lease_id"] == "lease:conflict"
+    assert ref_head(lane_case.repo, "work/feature") == ""
+    assert not lane_case.target.exists()
+
+
+def test_start_work_lane_restores_source_after_post_ref_failure(
+    lane_case: LaneStartCase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    before = leases_by_branch(lane_case.repo)["work/change-source"]
+    monkeypatch.setattr(
+        lane_start_carrier,
+        "install_hook_launchers",
+        lambda _root: (_ for _ in ()).throw(ValueError("runtime invalid")),
+    )
+
+    report = lane_case.start(holder=_HOLDER)
+
+    leases = leases_by_branch(lane_case.repo)
+    assert report["required_gaps"] == ["lane_start_hook_runtime_binding_failed"]
+    assert report["source_lease_state"] == "restored"
+    assert leases["work/change-source"] == before
+    assert "work/feature" not in leases
+    assert ref_head(lane_case.repo, "work/feature") == ""
+    assert not lane_case.target.exists()
 
 
 @pytest.mark.parametrize(
@@ -340,10 +404,14 @@ def test_start_work_lane_ref_creation_transaction_claims(
     report = lane_case.start(holder=_HOLDER)
     assert report["lease_state"] == lease_state
     assert report["required_gaps"] == gaps
+    leases = leases_by_branch(lane_case.repo)
     if foreign_ref:
         lane_case.assert_retained(head=foreign_head)
+        assert "work/change-source" not in leases
     else:
         lane_case.assert_absent()
+        assert leases["work/change-source"]["lease_state"] == "valid"
+        assert report["source_lease_state"] == "restored"
     assert not lane_case.target.exists()
 
 
@@ -359,14 +427,14 @@ def test_start_work_lane_lease_precedes_ref_creation(
     claim: str,
 ) -> None:
     observed: list[str] = []
-    acquire_lease = lanes.acquire_lease
+    replace_lease_authority = lanes.replace_lease_authority
 
     def observe_lease(*args: object, **kwargs: object):
         observed.append(kwargs["lease"].expected_head)
         assert ref_head(lane_case.repo, "work/feature") == ""
-        return acquire_lease(*args, **kwargs)
+        return replace_lease_authority(*args, **kwargs)
 
-    monkeypatch.setattr(lanes, "acquire_lease", observe_lease)
+    monkeypatch.setattr(lanes, "replace_lease_authority", observe_lease)
     base_head = git(lane_case.candidate, "rev-parse", "HEAD")
     report = lane_case.start(holder=_HOLDER)
     assert report["verdict"] == "pass"
@@ -476,8 +544,14 @@ def _mutate_blocked_start(
         carrier.parent.mkdir(parents=True)
         repository = load_repository_commitment(case.candidate)
         carrier.write_text(
-            'schema_version = 1\nid = "change:stale"\nintent = "Stale."\n'
-            f'subjects = ["{repository.id}"]\nscope = ["**"]\n',
+            tomli_w.dumps(
+                commitment_v2(
+                    id="change:stale",
+                    intent="Stale.",
+                    subjects=(repository.id,),
+                    scope=("**",),
+                ).model_dump(mode="python")
+            ),
             encoding="utf-8",
         )
         git(case.candidate, "add", carrier.relative_to(case.candidate).as_posix())
@@ -510,9 +584,15 @@ def _mutate_blocked_start(
     elif mutation == "ambiguous-carrier":
         second = case.source / "openspec/changes/second"
         second.mkdir(parents=True)
+        repository = load_repository_commitment(case.source)
         (second / "commitment.toml").write_text(
-            'schema_version = 1\nid = "change:second"\nintent = "Second."\n'
-            'subjects = ["repository:self"]\n',
+            tomli_w.dumps(
+                commitment_v2(
+                    id="change:second",
+                    intent="Second.",
+                    subjects=(repository.id,),
+                ).model_dump(mode="python")
+            ),
             encoding="utf-8",
         )
         (second / "tasks.md").write_text("- [ ] Continue\n", encoding="utf-8")

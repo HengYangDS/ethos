@@ -5,17 +5,19 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+import tomli_w
 
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git_effect_admission import require_effect_permission
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.plan import git_effect_from_plan
-from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.semantic import commitment_v2
 
 ZERO_OID = "0" * 40
 HOLDER = "agent:test:lane-start"
@@ -23,13 +25,20 @@ HOLDER = "agent:test:lane-start"
 
 def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
     repo = init_git_repo(tmp_path / "repo")
+    repository_id = f"repository:{repo.name}"
     commit_fixture_file(
         repo,
         ".ethos/commitment.toml",
-        'schema_version = 1\nid = "repository:repo"\n'
-        'intent = "Govern."\nsubjects = ["repository:repo"]\n',
+        tomli_w.dumps(
+            commitment_v2(
+                id=repository_id,
+                intent="Govern.",
+                subjects=(repository_id,),
+            ).model_dump(mode="python")
+        ),
         "declare identity",
     )
+    repository_id = load_repository_commitment(repo).id
     base = git(repo, "rev-parse", "HEAD")
     desired = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-m", "lane carrier")
     branch = "work/example"
@@ -40,16 +49,9 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
         if flaw in {"candidate-missing", "candidate-absent"}
         else {f"refs/heads/{candidate}": desired if flaw == "candidate-head" else base}
     )
-    policy = {
-        "operation": "other" if flaw == "operation" else "lane.start",
-        "branch": "work/other" if flaw == "branch" else branch,
-        "holder_ref": "agent:test:other" if flaw == "holder" else HOLDER,
-        "candidate_branch": candidate,
-    }
     if source:
         source_branch = "dev"
         source_head = desired if flaw == "source-head" else base
-        policy |= {"source_branch": source_branch, "source_head": source_head}
         assertions[f"refs/heads/{source_branch}"] = base
     elif flaw == "unexpected-assertion":
         assertions["refs/heads/dev"] = base
@@ -62,6 +64,16 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
         },
         assertions=assertions,
     )
+    policy = {
+        "operation": "other" if flaw == "operation" else "git.ref.compare-and-swap",
+        "transition": "lane.start",
+        "effect_digest": "0" * 64 if flaw == "effect-digest" else effect.digest(),
+        "branch": "work/other" if flaw == "branch" else branch,
+        "holder_ref": "agent:test:other" if flaw == "holder" else HOLDER,
+        "candidate_branch": candidate,
+    }
+    if source:
+        policy |= {"source_branch": source_branch, "source_head": source_head}
     generation = {
         "branch": branch,
         "lease_id": "lease:test",
@@ -76,7 +88,7 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
         "payload_sha256": "b" * 64,
     }
     facts = Facts(
-        repository="repository:repo",
+        repository=repository_id,
         head=base,
         tree=git(repo, "rev-parse", "HEAD^{tree}"),
         observed_at=datetime(2026, 8, 10, tzinfo=UTC),
@@ -86,10 +98,10 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
             "lease_generation": generation,
         },
     )
-    commitment = Commitment(
+    commitment = commitment_v2(
         id="authority:test:lane-start",
         intent="Create one leased work lane.",
-        subjects=("repository:repo",),
+        subjects=(repository_id,),
     )
     return compile_git_effect_plan(
         commitment,
@@ -107,23 +119,10 @@ def test_lane_start_authority_accepts_only_the_bound_creation(tmp_path: Path, mo
     require_effect_permission(git_effect_from_plan(plan), plan)
 
 
-@pytest.mark.parametrize(
-    "flaw",
-    [
-        "operation",
-        "ref",
-        "expected",
-        "desired",
-        "branch",
-        "holder",
-        "candidate-missing",
-        "candidate-absent",
-        "candidate-head",
-        "unexpected-assertion",
-        "source-head",
-    ],
-)
-def test_lane_start_authority_rejects_every_unbound_dimension(tmp_path: Path, flaw: str) -> None:
+@pytest.mark.parametrize("flaw", ["operation", "effect-digest"])
+def test_lane_start_authority_rejects_nonprimitive_or_digest_mismatch(
+    tmp_path: Path, flaw: str
+) -> None:
     plan = _plan(tmp_path, flaw, source=flaw == "source-head")
 
     with pytest.raises(ValueError, match="git_effect_permission_denied"):

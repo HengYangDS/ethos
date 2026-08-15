@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 from ethos.adapters.repo.commitment import changed_commitment_fields
 from ethos.adapters.repo.commitment import exact_commitment_fields
@@ -11,19 +12,27 @@ from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _repository_commitment(root: Path) -> None:
+def _repository_commitment(root: Path) -> str:
+    repository_id = "repository:test"
     path = root / ".ethos/commitment.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        'schema_version = 1\nid = "repository:test"\nintent = "Govern."\n'
-        'subjects = ["repository:test"]\n',
+        tomli_w.dumps(
+            commitment_v2(
+                id=repository_id,
+                intent="Govern.",
+                subjects=(repository_id,),
+            ).model_dump(mode="python")
+        ),
         encoding="utf-8",
     )
+    return repository_id
 
 
 def _change_commitment(root: Path, change_id: str, *, intent: str = "Change.") -> str:
@@ -31,8 +40,14 @@ def _change_commitment(root: Path, change_id: str, *, intent: str = "Change.") -
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        f'schema_version = 1\nid = "change:{change_id}"\nintent = "{intent}"\n'
-        'subjects = ["repository:self"]\nscope = ["src/**"]\n',
+        tomli_w.dumps(
+            commitment_v2(
+                id=f"change:{change_id}",
+                intent=intent,
+                subjects=(load_repository_commitment(root).id,),
+                scope=("src/**",),
+            ).model_dump(mode="python")
+        ),
         encoding="utf-8",
     )
     return relative
@@ -63,8 +78,8 @@ def test_commitment_missing_malformed_and_canonical_public_boundaries(tmp_path: 
     with pytest.raises(ValueError, match="repository_commitment_missing"):
         load_repository_commitment(tmp_path)
 
-    _repository_commitment(tmp_path)
-    assert load_repository_commitment(tmp_path).id == "repository:test"
+    repository_id = _repository_commitment(tmp_path)
+    assert load_repository_commitment(tmp_path).id == repository_id
 
 
 def test_commitment_exact_fields_and_digest_boundary(tmp_path: Path) -> None:

@@ -5,15 +5,18 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.adapters.mutation.lane_start_carrier as lane_start_carrier
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -22,17 +25,27 @@ if TYPE_CHECKING:
 _HOLDER = "agent:test:case:agent-test"
 
 
-def _fresh_commitment(path: Path, change: str = "fresh-change") -> Path:
+def _fresh_commitment(
+    repo: Path,
+    path: Path,
+    change: str = "fresh-change",
+    *,
+    predecessors: tuple[str, ...] = (),
+    selected_attestations: tuple[str, ...] = (),
+    dependencies: tuple[dict[str, object], ...] = (),
+) -> Path:
+    repository_id = load_repository_commitment(repo).id
     path.write_text(
-        "\n".join(
-            (
-                "schema_version = 1",
-                f'id = "change:{change}"',
-                'intent = "Exercise atomic fresh Change bootstrap."',
-                'subjects = ["repository:self"]',
-                'scope = ["src/**"]',
-                "",
-            )
+        tomli_w.dumps(
+            commitment_v2(
+                id=f"change:{change}",
+                intent="Exercise atomic fresh Change bootstrap.",
+                subjects=(repository_id,),
+                scope=("src/**",),
+                predecessors=predecessors,
+                selected_attestations=selected_attestations,
+                dependencies=dependencies,
+            ).model_dump(mode="python")
         ),
         encoding="utf-8",
     )
@@ -96,7 +109,7 @@ def test_start_work_lane_bootstraps_a_fresh_change_without_a_source_lane(
         "select custom OpenSpec schema",
     )
     target = tmp_path / "repo-work-fresh-change"
-    commitment = _fresh_commitment(tmp_path / "commitment.toml")
+    commitment = _fresh_commitment(repo, tmp_path / "commitment.toml")
     openspec = _fake_openspec(tmp_path)
     monkeypatch.setattr(
         lane_start_carrier,
@@ -144,7 +157,7 @@ def test_start_work_lane_rejects_ambiguous_fresh_and_source_inputs(tmp_path: Pat
         root=repo,
         name="fresh-change",
         source_root=source,
-        commitment_path=_fresh_commitment(tmp_path / "commitment.toml"),
+        commitment_path=_fresh_commitment(repo, tmp_path / "commitment.toml"),
         path=tmp_path / "repo-work-fresh-change",
         holder_ref=_HOLDER,
         apply=True,
@@ -167,14 +180,14 @@ def test_start_work_lane_dry_run_validates_required_and_bound_commitment(tmp_pat
     mismatched = start_work_lane(
         root=repo,
         name="fresh-change",
-        commitment_path=_fresh_commitment(tmp_path / "commitment.toml", "other-change"),
+        commitment_path=_fresh_commitment(repo, tmp_path / "commitment.toml", "other-change"),
         path=target,
         holder_ref=_HOLDER,
     )
     planned = start_work_lane(
         root=repo,
         name="fresh-change",
-        commitment_path=_fresh_commitment(tmp_path / "commitment.toml"),
+        commitment_path=_fresh_commitment(repo, tmp_path / "commitment.toml"),
         path=target,
         holder_ref=_HOLDER,
     )
@@ -186,6 +199,54 @@ def test_start_work_lane_dry_run_validates_required_and_bound_commitment(tmp_pat
         "planned",
         [],
     )
+    assert ref_head(repo, "work/fresh-change") == ""
+    assert not target.exists()
+
+
+@pytest.mark.parametrize(
+    ("predecessors", "selected_attestations", "dependencies"),
+    [
+        pytest.param(("0" * 64,), (), (), id="predecessor"),
+        pytest.param((), ("1" * 64,), (), id="selection"),
+        pytest.param(
+            (),
+            (),
+            (
+                {
+                    "kind": "change:requires",
+                    "target": "change:missing",
+                    "attributes": {},
+                },
+            ),
+            id="unresolved-dependency",
+        ),
+    ],
+)
+def test_fresh_lane_rejects_successor_commitment_fields(
+    tmp_path: Path,
+    predecessors: tuple[str, ...],
+    selected_attestations: tuple[str, ...],
+    dependencies: tuple[dict[str, object], ...],
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    target = tmp_path / "repo-work-fresh-change"
+    commitment = _fresh_commitment(
+        repo,
+        tmp_path / "commitment.toml",
+        predecessors=predecessors,
+        selected_attestations=selected_attestations,
+        dependencies=dependencies,
+    )
+
+    report = start_work_lane(
+        root=repo,
+        name="fresh-change",
+        commitment_path=commitment,
+        path=target,
+        holder_ref=_HOLDER,
+    )
+
+    assert report["required_gaps"] == ["lane_start_successor_commitment_requires_start_change"]
     assert ref_head(repo, "work/fresh-change") == ""
     assert not target.exists()
 
@@ -203,7 +264,7 @@ def test_start_work_lane_dry_run_rejects_unproven_hook_runtime(
     report = start_work_lane(
         root=repo,
         name="fresh-change",
-        commitment_path=_fresh_commitment(tmp_path / "commitment.toml"),
+        commitment_path=_fresh_commitment(repo, tmp_path / "commitment.toml"),
         path=target,
         holder_ref=_HOLDER,
     )
@@ -231,7 +292,7 @@ def test_start_work_lane_rejects_missing_invalid_or_mismatched_fresh_commitment(
         carrier = tmp_path / "commitment.toml"
         carrier.write_text("not toml =", encoding="utf-8")
     elif commitment:
-        carrier = _fresh_commitment(tmp_path / "commitment.toml", commitment)
+        carrier = _fresh_commitment(repo, tmp_path / "commitment.toml", commitment)
 
     report = start_work_lane(
         root=repo,
@@ -269,7 +330,7 @@ def test_start_work_lane_removes_fresh_carrier_when_openspec_fails(
     report = start_work_lane(
         root=repo,
         name="fresh-change",
-        commitment_path=_fresh_commitment(tmp_path / "commitment.toml"),
+        commitment_path=_fresh_commitment(repo, tmp_path / "commitment.toml"),
         path=target,
         holder_ref=_HOLDER,
         apply=True,

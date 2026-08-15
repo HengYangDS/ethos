@@ -24,8 +24,9 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import commitment_v2
 
-_COMMITMENT = Commitment(
+_COMMITMENT = commitment_v2(
     id="change:test", intent="Exercise one transition plan.", subjects=("repository:test",)
 )
 _FACTS = Facts(
@@ -74,7 +75,7 @@ def _facts(*paths: object, repository: str = "repository:test") -> Facts:
 def _commitment(
     *, subjects: tuple[str, ...] = ("repository:test",), scope: tuple[str, ...] = ("**",)
 ) -> Commitment:
-    return Commitment(id="change:test", intent="test", subjects=subjects, scope=scope)
+    return commitment_v2(id="change:test", intent="test", subjects=subjects, scope=scope)
 
 
 def _compile(
@@ -426,7 +427,7 @@ def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
 
 
 def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
-    commitment = Commitment(
+    commitment = commitment_v2(
         id="change:test",
         intent="Preserve",
         subjects=("repository:test",),

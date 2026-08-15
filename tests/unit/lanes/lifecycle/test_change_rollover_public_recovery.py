@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from datetime import UTC
-from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
-from ethos.contracts.semantic import Attestation
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Attestation
 
 
 BRANCH = "work/feature"
@@ -44,12 +43,17 @@ def _common(monkeypatch: pytest.MonkeyPatch, lease: dict[str, object] | None = N
     monkeypatch.setattr(rollover, "git_stdout", lambda *_args, **_kwargs: BRANCH)
     monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: HEAD)
     monkeypatch.setattr(rollover, "leases_by_branch", lambda _root: {BRANCH: lease or _lease()})
-    monkeypatch.setattr(rollover, "attestation_store_dir", lambda root: root / "attestations")
+    monkeypatch.setattr(rollover, "read_attestation_set", lambda _root: ("", ()))
     monkeypatch.setattr(rollover, "work_lane_transition_gaps", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
         rollover,
         "change_overlay_report",
         lambda *_args, **_kwargs: {"paths": (), "digest": "", "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        rollover,
+        "load_repository_commitment",
+        lambda *_args, **_kwargs: SimpleNamespace(id="repository:test"),
     )
     monkeypatch.setattr(rollover, "load_lease_bound_commitment", lambda *_args, **_kwargs: object())
     monkeypatch.setattr(rollover.openspec_cli, "openspec_base_command", lambda: ("openspec",))
@@ -86,6 +90,19 @@ def test_change_start_commit_subject_is_conventional(tmp_path: Path) -> None:
 
 def _branch_status(_root: Path, *args: str, **_kwargs: object) -> str:
     return BRANCH if args[:2] == ("branch", "--show-current") else ""
+
+
+def _recognized_attestation(*, change: str, previous_head: str, head: str) -> Attestation:
+    body = {"freshness": {"change": change, "previous_head": previous_head, "head": head}}
+    dumped = {
+        "predicate": "effect:openspec-change-start",
+        "payload": {"body": body},
+    }
+    return SimpleNamespace(
+        predicate="effect:openspec-change-start",
+        payload=SimpleNamespace(body=body),
+        model_dump=lambda *_args, **_kwargs: dumped,
+    )
 
 
 def test_start_change_public_recovery_dry_run_and_finish_failure_are_closed(
@@ -320,31 +337,42 @@ def test_start_change_public_reader_recognizes_exact_receipt(
     carrier = f"openspec/changes/{CHANGE}/commitment.toml"
     lease = _lease(expected_head=NEW_HEAD, base_commitment_path=carrier)
     _common(monkeypatch, lease)
-    store = tmp_path / "attestations"
-    store.mkdir()
-    statement = {
-        "freshness": {"change": CHANGE, "previous_head": HEAD, "head": NEW_HEAD},
-    }
-    attestation = Attestation.issue(
-        {
-            "predicate": "effect:openspec-change-start",
-            "subject": "repository:self",
-            "statement": statement,
-            "verifier": "ethos:test",
-            "issued_at": datetime(2026, 8, 10, tzinfo=UTC),
-            "verdict": "pass",
-            "evidence_refs": ("evidence:test",),
-        }
-    )
-    (store / "receipt.json").write_text(attestation.model_dump_json(), encoding="utf-8")
+    attestation = _recognized_attestation(change=CHANGE, previous_head=HEAD, head=NEW_HEAD)
     monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: NEW_HEAD)
     monkeypatch.setattr(
         rollover,
         "run_git",
         lambda *_args, **_kwargs: SimpleNamespace(stdout=HEAD + "\n"),
     )
+    monkeypatch.setattr(
+        rollover,
+        "exact_commitment_fields",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("invalid target")),
+    )
+    monkeypatch.setattr(
+        rollover,
+        "work_lane_transition_gaps",
+        lambda *_args, **_kwargs: ["not_recoverable"],
+    )
+    monkeypatch.setattr(rollover, "load_commitment", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        rollover,
+        "load_repository_commitment",
+        lambda *_args, **_kwargs: SimpleNamespace(id="repository:test"),
+    )
+    monkeypatch.setattr(
+        rollover,
+        "start_effect_authority",
+        lambda *_args, **_kwargs: {"predicate": "effect:openspec-change-start"},
+    )
 
     report = _start(tmp_path)
 
+    assert report["state"] != "recognized"
+    assert "openspec_archived_commitment_required" in report["required_gaps"]
+    monkeypatch.setattr(
+        rollover, "read_attestation_set", lambda _root: ("selected", (attestation,))
+    )
+    report = _start(tmp_path)
     assert report["state"] == "recognized"
-    assert report["attestation"]["id"] == attestation.id
+    assert report["attestation"]["predicate"] == "effect:openspec-change-start"

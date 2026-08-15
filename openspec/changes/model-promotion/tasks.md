@@ -31,12 +31,17 @@ does not append work here unless this Commitment already requires it.
   public commands only. **Proof:** boundary mutation matrix plus package-only
   dry-run/apply/readback.
 
-- [ ] **5. Accept the foundation.** Delete out-of-scope and superseded residue;
-  run OpenSpec 1.8 strict validation, focused quality gates, code and ponytail
-  review, exact-HEAD full proof, archive, post-archive proof, governed
-  land/closeout, and accepted package-only readback. Record refresh and every
-  other lifecycle family as selected successor Commitments, not tasks here.
-  **Proof:** accepted exact-HEAD evidence and zero in-scope parallel authority.
+- [ ] **5. Prepare archive admission.** Delete out-of-scope and superseded
+  residue; run OpenSpec 1.8 strict validation, focused quality gates, code and
+  ponytail review, and exact-HEAD full proof. Record refresh and every other
+  lifecycle family as selected successor Commitments, not tasks here.
+  **Proof:** pre-archive exact-HEAD evidence and zero in-scope parallel authority.
+
+After Task 5 completes, close this Change only through the existing governed
+lifecycle: archive from that proven HEAD; execute full proof on the resulting
+archive HEAD; land and close out that proven archive HEAD; then perform an
+accepted package-only readback. These are post-task effects evidenced by their
+exact receipts and Attestations, not unchecked OpenSpec tasks.
 
 ## Requirement To Task To Proof
 
@@ -56,4 +61,4 @@ does not append work here unless this Commitment already requires it.
 | `contracts:*` | 1 | `tests:semantic-v2` |
 | `kernel:*` | 3 | `tests:semantic-kernel-reduction` |
 | `repository-governance:*` | 3 | `tests:repository-governance-reduction` |
-| `kernel:Semantic identity is schema-versioned and runtime-independent` | 5 | `proof:accepted-exact-head` |
+| `kernel:Semantic identity is schema-versioned and runtime-independent` | 5 | `proof:pre-archive-exact-head; closeout:accepted-package-only-receipt` |

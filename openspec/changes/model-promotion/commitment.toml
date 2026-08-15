@@ -44,6 +44,8 @@ scope = [
   "docs/governance/independent-verification-adoption.md",
   "docs/governance/product-design-contract.md",
   "docs/governance/provenance-and-attestation.md",
+  "docs/history/README.md",
+  "docs/history/docs-topology-contract-20260708.md",
   "docs/index.md",
   "docs/plans/README.md",
   "docs/plans/release-0-1-0a2-design-20260724.md",

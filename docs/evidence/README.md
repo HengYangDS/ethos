@@ -13,8 +13,7 @@ Status: canonical.
 Purpose: explain curated proof summaries and the durable evidence boundary.
 
 See also: [Documentation Root](../README.md), [Generated Artifact Topology](../architecture/generated-artifact-topology.md),
-[Provenance And Attestation](../governance/provenance-and-attestation.md), and
-[Decision Records](../decisions/README.md).
+[Provenance And Attestation](../governance/provenance-and-attestation.md).
 
 ## Evidence boundary
 

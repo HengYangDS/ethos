@@ -450,7 +450,7 @@ def _finish(
     carrier = f"openspec/changes/{change}/commitment.toml"
     current_lease = leases_by_branch(root).get(branch, {})
     target = exact_commitment_fields(root, head=head, carrier=carrier, change_id=change)
-    current = LaneLease.from_payload(dict(current_lease["payload"]))
+    current = LaneLease.from_payload(dict(cast("Mapping[str, Any]", current_lease["payload"])))
     successor = commitment_rebind_successor(current, binding=target)
     successor_record = project_lease(successor)
     commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)

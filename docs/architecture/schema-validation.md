@@ -72,19 +72,6 @@ Terminal semantic contracts are explicit:
   evidence bindings; predicates carry meaning without a closed variant taxonomy.
 - `facts.schema.json` governs freshly observed repository facts.
 - `transition-plan.schema.json` governs deterministic transient transition plans.
-- `review-plan.schema.json` governs the exact-HEAD/tree/input-bound set of
-  deterministic-first and judgment lenses compiled from current workload,
-  intent, risk, capability, and path facts.
-- `review-result.schema.json` governs one lens result and fixes
-  `mints_authority = false`; review evidence can block or request a repair but
-  cannot authorize an effect or become workflow state.
-
-`system/review-lenses.toml` is the sole review-method declaration. Its ordered
-dependency closure, token ceilings, blocking semantics, output schema,
-freshness, and owner compile into the review plan embedded in `Facts` and thus
-bound by the same `TransitionPlan` digest. Ambiguity or conflicting valid intent
-requests human judgment; repairable findings remain agent work and are
-recompiled after repair.
 
 Accepted OpenSpec capability identity and requirements live in each capability's
 `spec.md`; schema validation does not maintain a parallel capability model.

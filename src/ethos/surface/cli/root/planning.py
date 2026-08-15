@@ -21,10 +21,6 @@ from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.plan import compile_plan
-from ethos.contracts.review import compile_review_plan
-from ethos.contracts.review import load_review_lens_declaration
-from ethos.contracts.review import load_review_results
-from ethos.contracts.review import reduce_review_results
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.domain.plan import matching_rule_gates
@@ -67,7 +63,6 @@ def plan(
         int | None,
         Parameter(name="--proof-node-capacity", validator=_non_negative),
     ] = None,
-    review_results: Annotated[str | None, Parameter(name="--review-results")] = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -121,32 +116,6 @@ def plan(
             if gap == "model_gap"
         )
     tree = current_tree(repo, head)
-    review_plan = compile_review_plan(
-        load_review_lens_declaration(repo / "system" / "review-lenses.toml"),
-        {
-            "head": head,
-            "tree": tree,
-            "workload": intent_context.get("schema", "spec-driven"),
-            "phase": "post-implementation" if paths else "pre-implementation",
-            "affected_capabilities": intent_context.get("affected_capabilities", []),
-            "ambiguities": intent_context.get("ambiguities", []),
-            "conflicts": intent_context.get("conflicts", []),
-            "risks": list(commitment.risks),
-            "changed_paths": list(paths),
-            "requirements": intent_context.get("requirements", []),
-            "requirement_edges": intent_context.get("requirement_edges", []),
-        },
-    )
-    review_decision = None
-    review_result_gaps: tuple[str, ...] = ()
-    if review_results is not None:
-        try:
-            review_decision = reduce_review_results(
-                review_plan,
-                load_review_results(review_results),
-            )
-        except ValueError as error:
-            review_result_gaps = (str(error),)
     facts = Facts(
         repository=repository.id,
         head=head,
@@ -158,7 +127,6 @@ def plan(
             "dirty": status_payload.get("dirty", False),
             "changed_paths": paths,
             "intent_context": intent_context,
-            "review_plan": review_plan.model_dump(mode="json"),
             "selected_carrier": generation_scope.selected_carrier,
             "path_attributions": generation_scope.attribution_projection(),
         },
@@ -166,7 +134,6 @@ def plan(
             "git:HEAD",
             "git:HEAD^{tree}",
             "ethos:status",
-            "system/review-lenses.toml",
         ),
     )
     adapter_gaps = tuple(string_sequence(profile_adapter.get("required_gaps")))
@@ -219,9 +186,6 @@ def plan(
                 *adapter_gaps,
                 *rule_validation_gaps,
                 *skill_activation.required_gaps,
-                *review_plan.required_gaps,
-                *review_result_gaps,
-                *(review_decision.required_gaps if review_decision is not None else ()),
             )
         )
     )
@@ -230,9 +194,6 @@ def plan(
         and not adapter_gaps
         and not rule_validation_gaps
         and skill_activation.verdict == "pass"
-        and review_plan.verdict == "pass"
-        and not review_result_gaps
-        and (review_decision is None or review_decision.verdict == "pass")
     )
     result = EthosResult(
         command="plan",
@@ -244,7 +205,6 @@ def plan(
             "matched_rule_count": len(matched_rules),
             "required_gate_count": len(required_gates),
             "required_skill_count": len(skill_activation.skills),
-            "required_review_lens_count": len(review_plan.lenses),
         },
         required_gaps=required_gaps,
         next_action="ethos prove --json"
@@ -252,10 +212,6 @@ def plan(
         else (
             "repair .ethos/rules.toml and rerun ethos plan --json"
             if rule_validation_gaps
-            else "repair the review result file and rerun ethos plan --json"
-            if review_result_gaps
-            else review_decision.next_action
-            if review_decision is not None and review_decision.verdict != "pass"
             else "repair the selected Commitment carrier"
         ),
         data={
@@ -270,12 +226,6 @@ def plan(
             "intent_context": intent_context,
             "transition_plan": plan.model_dump(mode="json"),
             "skill_activation": skill_activation.model_dump(mode="json"),
-            "review_plan": review_plan.model_dump(mode="json"),
-            **(
-                {"review_decision": review_decision.model_dump(mode="json")}
-                if review_decision is not None
-                else {}
-            ),
             "coordination_strategy": strategy,
             **({"profile_adapter": profile_projection} if profile_projection else {}),
         },

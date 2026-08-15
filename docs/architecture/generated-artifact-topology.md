@@ -45,7 +45,7 @@ table.
 | `build/evidence/`                                                                                                                                                 | Machine evidence bundles before review/promotion.                                                      | Yes                       | No                |
 | `build/artifacts/`                                                                                                                                                | Local package and build artifacts, grouped by artifact kind.                                           | Yes                       | No                |
 | `docs/evidence/`, `evidence/`                                                                                                                                     | Curated summaries and immutable historical evidence.                                                   | No raw output             | Yes, after review |
-| `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No                        | Yes, after review |
+| `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No                        | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/`                                                                                                                | Source, tests, rules, schemas, and contracts.                                                          | No                        | Yes, after review |
 
 Evidence root topology is also declaration-first. The kernel `evidence/`
@@ -194,9 +194,8 @@ curated evidence.
 
 ## Documentation Kernel
 
-ETHOS uses `docs/decisions/` for its own durable rulings. The portable
-documentation contract is [Docs Registry](../governance/docs-registry.md): it
-governs metadata and discoverability, while physical subject roots remain
+The portable documentation contract is [Docs Registry](../governance/docs-registry.md):
+it governs metadata and discoverability, while physical subject roots remain
 repository-native. ETHOS product roots such as `docs/architecture/`,
 `docs/concepts/`, `docs/governance/`, `docs/plans/`, `docs/research/`, and
 `docs/start/` are its own semantic documentation homes; they are not generated

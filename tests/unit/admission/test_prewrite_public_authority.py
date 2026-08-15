@@ -110,7 +110,7 @@ def test_prewrite_reports_outside_path_and_exact_commitment_scope(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _bind_common(monkeypatch, tmp_path, role="accepted_root")
-    monkeypatch.setattr(prewrite, "load_commitment", lambda _root: _commitment("docs/**", "*.md"))
+    monkeypatch.setattr(prewrite, "load_commitment", lambda _root: _commitment("*.md", "docs/**"))
 
     outside = tmp_path.parent / "outside.txt"
     report = prewrite.prewrite_guard(

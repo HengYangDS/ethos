@@ -176,16 +176,6 @@ def git(root: Path, *args: str) -> str:
 def write_test_profile(root: Path, **updates: object) -> Path:
     """Write one strict profile fixture through the production declaration."""
     payload = RepositoryProfileDeclaration.bootstrap(root.resolve().name).model_dump(mode="python")
-    payload["commit_message"] = {
-        "command": (
-            "python",
-            "-m",
-            "commit_check.main",
-            "--message",
-            "--compact",
-            "{message}",
-        )
-    }
     payload.update(updates)
     profile = root / ".ethos" / "profile.toml"
     profile.parent.mkdir(parents=True, exist_ok=True)
@@ -394,17 +384,11 @@ def _enable_openspec_profile(repo: Path) -> None:
     if not profile.exists():
         write_test_profile(repo)
     text = profile.read_text(encoding="utf-8")
-    additions = []
-    if "[commit_message]" not in text:
-        additions.append(
-            "[commit_message]\n"
-            'command = ["python", "-m", "commit_check.main", "--message", '
-            '"--compact", "{message}"]'
-        )
     if "[openspec]" not in text:
-        additions.append('[openspec]\nmaterial_paths = ["openspec/**"]')
-    if additions:
-        profile.write_text(text.rstrip() + "\n\n" + "\n\n".join(additions) + "\n", encoding="utf-8")
+        profile.write_text(
+            text.rstrip() + '\n\n[openspec]\nmaterial_paths = ["openspec/**"]\n',
+            encoding="utf-8",
+        )
 
 
 def write_role_policy(
@@ -653,8 +637,12 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
     branch = git(repo, "branch", "--show-current")
     holder = str(leases_by_branch(repo).get(branch, {}).get("holder_ref") or "")
     original = os.environ.get("ETHOS_ACTOR")
+    hooks_path = git(repo, "config", "--get", "core.hooksPath")
+    installed_hooks = Path(hooks_path).name == "ethos-hooks"
     if holder:
         os.environ["ETHOS_ACTOR"] = holder
+    if installed_hooks:
+        git(repo, "config", "--worktree", "core.hooksPath", ".git/test-hooks")
     try:
         plan = proof_plan(
             repo,
@@ -667,6 +655,8 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
             issue_conformant_proof(repo, head, plan=plan, issued_at=datetime.now(UTC)),
         )
     finally:
+        if installed_hooks:
+            git(repo, "config", "--worktree", "core.hooksPath", hooks_path)
         if original is None:
             os.environ.pop("ETHOS_ACTOR", None)
         else:

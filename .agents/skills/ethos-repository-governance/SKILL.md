@@ -21,7 +21,7 @@ Work Lanes, OpenSpec consumption, or adoption profiles.
 4. Run the relevant `uv run ethos prove --gate <gate-id> --json` command first;
    use `uv run ethos prove --full --json` when the full local proof plan is
    required.
-5. Keep source, tests, schemas, docs, OpenSpec, claims, evidence, and command
+5. Keep source, tests, schemas, docs, OpenSpec, Commitments, Attestations, and command
    JSON above skill projections.
 
 ## Evidence
@@ -45,5 +45,5 @@ uv run ethos prove --json
 ## Trust Boundary
 
 This skill is a workflow package projection. Repository source, tests, schemas,
-OpenSpec records, claims, evidence, and ETHOS command JSON remain the source of
+OpenSpec records, Commitments, Attestations, and ETHOS command JSON remain the source of
 truth.

@@ -4,8 +4,6 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import pytest
-
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.git import run_git
 from ethos.contracts.semantic import Attestation
@@ -29,7 +27,7 @@ def _input(path: Path, ordinal: int, *, carried_id: bool) -> Attestation:
             "valid_until": None,
             "verdict": "pass",
             "payload": {
-                "kind": "input:feedback",
+                "kind": "input:future-feedback",
                 "body": {"occurrence": {"ordinal": ordinal, "source": "test"}},
             },
             "relations": (),
@@ -55,55 +53,40 @@ def test_attestation_record_dry_run_then_apply_is_idempotent(tmp_path: Path) -> 
     input_path = tmp_path / "attestation.json"
     record = _input(input_path, 1, carried_id=False)
 
-    dry = run_ethos(
-        "attestation",
-        "record",
-        "--input",
-        input_path.as_posix(),
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
-    )
-    applied = run_ethos(
-        "attestation",
-        "record",
-        "--input",
-        input_path.as_posix(),
-        "--root",
-        repo.as_posix(),
-        "--apply",
-        "--json",
-        cwd=repo,
-    )
-    repeated = run_ethos(
-        "attestation",
-        "record",
-        "--input",
-        input_path.as_posix(),
-        "--root",
-        repo.as_posix(),
-        "--apply",
-        "--json",
-        cwd=repo,
-    )
+    results = [
+        run_ethos(
+            "attestation",
+            "record",
+            "--input",
+            input_path.as_posix(),
+            "--root",
+            repo.as_posix(),
+            *arguments,
+            "--json",
+            cwd=repo,
+        )
+        for arguments in ((), ("--apply",), ("--apply",))
+    ]
 
-    assert dry["state"] == "ready"
-    assert dry["data"]["attestation"]["id"] == record.id
+    dry, applied, repeated = results
+    assert (dry["state"], dry["data"]["attestation"]["id"]) == ("ready", record.id)
     assert applied["state"] == "recorded"
     assert applied["data"]["set_root"]
-    assert repeated["state"] == "unchanged"
-    assert repeated["data"]["set_root"] == applied["data"]["set_root"]
+    assert (repeated["state"], repeated["data"]["set_root"]) == (
+        "unchanged",
+        applied["data"]["set_root"],
+    )
 
 
 def test_attestation_query_returns_exact_unknown_values_without_authority_claim(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    first_path, second_path = tmp_path / "first.json", tmp_path / "second.json"
-    first = _input(first_path, 2, carried_id=True)
-    _input(second_path, 3, carried_id=True)
-    for path in (first_path, second_path):
+    paths = (tmp_path / "first.json", tmp_path / "second.json")
+    records = tuple(
+        _input(path, ordinal, carried_id=True) for path, ordinal in zip(paths, (2, 3), strict=True)
+    )
+    for path in paths:
         run_ethos(
             "attestation",
             "record",
@@ -116,6 +99,7 @@ def test_attestation_query_returns_exact_unknown_values_without_authority_claim(
             cwd=repo,
         )
 
+    first = records[0]
     result = run_ethos(
         "attestation",
         "query",
@@ -132,85 +116,57 @@ def test_attestation_query_returns_exact_unknown_values_without_authority_claim(
     assert result["verdict"] == "pass"
     assert result["data"]["set_root"]
     assert result["data"]["authorizes_effects"] is False
-    assert [item["id"] for item in result["data"]["attestations"]] == [first.id]
+    assert result["data"]["attestations"] == [first.model_dump(mode="json")]
 
 
-@pytest.mark.parametrize("arguments", [(), ("--apply",)])
-def test_attestation_record_rejects_non_repository_root(
-    tmp_path: Path, arguments: tuple[str, ...]
+def test_attestation_commands_fail_closed_for_invalid_roots_and_selectors(
+    tmp_path: Path,
 ) -> None:
     input_path = tmp_path / "attestation.json"
     _input(input_path, 4, carried_id=True)
-    command = [
-        "attestation",
-        "record",
-        "--input",
-        input_path.as_posix(),
-        "--root",
-        tmp_path.as_posix(),
-    ]
+    for arguments in ((), ("--apply",)):
+        result = run_ethos_blocked(
+            "attestation",
+            "record",
+            "--input",
+            input_path.as_posix(),
+            "--root",
+            tmp_path.as_posix(),
+            *arguments,
+            "--json",
+            cwd=tmp_path,
+        )
+        assert result["required_gaps"] == ["attestation_set_repository_invalid"]
 
-    result = run_ethos_blocked(*command, *arguments, "--json", cwd=tmp_path)
-
-    assert result["required_gaps"] == ["attestation_set_repository_invalid"]
-
-
-def test_attestation_query_rejects_non_repository_root(tmp_path: Path) -> None:
     result = run_ethos_blocked(
-        "attestation",
-        "query",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-        cwd=tmp_path,
+        "attestation", "query", "--root", tmp_path.as_posix(), "--json", cwd=tmp_path
     )
-
     assert result["required_gaps"] == ["attestation_set_repository_invalid"]
 
-
-def test_attestation_query_reports_invalid_selected_root_without_traceback(
-    tmp_path: Path,
-) -> None:
     repo = init_git_repo(tmp_path / "repo")
     blob = run_git(repo, "hash-object", "-w", "--stdin", stdin="not-a-root").stdout.strip()
     run_git(repo, "update-ref", ATTESTATION_SET_REF, blob)
-
     result = run_ethos_blocked(
-        "attestation",
-        "query",
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
+        "attestation", "query", "--root", repo.as_posix(), "--json", cwd=repo
     )
-
     assert result["required_gaps"] == ["attestation_set_root_invalid"]
 
-
-@pytest.mark.parametrize(
-    ("option", "value", "field"),
-    [
+    selectors = (
         ("--id", "not-a-digest", "id"),
         ("--predicate", "BAD SPACE", "predicate"),
         ("--verifier", "   ", "verifier"),
         ("--subject", "   ", "subject"),
         ("--payload-kind", "bad/space", "payload_kind"),
-    ],
-)
-def test_attestation_query_rejects_invalid_selectors(
-    tmp_path: Path, option: str, value: str, field: str
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-
-    result = run_ethos_blocked(
-        "attestation",
-        "query",
-        option,
-        value,
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
     )
-
-    assert result["required_gaps"] == [f"attestation_selector_invalid:{field}"]
+    for option, value, field in selectors:
+        result = run_ethos_blocked(
+            "attestation",
+            "query",
+            option,
+            value,
+            "--root",
+            repo.as_posix(),
+            "--json",
+            cwd=repo,
+        )
+        assert result["required_gaps"] == [f"attestation_selector_invalid:{field}"]

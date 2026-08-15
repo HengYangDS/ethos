@@ -4,7 +4,7 @@ role: explanation
 state: canonical
 relations:
   canonical_for: declarative governance compiler architecture
-  decided_by: docs/decisions/DR-0005-declarative-lifecycle-spine.md
+  derives_from: ../governance/product-design-contract.md#semantic-kernel
 ---
 
 # Declarative Governance Compiler
@@ -14,8 +14,7 @@ Status: canonical.
 Purpose: explain the declaration-first, functional center that compiles an
 intended repository change into a deterministic, evidence-bearing transition.
 
-See also: [DR-0005](../decisions/DR-0005-declarative-lifecycle-spine.md),
-[TransitionPlan](transition-plan.md), and
+See also: [TransitionPlan](transition-plan.md) and
 [Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
 
 ## Boundary

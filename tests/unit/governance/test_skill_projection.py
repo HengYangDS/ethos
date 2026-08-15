@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 from typing import cast
@@ -12,7 +11,6 @@ from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
-from ethos.contracts.review import ReviewResult
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.repository.adoption.planner import adoption_plan
@@ -38,57 +36,6 @@ def _skill(skill_id: str, **updates: object) -> dict[str, object]:
         "operation": "plan",
         "path_globs": ["src/**"],
     } | updates
-
-
-def _review_results(
-    plan: dict[str, Any],
-    *,
-    head: str | None = None,
-) -> list[dict[str, object]]:
-    return [
-        ReviewResult(
-            review_plan=cast("str", plan["digest"]),
-            inputs=cast("str", plan["inputs"]),
-            head=head or cast("str", plan["head"]),
-            tree=cast("str", plan["tree"]),
-            phase=plan["phase"],
-            lens=lens["id"],
-            verifier=f"reviewer:{lens['id']}",
-            verdict="pass",
-            next_action="continue",
-        ).model_dump(mode="json")
-        for lens in plan["lenses"]
-    ]
-
-
-def _review_plan_fixture(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> tuple[Path, dict[str, Any], dict[str, Any]]:
-    repo = init_git_repo(tmp_path / "adopter")
-    adoption_plan(repo, apply=True)
-    monkeypatch.setattr(
-        "ethos.surface.cli.root.planning.playbooks_report",
-        lambda _root: {"registry": _registry(), "required_gaps": []},
-        raising=False,
-    )
-    first = run_ethos("plan", "--root", repo.as_posix(), "--json", cwd=repo)
-    return repo, first, first["data"]["review_plan"]
-
-
-def _plan_with_review_results(repo: Path, results_path: Path, results: object) -> dict[str, Any]:
-    results_path.write_text(
-        results if isinstance(results, str) else json.dumps(results), encoding="utf-8"
-    )
-    return run_ethos(
-        "plan",
-        "--root",
-        repo.as_posix(),
-        "--review-results",
-        results_path.as_posix(),
-        "--json",
-        cwd=repo,
-    )
 
 
 def test_activation_registry_contains_only_current_v2_semantics() -> None:
@@ -248,66 +195,11 @@ def test_plan_projects_the_compiled_skill_activation(
         },
         "required_gaps": [],
     }
-    review_plan = payload["data"]["review_plan"]
     transition_facts = payload["data"]["transition_plan"]["facts"]["values"]
-    assert payload["summary"]["required_review_lens_count"] == len(review_plan["lenses"])
-    assert review_plan["head"] == payload["data"]["transition_plan"]["facts"]["head"]
-    assert review_plan["tree"] == payload["data"]["transition_plan"]["facts"]["tree"]
-    assert transition_facts["review_plan"]["digest"] == review_plan["digest"]
-
-
-def test_plan_reduces_external_review_results_through_the_same_bound_plan(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, first, plan = _review_plan_fixture(tmp_path, monkeypatch)
-    reviewed = _plan_with_review_results(
-        repo, tmp_path / "review-results.json", _review_results(plan)
-    )
-
-    assert reviewed["required_gaps"] == first["required_gaps"]
-    assert reviewed["data"]["review_decision"] == {
-        "review_plan": plan["digest"],
-        "verdict": "pass",
-        "state": "reviewed",
-        "required_gaps": [],
-        "next_action": "continue the governed lifecycle",
-        "user_decision_required": False,
-    }
-
-
-def test_plan_fails_closed_for_stale_review_results(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, _, plan = _review_plan_fixture(tmp_path, monkeypatch)
-    stale_result = _plan_with_review_results(
-        repo,
-        tmp_path / "stale-review-results.json",
-        _review_results(plan, head="0" * 40),
-    )
-
-    assert stale_result["data"]["review_decision"]["state"] == "gapped"
-    assert stale_result["data"]["review_decision"]["required_gaps"] == [
-        f"review_result_binding_mismatch:{lens['id']}" for lens in plan["lenses"]
-    ]
-    assert stale_result["next_action"] == "rerun the missing or stale review lenses"
-
-
-def test_plan_fails_closed_without_traceback_for_malformed_review_results(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, first, _ = _review_plan_fixture(tmp_path, monkeypatch)
-    result = _plan_with_review_results(repo, tmp_path / "malformed-review-results.json", "{")
-
-    assert result["verdict"] == "block"
-    assert result["required_gaps"] == [
-        *first["required_gaps"],
-        "review_results_invalid",
-    ]
-    assert result["next_action"] == "repair the review result file and rerun ethos plan --json"
-    assert "review_decision" not in result["data"]
+    assert "required_review_lens_count" not in payload["summary"]
+    assert "review_plan" not in payload["data"]
+    assert "review_decision" not in payload["data"]
+    assert "review_plan" not in transition_facts
 
 
 def test_skill_package_manifest_rejects_undeclared_eval_fields(tmp_path: Path) -> None:

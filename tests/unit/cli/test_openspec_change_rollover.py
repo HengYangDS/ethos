@@ -518,6 +518,19 @@ def test_start_change_does_not_recognize_a_forged_selected_member(
     worktree = _archived_lane(tmp_path, monkeypatch).worktree
     archived_head = current_tracked_head(worktree)
     arguments = _start_change_arguments(worktree, archived_head)
+
+    def commit_without_product_hooks(
+        root: Path,
+        *,
+        previous: str,
+        message: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        assert current_tracked_head(root) == previous
+        git(root, "commit", "-m", message)
+        return {"verdict": "pass", "error": ""}
+
+    monkeypatch.setattr(rollover, "commit_git_worktree", commit_without_product_hooks)
     started = run_ethos(*arguments, cwd=worktree)
     assert started["state"] == "started"
     _root, selected = read_attestation_set(worktree)

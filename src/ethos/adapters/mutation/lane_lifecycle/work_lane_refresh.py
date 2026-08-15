@@ -402,9 +402,7 @@ def _refresh_transition_plan(
 ) -> TransitionPlan:
     lease = leases_by_branch(root).get(branch, {})
     effect = GitEffect(
-        updates={
-            f"refs/heads/{branch}": GitRefUpdate(expected=current_head, desired=rebased_head)
-        },
+        updates={f"refs/heads/{branch}": GitRefUpdate(expected=current_head, desired=rebased_head)},
         assertions={f"refs/heads/{candidate_branch}": candidate_head},
     )
     return compile_observed_git_effect(

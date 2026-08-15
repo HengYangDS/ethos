@@ -97,9 +97,7 @@ def commitment_report(root: Path, name: str) -> dict[str, object]:
     """Load one active Commitment and project only coverage facts."""
     try:
         load_commitment_file(root / ".ethos" / "commitment.toml")
-        contract = load_commitment_file(
-            root / "openspec" / "changes" / name / "commitment.toml"
-        )
+        contract = load_commitment_file(root / "openspec" / "changes" / name / "commitment.toml")
     except (OSError, UnicodeError, TypeError, ValueError):
         return {
             "name": name,

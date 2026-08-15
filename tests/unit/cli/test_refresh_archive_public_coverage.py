@@ -119,9 +119,7 @@ def test_refresh_public_reader_exposes_identity_repair_route(
 def _completed_governance(*, remaining: int = 0) -> dict[str, object]:
     return {
         "required_gaps": [],
-        "lifecycle": {
-            "changes": [{"name": CHANGE, "progress": {"remaining": remaining}}]
-        },
+        "lifecycle": {"changes": [{"name": CHANGE, "progress": {"remaining": remaining}}]},
         "commands": {"status": {"json": {"changes": []}}},
     }
 
@@ -171,9 +169,7 @@ def _stub_archive_public(
             }
         },
     )
-    monkeypatch.setattr(
-        archive, "work_lane_transition_gaps", lambda *_args, **_kwargs: []
-    )
+    monkeypatch.setattr(archive, "work_lane_transition_gaps", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(archive, "proof_gaps", lambda *_args: [])
     monkeypatch.setattr(
         archive,
@@ -206,27 +202,21 @@ def _stub_archive_public(
         lambda *_args: f"{ARCHIVE_PATH}.preserved",
     )
     monkeypatch.setattr(archive, "artifact_output_paths", lambda *_args: ())
-    monkeypatch.setattr(
-        archive.openspec_cli, "openspec_base_command", lambda: ("openspec",)
-    )
+    monkeypatch.setattr(archive.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
         archive.openspec_cli,
         "run_json",
         lambda *_args: result or _archive_result(root),
     )
     monkeypatch.setattr(archive, "dirty_changed_paths", lambda _root: ("spec.md",))
-    monkeypatch.setattr(
-        archive, "normalize_projected_specs", lambda *_args, **_kwargs: None
-    )
+    monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(archive, "stage_git_worktree", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         archive,
         "lease_bound_archive_scope_report",
         lambda *_args, **_kwargs: {"verdict": "pass", "state": "archive_transition"},
     )
-    monkeypatch.setattr(
-        archive, "archive_transition_environment", lambda *_args, **_kwargs: {}
-    )
+    monkeypatch.setattr(archive, "archive_transition_environment", lambda *_args, **_kwargs: {})
     monkeypatch.setattr(
         archive,
         "lifecycle_commit_subject",
@@ -246,9 +236,7 @@ def test_archive_public_dry_run_and_local_state_guard(
         tmp_path,
         guard={"required_gaps": ["migration"], "next_action": "ethos state migrate"},
     )
-    blocked = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    blocked = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
     assert blocked["required_gaps"] == ["local_state_migration_required"]
     assert blocked["next_action"] == "ethos state migrate"
 
@@ -266,9 +254,7 @@ def test_archive_public_rejects_an_existing_collision_preservation(
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
 
     assert report["state"] == "blocked"
-    assert report["required_gaps"] == [
-        "openspec_archive_collision_preservation_conflict"
-    ]
+    assert report["required_gaps"] == ["openspec_archive_collision_preservation_conflict"]
 
 
 def test_archive_public_preserves_an_untracked_collision_target(
@@ -280,14 +266,10 @@ def test_archive_public_preserves_an_untracked_collision_target(
     marker = preserved / "marker"
     marker.write_text("keep", encoding="utf-8")
 
-    report = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["state"] == "blocked"
-    assert report["required_gaps"] == [
-        "openspec_archive_collision_preservation_conflict"
-    ]
+    assert report["required_gaps"] == ["openspec_archive_collision_preservation_conflict"]
     assert marker.read_text(encoding="utf-8") == "keep"
 
 
@@ -318,9 +300,7 @@ def test_archive_public_missing_native_command_does_not_mutate(
     _stub_archive_public(monkeypatch, tmp_path)
     monkeypatch.setattr(archive.openspec_cli, "openspec_base_command", lambda: None)
 
-    report = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["required_gaps"] == ["openspec_official_cli_missing"]
 
@@ -341,9 +321,7 @@ def test_archive_public_exception_compensates_exact_tree(
         lambda _root, **kwargs: compensated.append(kwargs),
     )
 
-    report = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["state"] == "repair_required"
     assert report["required_gaps"] == ["archive_failed"]
@@ -368,9 +346,7 @@ def test_archive_public_commit_failure_compensates_native_delta(
         lambda _root, **kwargs: compensated.append(str(kwargs["untracked_path"])),
     )
 
-    report = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["required_gaps"] == ["openspec_archive_commit_failed"]
     assert report["stderr"] == "hook rejected"
@@ -426,9 +402,7 @@ def test_archive_public_rejects_invalid_native_receipt(
         lambda _root, **kwargs: compensated.append(str(kwargs["untracked_path"])),
     )
 
-    report = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["required_gaps"] == ["openspec_archive_result_invalid"]
     assert compensated == [compensated_path]
@@ -478,16 +452,12 @@ def test_archive_public_collision_falls_back_to_exact_lease_cas_and_finishes(
             or dict(lease)
         ),
     )
-    monkeypatch.setattr(
-        archive, "state_database", lambda _root: tmp_path / "state.sqlite"
-    )
+    monkeypatch.setattr(archive, "state_database", lambda _root: tmp_path / "state.sqlite")
     monkeypatch.setattr(archive, "integer_value", int)
     monkeypatch.setattr(
         archive,
         "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(
-            id="repository:self", digest=lambda: "r" * 64
-        ),
+        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "r" * 64),
     )
     monkeypatch.setattr(
         archive,
@@ -502,9 +472,7 @@ def test_archive_public_collision_falls_back_to_exact_lease_cas_and_finishes(
     )
     monkeypatch.setattr(archive, "record_attestations", lambda *_args: {})
 
-    report = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["state"] == "archived"
     assert report["preserved_archive_path"] == f"{ARCHIVE_PATH}.preserved"
@@ -543,18 +511,12 @@ def test_archive_public_lease_cas_failure_is_repair_required(
     monkeypatch.setattr(
         archive,
         "advance_lease_ref",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            ValueError("lease_epoch_stale")
-        ),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("lease_epoch_stale")),
     )
-    monkeypatch.setattr(
-        archive, "state_database", lambda _root: tmp_path / "state.sqlite"
-    )
+    monkeypatch.setattr(archive, "state_database", lambda _root: tmp_path / "state.sqlite")
     monkeypatch.setattr(archive, "integer_value", int)
 
-    report = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["state"] == "repair_required"
     assert "openspec_archive_lease_not_advanced" in report["required_gaps"]
@@ -574,9 +536,7 @@ def _stub_archive_attestation_recovery(
     }
     _stub_archive_public(monkeypatch, root)
     monkeypatch.setattr(archive, "current_tracked_head", lambda _root: state["head"])
-    monkeypatch.setattr(
-        archive, "leases_by_branch", lambda _root: {BRANCH: dict(lease)}
-    )
+    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
     monkeypatch.setattr(
         archive,
         "git_stdout",
@@ -609,11 +569,7 @@ def _stub_archive_attestation_recovery(
         "lease_bound_archive_scope_report",
         lambda *_args, **_kwargs: {
             "verdict": "pass",
-            "state": (
-                "archive_transition"
-                if state["head"] == HEAD
-                else "post_archive_closeout"
-            ),
+            "state": ("archive_transition" if state["head"] == HEAD else "post_archive_closeout"),
         },
     )
     monkeypatch.setattr(
@@ -648,9 +604,7 @@ def test_archive_public_recovers_attestation_after_the_git_effect_completed(
 ) -> None:
     state = _stub_archive_attestation_recovery(monkeypatch, tmp_path)
 
-    partial = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    partial = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert partial["state"] == "archive_attestation_pending"
     assert partial["head"] == NEW_HEAD
@@ -687,9 +641,7 @@ def test_archive_recovery_fails_closed_when_the_attestation_set_is_damaged(
     gap: str,
 ) -> None:
     _stub_archive_attestation_recovery(monkeypatch, tmp_path)
-    partial = archive.archive_change(
-        root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True
-    )
+    partial = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
     assert partial["state"] == "archive_attestation_pending"
 
     def damaged_set(_root: Path) -> object:

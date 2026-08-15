@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_old_generation
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_request
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_state
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import (
+    bootstrap_target_binding,
+)
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import rebind_target_binding
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation import (
     load_commitment_rebind_receipt,
@@ -26,6 +29,7 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
 )
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.repo.commit_identity import commit_trust_setup_action
+from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import ref_head
@@ -45,6 +49,7 @@ from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
+    from ethos.contracts.semantic import Commitment
 
 
 def execute_commitment_rebind(*, root: Path, request: CommitmentRebindRequest) -> dict[str, object]:
@@ -108,8 +113,7 @@ def _preview_commitment_rebind(
         admit_rebind_request(repo, request, require_apply=False)
         admit_old_generation(request, lease)
         admit_rebind_state(repo, request, lease)
-        old_commitment = load_lease_bound_commitment(repo, lease=lease)
-        target = rebind_target_binding(repo, request, old_commitment)
+        target = _target_binding(repo, request, lease)
         effect = GitEffect(
             updates={
                 f"refs/heads/{request.branch}": GitRefUpdate(
@@ -123,7 +127,7 @@ def _preview_commitment_rebind(
             request,
             lease,
             effect,
-            old_commitment.digest(),
+            request.expected_commitment_digest,
             request.expected_working_overlay_sha256,
         )
     except (OSError, TypeError, ValueError) as error:
@@ -215,10 +219,16 @@ def _apply(
     effect: GitEffect,
     lease: dict[str, object],
 ) -> dict[str, object]:
-    old_commitment = load_lease_bound_commitment(repo, lease=lease)
-    target = rebind_target_binding(repo, request, old_commitment)
+    target = _target_binding(repo, request, lease)
     old_overlay = working_overlay_sha256(repo)
-    plan = _plan(repo, request, lease, effect, old_commitment.digest(), old_overlay)
+    plan = _plan(
+        repo,
+        request,
+        lease,
+        effect,
+        request.expected_commitment_digest,
+        old_overlay,
+    )
     recovering = ref_head(repo, request.branch) == request.target_commit
     git_attestation = execute_git_effect(repo, plan, issuer=request.holder_ref)
     updated = rebind_lease_commitment(
@@ -236,7 +246,7 @@ def _apply(
         new_lease=updated,
         plan=plan,
         effect=effect,
-        git_state=str(git_attestation.statement["result"]["state"]),
+        git_state=str(git_attestation.payload.body["result"]["state"]),
         issued_at=datetime.now(UTC),
     )
     persist_rebind_attestation(repo, effect, attestation)
@@ -279,8 +289,7 @@ def _recover_head_only_partial_target(
         "expected_tree": request.expected_tree,
         "payload_sha256": request.expected_payload_sha256,
     }
-    old_commitment = load_lease_bound_commitment(repo, lease=prior_coordinates)
-    target = rebind_target_binding(repo, request, old_commitment)
+    target = _target_binding(repo, request, prior_coordinates)
     current_request = request.model_copy(
         update={
             "expect_head": str(lease["expected_head"]),
@@ -298,7 +307,7 @@ def _recover_head_only_partial_target(
         request,
         old_generation(request),
         effect,
-        old_commitment.digest(),
+        request.expected_commitment_digest,
         working_overlay_sha256(repo),
     )
     attestation = issue_rebind_attestation(
@@ -326,8 +335,7 @@ def _project_partial_target_recovery(
         "expected_tree": request.expected_tree,
         "payload_sha256": request.expected_payload_sha256,
     }
-    old_commitment = load_lease_bound_commitment(repo, lease=prior_coordinates)
-    rebind_target_binding(repo, request, old_commitment)
+    _target_binding(repo, request, prior_coordinates)
     return {
         "verdict": "pass",
         "state": "ready_to_recover",
@@ -346,16 +354,25 @@ def _plan(
     old_commitment_digest: str,
     overlay_sha256: str,
 ):
-    commitment = load_lease_bound_commitment(repo, lease=lease)
+    authority = _plan_authority(repo, request, lease)
     return compile_observed_git_effect(
         repo,
-        commitment,
+        authority,
         effect,
         head=request.expect_head,
         prior_attestations={},
         policy={
             "operation": (
-                "change.identity-repair" if request.repair_change_identity else "commitment.rebind"
+                request.operation
+                if request.operation == "v1-to-v2-bootstrap"
+                else "change.identity-repair"
+                if request.repair_change_identity
+                else "commitment.rebind"
+            ),
+            "repository_commitment_bootstrap": request.operation == "v1-to-v2-bootstrap",
+            "prestate_repository_id": request.old_repository_id,
+            "prestate_repository_bytes_sha256": (
+                request.old_repository_commitment_bytes_sha256
             ),
             "old_commitment_digest": old_commitment_digest,
             "new_commitment_digest": request.new_commitment_digest,
@@ -452,11 +469,39 @@ def _attest_recovered(
         new_lease=lease,
         plan=plan,
         effect=effect,
-        git_state=str(git_attestation.statement["result"]["state"]),
+        git_state=str(git_attestation.payload.body["result"]["state"]),
         issued_at=datetime.now(UTC),
     )
     persist_rebind_attestation(repo, effect, attestation)
     return _report(request, lease, attestation, "attested")
+
+
+def _target_binding(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    lease: dict[str, object],
+) -> dict[str, str]:
+    """Return the exact target binding for one declared operation."""
+    if request.operation == "v1-to-v2-bootstrap":
+        return bootstrap_target_binding(repo, request)
+    old = load_lease_bound_commitment(repo, lease=lease)
+    return rebind_target_binding(repo, request, old)
+
+
+def _plan_authority(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    lease: dict[str, object],
+) -> Commitment:
+    """Select strict current authority without interpreting terminal v1 bytes."""
+    if request.operation == "v1-to-v2-bootstrap":
+        return load_commitment(
+            repo,
+            carrier=request.new_commitment_path,
+            tree_ref=request.target_commit,
+            expected_digest=request.new_commitment_digest,
+        )
+    return load_lease_bound_commitment(repo, lease=lease)
 
 
 def _report(

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Mapping
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from typing import NamedTuple
@@ -18,9 +21,10 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import change_overlay
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
-from ethos.adapters.mutation.proof_artifacts import persist_attestation
+from ethos.adapters.openspec.generation.attestation import start_effect_authority
 from ethos.adapters.openspec.lifecycle.report import official_change_rows
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit_message import lifecycle_commit_subject
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
@@ -55,6 +59,7 @@ class _StartRequest(NamedTuple):
     intent: str
     scope: tuple[str, ...]
     expect_head: str
+    selected_attestations: tuple[str, ...]
     expected_overlay_digest: str
     apply: bool
     lease: dict[str, object]
@@ -87,6 +92,7 @@ def start_change(
     intent: str,
     scope: tuple[str, ...],
     expect_head: str,
+    selected_attestations: tuple[str, ...] = (),
     expected_overlay_digest: str = "",
     apply: bool = False,
 ) -> dict[str, object]:
@@ -95,6 +101,21 @@ def start_change(
     branch = git_stdout(repo, "branch", "--show-current")
     head = current_tracked_head(repo)
     lease = leases_by_branch(repo).get(branch, {})
+    if _committed_request_mismatch(
+        repo,
+        change=change,
+        previous_head=expect_head,
+        intent=intent,
+        scope=scope,
+        selected_attestations=selected_attestations,
+    ):
+        return lifecycle_report(
+            branch,
+            head,
+            "blocked",
+            ["openspec_change_request_mismatch"],
+            change=change,
+        )
     recognized = _recognized(repo, branch, change, expect_head, lease)
     if recognized is not None:
         return recognized
@@ -115,11 +136,12 @@ def start_change(
         intent,
         scope,
         expect_head,
+        selected_attestations,
         expected_overlay_digest,
         apply,
         lease,
     )
-    gaps, overlay = _preflight(repo, request)
+    gaps, overlay, selected_set_root = _preflight(repo, request)
     guard = local_state_mutation_guard(repo) if apply and not gaps else {"required_gaps": []}
     if guard["required_gaps"]:
         gaps = cast("list[str]", guard["required_gaps"])
@@ -134,7 +156,7 @@ def start_change(
             **({"next_action": guard["next_action"]} if guard["required_gaps"] else {}),
         )
     try:
-        return _apply(repo, request, overlay)
+        return _apply(repo, request, overlay, selected_set_root)
     except (OSError, TypeError, ValueError) as error:
         return lifecycle_report(
             branch,
@@ -185,8 +207,19 @@ def _recover(
 def _preflight(
     root: Path,
     request: _StartRequest,
-) -> tuple[list[str], ChangeOverlay]:
-    branch, head, change, intent, scope, expect_head, expected_digest, apply, lease = request
+) -> tuple[list[str], ChangeOverlay, str]:
+    (
+        branch,
+        head,
+        change,
+        intent,
+        scope,
+        expect_head,
+        selected_attestations,
+        expected_digest,
+        apply,
+        lease,
+    ) = request
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     carrier = str(lease.get("base_commitment_path") or "")
     gaps = work_lane_transition_gaps(
@@ -206,64 +239,117 @@ def _preflight(
         ),
         (bool(intent.strip()), "openspec_change_intent_missing"),
         (bool(scope), "openspec_change_scope_missing"),
-        (not (root / "openspec" / "changes" / change).exists(), f"openspec_change_exists:{change}"),
+        (
+            not (root / "openspec" / "changes" / change).exists(),
+            f"openspec_change_exists:{change}",
+        ),
     )
     gaps.extend(gap for valid, gap in checks if not valid)
     overlay = _empty_overlay()
-    if gaps:
-        return gaps, overlay
-    try:
-        _commitment(change=change, intent=intent, scope=scope)
-    except ValueError:
-        gaps.append("openspec_change_commitment_invalid")
-        return gaps, overlay
-    overlay = change_overlay_report(
-        root,
-        scope=scope,
-        expected_digest=expected_digest,
-        apply=apply,
-    )
-    gaps.extend(str(gap) for gap in overlay["required_gaps"])
-    if gaps:
-        return gaps, overlay
-    try:
-        load_lease_bound_commitment(root, lease=lease)
-    except ValueError as error:
-        gaps.append(str(error))
-        return gaps, overlay
+    selected_set_root = ""
+    if not gaps:
+        try:
+            _commitment(
+                root=root,
+                change=change,
+                intent=intent,
+                scope=scope,
+                predecessor=load_lease_bound_commitment(root, lease=lease),
+                selected_attestations=selected_attestations,
+            )
+        except ValueError:
+            gaps.append("openspec_change_commitment_invalid")
+    if not gaps:
+        selected_set_root, selection_gaps = _selection_observation(
+            root,
+            change,
+            selected_attestations,
+        )
+        gaps.extend(selection_gaps)
+    if not gaps:
+        overlay = change_overlay_report(
+            root,
+            scope=scope,
+            expected_digest=expected_digest,
+            apply=apply,
+        )
+        gaps.extend(str(gap) for gap in overlay["required_gaps"])
+    if not gaps:
+        try:
+            load_lease_bound_commitment(root, lease=lease)
+        except ValueError as error:
+            gaps.append(str(error))
+    if not gaps:
+        gaps.extend(_openspec_start_gaps(root))
+    return gaps, overlay, selected_set_root
+
+
+def _openspec_start_gaps(root: Path) -> list[str]:
     command = openspec_cli.openspec_base_command()
     if command is None:
-        gaps.append("openspec_official_cli_missing")
-        return gaps, overlay
+        return ["openspec_official_cli_missing"]
     listed = openspec_cli.run_json(root, command, ("list", "--json"))
     rows = official_change_rows(listed.get("json", {}))
     if listed.get("exit_code") != 0 or listed.get("parse_error") or rows is None:
-        gaps.append("openspec_list_unreadable")
-    elif rows:
-        gaps.append("openspec_active_change_present")
-    return gaps, overlay
+        return ["openspec_list_unreadable"]
+    return ["openspec_active_change_present"] if rows else []
 
 
 def _apply(
     root: Path,
     request: _StartRequest,
     overlay: ChangeOverlay,
+    selected_set_root: str,
 ) -> dict[str, object]:
-    branch, _head, change, intent, scope, previous_head, _digest, _apply, old_lease = request
+    (
+        branch,
+        _head,
+        change,
+        intent,
+        scope,
+        previous_head,
+        selected_attestations,
+        _digest,
+        _apply,
+        old_lease,
+    ) = request
     command = openspec_cli.openspec_base_command()
     if command is None:
         msg = "openspec_official_cli_missing"
         raise ValueError(msg)
+    _require_selection_boundary(
+        root,
+        change=change,
+        identities=selected_attestations,
+        expected_root=selected_set_root,
+    )
     result = openspec_cli.run_json(root, command, ("new", "change", change, "--json"))
     change_root = f"openspec/changes/{change}"
     created_paths = (f"{change_root}/.openspec.yaml", f"{change_root}/commitment.toml")
+    try:
+        _require_selection_boundary(
+            root,
+            change=change,
+            identities=selected_attestations,
+            expected_root=selected_set_root,
+        )
+    except ValueError:
+        remove_untracked_tree(root, change_root)
+        raise
     if not _official_new_result(root, change, result):
         remove_untracked_tree(root, change_root)
         msg = "openspec_change_create_failed"
         raise ValueError(msg)
     commitment_path = f"{change_root}/commitment.toml"
     (root / commitment_path).write_text(
-        _commitment_text(change=change, intent=intent, scope=scope),
+        _commitment_text(
+            root=root,
+            change=change,
+            intent=intent,
+            scope=scope,
+            predecessor=load_lease_bound_commitment(root, lease=old_lease),
+            selected_attestations=selected_attestations,
+        ),
         encoding="utf-8",
     )
     overlay_paths = tuple(str(path) for path in overlay.get("paths", ()))
@@ -326,7 +412,7 @@ def _finish(
         old_lease=old_lease,
         new_lease=updated,
     )
-    persist_attestation(root, attestation)
+    record_attestations(root, (attestation,))
     return lifecycle_report(
         branch,
         head,
@@ -363,21 +449,182 @@ def _lease_request(
     )
 
 
-def _commitment_text(*, change: str, intent: str, scope: tuple[str, ...]) -> str:
+def _commitment_text(
+    *,
+    root: Path,
+    change: str,
+    intent: str,
+    scope: tuple[str, ...],
+    predecessor: Commitment,
+    selected_attestations: tuple[str, ...],
+) -> str:
     text = tomli_w.dumps(
-        _commitment(change=change, intent=intent, scope=scope).model_dump(mode="python")
+        _commitment(
+            root=root,
+            change=change,
+            intent=intent,
+            scope=scope,
+            predecessor=predecessor,
+            selected_attestations=selected_attestations,
+        ).model_dump(mode="python")
     )
     return text.replace("\n    ", "\n  ")
 
 
-def _commitment(*, change: str, intent: str, scope: tuple[str, ...]) -> Commitment:
-    bounded_scope = tuple(dict.fromkeys((f"openspec/changes/{change}/**", *scope)))
+def _commitment(
+    *,
+    root: Path,
+    change: str,
+    intent: str,
+    scope: tuple[str, ...],
+    predecessor: Commitment,
+    selected_attestations: tuple[str, ...],
+) -> Commitment:
+    repository_id = load_repository_commitment(root).id
+    bounded_scope = tuple(
+        sorted(
+            {f"openspec/changes/{change}/**", *scope},
+            key=lambda value: json.dumps(
+                value,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode(),
+        )
+    )
     return Commitment(
-        schema_version=1,
+        schema_version=2,
         id=f"change:{change}",
         intent=intent.strip(),
-        subjects=("repository:self",),
+        subjects=(repository_id,),
         scope=bounded_scope,
+        invariants=(),
+        acceptance=(),
+        risks=(),
+        authority_refs=(),
+        predecessors=(predecessor.digest(),),
+        selected_attestations=selected_attestations,
+        dependencies=(),
+        hypotheses=(),
+        falsifiers=(),
+        experiment_protocols=(),
+    )
+
+
+def _selection_observation(
+    root: Path,
+    change: str,
+    identities: tuple[str, ...],
+    *,
+    expected_root: str | None = None,
+) -> tuple[str, list[str]]:
+    if not identities:
+        return "", []
+    try:
+        selected_root, selected = read_attestation_set(root)
+    except (OSError, TypeError, ValueError) as error:
+        return "", [str(error)]
+    if expected_root is not None and selected_root != expected_root:
+        return selected_root, ["selected_attestation_set_changed"]
+    members = {item.id: item for item in selected}
+    gaps: list[str] = []
+    owner = f"change:{change}"
+    now = datetime.now(UTC)
+    for identity in identities:
+        attestation = members.get(identity)
+        if attestation is None:
+            gaps.append(f"selected_attestation_missing:{identity}")
+            continue
+        body = attestation.payload.body
+        relations = {
+            (relation.kind, relation.target_kind, relation.target_id)
+            for relation in attestation.relations
+        }
+        disposed = {
+            target_id
+            for kind, target_kind, target_id in relations
+            if kind == "relation:disposes" and target_kind == "semantic:attestation"
+        }
+        valid = (
+            _selection_is_current(attestation, now)
+            and attestation.predicate == "selection:input"
+            and attestation.payload.kind == "selection:disposition"
+            and body.get("disposition") == "semantic-owner"
+            and body.get("owner") == owner
+            and ("relation:selected-for", "semantic:commitment", owner) in relations
+            and len(disposed) == 1
+            and attestation.subject in disposed
+            and disposed <= members.keys()
+        )
+        if not valid:
+            gaps.append(f"selected_attestation_disposition_invalid:{identity}")
+    return selected_root, gaps
+
+
+def _require_selection_boundary(
+    root: Path,
+    *,
+    change: str,
+    identities: tuple[str, ...],
+    expected_root: str,
+) -> None:
+    _selected_root, gaps = _selection_observation(
+        root,
+        change,
+        identities,
+        expected_root=expected_root,
+    )
+    if gaps:
+        raise ValueError(gaps[0])
+
+
+def _selection_is_current(attestation: Attestation, now: datetime) -> bool:
+    return (
+        attestation.verdict == "pass"
+        and not attestation.payload.body.get("required_gaps")
+        and (attestation.valid_from or attestation.issued_at) <= now
+        and (attestation.valid_until is None or now <= attestation.valid_until)
+    )
+
+
+def _committed_request_mismatch(
+    root: Path,
+    *,
+    change: str,
+    previous_head: str,
+    intent: str,
+    scope: tuple[str, ...],
+    selected_attestations: tuple[str, ...],
+) -> bool:
+    head = current_tracked_head(root)
+    if (
+        head == previous_head
+        or run_git(root, "rev-parse", f"{head}^").stdout.strip() != previous_head
+    ):
+        return False
+    try:
+        current = load_commitment(
+            root,
+            carrier=f"openspec/changes/{change}/commitment.toml",
+            change_id=change,
+            tree_ref=head,
+        )
+    except ValueError:
+        return False
+    expected_scope = tuple(
+        sorted(
+            {f"openspec/changes/{change}/**", *scope},
+            key=lambda value: json.dumps(
+                value,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode(),
+        )
+    )
+    expected_selection = tuple(sorted(set(selected_attestations)))
+    return (
+        current.intent != intent.strip()
+        or current.scope != expected_scope
+        or current.selected_attestations != expected_selection
     )
 
 
@@ -450,31 +697,34 @@ def _recognized(
         or run_git(root, "rev-parse", f"{head}^").stdout.strip() != previous_head
     ):
         return None
-    for path in attestation_store_dir(root).glob("*.json"):
-        try:
-            attestation = Attestation.model_validate_json(path.read_bytes())
-        except (OSError, ValueError):
-            continue
-        freshness = attestation.statement.get("freshness")
-        if (
-            attestation.predicate == "effect:openspec-change-start"
-            and isinstance(freshness, Mapping)
-            and freshness.get("change") == change
-            and freshness.get("previous_head") == previous_head
-            and freshness.get("head") == head
-        ):
-            return lifecycle_report(
-                branch,
-                head,
-                "recognized",
-                [],
-                change=change,
-                previous_head=previous_head,
-                lease=lease,
-                tool_version=openspec_cli.OFFICIAL_VERSION,
-                attestation=attestation.model_dump(mode="json"),
-            )
-    return None
+    commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)
+    repository = load_repository_commitment(root, tree_ref=head)
+    _selected_root, attestations = read_attestation_set(root)
+    validated = tuple(
+        attestation
+        for attestation in attestations
+        if start_effect_authority(
+            root,
+            attestation,
+            head,
+            repository.id,
+            commitment,
+            lease,
+        )
+    )
+    if len(validated) != 1:
+        return None
+    return lifecycle_report(
+        branch,
+        head,
+        "recognized",
+        [],
+        change=change,
+        previous_head=previous_head,
+        lease=lease,
+        tool_version=openspec_cli.OFFICIAL_VERSION,
+        attestation=validated[0].model_dump(mode="json"),
+    )
 
 
 def _recoverable(

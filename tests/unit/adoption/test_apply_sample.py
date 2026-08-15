@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -40,7 +41,26 @@ def test_adopt_apply_writes_profile_and_repository_commitment(tmp_path: Path) ->
         (tmp_path / "openspec/config.yaml").as_posix(),
         (tmp_path / "openspec/specs/README.md").as_posix(),
     ]
-    assert 'id = "repository:' in (tmp_path / ".ethos/commitment.toml").read_text()
+    commitment_text = (tmp_path / ".ethos/commitment.toml").read_text(encoding="utf-8")
+    commitment = tomllib.loads(commitment_text)
+    assert commitment == {
+        "schema_version": 2,
+        "id": result["repository_id"],
+        "intent": "Govern repository change through ETHOS.",
+        "subjects": [result["repository_id"]],
+        "scope": ["**"],
+        "invariants": [],
+        "acceptance": [],
+        "risks": [],
+        "authority_refs": [".ethos/profile.toml"],
+        "predecessors": [],
+        "selected_attestations": [],
+        "dependencies": [],
+        "hypotheses": [],
+        "falsifiers": [],
+        "experiment_protocols": [],
+    }
+    assert "repository:self" not in commitment_text
 
 
 def test_declared_local_gate_registry_preserves_self_governance_floor() -> None:

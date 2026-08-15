@@ -10,15 +10,15 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.proof_admission
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
-from ethos.adapters.mutation.proof_artifacts import attestation_store_dir
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
-from ethos.adapters.mutation.proof_artifacts import persist_attestation
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_scope
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
@@ -180,33 +180,41 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if verdict == "pass" and (required_gaps or not checks_pass):
         msg = "proof_attestation_verdict_mismatch"
         raise ValueError(msg)
-    artifact = write_proof_artifact(attestation_store_dir(root), head, normalized)
+    artifact = write_proof_artifact(proof_artifact_root(root), head, normalized)
     digest = str(artifact["sha256"]).removeprefix("sha256:")
     issued = issued_at or datetime.now(UTC)
     attestation = Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": "proof:execution",
             "verifier": issuer,
             "subject": f"git:commit:{head}",
             "issued_at": issued,
             "valid_from": issued,
+            "valid_until": None,
             "verdict": verdict,
-            "statement": {
-                "claim": {"objective": objective, "verdict": verdict},
-                "scope": [scope],
-                "plane": "local",
-                "context": {"boundary": boundary},
-                "boundary": boundary,
-                "required_gaps": list(required_gaps),
-                "plan": plan.model_dump(mode="json"),
-                "artifact": artifact,
+            "payload": {
+                "kind": "proof:execution",
+                "body": {
+                    "claim": {"objective": objective, "verdict": verdict},
+                    "scope": [scope],
+                    "plane": "local",
+                    "context": {"boundary": boundary},
+                    "boundary": boundary,
+                    "required_gaps": list(required_gaps),
+                    "plan": plan.model_dump(mode="json"),
+                    "artifact": artifact,
+                },
             },
+            "relations": (),
+            "advisories": (),
             "evidence_refs": (f"sha256:{digest}",),
             "commitment_digest": plan.inputs.commitment,
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
             "effect_digest": plan.inputs.effect,
+            "mints_authority": False,
         }
     )
     gaps = proof_statement_gaps(attestation, normalized)
@@ -226,14 +234,14 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     return attestation
 
 
-def persist_proof_attestation(root: Path, attestation: Attestation) -> Path:
-    """Persist one proof Attestation directly by its content-addressed identity."""
+def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str, object]:
+    """Validate and select one proof Attestation in the sole Git set."""
     if attestation.predicate != "proof:execution" or not attestation.subject.startswith(
         "git:commit:"
     ):
         msg = "proof_attestation_binding_missing"
         raise ValueError(msg)
-    checks, artifact_gaps = artifact_checks(attestation_store_dir(root), attestation)
+    checks, artifact_gaps = artifact_checks(proof_artifact_root(root), attestation)
     gaps = artifact_gaps if checks is None else proof_statement_gaps(attestation, checks)
     structural_gaps = [
         gap
@@ -248,7 +256,7 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> Path:
     ]
     if structural_gaps:
         raise ValueError(structural_gaps[0])
-    return persist_attestation(root, attestation)
+    return record_attestations(root, (attestation,))
 
 
 def proof_plan(
@@ -357,7 +365,7 @@ def proof_plan(
 def proof_attestation(root: Path, head: str) -> Attestation | None:
     """Return one resolved generic proof Attestation for one exact HEAD."""
     attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=attestation_store_dir(root)
+        root, head, store=proof_artifact_root(root)
     )
     return attestation if not gaps else None
 
@@ -365,6 +373,6 @@ def proof_attestation(root: Path, head: str) -> Attestation | None:
 def proof_gaps(root: Path, head: str) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
     _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=attestation_store_dir(root)
+        root, head, store=proof_artifact_root(root)
     )
     return gaps

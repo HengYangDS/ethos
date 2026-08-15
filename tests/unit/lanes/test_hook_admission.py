@@ -16,12 +16,12 @@ from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import runtime_binding_check
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
-from ethos.adapters.mutation.proof import attestation_store_dir
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.runtime.binding import runtime_binding
@@ -133,11 +133,6 @@ def _proof_for_head(root: Path, head: str):
             "boundary": "repository",
         },
     )
-
-
-def _clear_attestation_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("ETHOS_TEST_ATTESTATION_STATE_DIR", "PYTEST_CURRENT_TEST", "PYTEST_XDIST_WORKER"):
-        monkeypatch.delenv(name, raising=False)
 
 
 def _cases(name: str) -> tuple[object, ...]:
@@ -613,9 +608,8 @@ def test_identity_failure_state_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert "ok" not in report
 
 
-def test_attestation_state_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _clear_attestation_env(monkeypatch)
-    assert attestation_store_dir(tmp_path) == tmp_path / ".ethos/state/attestations"
+def test_proof_artifact_root_uses_only_digest_bound_artifact_paths(tmp_path: Path) -> None:
+    assert proof_artifact_root(tmp_path) == tmp_path / ".ethos/state"
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     observed_common = Path(git(repo, "rev-parse", "--git-common-dir"))
@@ -623,21 +617,24 @@ def test_attestation_state_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
         (repo / observed_common).resolve() if not observed_common.is_absolute() else observed_common
     )
     assert state_database(repo) == common / "ethos/state.sqlite"
-    assert attestation_store_dir(repo) == common / "ethos/attestations"
+    assert proof_artifact_root(repo) == common / "ethos"
     assert state_database(repo) != repo / ".ethos/state/state.sqlite"
-    assert attestation_store_dir(repo) != repo / ".ethos/state/attestations"
+    assert proof_artifact_root(repo) != repo / ".ethos/state"
     head = git(repo, "rev-parse", "HEAD")
-    store = tmp_path / ".ethos/state/attestations-gw1"
-    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw1")
-    monkeypatch.setenv("ETHOS_TEST_ATTESTATION_STATE_DIR", store.as_posix())
     attestation = _proof_for_head(repo, head)
-    assert persist_proof_attestation(repo, attestation) == store / f"{attestation.id}.json"
+    selected = persist_proof_attestation(repo, attestation)
+    assert selected["root"]
     assert proof_attestation(repo, head) == attestation
+    artifact = attestation.payload.body["artifact"]
+    assert artifact["path"].startswith("artifacts/")
+    assert sorted(
+        path.relative_to(proof_artifact_root(repo)).as_posix()
+        for path in proof_artifact_root(repo).rglob("*.json")
+    ) == [artifact["path"]]
     assert not (repo / f".ethos/state/proof/{head}.json").exists()
 
 
-def test_attestation_validity_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _clear_attestation_env(monkeypatch)
+def test_attestation_validity_matrix(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")

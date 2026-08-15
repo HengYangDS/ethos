@@ -30,6 +30,7 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git_effect_attestation import NativeEffect
 from ethos.adapters.repo.git_effect_attestation import issue_native_effect
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import stage_git_paths
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
@@ -59,6 +60,7 @@ class LaneStartContext(NamedTuple):
     source_commitment_path: str
     source_head: str
     source_branch: str
+    source_lease: dict[str, object]
     run: Callable[..., subprocess.CompletedProcess[str]]
     acquire: Callable[..., dict[str, object]]
 
@@ -341,16 +343,15 @@ def initialize_lane_carrier(
         failure = failed_process("lane_start_source_commit_metadata_unreadable")
     final_head = candidate_head
     if failure is None:
-        committed = context.run(
+        committed = create_git_commit(
             context.target,
-            "commit-tree",
-            tree,
-            "-p",
-            candidate_head,
-            "-m",
-            lifecycle_commit_subject(context.target, "materialize", context.source_change_id),
-            check=False,
-            env=metadata,
+            tree=tree,
+            parent=candidate_head,
+            message=lifecycle_commit_subject(
+                context.target, "materialize", context.source_change_id
+            ),
+            environment=metadata,
+            runner=context.run,
         )
         failure = committed if committed.returncode != 0 else None
         final_head = committed.stdout.strip() if failure is None else candidate_head

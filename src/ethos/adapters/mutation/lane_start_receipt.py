@@ -37,6 +37,7 @@ def started_lane_report(
         "path": context.target.as_posix(),
         "source_root": context.source_root.resolve().as_posix() if context.source_head else "",
         "source_head": context.source_head,
+        "source_lease_state": "revoked" if context.source_lease else "not_applicable",
         "source_change_id": context.source_change_id,
         "source_commitment_digest": context.base_commitment_digest,
         "worktree": started_worktree(branch=context.branch, path=context.target, run=context.run),

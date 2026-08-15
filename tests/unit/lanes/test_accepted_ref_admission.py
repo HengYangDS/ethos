@@ -110,7 +110,7 @@ class State:
             proof.persist_proof_attestation(
                 self.repo,
                 proof.Attestation.issue(
-                    first.model_dump(exclude={"id", "schema_version", "statement_digest"})
+                    first.model_dump(mode="python", exclude={"id"})
                     | {"issued_at": first.issued_at + timedelta(seconds=1)}
                 ),
             )

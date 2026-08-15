@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 from typing import cast
 
+from cyclopts import App
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
@@ -12,10 +13,13 @@ from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementReque
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.surface.cli.application import lane_retire_app
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
+from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
 from ethos.surface.cli.root_binding import resolve_root
+
+_app = App(name="retire", help="Bounded Work Lane retirement lifecycle.")
+lane_app.command(_app)
 
 
 class _SupersededOptions(AppliedLaneCommandOptions):
@@ -48,7 +52,7 @@ _DEFAULT_SUPERSEDED = _SupersededOptions()
 _DEFAULT_LANDED = _LandedOptions()
 
 
-@lane_retire_app.command(name="absorbed-ref")
+@_app.command(name="absorbed-ref")
 def lane_retire_absorbed_ref(
     options: Annotated[_AbsorbedRefOptions, Parameter(name="*")],
 ) -> None:
@@ -76,7 +80,7 @@ def lane_retire_absorbed_ref(
     )
 
 
-@lane_retire_app.command(name="superseded")
+@_app.command(name="superseded")
 def lane_retire_superseded(
     options: Annotated[_SupersededOptions, Parameter(name="*")] = _DEFAULT_SUPERSEDED,
 ) -> None:
@@ -103,7 +107,7 @@ def lane_retire_superseded(
     )
 
 
-@lane_retire_app.command(name="landed")
+@_app.command(name="landed")
 def lane_retire_landed(
     options: Annotated[_LandedOptions, Parameter(name="*")] = _DEFAULT_LANDED,
 ) -> None:

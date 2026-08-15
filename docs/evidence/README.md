@@ -19,8 +19,9 @@ See also: [Documentation Root](../README.md), [Generated Artifact Topology](../a
 ## Evidence boundary
 
 This directory is a documentation entrypoint, not a second proof root. Current
-durable evidence is carried only by `evidence/attestations/`. `claims`, `chronicle`, and
-`parity` are immutable historical bytes with no current producer or authority.
+Attestations are selected only by `refs/ethos/attestations-set`.
+`evidence/attestations/`, `claims`, `chronicle`, and `parity` are immutable
+historical bytes with no current producer, selector, or authority.
 
 Machine output belongs under generated homes such as `build/ethos/` or
 `build/evidence/` until a bounded result is reviewed. A curated summary may live

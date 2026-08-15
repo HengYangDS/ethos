@@ -145,7 +145,8 @@ def _string(node: ast.AST) -> str:
 
 def cyclopts_prefixes(files: dict[str, str]) -> dict[tuple[str, str], str]:
     """Discover command prefixes declared by Cyclopts application trees."""
-    prefixes: dict[tuple[str, str], str] = {}
+    applications: dict[tuple[str, str], str] = {}
+    modules: dict[str, tuple[ast.AST, dict[str, tuple[str, str]]]] = {}
     for path, text in files.items():
         if "App(" not in text:
             continue
@@ -153,72 +154,98 @@ def cyclopts_prefixes(files: dict[str, str]) -> dict[tuple[str, str], str]:
         if not trees:
             continue
         tree = trees[0]
-        names = {
-            target.id: _app_name(node.value, target.id)
+        module = module_name(path)
+        imported = {
+            alias.asname or alias.name: (import_module(path, node), alias.name)
             for node in ast.walk(tree)
-            if isinstance(node, ast.Assign)
-            and len(node.targets) == 1
-            and isinstance((target := node.targets[0]), ast.Name)
-            and _is_app(node.value)
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
         }
-        parents = {
-            node.args[0].id: node.func.value.id
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "command"
-            and isinstance(node.func.value, ast.Name)
-            and node.args
-            and isinstance(node.args[0], ast.Name)
-            and node.args[0].id in names
-        }
+        applications.update(
+            {
+                (module, target.id): _app_name(node.value, target.id)
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance((target := node.targets[0]), ast.Name)
+                and _is_app(node.value)
+            }
+        )
+        modules[module] = tree, imported
+    parents: dict[tuple[str, str], tuple[str, str]] = {}
+    for module, (tree, imported) in modules.items():
+        parents.update(
+            {
+                _app_key(module, imported, node.args[0].id): _app_key(
+                    module, imported, node.func.value.id
+                )
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "command"
+                and isinstance(node.func.value, ast.Name)
+                and node.args
+                and isinstance(node.args[0], ast.Name)
+                and _app_key(module, imported, node.args[0].id) in applications
+            }
+        )
         for node in ast.walk(tree):
             if not isinstance(node, ast.For) or not isinstance(node.iter, ast.Tuple | ast.List):
                 continue
             parent = next(
                 (
-                    call.func.value.id
+                    _app_key(module, imported, call.func.value.id)
                     for call in ast.walk(node)
                     if isinstance(call, ast.Call)
                     and isinstance(call.func, ast.Attribute)
                     and call.func.attr == "command"
                     and isinstance(call.func.value, ast.Name)
                 ),
-                "",
+                None,
             )
-            parents.update(
-                {
-                    item.id: parent
-                    for item in node.iter.elts
-                    if parent and isinstance(item, ast.Name)
-                }
-            )
+            if parent is not None:
+                parents.update(
+                    {
+                        _app_key(module, imported, item.id): parent
+                        for item in node.iter.elts
+                        if isinstance(item, ast.Name)
+                        and _app_key(module, imported, item.id) in applications
+                    }
+                )
+    return {
+        key: _resolve_app_prefix(key, applications=applications, parents=parents)
+        for key in applications
+    }
 
-        module = module_name(path)
-        prefixes.update(
-            {
-                (module, name): _resolve_app_prefix(name, names=names, parents=parents)
-                for name in names
-            }
-        )
-    return prefixes
+
+def _app_key(
+    module: str,
+    imported: dict[str, tuple[str, str]],
+    name: str,
+) -> tuple[str, str]:
+    return imported.get(name, (module, name))
 
 
 def _resolve_app_prefix(
-    name: str,
+    key: tuple[str, str],
     *,
-    names: dict[str, str],
-    parents: dict[str, str],
-    trail: frozenset[str] = frozenset(),
+    applications: dict[tuple[str, str], str],
+    parents: dict[tuple[str, str], tuple[str, str]],
+    trail: frozenset[tuple[str, str]] = frozenset(),
 ) -> str:
-    if name in trail or name not in names:
+    if key in trail or key not in applications:
         return ""
     parent = (
-        _resolve_app_prefix(parents[name], names=names, parents=parents, trail=trail | {name})
-        if name in parents
+        _resolve_app_prefix(
+            parents[key],
+            applications=applications,
+            parents=parents,
+            trail=trail | {key},
+        )
+        if key in parents
         else ""
     )
-    return " ".join(part for part in (parent, names[name]) if part)
+    return " ".join(part for part in (parent, applications[key]) if part)
 
 
 def _is_app(node: ast.AST) -> bool:

@@ -14,7 +14,7 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.lease as lease_lifecycle
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_takeover
-from ethos.adapters.mutation.proof_artifacts import persist_attestation
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import takeover_lease
@@ -50,15 +50,27 @@ def _authorization(branch: str, digest: str, *, verdict: str = "pass") -> Attest
     now = datetime.now(UTC)
     return Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": "lane-resolution:takeover",
             "verifier": "maintainer:test:case:reviewer",
             "subject": f"git:branch:{branch}",
             "issued_at": now,
             "valid_from": now,
+            "valid_until": None,
             "verdict": verdict,
+            "payload": {
+                "kind": "authorization:lane-takeover",
+                "body": {"authorization": {"test": "storage-boundary"}},
+            },
+            "relations": (),
+            "advisories": (),
             "commitment_digest": digest,
+            "facts_digest": None,
+            "plan_digest": None,
+            "policy_digest": None,
+            "effect_digest": None,
             "evidence_refs": ("evidence:test:takeover",),
-            "statement": {"authorization": {"test": "storage-boundary"}},
+            "mints_authority": False,
         }
     )
 
@@ -256,30 +268,28 @@ def test_public_takeover_projects_migration_and_transition_failures(
         current,
         expected_dirty_content_sha256=lease_lifecycle.dirty_content_sha256(fixture.worktree),
     )
-    authorization = request.authorization.model_copy(
-        update={
-            "statement": {
-                "authorization": {
-                    "branch": request.branch,
-                    "head": request.expect_head,
-                    "tree": request.expected_tree,
-                    "dirty_content_sha256": request.expected_dirty_content_sha256,
-                    "lane_incarnation_id": request.expected_lane_incarnation_id,
-                    "lease_id": request.lease_id,
-                    "lease_epoch": request.expected_epoch,
-                    "lease_payload_sha256": request.expected_payload_sha256,
-                    "source_holder_ref": request.source_holder_ref,
-                    "target_holder_ref": request.target_holder_ref,
-                    "source_state": request.source_state,
-                }
-            }
-        }
-    )
-    authorization = Attestation.issue(
-        authorization.model_dump(exclude={"id", "schema_version", "statement_digest"})
-    )
+    authorization_payload = request.authorization.model_dump(mode="python", exclude={"id"})
+    authorization_payload["payload"] = {
+        "kind": "authorization:lane-takeover",
+        "body": {
+            "authorization": {
+                "branch": request.branch,
+                "head": request.expect_head,
+                "tree": request.expected_tree,
+                "dirty_content_sha256": request.expected_dirty_content_sha256,
+                "lane_incarnation_id": request.expected_lane_incarnation_id,
+                "lease_id": request.lease_id,
+                "lease_epoch": request.expected_epoch,
+                "lease_payload_sha256": request.expected_payload_sha256,
+                "source_holder_ref": request.source_holder_ref,
+                "target_holder_ref": request.target_holder_ref,
+                "source_state": request.source_state,
+            },
+        },
+    }
+    authorization = Attestation.issue(authorization_payload)
     request = request.model_copy(update={"authorization": authorization})
-    persist_attestation(fixture.worktree, authorization)
+    record_attestations(fixture.worktree, (authorization,))
     monkeypatch.setenv("ETHOS_ACTOR", TARGET)
     monkeypatch.setattr(
         lease_lifecycle,

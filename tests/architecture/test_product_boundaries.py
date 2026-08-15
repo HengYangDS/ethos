@@ -102,7 +102,7 @@ def test_runtime_package_and_dependency_boundaries() -> None:
 def test_semantic_subpackages_have_no_facade_or_parallel_owner() -> None:
     hook = ROOT / "src/ethos/adapters/repo/hook"
     assert not (ROOT / "src/ethos/repository/hooks.py").exists()
-    assert {"binding.py", "transaction.py"} <= {path.name for path in hook.glob("*.py")}
+    assert "binding.py" in {path.name for path in hook.glob("*.py")}
     forbidden = (
         "src/ethos/adapters/mutation/resolution",
         "src/ethos/contracts/resolution",
@@ -113,6 +113,28 @@ def test_semantic_subpackages_have_no_facade_or_parallel_owner() -> None:
         "system/schemas/kernel/lane-resolution-clear-receipt.schema.json",
     )
     assert [path for item in forbidden if (path := ROOT / item).exists()] == []
+
+
+def test_workspace_status_has_no_shared_inbox_plane() -> None:
+    coordination = ast.parse(
+        (ROOT / "src/ethos/adapters/repo/coordination.py").read_text(encoding="utf-8")
+    )
+    assert not any(
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "shared_inbox_projection"
+        for node in ast.walk(coordination)
+    )
+
+    lifecycle = (ROOT / "src/ethos/surface/cli/lane/lifecycle.py").read_text(encoding="utf-8")
+    assert "shared_inbox_projection" not in lifecycle
+    assert 'report["shared_inbox"]' not in lifecycle
+
+    schema = json.loads(
+        (ROOT / "system/schemas/kernel/workspace-status.schema.json").read_text(encoding="utf-8")
+    )
+    assert "sharedInbox" not in schema["$defs"]
+    assert "sharedInboxItem" not in schema["$defs"]
+    assert "shared_inbox" not in schema["properties"]
 
 
 def test_product_contributor_and_reference_reports() -> None:
@@ -178,8 +200,8 @@ def test_declared_product_surfaces_cover_assets_not_history() -> None:
         ".agents/skills",
         "distributions",
         "openspec/changes",
-        "evidence/attestations",
     } <= roots
+    assert "evidence/attestations" not in roots
     assert not {"sdks/typescript", "scaffolds", "extensions"} & roots
     assert {
         ".gitignore",
@@ -194,6 +216,7 @@ def test_declared_product_surfaces_cover_assets_not_history() -> None:
     } <= scanned
     assert not any(path.startswith("openspec/changes/archive/") for path in scanned)
     assert mapping(product_boundary_report(ROOT)["policy"])["historical_surface_prefixes"] == [
+        "evidence/attestations/",
         "evidence/claims/",
         "evidence/chronicle/",
         "evidence/parity/",

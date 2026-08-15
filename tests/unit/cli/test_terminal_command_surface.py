@@ -3,21 +3,20 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import get_type_hints
 
 import pytest
 
-from ethos.adapters.mutation.proof_artifacts import persist_attestation
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.semantic import Attestation
-from ethos.surface.cli.application import app
-from ethos.surface.cli.application import load_command_groups
+from ethos.surface.cli.application import app, load_command_groups
 from ethos.surface.cli.lane.lease import TakeoverOptions
-from tests.support.ethos_cli_runner import run_ethos
-from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.governed_repository import commit_fixture_file
-from tests.support.governed_repository import start_adopted_work_lane
+from tests.support.ethos_cli_runner import run_ethos, run_ethos_raw
+from tests.support.governed_repository import (
+    commit_fixture_file,
+    start_adopted_work_lane,
+)
 from tests.support.literal_cases import literal_case
 
 PUBLIC_ROOT_COMMANDS = literal_case(
@@ -30,9 +29,11 @@ RETIRED_ROOT_COMMANDS = literal_case(
 
 def test_registered_command_roots_are_exactly_the_terminal_surface() -> None:
     load_command_groups([])
-    registered = {command for command in app.resolved_commands() if not command.startswith("-")}
+    registered = {
+        command for command in app.resolved_commands() if not command.startswith("-")
+    }
 
-    assert registered == {*PUBLIC_ROOT_COMMANDS, "lane", "hook"}
+    assert registered == {*PUBLIC_ROOT_COMMANDS, "lane", "hook", "attestation"}
 
 
 def test_bare_help_loads_the_terminal_root_surface() -> None:
@@ -63,18 +64,90 @@ def test_takeover_runtime_annotations_are_fully_resolvable() -> None:
     assert annotations["authorization"]
 
 
-def test_lane_status_shared_inbox_is_schema_validated(tmp_path) -> None:
+def test_lane_status_projects_coordination_facts_without_shared_inbox(tmp_path) -> None:
     fixture = start_adopted_work_lane(
-        tmp_path / "shared-inbox-status",
-        name="shared-inbox-status",
+        tmp_path / "coordination-status",
+        name="coordination-status",
         holder_ref="agent:test:case:owner",
     )
 
-    payload = run_ethos("lane", "status", "--json", cwd=fixture.worktree)
-    inbox = payload["data"]["shared_inbox"]
-    assert inbox["state"] == "open"
-    assert inbox["item_count"] == len(inbox["items"])
+    payload = run_ethos(
+        "lane",
+        "status",
+        "--root",
+        fixture.repository.as_posix(),
+        "--json",
+        cwd=fixture.repository,
+    )
+
+    assert "shared_inbox" not in payload["data"]
+    assert payload["data"]["foreign_work_lanes"]
+    assert "foreign_work_lane_present" in payload["data"]["coordination_gaps"]
+    assert "unbound_work_lane_refs" in payload["data"]
     assert all("workspace_status_schema" not in gap for gap in payload["required_gaps"])
+
+
+def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -> None:
+    fixture = start_adopted_work_lane(
+        tmp_path / "retired-inbox-state",
+        name="retired-inbox-state",
+        holder_ref="agent:test:case:owner",
+    )
+    arguments = (
+        "lane",
+        "status",
+        "--root",
+        fixture.repository.as_posix(),
+        "--json",
+    )
+    before = run_ethos(*arguments, cwd=fixture.repository)
+    retired = tuple(
+        Attestation.issue(
+            {
+                "schema_version": 2,
+                "predicate": predicate,
+                "verifier": "agent:test:retired-inbox",
+                "subject": "coordination:foreign-work-lane",
+                "issued_at": datetime(2026, 8, 15, tzinfo=UTC),
+                "valid_from": None,
+                "valid_until": None,
+                "verdict": "pass",
+                "payload": {
+                    "kind": "input:retired-inbox-state",
+                    "body": {
+                        "actor": "agent:test:retired-inbox",
+                        "item_digest": "f" * 64,
+                    },
+                },
+                "relations": (),
+                "advisories": (),
+                "evidence_refs": (f"retired:{predicate}",),
+                "commitment_digest": None,
+                "facts_digest": None,
+                "plan_digest": None,
+                "policy_digest": None,
+                "effect_digest": None,
+                "mints_authority": False,
+            }
+        )
+        for predicate in ("inbox:acknowledged", "inbox:consumed")
+    )
+    record_attestations(fixture.repository, retired)
+
+    after = run_ethos(*arguments, cwd=fixture.repository)
+
+    for key in (
+        "verdict",
+        "required_gaps",
+        "next_action",
+    ):
+        assert after[key] == before[key]
+    for key in (
+        "foreign_work_lanes",
+        "unbound_work_lane_refs",
+        "coordination_gaps",
+    ):
+        assert after["data"][key] == before["data"][key]
 
 
 @pytest.mark.parametrize("command", RETIRED_ROOT_COMMANDS)
@@ -130,7 +203,9 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
     _repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
-    completed = run_ethos_raw("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
+    completed = run_ethos_raw(
+        "status", "--root", worktree.as_posix(), "--json", cwd=worktree
+    )
 
     assert completed.returncode == 0, completed.stderr
     payload = json.loads(completed.stdout)
@@ -153,7 +228,9 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
     assert "git status --short" not in payload["next_action"]
 
 
-def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_path) -> None:
+def test_lane_status_exposes_observations_without_closeout_residue_plane(
+    tmp_path,
+) -> None:
     fixture = start_adopted_work_lane(tmp_path)
     payload = run_ethos(
         "lane",
@@ -177,35 +254,3 @@ def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_pat
     ):
         assert retired not in serialized
     assert payload["next_action"] == payload["data"]["stage_gates"]["next_action"]
-
-
-def test_lane_status_rebuilds_shared_inbox_from_facts_and_attestations(tmp_path) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
-    first = run_ethos(
-        "lane", "status", "--root", fixture.repository.as_posix(), "--json", cwd=fixture.repository
-    )
-    inbox = first["data"]["shared_inbox"]
-    item = next(item for item in inbox["items"] if item["claim"] == "foreign_work_lane_present")
-    digest = str(item["digest"])
-    issued = datetime.now(UTC)
-    persist_attestation(
-        fixture.repository,
-        Attestation.issue(
-            {
-                "predicate": "inbox:acknowledged",
-                "verifier": "agent:test:case:reader",
-                "subject": f"inbox:item:{digest}",
-                "issued_at": issued,
-                "verdict": "pass",
-                "evidence_refs": (f"inbox:item:{digest}",),
-                "statement": {"actor": "agent:test:case:reader", "item_digest": digest},
-            }
-        ),
-    )
-
-    rebuilt = run_ethos(
-        "lane", "status", "--root", fixture.repository.as_posix(), "--json", cwd=fixture.repository
-    )["data"]["shared_inbox"]
-    observed = next(item for item in rebuilt["items"] if item["digest"] == digest)
-    assert observed["acknowledged_by"] == ["agent:test:case:reader"]
-    assert observed["consumed_by"] == []

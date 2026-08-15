@@ -36,12 +36,12 @@ Every non-trivial self-profile governance mutation should have one selected
 active Change. A completed Change remains active and blocks integration until
 the owner-native archive operation removes it from official active state.
 
-A Campaign has one OpenSpec task-progress owner. It may use one Change with
-dependency-ordered phase exits or dependency-linked Changes when each can land
-independently without duplicating progress. Never create successor carriers merely
-to move unchecked work, and never mark migration as implementation. The current
-terminal-convergence Campaign deliberately remains one active Change and one Work
-Lane until its complete terminal predicate is proved.
+One Commitment binds one bounded Change, Work Lane generation, and `tasks.md`
+progress owner. A successor Commitment may declare dependencies and select exact
+Attestations after its predecessor closes; it owns a new Change and cannot mutate
+the predecessor's tasks. Never create a successor merely to move unchecked work,
+and never mark migration as implementation. Archived changes remain inert and do
+not participate in the current verdict.
 
 OpenSpec checkboxes own obligations that can be completed before archive. An
 archive, proof of the resulting HEAD, candidate or protected-ref advance, hosted

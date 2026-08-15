@@ -1,12 +1,13 @@
 # evidence/
 
-`evidence/` is the tracked durable-evidence root for ETHOS. Current evidence is
-carried only by Attestations. Retained Claims, Chronicle entries, and parity files
-are immutable historical bytes with no current producer or authority.
+`evidence/` is the tracked historical-evidence root for ETHOS. Current
+Attestations are selected only by `refs/ethos/attestations-set`. Retained
+Attestations, Claims, Chronicle entries, and parity files are immutable
+historical bytes with no current producer, selector, or authority.
 
 Generated raw streams stay under ignored local state such as `.ethos/` or build
-artifacts. They become repository truth only after review promotes a bounded
-result into `evidence/attestations/` with verifier, scope, digest, and HEAD bindings.
+artifacts. An explicit ETHOS command records a bounded result in the selected
+Attestation set with verifier, scope, digest, and HEAD bindings.
 
 ## Promotion Path
 
@@ -26,7 +27,7 @@ regenerated, not summarized as proof.
 | Path | Duty |
 | --- | --- |
 | `README.md` | Human index for the evidence root. This file is not proof by itself. |
-| `attestations/` | Current durable, content-addressed Attestations. |
+| `attestations/` | Immutable historical Attestation bytes; no current producer or authority. |
 | `claims/` | Immutable historical Claim bytes; no current producer or authority. |
 | `chronicle/` | Immutable historical judged records; no current producer or authority. |
 | `parity/` | Immutable historical parity bytes; no current producer or authority. |
@@ -38,9 +39,9 @@ superseding design change.
 ## Boundary Rules
 
 - Keep `evidence/` root shallow: only this README and owned subdirectories.
-- Put current durable evidence only under `evidence/attestations/`.
-- Preserve `claims/`, `chronicle/`, and `parity/` bytes as history; do not use
-  them to mint current verdicts or authorize mutation.
+- Select current Attestations only through `refs/ethos/attestations-set`.
+- Preserve `attestations/`, `claims/`, `chronicle/`, and `parity/` as history;
+  never use them to select current evidence.
 - Do not treat runtime logs, command streams, local caches, or build outputs as
   evidence until a reviewed Attestation binds them.
 

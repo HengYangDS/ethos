@@ -29,8 +29,8 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from tests.support.semantic import commitment_v2
 
 
 def _oid(label: str) -> str:
@@ -109,7 +109,7 @@ def _effect_plan(proof: Attestation):
     old, new = _oid("old"), _oid("new")
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
     return compile_git_effect_plan(
-        Commitment(
+        commitment_v2(
             id="commitment:test:ref-effect",
             intent="Test one exact proof-bound ref effect.",
             subjects=("repository:test",),

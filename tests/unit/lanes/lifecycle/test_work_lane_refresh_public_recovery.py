@@ -13,8 +13,8 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
-from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from tests.support.semantic import commitment_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -72,7 +72,7 @@ def _recovery_plan(
         assertions={"refs/heads/candidate/dev": CANDIDATE},
     )
     return compile_git_effect_plan(
-        Commitment(
+        commitment_v2(
             id="authority:test:refresh",
             intent="Recover one refresh effect.",
             subjects=("repository:test",),

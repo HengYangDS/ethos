@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git as git
-from ethos.adapters.mutation.proof_artifacts import persist_attestation
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
@@ -330,25 +330,32 @@ def _terminal_result(
     effect_digest = effect.digest()
     attestation = Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": "publication:remote-effect",
             "verifier": "ethos:remote-publication-executor",
             "subject": f"git:commit:{effect.source_head}",
             "issued_at": datetime.now(UTC),
+            "valid_from": None,
+            "valid_until": None,
             "verdict": verdict,
+            "payload": {"kind": "publication:remote-effect", "body": statement},
+            "relations": (),
+            "advisories": (),
             "commitment_digest": plan.inputs.commitment,
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
             "effect_digest": effect_digest,
-            "statement": statement,
             "evidence_refs": tuple(
-                f"git:{target.remote}:{target.target_ref}:{target.desired}"
-                for target in effect.targets
+                sorted(
+                    f"git:{target.remote}:{target.target_ref}:{target.desired}"
+                    for target in effect.targets
+                )
             ),
+            "mints_authority": False,
         }
     )
-    path = persist_attestation(root, attestation)
-    payload = path.read_bytes()
+    selected = record_attestations(root, (attestation,))
     return {
         "state": state,
         "required_gaps": list(required_gaps),
@@ -357,7 +364,6 @@ def _terminal_result(
         "attempts": list(attempts),
         "attestation": {
             "id": attestation.id,
-            "path": path.as_posix(),
-            "sha256": f"sha256:{hashlib.sha256(payload).hexdigest()}",
+            "set_root": selected["root"],
         },
     }

@@ -1,20 +1,30 @@
-schema_version = 1
+schema_version = 2
 id = "repository:ethos"
 intent = "Govern ETHOS repository change through one evidence-grounded semantic kernel."
-subjects = ["repository:ethos"]
-scope = ["**"]
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "**",
+]
 invariants = [
-  "repository_identity_is_stable_across_worktrees_hosts_and_forges",
-  "persistent_semantics_reduce_to_commitment_and_attestation",
   "git_facts_and_external_providers_remain_separate_authority_planes",
+  "persistent_semantics_reduce_to_commitment_and_attestation",
+  "repository_identity_is_stable_across_worktrees_hosts_and_forges",
 ]
 acceptance = [
-  "repository_contract_valid",
   "governed_transition_loop_available",
+  "repository_contract_valid",
 ]
+risks = []
 authority_refs = [
-  "user_instruction",
   "AGENTS.md",
   "docs/governance/product-design-contract.md",
+  "user_instruction",
 ]
+predecessors = []
+selected_attestations = []
 dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

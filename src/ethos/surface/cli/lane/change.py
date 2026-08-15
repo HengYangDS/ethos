@@ -7,9 +7,11 @@ from typing import Annotated
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
-from ethos.surface.cli.application import lane_app
-from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
-from ethos.surface.cli.lane.lifecycle import project_lane_result
+from ethos.surface.cli.lane.lifecycle import (
+    AppliedLaneCommandOptions,
+    lane_app,
+    project_lane_result,
+)
 from ethos.surface.cli.root_binding import resolve_root
 
 
@@ -17,8 +19,13 @@ class _StartChange(AppliedLaneCommandOptions):
     command = "lane start-change"
     intent: Annotated[str, Parameter(name="--intent")]
     scope: Annotated[tuple[str, ...], Parameter(name="--scope")]
+    selected_attestations: Annotated[
+        tuple[str, ...], Parameter(name="--select-attestation")
+    ] = ()
     expect_head: Annotated[str, Parameter(name="--expect-head")]
-    expected_overlay_digest: Annotated[str, Parameter(name="--expected-overlay-digest")] = ""
+    expected_overlay_digest: Annotated[
+        str, Parameter(name="--expected-overlay-digest")
+    ] = ""
 
 
 @lane_app.command(name="start-change")
@@ -32,6 +39,7 @@ def lane_start_change(
         change=change,
         intent=options.intent,
         scope=options.scope,
+        selected_attestations=options.selected_attestations,
         expect_head=options.expect_head,
         expected_overlay_digest=options.expected_overlay_digest,
         apply=options.apply,
@@ -39,7 +47,10 @@ def lane_start_change(
     project_lane_result(
         options.command,
         report,
-        summary={key: report.get(key, "") for key in ("branch", "change", "head", "previous_head")},
+        summary={
+            key: report.get(key, "")
+            for key in ("branch", "change", "head", "previous_head")
+        },
         enforce=options.apply,
         json_output=options.json_output,
     )

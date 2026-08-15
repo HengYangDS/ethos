@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import operator
 from datetime import UTC
@@ -24,8 +25,9 @@ from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.value import mutable_json
+from tests.support.semantic import commitment_v2
 
-_PLAN_COMMITMENT = Commitment(
+_PLAN_COMMITMENT = commitment_v2(
     id="change:test-plan",
     intent="Exercise one transition plan.",
     subjects=("repository:test",),
@@ -54,55 +56,99 @@ _PLAN_INPUTS = {
     },
     "facts": _PLAN_FACTS.model_dump(mode="json", exclude={"observed_at"}),
 }
-_BASE = {"id": "change:terminal-kernel", "intent": "Base", "subjects": ("repo",)}
 _ISSUED_AT = datetime(2026, 7, 25, tzinfo=UTC)
-
-
-def _contract(**updates: object) -> Commitment:
-    return Commitment(**(_BASE | updates))
 
 
 def _attestation(
     *,
-    statement: object,
+    payload: object,
     verdict: Literal["pass", "block", "unknown"] = "pass",
     advisories: tuple[str, ...] = (),
 ) -> Attestation:
     return Attestation.issue(
         {
+            "schema_version": 2,
             "predicate": "observation:repository",
             "verifier": "agent:local:task:one",
             "subject": "change:terminal-kernel",
             "issued_at": _ISSUED_AT,
+            "valid_from": None,
+            "valid_until": None,
             "verdict": verdict,
-            "statement": statement,
+            "payload": {"kind": "observation:repository", "body": payload},
+            "relations": (),
             "advisories": advisories,
+            "evidence_refs": (),
             "commitment_digest": "a" * 64,
-            "facts_digest": "b" * 64,
-            "plan_digest": "c" * 64,
-            "policy_digest": "d" * 64,
-            "effect_digest": "",
+            "facts_digest": None,
+            "plan_digest": None,
+            "policy_digest": None,
+            "effect_digest": None,
+            "mints_authority": False,
         }
     )
 
 
 def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
-    commitment = _contract(risks=("cutover",), hypotheses=("compiler",), dependencies=("git",))
+    commitment = commitment_v2(
+        id="change:terminal-kernel",
+        intent="Base",
+        subjects=("repository:test",),
+        risks=("cutover",),
+        hypotheses=(
+            {
+                "id": "hypothesis:compiler",
+                "kind": "hypothesis:repository",
+                "body": {"statement": "compiler"},
+            },
+        ),
+        dependencies=(
+            {
+                "kind": "dependency:requires",
+                "target": "commitment:git",
+                "attributes": {},
+            },
+        ),
+    )
 
     assert commitment.identity_projection() == {
-        "schema_version": 1,
+        "schema_version": 2,
         "id": "change:terminal-kernel",
         "intent": "Base",
-        "subjects": ["repo"],
+        "subjects": ["repository:test"],
         "scope": [],
         "invariants": [],
         "acceptance": [],
         "risks": ["cutover"],
         "authority_refs": [],
-        "hypotheses": ["compiler"],
-        "dependencies": ["git"],
+        "predecessors": [],
+        "selected_attestations": [],
+        "dependencies": [
+            {
+                "kind": "dependency:requires",
+                "target": "commitment:git",
+                "attributes": {},
+            }
+        ],
+        "hypotheses": [
+            {
+                "id": "hypothesis:compiler",
+                "kind": "hypothesis:repository",
+                "body": {"statement": "compiler"},
+            }
+        ],
+        "falsifiers": [],
+        "experiment_protocols": [],
     }
-    assert commitment.digest() != _contract(risks=("other",)).digest()
+    assert (
+        commitment.digest()
+        != commitment_v2(
+            id="change:terminal-kernel",
+            intent="Base",
+            subjects=("repository:test",),
+            risks=("other",),
+        ).digest()
+    )
 
 
 def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: Path) -> None:
@@ -156,20 +202,34 @@ def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path:
 @pytest.mark.parametrize("field", ["campaign", "collaboration", "compatibility", "publication"])
 def test_commitment_rejects_process_and_distribution_fields(field: str) -> None:
     with pytest.raises(ValidationError):
-        _contract(**{field: "retired"})
+        Commitment.model_validate(
+            commitment_v2(
+                id="change:terminal-kernel",
+                intent="Base",
+                subjects=("repository:test",),
+            ).model_dump(mode="python")
+            | {field: "retired"}
+        )
 
 
 def test_commitment_rejects_reusable_permissions() -> None:
     with pytest.raises(ValidationError):
-        _contract(permissions=("git.ref.compare-and-swap",))
+        Commitment.model_validate(
+            commitment_v2(
+                id="change:terminal-kernel",
+                intent="Base",
+                subjects=("repository:test",),
+            ).model_dump(mode="python")
+            | {"permissions": ("git.ref.compare-and-swap",)}
+        )
 
 
 @pytest.mark.parametrize(
     "scope", [("/absolute",), ("docs/../secrets",), (r"docs\windows",), ("docs/**", "docs/**")]
 )
 def test_commitment_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None:
-    with pytest.raises(ValueError, match=r"change_scope_invalid|change_scope_duplicate"):
-        _contract(
+    with pytest.raises(ValueError, match=r"change_scope_invalid|semantic_collection_duplicate"):
+        commitment_v2(
             id="change:invalid-scope",
             intent="Reject ambiguous scope.",
             subjects=("repository:test",),
@@ -191,17 +251,17 @@ def test_facts_digest_ignores_observation_time() -> None:
     )
 
 
-def test_attestation_identity_and_serialization_are_statement_addressed() -> None:
+def test_attestation_identity_and_serialization_are_payload_addressed() -> None:
     first = _attestation(
-        statement={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+        payload={"z": ["one", {"two": True}], "a": {"nested": "value"}},
         advisories=("non_blocking_note",),
     )
     reordered = _attestation(
-        statement={"a": {"nested": "value"}, "z": ["one", {"two": True}]},
+        payload={"a": {"nested": "value"}, "z": ["one", {"two": True}]},
         advisories=("non_blocking_note",),
     )
 
-    assert len(first.id) == len(first.statement_digest) == 64
+    assert len(first.id) == 64
     assert first.id == reordered.id
     assert first.canonical_json() == reordered.canonical_json()
     assert json.loads(first.canonical_json()) == first.model_dump(mode="json")
@@ -209,7 +269,7 @@ def test_attestation_identity_and_serialization_are_statement_addressed() -> Non
     assert first.advisories == ("non_blocking_note",)
     assert (
         _attestation(
-            statement={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+            payload={"z": ["one", {"two": True}], "a": {"nested": "value"}},
             verdict="unknown",
             advisories=("non_blocking_note",),
         ).id
@@ -223,12 +283,13 @@ def test_attestation_identity_and_serialization_are_statement_addressed() -> Non
 
 
 def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
-    attestation = _attestation(statement={"state": "observed"})
+    attestation = _attestation(payload={"required_gaps": ["proof_missing"]}, verdict="block")
     payload = attestation.model_dump(mode="json")
     payload["verdict"] = "pass"
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError, match="pass_with_required_gaps"):
         Attestation.model_validate(payload)
 
+    attestation = _attestation(payload={"state": "observed"})
     payload = attestation.model_dump(mode="json")
     payload["facts_digest"] = "not-a-digest"
     with pytest.raises(ValidationError):
@@ -237,19 +298,31 @@ def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
     with pytest.raises(ValueError, match="attestation_binding_missing"):
         Attestation.issue(
             {
+                "schema_version": 2,
                 "predicate": "observation:repository",
                 "verifier": "agent:local:task:one",
                 "subject": "change:terminal-kernel",
                 "issued_at": _ISSUED_AT,
+                "valid_from": None,
+                "valid_until": None,
                 "verdict": "pass",
-                "statement": {"state": "observed"},
+                "payload": {"kind": "observation:repository", "body": {"state": "observed"}},
+                "relations": (),
+                "advisories": (),
+                "evidence_refs": (),
+                "commitment_digest": None,
+                "facts_digest": None,
+                "plan_digest": None,
+                "policy_digest": None,
+                "effect_digest": None,
+                "mints_authority": False,
             }
         )
 
 
 def test_semantic_values_are_immutable_and_digest_bound() -> None:
     issued_at = datetime(2026, 7, 25, tzinfo=UTC)
-    attestation = _attestation(statement={"nested": {"values": ["one", {"two": True}]}})
+    attestation = _attestation(payload={"nested": {"values": ["one", {"two": True}]}})
     facts = Facts(
         repository="repository:ethos",
         head="a" * 40,
@@ -257,27 +330,30 @@ def test_semantic_values_are_immutable_and_digest_bound() -> None:
         observed_at=issued_at,
         values={"nested": {"values": ["one", {"two": True}]}},
     )
-    assert isinstance(attestation.statement, MappingProxyType)
-    assert attestation.statement["nested"]["values"] == ("one", MappingProxyType({"two": True}))
+    assert isinstance(attestation.payload.body, MappingProxyType)
+    assert attestation.payload.body["nested"]["values"] == (
+        "one",
+        MappingProxyType({"two": True}),
+    )
     assert isinstance(facts.values, MappingProxyType)
     with pytest.raises(TypeError):
-        operator.setitem(attestation.statement, "new", "forbidden")
+        operator.setitem(attestation.payload.body, "new", "forbidden")
     with pytest.raises(TypeError):
         operator.setitem(facts.values["nested"], "new", "forbidden")
-    assert (
-        Attestation.model_validate(attestation.model_dump()).statement_digest
-        == attestation.statement_digest
-    )
-    with pytest.raises(ValueError, match="attestation_statement_digest_mismatch"):
+    assert Attestation.model_validate(attestation.model_dump()).id == attestation.id
+    with pytest.raises(ValueError, match="attestation_identity_mismatch"):
         Attestation.model_validate_json(
-            json.dumps(attestation.model_dump(mode="json") | {"statement": {"state": "changed"}})
+            json.dumps(
+                attestation.model_dump(mode="json")
+                | {"payload": {"kind": "observation:repository", "body": {"state": "changed"}}}
+            )
         )
 
 
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf"), b"bytes"])
 def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: object) -> None:
     with pytest.raises(TypeError, match="json_value_invalid"):
-        _attestation(statement={"invalid": invalid})
+        _attestation(payload={"invalid": invalid})
 
 
 @pytest.mark.parametrize(
@@ -286,20 +362,22 @@ def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: obj
 )
 def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: object) -> None:
     with pytest.raises(TypeError, match=r"json_object_invalid|json_object_key_invalid"):
-        _attestation(statement=invalid)
+        _attestation(payload=invalid)
 
 
 @pytest.mark.parametrize(
-    ("factory", "projection"),
+    ("factory", "expected_digest"),
     [
         pytest.param(
-            lambda value: Commitment(
+            lambda value: commitment_v2(
                 id="change:digest-matrix",
                 intent="Bind commitment identity.",
                 subjects=("repository:test",),
                 risks=(str(value),),
             ),
-            lambda model: model.identity_projection(),
+            lambda model: hashlib.sha256(
+                b"ethos.commitment.v2\0" + model.canonical_json().encode()
+            ).hexdigest(),
             id="commitment",
         ),
         pytest.param(
@@ -310,35 +388,42 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
                 observed_at=_ISSUED_AT,
                 values={"value": value},
             ),
-            lambda model: model.model_dump(mode="json", exclude={"observed_at"}),
+            lambda model: canonical_json_digest(
+                model.model_dump(mode="json", exclude={"observed_at"})
+            ),
             id="facts",
         ),
         pytest.param(
-            lambda value: _attestation(statement={"value": value}),
-            lambda model: model.model_dump(mode="json", exclude={"id"}),
+            lambda value: _attestation(payload={"value": value}),
+            lambda model: hashlib.sha256(
+                b"ethos.attestation.v2\0" + model.canonical_json(exclude_id=True).encode()
+            ).hexdigest(),
             id="attestation",
         ),
     ],
 )
-def test_semantic_digest_matrix_binds_each_canonical_identity(factory, projection) -> None:
+def test_semantic_digest_matrix_binds_each_canonical_identity(factory, expected_digest) -> None:
     first = factory("first")
     repeated = factory("first")
     changed = factory("second")
 
     assert first.digest() == repeated.digest()
     assert first.digest() != changed.digest()
-    assert first.digest() == canonical_json_digest(projection(first))
+    expected = expected_digest(first)
+    assert first.digest() == expected
+    if isinstance(first, Attestation):
+        assert first.digest() == first.id
 
 
 @pytest.mark.parametrize(
     ("factory", "field", "replacement", "error"),
     [
         pytest.param(
-            lambda: _attestation(statement={"state": "observed"}),
-            "statement",
-            {"state": "tampered"},
-            "attestation_statement_digest_mismatch",
-            id="attestation-statement",
+            lambda: _attestation(payload={"state": "observed"}),
+            "payload",
+            {"kind": "observation:repository", "body": {"state": "tampered"}},
+            "attestation_identity_mismatch",
+            id="attestation-payload",
         ),
         pytest.param(
             lambda: TransitionPlan.compile(**_PLAN_INPUTS),
@@ -401,27 +486,29 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         jsonschema.Draft202012Validator.check_schema(schema)
 
     commitment = generated["commitment.schema.json"]
-    assert commitment["properties"]["schema_version"]["const"] == 1
+    assert commitment["properties"]["schema_version"]["const"] == 2
+    assert set(commitment["required"]) == set(commitment["properties"])
+    assert all("default" not in field for field in commitment["properties"].values())
     assert not {"campaign", "collaboration", "compatibility", "publication"} & set(
         commitment["properties"]
     )
+    structurally_valid = commitment_v2(
+        id="change:schema-projection",
+        intent="Prove the schema boundary.",
+        subjects=("repository:test",),
+    ).model_dump(mode="json")
+    structurally_valid["subjects"] = ["repository:test", "repository:test"]
+    assert list(jsonschema.Draft202012Validator(commitment).iter_errors(structurally_valid)) == []
+    with pytest.raises(ValueError, match="semantic_collection_duplicate"):
+        Commitment.model_validate(structurally_valid)
     attestation = generated["attestation.schema.json"]
-    assert {
-        "id",
-        "predicate",
-        "statement",
-        "statement_digest",
-        "verifier",
-        "verdict",
-        "commitment_digest",
-        "facts_digest",
-        "plan_digest",
-        "policy_digest",
-        "effect_digest",
-    } <= set(attestation["required"])
+    assert set(attestation["required"]) == set(attestation["properties"])
+    assert all("default" not in field for field in attestation["properties"].values())
+    assert {"payload", "relations"} <= set(attestation["properties"])
+    assert not {"statement", "statement_digest"} & set(attestation["properties"])
+    assert attestation["properties"]["mints_authority"]["const"] is False
     assert attestation["properties"]["verdict"]["enum"] == ["pass", "block", "unknown"]
     assert "enum" not in attestation["properties"]["predicate"]
-    assert not {"kind", "content", "sequence", "mints_authority"} & set(attestation["properties"])
     plan = generated["transition-plan.schema.json"]
     assert set(plan["required"]) == {
         "schema_version",

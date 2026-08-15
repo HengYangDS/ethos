@@ -184,9 +184,7 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
         json.dumps({"type": "not-a-json-schema-type"}),
     ],
 )
-def test_schema_report_ignores_malformed_adopter_schema(
-    tmp_path, contents: str
-) -> None:
+def test_schema_report_ignores_malformed_adopter_schema(tmp_path, contents: str) -> None:
     target = tmp_path / "system" / "schemas" / "kernel"
     shutil.copytree(ROOT / "system" / "schemas" / "kernel", target)
     (target / "result.schema.json").write_text(contents, encoding="utf-8")

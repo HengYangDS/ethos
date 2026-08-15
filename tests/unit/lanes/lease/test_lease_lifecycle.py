@@ -1116,9 +1116,7 @@ def test_lease_takeover_recovers_when_set_selection_is_interrupted(
 def test_lease_takeover_ignores_unrelated_attestation_with_same_effect_digest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    case, _before, _authorization, request = _takeover_case(
-        tmp_path, monkeypatch, "changes_only"
-    )
+    case, _before, _authorization, request = _takeover_case(tmp_path, monkeypatch, "changes_only")
     original_issue = lease_lifecycle.issue_native_effect
     unrelated: Attestation | None = None
 
@@ -1162,9 +1160,7 @@ def test_exact_takeover_claim_matrix(
             before["expected_tree"],
         )
         _root, selected = read_attestation_set(case.worktree)
-        attestation = next(
-            item for item in selected if item.id == report["attestation"]["id"]
-        )
+        attestation = next(item for item in selected if item.id == report["attestation"]["id"])
         assert attestation.predicate == "lane-resolution:takeover"
         assert attestation.effect_digest
         assert attestation.payload.body["output"]["source_state"] == "source_lost"

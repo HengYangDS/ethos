@@ -247,9 +247,7 @@ class TransitionPlan(_PlanModel):
         ordered_compensations, compensation_gaps = cls._resolve_nodes(compensations)
         ordered_postconditions, postcondition_gaps = cls._resolve_nodes(postconditions)
         gaps = tuple(
-            dict.fromkeys(
-                (*required_gaps, *graph_gaps, *compensation_gaps, *postcondition_gaps)
-            )
+            dict.fromkeys((*required_gaps, *graph_gaps, *compensation_gaps, *postcondition_gaps))
         )
         carried = mutable_json(closure)
         if not isinstance(carried, dict) or set(carried) != {
@@ -273,12 +271,8 @@ class TransitionPlan(_PlanModel):
             "effect": carried["effect"],
             "facts": mutable_json(facts),
             "nodes": [node.model_dump(mode="json") for node in ordered],
-            "compensations": [
-                node.model_dump(mode="json") for node in ordered_compensations
-            ],
-            "postconditions": [
-                node.model_dump(mode="json") for node in ordered_postconditions
-            ],
+            "compensations": [node.model_dump(mode="json") for node in ordered_compensations],
+            "postconditions": [node.model_dump(mode="json") for node in ordered_postconditions],
             "verdict": close_verdict(verdict, gaps),
             "required_gaps": list(gaps),
             "continuation": (
@@ -466,24 +460,31 @@ def git_effect_from_plan(plan: TransitionPlan) -> GitEffect:
             else "git_effect_plan_invalid"
         )
         raise ValueError(message) from error
-    if validated.nodes != (
-        PlanNode(
-            id="git.ref.compare-and-swap",
-            kind="effect",
-            command=("git", "update-ref", "--stdin", "-z"),
-        ),
-    ) or validated.compensations != (
-        PlanNode(
-            id="git.ref.compare-and-swap.compensate",
-            kind="effect",
-            command=("git", "update-ref", "--stdin", "-z"),
-        ),
-    ) or validated.postconditions != (
-        PlanNode(
-            id="git.ref.compare-and-swap.observe",
-            kind="check",
-            command=("git", "show-ref", "--verify"),
-        ),
+    if (
+        validated.nodes
+        != (
+            PlanNode(
+                id="git.ref.compare-and-swap",
+                kind="effect",
+                command=("git", "update-ref", "--stdin", "-z"),
+            ),
+        )
+        or validated.compensations
+        != (
+            PlanNode(
+                id="git.ref.compare-and-swap.compensate",
+                kind="effect",
+                command=("git", "update-ref", "--stdin", "-z"),
+            ),
+        )
+        or validated.postconditions
+        != (
+            PlanNode(
+                id="git.ref.compare-and-swap.observe",
+                kind="check",
+                command=("git", "show-ref", "--verify"),
+            ),
+        )
     ):
         message = "git_effect_plan_mismatch"
         raise ValueError(message)

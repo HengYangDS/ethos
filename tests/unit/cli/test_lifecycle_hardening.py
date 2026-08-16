@@ -566,6 +566,51 @@ def test_repair_identity_public_cli_derives_and_applies_suffix_receipt(
     assert git(repo, "rev-parse", "work/feature") == applied["data"]["new_head"]
 
 
+def test_repair_identity_public_cli_dry_run_passes_without_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, candidate, worktree, base, _accepted, _head = _identity_repair_suffix_fixture(
+        tmp_path, monkeypatch
+    )
+    derived = run_ethos(
+        "lane",
+        "repair-identity",
+        "derive",
+        "--base-commit",
+        base,
+        "--json",
+        cwd=worktree,
+    )
+    receipt = derived["data"]["receipt"]
+    refs_before = {ref: git(repo, "rev-parse", ref) for ref in derived["data"]["request"]["refs"]}
+    lease_before = identity_repair.leases_by_branch(worktree)["work/feature"]
+    candidate_before = git(candidate, "rev-parse", "HEAD")
+    worktree_before = git(worktree, "rev-parse", "HEAD")
+
+    report = run_ethos(
+        "lane",
+        "repair-identity",
+        "--receipt",
+        receipt["path"],
+        "--receipt-sha256",
+        receipt["sha256"],
+        "--json",
+        cwd=worktree,
+    )
+
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        "pass",
+        "ready_to_repair_identity",
+        [],
+    )
+    assert {ref: git(repo, "rev-parse", ref) for ref in refs_before} == refs_before
+    assert identity_repair.leases_by_branch(worktree)["work/feature"] == lease_before
+    assert git(candidate, "rev-parse", "HEAD") == candidate_before
+    assert git(worktree, "rev-parse", "HEAD") == worktree_before
+    assert git(candidate, "status", "--short") == git(worktree, "status", "--short") == ""
+
+
 def _identity_repair_suffix_fixture(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

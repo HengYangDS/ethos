@@ -6,7 +6,7 @@
   accepted public identity-repair capability.
 - [x] **3. Define bounded acceptance evidence.** Define payload preservation,
   exact-CAS, trust, and convergence evidence.
-- [ ] **4. Restore receipt dry-run parity.** Reproduce the gapless blocking
+- [x] **4. Restore receipt dry-run parity.** Reproduce the gapless blocking
   verdict, add the focused public regression, and project pass/ready only when
   the existing receipt validator finds no gap.
 

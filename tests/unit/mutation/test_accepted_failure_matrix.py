@@ -141,6 +141,11 @@ def test_candidate_promotion_falls_back_to_candidate_bootstrap_authority(
 ) -> None:
     captured = _prime(monkeypatch)
     refs = []
+    prestate = {
+        "id": "repository:ethos",
+        "subjects": ("repository:ethos",),
+        "bytes_sha256": "d" * 64,
+    }
 
     def load(_root, *, tree_ref):
         refs.append(tree_ref)
@@ -150,7 +155,7 @@ def test_candidate_promotion_falls_back_to_candidate_bootstrap_authority(
         return object()
 
     monkeypatch.setattr(accepted, "load_repository_commitment", load)
-    monkeypatch.setattr(accepted, "committed_file_bytes", lambda *_args: b"")
+    monkeypatch.setattr(accepted, "terminal_v1_binding", lambda *_args, **_kwargs: prestate)
 
     report = accepted.promote_candidate(
         root=tmp_path,
@@ -164,6 +169,8 @@ def test_candidate_promotion_falls_back_to_candidate_bootstrap_authority(
     assert report["verdict"] == "pass"
     assert refs == [CURRENT, CANDIDATE]
     assert captured["kwargs"]["policy"]["repository_commitment_bootstrap"] is True
+    assert captured["kwargs"]["policy"]["prestate_repository_id"] == "repository:ethos"
+    assert captured["kwargs"]["policy"]["prestate_repository_bytes_sha256"] == "d" * 64
     assert "control_replacement_receipt" in captured["kwargs"]["prior_attestations"]
 
 

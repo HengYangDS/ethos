@@ -14,6 +14,7 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import committed_file_text
@@ -308,13 +309,15 @@ def _candidate_transition_plan(
         raise ValueError(message)
     candidate_head = next(iter(effect.updates.values())).expected
     try:
+        load_repository_commitment(root, tree_ref=candidate_head)
+    except ValueError:
         prestate = terminal_v1_binding(
             root,
             tree_ref=candidate_head,
             carrier=".ethos/commitment.toml",
             repository=True,
         )
-    except ValueError:
+    else:
         prestate = {}
     return compile_observed_git_effect(
         root,

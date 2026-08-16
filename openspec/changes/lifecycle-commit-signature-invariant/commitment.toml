@@ -19,6 +19,7 @@ scope = [
   "src/ethos/surface/cli/lane/commit_signer.py",
   "src/ethos/surface/cli/lane/identity.py",
   "src/ethos/surface/cli/lane/lifecycle.py",
+  "tests/unit/adapters/mutation/lane_lifecycle/test_identity_repair_public_boundaries.py",
   "tests/unit/cli/test_lifecycle_hardening.py",
   "tests/unit/lanes/lease/test_commitment_rebind.py",
   "tests/unit/lanes/lifecycle/test_work_lane_refresh_public_recovery.py",

@@ -161,7 +161,7 @@ _SUMMARIES: dict[str, Summary] = {
     },
     "lane start": _fields("branch", "path"),
     "lane refresh-base": _fields("branch", "candidate_branch", "head", "candidate_head"),
-    "lane repair-identity": _fields("branch", "old_commit", "new_commit"),
+    "lane repair-identity": _fields("branch", "old_head", "new_head"),
     "lane archive-change": _fields("branch", "change", "head", "archive_path"),
 }
 _ACTIONS: dict[str, Action] = {

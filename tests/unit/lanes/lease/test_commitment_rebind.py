@@ -698,7 +698,7 @@ def test_rebind_derive_constructs_the_exact_signed_target(
     git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
     allowed_signers = tmp_path / "derive-target-allowed-signers"
     allowed_signers.write_text(
-        f"test@example.invalid namespaces=\"git\" "
+        f'test@example.invalid namespaces="git" '
         f"{signing_key.with_suffix('.pub').read_text(encoding='utf-8').strip()}\n",
         encoding="utf-8",
     )
@@ -952,7 +952,7 @@ def _bootstrap_case(
     git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
     allowed_signers = tmp_path / "bootstrap-allowed-signers"
     allowed_signers.write_text(
-        f"test@example.invalid namespaces=\"git\" "
+        f'test@example.invalid namespaces="git" '
         f"{signing_key.with_suffix('.pub').read_text(encoding='utf-8').strip()}\n",
         encoding="utf-8",
     )

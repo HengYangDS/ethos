@@ -5,9 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.mutation.proof import proof_attestation
@@ -23,18 +21,19 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
-from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import ref_worktree_paths
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
+from ethos.adapters.repo.git_signing import commit_metadata
+from ethos.adapters.repo.git_signing import create_signed_commit_replacements
+from ethos.adapters.repo.git_signing import existing_commit_replacement
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.lease.lifecycle.transitions import advance_lease_ref
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LeaseOperationRequest
@@ -42,22 +41,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import mutable_json
-
-if TYPE_CHECKING:
-    from ethos.contracts.semantic import Commitment
-
-
-@dataclass(frozen=True, slots=True)
-class _Replacement:
-    root: Path
-    branch: str
-    status: dict[str, object]
-    refs: dict[str, str]
-    authority: Commitment
-    evidence: dict[str, object]
-    lease: dict[str, object]
-    old: str
-    new: str
+from ethos.normalization.coercion import integer
 
 
 def derive_identity_repair_suffix(*, root: Path, base_commit: str) -> dict[str, object]:
@@ -86,23 +70,26 @@ def derive_identity_repair_suffix(*, root: Path, base_commit: str) -> dict[str, 
         )
         if not valid
     ]
-    commits, range_gaps = _linear_suffix(repo, base_commit, head)
-    gaps.extend(range_gaps)
-    train, train_gaps = _suffix_train_refs(repo, branch, commits)
+    if gaps:
+        return _suffix_report(branch, base_commit, head, gaps)
+    proof = cast("Attestation", proof)
+    try:
+        replacements = (
+            [existing_commit_replacement(repo, base_commit, head)]
+            if equivalent_commit_identity(repo, base_commit, head)
+            else create_signed_commit_replacements(
+                repo, base_commit, _linear_suffix(repo, base_commit, head)
+            )
+        )
+    except ValueError as error:
+        gaps.append(str(error))
+        return _suffix_report(branch, base_commit, head, gaps)
+    mapping = {str(item["old_commit"]): str(item["new_commit"]) for item in replacements}
+    train, train_gaps = _suffix_train_refs(repo, branch, mapping)
     gaps.extend(train_gaps)
     if gaps:
         return _suffix_report(branch, base_commit, head, gaps)
-    if proof is None:
-        return _suffix_report(branch, base_commit, head, ["proof_not_proven"])
-    try:
-        replacements = _create_signed_suffix(repo, base_commit, commits)
-    except ValueError as error:
-        return _suffix_report(branch, base_commit, head, [str(error)])
-    mapping = {str(item["old_commit"]): str(item["new_commit"]) for item in replacements}
-    refs = {
-        ref: {"expected": old, "desired": mapping[old]}
-        for ref, old in train.items()
-    }
+    refs = {ref: {"expected": old, "desired": mapping[old]} for ref, old in train.items()}
     request = {
         "schema_version": 1,
         "kind": "identity-repair-suffix-request",
@@ -216,7 +203,7 @@ def execute_identity_repair_suffix(
         )
         if not valid
     ]
-    gaps.extend(_validate_suffix_commits(repo, request, commits))
+    gaps.extend(_validate_suffix_commits(repo, commits))
     gaps.extend(ref_gaps)
     gaps.extend(_suffix_worktree_gaps(repo, status, refs, recovering=recovering))
     if gaps or not apply:
@@ -259,7 +246,7 @@ def execute_identity_repair_suffix(
                 branch=branch,
                 holder_ref=actor,
                 lease_id=str(lease.get("lease_id") or ""),
-                expected_epoch=int(lease.get("epoch") or 0),
+                expected_epoch=integer(lease.get("epoch")),
                 expect_head=old_head,
                 expected_expires_at=str(lease.get("expires_at") or ""),
                 expected_payload_sha256=str(lease.get("payload_sha256") or ""),
@@ -322,9 +309,7 @@ def _suffix_target_binding(
         "expected_head": new_head,
         "expected_tree": current_tree(root, new_head),
         "base_commitment_path": str(generation.get("base_commitment_path") or ""),
-        "base_commitment_bytes_sha256": str(
-            generation.get("base_commitment_bytes_sha256") or ""
-        ),
+        "base_commitment_bytes_sha256": str(generation.get("base_commitment_bytes_sha256") or ""),
         "base_commitment_digest": str(generation.get("base_commitment_digest") or ""),
     }
 
@@ -359,23 +344,23 @@ def _load_identity_repair_receipt(
     return receipt
 
 
-def _validate_suffix_commits(
-    root: Path, request: dict[str, object], commits: list[dict[str, str]]
-) -> list[str]:
+def _validate_suffix_commits(root: Path, commits: list[dict[str, str]]) -> list[str]:
     gaps: list[str] = []
-    expected_old_parent = str(request.get("base_commit") or "")
-    expected_new_parent = expected_old_parent
+    previous_old = ""
+    previous_new = ""
     for item in commits:
         old = str(item.get("old_commit") or "")
         new = str(item.get("new_commit") or "")
-        metadata = _commit_metadata(root, old)
+        metadata = commit_metadata(root, old) or {}
         old_raw = run_git(root, "cat-file", "commit", old, check=False, text=False)
         new_raw = run_git(root, "cat-file", "commit", new, check=False, text=False)
         old_message = old_raw.stdout.partition(b"\n\n")[2] if old_raw.returncode == 0 else b""
         new_message = new_raw.stdout.partition(b"\n\n")[2] if new_raw.returncode == 0 else b""
         checks = (
-            (git_stdout(root, "rev-parse", f"{old}^") == expected_old_parent, "old_parent"),
-            (git_stdout(root, "rev-parse", f"{new}^") == expected_new_parent, "new_parent"),
+            (git_stdout(root, "rev-parse", f"{old}^") == item.get("old_parent"), "old_parent"),
+            (git_stdout(root, "rev-parse", f"{new}^") == item.get("new_parent"), "new_parent"),
+            (not previous_old or item.get("old_parent") == previous_old, "old_chain"),
+            (not previous_new or item.get("new_parent") == previous_new, "new_chain"),
             (current_tree(root, old) == item.get("tree"), "old_tree"),
             (current_tree(root, new) == item.get("tree"), "new_tree"),
             (
@@ -393,27 +378,20 @@ def _validate_suffix_commits(
             (verify_commit_trust(root, new).get("verdict") == "pass", "trust"),
         )
         gaps.extend(
-            f"identity_repair_commit_{field}_drift:{old}"
-            for valid, field in checks
-            if not valid
+            f"identity_repair_commit_{field}_drift:{old}" for valid, field in checks if not valid
         )
-        expected_old_parent = old
-        expected_new_parent = new
+        previous_old = old
+        previous_new = new
     return gaps
 
 
-def _suffix_ref_state(
-    root: Path, refs: dict[str, dict[str, str]]
-) -> tuple[str, list[str]]:
+def _suffix_ref_state(root: Path, refs: dict[str, dict[str, str]]) -> tuple[str, list[str]]:
     observed = {ref: ref_head(root, ref) for ref in refs}
     if all(observed[ref] == update["expected"] for ref, update in refs.items()):
         return "expected", []
     if all(observed[ref] == update["desired"] for ref, update in refs.items()):
         return "desired", []
-    return "mixed", [
-        f"identity_repair_ref_stale:{ref}:{observed[ref]}"
-        for ref in refs
-    ]
+    return "mixed", [f"identity_repair_ref_stale:{ref}:{observed[ref]}" for ref in refs]
 
 
 def _suffix_worktree_gaps(
@@ -440,13 +418,17 @@ def _suffix_worktree_gaps(
             if recovering
             else ""
         )
-        gap = "" if recovering and not terminal else worktree_sync_gap(
-            root,
-            paths,
-            branch,
-            update["desired"] if recovering else update["expected"],
-            update["expected"],
-            update["desired"],
+        gap = (
+            ""
+            if recovering and not terminal
+            else worktree_sync_gap(
+                root,
+                paths,
+                branch,
+                update["desired"] if recovering else update["expected"],
+                update["expected"],
+                update["desired"],
+            )
         )
         if gap:
             gaps.append(f"identity_repair_{branch.replace('/', '_')}_{gap}")
@@ -472,104 +454,41 @@ def _sync_suffix_worktrees(
     ]
 
 
-def _linear_suffix(root: Path, base: str, head: str) -> tuple[list[str], list[str]]:
+def _linear_suffix(root: Path, base: str, head: str) -> list[str]:
     if not base or not head:
-        return [], ["identity_repair_suffix_coordinate_missing"]
+        message = "identity_repair_suffix_coordinate_missing"
+        raise ValueError(message)
     contained = run_git(root, "merge-base", "--is-ancestor", base, head, check=False)
     if contained.returncode:
-        return [], ["identity_repair_base_not_ancestor"]
+        message = "identity_repair_base_not_ancestor"
+        raise ValueError(message)
     commits = git_stdout(root, "rev-list", "--reverse", f"{base}..{head}").splitlines()
     if not commits:
-        return [], ["identity_repair_suffix_empty"]
+        message = "identity_repair_suffix_empty"
+        raise ValueError(message)
     previous = base
     for commit in commits:
         parents = git_stdout(root, "rev-list", "--parents", "-n", "1", commit).split()
         if parents != [commit, previous]:
-            return commits, [f"identity_repair_suffix_not_linear:{commit}"]
+            message = f"identity_repair_suffix_not_linear:{commit}"
+            raise ValueError(message)
         previous = commit
-    return commits, []
+    return commits
 
 
 def _suffix_train_refs(
-    root: Path, branch: str, commits: list[str]
+    root: Path, branch: str, mapping: dict[str, str]
 ) -> tuple[dict[str, str], list[str]]:
     policy = load_branch_role_policy(root)
     branches = [policy.candidate_branch, policy.accepted_branch, policy.release_branch, branch]
     refs = {f"refs/heads/{name}": ref_head(root, name) for name in dict.fromkeys(branches)}
-    suffix = set(commits)
+    suffix = set(mapping) | set(mapping.values())
     gaps = [
         f"identity_repair_ref_outside_suffix:{ref}:{head}"
         for ref, head in refs.items()
         if head not in suffix
     ]
-    return refs, gaps
-
-
-def _create_signed_suffix(root: Path, base: str, commits: list[str]) -> list[dict[str, str]]:
-    replacements: list[dict[str, str]] = []
-    new_parent = base
-    for old in commits:
-        metadata = _commit_metadata(root, old)
-        raw = run_git(root, "cat-file", "commit", old, check=False, text=False)
-        message = raw.stdout.partition(b"\n\n")[2] if raw.returncode == 0 else b""
-        if not metadata or not message:
-            error = f"identity_repair_commit_metadata_unreadable:{old}"
-            raise ValueError(error)
-        tree = current_tree(root, old)
-        completed = create_git_commit(
-            root,
-            tree=tree,
-            parent=new_parent,
-            message=message.decode("utf-8", errors="surrogateescape"),
-            preserve_message=True,
-            environment=metadata,
-        )
-        if completed.returncode or not completed.stdout.strip():
-            gap = completed.stderr.strip() or "identity_repair_commit_creation_failed"
-            error = f"{gap}:{old}"
-            raise ValueError(error)
-        new = completed.stdout.strip()
-        if new == old:
-            error = f"identity_repair_commit_identity_unchanged:{old}"
-            raise ValueError(error)
-        replacements.append(
-            {
-                "old_commit": old,
-                "new_commit": new,
-                "old_parent": git_stdout(root, "rev-parse", f"{old}^"),
-                "new_parent": new_parent,
-                "tree": tree,
-                "message_sha256": hashlib.sha256(message).hexdigest(),
-                **{key.removeprefix("GIT_").lower(): value for key, value in metadata.items()},
-            }
-        )
-        new_parent = new
-    return replacements
-
-
-def _commit_metadata(root: Path, commit: str) -> dict[str, str]:
-    completed = run_git(
-        root,
-        "show",
-        "-s",
-        "--format=%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI",
-        commit,
-        check=False,
-    )
-    if completed.returncode:
-        return {}
-    fields = completed.stdout.rstrip("\n").split("\0")
-    if len(fields) != 6:
-        return {}
-    author, author_email, authored_at, committer, committer_email, committed_at = fields
-    return {
-        "GIT_AUTHOR_NAME": author,
-        "GIT_AUTHOR_EMAIL": author_email,
-        "GIT_AUTHOR_DATE": authored_at,
-        "GIT_COMMITTER_NAME": committer,
-        "GIT_COMMITTER_EMAIL": committer_email,
-        "GIT_COMMITTER_DATE": committed_at,
-    }
+    return {ref: head for ref, head in refs.items() if head in mapping}, gaps
 
 
 def _canonical_json(value: object) -> bytes:
@@ -591,247 +510,4 @@ def _suffix_report(branch: str, base: str, head: str, gaps: list[str]) -> dict[s
         "receipt": {},
         "required_gaps": list(dict.fromkeys(gaps)),
         "next_action": "",
-    }
-
-
-def repair_commit_identity(
-    *,
-    root: Path,
-    old_commit: str,
-    new_commit: str,
-    expect_head: str,
-    apply: bool,
-    authorized: bool,
-) -> dict[str, object]:
-    """Replace one semantically identical commit OID through exact train-wide CAS."""
-    status = workspace_status(root, include_foreign_path_scope=False)
-    branch = str(status.get("branch") or "")
-    head = current_tracked_head(root)
-    lease = leases_by_branch(root).get(branch, {})
-    proof = proof_attestation(root, new_commit)
-    trust = verify_commit_trust(root, new_commit)
-    train, update_gaps = _train_refs(root, old_commit, new_commit)
-    gaps = [
-        gap
-        for valid, gap in (
-            (status.get("role") == ROLE_WORK_LANE, "work_lane_required"),
-            (not status.get("dirty"), "work_lane_dirty"),
-            (authorized or not apply, "authorization_required"),
-            (expect_head == new_commit, "expect_head_mismatch"),
-            (head == new_commit, "identity_repair_head_mismatch"),
-            (old_commit != new_commit, "identity_repair_oid_unchanged"),
-            (
-                equivalent_commit_identity(root, old_commit, new_commit),
-                "identity_repair_commit_payload_mismatch",
-            ),
-            (lease.get("lease_state") == "valid", f"work_lane_lease_invalid:{branch}"),
-            (
-                str(lease.get("holder_ref") or "") == os.environ.get("ETHOS_ACTOR", "").strip(),
-                "lease_actor_mismatch",
-            ),
-            (str(lease.get("expected_head") or "") == new_commit, "lease_head_stale"),
-            (
-                str(lease.get("expected_tree") or "") == current_tree(root, new_commit),
-                "lease_expected_tree_stale",
-            ),
-            (proof is not None, (proof_gaps(root, new_commit) or ["proof_not_proven"])[0]),
-        )
-        if not valid
-    ]
-    trust_gaps = trust.get("required_gaps")
-    if isinstance(trust_gaps, list):
-        gaps.extend(str(gap) for gap in trust_gaps)
-    gaps.extend(update_gaps)
-    gaps.extend(_worktree_gaps(root, status, train, old_commit, new_commit))
-    report = _report(branch, old_commit, new_commit, trust, gaps)
-    if gaps or not apply:
-        return report | {"state": "blocked" if gaps else "ready_to_repair_identity"}
-    authority = load_lease_bound_commitment(root, lease=lease)
-    evidence = {
-        "proof": proof.model_dump(mode="json") if proof is not None else {},
-        "commit_trust": trust,
-    }
-    replacement = _Replacement(
-        root=root,
-        branch=branch,
-        status=status,
-        refs=train,
-        authority=authority,
-        evidence=evidence,
-        lease=lease,
-        old=old_commit,
-        new=new_commit,
-    )
-    try:
-        candidate_attestation = _apply_candidate_replacement(replacement)
-        accepted_attestation = _apply_accepted_replacement(replacement)
-    except ValueError as error:
-        return _report(
-            branch,
-            old_commit,
-            new_commit,
-            trust,
-            ["identity_repair_cas_rejected"],
-            stderr=str(error),
-        )
-    return _report(
-        branch,
-        old_commit,
-        new_commit,
-        trust,
-        [],
-        state="identity_repaired",
-        candidate_attestation=candidate_attestation,
-        accepted_attestation=accepted_attestation,
-    )
-
-
-def _train_refs(root: Path, old: str, new: str) -> tuple[dict[str, str], list[str]]:
-    policy = load_branch_role_policy(root)
-    branches = [policy.candidate_branch, policy.accepted_branch]
-    if policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF:
-        branches.append(policy.release_branch)
-    heads = {branch: ref_head(root, branch) for branch in branches}
-    gaps = [
-        f"identity_repair_ref_stale:{branch}:{head}"
-        for branch, head in heads.items()
-        if head not in {old, new}
-    ]
-    return heads, gaps
-
-
-def _worktree_gaps(
-    root: Path,
-    status: dict[str, object],
-    refs: dict[str, str],
-    old: str,
-    new: str,
-) -> list[str]:
-    worktrees = cast("list[dict[str, object]]", status.get("worktrees") or [])
-    gaps = []
-    for branch, head in refs.items():
-        if head != old:
-            continue
-        paths = ref_worktree_paths(worktrees, branch)
-        if gap := worktree_sync_gap(root, paths, branch, old, old, new):
-            gaps.append(f"identity_repair_{branch.replace('/', '_')}_{gap}")
-    return gaps
-
-
-def _sync_branch_worktrees(
-    root: Path,
-    status: dict[str, object],
-    branch: str,
-    old: str,
-    new: str,
-) -> dict[str, object]:
-    worktrees = cast("list[dict[str, object]]", status.get("worktrees") or [])
-    return sync_ref_worktrees(
-        root,
-        ref_worktree_paths(worktrees, branch),
-        branch,
-        new,
-        old,
-    )
-
-
-def _apply_candidate_replacement(replacement: _Replacement) -> dict[str, object]:
-    root, old, new = replacement.root, replacement.old, replacement.new
-    policy = load_branch_role_policy(root)
-    candidate = policy.candidate_branch
-    if replacement.refs[candidate] == new:
-        sync = _sync_branch_worktrees(root, replacement.status, candidate, old, new)
-        if sync["worktree_sync"] == "failed":
-            message = "identity_repair_candidate_worktree_sync_failed"
-            raise ValueError(message)
-        return {"state": "recognized", "worktree_sync": sync}
-    effect = GitEffect(
-        updates={f"refs/heads/{candidate}": GitRefUpdate(expected=old, desired=new)},
-        assertions={f"refs/heads/{replacement.branch}": new},
-    )
-    plan = _plan(replacement, effect)
-    attestation = execute_git_effect(root, plan, issuer=str(replacement.lease["holder_ref"]))
-    sync = _sync_branch_worktrees(root, replacement.status, candidate, old, new)
-    if sync["worktree_sync"] == "failed":
-        message = "identity_repair_candidate_worktree_sync_failed"
-        raise ValueError(message)
-    return {"effect": attestation.model_dump(mode="json"), "worktree_sync": sync}
-
-
-def _apply_accepted_replacement(replacement: _Replacement) -> dict[str, object]:
-    root, old, new = replacement.root, replacement.old, replacement.new
-    policy = load_branch_role_policy(root)
-    branches = [policy.accepted_branch]
-    if (
-        policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
-        and replacement.refs[policy.release_branch] == old
-    ):
-        branches.append(policy.release_branch)
-    updates = {
-        f"refs/heads/{name}": GitRefUpdate(expected=old, desired=new)
-        for name in branches
-        if replacement.refs[name] == old
-    }
-    if not updates:
-        synchronized = [
-            {"branch": name, **_sync_branch_worktrees(root, replacement.status, name, old, new)}
-            for name in branches
-        ]
-        if any(item["worktree_sync"] == "failed" for item in synchronized):
-            message = "identity_repair_accepted_worktree_sync_failed"
-            raise ValueError(message)
-        return {"state": "recognized", "worktree_sync": synchronized}
-    effect = GitEffect(
-        updates=updates,
-        assertions={f"refs/heads/{policy.candidate_branch}": new},
-    )
-    plan = _plan(replacement, effect)
-    attestation = execute_git_effect(root, plan, issuer=str(replacement.lease["holder_ref"]))
-    synchronized = [
-        {"branch": name, **_sync_branch_worktrees(root, replacement.status, name, old, new)}
-        for name in branches
-        if replacement.refs[name] == old
-    ]
-    if any(item["worktree_sync"] == "failed" for item in synchronized):
-        message = "identity_repair_accepted_worktree_sync_failed"
-        raise ValueError(message)
-    return {"effect": attestation.model_dump(mode="json"), "worktree_sync": synchronized}
-
-
-def _plan(replacement: _Replacement, effect: GitEffect):
-    return compile_observed_git_effect(
-        replacement.root,
-        replacement.authority,
-        effect,
-        head=replacement.new,
-        prior_attestations=replacement.evidence,
-        policy={
-            "operation": "commit.identity-replace",
-            "execution_branch": replacement.branch,
-        },
-        values={
-            "lease_generation": lease_generation(replacement.lease),
-            "old_commit": replacement.old,
-            "new_commit": replacement.new,
-        },
-    )
-
-
-def _report(
-    branch: str,
-    old: str,
-    new: str,
-    trust: dict[str, object],
-    gaps: list[str],
-    **details: object,
-) -> dict[str, object]:
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": "blocked" if gaps else "ready_to_repair_identity",
-        "branch": branch,
-        "old_commit": old,
-        "new_commit": new,
-        "trust": trust,
-        "required_gaps": list(dict.fromkeys(gaps)),
-        **details,
     }

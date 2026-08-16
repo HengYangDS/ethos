@@ -8,3 +8,10 @@
   closeout, landing, and failure-matrix behavior.
 - [ ] **4. Complete lifecycle evidence.** Commit, execute exact-HEAD proof,
   archive, land, close out, retire, and verify the package-only runtime.
+
+| Outcome | Task | Evidence |
+| --- | ---: | --- |
+| `command-plane:Accepted closeout preserves exact bootstrap identity` | 1 | `receipt:accepted-closeout-rejection` |
+| `adapters:Terminal-v1 prestate remains fail-closed` | 2 | `tests:accepted-bootstrap-prestate` |
+| `quality:Focused closeout behavior remains green` | 3 | `tests:accepted-closeout-focused` |
+| `lifecycle:Forward fix reaches accepted package-only runtime` | 4 | `proof:exact-head` |

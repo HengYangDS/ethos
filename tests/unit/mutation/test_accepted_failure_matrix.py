@@ -31,6 +31,7 @@ def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(accepted, "proof_attestation", lambda *_args: _Proof())
     monkeypatch.setattr(accepted, "sweep_stale_ref_intents", lambda *_args: [])
     monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(accepted, "committed_file_bytes", lambda *_args: b"commitment")
     monkeypatch.setattr(accepted, "worktree_sync_gap", lambda *_args: "")
     monkeypatch.setattr(accepted, "ref_worktree_paths", lambda *_args: ())
 
@@ -155,6 +156,7 @@ def test_candidate_promotion_falls_back_to_candidate_bootstrap_authority(
 
     monkeypatch.setattr(accepted, "load_repository_commitment", load)
     monkeypatch.setattr(accepted, "terminal_v1_binding", lambda *_args, **_kwargs: prestate)
+    monkeypatch.setattr(accepted, "committed_file_bytes", lambda *_args: b"terminal-v1")
 
     report = accepted.promote_candidate(
         root=tmp_path,

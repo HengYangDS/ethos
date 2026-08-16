@@ -11,6 +11,7 @@ from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.commitment import terminal_v1_binding
+from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -90,11 +91,15 @@ def _apply_candidate_promotion(
             if not str(error).startswith("repository_commitment_missing:"):
                 raise
             authority = load_repository_commitment(root, tree_ref=candidate_head)
-            prestate = terminal_v1_binding(
-                root,
-                tree_ref=current_head,
-                carrier=".ethos/commitment.toml",
-                repository=True,
+            prestate = (
+                terminal_v1_binding(
+                    root,
+                    tree_ref=current_head,
+                    carrier=".ethos/commitment.toml",
+                    repository=True,
+                )
+                if committed_file_bytes(root, current_head, ".ethos/commitment.toml")
+                else {}
             )
         prior_attestations = {
             "proof": proof.model_dump(mode="json"),
@@ -246,7 +251,10 @@ def _accepted_transition_plan(
         "accepted_branch": role_policy.accepted_branch,
         "candidate_branch": role_policy.candidate_branch,
         "release_mirror": role_policy.release_mirror,
-        "repository_commitment_bootstrap": bool(prestate),
+        "repository_commitment_bootstrap": not committed_file_bytes(
+            root, head, ".ethos/commitment.toml"
+        )
+        or bool(prestate),
         **(
             {
                 "prestate_repository_id": str(prestate["id"]),

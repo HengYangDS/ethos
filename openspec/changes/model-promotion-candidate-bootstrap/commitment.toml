@@ -8,8 +8,10 @@ scope = [
   "openspec/changes/model-promotion-candidate-bootstrap/**",
   "src/ethos/adapters/mutation/landing.py",
   "src/ethos/adapters/openspec/start_effect.py",
+  "src/ethos/contracts/semantic.py",
   "tests/unit/cli/test_contracts_land.py",
   "tests/unit/cli/test_landing_public_failures_atom.py",
+  "tests/unit/kernel/test_contracts.py",
   "tests/unit/lanes/lease/test_commitment_rebind.py",
 ]
 invariants = []

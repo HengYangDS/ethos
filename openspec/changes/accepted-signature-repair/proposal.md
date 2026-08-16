@@ -11,12 +11,15 @@ the historical suffix is replaced by its exact-payload signed identity train.
 
 - Consume the accepted public `lane repair-identity` capability.
 - Derive one immutable receipt for the exact linear suffix.
+- Correct the receipt dry-run so an unchanged request reports pass/ready rather
+  than a gapless blocking verdict.
 - Apply one exact-CAS replacement across the observed work, candidate,
   accepted, and release refs.
 - Re-prove the rewritten HEAD before normal archive, land, and closeout.
 
 ## Boundaries
 
-This Change adds no product behavior or specification delta. It does not modify
-AIGW or Proxy, broaden history-rewrite authority, repair runtime portability,
-or change adopter profile compatibility.
+This Change does not modify AIGW or Proxy, broaden history-rewrite authority,
+repair runtime portability, or change adopter profile compatibility. Its only
+command-plane delta makes the existing receipt dry-run truthfully project the
+already-validated apply preconditions.

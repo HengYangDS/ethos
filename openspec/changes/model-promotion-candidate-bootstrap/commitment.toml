@@ -1,0 +1,23 @@
+schema_version = 2
+id = "change:model-promotion-candidate-bootstrap"
+intent = "Carry exact repository v1 prestate identity when landing the v2 bootstrap into candidate."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/model-promotion-candidate-bootstrap/**",
+  "src/ethos/adapters/mutation/landing.py",
+  "tests/unit/cli/test_contracts_land.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "288109975c8c52720592cd16d1ea03f519848e01e2722abae223e887bef6bc8e",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

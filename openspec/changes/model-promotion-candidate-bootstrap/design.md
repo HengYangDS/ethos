@@ -11,6 +11,6 @@ did not project it when its target candidate still carried terminal v1.
 
 Candidate plan compilation inspects only the exact expected candidate head. If
 that head contains a valid terminal-v1 repository carrier, the plan includes the
-existing bootstrap marker and exact prestate coordinates. Otherwise it emits the
-unchanged normal candidate policy. Shared effect admission remains the sole
-identity validator.
+existing bootstrap marker and exact prestate coordinates. A valid v2 carrier
+uses the unchanged normal candidate policy; malformed or missing carriers fail
+closed. Shared effect admission remains the sole identity validator.

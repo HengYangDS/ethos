@@ -12,7 +12,8 @@ correctly rejected the schema transition as an identity mismatch.
 - Recognize an exact terminal-v1 repository Commitment at the candidate head.
 - Reuse the existing repository bootstrap policy fields with its exact ID and
   byte digest when compiling candidate integration.
-- Preserve the normal transition for current v2 or invalid prestate carriers.
+- Preserve the normal transition for valid v2 carriers and reject malformed or
+  missing prestate carriers.
 
 ## Impact
 

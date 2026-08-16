@@ -53,6 +53,7 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
         "load_lease_bound_commitment",
         lambda *_args, **_kwargs: SimpleNamespace(digest=lambda: "digest"),
     )
+    monkeypatch.setattr(landing, "load_repository_commitment", lambda *_args, **_kwargs: object())
     monkeypatch.setattr(landing, "compile_observed_git_effect", lambda *_args, **_kwargs: plan)
     return candidate, plan
 

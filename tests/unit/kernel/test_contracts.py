@@ -282,6 +282,22 @@ def test_attestation_identity_and_serialization_are_payload_addressed() -> None:
         Attestation.model_validate_json(json.dumps(forged))
 
 
+def test_attestation_mapping_round_trip_normalizes_fractional_time() -> None:
+    issued = datetime(2026, 8, 16, 9, 6, 13, 523640, tzinfo=UTC)
+    base = _attestation(payload={"state": "observed"})
+    attestation = Attestation.issue(
+        base.model_dump(mode="python", exclude={"id"})
+        | {"issued_at": issued, "valid_from": issued}
+    )
+
+    payload = attestation.model_dump(mode="json")
+
+    assert payload["issued_at"] == "2026-08-16T09:06:13.523640Z"
+    assert Attestation.model_validate(payload).id == attestation.id
+    with pytest.raises(ValueError, match="semantic_json_noncanonical"):
+        Attestation.model_validate_json(json.dumps(payload, separators=(",", ":")))
+
+
 def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
     attestation = _attestation(payload={"required_gaps": ["proof_missing"]}, verdict="block")
     payload = attestation.model_dump(mode="json")

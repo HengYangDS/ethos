@@ -199,12 +199,24 @@ def test_commit_git_worktree_binds_effective_ssh_signer_without_agent(
     assert signer_record.read_text(encoding="utf-8").strip() == str(public_key)
 
 
-def test_create_git_commit_binds_effective_signing_configuration(tmp_path: Path) -> None:
+def test_create_git_commit_inherits_effective_signing_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo, previous = _staged_repo(tmp_path)
     public_key = repo / "signing-key.pub"
     public_key.write_text("ssh-ed25519 AAAATEST exact-signing-key\n", encoding="utf-8")
+    git(repo, "config", "commit.gpgsign", "true")
     git(repo, "config", "gpg.format", "ssh")
     git(repo, "config", "user.signingkey", public_key.as_posix())
+    monkeypatch.setattr(
+        runtime,
+        "verify_commit_trust",
+        lambda _root, revision: {
+            "verdict": "pass",
+            "revision": revision,
+            "required_gaps": [],
+        },
+    )
     calls: list[dict[str, str]] = []
 
     def capture_commit(_root: Path, *args: str, **kwargs: object) -> object:
@@ -227,7 +239,6 @@ def test_create_git_commit_binds_effective_signing_configuration(tmp_path: Path)
         tree=git(repo, "write-tree"),
         parent=previous,
         message="bootstrap Commitment v2",
-        sign=True,
         runner=capture_commit,
     )
 
@@ -240,6 +251,71 @@ def test_create_git_commit_binds_effective_signing_configuration(tmp_path: Path)
             "GIT_CONFIG_VALUE_1": "key::ssh-ed25519 AAAATEST exact-signing-key",
         }
     ]
+
+
+def test_create_git_commit_allows_unsigned_policy(tmp_path: Path) -> None:
+    repo, previous = _staged_repo(tmp_path)
+
+    completed = create_git_commit(
+        repo,
+        tree=git(repo, "write-tree"),
+        parent=previous,
+        message="bootstrap Commitment v2",
+    )
+
+    assert completed.returncode == 0
+    assert "gpgsig " not in git(repo, "cat-file", "commit", completed.stdout.strip())
+
+
+def test_create_git_commit_preserves_exact_multiline_message(tmp_path: Path) -> None:
+    repo, previous = _staged_repo(tmp_path)
+    message = "subject\n\nbody line\n"
+
+    completed = create_git_commit(
+        repo,
+        tree=git(repo, "write-tree"),
+        parent=previous,
+        message=message,
+        preserve_message=True,
+    )
+
+    raw = subprocess.run(
+        ("git", "cat-file", "commit", completed.stdout.strip()),
+        cwd=repo,
+        capture_output=True,
+        check=True,
+    ).stdout
+    assert raw.partition(b"\n\n")[2] == message.encode()
+
+
+def test_create_git_commit_rejects_untrusted_signed_object(tmp_path: Path) -> None:
+    repo, previous = _staged_repo(tmp_path)
+    signing_key = tmp_path / "untrusted-signing-key"
+    subprocess.run(
+        ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(signing_key)),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    empty_anchor = tmp_path / "allowed-signers"
+    empty_anchor.write_text("", encoding="utf-8")
+    empty_anchor.chmod(0o600)
+    git(repo, "config", "commit.gpgsign", "true")
+    git(repo, "config", "gpg.format", "ssh")
+    git(repo, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(repo, "config", "gpg.ssh.allowedSignersFile", empty_anchor.as_posix())
+    git(repo, "config", "user.signingkey", signing_key.with_suffix(".pub").as_posix())
+
+    completed = create_git_commit(
+        repo,
+        tree=git(repo, "write-tree"),
+        parent=previous,
+        message="bootstrap Commitment v2",
+    )
+
+    assert completed.returncode == 1
+    assert completed.stderr == "commit_signature_untrusted"
+    assert git(repo, "rev-parse", "HEAD") == previous
 
 
 ZERO_OID, ZERO_DIGEST = "0" * 40, "0" * 64

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -25,9 +25,6 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_work_lane
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_work_lane_commitment_never_falls_back_from_an_invalid_lease(
@@ -262,6 +259,311 @@ def test_repair_identity_completes_or_resumes_the_exact_train_cas(
     assert git(candidate, "rev-parse", "HEAD") == new
     assert git(repo, "rev-parse", "HEAD") == new
     assert git(candidate, "status", "--short") == git(repo, "status", "--short") == ""
+
+
+def test_repair_identity_derives_one_exact_linear_suffix_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, candidate, worktree, base, accepted, head = _identity_repair_suffix_fixture(
+        tmp_path, monkeypatch
+    )
+    del repo, candidate
+
+    report = identity_repair.derive_identity_repair_suffix(
+        root=worktree,
+        base_commit=base,
+    )
+
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        "pass",
+        "derived",
+        [],
+    )
+    assert [item["old_commit"] for item in report["request"]["commits"]] == [
+        accepted,
+        head,
+    ]
+    assert report["request"]["refs"] == {
+        "refs/heads/candidate/dev": {
+            "expected": accepted,
+            "desired": report["request"]["commits"][0]["new_commit"],
+        },
+        "refs/heads/dev": {
+            "expected": accepted,
+            "desired": report["request"]["commits"][0]["new_commit"],
+        },
+        "refs/heads/main": {
+            "expected": accepted,
+            "desired": report["request"]["commits"][0]["new_commit"],
+        },
+        "refs/heads/work/feature": {
+            "expected": head,
+            "desired": report["request"]["commits"][1]["new_commit"],
+        },
+    }
+    assert report["receipt"]["path"].endswith(".json")
+    assert report["next_action"].startswith("ethos lane repair-identity --receipt ")
+
+
+def test_repair_identity_applies_one_exact_linear_suffix_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, candidate, worktree, base, _accepted, _head = _identity_repair_suffix_fixture(
+        tmp_path, monkeypatch
+    )
+    derived = identity_repair.derive_identity_repair_suffix(
+        root=worktree,
+        base_commit=base,
+    )
+
+    report = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=str(derived["receipt"]["path"]),
+        receipt_sha256=str(derived["receipt"]["sha256"]),
+        apply=True,
+        authorized=True,
+    )
+
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (
+        "pass",
+        "identity_repaired",
+        [],
+    )
+    expected = derived["request"]["refs"]
+    assert {
+        ref: git(repo, "rev-parse", ref)
+        for ref in expected
+    } == {ref: update["desired"] for ref, update in expected.items()}
+    assert git(candidate, "status", "--short") == git(worktree, "status", "--short") == ""
+    assert all(
+        git(repo, "verify-commit", item["new_commit"]) == ""
+        for item in derived["request"]["commits"]
+    )
+
+
+def test_repair_identity_resumes_same_suffix_receipt_after_worktree_sync_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, candidate, worktree, base, _accepted, _head = _identity_repair_suffix_fixture(
+        tmp_path, monkeypatch
+    )
+    derived = identity_repair.derive_identity_repair_suffix(
+        root=worktree,
+        base_commit=base,
+    )
+    receipt = derived["receipt"]
+    expected = derived["request"]["refs"]
+    original = identity_repair.sync_ref_worktrees
+    calls = 0
+
+    def fail_once(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return {"worktree_sync": "failed", "worktrees": []}
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(identity_repair, "sync_ref_worktrees", fail_once)
+
+    first = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=str(receipt["path"]),
+        receipt_sha256=str(receipt["sha256"]),
+        apply=True,
+        authorized=True,
+    )
+
+    assert first["required_gaps"] == ["identity_repair_worktree_sync_failed"]
+    assert {
+        ref: git(repo, "rev-parse", ref)
+        for ref in expected
+    } == {ref: update["desired"] for ref, update in expected.items()}
+
+    resumed = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=str(receipt["path"]),
+        receipt_sha256=str(receipt["sha256"]),
+        apply=True,
+        authorized=True,
+    )
+
+    assert (resumed["verdict"], resumed["state"], resumed["required_gaps"]) == (
+        "pass",
+        "identity_repaired",
+        [],
+    ), resumed
+    assert git(candidate, "status", "--short") == git(worktree, "status", "--short") == ""
+
+
+def test_repair_identity_suffix_receipt_rejects_actor_ref_and_trust_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, _candidate, worktree, base, accepted, _head = _identity_repair_suffix_fixture(
+        tmp_path, monkeypatch
+    )
+    derived = identity_repair.derive_identity_repair_suffix(root=worktree, base_commit=base)
+    receipt = derived["receipt"]
+
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
+    actor = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=str(receipt["path"]),
+        receipt_sha256=str(receipt["sha256"]),
+        apply=True,
+        authorized=True,
+    )
+    assert actor["required_gaps"] == ["identity_repair_actor_mismatch"]
+
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    git(repo, "-c", "core.hooksPath=/dev/null", "update-ref", "refs/heads/main", base, accepted)
+    stale_ref = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=str(receipt["path"]),
+        receipt_sha256=str(receipt["sha256"]),
+        apply=True,
+        authorized=True,
+    )
+    assert any(
+        gap.startswith("identity_repair_ref_stale:refs/heads/main:")
+        for gap in stale_ref["required_gaps"]
+    )
+
+    git(repo, "-c", "core.hooksPath=/dev/null", "update-ref", "refs/heads/main", accepted, base)
+    git(repo, "config", "gpg.ssh.allowedSignersFile", (tmp_path / "missing-anchor").as_posix())
+    untrusted = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=str(receipt["path"]),
+        receipt_sha256=str(receipt["sha256"]),
+        apply=True,
+        authorized=True,
+    )
+    assert any(
+        gap.endswith(f"trust_drift:{item['old_commit']}")
+        for gap in untrusted["required_gaps"]
+        for item in derived["request"]["commits"]
+    )
+
+
+def test_repair_identity_suffix_receipt_rejects_tampered_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _repo, _candidate, worktree, base, _accepted, _head = _identity_repair_suffix_fixture(
+        tmp_path, monkeypatch
+    )
+    derived = identity_repair.derive_identity_repair_suffix(root=worktree, base_commit=base)
+    receipt = derived["receipt"]
+    path = Path(str(receipt["path"]))
+    path.write_bytes(path.read_bytes() + b"\n")
+
+    report = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=path.as_posix(),
+        receipt_sha256=str(receipt["sha256"]),
+        apply=True,
+        authorized=True,
+    )
+
+    assert report["required_gaps"] == ["identity_repair_receipt_sha256_mismatch"]
+
+
+def test_repair_identity_suffix_rejects_merge_history(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    base = git(repo, "rev-parse", "HEAD")
+    left = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-m", "left")
+    right = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-m", "right")
+    merge = git(repo, "commit-tree", "HEAD^{tree}", "-p", left, "-p", right, "-m", "merge")
+
+    commits, gaps = identity_repair._linear_suffix(repo, base, merge)  # noqa: SLF001
+
+    assert commits[-1] == merge
+    assert len(gaps) == 1
+    rejected = gaps[0].removeprefix("identity_repair_suffix_not_linear:")
+    assert rejected in commits
+    previous = base if commits.index(rejected) == 0 else commits[commits.index(rejected) - 1]
+    assert git(repo, "rev-list", "--parents", "-n", "1", rejected).split() != [
+        rejected,
+        previous,
+    ]
+
+
+def test_repair_identity_public_cli_derives_and_applies_suffix_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, _candidate, worktree, base, _accepted, _head = _identity_repair_suffix_fixture(
+        tmp_path, monkeypatch
+    )
+
+    derived = run_ethos(
+        "lane",
+        "repair-identity",
+        "derive",
+        "--base-commit",
+        base,
+        "--json",
+        cwd=worktree,
+    )
+    receipt = derived["data"]["receipt"]
+    applied = run_ethos(
+        "lane",
+        "repair-identity",
+        "--receipt",
+        receipt["path"],
+        "--receipt-sha256",
+        receipt["sha256"],
+        "--apply",
+        "--authorize",
+        "--json",
+        cwd=worktree,
+    )
+
+    assert applied["state"] == "identity_repaired"
+    assert git(repo, "rev-parse", "work/feature") == applied["data"]["new_head"]
+
+
+def _identity_repair_suffix_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, Path, str, str, str]:
+    repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
+    base = git(worktree, "rev-parse", "HEAD")
+    accepted = commit_fixture_file(worktree, "FIRST.md", "first\n", "feat: first unsigned")
+    head = commit_fixture_file(worktree, "SECOND.md", "second\n", "feat: second unsigned")
+    git(candidate, "reset", "--hard", accepted)
+    git(repo, "reset", "--hard", accepted)
+    git(repo, "update-ref", "refs/heads/main", accepted)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    signing_key = tmp_path / "suffix-signing-key"
+    subprocess.run(
+        ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(signing_key)),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    public_key = signing_key.with_suffix(".pub")
+    anchor = tmp_path / "suffix-allowed-signers"
+    anchor.write_text(
+        f"test@example.com namespaces=\"git\" "
+        f"{public_key.read_text(encoding='utf-8').strip()}\n",
+        encoding="utf-8",
+    )
+    anchor.chmod(0o600)
+    git(repo, "config", "commit.gpgsign", "true")
+    git(repo, "config", "gpg.format", "ssh")
+    git(repo, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(repo, "config", "gpg.ssh.allowedSignersFile", anchor.as_posix())
+    git(repo, "config", "user.signingkey", public_key.as_posix())
+    scope = CurrentGenerationScope(("FIRST.md", "SECOND.md"), {})
+    plan = proof_plan(worktree, head=head, generation_scope=scope)
+    persist_proof_attestation(worktree, issue_conformant_proof(worktree, head, plan=plan))
+    return repo, candidate, worktree, base, accepted, head
 
 
 def _identity_repair_arguments(old: str, new: str) -> tuple[str, ...]:

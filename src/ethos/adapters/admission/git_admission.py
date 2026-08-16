@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Literal
 from typing import cast
 
 from ethos.adapters.admission.identity import ReconciliationObservation
@@ -10,6 +11,7 @@ from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.admission.ref_intent import claim_identity_repair_intent
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.admission.ref_move_policy import prepared_ref_intent_gaps
@@ -259,8 +261,16 @@ def ref_move_admission_report(
     base.update(hook="reference-transaction", ref=ref_name, branch=branch)
     base.update(phase=phase, old_value=old_value, new_value=new_value)
     base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
-    if new_value == old_value:
-        return base
+    early = _early_ref_move_report(
+        repo=repo,
+        base=base,
+        ref_name=ref_name,
+        old_value=old_value,
+        new_value=new_value,
+        phase=phase,
+    )
+    if early is not None:
+        return early
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     operation = (
         "commit.identity-replace"
@@ -345,6 +355,32 @@ def ref_move_admission_report(
     else:
         return base
     return _verdict(base, "block", "blocked", "block", reason, gaps) if gaps else base
+
+
+def _early_ref_move_report(
+    *,
+    repo: Path,
+    base: dict[str, object],
+    ref_name: str,
+    old_value: str,
+    new_value: str,
+    phase: str,
+) -> dict[str, object] | None:
+    if new_value == old_value:
+        return base
+    intent = claim_identity_repair_intent(
+        root=repo,
+        ref_name=ref_name,
+        update=GitRefUpdate(expected=old_value, desired=new_value),
+        phase=cast("Literal['prepared', 'committed', 'aborted']", phase),
+    )
+    if not intent.get("present") or intent.get("gap"):
+        return None
+    base["decision"] = {
+        "action": "allow",
+        "reason": f"identity_repair_ref_intent_{phase}",
+    }
+    return base
 
 
 def _prewrite_report(

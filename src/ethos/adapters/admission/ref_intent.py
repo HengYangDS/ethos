@@ -174,6 +174,23 @@ def claim_ref_intent(
         return _claim(present=True, gap=gap, intent=result)
 
 
+def claim_identity_repair_intent(
+    *,
+    root: Path,
+    ref_name: str,
+    update: GitRefUpdate,
+    phase: Literal["prepared", "committed", "aborted", "recover"],
+) -> dict[str, object]:
+    """Claim the sole exact receipt-bound identity-repair ref intent."""
+    return claim_ref_intent(
+        root=root,
+        ref_name=ref_name,
+        update=update,
+        operation="commit.identity-replace",
+        phase=phase,
+    )
+
+
 def _select_intent(
     directory: Path,
     *,

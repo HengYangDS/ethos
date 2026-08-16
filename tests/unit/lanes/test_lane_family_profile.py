@@ -309,6 +309,79 @@ def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(
     assert support["base_commitment_digest"] == lease["base_commitment_digest"]
 
 
+def test_start_work_lane_signs_and_verifies_materialized_carrier(
+    lane_case: LaneStartCase,
+    tmp_path: Path,
+) -> None:
+    signing_key = tmp_path / "lane-start-signing-key"
+    subprocess.run(
+        ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(signing_key)),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    public_key = signing_key.with_suffix(".pub")
+    allowed_signers = tmp_path / "lane-start-allowed-signers"
+    allowed_signers.write_text(
+        f"test@example.invalid namespaces=\"git\" "
+        f"{public_key.read_text(encoding='utf-8').strip()}\n",
+        encoding="utf-8",
+    )
+    allowed_signers.chmod(0o600)
+    git(lane_case.repo, "config", "commit.gpgsign", "true")
+    git(lane_case.repo, "config", "gpg.format", "ssh")
+    git(lane_case.repo, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(
+        lane_case.repo,
+        "config",
+        "gpg.ssh.allowedSignersFile",
+        allowed_signers.as_posix(),
+    )
+    git(lane_case.repo, "config", "user.signingkey", public_key.as_posix())
+
+    report = lane_case.start(holder=_HOLDER)
+
+    assert report["verdict"] == "pass", report["required_gaps"]
+    assert git(lane_case.target, "log", "-1", "--format=%G?") == "G"
+
+
+def test_start_work_lane_rejects_untrusted_materialized_carrier(
+    lane_case: LaneStartCase,
+    tmp_path: Path,
+) -> None:
+    signing_key = tmp_path / "lane-start-untrusted-key"
+    subprocess.run(
+        ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(signing_key)),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    empty_anchor = tmp_path / "lane-start-empty-allowed-signers"
+    empty_anchor.write_text("", encoding="utf-8")
+    empty_anchor.chmod(0o600)
+    git(lane_case.repo, "config", "commit.gpgsign", "true")
+    git(lane_case.repo, "config", "gpg.format", "ssh")
+    git(lane_case.repo, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(
+        lane_case.repo,
+        "config",
+        "gpg.ssh.allowedSignersFile",
+        empty_anchor.as_posix(),
+    )
+    git(
+        lane_case.repo,
+        "config",
+        "user.signingkey",
+        signing_key.with_suffix(".pub").as_posix(),
+    )
+
+    report = lane_case.start(holder=_HOLDER)
+
+    assert report["verdict"] == "block"
+    assert "commit_signature_untrusted" in report["required_gaps"]
+    lane_case.assert_absent()
+
+
 def test_start_work_lane_rejects_foreign_source_lease_holder(
     tmp_path: Path,
 ) -> None:

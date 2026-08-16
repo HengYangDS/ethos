@@ -16,6 +16,7 @@ from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
+from ethos.adapters.admission.ref_intent import claim_identity_repair_intent
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.repo.config_effects import set_worktree_config
@@ -31,6 +32,7 @@ from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_topology
@@ -255,7 +257,15 @@ def _reference_transition_report(
     protected = branch == policy.accepted_branch or (
         branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     )
-    if phase == "prepared" and protected:
+    identity_intent = claim_identity_repair_intent(
+        root=root,
+        ref_name=ref_name,
+        update=GitRefUpdate(expected=old_value, desired=new_value),
+        phase=cast("Literal['prepared', 'committed', 'aborted']", phase),
+    )
+    if identity_intent.get("present") and not identity_intent.get("gap"):
+        report = _passed("reference-transaction", f"identity_repair_ref_intent_{phase}")
+    elif phase == "prepared" and protected:
         report = _candidate_report(
             root, policy.candidate_branch, ref_name, old_value, new_value, phase
         )

@@ -146,6 +146,8 @@ def current_generation_scope(
         commitment=commitment,
         lease=lease,
     )
+    rebound = tuple(item for item in start if item.get("source") == "rebind_generation")
+    start = rebound or start
     if len(start) == 1:
         authority = start[0]
         base = str(authority["previous_head"])

@@ -30,9 +30,10 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git_effect_attestation import NativeEffect
 from ethos.adapters.repo.git_effect_attestation import issue_native_effect
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
-from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import stage_git_paths
+from ethos.adapters.repo.git_signing import commit_metadata
+from ethos.adapters.repo.git_signing import create_git_commit
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import add_worktree
@@ -485,36 +486,6 @@ def openspec_failure_process(
     )
     cast("object", process).__dict__["parse_error"] = str(report.get("parse_error") or "")
     return process
-
-
-def commit_metadata(
-    repo: Path, commit: str, *, run: Callable[..., subprocess.CompletedProcess[str]]
-) -> dict[str, str] | None:
-    """Return exact source metadata for a deterministic initialization commit."""
-    metadata = run(
-        repo,
-        "show",
-        "-s",
-        "--format=%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI",
-        commit,
-        check=False,
-    )
-    if metadata.returncode != 0:
-        return None
-    try:
-        author, author_email, authored_at, committer, committer_email, committed_at = (
-            metadata.stdout.rstrip("\n").split("\0")
-        )
-    except ValueError:
-        return None
-    return {
-        "GIT_AUTHOR_NAME": author,
-        "GIT_AUTHOR_EMAIL": author_email,
-        "GIT_AUTHOR_DATE": authored_at,
-        "GIT_COMMITTER_NAME": committer,
-        "GIT_COMMITTER_EMAIL": committer_email,
-        "GIT_COMMITTER_DATE": committed_at,
-    }
 
 
 def tree_entries(

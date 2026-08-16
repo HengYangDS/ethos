@@ -323,8 +323,7 @@ def test_start_work_lane_signs_and_verifies_materialized_carrier(
     public_key = signing_key.with_suffix(".pub")
     allowed_signers = tmp_path / "lane-start-allowed-signers"
     allowed_signers.write_text(
-        f"test@example.invalid namespaces=\"git\" "
-        f"{public_key.read_text(encoding='utf-8').strip()}\n",
+        f'test@example.invalid namespaces="git" {public_key.read_text(encoding="utf-8").strip()}\n',
         encoding="utf-8",
     )
     allowed_signers.chmod(0o600)

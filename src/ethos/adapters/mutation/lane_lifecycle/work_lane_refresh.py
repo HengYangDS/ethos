@@ -122,8 +122,7 @@ def refresh_work_lane_base(
             "blocked",
             ["commit_identity_replacement_required"],
             next_action=(
-                "ethos lane repair-identity --old-commit "
-                f"{candidate_head} --new-commit {current_head} --json"
+                f"ethos lane repair-identity derive --base-commit {candidate_head} --json"
             ),
         )
     elif not apply:

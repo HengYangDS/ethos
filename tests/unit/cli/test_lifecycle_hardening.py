@@ -220,42 +220,61 @@ def test_lane_refresh_restores_original_branch_when_ref_cas_is_rejected_after_re
     assert git(worktree, "status", "--short") == ""
 
 
-@pytest.mark.parametrize("interrupt_at", [0, 1, 2])
-def test_repair_identity_completes_or_resumes_the_exact_train_cas(
+def test_repair_identity_derives_and_applies_existing_equivalent_oid_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    interrupt_at: int,
 ) -> None:
     repo, candidate, _source, worktree = start_adopted_work_lane(tmp_path)
     old = commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     git(candidate, "reset", "--hard", old)
     git(repo, "reset", "--hard", old)
+    git(repo, "update-ref", "refs/heads/main", old)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     new = _replace_commit_signature(worktree, old)
     scope = CurrentGenerationScope(("FEATURE.md",), {})
     plan = proof_plan(worktree, head=new, generation_scope=scope)
     persist_proof_attestation(worktree, issue_conformant_proof(worktree, new, plan=plan))
-    arguments = _identity_repair_arguments(old, new)
-    if not interrupt_at:
-        blocked = run_ethos_blocked(*arguments, cwd=worktree)
-        assert "commit_trust_anchor_missing" in blocked["required_gaps"]
     monkeypatch.setattr(identity_repair, "verify_commit_trust", _trusted_commit)
-    original = identity_repair.sync_ref_worktrees
-    call = 0
 
-    def interrupt_once(*args, **kwargs):
-        nonlocal call
-        call += 1
-        if interrupt_at and call == interrupt_at:
-            return {"worktree_sync": "failed", "worktrees": []}
-        return original(*args, **kwargs)
+    derived = identity_repair.derive_identity_repair_suffix(
+        root=worktree,
+        base_commit=old,
+    )
+    assert derived["verdict"] == "pass", derived
+    commits = derived["request"]["commits"]
+    assert len(commits) == 1
+    assert commits[0] | {
+        "message_sha256": "ignored",
+        "author_name": "ignored",
+        "author_email": "ignored",
+        "author_date": "ignored",
+        "committer_name": "ignored",
+        "committer_email": "ignored",
+        "committer_date": "ignored",
+    } == {
+        "old_commit": old,
+        "new_commit": new,
+        "old_parent": git(worktree, "rev-parse", f"{old}^"),
+        "new_parent": git(worktree, "rev-parse", f"{new}^"),
+        "tree": git(worktree, "rev-parse", f"{old}^{{tree}}"),
+        "message_sha256": "ignored",
+        "author_name": "ignored",
+        "author_email": "ignored",
+        "author_date": "ignored",
+        "committer_name": "ignored",
+        "committer_email": "ignored",
+        "committer_date": "ignored",
+    }
+    receipt = derived["receipt"]
+    applied = identity_repair.execute_identity_repair_suffix(
+        root=worktree,
+        receipt_path=str(receipt["path"]),
+        receipt_sha256=str(receipt["sha256"]),
+        apply=True,
+        authorized=True,
+    )
 
-    monkeypatch.setattr(identity_repair, "sync_ref_worktrees", interrupt_once)
-    if interrupt_at:
-        assert run_ethos_blocked(*arguments, cwd=worktree)["required_gaps"] == [
-            "identity_repair_cas_rejected"
-        ]
-    assert run_ethos(*arguments, cwd=worktree)["state"] == "identity_repaired"
+    assert applied["state"] == "identity_repaired"
     assert git(candidate, "rev-parse", "HEAD") == new
     assert git(repo, "rev-parse", "HEAD") == new
     assert git(candidate, "status", "--short") == git(repo, "status", "--short") == ""
@@ -332,10 +351,9 @@ def test_repair_identity_applies_one_exact_linear_suffix_receipt(
         [],
     )
     expected = derived["request"]["refs"]
-    assert {
-        ref: git(repo, "rev-parse", ref)
-        for ref in expected
-    } == {ref: update["desired"] for ref, update in expected.items()}
+    assert {ref: git(repo, "rev-parse", ref) for ref in expected} == {
+        ref: update["desired"] for ref, update in expected.items()
+    }
     assert git(candidate, "status", "--short") == git(worktree, "status", "--short") == ""
     assert all(
         git(repo, "verify-commit", item["new_commit"]) == ""
@@ -377,10 +395,9 @@ def test_repair_identity_resumes_same_suffix_receipt_after_worktree_sync_failure
     )
 
     assert first["required_gaps"] == ["identity_repair_worktree_sync_failed"]
-    assert {
-        ref: git(repo, "rev-parse", ref)
-        for ref in expected
-    } == {ref: update["desired"] for ref, update in expected.items()}
+    assert {ref: git(repo, "rev-parse", ref) for ref in expected} == {
+        ref: update["desired"] for ref, update in expected.items()
+    }
 
     resumed = identity_repair.execute_identity_repair_suffix(
         root=worktree,
@@ -473,24 +490,45 @@ def test_repair_identity_suffix_receipt_rejects_tampered_bytes(
 
 def test_repair_identity_suffix_rejects_merge_history(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     base = git(repo, "rev-parse", "HEAD")
     left = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-m", "left")
     right = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-m", "right")
     merge = git(repo, "commit-tree", "HEAD^{tree}", "-p", left, "-p", right, "-m", "merge")
+    owner = "agent:test:case:owner"
+    tree = git(repo, "rev-parse", f"{merge}^{{tree}}")
+    monkeypatch.setenv("ETHOS_ACTOR", owner)
+    monkeypatch.setattr(
+        identity_repair,
+        "workspace_status",
+        lambda *_args, **_kwargs: {
+            "role": "work_lane",
+            "dirty": False,
+            "branch": "work/test",
+        },
+    )
+    monkeypatch.setattr(identity_repair, "current_tracked_head", lambda _root: merge)
+    monkeypatch.setattr(
+        identity_repair,
+        "leases_by_branch",
+        lambda _root: {
+            "work/test": {
+                "lease_state": "valid",
+                "holder_ref": owner,
+                "expected_head": merge,
+                "expected_tree": tree,
+            }
+        },
+    )
+    monkeypatch.setattr(identity_repair, "proof_attestation", lambda *_args: object())
 
-    commits, gaps = identity_repair._linear_suffix(repo, base, merge)  # noqa: SLF001
+    report = identity_repair.derive_identity_repair_suffix(root=repo, base_commit=base)
 
-    assert commits[-1] == merge
-    assert len(gaps) == 1
-    rejected = gaps[0].removeprefix("identity_repair_suffix_not_linear:")
-    assert rejected in commits
-    previous = base if commits.index(rejected) == 0 else commits[commits.index(rejected) - 1]
-    assert git(repo, "rev-list", "--parents", "-n", "1", rejected).split() != [
-        rejected,
-        previous,
-    ]
+    assert any(
+        gap.startswith("identity_repair_suffix_not_linear:") for gap in report["required_gaps"]
+    )
 
 
 def test_repair_identity_public_cli_derives_and_applies_suffix_receipt(
@@ -550,8 +588,7 @@ def _identity_repair_suffix_fixture(
     public_key = signing_key.with_suffix(".pub")
     anchor = tmp_path / "suffix-allowed-signers"
     anchor.write_text(
-        f"test@example.com namespaces=\"git\" "
-        f"{public_key.read_text(encoding='utf-8').strip()}\n",
+        f'test@example.com namespaces="git" {public_key.read_text(encoding="utf-8").strip()}\n',
         encoding="utf-8",
     )
     anchor.chmod(0o600)
@@ -564,22 +601,6 @@ def _identity_repair_suffix_fixture(
     plan = proof_plan(worktree, head=head, generation_scope=scope)
     persist_proof_attestation(worktree, issue_conformant_proof(worktree, head, plan=plan))
     return repo, candidate, worktree, base, accepted, head
-
-
-def _identity_repair_arguments(old: str, new: str) -> tuple[str, ...]:
-    return (
-        "lane",
-        "repair-identity",
-        "--old-commit",
-        old,
-        "--new-commit",
-        new,
-        "--expect-head",
-        new,
-        "--apply",
-        "--authorize",
-        "--json",
-    )
 
 
 def _trusted_commit(_root: Path, revision: str) -> dict[str, object]:

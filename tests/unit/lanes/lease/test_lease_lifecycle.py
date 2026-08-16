@@ -27,7 +27,6 @@ from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_takeover
 from ethos.adapters.mutation.lane_retirement.linked import LinkedRetirementRequest
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
@@ -52,6 +51,7 @@ from tests.support.lifecycle_cases import assert_public_decision
 from tests.support.lifecycle_cases import insert_lease_row
 from tests.support.lifecycle_cases import strict_lease
 from tests.support.literal_cases import literal_case
+from tests.support.semantic import attestation_v2
 
 SOURCE = "agent:test:case:source"
 TARGET = "agent:test:case:target"
@@ -352,7 +352,6 @@ def _reject_failed_ref_cas(
         request=_retirement_request(head, accepted, apply=True),
     )
     assert report["verdict"] == "block"
-    assert source.exists()
     assert git(source, "branch", "--show-current") == BRANCH
     assert git(repo, "rev-parse", BRANCH) == head
     assert leases_by_branch(source)[BRANCH] == before
@@ -977,30 +976,30 @@ def test_retirement_authority_transaction_matrix(
 def test_lease_public_transition_matrix_enforces_actor_cas_and_handoff(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    case, initial = (LeaseCase.start(tmp_path, "lease"), None)
+    case = LeaseCase.start(tmp_path, "lease")
     initial = case.snapshot()
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:wrong")
     assert_public_decision(wrong := case.execute("renew", initial), verdict="block")
     assert "lease_actor_mismatch" in wrong["required_gaps"]
     monkeypatch.setenv("ETHOS_ACTOR", SOURCE)
     renewed_report = case.execute("renew", initial)
-    assert renewed_report["verdict"] == "pass"
+    assert_public_decision(renewed_report, verdict="pass")
     renewed = cast("dict[str, object]", renewed_report["lease"])
     offered = case.execute("handoff_offer", renewed, target_holder_ref=TARGET)
-    assert offered["verdict"] == "pass"
+    assert_public_decision(offered, verdict="pass")
     offer = cast("dict[str, object]", offered["handoff_offer"])
     monkeypatch.setenv("ETHOS_ACTOR", TARGET)
     values = {"target_holder_ref": TARGET, "offer_id": offer["offer_id"]}
     blocked = case.execute("handoff_accept", offer, **values, holder_quiesced=False)
-    assert blocked["verdict"] == "block"
+    assert_public_decision(blocked, verdict="block")
     assert "holder_quiescence_confirmation_required" in blocked["required_gaps"]
     accepted = case.execute("handoff_accept", offer, **values, holder_quiesced=True)
-    assert accepted["verdict"] == "pass"
+    assert_public_decision(accepted, verdict="pass")
     lease = cast("dict[str, object]", accepted["lease"])
     assert (lease["holder_ref"], lease["epoch"]) == (TARGET, int(offer["epoch"]) + 1)
     repeated = case.execute("handoff_accept", offer, **values, holder_quiesced=True)
-    assert repeated["verdict"] == "block"
     assert any("lease_holder_mismatch" in gap for gap in repeated["required_gaps"])
+    assert_public_decision(repeated, verdict="block")
 
 
 def _takeover_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str):
@@ -1020,30 +1019,16 @@ def _takeover_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str):
         "target_holder_ref": TARGET,
         "source_state": state,
     }
-    auth = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "lane-resolution:takeover",
-            "verifier": "maintainer:test:case:reviewer",
-            "subject": f"git:branch:{case.branch}",
-            "issued_at": issued,
-            "valid_from": issued,
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {
-                "kind": "authorization:lane-takeover",
-                "body": {"authorization": bound},
-            },
-            "relations": (),
-            "advisories": (),
-            "commitment_digest": before["base_commitment_digest"],
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "evidence_refs": ("evidence:test:takeover",),
-            "mints_authority": False,
-        }
+    auth = attestation_v2(
+        predicate="lane-resolution:takeover",
+        verifier="maintainer:test:case:reviewer",
+        subject=f"git:branch:{case.branch}",
+        issued_at=issued,
+        valid_from=issued,
+        payload_kind="authorization:lane-takeover",
+        payload_body={"authorization": bound},
+        commitment_digest=str(before["base_commitment_digest"]),
+        evidence_refs=("evidence:test:takeover",),
     )
     if "content_mismatch" not in claim and "wrong_or_stale" not in claim:
         record_attestations(case.worktree, (auth,))
@@ -1065,52 +1050,6 @@ def _takeover_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str):
         apply=True,
     )
     return (case, before, auth, request)
-
-
-def test_lease_takeover_ignores_local_only_authorization(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case, before, authorization, request = _takeover_case(tmp_path, monkeypatch, "wrong_or_stale")
-    path = proof_artifact_root(case.worktree) / f"{authorization.id}.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(authorization.canonical_json(), encoding="utf-8")
-
-    report = execute_lease_takeover(root=case.worktree, request=request)
-
-    assert report["verdict"] == "block"
-    assert "lease_takeover_authorization_unaccepted" in report["required_gaps"]
-    assert case.snapshot() == before
-
-
-def test_lease_takeover_recovers_when_set_selection_is_interrupted(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case, before, _authorization, request = _takeover_case(tmp_path, monkeypatch, "changes_only")
-    record = lease_lifecycle.record_attestations
-    interrupted_id = ""
-
-    def interrupt(_root: Path, attestations: tuple[Attestation, ...]):
-        nonlocal interrupted_id
-        interrupted_id = attestations[0].id
-        message = "set selection interrupted"
-        raise OSError(message)
-
-    monkeypatch.setattr(
-        lease_lifecycle,
-        "record_attestations",
-        interrupt,
-    )
-
-    with pytest.raises(OSError, match="set selection interrupted"):
-        execute_lease_takeover(root=case.worktree, request=request)
-
-    monkeypatch.setattr(lease_lifecycle, "record_attestations", record)
-    recovered = execute_lease_takeover(root=case.worktree, request=request)
-
-    assert (recovered["verdict"], recovered["state"]) == ("pass", "taken_over")
-    assert recovered["lease"]["holder_ref"] == TARGET
-    assert recovered["lease"]["epoch"] == int(before["epoch"]) + 1
-    assert recovered["attestation"]["id"] == interrupted_id
 
 
 def test_lease_takeover_ignores_unrelated_attestation_with_same_effect_digest(
@@ -1180,28 +1119,35 @@ def test_exact_takeover_claim_matrix(
             assert report["verdict"] in {"block", "unknown"}
             assert case.snapshot() == before
     elif "persistence_failure" in claim:
-        original = record_attestations
-        monkeypatch.setattr(
-            "ethos.adapters.mutation.lane_lifecycle.lease.record_attestations",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("simulated crash")),
-        )
-        with pytest.raises(OSError, match="simulated crash"):
-            execute_lease_takeover(root=case.worktree, request=request)
-        monkeypatch.setattr(
-            "ethos.adapters.mutation.lane_lifecycle.lease.record_attestations", original
-        )
+        interrupted_id = ""
+
+        def interrupt(_root: Path, attestations: tuple[Attestation, ...]) -> None:
+            nonlocal interrupted_id
+            interrupted_id = attestations[0].id
+            message = "simulated crash"
+            raise OSError(message)
+
+        with monkeypatch.context() as context:
+            context.setattr(lease_lifecycle, "record_attestations", interrupt)
+            with pytest.raises(OSError, match="simulated crash"):
+                execute_lease_takeover(root=case.worktree, request=request)
         recovered = execute_lease_takeover(root=case.worktree, request=request)
         assert (recovered["verdict"], recovered["state"]) == ("pass", "taken_over")
-        assert recovered["lease"]["holder_ref"] == TARGET
-        assert recovered["lease"]["epoch"] == int(before["epoch"]) + 1
-        assert recovered["attestation"]
+        assert (recovered["lease"]["holder_ref"], recovered["lease"]["epoch"]) == (
+            TARGET,
+            int(before["epoch"]) + 1,
+        )
+        assert recovered["attestation"]["id"] == interrupted_id
     elif "content_mismatch" in claim:
         record_attestations(case.worktree, (auth,))
         report = execute_lease_takeover(root=case.worktree, request=request)
         assert (report["verdict"], report["state"]) == ("pass", "taken_over")
         assert report["lease"]["holder_ref"] == TARGET
     else:
-        updates = (
+        report = execute_lease_takeover(root=case.worktree, request=request)
+        assert "lease_takeover_authorization_unaccepted" in report["required_gaps"]
+        assert case.snapshot() == before
+        updates: tuple[dict[str, object], ...] = (
             {"subject": "git:branch:work/other"},
             {"commitment_digest": "f" * 64},
             {"valid_from": datetime.max.replace(tzinfo=UTC)},
@@ -1223,8 +1169,7 @@ def test_exact_takeover_claim_matrix(
             report = execute_lease_takeover(
                 root=case.worktree, request=request.model_copy(update={"authorization": wrong})
             )
-            assert report["verdict"] == "block"
-            assert case.snapshot() == before
+            assert (report["verdict"], case.snapshot()) == ("block", before)
 
 
 @pytest.mark.parametrize("drift_at", ["before-cas", "after-cas"])

@@ -213,8 +213,7 @@ def execute_git_effect(
     detached_branch: str = "",
 ) -> Attestation:
     """Recognize, execute, or recover one exact Git ref transaction."""
-    issuer = issuer.strip()
-    if not issuer:
+    if not (issuer := issuer.strip()):
         message = "git_effect_issuer_invalid"
         raise ValueError(message)
     effect = git_effect_from_plan(plan)
@@ -236,7 +235,9 @@ def execute_git_effect(
         intents = _claim_effect_intents(
             root, plan, effect, phase="recover", missing_ok=projection is None
         )
-        _project_and_clear(root, intents, projection)
+        if projection:
+            projection()
+        _clear_claimed_intents(root, intents)
         return attestation
     observed, recovering, repository = _admit_git_effect(
         root,
@@ -257,12 +258,7 @@ def execute_git_effect(
             _apply_git_ref_transaction(root, plan, effect, environment=environment)
             applied = True
             _claim_effect_intents(root, plan, effect, phase="committed")
-        after = _require_effect_postcondition(
-            root,
-            effect,
-            desired,
-            environment=environment,
-        )
+        after = _require_effect_postcondition(root, effect, desired, environment=environment)
         attestation = ethos.adapters.repo.git_effect_attestation.issue(
             effect,
             plan=plan,
@@ -309,13 +305,7 @@ def admit_git_effect(
     """Validate the exact Git effect plan without claiming intents or mutating refs."""
     effect = git_effect_from_plan(plan)
     require_effect_permission(effect, plan)
-    _admit_git_effect(
-        root,
-        plan,
-        effect,
-        environment=environment,
-        detached_branch=detached_branch,
-    )
+    _admit_git_effect(root, plan, effect, environment=environment, detached_branch=detached_branch)
 
 
 def _run_effect_program(
@@ -458,16 +448,8 @@ def _claim_effect_intents(
 
 
 def _clear_claimed_intents(root: Path, intents: list[dict[str, object]]) -> None:
-    for intent in intents:
-        clear_ref_intent(root, str(intent["nonce"]))
-
-
-def _project_and_clear(
-    root: Path, intents: list[dict[str, object]], projection: Callable[[], None] | None
-) -> None:
-    if projection:
-        projection()
-    _clear_claimed_intents(root, intents)
+    for nonce in (str(intent["nonce"]) for intent in intents):
+        clear_ref_intent(root, nonce)
 
 
 def _raise_intent_gap(

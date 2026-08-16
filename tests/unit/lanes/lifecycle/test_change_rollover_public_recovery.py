@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
+import ethos.adapters.openspec.generation.attestation as generation_attestation
+import ethos.adapters.openspec.lifecycle.intent as lifecycle_intent
 from ethos.adapters.repo.git_effect_attestation import NativeEffect
 from ethos.adapters.repo.git_effect_attestation import issue_native_effect
 from ethos.adapters.store.state.lease.projection import project_lease
@@ -48,32 +50,39 @@ def _lease(**updates: object) -> dict[str, object]:
 def _common(monkeypatch: pytest.MonkeyPatch, lease: dict[str, object] | None = None) -> None:
     monkeypatch.setenv("ETHOS_ACTOR", HOLDER)
     monkeypatch.setattr(rollover, "git_stdout", lambda *_args, **_kwargs: BRANCH)
-    monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: HEAD)
+    monkeypatch.setattr(generation_attestation, "git_stdout", lambda *_args, **_kwargs: BRANCH)
+    for module in (rollover, generation_attestation, lifecycle_intent):
+        monkeypatch.setattr(module, "current_tracked_head", lambda _root: HEAD)
+    monkeypatch.setattr(
+        lifecycle_intent,
+        "run_git",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=f"{HEAD}\n"),
+    )
     monkeypatch.setattr(rollover, "leases_by_branch", lambda _root: {BRANCH: lease or _lease()})
-    monkeypatch.setattr(rollover, "read_attestation_set", lambda _root: ("", ()))
+    monkeypatch.setattr(generation_attestation, "read_attestation_set", lambda _root: ("", ()))
     monkeypatch.setattr(rollover, "work_lane_transition_gaps", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
         rollover,
         "change_overlay_report",
         lambda *_args, **_kwargs: {"paths": (), "digest": "", "required_gaps": []},
     )
-    monkeypatch.setattr(
-        rollover,
-        "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(id="repository:test"),
-    )
+    for module in (rollover, generation_attestation, lifecycle_intent):
+        monkeypatch.setattr(
+            module,
+            "load_repository_commitment",
+            lambda *_args, **_kwargs: SimpleNamespace(id="repository:test"),
+        )
     monkeypatch.setattr(
         rollover,
         "load_lease_bound_commitment",
         lambda *_args, **_kwargs: SimpleNamespace(digest=lambda: "f" * 64),
     )
-    monkeypatch.setattr(
-        rollover,
-        "load_commitment",
-        lambda *_args, **_kwargs: _change_commitment(),
-    )
-    monkeypatch.setattr(rollover, "record_attestation_once", lambda _root, item: item)
-    monkeypatch.setattr(rollover, "record_attestations", lambda *_args, **_kwargs: {})
+    for module in (rollover, generation_attestation, lifecycle_intent):
+        monkeypatch.setattr(
+            module, "load_commitment", lambda *_args, **_kwargs: _change_commitment()
+        )
+    monkeypatch.setattr(generation_attestation, "record_attestation_once", lambda _root, item: item)
+    monkeypatch.setattr(generation_attestation, "record_attestations", lambda *_args: {})
     monkeypatch.setattr(rollover, "state_database", lambda root: root / "state.sqlite")
     monkeypatch.setattr(rollover.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
@@ -112,6 +121,8 @@ def _branch_status(_root: Path, *args: str, **_kwargs: object) -> str:
         return BRANCH
     if "--format=%ct" in args:
         return "1786791600"
+    if args[-1:] == (f"{NEW_HEAD}^",):
+        return HEAD
     if args[-1:] == (f"{HEAD}^{{tree}}",):
         return OLD_TREE
     if args[-1:] == (f"{NEW_HEAD}^{{tree}}",):
@@ -164,25 +175,28 @@ def _prepare_recovery(
         repository_id="repository:test",
     )
     _common(monkeypatch, current_lease)
-    monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(rollover, "read_attestation_set", lambda _root: ("", (witness,)))
-    monkeypatch.setattr(rollover, "load_commitment", lambda *_args, **_kwargs: commitment)
+    for module in (rollover, generation_attestation, lifecycle_intent):
+        monkeypatch.setattr(module, "current_tracked_head", lambda _root: NEW_HEAD)
     monkeypatch.setattr(
-        rollover,
-        "exact_commitment_fields",
-        lambda *_args, **_kwargs: {
-            "expected_head": NEW_HEAD,
-            "expected_tree": target_tree,
-            "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
-            "base_commitment_bytes_sha256": "a" * 64,
-            "base_commitment_digest": commitment.digest(),
-        },
+        generation_attestation,
+        "current_tree",
+        lambda _root, ref: OLD_TREE if ref == HEAD else target_tree,
     )
     monkeypatch.setattr(
-        rollover,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=HEAD + "\n"),
+        generation_attestation, "read_attestation_set", lambda _root: ("", (witness,))
     )
+    monkeypatch.setattr(
+        generation_attestation, "load_commitment", lambda *_args, **_kwargs: commitment
+    )
+    target = {
+        "expected_head": NEW_HEAD,
+        "expected_tree": target_tree,
+        "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
+        "base_commitment_bytes_sha256": "a" * 64,
+        "base_commitment_digest": commitment.digest(),
+    }
+    for module in (rollover, generation_attestation):
+        monkeypatch.setattr(module, "exact_commitment_fields", lambda *_args, **_kwargs: target)
 
 
 def _change_commitment() -> SimpleNamespace:
@@ -213,6 +227,7 @@ def test_start_change_public_recovery_dry_run_and_finish_failure_are_closed(
     lease = _lease(expected_head=NEW_HEAD, expected_tree=NEW_TREE)
     _prepare_recovery(monkeypatch, tmp_path, lease)
     monkeypatch.setattr(rollover, "git_stdout", _branch_status)
+    monkeypatch.setattr(generation_attestation, "git_stdout", _branch_status)
     ready = _start(tmp_path)
     assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_recover"), ready
 
@@ -237,6 +252,8 @@ def test_prepared_recovery_rejects_current_lease_tree_not_bound_to_head(
     def observed(_root: Path, *args: str, **_kwargs: object) -> str:
         if args[:2] == ("branch", "--show-current"):
             return BRANCH
+        if args[-1:] == (f"{NEW_HEAD}^",):
+            return HEAD
         if args[-1:] == (f"{HEAD}^{{tree}}",):
             return OLD_TREE
         if args[-1:] == (f"{NEW_HEAD}^{{tree}}",):
@@ -244,6 +261,12 @@ def test_prepared_recovery_rejects_current_lease_tree_not_bound_to_head(
         return ""
 
     monkeypatch.setattr(rollover, "git_stdout", observed)
+    monkeypatch.setattr(generation_attestation, "git_stdout", observed)
+    monkeypatch.setattr(
+        generation_attestation,
+        "current_tree",
+        lambda _root, ref: OLD_TREE if ref == HEAD else "f" * 40,
+    )
 
     report = _start(tmp_path)
 
@@ -257,6 +280,7 @@ def test_start_change_recovery_guard_falls_back_to_public_preflight(
     lease = _lease(expected_head=NEW_HEAD, expected_tree=NEW_TREE)
     _prepare_recovery(monkeypatch, tmp_path, lease)
     monkeypatch.setattr(rollover, "git_stdout", _branch_status)
+    monkeypatch.setattr(generation_attestation, "git_stdout", _branch_status)
     monkeypatch.setattr(
         rollover,
         "local_state_mutation_guard",
@@ -421,13 +445,14 @@ def test_start_change_public_reader_skips_corrupt_receipt_and_invalid_target(
     store.mkdir()
     (store / "corrupt.json").write_text("not-json", encoding="utf-8")
     monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: NEW_HEAD)
+    monkeypatch.setattr(generation_attestation, "current_tracked_head", lambda _root: NEW_HEAD)
     monkeypatch.setattr(
-        rollover,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=HEAD + "\n"),
+        generation_attestation,
+        "git_stdout",
+        lambda _root, *args: HEAD if args[:2] == ("rev-parse", f"{NEW_HEAD}^") else "",
     )
     monkeypatch.setattr(
-        rollover,
+        generation_attestation,
         "exact_commitment_fields",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("invalid target")),
     )
@@ -449,15 +474,11 @@ def test_start_change_public_reader_recognizes_exact_receipt(
     _common(monkeypatch, lease)
     attestation = _recognized_attestation(change=CHANGE, previous_head=HEAD, head=NEW_HEAD)
     monkeypatch.setattr(rollover, "current_tracked_head", lambda _root: NEW_HEAD)
+    monkeypatch.setattr(generation_attestation, "current_tracked_head", lambda _root: NEW_HEAD)
     monkeypatch.setattr(
-        rollover,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=HEAD + "\n"),
-    )
-    monkeypatch.setattr(
-        rollover,
-        "exact_commitment_fields",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("invalid target")),
+        generation_attestation,
+        "git_stdout",
+        lambda _root, *args: HEAD if args[:2] == ("rev-parse", f"{NEW_HEAD}^") else "",
     )
     monkeypatch.setattr(
         rollover,
@@ -465,12 +486,12 @@ def test_start_change_public_reader_recognizes_exact_receipt(
         lambda *_args, **_kwargs: ["not_recoverable"],
     )
     monkeypatch.setattr(
-        rollover,
+        generation_attestation,
         "load_repository_commitment",
         lambda *_args, **_kwargs: SimpleNamespace(id="repository:test"),
     )
     monkeypatch.setattr(
-        rollover,
+        generation_attestation,
         "start_effect_authority",
         lambda *_args, **_kwargs: {"predicate": "effect:openspec-change-start"},
     )
@@ -480,7 +501,9 @@ def test_start_change_public_reader_recognizes_exact_receipt(
     assert report["state"] != "recognized"
     assert "openspec_archived_commitment_required" in report["required_gaps"]
     monkeypatch.setattr(
-        rollover, "read_attestation_set", lambda _root: ("selected", (attestation,))
+        generation_attestation,
+        "read_attestation_set",
+        lambda _root: ("selected", (attestation,)),
     )
     report = _start(tmp_path)
     assert report["state"] == "recognized"

@@ -5,12 +5,16 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from contextlib import suppress
 from importlib import resources
 from pathlib import Path
 from typing import Any
 
 import nodejs_wheel
+import yaml
 
+from ethos.adapters.openspec.lifecycle.report import official_change_rows
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_command
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
@@ -223,6 +227,104 @@ def run_json(
         "json": payload,
         "parse_error": parse_error,
     }
+
+
+def new_change_command(change: str) -> tuple[str, ...]:
+    """Return the repository-locked official command for creating one Change."""
+    command = openspec_base_command()
+    if command is None:
+        message = "openspec_official_cli_missing"
+        raise ValueError(message)
+    return (*command, "new", "change", change, "--json")
+
+
+def new_change_result_valid(root: Path, change: str, result: dict[str, Any]) -> bool:
+    """Validate one official new-change result against the repository path."""
+    payload = result.get("json")
+    created = payload.get("change") if isinstance(payload, dict) else None
+    if not isinstance(created, dict):
+        return False
+    expected = (root / "openspec" / "changes" / change).resolve()
+    try:
+        actual = Path(str(created.get("path") or "")).resolve()
+    except OSError:
+        return False
+    return (
+        result.get("exit_code") == 0
+        and not result.get("parse_error")
+        and created.get("id") == change
+        and actual == expected
+        and (expected / ".openspec.yaml").is_file()
+    )
+
+
+def active_change_gaps(root: Path) -> list[str]:
+    """Return official CLI gaps that prevent starting a new Change."""
+    command = openspec_base_command()
+    if command is None:
+        return ["openspec_official_cli_missing"]
+    listed = run_json(root, command, ("list", "--json"))
+    rows = official_change_rows(listed.get("json", {}))
+    if listed.get("exit_code") != 0 or listed.get("parse_error") or rows is None:
+        return ["openspec_list_unreadable"]
+    return ["openspec_active_change_present"] if rows else []
+
+
+def archive_command(
+    root: Path,
+    change: str,
+    *,
+    tree_ref: str = "",
+    archive_path: str = "",
+) -> tuple[str, ...]:
+    """Return the stable official archive command declared by one Change."""
+    metadata = (
+        git_stdout(root, "show", f"{tree_ref}:{archive_path}/.openspec.yaml")
+        if tree_ref and archive_path
+        else (root / "openspec" / "changes" / change / ".openspec.yaml").read_text(
+            encoding="utf-8", errors="replace"
+        )
+        if (root / "openspec" / "changes" / change / ".openspec.yaml").is_file()
+        else ""
+    )
+    try:
+        declaration = yaml.safe_load(metadata) if metadata else None
+    except yaml.YAMLError:
+        declaration = None
+    skip_specs = isinstance(declaration, dict) and declaration.get("skip_specs") is True
+    return (
+        "openspec",
+        "archive",
+        change,
+        "--yes",
+        *(("--skip-specs",) if skip_specs else ()),
+        "--json",
+    )
+
+
+def archive_result(
+    root: Path,
+    change: str,
+    result: dict[str, Any],
+) -> tuple[list[str], str]:
+    """Validate one official archive result and return its repository path."""
+    payload = result.get("json")
+    archive = payload.get("archive") if isinstance(payload, dict) else None
+    archive_path = ""
+    if isinstance(archive, dict):
+        with suppress(ValueError, OSError):
+            archive_path = (
+                Path(str(archive.get("path") or "")).resolve().relative_to(root).as_posix()
+            )
+    valid = (
+        result.get("exit_code") == 0
+        and not result.get("parse_error")
+        and isinstance(archive, dict)
+        and archive.get("change") == change
+        and archive_path.startswith("openspec/changes/archive/")
+        and archive_path.endswith(f"-{change}")
+    )
+    return ([] if valid else ["openspec_archive_result_invalid"], archive_path)
 
 
 def _json_object(path: Path) -> dict[str, Any]:

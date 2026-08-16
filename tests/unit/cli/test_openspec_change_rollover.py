@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
+import ethos.adapters.openspec.lifecycle.intent as lifecycle_intent
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
@@ -294,7 +295,7 @@ def test_start_change_apply_rejects_selection_expired_after_preflight(
             cls.calls += 1
             return before if cls.calls == 1 else after
 
-    monkeypatch.setattr(rollover, "datetime", Clock)
+    monkeypatch.setattr(lifecycle_intent, "datetime", Clock)
 
     report = start_change(
         root=worktree,

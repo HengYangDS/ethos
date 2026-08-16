@@ -44,12 +44,7 @@ class _PlanModel(BaseModel):
 class PlanNode(_PlanModel):
     """One pure Check, Decision, or Effect description."""
 
-    model_config = ConfigDict(
-        frozen=True,
-        strict=True,
-        extra="forbid",
-        json_schema_serialization_defaults_required=True,
-    )
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     id: str = Field(min_length=1)
     kind: Literal["check", "decision", "effect"]
@@ -57,21 +52,38 @@ class PlanNode(_PlanModel):
     depends_on: FrozenTuple[str] = Field(default=(), json_schema_extra={"uniqueItems": True})
 
 
-def dependency_cycle(graph: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
-    """Return the stable members of one dependency cycle, or an empty tuple."""
-    try:
-        tuple(TopologicalSorter(graph).static_order())
-    except CycleError as error:
-        return tuple(sorted(set(error.args[1])))
-    return ()
+_GIT_CAS_TOPOLOGY = (
+    (
+        PlanNode(
+            id="git.ref.compare-and-swap",
+            kind="effect",
+            command=("git", "update-ref", "--stdin", "-z"),
+        ),
+    ),
+    (
+        PlanNode(
+            id="git.ref.compare-and-swap.compensate",
+            kind="effect",
+            command=("git", "update-ref", "--stdin", "-z"),
+        ),
+    ),
+    (
+        PlanNode(
+            id="git.ref.compare-and-swap.observe",
+            kind="check",
+            command=("git", "show-ref", "--verify"),
+        ),
+    ),
+)
 
 
 def dependency_order(graph: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
     """Return one stable topological order or raise on a dependency cycle."""
-    if dependency_cycle(graph):
+    try:
+        return tuple(TopologicalSorter(graph).static_order())
+    except CycleError as error:
         message = "cycle_detected"
-        raise ValueError(message)
-    return tuple(TopologicalSorter(graph).static_order())
+        raise ValueError(message) from error
 
 
 class PlanInputs(_PlanModel):
@@ -148,9 +160,6 @@ class TransitionPlan(_PlanModel):
     """Canonical immutable receipt for one exact repository transition."""
 
     model_config = ConfigDict(
-        frozen=True,
-        strict=True,
-        extra="forbid",
         title="ETHOS TransitionPlan",
         json_schema_serialization_defaults_required=True,
     )
@@ -214,9 +223,10 @@ class TransitionPlan(_PlanModel):
             node.id: tuple(sorted(node.depends_on))
             for node in sorted(selected_nodes, key=lambda item: item.id)
         }
-        if dependency_cycle(graph):
+        try:
+            order = dependency_order(graph)
+        except ValueError:
             return stable, ("cycle_detected",)
-        order = dependency_order(graph)
         return tuple(by_id[node_id] for node_id in order), ()
 
     @classmethod
@@ -356,14 +366,7 @@ class TransitionPlan(_PlanModel):
             )
             effect_digest = (
                 GitEffect.model_validate(mutable_json(self.effect), strict=False).digest()
-                if self.nodes
-                == (
-                    PlanNode(
-                        id="git.ref.compare-and-swap",
-                        kind="effect",
-                        command=("git", "update-ref", "--stdin", "-z"),
-                    ),
-                )
+                if self.nodes == _GIT_CAS_TOPOLOGY[0]
                 else canonical_json_digest(self.effect)
             )
         except (TypeError, ValueError) as error:
@@ -423,27 +426,9 @@ def compile_git_effect_plan(
             "effect": effect.model_dump(mode="json"),
         },
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
-        nodes=(
-            PlanNode(
-                id="git.ref.compare-and-swap",
-                kind="effect",
-                command=("git", "update-ref", "--stdin", "-z"),
-            ),
-        ),
-        compensations=(
-            PlanNode(
-                id="git.ref.compare-and-swap.compensate",
-                kind="effect",
-                command=("git", "update-ref", "--stdin", "-z"),
-            ),
-        ),
-        postconditions=(
-            PlanNode(
-                id="git.ref.compare-and-swap.observe",
-                kind="check",
-                command=("git", "show-ref", "--verify"),
-            ),
-        ),
+        nodes=_GIT_CAS_TOPOLOGY[0],
+        compensations=_GIT_CAS_TOPOLOGY[1],
+        postconditions=_GIT_CAS_TOPOLOGY[2],
     )
 
 
@@ -460,32 +445,7 @@ def git_effect_from_plan(plan: TransitionPlan) -> GitEffect:
             else "git_effect_plan_invalid"
         )
         raise ValueError(message) from error
-    if (
-        validated.nodes
-        != (
-            PlanNode(
-                id="git.ref.compare-and-swap",
-                kind="effect",
-                command=("git", "update-ref", "--stdin", "-z"),
-            ),
-        )
-        or validated.compensations
-        != (
-            PlanNode(
-                id="git.ref.compare-and-swap.compensate",
-                kind="effect",
-                command=("git", "update-ref", "--stdin", "-z"),
-            ),
-        )
-        or validated.postconditions
-        != (
-            PlanNode(
-                id="git.ref.compare-and-swap.observe",
-                kind="check",
-                command=("git", "show-ref", "--verify"),
-            ),
-        )
-    ):
+    if (validated.nodes, validated.compensations, validated.postconditions) != _GIT_CAS_TOPOLOGY:
         message = "git_effect_plan_mismatch"
         raise ValueError(message)
     if validated.verdict != "pass":
@@ -505,34 +465,34 @@ def compile_plan(
 ) -> TransitionPlan:
     """Compile one effective commitment and current fact snapshot into TransitionPlan."""
     attestations = prior_attestations or {}
-    gaps = [*required_gaps, *commitment_fact_gaps(commitment, facts, attestations)]
+    commitment_digest = commitment.digest()
+    facts_digest = facts.digest()
+    policy_digest = canonical_json_digest(policy)
+    effect = proof_effect_projection(
+        commitment=commitment_digest,
+        facts=facts_digest,
+        policy=policy_digest,
+        nodes=nodes,
+    )
     return TransitionPlan.compile(
         inputs=PlanInputs(
-            commitment=commitment.digest(),
-            facts=facts.digest(),
+            commitment=commitment_digest,
+            facts=facts_digest,
             prior_attestations=canonical_json_digest(attestations),
-            policy=canonical_json_digest(policy),
-            effect=proof_effect_digest(
-                commitment=commitment.digest(),
-                facts=facts.digest(),
-                policy=canonical_json_digest(policy),
-                nodes=nodes,
-            ),
+            policy=policy_digest,
+            effect=canonical_json_digest(effect),
         ),
         closure={
             "commitment": commitment.identity_projection(),
             "prior_attestations": attestations,
             "policy": policy,
-            "effect": proof_effect_projection(
-                commitment=commitment.digest(),
-                facts=facts.digest(),
-                policy=canonical_json_digest(policy),
-                nodes=nodes,
-            ),
+            "effect": effect,
         },
         facts=facts.model_dump(mode="json", exclude={"observed_at"}),
         nodes=nodes,
-        required_gaps=tuple(dict.fromkeys(gaps)),
+        required_gaps=tuple(
+            dict.fromkeys((*required_gaps, *commitment_fact_gaps(commitment, facts, attestations)))
+        ),
     )
 
 

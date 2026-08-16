@@ -746,7 +746,8 @@ def test_atomic_compensation_and_retry_matrix(
 
 
 def test_execute_ignores_legacy_plan_receipt_when_attestation_set_is_empty(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = fixture(tmp_path)
     carried = proof_plan(case)
@@ -781,7 +782,6 @@ def test_execute_ignores_legacy_plan_receipt_when_attestation_set_is_empty(
         "_apply_git_ref_transaction",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("legacy receipt reused")),
     )
-
     reject(
         "git_effect_recovery_intent_missing",
         lambda: execute_git_effect(case.repo, carried, issuer=ISSUER),

@@ -241,39 +241,35 @@ def effective_git_config_value(root: Path, name: str) -> str:
 
 def repository_root(root: Path) -> Path:
     """Return the resolved Git worktree root for ``root``."""
-    return Path(run_git(root, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
+    return Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
 
 
 def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     """Return whether ``ancestor`` reaches ``descendant`` in Git history."""
-    completed = run_git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
-    return completed.returncode == 0
+    return (
+        run_git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False).returncode
+        == 0
+    )
 
 
 def current_branch(root: Path) -> str:
     """Return the current branch, or an empty string when HEAD is detached."""
-    completed = run_git(root, "branch", "--show-current", check=False)
-    return completed.stdout.strip() if completed.returncode == 0 else ""
+    return git_stdout(root, "branch", "--show-current")
 
 
 def branch_ref_is_valid(root: Path, branch: str) -> bool:
     """Return whether Git recognizes ``branch`` as a complete branch name."""
-    completed = run_git(root, "check-ref-format", "--branch", branch, check=False)
-    return completed.returncode == 0 and completed.stdout.strip() == branch
+    return git_stdout(root, "check-ref-format", "--branch", branch) == branch
 
 
 def current_head(root: Path) -> str:
     """Return the current HEAD sha, or 'untracked' if not a resolvable ref."""
-    completed = run_git(root, "rev-parse", "HEAD", check=False)
-    if completed.returncode != 0:
-        return "untracked"
-    return completed.stdout.strip()
+    return current_tracked_head(root) or "untracked"
 
 
 def current_tracked_head(root: Path) -> str:
     """Return the current HEAD sha, or '' when untracked."""
-    head = current_head(root)
-    return "" if head == "untracked" else head
+    return git_stdout(root, "rev-parse", "HEAD")
 
 
 def ref_head(
@@ -316,9 +312,7 @@ def git_stdout_checked(root: Path, *args: str) -> str:
 def git_stdout(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stripped stdout, or '' on failure."""
     completed = run_git(root, *args, check=False)
-    if completed.returncode != 0:
-        return ""
-    return completed.stdout.strip()
+    return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
 def ref_progress(root: Path, ref: str, *, observed_at: datetime) -> dict[str, object]:
@@ -539,17 +533,17 @@ def git_common_dir(root: Path) -> str:
 
 def same_git_repository(left: Path, right: Path) -> bool:
     """True when both paths resolve to the same underlying git repository."""
-    left_common = git_common_dir(left)
-    right_common = git_common_dir(right)
-    return bool(left_common and right_common and left_common == right_common)
+    return bool(common := git_common_dir(left)) and common == git_common_dir(right)
 
 
 def git_files(root: Path, *patterns: str) -> list[str]:
     """Return tracked files matching the given pathspec patterns."""
     completed = run_git(root, "ls-files", *patterns, check=False)
-    if completed.returncode != 0:
-        return []
-    return [line for line in completed.stdout.splitlines() if line]
+    return (
+        [line for line in completed.stdout.splitlines() if line]
+        if completed.returncode == 0
+        else []
+    )
 
 
 def remote_availability(

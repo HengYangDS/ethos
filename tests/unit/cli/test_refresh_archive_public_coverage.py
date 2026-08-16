@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive_change as archive
-import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as refresh
+import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 
@@ -35,85 +34,6 @@ class _Dumpable:
     def model_dump(self, *, mode: str) -> dict[str, object]:
         assert mode == "json"
         return dict(self.payload)
-
-
-def _refresh_status(
-    *,
-    branch: str = BRANCH,
-    role: str = "work_lane",
-    dirty: bool = False,
-    candidate: dict[str, object] | None = None,
-) -> dict[str, object]:
-    return {
-        "branch": branch,
-        "role": role,
-        "dirty": dirty,
-        "candidate": candidate
-        or {
-            "exists": True,
-            "worktree_exists": True,
-            "worktree_path": "/candidate",
-            "head": "candidate-head",
-        },
-    }
-
-
-def _stub_refresh_reader(
-    monkeypatch: pytest.MonkeyPatch,
-    status: dict[str, object],
-    *,
-    head: str = "work-head",
-) -> None:
-    monkeypatch.setattr(
-        refresh,
-        "load_branch_role_policy",
-        lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
-    )
-    monkeypatch.setattr(refresh, "workspace_status", lambda _root: status)
-    monkeypatch.setattr(
-        refresh,
-        "run_git",
-        lambda _root, *_args, **_kwargs: SimpleNamespace(
-            stdout=f"{head}\n", stderr="", returncode=0
-        ),
-    )
-    monkeypatch.setattr(refresh, "changed_paths", lambda _path: ())
-
-
-@pytest.mark.parametrize(
-    ("candidate", "gap"),
-    [
-        ({"exists": False, "worktree_exists": False}, "candidate_branch_missing"),
-        ({"exists": True, "worktree_exists": False}, "candidate_worktree_missing"),
-        ({"exists": True, "worktree_exists": True}, "candidate_worktree_dirty"),
-    ],
-)
-def test_refresh_public_reader_reports_candidate_failures(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    candidate: dict[str, object],
-    gap: str,
-) -> None:
-    candidate |= {"worktree_path": "/candidate", "head": "candidate-head"}
-    _stub_refresh_reader(monkeypatch, _refresh_status(candidate=candidate))
-    monkeypatch.setattr(refresh, "changed_paths", lambda _path: ("dirty",))
-
-    report = refresh.refresh_work_lane_base(root=tmp_path)
-
-    assert report["required_gaps"] == [gap]
-
-
-def test_refresh_public_reader_exposes_identity_repair_route(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _stub_refresh_reader(monkeypatch, _refresh_status())
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: True)
-
-    report = refresh.refresh_work_lane_base(root=tmp_path)
-
-    assert report["required_gaps"] == ["commit_identity_replacement_required"]
-    assert "repair-identity" in str(report["next_action"])
 
 
 def _completed_governance(*, remaining: int = 0) -> dict[str, object]:
@@ -181,14 +101,11 @@ def _stub_archive_public(
         "local_state_mutation_guard",
         lambda _root: guard or {"required_gaps": []},
     )
-    archive_tree = "archive-tree" if collision else ""
 
     def git_stdout(_root: Path, *args: str) -> str:
         return {
             ("branch", "--show-current"): BRANCH,
             ("status", "--short"): "",
-            ("rev-parse", f"{HEAD}:{ARCHIVE_PATH}"): archive_tree,
-            ("rev-parse", f"{HEAD}:{ARCHIVE_PATH}.preserved"): preserved_tree,
             ("diff", "--cached", "--name-only", "--diff-filter=ACMRTD"): (
                 f"{ARCHIVE_PATH}/commitment.toml"
             ),
@@ -196,11 +113,17 @@ def _stub_archive_public(
         }.get(args, "")
 
     monkeypatch.setattr(archive, "git_stdout", git_stdout)
-    monkeypatch.setattr(
-        archive,
-        "collision_preservation_path",
-        lambda *_args: f"{ARCHIVE_PATH}.preserved",
-    )
+
+    def collision_report(*_args: object) -> archive.ArchiveCollision | None:
+        preserved = root / f"{ARCHIVE_PATH}.preserved"
+        if not collision:
+            return None
+        if preserved_tree or preserved.exists():
+            message = "openspec_archive_collision_preservation_conflict"
+            raise ValueError(message)
+        return archive.ArchiveCollision(ARCHIVE_PATH, "archive-tree", f"{ARCHIVE_PATH}.preserved")
+
+    monkeypatch.setattr(archive, "archive_collision", collision_report)
     monkeypatch.setattr(archive, "artifact_output_paths", lambda *_args: ())
     monkeypatch.setattr(archive.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
@@ -408,125 +331,128 @@ def test_archive_public_rejects_invalid_native_receipt(
     assert compensated == [compensated_path]
 
 
-def test_archive_public_collision_falls_back_to_exact_lease_cas_and_finishes(
+def test_archive_public_retries_committed_transition_before_preflight(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _stub_archive_public(monkeypatch, tmp_path, collision=True)
-    monkeypatch.setattr(archive, "move_tracked_tree", lambda *_args: None)
-    monkeypatch.setattr(
-        archive, "commit_git_worktree", lambda *_args, **_kwargs: {"verdict": "pass"}
-    )
-    heads = iter((HEAD, NEW_HEAD))
-    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: next(heads))
+    _stub_archive_public(monkeypatch, tmp_path)
+    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
     lease = {
         "expected_head": HEAD,
         "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
-        "lease_id": "lease:1",
-        "epoch": 1,
-        "expires_at": "2026-08-11T00:00:00+00:00",
-        "payload_sha256": "d" * 64,
     }
-
-    def leases_by_branch(_root: Path) -> dict[str, dict[str, object]]:
-        return {BRANCH: dict(lease)}
-
-    monkeypatch.setattr(archive, "leases_by_branch", leases_by_branch)
+    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
     monkeypatch.setattr(
         archive,
-        "relocated_commitment_fields_to",
-        lambda *_args, **_kwargs: {"expected_head": NEW_HEAD, "binding": "target"},
+        "git_stdout",
+        lambda _root, *args: {
+            ("branch", "--show-current"): BRANCH,
+            ("rev-parse", f"{NEW_HEAD}^"): HEAD,
+            ("diff", "--name-only", "--diff-filter=ACMRTD", HEAD, NEW_HEAD): (
+                f"{ARCHIVE_PATH}/commitment.toml"
+            ),
+        }.get(args, ""),
     )
+    transitions: list[dict[str, object]] = []
     monkeypatch.setattr(
-        archive,
-        "work_lane_ref_transition_report",
-        lambda **_kwargs: {"verdict": "block", "required_gaps": ["stale"]},
+        archive, "issue_archive_effect", lambda *_args, **_kwargs: _Dumpable(id="archive-receipt")
     )
-    monkeypatch.setattr(
-        archive,
-        "advance_lease_ref",
-        lambda *_args, **_kwargs: (
-            lease.update(
-                expected_head=NEW_HEAD,
-                base_commitment_path=f"{ARCHIVE_PATH}/commitment.toml",
-            )
-            or dict(lease)
-        ),
-    )
-    monkeypatch.setattr(archive, "state_database", lambda _root: tmp_path / "state.sqlite")
-    monkeypatch.setattr(archive, "integer_value", int)
-    monkeypatch.setattr(
-        archive,
-        "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "r" * 64),
-    )
-    monkeypatch.setattr(
-        archive,
-        "load_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(digest=lambda: "c" * 64),
-    )
-    monkeypatch.setattr(archive, "current_tree", lambda *_args: "tree")
-    monkeypatch.setattr(
-        archive,
-        "_archive_attestation",
-        lambda *_args, **_kwargs: _Dumpable(id="archive-receipt"),
-    )
+    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: True)
+    monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ("", ()))
     monkeypatch.setattr(archive, "record_attestations", lambda *_args: {})
+    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
 
+    def transition(**kwargs: object) -> dict[str, object]:
+        transitions.append(kwargs)
+        lease.update(
+            expected_head=NEW_HEAD,
+            base_commitment_path=f"{ARCHIVE_PATH}/commitment.toml",
+        )
+        return {"verdict": "pass", "required_gaps": []}
+
+    monkeypatch.setattr(overlay, "work_lane_ref_transition_report", transition)
+    monkeypatch.setattr(overlay, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
-    assert report["state"] == "archived"
-    assert report["preserved_archive_path"] == f"{ARCHIVE_PATH}.preserved"
-    assert report["attestation"] == {"id": "archive-receipt"}
+    assert report["verdict"] == "pass"
+    assert report["state"] == "archive_attestation_recovered"
+    assert transitions == [
+        {
+            "root": tmp_path,
+            "phase": "committed",
+            "ref_name": f"refs/heads/{BRANCH}",
+            "old_value": HEAD,
+            "new_value": NEW_HEAD,
+        }
+    ]
 
 
-def test_archive_public_lease_cas_failure_is_repair_required(
+def test_archive_public_dry_run_does_not_advance_committed_lease(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _stub_archive_public(monkeypatch, tmp_path, collision=True)
-    monkeypatch.setattr(archive, "move_tracked_tree", lambda *_args: None)
-    monkeypatch.setattr(
-        archive, "commit_git_worktree", lambda *_args, **_kwargs: {"verdict": "pass"}
-    )
-    heads = iter((HEAD, NEW_HEAD))
-    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: next(heads))
-    lease = {
-        "expected_head": HEAD,
-        "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
-        "lease_id": "lease:1",
-        "epoch": 1,
-        "expires_at": "2026-08-11T00:00:00+00:00",
-        "payload_sha256": "d" * 64,
-    }
+    _stub_archive_public(monkeypatch, tmp_path)
+    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
+    lease = {"expected_head": HEAD}
     monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: lease})
     monkeypatch.setattr(
         archive,
-        "relocated_commitment_fields_to",
-        lambda *_args, **_kwargs: {"expected_head": NEW_HEAD},
+        "git_stdout",
+        lambda _root, *args: {
+            ("branch", "--show-current"): BRANCH,
+            ("rev-parse", f"{NEW_HEAD}^"): HEAD,
+            ("diff", "--name-only", "--diff-filter=ACMRTD", HEAD, NEW_HEAD): (
+                f"{ARCHIVE_PATH}/commitment.toml"
+            ),
+        }.get(args, ""),
     )
+    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
+    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: True)
+    transitions: list[object] = []
     monkeypatch.setattr(
         archive,
         "work_lane_ref_transition_report",
-        lambda **_kwargs: {"verdict": "block"},
+        lambda **kwargs: transitions.append(kwargs),
     )
+
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
+
+    assert report["state"] == "ready_to_recover_archive_lease"
+    assert transitions == []
+
+
+def test_archive_public_rejects_mixed_committed_delta_before_lease_advance(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub_archive_public(monkeypatch, tmp_path)
+    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
+    monkeypatch.setattr(
+        archive, "leases_by_branch", lambda _root: {BRANCH: {"expected_head": HEAD}}
+    )
+    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
+    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: False)
+    transitions: list[object] = []
     monkeypatch.setattr(
         archive,
-        "advance_lease_ref",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("lease_epoch_stale")),
+        "work_lane_ref_transition_report",
+        lambda **kwargs: transitions.append(kwargs),
     )
-    monkeypatch.setattr(archive, "state_database", lambda _root: tmp_path / "state.sqlite")
-    monkeypatch.setattr(archive, "integer_value", int)
 
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
-    assert report["state"] == "repair_required"
-    assert "openspec_archive_lease_not_advanced" in report["required_gaps"]
+    assert report["state"] == "blocked"
+    assert transitions == []
 
 
 def _stub_archive_attestation_recovery(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
-) -> dict[str, object]:
-    state: dict[str, object] = {"head": HEAD, "record_attempts": 0, "record_ids": []}
+) -> dict[str, Any]:
+    state: dict[str, Any] = {
+        "head": HEAD,
+        "record_attempts": 0,
+        "record_ids": [],
+        "selected": [],
+        "receipt": _Dumpable(id="archive-receipt"),
+    }
     lease = {
         "lease_state": "valid",
         "holder_ref": "agent:test",
@@ -572,28 +498,31 @@ def _stub_archive_attestation_recovery(
             "state": ("archive_transition" if state["head"] == HEAD else "post_archive_closeout"),
         },
     )
+    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
+    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: True)
     monkeypatch.setattr(
         archive,
-        "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self"),
+        "issue_archive_effect",
+        lambda *_args, **_kwargs: state["receipt"],
     )
     monkeypatch.setattr(
-        archive,
-        "load_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(digest=lambda: "c" * 64),
+        archive, "read_attestation_set", lambda _root: ("", tuple(state["selected"]))
     )
-    monkeypatch.setattr(archive, "current_tree", lambda _root, ref: f"tree:{ref}")
-    monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ("", ()))
 
     def record(_root: Path, attestations: tuple[object, ...]) -> dict[str, object]:
         state["record_attempts"] = int(state["record_attempts"]) + 1
         record_ids = state["record_ids"]
         assert isinstance(record_ids, list)
-        record_ids.append(attestations[0].id)
+        receipt = attestations[0]
+        assert isinstance(receipt, _Dumpable)
+        record_ids.append(receipt.payload["id"])
         if state["record_attempts"] == 1:
             message = "attestation_set_cas_retry_exhausted"
             raise ValueError(message)
-        return {"root": "set-root", "added": (attestations[0].id,)}
+        selected = state["selected"]
+        assert isinstance(selected, list)
+        selected.append(receipt)
+        return {"root": "set-root", "added": (receipt.payload["id"],)}
 
     monkeypatch.setattr(archive, "record_attestations", record)
     return state
@@ -609,8 +538,12 @@ def test_archive_public_recovers_attestation_after_the_git_effect_completed(
     assert partial["state"] == "archive_attestation_pending"
     assert partial["head"] == NEW_HEAD
     assert partial["required_gaps"] == ["openspec_archive_attestation_not_recorded"]
-    assert partial["recovery"]["reason"] == "attestation_set_cas_retry_exhausted"
-    assert f"--expect-head {NEW_HEAD}" in partial["next_action"]
+    recovery = partial["recovery"]
+    next_action = partial["next_action"]
+    assert isinstance(recovery, dict)
+    assert recovery["reason"] == "attestation_set_cas_retry_exhausted"
+    assert isinstance(next_action, str)
+    assert f"--expect-head {NEW_HEAD}" in next_action
 
     recovered = archive.archive_change(
         root=tmp_path,
@@ -623,7 +556,20 @@ def test_archive_public_recovers_attestation_after_the_git_effect_completed(
     assert recovered["state"] == "archive_attestation_recovered"
     assert state["record_attempts"] == 2
     assert len(set(state["record_ids"])) == 1
-    assert recovered["attestation"]["id"] == state["record_ids"][0]
+    attestation = recovered["attestation"]
+    assert isinstance(attestation, dict)
+    assert attestation["id"] == state["record_ids"][0]
+
+    recognized = archive.archive_change(
+        root=tmp_path,
+        change=CHANGE,
+        expect_head=NEW_HEAD,
+        apply=True,
+    )
+    assert recognized["state"] == "blocked"
+    assert recognized["required_gaps"] == [f"openspec_active_change_missing:{CHANGE}"]
+    assert recognized["attestation"] == attestation
+    assert state["record_attempts"] == 2
 
 
 @pytest.mark.parametrize(

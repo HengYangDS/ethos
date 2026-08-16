@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import tomli_w
+
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_command
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -107,14 +109,6 @@ def _single_wheel() -> Path:
     return wheels[0]
 
 
-def _toml_string_assignment(key: str, value: str) -> str:
-    return f"{key} = {json.dumps(value)}\n"
-
-
-def _toml_string_array(key: str, values: tuple[str, ...]) -> str:
-    return f"{key} = [\n" + "".join(f"    {json.dumps(value)},\n" for value in values) + "]\n"
-
-
 def commitment_carrier_from_packaged_vector(
     wheel: Path,
     python: Path,
@@ -136,36 +130,19 @@ def commitment_carrier_from_packaged_vector(
             str(wheel),
         )
     )
-    template = vector["commitment"]["carrier_toml"]
-    payload = tomllib.loads(template)
-    replacements = {
-        "id": _toml_string_assignment("id", commitment_id),
-        "intent": _toml_string_assignment("intent", intent),
-        "subjects": _toml_string_array("subjects", subjects),
-        "scope": _toml_string_array("scope", scope),
-    }
+    payload = tomllib.loads(vector["commitment"]["carrier_toml"])
+    if not all(key in payload for key in ("id", "intent", "subjects", "scope", "dependencies")):
+        message = "packaged semantic-v2 vector has no structured commitment fields"
+        raise RuntimeError(message)
+    payload.update(id=commitment_id, intent=intent, subjects=list(subjects), scope=list(scope))
     for key, value in payload.items():
         if (
-            key not in replacements
+            key not in {"subjects", "scope"}
             and isinstance(value, list)
             and all(isinstance(item, str) for item in value)
         ):
-            replacements[key] = _toml_string_array(key, ())
-    for key, replacement in replacements.items():
-        value = payload[key]
-        expected = (
-            _toml_string_array(key, tuple(value))
-            if isinstance(value, list)
-            else _toml_string_assignment(key, value)
-        )
-        if expected not in template:
-            message = f"packaged semantic-v2 vector has no {key} carrier field"
-            raise RuntimeError(message)
-        template = template.replace(expected, replacement, 1)
-    if "\n[[dependencies]]" not in template:
-        message = "packaged semantic-v2 vector has no structured commitment fields"
-        raise RuntimeError(message)
-    return template
+            payload[key] = []
+    return tomli_w.dumps(payload)
 
 
 def _initialize_adopter(root: Path, wheel: Path, python: Path) -> str:
@@ -309,19 +286,18 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
     env, git = _independent_host_environment()
     head = run_command(adopter, (git, "rev-parse", "HEAD"), env=env, check=True).stdout.strip()
     holder = "agent:test:package-only:independence"
+    suffix = ("--root", str(adopter), "--json")
     commands = (
-        ("status", "--root", str(adopter), "--json"),
-        ("plan", "--changed", "--root", str(adopter), "--json"),
+        ("status", *suffix),
+        ("plan", "--changed", *suffix),
         (
             "lane",
             "prewrite",
             "README.md",
-            "--root",
-            str(adopter),
             "--editor-root",
             str(adopter),
             "--require-editor-root",
-            "--json",
+            *suffix,
         ),
         (
             "lane",
@@ -331,12 +307,10 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
             str(adopter),
             "--holder-ref",
             holder,
-            "--root",
-            str(adopter),
-            "--json",
+            *suffix,
         ),
-        ("prove", "--root", str(adopter), "--json"),
-        ("land", "--root", str(adopter), "--json"),
+        ("prove", *suffix),
+        ("land", *suffix),
         (
             "publish",
             "--proposal",
@@ -344,9 +318,7 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
             "--probe-remote",
             "--expect-head",
             head,
-            "--root",
-            str(adopter),
-            "--json",
+            *suffix,
         ),
         (
             "lane",
@@ -358,9 +330,7 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
             "0" * 40,
             "--accepted-head",
             "0" * 40,
-            "--root",
-            str(adopter),
-            "--json",
+            *suffix,
         ),
     )
     checked = []

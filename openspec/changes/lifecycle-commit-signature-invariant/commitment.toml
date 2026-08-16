@@ -4,10 +4,14 @@ intent = "Require every ETHOS-created lifecycle commit to inherit and prove repo
 subjects = ["repository:ethos"]
 scope = [
   "openspec/changes/lifecycle-commit-signature-invariant/**",
+  "src/ethos/adapters/admission/git_admission.py",
+  "src/ethos/adapters/admission/ref_intent.py",
+  "src/ethos/adapters/admission/transitions.py",
   "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_derivation.py",
   "src/ethos/adapters/mutation/lane_lifecycle/identity_repair.py",
   "src/ethos/adapters/mutation/lane_start_carrier.py",
   "src/ethos/adapters/repo/git_effects.py",
+  "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/surface/cli/lane/identity.py",
   "tests/unit/cli/test_lifecycle_hardening.py",
   "tests/unit/lanes/lease/test_commitment_rebind.py",

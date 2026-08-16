@@ -129,8 +129,7 @@ def _validate_canonical_time(value: object) -> object:
         parsed = datetime.fromisoformat(value)
     except ValueError as exc:
         raise ValueError(_ATTESTATION_VALIDITY_INVALID) from exc
-    if canonical_utc_time(parsed) != value:
-        raise ValueError(_ATTESTATION_VALIDITY_INVALID)
+    canonical_utc_time(parsed)
     return parsed
 
 

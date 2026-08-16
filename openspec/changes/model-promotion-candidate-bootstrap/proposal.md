@@ -14,6 +14,7 @@ correctly rejected the schema transition as an identity mismatch.
   byte digest when compiling candidate integration.
 - Preserve the normal transition for valid v2 carriers and reject malformed or
   missing prestate carriers.
+- Select the current rebind projection over the superseded start projection.
 
 ## Impact
 

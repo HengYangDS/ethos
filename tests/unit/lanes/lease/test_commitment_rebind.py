@@ -16,6 +16,7 @@ import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission as rebind_admission
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence as rebind_evidence
+import ethos.adapters.openspec.start_effect as start_effect
 import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -317,6 +318,45 @@ def test_ordinary_rebind_establishes_current_generation_authority(
 
     assert (report["verdict"], report["required_gaps"]) == ("pass", [])
     scope = case.generation_scope()
+    assert scope.gaps == ()
+    assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
+
+
+def test_rebind_supersedes_the_start_projection_for_one_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    assert case.execute()["verdict"] == "pass"
+    current = leases_by_branch(case.worktree)[case.branch]
+    monkeypatch.setattr(
+        start_effect,
+        "_effect_authorities",
+        lambda *_args, **_kwargs: (
+            (
+                {
+                    "predicate": "effect:openspec-change-start",
+                    "previous_head": git(case.worktree, "rev-parse", "candidate/dev"),
+                },
+                {
+                    "predicate": "effect:commitment-rebind",
+                    "claim": {"operation": "commitment-rebind"},
+                    "previous_head": git(case.worktree, "rev-parse", "candidate/dev"),
+                    "source": "rebind_generation",
+                },
+            ),
+            (),
+        ),
+    )
+
+    scope = current_generation_scope(
+        case.worktree,
+        head=str(current["expected_head"]),
+        repository_id=load_repository_commitment(case.worktree).id,
+        commitment=load_lease_bound_commitment(case.worktree, lease=current),
+        lease=current,
+        fallback_paths=("src/example.py",),
+    )
+
     assert scope.gaps == ()
     assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
 

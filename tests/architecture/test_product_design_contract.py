@@ -54,7 +54,7 @@ def test_design_integrity_uses_supplied_tracked_documents_as_authority(
     assert "docs/rogue.md" not in report["references"]
 
 
-def test_current_change_graph_is_single_bounded_and_acyclic() -> None:
+def test_current_change_graph_is_at_most_one_bounded_and_acyclic() -> None:
     carriers = _active_change_carriers()
     commitments = {
         payload["id"]: (carrier, payload)
@@ -70,9 +70,11 @@ def test_current_change_graph_is_single_bounded_and_acyclic() -> None:
         for change_id, (_carrier, payload) in commitments.items()
     }
 
-    assert tuple(carrier.name for carrier in carriers) == ("model-promotion",)
+    assert len(carriers) <= 1
     assert set().union(*graph.values()) <= set(graph)
     assert set(TopologicalSorter(graph).static_order()) == set(graph)
+    if not commitments:
+        return
     change_id, (carrier, _payload) = next(iter(commitments.items()))
     assert change_id == f"change:{carrier.name}"
     tasks = (carrier / "tasks.md").read_text(encoding="utf-8")

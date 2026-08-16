@@ -6,6 +6,11 @@ The accepted `lane repair-identity` implementation remains the sole owner. The
 operation is `derive -> immutable receipt -> exact-CAS apply`; no ref, Lease,
 SQLite, or runtime pointer is edited manually.
 
+The receipt validator already computes the complete gap set shared by dry-run
+and apply. A gapless dry-run therefore projects `verdict=pass` and
+`state=ready_to_repair_identity`; any gap remains blocking. No second validator,
+authorization surface, or compatibility path is introduced.
+
 ## Exact coordinates
 
 - Baseline: `8840e35d282e6d9ea4c32652c3d03491e3d52e16`

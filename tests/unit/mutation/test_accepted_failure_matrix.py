@@ -31,7 +31,6 @@ def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(accepted, "proof_attestation", lambda *_args: _Proof())
     monkeypatch.setattr(accepted, "sweep_stale_ref_intents", lambda *_args: [])
     monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_args, **_kwargs: object())
-    monkeypatch.setattr(accepted, "committed_file_bytes", lambda *_args: b"commitment")
     monkeypatch.setattr(accepted, "worktree_sync_gap", lambda *_args: "")
     monkeypatch.setattr(accepted, "ref_worktree_paths", lambda *_args: ())
 

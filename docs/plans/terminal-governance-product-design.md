@@ -91,11 +91,13 @@ historical wording is preserved merely to satisfy a text-shaped test.
 
 ### Bounded Change Convergence Route
 
-The sole active convergence carrier is
-[`model-promotion`](../../openspec/changes/model-promotion/). Its
-[`tasks.md`](../../openspec/changes/model-promotion/tasks.md) is the only task
-and progress owner. Its Commitment carries any declared dependency edges. This
-plan owns no queue, phase state, dependency ledger, or progress projection.
+The completed convergence carrier is immutable history at
+[`2026-08-16-model-promotion`](../../openspec/changes/archive/2026-08-16-model-promotion/).
+Its archived
+[`tasks.md`](../../openspec/changes/archive/2026-08-16-model-promotion/tasks.md)
+records the bounded implementation and proof mapping. Its Commitment carries
+the declared dependency edges. This plan owns no queue, phase state, dependency
+ledger, or progress projection.
 
 The implementation order is the order in that task owner. Small commits are
 encouraged, but no parallel backlog may split semantic ownership. Intent outside

@@ -208,8 +208,10 @@ def execute_identity_repair_suffix(
     gaps.extend(_suffix_worktree_gaps(repo, status, refs, recovering=recovering))
     if gaps or not apply:
         report = _suffix_report(branch, str(request.get("base_commit") or ""), old_head, gaps)
-        report["state"] = "blocked" if gaps else "ready_to_repair_identity"
         report["request"] = request
+        report.update(
+            **({"verdict": "pass", "state": "ready_to_repair_identity"} if not gaps else {})
+        )
         return report
     effect = GitEffect(
         updates={

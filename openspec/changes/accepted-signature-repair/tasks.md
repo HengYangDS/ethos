@@ -1,18 +1,19 @@
 # Tasks
 
-- [x] Record the exact baseline, defective commit, and pre-repair accepted HEAD.
-- [x] Bind the recovery to the accepted public identity-repair capability.
-- [x] Define payload preservation, exact-CAS, trust, and convergence evidence.
+- [x] **1. Record the exact repair coordinates.** Record the baseline,
+  defective commit, and pre-repair accepted HEAD.
+- [x] **2. Bind the public recovery authority.** Bind the repair to the
+  accepted public identity-repair capability.
+- [x] **3. Define bounded acceptance evidence.** Define payload preservation,
+  exact-CAS, trust, and convergence evidence.
 
 ## Proof mapping
 
-| Obligation | Evidence |
-| --- | --- |
-| Exact authority and CAS | identity-repair derive/apply receipts |
-| Payload preservation | receipt commit mapping and command admission |
-| Trusted suffix | `git verify-commit` for every commit after the baseline |
-| Rewritten product correctness | post-repair exact-HEAD full proof |
-| Accepted closure | archive, land, closeout, retire, runtime receipts |
+| Obligation | Task | Evidence |
+| --- | --- | --- |
+| `command-plane:Identity repair uses exact public authority and CAS` | 1 | `receipt:identity-repair-derive-apply` |
+| `command-plane:Identity repair preserves commit payloads` | 2 | `receipt:identity-repair-commit-mapping` |
+| `quality:Repaired suffix and product state are proven` | 3 | `proof:trusted-suffix-exact-head-closeout` |
 
 The proof, derive, apply, signature verification, archive, land, closeout,
 retirement, and runtime rebuild are post-task governed effects. Each must emit

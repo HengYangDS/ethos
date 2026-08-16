@@ -95,6 +95,79 @@ def _land(root: Path, head: str | None = None, *, blocked: bool = False) -> dict
     return (run_ethos_blocked if blocked else run_ethos)(*args, cwd=root)
 
 
+def test_candidate_transition_carries_exact_terminal_v1_repository_prestate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    carrier = root / ".ethos" / "commitment.toml"
+    carrier.parent.mkdir(parents=True, exist_ok=True)
+    carrier.write_text(
+        'schema_version = 1\nid = "repository:fixture"\n'
+        'intent = "fixture"\nsubjects = ["repository:fixture"]\n'
+        'scope = ["**"]\ninvariants = []\nacceptance = []\n'
+        'authority_refs = []\npermissions = ["repository.read"]\ndependencies = []\n',
+        encoding="utf-8",
+    )
+    candidate_head = commit_fixture_file(root, ".ethos/commitment.toml", carrier.read_text(), "v1")
+    carrier.write_text(
+        'schema_version = 2\nid = "repository:fixture"\n'
+        'intent = "fixture"\nsubjects = ["repository:fixture"]\n'
+        'scope = ["**"]\ninvariants = []\nacceptance = []\nrisks = []\n'
+        "authority_refs = []\npredecessors = []\nselected_attestations = []\n"
+        "dependencies = []\nhypotheses = []\nfalsifiers = []\nexperiment_protocols = []\n",
+        encoding="utf-8",
+    )
+    head = commit_fixture_file(root, ".ethos/commitment.toml", carrier.read_text(), "v2")
+    authority = load_repository_commitment(root)
+    proof = type(
+        "Proof",
+        (),
+        {
+            "commitment_digest": authority.digest(),
+            "model_dump": lambda *_args, **_kwargs: {"predicate": "proof:execution"},
+        },
+    )()
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        landing_mutation,
+        "candidate_base_report",
+        lambda **_kwargs: {
+            "verdict": "pass",
+            "head": head,
+            "candidate_head": candidate_head,
+            "path": root.as_posix(),
+            "required_gaps": [],
+        },
+    )
+    monkeypatch.setattr(landing_mutation, "proof_attestation", lambda *_args: proof)
+    monkeypatch.setattr(
+        landing_mutation,
+        "workspace_status",
+        lambda *_args, **_kwargs: {"branch": "work/fixture"},
+    )
+    monkeypatch.setattr(landing_mutation, "leases_by_branch", lambda _root: {"work/fixture": {}})
+    monkeypatch.setattr(
+        landing_mutation, "load_lease_bound_commitment", lambda *_a, **_k: authority
+    )
+    monkeypatch.setattr(
+        landing_mutation,
+        "compile_observed_git_effect",
+        lambda *_args, **kwargs: (
+            captured.update(kwargs) or type("Plan", (), {"effect": {}, "digest": "plan"})()
+        ),
+    )
+    monkeypatch.setattr(landing_mutation, "admit_git_effect", lambda *_args, **_kwargs: None)
+
+    report = landing_mutation.candidate_transition_readiness(root=root)
+
+    assert report["verdict"] == "pass"
+    policy = captured["policy"]
+    assert isinstance(policy, dict)
+    assert policy["repository_commitment_bootstrap"] is True
+    assert policy["prestate_repository_id"] == "repository:fixture"
+    assert policy["prestate_repository_bytes_sha256"]
+
+
 def _proved_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, full: bool = False):
     fixture = start_adopted_work_lane(tmp_path)
     commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")

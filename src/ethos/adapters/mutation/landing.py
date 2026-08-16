@@ -14,6 +14,7 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
+from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
@@ -305,6 +306,16 @@ def _candidate_transition_plan(
     if not prior_attestations.get("proof"):
         message = "candidate_prior_proof_missing"
         raise ValueError(message)
+    candidate_head = next(iter(effect.updates.values())).expected
+    try:
+        prestate = terminal_v1_binding(
+            root,
+            tree_ref=candidate_head,
+            carrier=".ethos/commitment.toml",
+            repository=True,
+        )
+    except ValueError:
+        prestate = {}
     return compile_observed_git_effect(
         root,
         authority,
@@ -314,6 +325,15 @@ def _candidate_transition_plan(
         policy={
             "operation": "candidate.integrate",
             "candidate_branch": policy.candidate_branch,
+            **(
+                {
+                    "repository_commitment_bootstrap": True,
+                    "prestate_repository_id": prestate["id"],
+                    "prestate_repository_bytes_sha256": prestate["bytes_sha256"],
+                }
+                if prestate
+                else {}
+            ),
         },
         values={
             "operation": "candidate.integrate",

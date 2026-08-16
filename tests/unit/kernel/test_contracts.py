@@ -286,8 +286,7 @@ def test_attestation_mapping_round_trip_normalizes_fractional_time() -> None:
     issued = datetime(2026, 8, 16, 9, 6, 13, 523640, tzinfo=UTC)
     base = _attestation(payload={"state": "observed"})
     attestation = Attestation.issue(
-        base.model_dump(mode="python", exclude={"id"})
-        | {"issued_at": issued, "valid_from": issued}
+        base.model_dump(mode="python", exclude={"id"}) | {"issued_at": issued, "valid_from": issued}
     )
 
     payload = attestation.model_dump(mode="json")

@@ -68,36 +68,33 @@ root binding before files are edited.
 - **THEN** ETHOS blocks the request with `editor_root_missing`
 
 ### Requirement: Lease-backed Lane Start
-ETHOS SHALL acquire local lease records when creating Work Lanes through the
-public lane command plane.
+
+ETHOS SHALL acquire one local Lease generation and bind one explicit Commitment
+when creating a Work Lane through the public command plane. Raw Git worktree
+creation is not governed Work Lane state because it has neither binding.
 
 #### Scenario: Work Lane start is applied
-- **WHEN** `ethos lane start <name> --commitment <path> --apply --holder-ref
-  <holder-ref>` runs from a clean accepted root with a valid matching Commitment
-  and succeeds
-- **THEN** ETHOS creates a `work/<name>` linked worktree
-- **AND** ETHOS records an active lease in host-local state under
-  `<git-common-dir>/ethos/state.sqlite`, outside every checkout
-- **AND** raw Git worktree creation is not treated as standard ETHOS workflow
-  state because it has no ETHOS lease or claim boundary
+
+- **WHEN** the public command creates a lane from a valid Commitment
+- **THEN** it creates the exact worktree/ref and one Git-common Lease generation
+- **AND** no Claim boundary is created or required
 
 #### Scenario: Existing Change continuation is applied
-- **WHEN** `ethos lane start <name> --source-root <source-work-lane> --apply
-  --holder-ref <holder-ref>` explicitly requests continuation from a clean owned
-  source Work Lane
+
+- **WHEN** lane start explicitly continues from a clean owned Work Lane
 - **THEN** ETHOS copies its exact Lease-bound Commitment carrier
-- **AND** it does not evaluate fresh bootstrap.
+- **AND** it does not evaluate fresh bootstrap
 
 #### Scenario: Work Lane start intent is absent or ambiguous
+
 - **WHEN** neither a Commitment nor source Work Lane is supplied, or both are
   supplied
-- **THEN** ETHOS blocks before creating a worktree, Lease, or ref.
+- **THEN** ETHOS blocks before creating a worktree, Lease, or ref
 
 #### Scenario: Work Lane start is requested from a non-accepted or dirty root
-- **WHEN** `ethos lane start <name> --apply --holder-ref <holder-ref>` runs from an
-  existing `work/*` lane or a dirty accepted root
-- **THEN** ETHOS blocks the request with
-  `lane_start_requires_clean_accepted_root`
+
+- **WHEN** lane start runs from an existing Work Lane or dirty accepted root
+- **THEN** ETHOS blocks before mutation
 
 ### Requirement: Admission Before Product Audit
 ETHOS SHALL evaluate apply-mode mutation admission before running product
@@ -121,103 +118,68 @@ ETHOS SHALL keep local runtime state separate from durable evidence.
 
 ### Requirement: Bounded External Evidence Adapters
 
-ETHOS SHALL verify external identity assertions, signed independent-verification
-or hosted-enforcement receipts, and control-replacement verifier receipts only
-when the applicable Commitment requires them. Adapters SHALL store no
-credentials and SHALL NOT mint authority. Provider-local verifier and Git-hook
-executables SHALL be supplied and governed by the operator outside the ETHOS
-product source and distribution surface while conforming to the provider-neutral
-receipt contract.
+External identity, hosted-enforcement, and control-replacement evidence SHALL be
+validated only when the selected Commitment requires its exact Attestation
+predicate and bindings. An external adapter stores no credentials and mints no
+authority.
 
 #### Scenario: control replacement uses protected bootstrap evidence
 
-- **WHEN** a candidate changes admission, proof floors, schemas, hooks,
-  identity trust, enforcement adapters, or declarative controls
-- **THEN** closeout requires the receipt, verifier executable, candidate proof,
-  and bootstrap Chronicle decision to reside outside the candidate tree and bind
-  both heads, both control digests, verifier digest, proof digest, and bootstrap
-  decision digest
-- **AND** the candidate proof is a native executed `ethos prove --execute --json`
-  result with `command = "prove"`, `verdict = pass`, `state = "proven"`,
-  `data.executed = true`, and matching candidate HEAD bindings in
-  `data.evidence.head` and `data.provenance.predicate.head`
-- **AND** a hand-authored `{head, state}` envelope is not accepted as candidate
-  proof
-- **AND** missing or unverifiable provenance returns `unknown`.
+- **WHEN** a candidate changes admission, proof, schema, hook, identity, or
+  enforcement controls
+- **THEN** closeout requires candidate-external proof and decision Attestations
+  binding both heads, control digests, verifier digest, proof digest, and
+  decision identity
+- **AND** a hand-authored summary or historical Chronicle cannot satisfy it
 
 #### Scenario: Control removal and branch-role changes cannot evade admission
 
-- **WHEN** a candidate changes `.ethos/workspace.toml`, deletes a control path,
-  or renames a control path into a non-control location
-- **THEN** closeout treats the source control path as changed and requires the
-  same candidate-external receipt
-- **AND** an unavailable Git diff returns `unknown` and blocks closeout.
+- **WHEN** a candidate deletes, renames, or changes a declared control
+- **THEN** closeout requires the same exact Attestation query
+- **AND** an unavailable diff blocks rather than returning pass
 
 #### Scenario: hosted prevention requires exact receipt
 
-- **WHEN** ETHOS claims hosted prevention for a protected ref transition
-- **THEN** the provider boundary requires a valid signed
-  `IndependentVerificationReceipt` before Git accepts the update
-- **AND** the receipt exactly binds the remote, proposed commit and tree, action,
-  proof-floor ID and digest, gate-policy digest, verifier implementation digest,
-  issuer, key ID, validity window, and signature
-- **AND** local hooks, provider configuration, or independent re-execution
-  without complete hosted mediation do not prove prevention.
+- **WHEN** ETHOS claims hosted prevention
+- **THEN** a provider receipt Attestation binds remote, commit, tree, action,
+  proof and policy digests, verifier, issuer, validity, and signature
+- **AND** local hooks or provider configuration alone do not prove prevention
 
 #### Scenario: independent re-execution requires an exact signed receipt
 
-- **WHEN** ETHOS projects `independently_reexecuted` for a transition
-- **THEN** the provider receipt binds the exact remote, commit, tree, action,
-  proof-floor ID and digest, gate-policy digest, verifier implementation digest,
-  issuer, key ID, validity window, and signature
-- **AND** local hooks or provider configuration alone neither establish
-  `independently_reexecuted` nor prove prevention.
+- **WHEN** ETHOS projects independent re-execution
+- **THEN** the exact signed receipt Attestation binds the same hosted facts
+- **AND** local re-execution alone does not satisfy the hosted predicate
 
 #### Scenario: provider-local reference implementation is physically bounded
 
-- **WHEN** an operator enables independent verification or generic Git
-  pre-receive enforcement
-- **THEN** the executable implementation resides outside the ETHOS product
-  source and distribution surface
-- **AND** it consumes the published provider-neutral receipt contract without
-  creating product policy, credentials, accounts, network services, daemons, or
-  scheduling requirements.
+- **WHEN** an operator enables external verification
+- **THEN** its executable remains outside ETHOS product source and distribution
+- **AND** it consumes the provider-neutral Attestation contract
 
 #### Scenario: Generic Git server enforcement is disabled by default
 
-- **WHEN** a provider has not installed a conforming generic Git pre-receive
-  adapter or its protected provider-local configuration selects `disabled`
-- **THEN** ordinary ETHOS adoption, status, plan, prove, land, and local
-  publication readiness require no account, key, receipt store, daemon, network
-  service, or named service user
-- **AND** the adapter does not mint authority or alter product lifecycle truth.
+- **WHEN** no provider-local adapter is enabled
+- **THEN** ordinary local governance requires no account, key, daemon, or store
+- **AND** no missing provider adapter mints or removes authority
 
 #### Scenario: A protected generic Git update has an exact independent receipt
 
-- **WHEN** a provider-enabled conforming pre-receive adapter receives a
-  non-deletion update for a configured protected ref
-- **THEN** it accepts the update only when its provider-store receipt has a
-  valid protected-anchor signature and exactly binds the configured remote,
-  proposed commit, proposed tree, action, proof-floor ID/digest, gate-policy
-  digest, and verifier implementation digest
-- **AND** it rejects absent, stale, failed, malformed, unsigned, or mismatched
-  receipts before Git accepts the ref.
+- **WHEN** an enabled adapter receives a protected update
+- **THEN** it admits only an exact valid signed provider receipt Attestation
+- **AND** malformed, stale, failed, unsigned, or mismatched evidence blocks
 
 #### Scenario: An update is outside the configured protected set
 
-- **WHEN** a conforming generic Git pre-receive adapter receives an update for a
-  ref not named by its provider-local protected-ref configuration
-- **THEN** it does not require a receipt for that ref
-- **AND** it does not execute a client-supplied command or infer policy from the
-  proposed tree.
+- **WHEN** a provider adapter receives an update outside its protected set
+- **THEN** it does not require the hosted predicate for that ref
+- **AND** it does not infer policy from the proposed tree
 
 #### Scenario: The server adapter remains a thin physical extension
 
-- **WHEN** GitHub, GitLab, independent-identity, or generic Git providers project
-  external enforcement
-- **THEN** they conform to the same receipt and decision contract
-- **AND** no provider executable becomes a second governance kernel or a
-  required ETHOS distribution asset.
+- **WHEN** any Forge or generic Git provider projects enforcement
+- **THEN** it conforms to the same Attestation query
+- **AND** it does not become a second governance kernel
 
 ### Requirement: Cross-host Handoff Adapter
 
@@ -274,51 +236,38 @@ Generic adopters SHALL not require OpenSpec.
 - **AND** current admission does not re-run or reinterpret that historical
   workflow.
 
-### Requirement: Work Lane Claim Binding Projection
-ETHOS SHALL expose Work Lane ownership as claim boundary evidence for
-trust-bearing mutation.
-
-#### Scenario: Work Lane has a claim binding
-- **WHEN** ETHOS inspects a current `work/*` lane with a bound claim id
-- **THEN** the lane report includes the claim id as boundary evidence
-- **AND** the lane report does not mark the claim promoted by lane presence
-  alone
-
-#### Scenario: Work Lane lacks a claim binding
-- **WHEN** ETHOS inspects a current `work/*` lane without a bound claim id
-- **THEN** the lane report remains usable for local work
-- **AND** trust-bearing closeout reports a missing claim-binding gap
-
 ### Requirement: Intake Adapter Projection Boundary
-ETHOS SHALL keep intake and Backlog provider state as projection or intake
-evidence rather than repository truth.
+
+Intake and Backlog provider state SHALL remain input Attestations or read-only
+projection rather than repository truth.
 
 #### Scenario: Intake provider reports done state
-- **WHEN** an intake provider reports a task as complete
-- **THEN** ETHOS records the intake state as projection evidence
-- **AND** ETHOS still requires claim admission, OpenSpec lifecycle readiness,
-  executed proof, and promotion targets before trust closeout
+
+- **WHEN** an intake provider reports a task complete
+- **THEN** the occurrence may be preserved and selected for a successor
+  Commitment
+- **AND** it does not replace OpenSpec readiness, executed proof, or exact
+  operation Attestation queries
 
 ### Requirement: Optional tool adapters remain replaceable
-ETHOS SHALL expose optional adapter boundaries for environment runners, graph
-systems, task ledgers, external workflow frameworks, and agent method packs
-without making them product substrate. Useful external practices MAY be mapped
-to ETHOS contracts, adapters, evidence classes, projections, or method packs
-only through accepted governance changes that keep lifecycle truth inside the
-ETHOS kernel contract.
+
+Optional runners, graph systems, task ledgers, workflow frameworks, and method
+packs MAY project into Commitment, Attestation, Facts, or derived plans. Their
+commands, hidden stores, task state, and phase names SHALL NOT become ETHOS
+lifecycle or semantic roots.
 
 #### Scenario: Adapter profile is reported
 
-- **WHEN** `ethos audit --mode deep --json` reports tool adapters
-- **THEN** Nox, Pixi, Pants, task-ledger, and agent-method-pack entries SHALL be
-  visible as adapter-only boundaries
-- **AND** their output SHALL NOT replace ETHOS proof, OpenSpec lifecycle checks,
-  claims, evidence, or Git-native Work Lane semantics.
+- **WHEN** an optional adapter emits a result
+- **THEN** it remains an input or derived projection
+- **AND** it cannot replace Commitment, Attestation, proof, or Git-native Work
+  Lane semantics
 
 #### Scenario: External workflow frameworks are classified
-- **WHEN** ETHOS evaluates Comet, Spec Kit, BMAD, Superpowers, Task Master, Agent OS, OpenSPDD, Shotgun, or fspec
-- **THEN** their useful practices may be mapped to ETHOS contracts, adapters, evidence classes, projections, or method packs
-- **AND** their command planes, hidden state directories, task stores, and phase names do not become ETHOS lifecycle truth by default
+
+- **WHEN** ETHOS evaluates an external workflow framework
+- **THEN** useful values may map into the two-root model or derived plans
+- **AND** the framework command plane and hidden state remain non-authoritative
 
 ### Requirement: Protected ref hooks bind semantic evaluation to promoted control
 
@@ -439,3 +388,41 @@ identity are available before the Work Lane ref is created.
 - **THEN** ETHOS preserves the existing exact source-carrier continuation
   semantics
 - **AND** the fresh bootstrap path is not also evaluated.
+
+### Requirement: Attestations use one deterministic Git set carrier
+
+The sole current Attestation carrier SHALL be a canonical hash-sharded Git tree
+selected by `refs/ethos/attestations-set`. Its root SHALL be a deterministic
+parentless commit over fixed metadata. An update SHALL be exactly the union of
+the observed set and validated canonical members followed by exact CAS.
+
+#### Scenario: Concurrent writers add different Attestations
+
+- **WHEN** one writer loses the set-ref CAS race
+- **THEN** it re-observes the selected set and recomputes the deterministic union
+- **AND** the successful root contains both immutable members
+
+#### Scenario: A member is added repeatedly or collides
+
+- **WHEN** canonical bytes for an existing identity are added again
+- **THEN** the root is unchanged
+- **AND** different bytes for the same identity fail closed
+
+#### Scenario: Set membership is evaluated
+
+- **WHEN** an Attestation exists in the selected set
+- **THEN** membership proves preservation only
+- **AND** an operation still validates predicate, payload, relations, verifier,
+  bindings, validity, and selected Commitment
+
+### Requirement: Non-authoritative Attestation stores are not current readers
+
+Git-common JSON directories and operation indexes MAY stage or cache bytes but
+SHALL NOT select current Attestations or authorize effects after cutover.
+Historical Claim and Chronicle bytes SHALL remain inert Git history.
+
+#### Scenario: A stale local Attestation exists
+
+- **WHEN** it is absent from the selected Git set
+- **THEN** status, planning, proof, and effects ignore it as current evidence
+- **AND** no compatibility scan silently promotes it

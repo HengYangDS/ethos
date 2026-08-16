@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import tomllib
 from collections.abc import Mapping
 from datetime import UTC
@@ -53,10 +52,6 @@ _ATTESTATION_BINDING_MISSING = "attestation_binding_missing"
 _ATTESTATION_IDENTITY_MISMATCH = "attestation_identity_mismatch"
 _ATTESTATION_RELATION_IDENTITY_DUPLICATE = "attestation_relation_identity_duplicate"
 _ATTESTATION_VALIDITY_INVALID = "attestation_validity_invalid"
-_CANONICAL_TIME_PATTERN = re.compile(
-    r"^(?P<date>\d{4}-\d{2}-\d{2})T(?P<time>\d{2}:\d{2}:\d{2})"
-    r"(?P<fraction>\.\d{1,6})?Z$"
-)
 
 
 def _utf16_key(value: str) -> bytes:
@@ -130,12 +125,6 @@ def _validate_canonical_time(value: object) -> object:
         return value
     if not isinstance(value, str):
         raise TypeError(_ATTESTATION_VALIDITY_INVALID)
-    match = _CANONICAL_TIME_PATTERN.fullmatch(value)
-    if match is None:
-        raise ValueError(_ATTESTATION_VALIDITY_INVALID)
-    fraction = match.group("fraction")
-    if fraction and fraction.endswith("0"):
-        raise ValueError(_ATTESTATION_VALIDITY_INVALID)
     try:
         parsed = datetime.fromisoformat(value)
     except ValueError as exc:
@@ -145,13 +134,10 @@ def _validate_canonical_time(value: object) -> object:
     return parsed
 
 
-def _canonical_json(value: object) -> str:
-    return json.dumps(mutable_json(value), sort_keys=True, separators=(",", ":"))
-
-
 def canonical_json_digest(value: object) -> str:
     """Digest one JSON value after canonical ETHOS normalization."""
-    return hashlib.sha256(_canonical_json(value).encode()).hexdigest()
+    encoded = json.dumps(mutable_json(value), sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class _SemanticModel(BaseModel):
@@ -161,12 +147,6 @@ class _SemanticModel(BaseModel):
         strict=True,
         extra="forbid",
     )
-
-    def digest(self) -> str:
-        return canonical_json_digest(self.model_dump(mode="json"))
-
-    def canonical_json(self) -> str:
-        return _canonical_json(self.model_dump(mode="json"))
 
 
 class _SemanticModelV2(_SemanticModel):
@@ -189,7 +169,7 @@ class _SemanticModelV2(_SemanticModel):
                 extra="forbid",
                 context=context,
             )
-            canonical = value.canonical_json().encode()
+            canonical = value.canonical_json().encode()  # ty: ignore[unresolved-attribute]
         except TypeError as error:
             raise ValueError(str(error)) from error
         raw = json_data.encode() if isinstance(json_data, str) else bytes(json_data)
@@ -416,25 +396,7 @@ class Commitment(_SemanticModelV2):
 
     def identity_projection(self) -> dict[str, object]:
         """Return the schema-versioned portable identity projection."""
-        return {
-            "schema_version": self.schema_version,
-            "id": self.id,
-            "intent": self.intent,
-            "subjects": list(self.subjects),
-            "scope": list(self.scope),
-            "invariants": list(self.invariants),
-            "acceptance": list(self.acceptance),
-            "risks": list(self.risks),
-            "authority_refs": list(self.authority_refs),
-            "predecessors": list(self.predecessors),
-            "selected_attestations": list(self.selected_attestations),
-            "dependencies": [value.model_dump(mode="json") for value in self.dependencies],
-            "hypotheses": [value.model_dump(mode="json") for value in self.hypotheses],
-            "falsifiers": [value.model_dump(mode="json") for value in self.falsifiers],
-            "experiment_protocols": [
-                value.model_dump(mode="json") for value in self.experiment_protocols
-            ],
-        }
+        return self.model_dump(mode="json")
 
     def digest(self) -> str:
         return hashlib.sha256(b"ethos.commitment.v2\0" + self.canonical_json().encode()).hexdigest()
@@ -443,30 +405,9 @@ class Commitment(_SemanticModelV2):
         return _canonical_json_v2(self.identity_projection())
 
 
-_COMMITMENT_TUPLE_FIELDS = {
-    "subjects",
-    "scope",
-    "invariants",
-    "acceptance",
-    "risks",
-    "authority_refs",
-    "predecessors",
-    "selected_attestations",
-    "hypotheses",
-    "falsifiers",
-    "experiment_protocols",
-    "dependencies",
-}
-
-
 def load_commitment_file(path: Path) -> Commitment:
     """Load one strict Commitment TOML carrier."""
-    payload = tomllib.loads(path.read_text(encoding="utf-8"))
-    normalized = {
-        key: tuple(value) if key in _COMMITMENT_TUPLE_FIELDS and isinstance(value, list) else value
-        for key, value in payload.items()
-    }
-    return Commitment.model_validate(normalized)
+    return Commitment.model_validate(tomllib.loads(path.read_text(encoding="utf-8")))
 
 
 class _AttestationPayload(_SemanticModel):
@@ -600,26 +541,13 @@ class Attestation(_SemanticModelV2):
         return self
 
     def identity_projection(self) -> dict[str, object]:
-        return {
-            "schema_version": self.schema_version,
-            "predicate": self.predicate,
-            "verifier": self.verifier,
-            "subject": self.subject,
-            "issued_at": canonical_utc_time(self.issued_at),
-            "valid_from": canonical_utc_time(self.valid_from) if self.valid_from else None,
-            "valid_until": canonical_utc_time(self.valid_until) if self.valid_until else None,
-            "verdict": self.verdict,
-            "payload": self.payload.model_dump(mode="json"),
-            "relations": [value.model_dump(mode="json") for value in self.relations],
-            "advisories": list(self.advisories),
-            "evidence_refs": list(self.evidence_refs),
-            "commitment_digest": self.commitment_digest,
-            "facts_digest": self.facts_digest,
-            "plan_digest": self.plan_digest,
-            "policy_digest": self.policy_digest,
-            "effect_digest": self.effect_digest,
-            "mints_authority": self.mints_authority,
-        }
+        projection = self.model_dump(mode="json", exclude={"id"})
+        projection.update(
+            issued_at=canonical_utc_time(self.issued_at),
+            valid_from=canonical_utc_time(self.valid_from) if self.valid_from else None,
+            valid_until=canonical_utc_time(self.valid_until) if self.valid_until else None,
+        )
+        return projection
 
     def canonical_json(self, *, exclude_id: bool = False) -> str:
         projection = self.identity_projection()

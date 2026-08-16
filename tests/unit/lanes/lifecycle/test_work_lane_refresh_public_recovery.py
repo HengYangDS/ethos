@@ -107,6 +107,44 @@ def test_refresh_public_reader_distinguishes_current_and_ready(
     assert ready["state"] == "ready_to_refresh_base"
 
 
+@pytest.mark.parametrize(
+    ("candidate", "gap"),
+    [
+        ({"exists": False, "worktree_exists": False}, "candidate_branch_missing"),
+        ({"exists": True, "worktree_exists": False}, "candidate_worktree_missing"),
+        ({"exists": True, "worktree_exists": True}, "candidate_worktree_dirty"),
+    ],
+)
+def test_refresh_public_reader_reports_candidate_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    candidate: dict[str, object],
+    gap: str,
+) -> None:
+    _common(monkeypatch)
+    monkeypatch.setattr(
+        refresh,
+        "workspace_status",
+        lambda _root: _status() | {"candidate": candidate | {"worktree_path": "/candidate"}},
+    )
+    monkeypatch.setattr(refresh, "changed_paths", lambda _path: ("dirty",))
+
+    assert refresh.refresh_work_lane_base(root=tmp_path)["required_gaps"] == [gap]
+
+
+def test_refresh_public_reader_exposes_identity_repair_route(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _common(monkeypatch)
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
+    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: True)
+
+    report = refresh.refresh_work_lane_base(root=tmp_path)
+
+    assert report["required_gaps"] == ["commit_identity_replacement_required"]
+    assert "repair-identity" in str(report["next_action"])
+
+
 def test_refresh_rejects_snapshot_drift_before_rebase(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -150,7 +188,7 @@ def test_refresh_conflict_reports_failed_restore(
         "refresh_base_failed",
         "refresh_base_worktree_restore_failed",
     ]
-    assert "CONFLICT" in report["stderr"]
+    assert "CONFLICT" in str(report["stderr"])
 
 
 def test_refresh_rejects_rebase_postcondition_and_restores_branch(
@@ -208,7 +246,9 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
     )
 
     def execute(_root: Path, _plan: object, **kwargs: object) -> SimpleNamespace:
-        kwargs["projection"]()
+        projection = kwargs["projection"]
+        assert callable(projection)
+        projection()
         return SimpleNamespace()
 
     monkeypatch.setattr(refresh, "execute_git_effect", execute)
@@ -309,7 +349,9 @@ def test_refresh_public_attachment_failure_is_reported(
     monkeypatch.setattr(refresh, "ref_head", lambda *_args: "other")
 
     def execute(_root: Path, _plan: object, **kwargs: object) -> None:
-        kwargs["projection"]()
+        projection = kwargs["projection"]
+        assert callable(projection)
+        projection()
 
     monkeypatch.setattr(refresh, "execute_git_effect", execute)
     monkeypatch.setattr(
@@ -327,4 +369,5 @@ def test_refresh_public_attachment_failure_is_reported(
         "refresh_base_worktree_attach_failed",
         "refresh_base_worktree_restore_failed",
     ]
-    assert "attachment" in report["stderr"] or "branch" in report["stderr"]
+    stderr = str(report["stderr"])
+    assert "attachment" in stderr or "branch" in stderr

@@ -146,7 +146,7 @@ def test_start_effect_rejects_unknown_round_tripped_attestation_kind(
     )
 
 
-@pytest.mark.parametrize("flaw", ["predecessor", "current-holder"])
+@pytest.mark.parametrize("flaw", ["predecessor", "current-holder", "verdict"])
 def test_start_effect_requires_predecessor_and_current_holder_continuity(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -203,6 +203,14 @@ def test_start_effect_requires_predecessor_and_current_holder_continuity(
         commitment_digest=successor.digest(),
         repository_id=repository,
     )
+    if flaw == "verdict":
+        payload = receipt.model_dump(mode="python", exclude={"id"})
+        payload.update(verdict="block")
+        payload["payload"] = {
+            "kind": "effect:native",
+            "body": receipt.payload.body | {"required_gaps": ("authority_denied",)},
+        }
+        receipt = Attestation.issue(payload)
     monkeypatch.setattr(
         effect_authority,
         "load_lease_bound_commitment",
@@ -247,7 +255,7 @@ def test_archive_effect_requires_exact_discriminator_verifier_validity_and_bindi
         intent="Test archive authority.",
         subjects=(repository,),
     )
-    lease = {"lease_id": "lease:test", "expected_head": head}
+    lease: dict[str, object] = {"lease_id": "lease:test", "expected_head": head}
     valid = issue_native_effect(
         tmp_path,
         effect=NativeEffect(
@@ -279,7 +287,7 @@ def test_archive_effect_requires_exact_discriminator_verifier_validity_and_bindi
         {"effect_digest": None},
     )
     monkeypatch.setattr(effect_authority, "current_tree", lambda *_args: "2" * 40)
-    monkeypatch.setattr(effect_authority, "_exact_archive_paths", lambda *_args: True)
+    monkeypatch.setattr(effect_authority, "exact_archive_paths", lambda *_args: True)
 
     assert effect_authority.archive_effect_authority(
         tmp_path, valid, head, repository, commitment, lease

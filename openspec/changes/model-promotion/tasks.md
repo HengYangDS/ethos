@@ -31,7 +31,7 @@ does not append work here unless this Commitment already requires it.
   public commands only. **Proof:** boundary mutation matrix plus package-only
   dry-run/apply/readback.
 
-- [ ] **5. Prepare archive admission.** Delete out-of-scope and superseded
+- [x] **5. Prepare archive admission.** Delete out-of-scope and superseded
   residue; run OpenSpec 1.8 strict validation, focused quality gates, code and
   ponytail review, and exact-HEAD full proof. Record refresh and every other
   lifecycle family as selected successor Commitments, not tasks here.

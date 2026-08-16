@@ -1,0 +1,23 @@
+schema_version = 2
+id = "change:model-promotion-closeout-proof"
+intent = "Make active-Change architecture checks and design links valid before and after governed archive closeout."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "docs/plans/terminal-governance-product-design.md",
+  "openspec/changes/model-promotion-closeout-proof/**",
+  "tests/architecture/test_product_design_contract.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "96897cf83a823b7fd07780cfb26fc0f34538853e7dd581cc29e1cbb492801b81",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

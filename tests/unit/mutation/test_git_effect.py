@@ -15,6 +15,7 @@ import ethos.adapters.repo.attestation_set as attestation_set
 import ethos.adapters.repo.git_effect_admission as admission
 import ethos.adapters.repo.git_effect_attestation as attest
 import ethos.adapters.repo.git_effects as runtime
+import ethos.adapters.repo.git_signing as git_signing
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.ref_intent import write_ref_intent
@@ -22,8 +23,8 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effect_attestation import records
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import commit_git_worktree
-from ethos.adapters.repo.git_effects import create_git_commit
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_signing import create_git_commit
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -209,7 +210,7 @@ def test_create_git_commit_inherits_effective_signing_configuration(
     git(repo, "config", "gpg.format", "ssh")
     git(repo, "config", "user.signingkey", public_key.as_posix())
     monkeypatch.setattr(
-        runtime,
+        git_signing,
         "verify_commit_trust",
         lambda _root, revision: {
             "verdict": "pass",

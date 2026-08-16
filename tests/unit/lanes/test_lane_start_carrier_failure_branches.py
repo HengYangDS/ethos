@@ -119,16 +119,20 @@ def test_tree_entries_fails_closed_on_command_shape_or_empty_tree(
 
 
 def test_initialize_reports_missing_metadata_and_empty_final_head(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    subprocess.run(("git", "init", target), check=True, capture_output=True, text=True)
     context = SimpleNamespace(
         candidate={"head": "a" * 40},
         source_head="",
         source_change_id="example",
         source_root=Path("/source"),
         source_branch="",
-        repo=Path("/repo"),
-        target=Path("/target"),
+        repo=target,
+        target=target,
         run=lambda *_args, **_kwargs: _run_result(0, ""),
     )
     monkeypatch.setattr(carrier, "materialize_fresh_carrier", lambda _context: (None, "tree"))

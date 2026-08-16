@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 from collections.abc import Callable
 from collections.abc import Mapping
 from pathlib import Path
@@ -16,9 +15,7 @@ import ethos.adapters.repo.git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
-from ethos.adapters.repo.commit_identity import verify_commit_trust
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import effective_git_config_value
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_admission import require_effect_permission
@@ -117,49 +114,6 @@ def commit_git_worktree(
         "verdict": "pass" if completed.returncode == 0 else "block",
         "error": completed.stderr.strip(),
     }
-
-
-def create_git_commit(
-    root: Path,
-    *,
-    tree: str,
-    parent: str,
-    message: str,
-    preserve_message: bool = False,
-    environment: Mapping[str, str] | None = None,
-    runner: Callable[..., Any] = run_git,
-) -> Any:
-    """Create one commit object through the sole Git mutation owner."""
-    signing = effective_git_config_value(root, "commit.gpgsign").strip().lower()
-    if signing not in {"", "false", "no", "off", "0", "true", "yes", "on", "1"}:
-        message = "git_effect_commit_signing_policy_invalid"
-        raise ValueError(message)
-    sign = signing in {"true", "yes", "on", "1"}
-    commit_environment_binding = commit_environment(root, environment) if sign else environment
-    completed = runner(
-        root,
-        "commit-tree",
-        *(("-S",) if sign else ()),
-        tree,
-        "-p",
-        parent,
-        *(('-F', '-') if preserve_message else ('-m', message)),
-        check=False,
-        env=commit_environment_binding,
-        stdin=message if preserve_message else None,
-    )
-    if completed.returncode or not sign:
-        return completed
-    revision = completed.stdout.strip()
-    gaps = verify_commit_trust(root, revision).get("required_gaps", []) if revision else []
-    if revision and not gaps:
-        return completed
-    return subprocess.CompletedProcess(
-        completed.args,
-        1,
-        completed.stdout,
-        str(gaps[0]) if gaps else "git_effect_signed_commit_missing",
-    )
 
 
 def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") -> None:
@@ -538,8 +492,7 @@ def _ref_operation(plan: TransitionPlan, ref_name: str, update: GitRefUpdate) ->
     return (
         "commit.identity-replace"
         if operation == "commit.identity-replace"
-        else
-        "release.mirror"
+        else "release.mirror"
         if operation == "candidate.accept" and ref_name == release_ref
         else "lane.retire.compensate"
         if operation == "lane.retire" and not set(update.expected) - {"0"}

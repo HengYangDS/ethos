@@ -54,10 +54,3 @@ mapping through one exact-CAS receipt.
   an untrusted replacement, or a moved coordinate
 - **THEN** derive or apply fails closed with a typed gap
 - **AND** no general history rewrite is authorized.
-
-## Requirement To Task To Proof
-
-| Requirement | Task | Proof |
-| --- | --- | --- |
-| command-plane:Lifecycle commit objects inherit repository signing policy | 2 | `tests/unit/mutation/test_git_effect.py`, `tests/unit/lanes/test_lane_family_profile.py`, and `tests/unit/lanes/lease/test_commitment_rebind.py` |
-| command-plane:Identity repair supports one receipt-bound linear suffix | 4 | `tests/unit/cli/test_lifecycle_hardening.py` |

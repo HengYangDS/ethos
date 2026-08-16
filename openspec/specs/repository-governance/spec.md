@@ -21,72 +21,6 @@ rather than implementation package names.
 - **AND** `capability.toml` records implementation ownership as metadata rather
   than capability identity
 
-### Requirement: Evidence-backed Claims
-ETHOS SHALL treat missing claims, missing evidence, and digest mismatches as
-required gaps.
-
-#### Scenario: Claims are audited
-- **WHEN** ETHOS checks claim governance
-- **THEN** every active claim is bound to dated evidence and a matching SHA-256
-  digest
-
-### Requirement: Evolution Governance
-ETHOS SHALL expose hypotheses as challengeable objects and shall not mark
-evolution proven from static declarations alone.
-
-#### Scenario: Hypotheses are inspected
-- **WHEN** `ethos campaign hypotheses --json` runs
-- **THEN** hypotheses include campaign, state, claim, and challenge fields
-
-### Requirement: Evolution Ledger Protocol
-ETHOS SHALL keep reviewed evolution records and active hypotheses in one
-repository-truth ledger at `evolution/ledger.toml`.
-
-#### Scenario: Evolution declarations compile without a runtime owner
-- **WHEN** ETHOS plans a research, hypothesis, experiment, or campaign-driven change
-- **THEN** TransitionPlan may reference the evolution ledger or campaign manifest as current facts
-- **AND** hypotheses, experiments, evaluations, canonization, and retirement remain
-  governed by evolution records, OpenSpec carriers, attestations, and evidence
-- **AND** no workflow runtime or hidden state store becomes an evolution authority
-
-### Requirement: Practice Selection And Fate
-ETHOS SHALL support governed practice claims, evidence-weighted selection among
-competing hypotheses, designs, adapters, method packs, or implementation
-strategies, and explicit practice fate decisions: introduce, compose, refine,
-supersede, retire, or reject.
-
-#### Scenario: practice claim carries commitment effect
-- **WHEN** ETHOS evaluates a reusable practice or framework-family proposal
-- **THEN** the ledger records a practice claim with subject, question, claim, boundary, falsifiers, incumbent relation, candidate set, experiment protocol, evaluation record, commitment effect, practice-change refs, commitment targets, evidence refs, and decision refs
-- **AND** the practice claim remains an evolution carrier for effects on governed commitments rather than the root authority
-- **AND** candidate sets, experiments, evaluations, practice-change records, runtime nodes, task graphs, and method packs remain subordinate projections of that claim
-
-#### Scenario: candidate set is evaluated
-- **WHEN** ETHOS compares multiple candidate practices for the same governance question
-- **THEN** the candidates are represented as research, hypotheses, experiments, eval metadata, reviews, claims, evidence, or OpenSpec carriers
-- **AND** the selected practice records why it wins over alternatives
-- **AND** rejected candidates are archived, retired, or retained as bounded learning
-
-#### Scenario: practice fate is classified
-- **WHEN** ETHOS classifies a practice change
-- **THEN** the practice-change record states whether it introduces, composes, refines, supersedes, retires, or rejects a practice, and records boundary, commitment effect, evidence, decision refs, and incumbent-specific migration or retirement fields when applicable
-- **AND** the practice fate is recorded through evolution records, claim/evidence/chronicle rather than hidden runtime state
-
-#### Scenario: ledger records candidate selection objects
-- **WHEN** `evolution/ledger.toml` records a candidate selection decision
-- **THEN** it includes a practice claim with commitment effect, a candidate set with at least two candidates, a bounded experiment protocol, an evaluation record with selected and rejected candidates, and a practice-change record that distinguishes introduction from real supersession and retirement
-- **AND** every object binds evidence and decision refs instead of relying on assistant memory
-
-### Requirement: Practice Evolution Kernel
-ETHOS SHALL govern tools, frameworks, workflows, skills, task graphs, scenario
-systems, and specs as practice carriers rather than as authorities.
-
-#### Scenario: practice is judged before carrier adoption
-- **WHEN** ETHOS evaluates an external framework or internal workflow proposal
-- **THEN** the evaluation identifies the practice being tested, the evidence that would confirm or falsify it, the repository commitment effect it would create, compose, refine, replace, remove, or reject, and the correct fate after judgment
-- **AND** the fate is one of introduce, compose, refine, supersede, retire, or reject according to its relation to incumbent boundaries
-- **AND** no carrier becomes lifecycle truth without source, schema, OpenSpec, claim, evidence, and Chronicle promotion
-
 ### Requirement: Official OpenSpec Governance
 ETHOS SHALL keep `openspec/` as an official repository governance capability for
 spec-driven planning and change records while preserving `ethos ...` as the
@@ -411,26 +345,6 @@ explicit composition rather than importing provider execution packages.
 - **THEN** the CLI composes repository repository-audit with the official OpenSpec
   adapter and reports no provider-configuration gap
 
-### Requirement: Trust-bearing Claim Admission
-ETHOS SHALL review active trust-bearing claims as envelopes that bind claim,
-boundary, evidence, OpenSpec carrier, fallback, kill signal, and promotion
-target.
-
-#### Scenario: Active claim is fully admitted
-- **GIVEN** an active claim declares boundary owner and scope
-- **AND** the claim references dated evidence with a matching SHA-256 digest
-- **AND** the claim references an OpenSpec carrier when the claim is
-  trust-bearing
-- **AND** the claim declares fallback, kill signal, and promotion targets
-- **WHEN** ETHOS checks claim governance
-- **THEN** the claim report includes a trust envelope with no required gaps
-
-#### Scenario: Active claim lacks trust carriers
-- **GIVEN** an active claim lacks boundary, fallback, kill signal, OpenSpec
-  carrier, or promotion target fields
-- **WHEN** ETHOS checks claim governance
-- **THEN** ETHOS reports required gaps naming the missing trust carrier fields
-
 ### Requirement: Proof States Distinguish Planning From Execution
 ETHOS SHALL distinguish planned gate readiness from executed proof.
 
@@ -529,23 +443,6 @@ invariants, acceptance, permissions, and publication policy; no claim or
 - **WHEN** ETHOS audits lifecycle or evaluates a material path
 - **THEN** ETHOS reports a Commitment gap
 - **AND** no bootstrap, claim binding, or parallel scope carrier grants authority.
-
-### Requirement: Promotion Target Readiness
-ETHOS SHALL require trust-bearing claims to identify promoted repository
-authority before archive or closeout can be trusted.
-
-#### Scenario: Promotion target exists
-- **GIVEN** a trust-bearing claim declares promotion targets under source,
-  tests, docs, schemas, canonical OpenSpec specs, or dated evidence
-- **AND** every declared promotion target exists
-- **WHEN** ETHOS checks claim governance
-- **THEN** the claim envelope reports promotion readiness
-
-#### Scenario: Promotion target is missing
-- **GIVEN** a trust-bearing claim declares a promotion target path that does not
-  exist
-- **WHEN** ETHOS checks claim governance
-- **THEN** ETHOS reports `promotion_target_missing:<claim>:<path>`
 
 ### Requirement: Reference Adopter Parity Closure
 ETHOS SHALL prove reference adopter parity through generic profile and shadow
@@ -730,37 +627,6 @@ workflow prevents the invalid state before mutation when practical.
 - **THEN** ETHOS treats the guard design as incomplete until the guard is bound
   to the mutation capability or an explicit degraded mode is declared
 
-### Requirement: Campaign Orchestration
-
-ETHOS SHALL model long-running productization work as campaigns that coordinate
-multiple OpenSpec-backed Work Lanes and their closeout state.
-
-#### Scenario: Campaign status reports lane steps
-
-- **GIVEN** `evolution/campaigns/<campaign-id>/campaign.toml` exists
-- **WHEN** `ethos campaign status --json` runs
-- **THEN** the result includes campaign id, objective, owner, claim id, step
-  summary, and ordered steps
-- **AND** each step names an OpenSpec change, Work Lane branch, claim id, and
-  closeout state.
-
-#### Scenario: Campaign closeout includes campaign package
-
-- **WHEN** `ethos campaign closeout --json` runs
-- **THEN** the result includes a campaign closeout package beside local
-  closeout, trust closeout, release, parity, shadow parity, and publication
-  packages
-- **AND** planned future steps do not block closeout before their Work Lane is
-  active.
-
-#### Scenario: Campaign closeout scopes one explicit campaign
-
-- **GIVEN** more than one campaign manifest exists
-- **WHEN** `ethos campaign closeout --campaign <campaign-id> --json` runs
-- **THEN** the campaign package includes only the selected campaign
-- **AND** the report records the requested selector
-- **AND** unrelated campaign gaps do not become selected-campaign gaps.
-
 ### Requirement: Agent Invocation Admission Boundary
 
 ETHOS SHALL evaluate mutation-capable invocation as an action-specific request
@@ -813,126 +679,68 @@ prior decisions SHALL NOT become reusable authorization by themselves.
 - **AND** first policy adoption requires a bootstrap approver/verifier configured
   outside the candidate tree and a bootstrap Chronicle decision.
 
-### Requirement: Claim evidence freshness is explicit
-
-ETHOS SHALL distinguish durable historical support from evidence that asserts
-current repository state. Every active claim SHALL declare exactly one evidence
-freshness mode: `historical`, `head_bound`, or `semantic_scope`.
-
-#### Scenario: historical evidence is durable without pretending currentness
-
-- **WHEN** an active claim declares `historical` freshness
-- **THEN** ETHOS verifies its dated evidence digest and ordinary active-claim
-  trust-envelope requirements
-- **AND** it does not emit a missing-HEAD migration advisory
-- **AND** it does not claim that historical evidence proves the current HEAD.
-
-#### Scenario: currentness-sensitive evidence fails closed
-
-- **WHEN** an active claim declares `head_bound` or `semantic_scope` freshness
-- **THEN** ETHOS requires the binding fields of that mode
-- **AND** a different declared HEAD blocks `head_bound` evidence
-- **AND** a changed declared semantic target blocks `semantic_scope` evidence
-- **AND** absent or unknown freshness mode is a required gap.
-
 ### Requirement: Work Lane Coordination Read Model
 
-A Lane Lease SHALL remain ignored, one-writer coordination within one Git common
-directory. It identifies one concrete holder and generation but grants no
-identity, capability, filesystem fence, cross-host lock, or repository truth.
-Reader output is a non-reusable action preview. Bounded readers SHALL preserve
-`deferred`, even with no visible foreign lanes; only a fully computed foreign
-inventory may report `exact`.
+The coordination reader SHALL derive current lane views from Git facts, the
+selected Commitment, local Lease fencing, and exact Attestation queries. It
+SHALL NOT expose shared-inbox acknowledgement, consumed state, cursor, mutable
+selection, or inbox digest as lifecycle or progress authority.
+
+#### Scenario: Concurrent input exists
+
+- **WHEN** input occurrences are present in the Attestation set
+- **THEN** status may project their immutable identities and selected
+  dispositions
+- **AND** absence of an acknowledgement or mutable inbox flag creates no hidden
+  progress state
 
 #### Scenario: foreign lane preview remains observe-only
 
-- **WHEN** status reports a linked foreign Work Lane
-- **THEN** its action preview lists `observe` as the only candidate action and
-  blocks `write`, `land`, and `retire`
-- **AND** it states `mints_authority=false` and `recheck_required=true`
-- **AND** actual mutation re-evaluates the exact current request
-- **AND** legacy actor-capability fields cannot be replayed as authority and are
-  retired after client migration.
+- **WHEN** status sees a foreign Work Lane
+- **THEN** it projects observed facts without mutation authority
+- **AND** visibility grants no handoff, land, or retirement right
 
 #### Scenario: bounded readers defer foreign path scopes
 
-- **WHEN** a bounded status, planning, proof, landing, or publication
-  reader needs local state and aggregate lane signals but not a coordination
-  inventory
-- **THEN** ETHOS MAY defer foreign Work Lane path scopes instead of running one
-  history diff per visible foreign lane
-- **AND** each deferred lane remains explicitly marked `scope_state=deferred`
-  while retaining its non-authoritative observe-only coordination state
-- **AND** the reader preserves observable lane count and lease signals without
-  inferring path overlap, branch relation, dirty foreign contents, or retirement
-  readiness
-- **AND** full `lane status` and mutation admission retain exact foreign path
-  scope computation before making any coordination decision.
+- **WHEN** detailed foreign path inspection is outside the bounded read
+- **THEN** the reader marks detail deferred
+- **AND** it does not infer overlap or safety
 
 #### Scenario: projection preserves observed coordination detail state
 
-- **WHEN** bounded status or orientation projects a coordination observation
-- **THEN** its summary and coordination payload SHALL both expose
-  `detail_state=deferred`
-- **AND** counts requiring foreign-path inspection SHALL remain `null` even when
-  no foreign Work Lane row is visible
-- **AND** a full coordination inventory MAY expose `detail_state=exact` and
-  integer detail counts only after computing that full inventory
-- **AND** neither state grants foreign Work Lane mutation authority.
+- **WHEN** a bounded reader emits coordination detail state
+- **THEN** summary and payload agree on that state
+- **AND** no inbox counter substitutes for direct observation
+
 #### Scenario: normalized lease has one concrete current holder
 
-- **WHEN** a lane lease is created, renewed, resumed, or handed off
-- **THEN** it binds a random local lane-incarnation ID, lease ID, structured
-  holder reference, epoch, issuance, renewal, expiry, and optional claim/scope
-- **AND** one lane incarnation has at most one current writer holder
-- **AND** renewal preserves holder, lease ID, and epoch while handoff changes
-  holder and increments epoch
-- **AND** the prior holder resumes an expired lease only with the old generation,
-  unchanged expected head, and no contrary accepted judgment
-- **AND** expiry, provider labels, missing state, or ambiguity never authorize
-  another holder or cleanup.
+- **WHEN** a valid current Lease is projected
+- **THEN** it names one concrete holder and generation
+- **AND** no shared-inbox consumer identity replaces the holder
 
 #### Scenario: lease generation detects but does not claim hard fencing
 
-- **WHEN** an invocation's expected holder, lease ID, epoch, or head is stale
-- **THEN** normal ETHOS mutation paths reject or flag it
-- **AND** handoff requires offer, acceptance, and holder quiescence
-- **AND** ETHOS does not claim to stop an already-running or bypassing same-user
-  filesystem process
-- **AND** uncertainty or residue blocks integration until inspected.
+- **WHEN** a Lease generation is current
+- **THEN** it detects stale local mutations and coordinates writers
+- **AND** it does not claim distributed or provider fencing
 
 #### Scenario: lease and Git lifecycle is crash-consistent
 
-- **WHEN** a lane operation spanning Git, filesystem, and SQLite partially fails
-- **THEN** ETHOS reports the exact repair-required state and verifies
-  postconditions on idempotent retry
-- **AND** normal authoring remains blocked until required Git and sole-lease
-  postconditions hold
-- **AND** ETHOS does not claim cross-store atomicity or silently choose among
-  duplicate legacy leases.
+- **WHEN** a coordinated transition is interrupted
+- **THEN** exact receipt and observed Git/Lease states determine recovery
+- **AND** no mutable inbox state determines success
 
 #### Scenario: legacy adoption and cleanup resist replay
 
-- **GIVEN** a legacy or recreated lane lacks trusted normalized state
-- **WHEN** it is adopted or exceptionally cleaned
-- **THEN** a provable current holder may normalize only that same holder/head
-- **AND** other cases require an accepted maintainer decision pre-binding the
-  exact target observation and a new local lane-incarnation ID
-- **AND** cleanup binds that incarnation digest so a same-named branch or another
-  clone cannot replay the decision
-- **AND** missing legacy incarnation evidence blocks destructive cleanup rather
-  than creating a global repository or Agent registry.
+- **WHEN** retired coordination bytes are encountered
+- **THEN** current readers ignore them as authority
+- **AND** they cannot be replayed through compatibility discovery
 
 #### Scenario: cross-host handoff creates destination-local coordination
 
-- **WHEN** work moves to another clone or Git common directory
-- **THEN** transfer binds content-addressed Git state and a digest-bound context
-  or recovery carrier, not the source SQLite lease
-- **AND** dirty tracked/untracked work is committed or explicitly preserved, not
-  stashed or left in chat
-- **AND** the destination creates a new local lane and acknowledges it before the
-  source revokes its writer lease or retires its observe-only copy
-- **AND** neither side claims a distributed lease or shared session identity.
+- **WHEN** an exact handoff is accepted on another host
+- **THEN** the destination creates its own local Lease generation
+- **AND** an acknowledgement is evidence only, not lifecycle state
 
 ### Requirement: Repository Transition Decision Basis
 
@@ -980,110 +788,55 @@ truth horizon and enforcement coverage actually proved.
 
 ### Requirement: Work Lane Lifecycle Resolution
 
-ETHOS SHALL keep routine mechanically determined lane lifecycle local and SHALL
-record only exceptional interpretive judgments as evidence-bound Chronicle
-`decision` events. Chronicle SHALL NOT become lease telemetry or a separate lane
-resolution database.
+Routine lifecycle SHALL remain mechanically derived from current facts and exact
+plans. Exceptional interpretive judgment SHALL be an exact, non-authorizing
+Attestation selected by the operation; Chronicle SHALL have no current reader or
+producer.
 
 #### Scenario: routine lifecycle remains local
 
-- **WHEN** a lease is acquired, renewed, resumed, locally handed off, expires, or
-  the same holder retires a clean mechanically proven landed lane
-- **THEN** ETHOS uses ignored local coordination and postcondition receipts
-- **AND** no tracked Chronicle decision is required.
+- **WHEN** coordination is mechanically determined
+- **THEN** ETHOS uses local Lease fencing and postcondition Attestations
+- **AND** no tracked decision record is required
 
 #### Scenario: exceptional cleanup consumes prior accepted judgment
 
-- **WHEN** orphan recovery, foreign retirement, non-mechanical supersession,
-  disputed handoff, preserve, block, or irreversible deletion is requested
-- **THEN** a separate owned governance Work Lane has already promoted a
-  Chronicle decision binding policy, evidence, exact head, lane-incarnation
-  digest, disposition, recovery plan, and target-observation digest
-- **AND** cleanup recomputes the mutable target facts before its first
-  destructive step
-- **AND** any mismatch blocks cleanup and requires a new decision
-- **AND** the decision authorizes an effect while postconditions alone prove what
-  was actually removed.
+- **WHEN** an exceptional destructive operation requires human judgment
+- **THEN** a separately accepted Commitment and bound decision Attestation name
+  exact target, evidence, disposition, recovery, and validity
+- **AND** the operation re-observes mutable facts before its first effect
 
 #### Scenario: dirty or unknown work is preserved by default
 
-- **WHEN** lane ownership, lease state, tracked/untracked contents, or recovery
-  status is dirty, missing, ambiguous, or unknown
-- **THEN** ETHOS preserves or blocks the lane instead of automatically deleting
-  it
-- **AND** irreversible deletion requires an accepted decision proving the exact
-  target and why preservation is impossible or no longer required.
+- **WHEN** ownership, Lease, content, or recovery status is unknown or dirty
+- **THEN** ETHOS preserves or blocks rather than inferring authority
+- **AND** irreversible deletion requires exact accepted judgment and evidence
 
 #### Scenario: break-glass reconciles after emergency action
 
-- **GIVEN** a predeclared break-glass Commitment binds verified maintainer
-  identity, exact target/head, reason, blast radius, expiry, preservation
-  default, and postcondition plan
-- **WHEN** an emergency command independently verifies those facts and acts
-  before a new Chronicle decision can be promoted
-- **THEN** it emits a digest-bound receipt and blocks later integration and
-  publication
-- **AND** a separate governance Work Lane promotes post-hoc judgment and
-  reconciles residue before the block clears
-- **AND** a self-supplied flag or holder string is insufficient.
+- **WHEN** a predeclared break-glass Commitment admits an emergency effect
+- **THEN** the result is an exact Attestation and later integration remains
+  blocked until accepted reconciliation
+- **AND** a self-supplied flag or holder string is insufficient
 
 #### Scenario: lane handoff is recorded as Chronicle resolution
 
-- **GIVEN** a Work Lane handoff cannot be resolved by the normal local
-  offer/accept protocol or becomes disputed
-- **WHEN** an accepted exceptional judgment resolves the handoff
-- **THEN** ETHOS records a Chronicle `decision` event binding the prior and next
-  holder observations, evidence, exact head, lane-incarnation digest, and result
-- **AND** routine local handoff remains ignored coordination and does not require
-  tracked Chronicle telemetry
-- **AND** the decision does not replace the active destination-local Lane Lease.
+- **WHEN** an exceptional handoff judgment is required
+- **THEN** it is recorded as a decision Attestation, not Chronicle
+- **AND** it does not replace the destination-local Lease
 
 #### Scenario: orphan audit produces a decision, not a persistent orphan state
 
-- **GIVEN** a Work Lane has missing, stale, ambiguous, or legacy holder evidence
-- **WHEN** ETHOS audits the lane for exceptional closeout or cleanup
-- **THEN** orphan-like facts remain observations requiring a separate accepted
-  resolution decision before destructive action
-- **AND** the durable outcome records `retire`, `preserve`, `block`, `handoff`, or
-  `break_glass` together with exact target and recovery evidence
-- **AND** dirty or owner-unknown lanes are preserved or blocked rather than
-  automatically deleted.
+- **WHEN** a lane has missing or ambiguous holder evidence
+- **THEN** orphan-like facts remain observations and accepted disposition is an
+  Attestation
+- **AND** no persistent orphan or Chronicle state is created
 
 #### Scenario: clean ownerless diverged source retires after semantic absorption
 
-- **GIVEN** one clean ownerless source Work Lane has diverged because its
-  historical evidence and carrier bytes differ from an independently accepted
-  current-baseline implementation of its useful behavior
-- **AND** a target-specific accepted Claim and Chronicle bind its exact ref,
-  exact source head, semantic basis, recovery plan, and `lane_resolution/retire`
-  policy
-- **WHEN** the native resolver records and applies a fresh decision for that
-  exact linked source with break-glass and irreversible confirmation
-- **THEN** it SHALL re-observe the source before effect and emit a receipt after
-  the exact retirement
-- **AND** tree inequality, a missing lease, a preservation package, or an
-  inventory entry alone SHALL NOT authorize retirement
-- **AND** the authority SHALL NOT extend to another lane, a valid lease, remote
-  mutation, or a hosted-provider claim.
-
-### Requirement: Evolution Ledger Single Source Of Truth
-
-ETHOS SHALL keep reviewed evolution records and active hypotheses in one
-repository-truth ledger at `evolution/ledger.toml`.
-
-#### Scenario: evolution commands and gates use one ledger
-
-- **WHEN** ETHOS reports campaign hypotheses, validates schemas, audits release
-  files, or projects assistant governance resources
-- **THEN** those surfaces use `evolution/ledger.toml`
-- **AND** documentation may explain evolution governance without storing a
-  parallel ledger
-- **AND** the ledger schema accepts typed evolution entries and hypothesis
-  records in the same document
-- **AND** non-campaign evolution entries bind at least one evidence ref and one
-  decision ref
-- **AND** active hypothesis proof, review, and decision refs resolve to known
-  ETHOS command references or repository paths
+- **WHEN** exact accepted judgment and evidence admit retirement
+- **THEN** the resolver re-observes the source and emits an effect Attestation
+- **AND** the authority does not extend to another lane or remote effect
 
 ### Requirement: Publish Falls Back To Local CI When Remote Is Unavailable
 
@@ -1371,67 +1124,45 @@ projections, and gates instead of making adopter tools product ontology.
 
 ### Requirement: Preservation-bound exceptional Work Lane retirement
 
-ETHOS SHALL offer an explicit `preserve-retire` exceptional disposition for a
-dirty foreign or orphan Work Lane only after accepted Chronicle evidence has
-bound the exact resolution.
+ETHOS SHALL preserve or preserve-retire a dirty foreign or ownerless Work Lane
+only when a separately accepted Commitment requires the disposition and one
+exact decision Attestation binds target, observation, recovery material,
+validity, and actor. The operation SHALL re-observe every mutable fact before
+its first effect.
 
 #### Scenario: dirty residual lane is preserved without retirement
 
-- **GIVEN** a linked Work Lane is dirty, missing a normalized lease, and its
-  accepted Chronicle decision selects `lane_resolution/preserve`
-- **WHEN** a maintainer records and applies the exact native two-phase decision
-- **THEN** ETHOS recomputes the lane observation
-- **AND** writes and verifies a digest-bound bundle, tracked patch, untracked
-  archive when needed, and manifest
-- **AND** retains the exact branch and linked worktree for later semantic replay
-- **AND** emits a non-authoritative preservation receipt
+- **GIVEN** an exact decision Attestation selects preservation for one dirty lane
+- **WHEN** a maintainer applies the accepted operation
+- **THEN** ETHOS writes and verifies the digest-bound recovery package
+- **AND** retains the exact branch and worktree
 
 #### Scenario: dirty lane is preserved before retirement
 
-- **GIVEN** a linked Work Lane is dirty and its accepted Chronicle decision
-  selects `lane_resolution/preserve-retire`
-- **WHEN** a maintainer records a break-glass decision and applies it with an
-  irreversible confirmation
-- **THEN** ETHOS recomputes the exact lane observation
-- **AND** writes a digest-bound bundle, tracked patch, untracked archive when
-  needed, and manifest before removing the exact branch and linked worktree
-- **AND** rejects the retirement if preservation is incomplete or stale
-- **AND** emits a non-authoritative completion receipt with reconciliation
-  required
+- **GIVEN** an exact decision Attestation selects preserve-retire
+- **WHEN** irreversible controls and fresh observations pass
+- **THEN** ETHOS verifies recovery material before exact retirement
+- **AND** emits one effect Attestation requiring reconciliation when partial
 
 #### Scenario: ordinary dirty retirement remains blocked
 
-- **WHEN** a dirty Work Lane is resolved with plain `retire`
-- **THEN** ETHOS reports `dirty_lane_retirement_blocked`
-- **AND** it does not remove the branch or worktree
+- **WHEN** dirty retirement lacks the accepted Commitment and exact decision
+  Attestation
+- **THEN** ETHOS blocks without removing branch or worktree
 
 #### Scenario: Chronicle disposition is bound before the effect
 
-- **GIVEN** an accepted Chronicle explicitly selects
-  `lane_resolution/preserve`, `lane_resolution/retire`,
-  `lane_resolution/preserve-retire`, or `lane_resolution/block` for one
-  resolution class
-- **WHEN** a maintainer records a native two-phase resolution decision
-- **THEN** ETHOS binds the Chronicle path and SHA-256 digest together with the
-  exact target observation digest
-- **AND** native apply recomputes that observation before any effect
-- **AND** a changed target blocks the decision rather than inheriting the prior
-  disposition.
+- **WHEN** a disposition is required before an exceptional effect
+- **THEN** ETHOS binds one decision Attestation and its canonical identity
+- **AND** no Chronicle path, mutable decision record, or supplied flag authorizes
+  the effect
 
 #### Scenario: detached dirty residue is normalized without changing bytes
 
-- **GIVEN** one registered detached historical worktree has an absent Work Lane
-  ref, no valid owner, a committed HEAD already in accepted history, and dirty
-  tracked or untracked bytes
-- **WHEN** a maintainer prepares it for target-specific behavioral resolution
-- **THEN** the detached observation, reflog, HEAD, index, dirty inventory,
-  content digests, session ownership, and path occupancy SHALL be captured first
-- **AND** any reconstructed historical Work Lane ref SHALL point to the exact
-  detached HEAD and SHALL NOT change index or working bytes
-- **AND** ref reconstruction SHALL NOT mint ownership or effect authority
-- **AND** an accepted target-specific Chronicle SHALL distinguish behavioral
-  absorption, rejected historical behavior, preservation, retirement, and later
-  package clearing before any destructive effect.
+- **WHEN** a detached historical worktree is prepared for exact resolution
+- **THEN** ETHOS first captures HEAD, index, reflog, path, ownership, and content
+  digests without changing bytes
+- **AND** any reconstructed ref mints neither ownership nor effect authority
 
 ### Requirement: Durable exceptional-resolution recovery inventory
 
@@ -1628,57 +1359,6 @@ surface.
 - **AND** strict official OpenSpec validation SHALL remain the governance gate
 - **AND** adoption SHALL plan no OpenSpec or CI carrier.
 
-### Requirement: Campaign Lifecycle Truth Is Carrier-Bound
-
-Campaign step legality SHALL derive from declared state, OpenSpec carrier, and
-closeout. `active`/`in_progress` uses an active carrier and no terminal closeout;
-`archived`/`landed` uses an archived carrier with non-terminal closeout;
-`closed`/`retired` adds terminal closeout, accepted/candidate heads, and dated
-evidence. A campaign may be active with only a planned next step, which readers
-SHALL expose without inventing an active lane.
-
-#### Scenario: archived carrier is presented as active
-
-- **WHEN** campaign validation reads an `active` or `in_progress` step whose only
-  carrier is under `openspec/changes/archive`
-- **THEN** it reports a required
-  `campaign_step_active_openspec_archived:<campaign>:<step>` gap
-- **AND** it does not treat the campaign topology as a valid active lane.
-
-#### Scenario: archived carrier awaits land
-
-- **GIVEN** the official OpenSpec archive operation has moved the current Change
-  under `openspec/changes/archive`
-- **WHEN** its Campaign step declares `state = "archived"` with non-terminal
-  closeout
-- **THEN** Campaign validation SHALL accept the truthful archive-before-land
-  intermediate state
-- **AND** the step SHALL remain non-terminal until candidate and accepted
-  closeout facts exist.
-
-#### Scenario: pre-land state still references an active carrier
-
-- **WHEN** an `archived` or `landed` step still resolves only under
-  `openspec/changes/<id>`
-- **THEN** Campaign validation SHALL report
-  `campaign_step_preland_openspec_not_archived:<campaign>:<step>`.
-
-#### Scenario: terminal step lacks archived carrier
-
-- **WHEN** campaign validation reads a `closed` or `retired` step whose carrier
-  remains only under `openspec/changes/<id>`
-- **THEN** it reports a required
-  `campaign_step_terminal_openspec_not_archived:<campaign>:<step>` gap.
-
-#### Scenario: campaign awaits a planned successor
-
-- **WHEN** every completed predecessor has terminal closeout and the immediate
-  successor remains `planned`
-- **THEN** campaign validation SHALL accept the absence of an active execution
-  step
-- **AND** `lane_topology.next_planned_step` SHALL identify that successor
-- **AND** no active Work Lane SHALL be inferred until its carrier and lane exist.
-
 ### Requirement: Entrypoint audits distinguish declarations from producers
 
 The generated-artifact entrypoint audit SHALL evaluate executable producer commands and SHALL NOT treat declarative cleanup, ignore, exclude, or forbidden-path configuration as evidence that the entrypoint produces generated state in a denied home.
@@ -1870,30 +1550,6 @@ proof floor, policy digest, and implementation digest match the request.
 - **THEN** ETHOS SHALL project `independently_reexecuted`
 - **AND** SHALL NOT claim semantic correctness or mint authority.
 
-### Requirement: Semantic claim attestations are typed and candidate-external
-
-ETHOS SHALL treat `semantic_attested` as a distinct claim-assurance class only
-when a typed candidate-external receipt binds the exact claim, dated evidence,
-promotion-target semantic scope, and current HEAD. The receipt SHALL not mint
-authority. Historical or ordinary digest-bound claims SHALL remain portable
-without a receipt provider.
-
-#### Scenario: A semantic attestation receipt matches the active claim
-
-- **WHEN** an active `semantic_attested` claim is evaluated
-- **THEN** ETHOS SHALL validate the receipt schema, canonical payload digest,
-  reviewer role, basis, pass verdict, validity interval, receipt digest, claim
-  id, dated-evidence digest, semantic scope digest, and current HEAD
-- **AND** it SHALL reject a receipt stored inside the governed repository
-- **AND** it SHALL expose only an `attested` non-authorizing trust-envelope state
-
-#### Scenario: Existing labels lack a receipt
-
-- **WHEN** a legacy `semantic` or unreceipted `semantic_attested` claim is
-  migrated
-- **THEN** it SHALL be represented as `digest_only`
-- **AND** its summary and binding SHALL not claim semantic verification
-
 ### Requirement: Fresh Work Lane bootstrap avoids unnecessary runtime admission
 
 ETHOS SHALL allow Git to create or reassert a fresh Work Lane ref without
@@ -1950,31 +1606,6 @@ HEAD.
 - **AND** it blocks with `refresh_base_postcondition_failed` if that fact is
   absent.
 
-### Requirement: Canonical Persisted Claim Envelope
-
-ETHOS SHALL load every tracked claim under the configured claims root from the
-canonical claim envelope containing `[claim]` and `[evidence]`. Historical
-records SHALL preserve dated evidence through an explicit freshness mode; a
-reader SHALL NOT retain a second top-level change-claim parser or silently
-upgrade an undeclared shape at runtime.
-
-#### Scenario: Canonical historical claim is read
-
-- **WHEN** a tracked claim declares canonical claim and evidence sections with
-  a valid dated-evidence digest and `mode = "historical"`
-- **THEN** ETHOS SHALL report the claim under its declared id
-- **AND** ETHOS SHALL verify the dated-evidence digest without requiring its
-  historical source head to equal the current head.
-
-#### Scenario: Top-level legacy claim shape is encountered
-
-- **WHEN** a tracked TOML file in the configured claims root lacks a `[claim]`
-  envelope
-- **THEN** ETHOS SHALL emit `<file-stem>:claim_envelope_missing` as a required
-  gap
-- **AND** ETHOS SHALL NOT interpret top-level lifecycle, evidence-reference, or
-  promotion-target fields as a compatibility format.
-
 ### Requirement: Canonical declarations have a self-contained package projection
 
 ETHOS SHALL package canonical system declarations without making a wheel build
@@ -1990,25 +1621,23 @@ depend on paths outside its source distribution.
 
 ### Requirement: External-adopter profile evidence has a bounded durable record
 
-ETHOS SHALL record a completed local external-adopter binding exercise through
-a dated Chronicle and claim that bind the observed product revision, adopter
-revision, binding outcome, and raw-bundle digest without promoting host-local
-raw material or provider state into repository truth.
+A completed local external-adopter binding exercise SHALL be one Attestation
+whose payload binds product revision, adopter revision, outcome, raw-bundle
+digest, and publication boundary. Host-local raw material and provider state
+remain evidence, not repository truth.
 
 #### Scenario: Local profile evidence is promoted
 
-- **WHEN** an isolated external-adopter binding exercise completes
-- **THEN** its claim SHALL bind a dated Chronicle and SHA-256 raw-bundle identity
-- **AND** the Chronicle SHALL record exact binding and conflict outcomes
-- **AND** it SHALL state whether remote publication was performed.
+- **WHEN** an isolated binding exercise completes
+- **THEN** its Attestation binds exact revisions, outcomes, and raw-bundle digest
+- **AND** explicitly states whether remote publication occurred
 
 #### Scenario: Digest-bound evidence is reviewed
 
-- **WHEN** the claim uses digest-only verification
-- **THEN** it SHALL NOT claim semantic correctness, hosted-provider execution,
-  provider authority, or independent review
-- **AND** it SHALL NOT require a named local account, credential, key, daemon,
-  or network service.
+- **WHEN** the Attestation proves only digest-bound observation
+- **THEN** it does not claim semantic correctness, hosted execution, provider
+  authority, or independent review
+- **AND** it requires no named account, credential, key, daemon, or network
 
 ### Requirement: Bounded landed Work Lane retirement tolerates unrelated missing paths
 
@@ -2265,22 +1894,6 @@ remote probe or minting proof, hosted-success, or publication authority.
 - **AND** the projection SHALL list its local blockers
 - **AND** remote publication claimed SHALL remain false
 - **AND** the projection SHALL NOT replace the ethos publish transition verdict
-
-### Requirement: Lifecycle claim semantic scope is behavior-exact
-
-An active claim that attests universal adopter OpenSpec lifecycle SHALL declare `semantic_scope` promotion targets for the lifecycle command implementations and their behavioral regressions. It SHALL NOT use a broad CLI directory merely because the implementation resides there. The semantic-scope reader SHALL fail closed when any declared lifecycle implementation or regression target changes.
-
-#### Scenario: Unrelated CLI reader change does not stale lifecycle evidence
-
-- **WHEN** a change outside the declared lifecycle implementation and regression targets changes a CLI reader file
-- **THEN** the lifecycle claim semantic digest remains current
-- **AND** the claim reader does not emit `evidence.semantic_scope_stale`
-
-#### Scenario: Lifecycle implementation change stales lifecycle evidence
-
-- **WHEN** a declared lifecycle command implementation or behavioral regression target changes
-- **THEN** the lifecycle claim reader emits `evidence.semantic_scope_stale`
-- **AND** ETHOS requires a governed evidence refresh before the claim is clean
 
 ### Requirement: Refresh-base replay is signing-bound and compare-and-swap safe
 
@@ -2556,65 +2169,6 @@ truth and its own normal deletion dry-run is accepted.
 - **AND** a proposal ref is deleted only after accepted ancestry and its own
   deletion dry-run are verified.
 
-### Requirement: Campaign-terminal protected publication admission
-
-For `publication.mode = "campaign_terminal"`, ETHOS SHALL block terminal remote
-publication until every campaign is terminal, every step and closeout is retired,
-and the direct terminal source-measurement report has no required gap. Local
-recovery anchors MAY exist while the campaign is unfinished, but they SHALL NOT
-authorize protected publication or a terminal-completion claim.
-
-#### Scenario: A campaign remains unfinished
-
-- **WHEN** a campaign is active, a step or closeout is not retired, or the terminal
-  source measurement exceeds a ceiling or is unverifiable
-- **THEN** status, proof, campaign and accepted closeout, land, pre-push, and
-  publish propagate those facts in `required_gaps`
-- **AND** protected publication blocks before remote mutation rather than
-  reclassifying terminal progress as advisory or a green score.
-
-#### Scenario: The campaign terminal is ready
-
-- **WHEN** every terminal campaign and step is retired and direct source
-  measurement is clean
-- **THEN** the campaign publication report adds no campaign or direct
-  source-measurement gap
-- **AND** identity, executed proof, candidate topology, reconciliation, and
-  provider-specific checks remain independently enforced
-- **AND** a protected remote ref is publishable only when its proposed head is
-  already the current head of the same local protected ref after governed local
-  closeout; a proven candidate head cannot bypass that closeout by direct push.
-
-#### Scenario: Invalid Campaign declaration fails closed
-
-- **WHEN** a Campaign TOML file violates its schema
-- **THEN** the reader exposes a `campaign_manifest_schema_invalid` required gap
-- **AND** protected publication is blocked instead of treating it as unconfigured.
-
-#### Scenario: Campaign action commands remain external
-
-- **WHEN** Campaign publication projection selects local continuation or
-  protected publication
-- **THEN** the domain projection returns a stable action identifier
-- **AND** CLI command text is derived from concrete Cyclopts operation declarations.
-
-#### Scenario: Filtered Campaign status preserves repository scope
-
-- **WHEN** `ethos campaign status --campaign <id> --json` selects one Campaign
-- **THEN** `data.campaigns` contains the selected Campaign view
-- **AND** `data.publication.scope` remains `repository`
-- **AND** filtering does not omit another Campaign or direct source-measurement
-  required gap from terminal publication admission.
-
-#### Scenario: Hook evaluates the named remote and branch policy
-
-- **WHEN** the Git pre-push hook receives a named remote such as `github`
-- **THEN** every push-admission evaluation receives that exact remote name
-- **AND** emitted diagnostics describe that provider rather than a default
-  remote
-- **AND** receiving-branch protection and ordinary `work/*` remote policy remain
-  independently authoritative.
-
 ### Requirement: Detached temporary worktree housekeeping is fail-closed
 
 ETHOS SHALL inventory detached Git worktrees without treating detachment as
@@ -2650,143 +2204,100 @@ not the audited checkout, and unchanged at immediate reobservation.
 
 ### Requirement: Exceptional unbound Work Lane retirement is exact and accepted-policy-bound
 
-`ethos lane retire unbound` SHALL admit one head-matched, accepted-ancestor
-unbound `work/*` ref with no worktree and an active Claim bound to an accepted
-Chronicle. Lease is absent or one exact
-invocation-bound holder/ID/epoch/head generation. Chronicle SHALL bind operation,
-target branch/head, and Claim; Claim bytes match accepted. One carrier authorizes
-one target. Apply requires authorization, break-glass, and irreversible
-confirmation; provider, session, or host grants no authority.
+`ethos lane retire unbound` SHALL admit one exact unbound ref only through a
+selected Commitment and target-specific decision Attestation. The command SHALL
+bind target ref/head, accepted relation, Lease observation, actor, reason, and
+irreversible controls; no provider, session, host, Claim, or Chronicle grants
+authority.
 
 #### Scenario: Exact accepted-ancestor residue is inspected
 
-- **WHEN** an operator supplies an unbound `work/*` ref that is an accepted
-  ancestor, has no linked worktree and no active lease, and supplies a matching
-  accepted Chronicle and Claim, expected head, and reason
-- **THEN** dry-run reports `ready_to_retire_unbound_exceptional`
-- **AND** it reports the exact observation without deleting the ref
-- **AND** it reports that its output does not mint reusable authority.
+- **WHEN** one unbound ref is an exact accepted ancestor with no linked worktree
+  and its selected evidence matches
+- **THEN** dry-run reports the exact retirement observation without mutation
+- **AND** reports that the result mints no reusable authority
 
 #### Scenario: One carrier does not authorize another target
 
-- **WHEN** an operator supplies a Chronicle or Claim for a different unbound ref
-- **THEN** the command SHALL block the mismatched target before mutation
-- **AND** the target SHALL require its own expected head, Claim, Chronicle,
-  current observation, and receipt.
+- **WHEN** a decision Attestation names another ref or head
+- **THEN** ETHOS blocks the target before mutation
+- **AND** requires its own exact evidence and receipt
 
 #### Scenario: A non-exact or non-accepted target is refused
 
-- **WHEN** the target is linked, has a foreign, ambiguous, stale, or
-  head-mismatched lease, is not an accepted ancestor, lacks a
-  Chronicle-bound active Claim, has a mismatched expected head, or its Chronicle
-  or Claim is missing, unaccepted, generic, stale, or names another target
-- **THEN** ETHOS SHALL block the request before any ref mutation
-- **AND** it SHALL leave the target ref and any lease intact.
+- **WHEN** relation, head, Lease, target evidence, or accepted binding is absent,
+  ambiguous, stale, foreign, or mismatched
+- **THEN** ETHOS preserves the ref and Lease
+- **AND** reports the exact failed binding
 
 #### Scenario: Exceptional controls are incomplete
 
-- **WHEN** apply omits authorization, break-glass, or irreversible confirmation
-- **THEN** ETHOS SHALL block the request before any ref mutation
-- **AND** it SHALL report the missing machine-readable control gaps.
+- **WHEN** authorization, break-glass, or irreversible confirmation is absent
+- **THEN** ETHOS blocks before ref or Lease mutation
 
 #### Scenario: Unavailable source holder is recovered only by exact accepted policy
 
-- **WHEN** a target-specific accepted Chronicle records
-  `lease_recovery: owner_unavailable`, the exact active source lease ID, holder,
-  epoch, expected head, and a SHA-256 digest of the recorded absolute source
-  worktree path, and that path is absent
-- **AND** an explicitly confirmed invocation uses
-  `--owner-unavailable-recovery` from a different non-empty actor identity
-- **THEN** ETHOS MAY revoke only that exact source lease generation through the
-  native lease CAS before the existing compare-and-delete transition
-- **AND** a present source path, an invalid or mismatched Chronicle lease tuple,
-  a missing recovery actor, or a same-holder invocation SHALL block without
-  deleting the ref or lease
-- **AND** this exception SHALL remain exact-target, receipt-bound, and
-  vendor-neutral; process absence, a provider/session label, or a supplied
-  holder string alone SHALL NOT authorize takeover.
+- **WHEN** an accepted Commitment and decision Attestation bind owner-unavailable
+  recovery, exact Lease generation, absent source path, actor, and target
+- **THEN** ETHOS may revoke only that exact Lease through native CAS
+- **AND** any present path, same holder, drift, or incomplete evidence blocks
 
 ### Requirement: Exceptional unbound effects are compare-and-delete and receipt-bound
 
-Before exceptional unbound effect, ETHOS SHALL reobserve the exact target,
-accepted policy, lease, and protected refs. It SHALL create a no-clobber attempt,
-compare-delete only `refs/heads/<branch>` at expected head, then require target
-ref and reader absence plus unchanged protected refs before a no-clobber receipt.
-It SHALL NOT remove worktrees, mutate remotes, or use unconstrained deletion.
+Before an exceptional unbound effect, ETHOS SHALL re-observe the exact target,
+selected Commitment, decision Attestation, Lease, and protected refs. It SHALL
+publish a no-clobber attempt, compare-delete only the expected ref, verify
+postconditions, and record the result in the sole Attestation set.
 
 #### Scenario: Current holder relinquishes one exact lease generation
 
-- **WHEN** all ordinary exceptional controls have passed and the target has an
-  active lease whose holder equals the current `ETHOS_ACTOR`, whose ID and epoch
-  are present, and whose expected head equals the target head
-- **THEN** ETHOS MAY revoke only that exact generation through the native lease
-  CAS after publishing its attempt record
-- **AND** the attempt and successful receipt bind the exact lease generation and
-  CAS result
-- **AND** ETHOS SHALL reobserve all non-lease retirement bindings and require
-  no active lease before the compare-and-delete ref effect.
+- **WHEN** the exact current holder and generation satisfy the selected operation
+- **THEN** ETHOS revokes only that Lease through native CAS
+- **AND** re-observes all non-Lease bindings before ref deletion
 
 #### Scenario: Lease relinquishment remains fail-closed
 
-- **WHEN** a target lease is absent, foreign, malformed, stale, head-mismatched,
-  replaced, or cannot be revoked by the exact CAS
-- **THEN** ETHOS SHALL leave the source ref intact and report the observed gap
-- **AND** it SHALL not claim retirement or use raw lease or ref deletion.
+- **WHEN** the Lease is absent, foreign, malformed, stale, replaced, or
+  head-mismatched
+- **THEN** ETHOS leaves the source ref intact and reports the observed gap
 
 #### Scenario: Apply deletes only the observed ref
 
-- **WHEN** all exceptional conditions remain stable through the pre-effect
-  reobservation and the compare-and-delete succeeds
-- **THEN** ETHOS SHALL report `retired_unbound_exceptional`
-- **AND** its receipt SHALL bind the before and after observations, accepted
-  Chronicle digest, effect, and postconditions
-- **AND** the target ref, unbound reader entry, and active lease SHALL be absent
-  while protected refs remain unchanged.
+- **WHEN** all exact bindings remain stable and compare-delete succeeds
+- **THEN** the effect Attestation binds before/after observations and
+  postconditions
+- **AND** protected refs remain unchanged
 
 #### Scenario: Observation or postcondition drifts
 
-- **WHEN** the target, accepted Chronicle, protected refs, lease state, record
-  publication, or post-effect observation differs from the admitted facts
-- **THEN** ETHOS SHALL report a blocked local residue with exact gaps
-- **AND** it SHALL not delete a newer ref, remove an active lease, or claim the
-  retirement completed.
+- **WHEN** target, evidence, Lease, protected refs, or postconditions drift
+- **THEN** ETHOS reports a blocked partial result without deleting newer state
 
 #### Scenario: Target-specific evidence remains vendor-neutral
 
-- **WHEN** a target-specific accepted Claim and Chronicle authorize a later
-  exceptional unbound Work Lane retirement
-- **THEN** their authority SHALL remain limited to their exact branch and head
-- **AND** ETHOS SHALL NOT infer deletion authority from an agent vendor,
-  account, session, host path, or another target's evidence carrier.
+- **WHEN** exceptional retirement evidence is evaluated
+- **THEN** its authority is limited to the exact branch, head, and operation
+- **AND** vendor, account, session, host, or another target cannot extend it
 
 ### Requirement: Ref-absent owner-unavailable partial effects are reconciled only through exact native lease CAS
 
 `ethos lane retire reconcile-ref-absent` SHALL reconcile only an immutable prior
-attempt whose ref and path are absent while its exact foreign lease remains. It
-requires accepted-byte-identical Claim and Chronicle, exact source lease tuple,
-a distinct recovery actor, and Chronicle binding to prior operation ID,
-accepted head, Claim, Chronicle ref, and digests. Apply requires authorization,
-break-glass, and irreversible confirmation; it neither recreates nor deletes the
-source ref.
+attempt whose ref and path are absent while its exact foreign Lease remains. A
+selected Commitment and decision Attestation SHALL bind the prior operation,
+accepted head, source Lease tuple, recovery actor, and postconditions.
 
 #### Scenario: Exact ref-absent residue is reconciled
 
-- **WHEN** the ref and source worktree are absent, protected refs and current
-  accepted policy remain stable, and the current lease exactly matches the
-  accepted Chronicle and immutable source attempt
-- **THEN** ETHOS SHALL revoke only that exact source lease generation through a
-  native CAS
-- **AND** it SHALL report `reconciled_ref_absent_owner_unavailable_lease` only
-  after postconditions prove ref, worktree, and lease absence plus unchanged
-  protected refs and Chronicle binding.
+- **WHEN** ref/path absence, protected refs, evidence, and Lease tuple still
+  match the prior attempt
+- **THEN** ETHOS revokes only that exact Lease through native CAS
+- **AND** records success only after ref, path, and Lease absence are proven
 
 #### Scenario: Reconciliation observation or evidence drifts
 
-- **WHEN** a source ref or worktree reappears, or the lease tuple, source path,
-  current Chronicle/Claim bytes, source attempt, accepted control root, or
-  protected refs drifts
-- **THEN** ETHOS SHALL block before lease mutation
-- **AND** it SHALL preserve the foreign lease and all refs unchanged.
+- **WHEN** a ref or path reappears or any bound fact changes
+- **THEN** ETHOS blocks before Lease mutation
+- **AND** preserves all foreign state
 
 ### Requirement: Versioned local-state schema evolution
 
@@ -3336,185 +2847,101 @@ remains blocked for explicit resolution.
 
 ### Requirement: Ownerless closeout admission is consumed at the effect boundary
 
-ETHOS SHALL retire a clean linked ownerless Work Lane only when the effect
-executor independently recomputes and validates every native authority binding,
-atomically fences the exact
-target against lease acquisition, re-observes the admitted target after the
-fence is held, and executes an accepted-ref-bound exact deletion CAS without a
-force flag. It SHALL issue a completion receipt only after all native
-postconditions are verified.
+ETHOS SHALL retire a clean linked ownerless Work Lane only when the executor
+recomputes the exact selected Commitment, decision Attestation, observations,
+accepted relation, and local fencing. It SHALL perform no force operation and
+write one completion Attestation only after exact postconditions pass.
 
 #### Scenario: exact ownerless target is retired
 
-- **GIVEN** an accepted clean ownerless work/* lane and immutable resolution
-  decision name the same branch, head, path, Chronicle, and observation
-- **AND** the native authority evaluation binds the same executor, accepted head, decision digest,
-  coordination binding, accepted-ancestor relation, and clear occupancy
-- **WHEN** ETHOS atomically acquires the exact target fence and all bindings
-  remain unchanged
-- **THEN** ETHOS SHALL prepare accepted-ref verification plus exact target-ref
-  deletion, remove the registered worktree without force, and commit
-- **AND** it SHALL verify explicit ref absence, worktree registration absence,
-  path absence, accepted head, coordination, decision, and fence postconditions
-  before writing a fully bound receipt.
+- **WHEN** target, accepted head, decision, observation, occupancy, and fence
+  remain exact
+- **THEN** ETHOS performs only the admitted worktree/ref effects
+- **AND** records completion after explicit absence checks
 
 #### Scenario: decision snapshot replacement is rejected
 
-- **GIVEN** effect or completed-effect recovery already admitted decision
-  payload A
-- **WHEN** the decision path contains a different valid payload B before native
-  authority validation,
-  fence acquisition, or recovery postcondition verification
-- **THEN** ETHOS SHALL reject the effect before Git, worktree, fence, or
-  reservation mutation
-- **AND** every later binding SHALL derive from one strictly parsed decision
-  snapshot.
+- **WHEN** the decision Attestation changes after admission
+- **THEN** ETHOS blocks before any effect
+- **AND** later bindings derive from one immutable snapshot
 
 #### Scenario: late coordination or competing decision blocks zero-effect
 
-- **GIVEN** native authority evaluation admitted the exact ownerless target
-- **WHEN** a lease, Claim, accepted-head drift, decision drift, path drift, or
-  another target reservation wins before ETHOS acquires or consumes the fence
-- **THEN** ETHOS SHALL perform no Git or worktree effect
-- **AND** it SHALL report the exact blocking binding without minting ownership.
+- **WHEN** a Lease, accepted head, decision, path, or reservation changes before
+  the fence is acquired
+- **THEN** ETHOS performs no Git or worktree effect
 
 #### Scenario: worktree-remove failure is re-observed
 
-- **GIVEN** the ref transaction is prepared for one exact target
-- **WHEN** git worktree remove returns non-zero
-- **THEN** ETHOS SHALL re-read the target ref, worktree registration, and path
-- **AND** it SHALL retain reserved_no_effect only when all three remain
-  unchanged
-- **AND** it SHALL otherwise record worktree_removed_ref_present or
-  transition_unknown for explicit reconciliation.
+- **WHEN** worktree removal fails
+- **THEN** ETHOS re-reads ref, registration, and path
+- **AND** reports the exact partial state rather than rollback success
 
 #### Scenario: zero-effect retry is rebound after accepted history advances
 
-- **GIVEN** one exact reservation remains in reserved_no_effect for the same
-  decision, target, and executor, and no Git or worktree effect occurred
-- **WHEN** fresh native authority evaluation admits the unchanged target against
-  an accepted head that is
-  equal to or a descendant of the reservation's accepted head
-- **THEN** ETHOS SHALL re-verify the decision, observation, coordination,
-  accepted ancestry, and exact old fence when present
-- **AND** it SHALL release the old fence through exact CAS before exact
-  compare-and-delete of the old reservation, then acquire a fresh fence and
-  reservation before any effect
-- **AND** an explicitly absent old fence MAY converge only as the crash window
-  after exact fence release and before reservation unlink, with the same fresh
-  native authority evaluation and zero-effect proof
-- **AND** a divergent accepted head, different or unverifiable fence, executor
-  drift, target drift, decision drift, or coordination drift SHALL block without
-  Git or worktree effect.
+- **WHEN** no effect occurred and accepted history advanced by ancestry only
+- **THEN** fresh admission may replace the exact old fence and reservation
+- **AND** divergence or any other drift blocks
 
 #### Scenario: target-ref inspection is three state
 
-- **GIVEN** ownerless effect postconditions are being verified
-- **WHEN** the exact target ref is present, explicitly absent, or cannot be
-  inspected
-- **THEN** only explicit absence SHALL satisfy the postcondition
-- **AND** an inspection error or exception SHALL fail closed rather than being
-  treated as absence.
+- **WHEN** a target ref is present, absent, or unreadable
+- **THEN** only explicit absence satisfies the postcondition
 
 #### Scenario: destructive partial transition remains visible and recoverable
 
-- **GIVEN** the target fence and visible ownerless target reservation exist for
-  one exact decision
-- **WHEN** worktree removal, ref commit, postcondition verification, receipt
-  persistence, or cleanup becomes partial or uncertain
-- **THEN** inventory SHALL expose the target, decision, phase, and observed
-  recovery state
-- **AND** ETHOS SHALL retain visible evidence until the same decision safely
-  completes or a separate explicit reconciliation transition resolves it.
+- **WHEN** any destructive boundary becomes partial or uncertain
+- **THEN** inventory retains exact phase, target, decision, and recovery facts
 
 #### Scenario: receipt-present cleanup retry converges
 
-- **GIVEN** the exact immutable completion receipt is durable and cleanup is
-  incomplete after a crash, whether the visible ownerless reservation remains
-  or its unlink already completed
-- **WHEN** the same decision retries
-- **THEN** ETHOS SHALL validate the receipt schema and exact
-  decision/lane/head/ownerless binding, re-verify effect postconditions, and
-  perform only idempotent cleanup
-- **AND** it SHALL NOT rerun admission, repeat a Git/worktree effect, recreate effect
-  authority, or rewrite the immutable receipt
-- **AND** a mismatched receipt, different fence, or unverifiable fence state
-  SHALL block.
+- **WHEN** the completion Attestation is durable but cleanup is incomplete
+- **THEN** retry verifies it and performs only idempotent cleanup
+- **AND** never recreates effect authority
 
 #### Scenario: closeout-fence inspection is three state
 
-- **GIVEN** pre-effect or receipt-present recovery inspects the exact target fence
-- **WHEN** the fence is exactly present, explicitly absent, or cannot be verified
-- **THEN** pre-effect SHALL require the exact present fence
-- **AND** zero-effect retry reset MAY accept explicit absence only with the exact
-  reserved_no_effect record, fresh native authority evaluation, and unchanged
-  target proof
-- **AND** completed-effect recovery MAY accept explicit absence only with the
-  exact immutable receipt and matching non-fence postconditions
-- **AND** an unreadable, malformed, missing-store, or otherwise unverifiable
-  fence state SHALL fail closed.
+- **WHEN** the exact fence is present, absent, or unverifiable
+- **THEN** each recovery phase accepts only its explicitly declared state
+- **AND** unverifiable state blocks
 
 #### Scenario: successful cleanup preserves ordering
 
-- **GIVEN** an exact completion receipt has been persisted
-- **WHEN** ETHOS cleans ownerless coordination
-- **THEN** it SHALL release the SQLite target fence through exact CAS before
-  deleting the visible ownerless target reservation
-- **AND** a fence-release failure SHALL retain the visible reservation.
+- **WHEN** cleanup follows durable completion
+- **THEN** ETHOS releases the exact fence before removing the reservation
 
 #### Scenario: effect-complete recovery precedes ordinary observation
 
-- **GIVEN** the reservation state is effect_complete_receipt_missing
-- **WHEN** the same decision retries
-- **THEN** ETHOS SHALL recover or validate the exact completion receipt before
-  ordinary lane observation
-- **AND** it SHALL NOT depend on observing a worktree already removed by the
-  completed effect.
+- **WHEN** effect completion lacks its final Attestation
+- **THEN** recovery resolves completion before ordinary lane observation
 
 #### Scenario: dangling path and post-CAS exception fail closed
 
-- **GIVEN** ownerless effect or postconditions are being evaluated
-- **WHEN** the target path is a dangling symlink or an ordinary exception occurs
-  after the CAS boundary
-- **THEN** the path SHALL remain present for safety evaluation
-- **AND** the exception SHALL become transition_unknown with explicit
-  reconciliation required.
+- **WHEN** a dangling path or post-CAS exception is observed
+- **THEN** ETHOS treats the path as present and reports transition unknown
 
 #### Scenario: native ownerless authority binding is exact
 
-- **GIVEN** ETHOS derives the ownerless authority binding from current repository,
-  lease, decision, and Chronicle facts
-- **WHEN** a required coordination field is missing, has the wrong type or
-  value, or an unpublished field such as lease_id, holder_ref, or lease is
-  present
-- **THEN** ETHOS SHALL reject the admission with a stable field-specific gap
-- **AND** it SHALL NOT infer compatibility with an unversioned future shape.
+- **WHEN** any required decision or coordination field is absent or invalid
+- **THEN** ETHOS rejects admission without inferring compatibility
 
 #### Scenario: canonical and legacy reservations disagree
 
-- **GIVEN** canonical and legacy artifact roots contain valid reservations for
-  the same decision
-- **WHEN** any validated field differs, including phase, recovery_state, or
-  postcondition_digest
-- **THEN** inventory SHALL report a blocking record conflict
-- **AND** it SHALL NOT select one root as authoritative for effect recovery.
+- **WHEN** historical reservation bytes coexist with the current carrier
+- **THEN** current readers ignore historical bytes as authority
+- **AND** no scan-order choice or compatibility merge occurs
 
 #### Scenario: receipt compatibility is one way
 
-- **GIVEN** historical unversioned completion receipts may remain readable
-- **WHEN** ETHOS writes a new completion receipt
-- **THEN** the writer SHALL emit schema_version = 2
-- **AND** explicit receipt versions other than 2 SHALL be invalid
-- **AND** ownerless executor references SHALL satisfy the canonical
-  provider-neutral HolderRef wire contract.
+- **WHEN** historical completion bytes are encountered after cutover
+- **THEN** they remain inert history and cannot satisfy current recovery
+- **AND** new completion uses Attestation v2 only
 
 #### Scenario: damaged fence payload preserves independent lease truth
 
-- **GIVEN** the lease table and closeout-fence table schemas are current
-- **WHEN** one closeout-fence payload cannot be decoded as a JSON object
-- **THEN** state inventory SHALL report the closeout-fence projection invalid
-- **AND** it SHALL continue to report the independently validated lease schema
-  as current.
+- **WHEN** a fence payload is invalid but Lease state is independently readable
+- **THEN** inventory reports both facts separately
+- **AND** invalid fence state cannot erase or authorize the Lease
 
 ### Requirement: Historical Work Lane semantic convergence
 
@@ -3706,3 +3133,27 @@ reuse their existing semantic owners instead of parallel stores or validators.
 - **WHEN** local verification and installation commands are valid and peers are empty
 - **THEN** local publication readiness remains valid
 - **AND** no remote observation or hosted claim is manufactured
+
+### Requirement: Continuous intent preserves bounded Changes
+
+Every accepted feedback occurrence SHALL be preserved in the Attestation set and
+selected to a semantic owner or explicit absence, contradiction, or model-gap
+disposition. New input SHALL NOT expand an active Commitment implicitly.
+
+#### Scenario: Several agents provide concurrent feedback
+
+- **WHEN** their inputs are independent
+- **THEN** exact-CAS set union preserves every occurrence
+- **AND** selections may feed disjoint successor Commitments
+
+### Requirement: One Commitment binds one Change and lane generation
+
+An effective Commitment SHALL bind one OpenSpec Change, one writable owner lane
+generation, and one task authority. Successors MAY run concurrently only when
+dependencies, scopes, and exact effects are disjoint.
+
+#### Scenario: Input is deferred to a successor
+
+- **WHEN** it cannot be completed inside the active boundary
+- **THEN** selection and dependency remain traceable
+- **AND** deferral does not count as implementation

@@ -1,0 +1,23 @@
+schema_version = 2
+id = "change:accepted-signature-repair"
+intent = "Replace the accepted ETHOS suffix with an exact-payload, fully trusted signed commit train."
+subjects = ["repository:ethos"]
+scope = [
+  "openspec/changes/accepted-signature-repair/**",
+]
+invariants = [
+  "accepted_candidate_and_release_refs_move_only_by_one_receipt_bound_exact_cas",
+  "commit_trees_messages_and_author_committer_metadata_remain_exact",
+]
+acceptance = [
+  "every_commit_in_the_repaired_accepted_suffix_has_verified_repository_trust",
+  "main_dev_and_candidate_dev_converge_on_the_same_repaired_head",
+]
+risks = ["commit_oid_replacement_requires_exact_train_cas"]
+authority_refs = ["docs/governance/commit-signature-policy.md", "rules/mutation.md"]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

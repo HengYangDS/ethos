@@ -249,7 +249,6 @@ def _signed_target_commit(repo: Path, *, tree: str, parent: str) -> str:
         tree=tree,
         parent=parent,
         message="bootstrap Commitment v2",
-        sign=True,
     )
     if completed.returncode or not completed.stdout.strip():
         message = "commitment_rebind_target_creation_failed"

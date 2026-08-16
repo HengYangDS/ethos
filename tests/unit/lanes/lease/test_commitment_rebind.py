@@ -694,7 +694,21 @@ def test_rebind_derive_constructs_the_exact_signed_target(
     )
     git(case.worktree, "config", "gpg.format", "ssh")
     git(case.worktree, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(case.worktree, "config", "commit.gpgsign", "true")
     git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
+    allowed_signers = tmp_path / "derive-target-allowed-signers"
+    allowed_signers.write_text(
+        f"test@example.invalid namespaces=\"git\" "
+        f"{signing_key.with_suffix('.pub').read_text(encoding='utf-8').strip()}\n",
+        encoding="utf-8",
+    )
+    allowed_signers.chmod(0o600)
+    git(
+        case.worktree,
+        "config",
+        "gpg.ssh.allowedSignersFile",
+        allowed_signers.as_posix(),
+    )
     git(
         case.worktree,
         "update-ref",
@@ -934,7 +948,21 @@ def _bootstrap_case(
     )
     git(case.worktree, "config", "gpg.format", "ssh")
     git(case.worktree, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
+    git(case.worktree, "config", "commit.gpgsign", "true")
     git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
+    allowed_signers = tmp_path / "bootstrap-allowed-signers"
+    allowed_signers.write_text(
+        f"test@example.invalid namespaces=\"git\" "
+        f"{signing_key.with_suffix('.pub').read_text(encoding='utf-8').strip()}\n",
+        encoding="utf-8",
+    )
+    allowed_signers.chmod(0o600)
+    git(
+        case.worktree,
+        "config",
+        "gpg.ssh.allowedSignersFile",
+        allowed_signers.as_posix(),
+    )
     before_lease = leases_by_branch(case.worktree)[case.branch]
     before_set = git(case.worktree, "rev-parse", "--verify", ATTESTATION_SET_REF)
     report = rebind_derivation.derive_commitment_rebind(

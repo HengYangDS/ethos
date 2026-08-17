@@ -127,3 +127,9 @@ def test_install_smoke_adopted_reader_has_complete_declared_branch_topology(
         for branch in ("main", "dev", "candidate/dev")
     }
     assert len(set(heads.values())) == 1
+    candidate = adopter.parent / f"{adopter.name}-candidate-dev"
+    worktrees = local_install_smoke._run(  # noqa: SLF001
+        "git", "worktree", "list", "--porcelain", cwd=adopter
+    )
+    assert f"worktree {candidate.resolve()}" in worktrees
+    assert "branch refs/heads/candidate/dev" in worktrees

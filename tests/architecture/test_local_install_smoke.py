@@ -111,3 +111,19 @@ def test_install_smoke_materializes_the_adopted_terminal_v1_reader_shape(
             "coupled_with": "",
         }
     ]
+
+
+def test_install_smoke_adopted_reader_has_complete_declared_branch_topology(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+
+    local_install_smoke.initialize_adopted_reader(adopter)
+
+    heads = {
+        branch: local_install_smoke._run(  # noqa: SLF001
+            "git", "rev-parse", branch, cwd=adopter
+        )
+        for branch in ("main", "dev", "candidate/dev")
+    }
+    assert len(set(heads.values())) == 1

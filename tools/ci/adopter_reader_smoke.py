@@ -1,7 +1,5 @@
 """Package-only smoke for the deployed terminal-v1 adopter reader."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 import shutil
@@ -18,8 +16,10 @@ def check(ethos: Path, adopter: Path, git: str) -> dict[str, str]:
         shutil.copy2(source, adopter / ".ethos" / source.name)
     for args in (("add", ".ethos"), ("commit", "--quiet", "-m", "project adopted reader")):
         run_command(adopter, (git, *args), check=True)
-    for branch in ("main", "candidate/dev"):
-        run_command(adopter, (git, "branch", "-f", branch, "HEAD"), check=True)
+    run_command(adopter, (git, "branch", "-f", "main", "HEAD"), check=True)
+    candidate = adopter.parent / f"{adopter.name}-candidate-dev"
+    args = (git, "worktree", "add", "--quiet", "-b", "candidate/dev", str(candidate))
+    run_command(adopter, args, check=True)
     observed: dict[str, dict[str, object]] = {}
     for command in (("status",), ("plan", "--changed")):
         result = run_command(adopter, (str(ethos), *command, "--root", str(adopter), "--json"))
@@ -28,18 +28,16 @@ def check(ethos: Path, adopter: Path, git: str) -> dict[str, str]:
             raise RuntimeError(message)
         observed[command[0]] = json.loads(result.stdout)
     compatibility = observed["plan"].get("data", {}).get("commitment_compatibility", {})
-    carrier = adopter / ".ethos/commitment.toml"
     expected = {
         "carrier": ".ethos/commitment.toml",
-        "carrier_bytes_sha256": hashlib.sha256(carrier.read_bytes()).hexdigest(),
+        "carrier_bytes_sha256": hashlib.sha256(
+            (adopter / ".ethos/commitment.toml").read_bytes()
+        ).hexdigest(),
         "mode": "terminal_v1_read_only",
         "mutation_authority": False,
         "proof_authority": False,
     }
-    if (
-        any(item.get("verdict") != "pass" for item in observed.values())
-        or compatibility != expected
-    ):
+    if any(x.get("verdict") != "pass" for x in observed.values()) or compatibility != expected:
         message = "installed adopted reader projection drifted"
         raise RuntimeError(message)
     return {"status": "pass", "plan": "pass", "mode": "terminal_v1_read_only"}

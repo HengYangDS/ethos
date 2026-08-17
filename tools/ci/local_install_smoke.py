@@ -199,7 +199,8 @@ def initialize_adopted_reader(root: Path) -> None:
     _run(git, "add", ".", cwd=root)
     _run(git, "commit", "--quiet", "-m", "initialize adopted reader", cwd=root)
     _run(git, "branch", "main", cwd=root)
-    _run(git, "branch", "candidate/dev", cwd=root)
+    candidate = root.parent / f"{root.name}-candidate-dev"
+    _run(git, "worktree", "add", "--quiet", "-b", "candidate/dev", str(candidate), cwd=root)
 
 
 def _initialize_adopter(root: Path, wheel: Path, python: Path) -> str:

@@ -208,13 +208,14 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
     source_python = tmp_path / "bin/python"
     source_python.parent.mkdir()
     source_python.write_bytes(b"python")
-    installed_from: list[Path] = []
+    calls: list[tuple[str, tuple[str, ...]]] = []
     monkeypatch.setattr(install, "__file__", module.as_posix())
     monkeypatch.setattr(install, "git_common_dir", lambda _repo: common.as_posix())
     monkeypatch.setattr(install, "resolve_runtime_wheel", lambda *_args: volatile_wheel)
     monkeypatch.setattr(install, "_python_abi", lambda _python: "cpython-test")
 
     def run_runtime_tool(_source: Path, operation: str, *args: str) -> None:
+        calls.append((operation, args))
         if operation == "venv":
             venv = Path(args[-1])
             python = venv / "bin/python"
@@ -223,8 +224,6 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
             entrypoint = venv / "bin/ethos"
             entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
             entrypoint.chmod(0o755)
-        elif operation == "pip":
-            installed_from.append(Path(args[-1]))
 
     monkeypatch.setattr(install, "_run_runtime_tool", run_runtime_tool)
     monkeypatch.setattr(
@@ -237,7 +236,9 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
     volatile_wheel.unlink()
 
     durable = common / "ethos/packages" / wheel_sha256 / volatile_wheel.name
-    assert installed_from == [durable]
+    assert calls[1][1][:4] == ("--locked", "--offline", "--no-dev", "--no-emit-project")
+    assert {"--no-deps", "--requirements"} < set(calls[2][1])
+    assert Path(calls[2][1][-1]) == durable
     assert durable.read_bytes() == b"wheel"
 
 

@@ -84,19 +84,11 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
                     "pip",
                     "install",
                     "--offline",
+                    "--no-deps",
                     "--python",
                     runtime_python.as_posix(),
                     "--requirements",
                     requirements.as_posix(),
-                )
-                _run_runtime_tool(
-                    source,
-                    "pip",
-                    "install",
-                    "--offline",
-                    "--no-deps",
-                    "--python",
-                    runtime_python.as_posix(),
                     wheel.as_posix(),
                 )
             write_runtime_manifest(staging, digest, wheel_sha256, python_abi, runtime_python)

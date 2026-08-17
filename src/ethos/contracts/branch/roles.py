@@ -33,15 +33,14 @@ _STRICT_BRANCH_ROLE_FIELDS = {
     "release_mirror",
     "canonical_sibling_worktrees",
 }
-_ADOPTED_TRANSITION_FIELD = "transitions"
-_ADOPTED_TRANSITION_FIELDS = {
-    "id",
-    "source_role",
-    "target_role",
-    "capability",
-    "required_gates",
-    "required_evidence",
-    "coupled_with",
+_ADOPTED_TRANSITION = {
+    "id": "accepted-to-release",
+    "source_role": ROLE_ACCEPTED_ROOT,
+    "target_role": ROLE_RELEASE_ROOT,
+    "capability": "repository.release",
+    "required_gates": [],
+    "required_evidence": ["proof:execution"],
+    "coupled_with": "",
 }
 _LEGACY_SIBLING_FIELD = "repository_family_worktrees"
 _LEGACY_BRANCH_ROLE_FIELDS = (_STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}) | {
@@ -161,12 +160,10 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     raw_policy = payload.get("branch_roles")
     if not isinstance(raw_policy, dict):
         return BranchRolePolicy()
-    if set(raw_policy) - (
-        _STRICT_BRANCH_ROLE_FIELDS | {_LEGACY_SIBLING_FIELD, _ADOPTED_TRANSITION_FIELD}
-    ):
+    if set(raw_policy) - (_STRICT_BRANCH_ROLE_FIELDS | {_LEGACY_SIBLING_FIELD, "transitions"}):
         raise ValueError(_UNKNOWN_BRANCH_ROLE_FIELDS_ERROR)
-    if _ADOPTED_TRANSITION_FIELD in raw_policy:
-        _validate_adopted_transition_rows(raw_policy[_ADOPTED_TRANSITION_FIELD])
+    if "transitions" in raw_policy:
+        _validate_adopted_transition_rows(raw_policy["transitions"])
     if _LEGACY_SIBLING_FIELD in raw_policy:
         return _legacy_branch_role_policy(raw_policy)
     default = BranchRolePolicy()
@@ -249,22 +246,5 @@ def _string_value(value: Any, fallback: str) -> str:
 
 def _validate_adopted_transition_rows(value: object) -> None:
     """Validate the retired transition declaration shape without restoring its authority."""
-    if not isinstance(value, list):
-        raise ValueError(_UNKNOWN_BRANCH_ROLE_TRANSITION_FIELDS_ERROR)  # noqa: TRY004
-    for row in value:
-        if (
-            not isinstance(row, dict)
-            or set(row) != _ADOPTED_TRANSITION_FIELDS
-            or any(
-                not isinstance(row[field], str)
-                or (field != "coupled_with" and not row[field].strip())
-                or row[field] != row[field].strip()
-                for field in ("id", "source_role", "target_role", "capability", "coupled_with")
-            )
-            or any(
-                not isinstance(row[field], list)
-                or any(not isinstance(item, str) or not item.strip() for item in row[field])
-                for field in ("required_gates", "required_evidence")
-            )
-        ):
-            raise ValueError(_UNKNOWN_BRANCH_ROLE_TRANSITION_FIELDS_ERROR)
+    if value != [_ADOPTED_TRANSITION]:
+        raise ValueError(_UNKNOWN_BRANCH_ROLE_TRANSITION_FIELDS_ERROR)

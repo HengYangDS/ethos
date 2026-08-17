@@ -14,12 +14,11 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.coordination import collaboration_competition_projection
-from ethos.adapters.repo.dirty.change_provenance import change_scope_paths_from_status
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
-from ethos.adapters.repo.status.commitment_compatibility import terminal_v1_repository_projection
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.contracts.plan import compile_plan
@@ -56,42 +55,6 @@ def _peer_proof_cost(repo: Path, lane: dict[str, object]) -> int | None:
     return len(resolve_gate_policy(repo, gate_ids=gate_ids).nodes)
 
 
-def _emit_terminal_v1_plan(
-    repo: Path,
-    *,
-    status_payload: dict[str, object],
-    changed: bool,
-    projection: dict[str, object],
-    json_output: bool,
-) -> None:
-    """Project read compatibility while keeping v1 outside TransitionPlan authority."""
-    paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
-    emit(
-        EthosResult(
-            command="plan",
-            verdict="pass",
-            state="planned",
-            summary={
-                "changed": changed,
-                "changed_path_count": len(paths),
-                "compatibility_mode": "terminal_v1_read_only",
-                "plan_node_count": 0,
-            },
-            next_action="ethos status --json",
-            data={
-                "changed_paths": list(paths),
-                "commitment": cast("dict[str, object]", projection["commitment"]),
-                "commitment_compatibility": cast("dict[str, object]", projection["compatibility"]),
-                "legacy_semantic_digest": str(projection["legacy_semantic_digest"]),
-                "transition_plan_available": False,
-            },
-        ),
-        json_output=json_output,
-        enforce=False,
-        artifact_root=repo,
-    )
-
-
 @app.command
 def plan(
     *,
@@ -111,15 +74,33 @@ def plan(
     try:
         repository = load_repository_commitment(repo)
     except ValueError:
-        terminal_v1 = terminal_v1_repository_projection(repo)
-        if terminal_v1 is None:
-            raise
-        _emit_terminal_v1_plan(
+        legacy = terminal_v1_binding(
             repo,
-            status_payload=status_payload,
-            changed=changed,
-            projection=terminal_v1,
+            tree_ref=head,
+            carrier=".ethos/commitment.toml",
+            repository=True,
+        )
+        emit(
+            EthosResult(
+                command="plan",
+                verdict="pass",
+                state="planned",
+                summary={"changed": changed, "compatibility_mode": "terminal_v1_read_only"},
+                next_action="ethos status --json",
+                data={
+                    "commitment_compatibility": {
+                        "carrier": ".ethos/commitment.toml",
+                        "carrier_bytes_sha256": legacy["bytes_sha256"],
+                        "mode": "terminal_v1_read_only",
+                        "mutation_authority": False,
+                        "proof_authority": False,
+                    },
+                    "transition_plan_available": False,
+                },
+            ),
             json_output=json_output,
+            enforce=False,
+            artifact_root=repo,
         )
         return
     try:

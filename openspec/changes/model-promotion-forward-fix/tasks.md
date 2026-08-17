@@ -3,9 +3,9 @@
   resolver without weakening generic proof semantics.
 - [x] **2. Install the locked source runtime closure.** Make source-built hook
   runtime installation consume `uv.lock` offline with no ad hoc pin or fallback.
-- [ ] **3. Prove the forward fix.** Run focused publication and runtime tests,
-  full proof, package-only adopter probes, and independent GitLab/GitHub publish
-  verification.
+- [x] **3. Prove implementation closure.** Run focused and full publication and
+  runtime test files, strict OpenSpec validation, Ruff, and diff checks. Full
+  lifecycle proof, adopter probes, and remote publication follow this task atom.
 
 | Evidence | Tasks | Command |
 | --- | ---: | --- |

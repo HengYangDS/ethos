@@ -189,7 +189,7 @@ authority_refs = ["user_instruction", "AGENTS.md", ".ethos/profile.toml"]
     )
 
 
-def _initialize_adopted_reader(root: Path) -> None:
+def initialize_adopted_reader(root: Path) -> None:
     git = _executable("git")
     _run(git, "init", "--quiet", "--initial-branch=dev", str(root))
     _run(git, "config", "user.name", "ETHOS Install Smoke", cwd=root)
@@ -198,6 +198,8 @@ def _initialize_adopted_reader(root: Path) -> None:
     (root / "README.md").write_text("# adopted reader compatibility\n", encoding="utf-8")
     _run(git, "add", ".", cwd=root)
     _run(git, "commit", "--quiet", "-m", "initialize adopted reader", cwd=root)
+    _run(git, "branch", "main", cwd=root)
+    _run(git, "branch", "candidate/dev", cwd=root)
 
 
 def _initialize_adopter(root: Path, wheel: Path, python: Path) -> str:
@@ -574,7 +576,7 @@ def run(session: nox.Session) -> None:
         str(wheel),
     )
     adopter_head = _initialize_adopter(adopter, wheel, _venv_executable(smoke, "python"))
-    _initialize_adopted_reader(adopted_reader)
+    initialize_adopted_reader(adopted_reader)
     line_endings = _line_ending_conformance(adopter)
     origin, version, sdk_digest = _installed_cli_checks(smoke, adopter, adopter_head)
     adopted_reader_result = _installed_adopted_reader_checks(

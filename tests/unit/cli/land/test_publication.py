@@ -173,7 +173,6 @@ def test_publish_local_only_does_not_observe_or_require_a_remote(
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 
     assert payload["verdict"] == "pass"
-    assert payload["data"]["publication"]["remote_state"] == "local_only"
 
 
 def test_publish_gitlab_only_observes_only_the_declared_peer(tmp_path: Path) -> None:

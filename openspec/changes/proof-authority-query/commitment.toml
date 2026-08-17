@@ -15,6 +15,7 @@ scope = [
     "tests/unit/cli/test_contracts_land.py",
     "tests/unit/kernel/test_proof_plan_binding.py",
     "tests/unit/lanes/test_accepted_ref_admission.py",
+    "tests/unit/mutation/test_accepted_failure_matrix.py",
 ]
 invariants = [
     "non_applicable_historical_proof_remains_queryable_but_cannot_block_the_selected_operation",

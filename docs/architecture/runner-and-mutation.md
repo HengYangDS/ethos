@@ -148,6 +148,15 @@ runner is allowed to execute the protected closeout with an explicit
 `--root <accepted-root>`, while remote push remains `deferred` and the candidate
 worktree is audited and proven before accepted-root movement.
 
+Candidate acceptance resolves proof through one transient authority query bound
+to the candidate HEAD, repository Commitment, `candidate.accept` operation,
+required proof floor, repository scope, local plane, and repository boundary.
+Only Attestations applicable to that query participate in live dependency and
+conflict evaluation. A historical Work Lane proof may retain its exact Lease
+generation for audit, but after that lane is retired it cannot stale the current
+repository proof. Wrong query authority fails closed, and true same-query
+binding or assertion conflicts remain `stale_binding` or `contradiction`.
+
 When a candidate changed a control path and needs a protected external bootstrap
 receipt, the candidate-proof input is the native JSON result of
 `ethos prove --execute --json`. The verifier requires `command = "prove"`,

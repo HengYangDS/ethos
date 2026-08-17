@@ -137,6 +137,14 @@ Bindings do not transfer authority between proof planes. A fresh binding may
 establish currentness only for its declared subject, predicate, scope, plane,
 and validity boundary.
 
+Proof admission is therefore query-specific. A consumer binds the exact HEAD,
+repository Commitment, operation, proof floor, scope, plane, and boundary before
+mutable dependencies or conflicts are evaluated. Historical Attestations remain
+queryable, but an inapplicable Work Lane proof or retired Lease generation cannot
+invalidate a repository `candidate.accept` query. Different bindings or
+assertions among proofs applicable to the same query remain fail-closed as
+`stale_binding` or `contradiction`.
+
 ### Configuration Boundaries
 
 Configuration has one owner per concern: repository source owns behavior,

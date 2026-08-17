@@ -136,6 +136,56 @@ def test_hook_runtime_wheel_provenance_and_tool_fail_closed(
         runtime_install.resolve_runtime_wheel(source, tmp_path / "build" / "wheel")
 
 
+def test_source_hook_runtime_installs_the_locked_dependency_closure_offline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    source = tmp_path / "source"
+    module = source / "a" / "b" / "c" / "d" / "module.py"
+    module.parent.mkdir(parents=True)
+    (source / "pyproject.toml").touch()
+    (source / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    wheel = tmp_path / "ethos-test.whl"
+    wheel.write_bytes(b"wheel")
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(runtime_install, "__file__", module.as_posix())
+    monkeypatch.setattr(runtime_install, "resolve_runtime_wheel", lambda *_args: wheel)
+    monkeypatch.setattr(runtime_install, "_python_abi", lambda _python: "cpython-test")
+
+    def run_runtime_tool(_source: Path, *args: str) -> None:
+        calls.append(args)
+        if args[0] == "venv":
+            _venv_executable(Path(args[-1]), "python").parent.mkdir(parents=True)
+
+    monkeypatch.setattr(runtime_install, "_run_runtime_tool", run_runtime_tool)
+    monkeypatch.setattr(runtime_install, "write_runtime_manifest", lambda *_args: None)
+    monkeypatch.setattr(runtime_install, "finalize_runtime", lambda *_args: None)
+    monkeypatch.setattr(runtime_install, "require_runtime", lambda *_args: None)
+
+    runtime_install.materialize_hook_runtime(repo, Path(sys.executable))
+
+    assert [call[0] for call in calls] == ["venv", "export", "pip", "pip"]
+    export = calls[1]
+    assert export[1:6] == ("--locked", "--offline", "--no-dev", "--no-emit-project", "--format")
+    assert export[6] == "requirements-txt"
+    requirements = Path(export[export.index("--output-file") + 1])
+    assert calls[2] == (
+        "pip",
+        "install",
+        "--offline",
+        "--python",
+        calls[0][-1] + ("/Scripts/python.exe" if os.name == "nt" else "/bin/python"),
+        "--requirements",
+        requirements.as_posix(),
+    )
+    assert calls[3][0:4] == ("pip", "install", "--offline", "--no-deps")
+    installed_wheel = Path(calls[3][-1])
+    assert installed_wheel.name == wheel.name
+    assert installed_wheel.read_bytes() == wheel.read_bytes()
+
+
 def test_hook_runtime_python_and_manifest_require_executable_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -448,8 +498,39 @@ def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Pat
         check=True,
     )
     package_python = _venv_executable(package_venv, "python")
+    requirements = tmp_path / "locked-requirements.txt"
     subprocess.run(
-        (uv, "pip", "install", "--offline", "--python", package_python, wheel),
+        (
+            uv,
+            "export",
+            "--locked",
+            "--offline",
+            "--no-dev",
+            "--no-emit-project",
+            "--format",
+            "requirements-txt",
+            "--output-file",
+            requirements,
+        ),
+        cwd=root,
+        env=environment,
+        check=True,
+    )
+    subprocess.run(
+        (
+            uv,
+            "pip",
+            "install",
+            "--offline",
+            "--python",
+            package_python,
+            "--requirements",
+            requirements,
+        ),
+        check=True,
+    )
+    subprocess.run(
+        (uv, "pip", "install", "--offline", "--no-deps", "--python", package_python, wheel),
         check=True,
     )
     repo = tmp_path / "repo"

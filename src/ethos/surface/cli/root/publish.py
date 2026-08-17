@@ -16,6 +16,7 @@ from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.proof import proof_for_authority
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remote_publication import apply_remote_publication_effect
 from ethos.adapters.mutation.remote_publication import compile_remote_publication_request
@@ -23,9 +24,11 @@ from ethos.adapters.mutation.remote_publication import load_remote_publication_r
 from ethos.adapters.mutation.remote_publication import observe_remote_publication_effect
 from ethos.adapters.mutation.remote_publication import persist_remote_publication_request
 from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.publication import RemotePublicationEffect
 from ethos.contracts.publication import remote_publication_effect_from_plan
@@ -79,6 +82,18 @@ def _publish_next_action(*, verdict: Verdict, publication: dict[str, object]) ->
 def _object_mapping(value: object) -> dict[str, object]:
     """Return a JSON object mapping or a safe empty projection."""
     return cast("dict[str, object]", value) if isinstance(value, dict) else {}
+
+
+def _publication_proof_gaps(repo: Path, head: str, role: str) -> tuple[str, ...]:
+    """Select accepted publication proof by exact repository authority."""
+    if role != ROLE_ACCEPTED_ROOT:
+        return tuple(proof_gaps(repo, head))
+    try:
+        authority = load_repository_commitment(repo, tree_ref=head)
+        _proof, gaps = proof_for_authority(repo, head, authority)
+    except (TypeError, ValueError) as error:
+        return (str(error),)
+    return tuple(gaps)
 
 
 def _publish_expected_state(
@@ -438,10 +453,14 @@ def publish(
     )
     status_payload = workspace_status(repo, include_foreign_path_scope=False)
     branch = status_payload["branch"]
+    role = status_payload["role"]
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
-    terminal_gaps = () if decision.verdict == "block" else tuple(proof_gaps(repo, current_head))
+    if decision.verdict == "block":
+        terminal_gaps = ()
+    else:
+        terminal_gaps = _publication_proof_gaps(repo, current_head, str(role))
     gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))

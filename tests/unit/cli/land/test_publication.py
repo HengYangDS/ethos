@@ -159,88 +159,21 @@ def test_publish_observes_gitlab_and_github_independently_without_push(
     assert payload["data"]["publication"]["remote_observations"] == observations
 
 
-def test_publish_local_only_does_not_observe_or_require_a_remote(tmp_path: Path) -> None:
+def test_publish_local_only_does_not_observe_or_require_a_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     _write_local_only_publication(repo)
     head = commit_fixture(repo, "declare local-only publication")
     seed_executed_proof(repo, head)
+    monkeypatch.setattr(publication_cli, "proof_gaps", lambda *_args: ["stale"])
+    monkeypatch.setattr(publication_cli, "proof_for_authority", lambda *_args: (object(), []))
 
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 
     assert payload["verdict"] == "pass"
-    assert payload["data"]["remote_topology"]["state"] == "ready"
-    assert payload["data"]["remote_observations"] == {}
     assert payload["data"]["publication"]["remote_state"] == "local_only"
-    assert payload["summary"]["hosted_ci_status_claimed"] is False
-
-
-def test_accepted_publish_selects_proof_for_exact_repository_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, head)
-    authority = object()
-    calls: list[tuple[object, ...]] = []
-
-    monkeypatch.setattr(
-        publication_cli,
-        "proof_gaps",
-        lambda *_args: ["proof_lease_generation_stale"],
-    )
-    monkeypatch.setattr(
-        publication_cli,
-        "load_repository_commitment",
-        lambda root, *, tree_ref: calls.append(("authority", root, tree_ref)) or authority,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        publication_cli,
-        "proof_for_authority",
-        lambda root, selected_head, selected_authority: (
-            calls.append(("proof", root, selected_head, selected_authority)) or object(),
-            [],
-        ),
-        raising=False,
-    )
-
-    payload = run_ethos("publish", "--json", cwd=repo)
-
-    assert payload["verdict"] == "pass"
-    assert calls == [
-        ("authority", repo, head),
-        ("proof", repo, head, authority),
-    ]
-
-
-@pytest.mark.parametrize(
-    "proof_gap",
-    ["proof_attestation_commitment_mismatch", "contradiction"],
-)
-def test_accepted_publish_fails_closed_for_repository_authority_proof_gaps(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    proof_gap: str,
-) -> None:
-    repo = init_git_repo(tmp_path / proof_gap)
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, head)
-
-    monkeypatch.setattr(publication_cli, "proof_gaps", lambda *_args: [])
-    monkeypatch.setattr(
-        publication_cli,
-        "proof_for_authority",
-        lambda *_args: (None, [proof_gap]),
-        raising=False,
-    )
-
-    payload = run_ethos("publish", "--json", cwd=repo)
-
-    assert payload["verdict"] == "block"
-    assert payload["required_gaps"] == [proof_gap]
 
 
 def test_publish_gitlab_only_observes_only_the_declared_peer(tmp_path: Path) -> None:

@@ -145,6 +145,61 @@ def commitment_carrier_from_packaged_vector(
     return tomli_w.dumps(payload)
 
 
+def write_adopted_reader_compatibility(root: Path) -> None:
+    """Materialize the exact read-only schema shape retained by current adopters."""
+    ethos = root / ".ethos"
+    ethos.mkdir(exist_ok=True)
+    (ethos / "profile.toml").write_text(
+        """profile_id = "installed-cli-adopter"
+
+[openspec]
+material_paths = ["**"]
+""",
+        encoding="utf-8",
+    )
+    (ethos / "workspace.toml").write_text(
+        """[branch_roles]
+release_branch = "main"
+accepted_branch = "dev"
+candidate_branch = "candidate/dev"
+work_branch_prefix = "work/"
+proposal_branch_prefix = "proposal/"
+
+[[branch_roles.transitions]]
+id = "accepted-to-release"
+source_role = "accepted_root"
+target_role = "release_root"
+capability = "repository.release"
+required_gates = []
+required_evidence = ["proof:execution"]
+coupled_with = ""
+""",
+        encoding="utf-8",
+    )
+    (ethos / "commitment.toml").write_text(
+        """id = "repository:installed-cli-adopter"
+intent = "Govern the installed CLI adopter."
+subjects = ["repository:installed-cli-adopter"]
+scope = ["**"]
+invariants = ["repository_identity_is_stable"]
+acceptance = ["repository_contract_valid"]
+authority_refs = ["user_instruction", "AGENTS.md", ".ethos/profile.toml"]
+""",
+        encoding="utf-8",
+    )
+
+
+def _initialize_adopted_reader(root: Path) -> None:
+    git = _executable("git")
+    _run(git, "init", "--quiet", "--initial-branch=dev", str(root))
+    _run(git, "config", "user.name", "ETHOS Install Smoke", cwd=root)
+    _run(git, "config", "user.email", "ethos-install-smoke@example.invalid", cwd=root)
+    write_adopted_reader_compatibility(root)
+    (root / "README.md").write_text("# adopted reader compatibility\n", encoding="utf-8")
+    _run(git, "add", ".", cwd=root)
+    _run(git, "commit", "--quiet", "-m", "initialize adopted reader", cwd=root)
+
+
 def _initialize_adopter(root: Path, wheel: Path, python: Path) -> str:
     git = _executable("git")
     _run(git, "init", "--quiet", "--initial-branch=dev", str(root))
@@ -452,6 +507,47 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
     return origin, version, sdk_digest
 
 
+def _installed_adopted_reader_checks(ethos: Path, adopter: Path) -> dict[str, object]:
+    """Prove source-hidden status/plan compatibility without creating v2 authority."""
+    observed: dict[str, object] = {}
+    for command in (("status",), ("plan", "--changed")):
+        completed = run_command(
+            adopter,
+            (str(ethos), *command, "--root", str(adopter), "--json"),
+        )
+        if completed.returncode or "Traceback" in completed.stdout + completed.stderr:
+            message = f"installed adopted reader failed: {' '.join(command)}"
+            raise RuntimeError(message)
+        payload = json.loads(completed.stdout)
+        if payload.get("verdict") != "pass" or payload.get("required_gaps"):
+            message = f"installed adopted reader blocked: {' '.join(command)}"
+            raise RuntimeError(message)
+        observed[command[0]] = payload
+    plan = observed["plan"]
+    if not isinstance(plan, dict):
+        message = "installed adopted reader plan is invalid"
+        raise TypeError(message)
+    compatibility = plan.get("data", {}).get("commitment_compatibility", {})
+    if compatibility != {
+        "carrier": ".ethos/commitment.toml",
+        "carrier_bytes_sha256": hashlib.sha256(
+            (adopter / ".ethos/commitment.toml").read_bytes()
+        ).hexdigest(),
+        "mode": "terminal_v1_read_only",
+        "mutation_authority": False,
+        "proof_authority": False,
+        "schema_version": 1,
+    }:
+        message = "installed adopted reader compatibility projection drifted"
+        raise RuntimeError(message)
+    return {
+        "status": "pass",
+        "plan": "pass",
+        "mode": "terminal_v1_read_only",
+        "transition_plan_available": plan.get("data", {}).get("transition_plan_available"),
+    }
+
+
 def run(session: nox.Session) -> None:
     """Install the built wheel into a fresh offline environment and attest it."""
     head = current_tracked_head(ROOT)
@@ -460,6 +556,7 @@ def run(session: nox.Session) -> None:
     EVIDENCE.unlink(missing_ok=True)
     WORK.mkdir(parents=True)
     wheel, smoke, adopter = _single_wheel(), WORK / "venv", WORK / "adopter"
+    adopted_reader = WORK / "adopted-reader"
     uv, source_python = RUNTIME.script("uv"), Path(sys.executable)
     _export_runtime_constraints(uv)
     _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
@@ -477,8 +574,12 @@ def run(session: nox.Session) -> None:
         str(wheel),
     )
     adopter_head = _initialize_adopter(adopter, wheel, _venv_executable(smoke, "python"))
+    _initialize_adopted_reader(adopted_reader)
     line_endings = _line_ending_conformance(adopter)
     origin, version, sdk_digest = _installed_cli_checks(smoke, adopter, adopter_head)
+    adopted_reader_result = _installed_adopted_reader_checks(
+        _venv_executable(smoke, "ethos"), adopted_reader
+    )
     independent_host = _independent_cli_checks(_venv_executable(smoke, "ethos"), adopter)
     _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
     resources = _verify_resources(wheel)
@@ -508,6 +609,7 @@ def run(session: nox.Session) -> None:
             "python_sdk": True,
             "openspec": True,
             "sdk_commitment_digest": sdk_digest,
+            "adopted_reader_compatibility": adopted_reader_result,
         },
         "dependencies": "locked_project_environment_projection",
         "module_origins": {"ethos": origin},
@@ -518,6 +620,7 @@ def run(session: nox.Session) -> None:
                 "status, plan, prewrite, lane start, prove, land, publish proposal, retire"
             ),
             "installed archive-change and rebuild dry-runs",
+            "installed status/plan read current terminal-v1 adopter schema without v2 authority",
             "repository-declared OpenSpec package identity",
             "declared wheel resources match canonical sources",
         ],

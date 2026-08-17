@@ -66,11 +66,35 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
                 _copy_installed_runtime(staging / "venv", source_python)
             runtime_python = _venv_python(staging / "venv")
             if (source / "pyproject.toml").is_file():
+                requirements = work / "locked-requirements.txt"
+                _run_runtime_tool(
+                    source,
+                    "export",
+                    "--locked",
+                    "--offline",
+                    "--no-dev",
+                    "--no-emit-project",
+                    "--format",
+                    "requirements-txt",
+                    "--output-file",
+                    requirements.as_posix(),
+                )
                 _run_runtime_tool(
                     source,
                     "pip",
                     "install",
                     "--offline",
+                    "--python",
+                    runtime_python.as_posix(),
+                    "--requirements",
+                    requirements.as_posix(),
+                )
+                _run_runtime_tool(
+                    source,
+                    "pip",
+                    "install",
+                    "--offline",
+                    "--no-deps",
                     "--python",
                     runtime_python.as_posix(),
                     wheel.as_posix(),

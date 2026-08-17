@@ -1,0 +1,33 @@
+schema_version = 2
+id = "change:partial-rebind-recovery-forward-fix"
+intent = "Make Commitment rebind recover exact Git-CAS success when the Lease remains at the immutable old generation."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/partial-rebind-recovery-forward-fix/**",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind.py",
+  "tests/unit/lanes/lease/test_commitment_rebind.py",
+]
+invariants = [
+  "recovery_advances_only_the_exact_lease_generation_and_emits_terminal_attestation",
+  "recovery_requires_exact_receipt_old_generation_target_ref_and_historical_git_effect_witness",
+]
+acceptance = [
+  "partial_rebind_apply_recovers_without_bare_git_or_sqlite",
+  "partial_rebind_dry_run_reports_one_copyable_recovery_command",
+]
+risks = [
+  "must_reject_target_ref_drift_lease_drift_and_missing_git_effect_witness",
+]
+authority_refs = [
+  "AGENTS.md",
+  "rules/mutation.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

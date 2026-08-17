@@ -35,9 +35,45 @@ authority_refs = [
     "openspec/changes/archive/2026-08-16-model-promotion/design.md",
     "user_instruction",
 ]
-predecessors = []
-selected_attestations = []
-dependencies = []
-hypotheses = []
-falsifiers = []
-experiment_protocols = []
+predecessors = [
+    "96897cf83a823b7fd07780cfb26fc0f34538853e7dd581cc29e1cbb492801b81",
+]
+selected_attestations = [
+    "0da4b77b6624ac435f148cefe6cb4689924e986fc6276f4d132ccc66a9edc676",
+]
+
+[[dependencies]]
+kind = "dependency:requires"
+target = "commitment:repository:ethos"
+
+[dependencies.attributes]
+strength = 1
+
+[[hypotheses]]
+id = "hypothesis:proof-authority-query"
+kind = "hypothesis:causal"
+
+[hypotheses.body]
+proposition = "Selecting only proofs applicable to the operation authority removes false ambiguity without weakening true conflict detection."
+
+[[falsifiers]]
+id = "falsifier:same-query-conflict-admitted"
+hypothesis_id = "hypothesis:proof-authority-query"
+kind = "observation:test"
+
+[falsifiers.body]
+path = "tests/unit/kernel/test_proof_plan_binding.py"
+
+[[experiment_protocols]]
+id = "protocol:proof-authority-query"
+hypothesis_ids = [
+    "hypothesis:proof-authority-query",
+]
+kind = "experiment:repository"
+
+[experiment_protocols.body]
+steps = [
+    "reproduce historical work-lane plus repository proof at one head",
+    "query candidate.accept with exact repository authority",
+    "reject wrong head authority and same-query contradiction",
+]

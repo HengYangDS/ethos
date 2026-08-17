@@ -11,8 +11,8 @@ import pytest
 import tomli_w
 
 import ethos.adapters.mutation.proof as proof_module
+import ethos.adapters.mutation.proof_admission as proof_admission
 import ethos.adapters.openspec.profile as openspec_profile
-from ethos.adapters.mutation import proof_admission
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -17,12 +18,15 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.mutation.proof_admission import ProofQuery
+from ethos.adapters.mutation.proof_admission import proof_attestation as queried_proof_attestation
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import former_official_statement_projection
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
@@ -31,6 +35,7 @@ from ethos.contracts.semantic import Facts
 from ethos.contracts.value import mutable_json
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import conformant_proof_check
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -94,6 +99,48 @@ def _assert_proof(
 ) -> None:
     assert proof_attestation(root, head) == selected
     assert proof_gaps(root, head) == ([] if gap is None else [gap])
+
+
+def _repository_query(repo: Path, head: str, *, commitment: str) -> ProofQuery:
+    full_required = (
+        proof_module.resolve_gate_policy(repo, tree_ref=head, full=True).digest
+        != proof_module.resolve_gate_policy(repo, tree_ref=head).digest
+    )
+    return ProofQuery(
+        repository=load_repository_commitment(repo, tree_ref=head).id,
+        head=head,
+        commitment_digest=commitment,
+        operation="candidate.accept",
+        floor="full" if full_required else "default",
+        scope=("repository",),
+        plane="local",
+        boundary="repository",
+    )
+
+
+def _repository_bound_proof(repo: Path, head: str) -> Attestation:
+    change_bound = _issue(repo, head)
+    change_plan = proof_plan(repo, head=head)
+    values = dict(change_plan.facts["values"])
+    values["change_id"] = ""
+    values.pop("lease_generation", None)
+    repository_plan = compile_plan(
+        load_repository_commitment(repo, tree_ref=head),
+        Facts.model_validate(
+            change_plan.facts | {"observed_at": datetime.now(UTC), "values": values}
+        ),
+        change_plan.nodes,
+        policy=dict(change_plan.policy),
+    )
+    return _reissue(
+        change_bound,
+        commitment_digest=repository_plan.inputs.commitment,
+        facts_digest=repository_plan.inputs.facts,
+        plan_digest=repository_plan.digest,
+        policy_digest=repository_plan.inputs.policy,
+        effect_digest=repository_plan.inputs.effect,
+        body=change_bound.payload.body | {"plan": repository_plan.model_dump(mode="json")},
+    )
 
 
 def test_work_lane_proof_plan_uses_the_current_active_commitment(
@@ -630,3 +677,108 @@ def test_expired_or_other_query_proofs_do_not_pollute_current_authority(
     _assert_proof(repo, head, selected=current)
     _store(repo, _reissue(current, body=current.payload.body | {"scope": ("workspace",)}))
     _assert_proof(repo, head, selected=current)
+
+
+def test_candidate_accept_query_ignores_retired_work_lane_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = start_adopted_work_lane(tmp_path)
+    root = fixture.worktree
+    head = commit_fixture_file(root, "FEATURE.md", "# feature\n", "feature")
+    work = _issue(root, head)
+    persist_proof_attestation(root, work)
+    git(fixture.candidate, "reset", "--hard", head)
+    work_plan = proof_plan(root, head=head)
+    repository_commitment = load_repository_commitment(fixture.candidate, tree_ref=head)
+    fact_values = dict(work_plan.facts["values"])
+    fact_values.pop("lease_generation", None)
+    repository_plan = compile_plan(
+        repository_commitment,
+        Facts.model_validate(
+            work_plan.facts | {"observed_at": datetime.now(UTC), "values": fact_values}
+        ),
+        work_plan.nodes,
+        policy=dict(work_plan.policy),
+    )
+    repository = _reissue(
+        work,
+        commitment_digest=repository_plan.inputs.commitment,
+        facts_digest=repository_plan.inputs.facts,
+        plan_digest=repository_plan.digest,
+        policy_digest=repository_plan.inputs.policy,
+        effect_digest=repository_plan.inputs.effect,
+        body=work.payload.body | {"plan": repository_plan.model_dump(mode="json")},
+    )
+    record_attestations(fixture.candidate, (repository,))
+    monkeypatch.setattr(
+        "ethos.adapters.mutation.proof_admission.leases_by_branch", lambda _root: {}
+    )
+
+    selected, gaps = queried_proof_attestation(
+        fixture.candidate,
+        _repository_query(
+            fixture.candidate,
+            head,
+            commitment=repository.commitment_digest or "",
+        ),
+        store=proof_artifact_root(fixture.candidate),
+    )
+
+    assert gaps == []
+    assert selected == repository
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "gap"),
+    [
+        ("head", "0" * 40, "proof_not_proven"),
+        ("commitment_digest", "0" * 64, "proof_query_commitment_mismatch"),
+        ("repository", "repository:other", "proof_query_repository_mismatch"),
+        ("floor", "full", "proof_query_floor_mismatch"),
+    ],
+)
+def test_exact_proof_query_rejects_wrong_authority(
+    tmp_path: Path, field: str, value: str, gap: str
+) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _repository_bound_proof(repo, head)
+    record_attestations(repo, (record,))
+    query = _repository_query(repo, head, commitment=record.commitment_digest or "")
+
+    selected, gaps = queried_proof_attestation(
+        repo,
+        replace(query, **{field: value}),
+        store=proof_artifact_root(repo),
+    )
+
+    assert selected is None
+    assert gaps == [gap]
+
+
+def test_proof_query_rejects_unknown_operation(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    record = _repository_bound_proof(repo, head)
+    query = _repository_query(repo, head, commitment=record.commitment_digest or "")
+
+    with pytest.raises(ValueError, match="proof_query_invalid"):
+        replace(query, operation="candidate.integrate")
+
+
+def test_exact_proof_query_preserves_same_query_contradiction(tmp_path: Path) -> None:
+    repo, head = _adopted_repo(tmp_path / "repo")
+    first = _repository_bound_proof(repo, head)
+    second = _reissue(
+        first,
+        verifier="agent:test:case:conflict",
+        body=first.payload.body | {"claim": {"objective": "conflict", "verdict": "pass"}},
+    )
+    record_attestations(repo, (first, second))
+
+    selected, gaps = queried_proof_attestation(
+        repo,
+        _repository_query(repo, head, commitment=first.commitment_digest or ""),
+        store=proof_artifact_root(repo),
+    )
+
+    assert selected is None
+    assert gaps == ["contradiction"]

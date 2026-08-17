@@ -24,6 +24,7 @@ invariants = [
 ]
 acceptance = [
     "candidate_accept_selects_exact_head_repository_commitment_operation_and_proof_floor",
+    "non_applicable_proof_diagnostics_do_not_block_an_applicable_proof",
     "retired_work_lane_lease_generation_does_not_invalidate_applicable_repository_proof",
     "wrong_head_repository_commitment_or_same_query_contradiction_is_rejected",
 ]

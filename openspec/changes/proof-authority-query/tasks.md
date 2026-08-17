@@ -6,7 +6,7 @@
 - [x] **3. Bind candidate acceptance.** Construct the repository
   `candidate.accept` query from the candidate HEAD authority and use one query
   result for blocker reporting and plan compilation.
-- [ ] **4. Prove positive and negative closure.** Cover retired historical Work
+- [x] **4. Prove positive and negative closure.** Cover retired historical Work
   Lane proof, wrong HEAD/repository/operation, stale applicable Lease, and true
   same-query conflict; validate OpenSpec and execute affected proof gates.
 

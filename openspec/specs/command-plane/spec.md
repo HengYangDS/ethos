@@ -438,6 +438,15 @@ mapping through one exact-CAS receipt.
 - **AND** returns an immutable receipt containing every old/new commit and ref
   coordinate plus the exact apply command.
 
+#### Scenario: Exact receipt dry-run is ready
+
+- **WHEN** holder, Lease generation, old heads, trees, worktrees, commit payloads,
+  and receipt digest remain unchanged
+- **AND** the receipt is evaluated without apply
+- **THEN** the public result reports `verdict=pass` and
+  `state=ready_to_repair_identity`
+- **AND** no ref, Lease, or worktree mutation occurs.
+
 #### Scenario: Exact receipt applies
 
 - **WHEN** holder, Lease generation, old heads, trees, worktrees, commit payloads,

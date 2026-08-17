@@ -85,3 +85,29 @@ def test_packaged_vector_derives_a_complete_strict_v2_commitment(
     assert commitment.hypotheses
     assert commitment.falsifiers
     assert commitment.experiment_protocols
+
+
+def test_install_smoke_materializes_the_adopted_terminal_v1_reader_shape(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    adopter.mkdir()
+
+    local_install_smoke.write_adopted_reader_compatibility(adopter)
+
+    commitment = tomllib.loads((adopter / ".ethos/commitment.toml").read_text(encoding="utf-8"))
+    workspace = tomllib.loads((adopter / ".ethos/workspace.toml").read_text(encoding="utf-8"))
+    assert "schema_version" not in commitment
+    assert commitment["id"] == "repository:installed-cli-adopter"
+    assert commitment["scope"] == ["**"]
+    assert workspace["branch_roles"]["transitions"] == [
+        {
+            "id": "accepted-to-release",
+            "source_role": "accepted_root",
+            "target_role": "release_root",
+            "capability": "repository.release",
+            "required_gates": [],
+            "required_evidence": ["proof:execution"],
+            "coupled_with": "",
+        }
+    ]

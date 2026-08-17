@@ -1,0 +1,41 @@
+schema_version = 2
+id = "change:adopter-profile-transition-compatibility"
+intent = "Restore source-independent read compatibility for adopted branch-role transition profiles without reviving a parallel mutation authority."
+subjects = ["repository:ethos"]
+scope = [
+  "openspec/changes/adopter-profile-transition-compatibility/**",
+  "openspec/specs/repository-governance/spec.md",
+  "src/ethos/adapters/repo/status/**",
+  "src/ethos/contracts/branch/roles.py",
+  "src/ethos/surface/cli/root/inspection.py",
+  "src/ethos/surface/cli/root/planning.py",
+  "tests/architecture/test_local_install_smoke.py",
+  "tests/unit/cli/test_invalid_profile_boundary.py",
+  "tests/unit/lanes/test_lane_family_profile.py",
+  "tools/ci/local_install_smoke.py",
+]
+invariants = [
+  "adopted_profile_bytes_remain_unchanged",
+  "legacy_transition_declarations_do_not_mint_current_git_effect_authority",
+  "unknown_fields_outside_the_explicit_migration_shape_still_fail_closed",
+]
+acceptance = [
+  "package_only_status_and_plan_parse_current_aigw_and_proxy_profiles",
+  "source_hidden_install_smoke_covers_the_adopted_transition_profile_shape",
+  "unsupported_profile_fields_report_exact_machine_actionable_diagnostics_without_traceback",
+]
+risks = [
+  "overbroad_compatibility_can_weaken_strict_profile_admission",
+  "silent_transition_ignoring_can_hide_removed_capability",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "rules/mutation.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

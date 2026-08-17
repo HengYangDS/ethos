@@ -1,8 +1,6 @@
-# Change: Select proof by exact operation authority
+# Change: Select proof by exact repository authority
 
-Candidate acceptance currently asks the generic proof reader for every current
-repository proof at one HEAD. A valid historical Work Lane proof can therefore
-invalidate an applicable repository proof after that lane and Lease generation
-have been retired. Bind candidate acceptance to one explicit proof query and
-retain fail-closed conflict detection inside that query. Capability:
-`repository-governance`.
+Candidate acceptance currently lets a historical Work Lane proof conflict with
+the repository proof at the same HEAD. Select the exact repository Commitment
+before Lease and conflict evaluation while preserving same-authority fail-closed
+behavior. Capability: `repository-governance`.

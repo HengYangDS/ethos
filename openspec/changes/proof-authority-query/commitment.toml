@@ -1,0 +1,43 @@
+schema_version = 2
+id = "change:proof-authority-query"
+intent = "Select proof evidence by one exact operation authority query so retired Work Lane generations cannot invalidate candidate acceptance."
+subjects = [
+    "repository:ethos",
+]
+scope = [
+    "docs/architecture/runner-and-mutation.md",
+    "docs/governance/product-design-contract.md",
+    "openspec/changes/proof-authority-query/**",
+    "openspec/specs/repository-governance/spec.md",
+    "src/ethos/adapters/mutation/accepted.py",
+    "src/ethos/adapters/mutation/proof.py",
+    "src/ethos/adapters/mutation/proof_admission.py",
+    "tests/unit/cli/test_contracts_land.py",
+    "tests/unit/kernel/test_proof_plan_binding.py",
+    "tests/unit/lanes/test_accepted_ref_admission.py",
+]
+invariants = [
+    "non_applicable_historical_proof_remains_queryable_but_cannot_block_the_selected_operation",
+    "proof_query_never_mints_authority",
+    "same_query_conflicts_remain_fail_closed",
+]
+acceptance = [
+    "candidate_accept_selects_exact_head_repository_commitment_operation_and_proof_floor",
+    "retired_work_lane_lease_generation_does_not_invalidate_applicable_repository_proof",
+    "wrong_head_repository_commitment_or_same_query_contradiction_is_rejected",
+]
+risks = [
+    "generic_callers_may_require_distinct_query_shapes",
+    "overbroad_filtering_can_hide_true_conflicts",
+]
+authority_refs = [
+    "docs/governance/product-design-contract.md",
+    "openspec/changes/archive/2026-08-16-model-promotion/design.md",
+    "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

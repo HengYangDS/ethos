@@ -28,8 +28,7 @@ def _status(path="/tmp/candidate", worktrees=()):
 def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     captured = {}
     monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: True)
-    monkeypatch.setattr(accepted, "repository_proof_query", lambda *_args, **_kwargs: object())
-    monkeypatch.setattr(accepted, "proof_for_query", lambda *_args: (_Proof(), []))
+    monkeypatch.setattr(accepted, "proof_for_authority", lambda *_args: (_Proof(), []))
     monkeypatch.setattr(accepted, "sweep_stale_ref_intents", lambda *_args: [])
     monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_args, **_kwargs: object())
     monkeypatch.setattr(accepted, "committed_file_bytes", lambda *_args: b"commitment")
@@ -62,11 +61,7 @@ def test_candidate_promotion_rejects_divergence_before_proof_lookup(
 ) -> None:
     proof_calls = []
     monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: False)
-    monkeypatch.setattr(
-        accepted,
-        "repository_proof_query",
-        lambda *_args, **_kwargs: proof_calls.append(True),
-    )
+    monkeypatch.setattr(accepted, "proof_for_authority", lambda *_args: proof_calls.append(True))
 
     report = accepted.promote_candidate(
         root=tmp_path,
@@ -84,8 +79,10 @@ def test_candidate_promotion_preserves_exact_proof_gaps(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(accepted, "is_ancestor", lambda *_args: True)
-    monkeypatch.setattr(accepted, "repository_proof_query", lambda *_args, **_kwargs: object())
-    monkeypatch.setattr(accepted, "proof_for_query", lambda *_args: (None, ["proof_head_stale"]))
+    monkeypatch.setattr(
+        accepted, "proof_for_authority", lambda *_args: (None, ["proof_head_stale"])
+    )
+    monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_a, **_k: object())
 
     report = accepted.promote_candidate(
         root=tmp_path,
@@ -173,7 +170,7 @@ def test_candidate_promotion_falls_back_to_candidate_bootstrap_authority(
     )
 
     assert report["verdict"] == "pass"
-    assert refs == [CURRENT, CANDIDATE]
+    assert refs == [CANDIDATE, CURRENT, CANDIDATE]
     assert captured["kwargs"]["policy"]["repository_commitment_bootstrap"] is True
     assert captured["kwargs"]["policy"]["prestate_repository_id"] == "repository:ethos"
     assert captured["kwargs"]["policy"]["prestate_repository_bytes_sha256"] == "d" * 64
@@ -187,7 +184,11 @@ def test_candidate_promotion_reports_transition_and_git_effect_failures(
     monkeypatch.setattr(
         accepted,
         "load_repository_commitment",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("commitment_invalid")),
+        lambda _root, *, tree_ref: (
+            object()
+            if tree_ref == CANDIDATE
+            else (_ for _ in ()).throw(ValueError("commitment_invalid"))
+        ),
     )
     transition = accepted.promote_candidate(
         root=tmp_path,

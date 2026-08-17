@@ -1,0 +1,35 @@
+schema_version = 2
+id = "change:model-promotion-forward-fix"
+intent = "Make accepted publication select repository-authority proof and make source-built package runtimes install the locked dependency closure."
+subjects = ["repository:ethos"]
+scope = [
+  "openspec/changes/model-promotion-forward-fix/**",
+  "src/ethos/adapters/mutation/proof.py",
+  "src/ethos/adapters/repo/hook_runtime_install.py",
+  "src/ethos/surface/cli/root/publish.py",
+  "tests/unit/cli/land/test_publication.py",
+  "tests/unit/cli/test_hook_runtime.py",
+  "tests/unit/kernel/test_proof_plan_binding.py",
+]
+invariants = [
+  "accepted_publication_selects_only_the_exact_repository_commitment_proof",
+  "retired_work_lane_generation_cannot_invalidate_an_applicable_repository_proof",
+  "source_built_runtime_dependency_resolution_is_locked_and_offline",
+]
+acceptance = [
+  "accepted_publish_passes_with_repository_proof_after_work_lane_retirement",
+  "hook_runtime_materialization_does_not_resolve_unlocked_transitive_versions",
+  "wrong_repository_authority_and_same_authority_conflict_remain_fail_closed",
+]
+risks = ["overbroad_proof_filtering_or_dependency_copying_can_weaken_fail_closed_admission"]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "rules/mutation.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

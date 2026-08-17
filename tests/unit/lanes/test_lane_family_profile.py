@@ -4,7 +4,7 @@ import hashlib
 import subprocess
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 import tomli_w
@@ -41,9 +41,6 @@ from tests.support.lifecycle_cases import LaneStartCase
 from tests.support.literal_cases import literal_case
 from tests.support.semantic import commitment_v2
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 _HOLDER = "agent:test:case:agent-test"
 _LEGACY_POLICY = """[branch_roles]
 release_branch = "main"
@@ -54,22 +51,9 @@ work_branch_prefix = "work/"
 proposal_branch_prefix = "proposal/"
 repository_family_worktrees = true
 """
-_ADOPTED_TRANSITION_POLICY = """[branch_roles]
-release_branch = "main"
-accepted_branch = "dev"
-candidate_branch = "candidate/dev"
-work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-
-[[branch_roles.transitions]]
-id = "accepted-to-release"
-source_role = "accepted_root"
-target_role = "release_root"
-capability = "repository.release"
-required_gates = []
-required_evidence = ["proof:execution"]
-coupled_with = ""
-"""
+_ADOPTED_TRANSITION_POLICY = (
+    Path(__file__).parents[2] / "fixtures/adopter-terminal-v1/workspace.toml"
+).read_text()
 _LEASE_COORDINATES = literal_case("lanes.test_lane_family_profile:assign:_LEASE_COORDINATES:0")
 
 
@@ -250,29 +234,16 @@ def test_retired_branch_policy_claims(text: str, loose_error: str, strict_error:
         strict_branch_role_policy_from_text(text)
 
 
-def test_adopted_transition_profile_remains_readable_without_minting_branch_authority() -> None:
-    policy = branch_role_policy_from_text(_ADOPTED_TRANSITION_POLICY)
-
-    assert policy == BranchRolePolicy()
+def test_adopted_transition_profile_is_read_only_and_exact() -> None:
+    assert branch_role_policy_from_text(_ADOPTED_TRANSITION_POLICY) == BranchRolePolicy()
     with pytest.raises(ValueError, match="branch_roles table must be complete and exact"):
         strict_branch_role_policy_from_text(_ADOPTED_TRANSITION_POLICY)
-
-
-def test_adopted_transition_profile_rejects_unknown_nested_authority_fields() -> None:
-    invalid = _ADOPTED_TRANSITION_POLICY + 'authority = "implicit"\n'
-
-    with pytest.raises(ValueError, match="branch_roles transition contains unknown fields"):
-        branch_role_policy_from_text(invalid)
-
-
-def test_adopted_transition_profile_rejects_invalid_nested_value_types() -> None:
-    invalid = _ADOPTED_TRANSITION_POLICY.replace(
-        'required_evidence = ["proof:execution"]',
-        'required_evidence = "proof:execution"',
-    )
-
-    with pytest.raises(ValueError, match="branch_roles transition contains unknown fields"):
-        branch_role_policy_from_text(invalid)
+    for invalid in (
+        _ADOPTED_TRANSITION_POLICY + 'authority = "implicit"\n',
+        _ADOPTED_TRANSITION_POLICY.replace('["proof:execution"]', '"proof:execution"'),
+    ):
+        with pytest.raises(ValueError, match="branch_roles transition contains unknown fields"):
+            branch_role_policy_from_text(invalid)
 
 
 def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(

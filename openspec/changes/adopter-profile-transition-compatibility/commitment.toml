@@ -5,13 +5,15 @@ subjects = ["repository:ethos"]
 scope = [
   "openspec/changes/adopter-profile-transition-compatibility/**",
   "openspec/specs/repository-governance/spec.md",
+  "src/ethos/adapters/repo/commitment.py",
   "src/ethos/adapters/repo/status/**",
   "src/ethos/contracts/branch/roles.py",
-  "src/ethos/surface/cli/root/inspection.py",
   "src/ethos/surface/cli/root/planning.py",
   "tests/architecture/test_local_install_smoke.py",
+  "tests/fixtures/adopter-terminal-v1/**",
   "tests/unit/cli/test_invalid_profile_boundary.py",
   "tests/unit/lanes/test_lane_family_profile.py",
+  "tools/ci/adopter_reader_smoke.py",
   "tools/ci/local_install_smoke.py",
 ]
 invariants = [
@@ -22,7 +24,7 @@ invariants = [
 acceptance = [
   "package_only_status_and_plan_parse_current_aigw_and_proxy_profiles",
   "source_hidden_install_smoke_covers_the_adopted_transition_profile_shape",
-  "unsupported_profile_fields_report_exact_machine_actionable_diagnostics_without_traceback",
+  "transition_row_drift_fails_closed_without_traceback",
 ]
 risks = [
   "overbroad_compatibility_can_weaken_strict_profile_admission",

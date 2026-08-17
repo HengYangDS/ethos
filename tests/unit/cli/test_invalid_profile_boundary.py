@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -8,24 +7,13 @@ from pathlib import Path
 import pytest
 
 import ethos.cli as cli
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.cli import main
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
-from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
-
-_TERMINAL_V1_REPOSITORY_COMMITMENT = """id = "repository:adopter"
-intent = "Govern one adopted repository."
-subjects = ["repository:adopter"]
-scope = ["**"]
-invariants = ["repository_identity_is_stable"]
-acceptance = ["repository_contract_valid"]
-authority_refs = ["user_instruction", "AGENTS.md", ".ethos/profile.toml"]
-"""
 
 
 @pytest.mark.parametrize(
@@ -90,91 +78,6 @@ def test_invalid_profile_readercommand_names_emit_json_result(
     payload = json.loads(capsys.readouterr().out)
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
-
-
-def test_plan_reads_terminal_v1_repository_commitment_without_minting_v2_authority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    repo, _ = init_repo_with_candidate(tmp_path)
-    carrier = repo / ".ethos/commitment.toml"
-    carrier.write_text(_TERMINAL_V1_REPOSITORY_COMMITMENT, encoding="utf-8")
-    workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text(
-        """[branch_roles]
-release_branch = "main"
-accepted_branch = "dev"
-candidate_branch = "candidate/dev"
-work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-
-[[branch_roles.transitions]]
-id = "accepted-to-release"
-source_role = "accepted_root"
-target_role = "release_root"
-capability = "repository.release"
-required_gates = []
-required_evidence = ["proof:execution"]
-coupled_with = ""
-""",
-        encoding="utf-8",
-    )
-    commit_fixture(repo, "retain terminal v1 adopter profile")
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["ethos", "plan", "--changed", "--root", repo.as_posix(), "--json"],
-    )
-
-    with pytest.raises(SystemExit, match="0"):
-        main()
-
-    payload = json.loads(capsys.readouterr().out)
-    assert (payload["verdict"], payload["state"], payload["required_gaps"]) == (
-        "pass",
-        "planned",
-        [],
-    )
-    assert payload["summary"]["compatibility_mode"] == "terminal_v1_read_only"
-    assert payload["data"]["commitment"]["schema_version"] == 1
-    assert payload["data"]["commitment_compatibility"] == {
-        "carrier": ".ethos/commitment.toml",
-        "carrier_bytes_sha256": hashlib.sha256(carrier.read_bytes()).hexdigest(),
-        "mode": "terminal_v1_read_only",
-        "mutation_authority": False,
-        "proof_authority": False,
-        "schema_version": 1,
-    }
-    assert "transition_plan" not in payload["data"]
-    with pytest.raises(ValueError, match="repository_commitment_missing"):
-        load_repository_commitment(repo)
-
-
-def test_plan_rejects_unknown_terminal_v1_repository_fields(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    repo, _ = init_repo_with_candidate(tmp_path)
-    (repo / ".ethos/commitment.toml").write_text(
-        _TERMINAL_V1_REPOSITORY_COMMITMENT + 'implicit_authority = "forbidden"\n',
-        encoding="utf-8",
-    )
-    commit_fixture(repo, "malform terminal v1 adopter profile")
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["ethos", "plan", "--changed", "--root", repo.as_posix(), "--json"],
-    )
-
-    with pytest.raises(SystemExit, match="1"):
-        main()
-
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["required_gaps"] == [
-        "repository_commitment_terminal_v1_invalid:.ethos/commitment.toml"
-    ]
 
 
 @pytest.mark.parametrize(

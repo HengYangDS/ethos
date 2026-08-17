@@ -260,7 +260,7 @@ def terminal_v1_binding(
     subjects = payload.get("subjects")
     if (
         not raw
-        or payload.get("schema_version") != 1
+        or payload.get("schema_version", 1) != 1
         or not isinstance(identifier, str)
         or not identifier
         or not isinstance(subjects, list)

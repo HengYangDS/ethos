@@ -3196,3 +3196,9 @@ validating mutable dependencies or resolving conflicts.
 - **WHEN** a proof has the wrong HEAD or repository Commitment
 - **THEN** ETHOS SHALL reject it with a specific authority gap
 - **AND** SHALL NOT infer authority from another proof.
+
+### Requirement: Publication selects repository authority
+ETHOS SHALL select the exact accepted-HEAD repository Commitment proof.
+#### Scenario: Historical or conflicting proof shares the HEAD
+- **WHEN** repository and retired Work Lane proofs share the accepted HEAD
+- **THEN** only exact repository authority SHALL apply, or fail closed on conflict.

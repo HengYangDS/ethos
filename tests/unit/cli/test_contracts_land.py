@@ -578,56 +578,6 @@ def _assert_first_commitment_can_close(repo: Path, candidate: Path) -> None:
     )
 
 
-def test_candidate_promotion_queries_exact_repository_authority(
-    tmp_path: Path, monkeypatch
-) -> None:
-    repo, candidate = start_adopted_candidate(tmp_path)
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    candidate_head = commit_fixture_file(candidate, "README.md", "# candidate\n", "candidate")
-    authority = load_repository_commitment(candidate, tree_ref=candidate_head)
-    queries = []
-
-    def resolve(_root, query):
-        queries.append(query)
-        return object(), []
-
-    monkeypatch.setattr(accepted_mutation, "proof_for_query", resolve)
-    monkeypatch.setattr(
-        accepted_mutation,
-        "_apply_candidate_promotion",
-        lambda **_kwargs: {"verdict": "pass"},
-    )
-
-    report = accepted_mutation.promote_candidate(
-        root=repo,
-        policy=load_branch_role_policy(repo),
-        current_head=accepted_head,
-        candidate_head=candidate_head,
-        status=workspace_status(repo),
-    )
-
-    assert report == {"verdict": "pass"}
-    assert len(queries) == 1
-    query = queries[0]
-    assert (
-        query.head,
-        query.commitment_digest,
-        query.operation,
-        query.floor,
-        query.scope,
-        query.plane,
-        query.boundary,
-    ) == (
-        candidate_head,
-        authority.digest(),
-        "candidate.accept",
-        "default",
-        ("repository",),
-        "local",
-        "repository",
-    )
-
-
 def _assert_first_cas_uses_accepted_policy(repo: Path, candidate: Path) -> None:
     accepted = git(repo, "rev-parse", "HEAD")
     target = candidate / ".ethos/workspace.toml"

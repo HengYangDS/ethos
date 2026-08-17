@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
-from ethos.adapters.mutation.proof import proof_for_query
-from ethos.adapters.mutation.proof import repository_proof_query
+from ethos.adapters.mutation.proof import proof_for_authority
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.git import committed_file_bytes
@@ -320,8 +319,8 @@ def _promotion_blocker(*, root, policy, current_head, candidate_head):
             None,
         )
     try:
-        query = repository_proof_query(root, candidate_head, operation="candidate.accept")
-        proof, gaps = proof_for_query(root, query)
+        authority = load_repository_commitment(root, tree_ref=candidate_head)
+        proof, gaps = proof_for_authority(root, candidate_head, authority)
     except (TypeError, ValueError) as error:
         return (
             _accepted_block(

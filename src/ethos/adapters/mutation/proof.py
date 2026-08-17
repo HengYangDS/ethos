@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.proof_admission
-from ethos.adapters.mutation.proof_admission import ProofQuery
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
@@ -39,6 +38,8 @@ from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.semantic import Commitment
 
 
 def _proof_issue_values(
@@ -371,29 +372,12 @@ def proof_attestation(root: Path, head: str) -> Attestation | None:
     return attestation if not gaps else None
 
 
-def repository_proof_query(root: Path, head: str, *, operation: str) -> ProofQuery:
-    """Compile one exact repository proof query without minting authority."""
-    repository = load_repository_commitment(root, tree_ref=head)
-    full_required = (
-        resolve_gate_policy(root, tree_ref=head, full=True).digest
-        != resolve_gate_policy(root, tree_ref=head).digest
-    )
-    return ProofQuery(
-        repository=repository.id,
-        head=head,
-        commitment_digest=repository.digest(),
-        operation=operation,
-        floor="full" if full_required else "default",
-        scope=("repository",),
-        plane="local",
-        boundary="repository",
-    )
-
-
-def proof_for_query(root: Path, query: ProofQuery) -> tuple[Attestation | None, list[str]]:
-    """Resolve one proof applicable to an exact operation authority query."""
+def proof_for_authority(
+    root: Path, head: str, authority: Commitment
+) -> tuple[Attestation | None, list[str]]:
+    """Resolve one proof bound to an exact repository Commitment."""
     return ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, query, store=proof_artifact_root(root)
+        root, head, authority=authority, store=proof_artifact_root(root)
     )
 
 

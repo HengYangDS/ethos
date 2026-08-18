@@ -266,16 +266,20 @@ def validate(
     ):
         raise ValueError(_STALE)
     allow_missing_prestate = plan.policy.get("repository_commitment_bootstrap") is True
-    repository = resolve_git_effect_repository(
-        root,
-        effect,
-        before,
-        environment=environment,
-        allow_missing_prestate=allow_missing_prestate,
-        prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
-        prestate_repository_bytes_sha256=str(
-            plan.policy.get("prestate_repository_bytes_sha256") or ""
-        ),
+    repository = (
+        str(plan.facts.get("repository") or "")
+        if state == "recovered"
+        else resolve_git_effect_repository(
+            root,
+            effect,
+            before,
+            environment=environment,
+            allow_missing_prestate=allow_missing_prestate,
+            prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
+            prestate_repository_bytes_sha256=str(
+                plan.policy.get("prestate_repository_bytes_sha256") or ""
+            ),
+        )
     )
     evidence = (
         repository,
@@ -482,16 +486,21 @@ def _matches(
         return False
     current_head = current_tracked_head(root)
     try:
-        repository_matches = repository == resolve_git_effect_repository(
-            root,
-            effect,
-            before,
-            environment=environment,
-            allow_missing_prestate=allow_missing_prestate,
-            prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
-            prestate_repository_bytes_sha256=str(
-                plan.policy.get("prestate_repository_bytes_sha256") or ""
-            ),
+        repository_matches = (
+            repository == str(plan.facts.get("repository") or "")
+            if state == "recovered"
+            else repository
+            == resolve_git_effect_repository(
+                root,
+                effect,
+                before,
+                environment=environment,
+                allow_missing_prestate=allow_missing_prestate,
+                prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
+                prestate_repository_bytes_sha256=str(
+                    plan.policy.get("prestate_repository_bytes_sha256") or ""
+                ),
+            )
         )
     except ValueError:
         return False

@@ -14,6 +14,13 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import a
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import (
     bootstrap_target_binding,
 )
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import (
+    is_old_generation_lease,
+)
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import is_partial_target
+from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import (
+    prepare_partial_recovery_intent,
+)
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import rebind_target_binding
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation import (
     load_commitment_rebind_receipt,
@@ -113,9 +120,6 @@ def _preview_commitment_rebind(
     try:
         lease = leases_by_branch(repo).get(request.branch, {})
         admit_rebind_request(repo, request, require_apply=False)
-        admit_old_generation(request, lease)
-        admit_rebind_state(repo, request, lease)
-        target = _target_binding(repo, request, lease)
         effect = GitEffect(
             updates={
                 f"refs/heads/{request.branch}": GitRefUpdate(
@@ -124,6 +128,11 @@ def _preview_commitment_rebind(
                 )
             }
         )
+        if is_partial_target(repo, request, lease):
+            return _project_partial_target_recovery(repo, request, effect, lease)
+        admit_old_generation(request, lease)
+        admit_rebind_state(repo, request, lease)
+        target = _target_binding(repo, request, lease)
         plan = _plan(
             repo,
             request,
@@ -170,7 +179,7 @@ def _execute_commitment_rebind(
     try:
         lease = leases_by_branch(repo).get(request.branch, {})
         admit_rebind_request(repo, request, require_apply=False)
-        if _is_head_only_partial_target(repo, request, lease):
+        if is_partial_target(repo, request, lease):
             if not request.apply:
                 return _project_partial_target_recovery(repo, request, effect, lease)
             return _recover_head_only_partial_target(repo, request, effect, lease)
@@ -260,24 +269,6 @@ def _apply(
     )
 
 
-def _is_head_only_partial_target(
-    repo: Path,
-    request: CommitmentRebindRequest,
-    lease: dict[str, object],
-) -> bool:
-    """Detect Git+hook success before the Commitment Lease CAS completed."""
-    return (
-        integer_value(lease.get("epoch")) == request.expected_epoch
-        and str(lease.get("lease_id") or "") == request.lease_id
-        and str(lease.get("holder_ref") or "") == request.holder_ref
-        and str(lease.get("expected_head") or "") == request.target_commit
-        and str(lease.get("expected_tree") or "") == request.expect_index_tree
-        and str(lease.get("base_commitment_path") or "") == request.expected_commitment_path
-        and str(lease.get("base_commitment_digest") or "") == request.expected_commitment_digest
-        and ref_head(repo, request.branch) == request.target_commit
-    )
-
-
 def _recover_head_only_partial_target(
     repo: Path,
     request: CommitmentRebindRequest,
@@ -285,7 +276,13 @@ def _recover_head_only_partial_target(
     lease: dict[str, object],
 ) -> dict[str, object]:
     """Finish Lease/Attestation after the ref CAS already succeeded."""
-    target, plan = _admit_partial_target(repo, request, effect, lease)
+    target, plan, validated = _admit_partial_target(repo, request, effect, lease)
+    if validated is None:
+        prepare_partial_recovery_intent(repo, plan, effect)
+        git_attestation = execute_git_effect(repo, plan, issuer=request.holder_ref)
+        git_state = str(git_attestation.payload.body["result"]["state"])
+    else:
+        git_state = "recovered"
     current_request = request.model_copy(
         update={
             "expect_head": str(lease["expected_head"]),
@@ -304,7 +301,7 @@ def _recover_head_only_partial_target(
         new_lease=updated,
         plan=plan,
         effect=effect,
-        git_state="recovered",
+        git_state=git_state,
         issued_at=datetime.now(UTC),
     )
     persist_rebind_attestation(repo, effect, attestation)
@@ -334,8 +331,12 @@ def _admit_partial_target(
     request: CommitmentRebindRequest,
     effect: GitEffect,
     lease: dict[str, object],
-) -> tuple[dict[str, str], TransitionPlan]:
-    """Validate the target and sole historical Git witness without mutation."""
+) -> tuple[
+    dict[str, str],
+    TransitionPlan,
+    tuple[TransitionPlan, Attestation] | None,
+]:
+    """Validate the target and any historical Git witness without mutation."""
     prior_coordinates = {
         **lease,
         "expected_head": request.expect_head,
@@ -356,14 +357,13 @@ def _admit_partial_target(
         plan.digest,
         issuer=request.holder_ref,
     )
-    if validated is None:
+    if validated is None and not is_old_generation_lease(request, lease):
         message = "commitment_rebind_partial_git_attestation_missing"
         raise ValueError(message)
-    historical_plan, _attestation = validated
-    if historical_plan != plan:
+    if validated is not None and validated[0] != plan:
         message = "git_effect_attestation_collision"
         raise ValueError(message)
-    return target, plan
+    return target, plan, validated
 
 
 def _plan(

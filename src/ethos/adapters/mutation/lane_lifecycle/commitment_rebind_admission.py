@@ -6,6 +6,8 @@ import hashlib
 import os
 from typing import TYPE_CHECKING
 
+from ethos.adapters.admission.ref_intent import claim_ref_intent
+from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.commit_identity import verify_commit_trust
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
@@ -26,6 +28,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.coordination import CommitmentRebindRequest
+    from ethos.contracts.plan import GitEffect
+    from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Commitment
 
 
@@ -340,6 +344,87 @@ def bootstrap_target_binding(
         )
     )
     return target
+
+
+def is_old_generation_lease(
+    request: CommitmentRebindRequest,
+    lease: dict[str, object],
+) -> bool:
+    """Return whether every live Lease coordinate matches the receipt prestate."""
+    fields = {
+        "lease_state": "valid",
+        "lease_id": request.lease_id,
+        "lane_incarnation_id": request.expected_lane_incarnation_id,
+        "holder_ref": request.holder_ref,
+        "expected_head": request.expect_head,
+        "expected_tree": request.expected_tree,
+        "base_commitment_path": request.expected_commitment_path,
+        "base_commitment_bytes_sha256": request.expected_commitment_bytes_sha256,
+        "base_commitment_digest": request.expected_commitment_digest,
+        "payload_sha256": request.expected_payload_sha256,
+    }
+    return integer_value(lease.get("epoch")) == request.expected_epoch and all(
+        str(lease.get(name) or "") == value for name, value in fields.items()
+    )
+
+
+def is_partial_target(
+    repo: Path,
+    request: CommitmentRebindRequest,
+    lease: dict[str, object],
+) -> bool:
+    """Detect exact Git success before the Commitment Lease CAS completed."""
+    hook_projected = (
+        str(lease.get("expected_head") or "") == request.target_commit
+        and str(lease.get("expected_tree") or "") == request.expect_index_tree
+    )
+    stable = {
+        "lease_id": request.lease_id,
+        "lane_incarnation_id": request.expected_lane_incarnation_id,
+        "holder_ref": request.holder_ref,
+        "base_commitment_path": request.expected_commitment_path,
+        "base_commitment_bytes_sha256": request.expected_commitment_bytes_sha256,
+        "base_commitment_digest": request.expected_commitment_digest,
+    }
+    return bool(
+        ref_head(repo, request.branch) == request.target_commit
+        and integer_value(lease.get("epoch")) == request.expected_epoch
+        and all(str(lease.get(name) or "") == value for name, value in stable.items())
+        and (is_old_generation_lease(request, lease) or hook_projected)
+    )
+
+
+def prepare_partial_recovery_intent(
+    repo: Path,
+    plan: TransitionPlan,
+    effect: GitEffect,
+) -> None:
+    """Reconstruct the sole exact plan-bound intent for a proven partial target."""
+    if len(effect.updates) != 1:
+        message = "commitment_rebind_effect_invalid"
+        raise ValueError(message)
+    ref_name, update = next(iter(effect.updates.items()))
+    operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
+    intent = write_ref_intent(
+        root=repo,
+        ref_name=ref_name,
+        update=update,
+        operation=operation,
+        plan_digest=plan.digest,
+    )
+    if intent["phase"] in {"prepared", "committed"}:
+        return
+    claimed = claim_ref_intent(
+        root=repo,
+        ref_name=ref_name,
+        update=update,
+        operation=operation,
+        phase="prepared",
+        plan_digest=plan.digest,
+    )
+    if gap := str(claimed["gap"] or ""):
+        message = f"git_effect_ref_intent_prepared_{gap}"
+        raise ValueError(message)
 
 
 def _identity_transition_valid(

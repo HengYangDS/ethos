@@ -7,18 +7,22 @@ subjects = [
 scope = [
   "openspec/changes/partial-rebind-recovery-forward-fix/**",
   "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_admission.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_evidence.py",
+  "src/ethos/adapters/repo/git_effect_attestation.py",
   "tests/unit/lanes/lease/test_commitment_rebind.py",
 ]
 invariants = [
   "recovery_advances_only_the_exact_lease_generation_and_emits_terminal_attestation",
-  "recovery_requires_exact_receipt_old_generation_target_ref_and_historical_git_effect_witness",
+  "recovery_reconstructs_only_the_original_plan_bound_ref_intent_when_effect_evidence_is_missing",
+  "recovery_requires_exact_receipt_old_generation_target_ref_tree_index_and_overlay",
 ]
 acceptance = [
   "partial_rebind_apply_recovers_without_bare_git_or_sqlite",
   "partial_rebind_dry_run_reports_one_copyable_recovery_command",
 ]
 risks = [
-  "must_reject_target_ref_drift_lease_drift_and_missing_git_effect_witness",
+  "must_reject_receipt_ref_tree_lease_index_overlay_and_plan_drift",
 ]
 authority_refs = [
   "AGENTS.md",

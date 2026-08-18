@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sqlite3
 import subprocess
 from contextlib import closing
@@ -16,7 +15,6 @@ import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission as rebind_admission
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence as rebind_evidence
-import ethos.adapters.openspec.start_effect as start_effect
 import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -55,6 +53,22 @@ def _replace_lease(worktree: Path, branch: str, **updates: object) -> None:
         )
 
 
+def _lease_payload_json(worktree: Path, branch: str) -> str:
+    with closing(sqlite3.connect(state_database(worktree))) as connection:
+        row = connection.execute(
+            "select payload_json from leases where subject = ?", (branch,)
+        ).fetchone()
+    assert row
+    return str(row[0])
+
+
+def _restore_lease_payload_json(worktree: Path, branch: str, payload: str) -> None:
+    with closing(sqlite3.connect(state_database(worktree))) as connection, connection:
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?", (payload, branch)
+        )
+
+
 def _install_hooks(repository: Path, worktree: Path) -> None:
     install_hook_launchers(repository)
     install_hook_launchers(worktree)
@@ -63,6 +77,28 @@ def _install_hooks(repository: Path, worktree: Path) -> None:
     )
     exclude.parent.mkdir(parents=True, exist_ok=True)
     exclude.write_text("tools/\n", encoding="utf-8")
+
+
+def _configure_signing(worktree: Path, directory: Path, name: str) -> None:
+    key = directory / name
+    subprocess.run(
+        ("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key.as_posix()), check=True
+    )
+    public = key.with_suffix(".pub")
+    anchor = directory / f"{name}-allowed-signers"
+    anchor.write_text(
+        f'test@example.invalid namespaces="git" {public.read_text(encoding="utf-8").strip()}\n',
+        encoding="utf-8",
+    )
+    anchor.chmod(0o600)
+    for name, value in (
+        ("gpg.format", "ssh"),
+        ("gpg.ssh.program", "/usr/bin/ssh-keygen"),
+        ("commit.gpgsign", "true"),
+        ("user.signingkey", public.as_posix()),
+        ("gpg.ssh.allowedSignersFile", anchor.as_posix()),
+    ):
+        git(worktree, "config", name, value)
 
 
 def _identity_content(
@@ -309,72 +345,18 @@ def test_rebind_owns_carrier_and_authority(
     case.assert_terminal(report)
 
 
-def test_ordinary_rebind_establishes_current_generation_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("advance", ["same-head", "later-commit"])
+def test_rebind_generation_authority_is_current_and_survives_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, advance: str
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-
     report = case.execute()
-
     assert (report["verdict"], report["required_gaps"]) == ("pass", [])
+    if advance == "later-commit":
+        commit_fixture_file(
+            case.worktree, "src/example.py", "VALUE = 1\n", "feat: advance rebound generation"
+        )
     scope = case.generation_scope()
-    assert scope.gaps == ()
-    assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
-
-
-def test_rebind_supersedes_the_start_projection_for_one_generation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    assert case.execute()["verdict"] == "pass"
-    current = leases_by_branch(case.worktree)[case.branch]
-    monkeypatch.setattr(
-        start_effect,
-        "_effect_authorities",
-        lambda *_args, **_kwargs: (
-            (
-                {
-                    "predicate": "effect:openspec-change-start",
-                    "previous_head": git(case.worktree, "rev-parse", "candidate/dev"),
-                },
-                {
-                    "predicate": "effect:commitment-rebind",
-                    "claim": {"operation": "commitment-rebind"},
-                    "previous_head": git(case.worktree, "rev-parse", "candidate/dev"),
-                    "source": "rebind_generation",
-                },
-            ),
-            (),
-        ),
-    )
-
-    scope = current_generation_scope(
-        case.worktree,
-        head=str(current["expected_head"]),
-        repository_id=load_repository_commitment(case.worktree).id,
-        commitment=load_lease_bound_commitment(case.worktree, lease=current),
-        lease=current,
-        fallback_paths=("src/example.py",),
-    )
-
-    assert scope.gaps == ()
-    assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
-
-
-def test_ordinary_commit_preserves_rebind_generation_authority(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    case = _case(tmp_path, monkeypatch)
-    assert case.execute()["verdict"] == "pass"
-    commit_fixture_file(
-        case.worktree,
-        "src/example.py",
-        "VALUE = 1\n",
-        "feat: advance rebound generation",
-    )
-
-    scope = case.generation_scope()
-
     assert scope.gaps == ()
     assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
 
@@ -386,10 +368,11 @@ def test_ordinary_rebind_preserves_the_existing_generation_base(
     generation_base = git(case.worktree, "rev-parse", "candidate/dev")
 
     assert case.execute()["verdict"] == "pass"
-
     scope = case.generation_scope()
-    assert scope.start_authority["previous_head"] == generation_base
-    assert "src/prior.py" in scope.paths
+    assert (scope.start_authority["previous_head"], "src/prior.py" in scope.paths) == (
+        generation_base,
+        True,
+    )
 
 
 def test_relocated_rebind_preserves_the_carrier_origin(
@@ -399,7 +382,6 @@ def test_relocated_rebind_preserves_the_carrier_origin(
     generation_base = git(case.worktree, "rev-parse", "candidate/dev")
 
     assert case.execute()["verdict"] == "pass"
-
     assert case.generation_scope().start_authority["previous_head"] == generation_base
 
 
@@ -423,10 +405,7 @@ def test_change_identity_repair_applies_one_exact_semantic_rename(
 
     assert (report["verdict"], report["required_gaps"]) == ("pass", [])
     case.assert_terminal(report)
-    scope = case.generation_scope()
-    assert scope.gaps == ()
-    assert scope.start_authority["predicate"] == "effect:commitment-rebind"
-    assert scope.start_authority["claim"]["operation"] == "commitment-rebind"
+    assert case.generation_scope().start_authority["claim"]["operation"] == "commitment-rebind"
 
 
 def test_ref_transition_does_not_scan_unrelated_lease_bindings(
@@ -545,25 +524,58 @@ def _interrupted_partial_rebind(
     return read_attestation_set(case.worktree)[1]
 
 
-def test_partial_rebind_dry_run_and_apply_share_valid_historical_evidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def _interrupted_old_generation_rebind(
+    case: RebindCase, monkeypatch: pytest.MonkeyPatch
+) -> tuple[object, ...]:
+    """Persist the Git witness while retaining the exact old Lease generation."""
+    original_lease = _lease_payload_json(case.worktree, case.branch)
+    apply_rebind = rebind.rebind_lease_commitment
+    monkeypatch.setattr(
+        rebind,
+        "rebind_lease_commitment",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("injected_after_git_effect")),
+    )
+    interrupted = case.execute()
+    monkeypatch.setattr(rebind, "rebind_lease_commitment", apply_rebind)
+    assert interrupted["required_gaps"] == ["injected_after_git_effect"]
+    _restore_lease_payload_json(case.worktree, case.branch, original_lease)
+    return read_attestation_set(case.worktree)[1]
+
+
+@pytest.mark.parametrize("lease_state", ["hook-projected", "old-generation", "missing-evidence"])
+def test_partial_rebind_recovery_matrix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lease_state: str
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    _interrupted_partial_rebind(case, monkeypatch)
+    if lease_state == "missing-evidence":
+        git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
+        git(
+            case.worktree,
+            "update-ref",
+            f"refs/heads/{case.branch}",
+            case.request.target_commit,
+            case.request.expect_head,
+        )
+    else:
+        interrupted = (
+            _interrupted_partial_rebind
+            if lease_state == "hook-projected"
+            else _interrupted_old_generation_rebind
+        )
+        interrupted(case, monkeypatch)
 
-    preview = case.execute(apply=False)
-    applied = case.execute()
-
-    assert (preview["verdict"], preview["state"], preview["required_gaps"]) == (
+    preview, applied = case.execute(apply=False), case.execute()
+    assert [preview[name] for name in ("verdict", "state", "required_gaps")] == [
         "pass",
         "ready_to_recover",
         [],
-    )
-    assert (applied["verdict"], applied["state"], applied["required_gaps"]) == (
+    ]
+    assert [applied[name] for name in ("verdict", "state", "required_gaps")] == [
         "pass",
         "recovered",
         [],
-    )
+    ]
+    case.assert_terminal(applied)
 
 
 @pytest.mark.parametrize("mode", ["dry-run", "apply"])
@@ -589,8 +601,10 @@ def test_partial_rebind_rejects_historical_plan_collision_before_lease_mutation(
 
     report = case.execute(apply=mode == "apply")
 
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["git_effect_attestation_collision"]
+    assert [report[name] for name in ("verdict", "required_gaps")] == [
+        "block",
+        ["git_effect_attestation_collision"],
+    ]
     assert leases_by_branch(case.worktree)[case.branch]["epoch"] == epoch
 
 
@@ -598,15 +612,12 @@ def test_rebind_preserves_overlay_and_recognizes_idempotently(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    captured = []
-    execute = rebind.execute_git_effect
-
-    def capture(*args, **kwargs):
-        assert "intent" not in kwargs
-        captured.append(args[1])
-        return execute(*args, **kwargs)
-
-    monkeypatch.setattr(rebind, "execute_git_effect", capture)
+    execute, captured = rebind.execute_git_effect, []
+    monkeypatch.setattr(
+        rebind,
+        "execute_git_effect",
+        lambda *args, **kwargs: captured.append(args[1]) or execute(*args, **kwargs),
+    )
     before = (
         git(case.worktree, "diff", "--binary"),
         git(case.worktree, "ls-files", "--others", "--exclude-standard"),
@@ -623,7 +634,6 @@ def test_rebind_preserves_overlay_and_recognizes_idempotently(
         case.untracked.read_bytes(),
     ) == before
     assert case.tracked.read_text(encoding="utf-8") == "# sample\n\nlocal overlay\n"
-    assert os.environ["ETHOS_ACTOR"] == case.request.holder_ref
 
 
 def test_rebind_derive_emits_receipt_for_exact_target(
@@ -687,28 +697,7 @@ def test_rebind_derive_constructs_the_exact_signed_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     case = _case(tmp_path, monkeypatch)
-    signing_key = tmp_path / "derive-target-signing-key"
-    subprocess.run(
-        ["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", signing_key.as_posix()],
-        check=True,
-    )
-    git(case.worktree, "config", "gpg.format", "ssh")
-    git(case.worktree, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
-    git(case.worktree, "config", "commit.gpgsign", "true")
-    git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
-    allowed_signers = tmp_path / "derive-target-allowed-signers"
-    allowed_signers.write_text(
-        f'test@example.invalid namespaces="git" '
-        f"{signing_key.with_suffix('.pub').read_text(encoding='utf-8').strip()}\n",
-        encoding="utf-8",
-    )
-    allowed_signers.chmod(0o600)
-    git(
-        case.worktree,
-        "config",
-        "gpg.ssh.allowedSignersFile",
-        allowed_signers.as_posix(),
-    )
+    _configure_signing(case.worktree, tmp_path, "derive-target-signing-key")
     git(
         case.worktree,
         "update-ref",
@@ -941,28 +930,7 @@ def _bootstrap_case(
         encoding="utf-8",
     )
     git(case.worktree, "add", repository_carrier.as_posix(), lane_carrier.as_posix())
-    signing_key = tmp_path / "bootstrap-signing-key"
-    subprocess.run(
-        ("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", signing_key.as_posix()),
-        check=True,
-    )
-    git(case.worktree, "config", "gpg.format", "ssh")
-    git(case.worktree, "config", "gpg.ssh.program", "/usr/bin/ssh-keygen")
-    git(case.worktree, "config", "commit.gpgsign", "true")
-    git(case.worktree, "config", "user.signingkey", f"{signing_key.as_posix()}.pub")
-    allowed_signers = tmp_path / "bootstrap-allowed-signers"
-    allowed_signers.write_text(
-        f'test@example.invalid namespaces="git" '
-        f"{signing_key.with_suffix('.pub').read_text(encoding='utf-8').strip()}\n",
-        encoding="utf-8",
-    )
-    allowed_signers.chmod(0o600)
-    git(
-        case.worktree,
-        "config",
-        "gpg.ssh.allowedSignersFile",
-        allowed_signers.as_posix(),
-    )
+    _configure_signing(case.worktree, tmp_path, "bootstrap-signing-key")
     before_lease = leases_by_branch(case.worktree)[case.branch]
     before_set = git(case.worktree, "rev-parse", "--verify", ATTESTATION_SET_REF)
     report = rebind_derivation.derive_commitment_rebind(

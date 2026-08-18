@@ -11,7 +11,6 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import commitment_generation_origin
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
@@ -28,8 +27,6 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
-from ethos.contracts.semantic import canonical_json_digest
-from ethos.contracts.semantic import canonical_utc_time
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import integer
 
@@ -78,59 +75,15 @@ def issue_rebind_attestation(
     """Issue one immutable attestation over the complete old/new transition."""
     _require_fresh_terminal_state(repo, request, new_lease)
     values = plan.facts.get("values")
-    fact_values = values if isinstance(values, Mapping) else {}
-    old_lease = fact_values.get("lease_generation")
+    old_lease = values.get("lease_generation") if isinstance(values, Mapping) else None
     if not isinstance(old_lease, Mapping):
         message = "commitment_rebind_plan_lease_generation_invalid"
         raise TypeError(message)
-    old_digest = str(plan.policy.get("old_commitment_digest") or "")
-    new_generation = lease_generation(new_lease)
-    target = {
-        name: new_generation[name]
-        for name in (
-            "expected_head",
-            "expected_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    }
-    repository = load_repository_commitment(repo, tree_ref=request.target_commit).id
-    overlay = str(fact_values.get("working_overlay_sha256") or "")
     statement = {
         "claim": {"operation": request.operation, "branch": request.branch},
-        "repository": repository,
         "old_lease_generation": dict(old_lease),
-        "new_lease_generation": new_generation,
-        "old_commitment": {"head": request.expect_head, "digest": old_digest},
-        "new_commitment": target,
-        "index_tree": request.expect_index_tree,
-        "target_commit": request.target_commit,
-        "working_overlay_sha256": overlay,
+        "new_lease_generation": lease_generation(new_lease),
         "result": {"git": git_state, "lease": "epoch_advanced"},
-        "input_digest": canonical_json_digest(
-            {
-                "lease": dict(old_lease),
-                "head": request.expect_head,
-                "index_tree": request.expect_index_tree,
-                "old_commitment_digest": old_digest,
-            }
-        ),
-        "output_digest": canonical_json_digest(
-            {
-                "lease": new_generation,
-                "head": request.target_commit,
-                "new_commitment": target,
-            }
-        ),
-        "observed_at": canonical_utc_time(issued_at),
-        "freshness": {
-            "mode": "semantic_scope",
-            "repository": repository,
-            "head": request.target_commit,
-            "lease_generation": new_generation,
-            "working_overlay_sha256": overlay,
-        },
     }
     return Attestation.issue(
         {
@@ -146,7 +99,7 @@ def issue_rebind_attestation(
             "relations": (),
             "advisories": (),
             "evidence_refs": (),
-            "commitment_digest": old_digest,
+            "commitment_digest": str(plan.policy.get("old_commitment_digest") or ""),
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
@@ -263,79 +216,47 @@ def rebind_generation_authority(
     """Project one exact completed rebind as current Change continuity."""
     statement = mutable_json(attestation.payload.body)
     if not isinstance(statement, dict):
-        return {}
-    current = lease_generation(lease)
+        statement = {}
     old = statement.get("old_lease_generation")
     new = statement.get("new_lease_generation")
-    new_commitment = statement.get("new_commitment")
     result = statement.get("result")
-    claim = statement.get("claim")
-    if (
-        not isinstance(old, dict)
-        or not isinstance(new, dict)
-        or not isinstance(new_commitment, dict)
-        or not isinstance(result, dict)
-    ):
+    if not isinstance(old, dict) or not isinstance(new, dict) or not isinstance(result, dict):
         return {}
-    validated = None
     try:
-        if attestation.plan_digest:
-            validated = validated_plan_attestation(
-                repo,
-                attestation.plan_digest,
-                issuer=attestation.verifier,
-            )
+        validated = (
+            validated_plan_attestation(repo, attestation.plan_digest, issuer=attestation.verifier)
+            if attestation.plan_digest
+            else None
+        )
     except ValueError:
-        pass
+        return {}
     if validated is None:
         return {}
     plan, _git_attestation = validated
-    plan_values = mutable_json(plan.facts.get("values"))
-    if not isinstance(plan_values, dict):
+    values = mutable_json(plan.facts.get("values"))
+    if not isinstance(values, dict):
         return {}
+    current = lease_generation(lease)
     branch = str(current.get("branch") or "")
     previous_head = str(old.get("expected_head") or "")
     generation_head = str(new.get("expected_head") or "")
     head = str(current.get("expected_head") or "")
-    binding = {
-        name: new.get(name)
-        for name in (
-            "expected_head",
-            "expected_tree",
-            "base_commitment_path",
-            "base_commitment_bytes_sha256",
-            "base_commitment_digest",
-        )
-    }
     effect = GitEffect(
         updates={
             f"refs/heads/{branch}": GitRefUpdate(expected=previous_head, desired=generation_head)
         }
     )
-    operation = str(plan.policy.get("operation") or "")
-    expected_transition = (
+    claim = statement.get("claim")
+    transition = (
         "v1-to-v2-bootstrap"
         if claim == {"operation": "v1-to-v2-bootstrap", "branch": branch}
         else "change.identity-repair"
         if plan.policy.get("transition") == "change.identity-repair"
         else "commitment.rebind"
     )
-    freshness = mutable_json(statement.get("freshness"))
-    plan_successor = mutable_json(plan_values.get("lease_successor"))
-    planned_new = {name: value for name, value in new.items() if name != "payload_sha256"}
-    now = datetime.now(UTC)
-    valid_from = attestation.valid_from
     try:
-        bootstrap = expected_transition == "v1-to-v2-bootstrap"
-        origin_head = generation_head if bootstrap else previous_head
-        origin_carrier = str(
-            (
-                new_commitment.get("base_commitment_path")
-                if bootstrap
-                else old.get("base_commitment_path")
-            )
-            or ""
-        )
+        bootstrap = transition == "v1-to-v2-bootstrap"
+        origin = new if bootstrap else old
         origin_id = (
             terminal_v1_binding(
                 repo,
@@ -348,124 +269,92 @@ def rebind_generation_authority(
         )
         load_commitment(
             repo,
-            carrier=str(new_commitment.get("base_commitment_path") or ""),
+            carrier=str(new.get("base_commitment_path") or ""),
             tree_ref=generation_head,
-            expected_digest=str(new_commitment.get("base_commitment_digest") or ""),
+            expected_digest=str(new.get("base_commitment_digest") or ""),
         )
         generation_base = commitment_generation_origin(
             repo,
-            head=origin_head,
-            carrier=origin_carrier,
+            head=generation_head if bootstrap else previous_head,
+            carrier=str(origin.get("base_commitment_path") or ""),
             change_id=str(origin_id or "").removeprefix("change:"),
         )
     except ValueError:
-        generation_base = ""
-    valid = (
-        attestation.predicate == "effect:commitment-rebind"
-        and attestation.payload.kind == "effect:commitment-rebind"
-        and attestation.verdict == "pass"
-        and attestation.verifier == current.get("holder_ref")
-        and attestation.subject == f"commitment-rebind:{effect.digest()}"
-        and attestation.effect_digest == effect.digest()
-        and claim
-        in (
-            {"operation": "commitment-rebind", "branch": branch},
-            {"operation": "v1-to-v2-bootstrap", "branch": branch},
+        return {}
+    successor = {name: value for name, value in new.items() if name != "payload_sha256"}
+    stable = (
+        "branch",
+        "lane_incarnation_id",
+        "lease_id",
+        "holder_ref",
+        "epoch",
+        "issued_at",
+        "renewed_at",
+        "expires_at",
+        "path_scope",
+        "base_commitment_path",
+        "base_commitment_bytes_sha256",
+        "base_commitment_digest",
+    )
+    now = datetime.now(UTC)
+    valid = all(
+        (
+            attestation.predicate == attestation.payload.kind == "effect:commitment-rebind",
+            attestation.verdict == "pass",
+            attestation.verifier == current.get("holder_ref"),
+            attestation.subject == f"commitment-rebind:{effect.digest()}",
+            attestation.effect_digest == effect.digest() == plan.inputs.effect,
+            claim
+            in (
+                {"operation": "commitment-rebind", "branch": branch},
+                {"operation": "v1-to-v2-bootstrap", "branch": branch},
+            ),
+            plan.policy.get("operation") == "git.ref.compare-and-swap",
+            plan.policy.get("transition") == transition,
+            transition in {"v1-to-v2-bootstrap", "commitment.rebind", "change.identity-repair"},
+            git_effect_from_plan(plan) == effect,
+            attestation.commitment_digest
+            == plan.policy.get("old_commitment_digest")
+            == old.get("base_commitment_digest"),
+            attestation.facts_digest == plan.inputs.facts,
+            attestation.plan_digest == plan.digest,
+            attestation.policy_digest == plan.inputs.policy,
+            plan.commitment.get("subjects") == (repository_id,),
+            values.get("lease_generation") == old,
+            mutable_json(values.get("lease_successor")) == successor,
+            values.get("index_tree") == new.get("expected_tree"),
+            values.get("new_commitment_path") == new.get("base_commitment_path"),
+            values.get("new_commitment_bytes_sha256") == new.get("base_commitment_bytes_sha256"),
+            values.get("new_commitment_digest") == new.get("base_commitment_digest"),
+            result
+            in (
+                {"git": "applied", "lease": "epoch_advanced"},
+                {"git": "recovered", "lease": "epoch_advanced"},
+            ),
+            attestation.valid_from == attestation.issued_at,
+            attestation.valid_from is not None
+            and attestation.valid_from <= now
+            and (attestation.valid_until is None or now <= attestation.valid_until),
+            bool(generation_base),
+            all(new.get(name) == current.get(name) for name in stable),
+            all(
+                old.get(name) == new.get(name)
+                for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
+            ),
+            integer(old.get("epoch"), default=-1) + 1 == integer(new.get("epoch"), default=-1),
+            commitment_digest == current.get("base_commitment_digest"),
+            ref_head(repo, branch) == head,
+            current_tree(repo, head) == current.get("expected_tree"),
+            current_tree(repo, generation_head) == new.get("expected_tree"),
+            git_stdout(repo, "rev-parse", f"{generation_head}^") == previous_head,
+            is_ancestor(repo, generation_head, head),
         )
-        and operation == "git.ref.compare-and-swap"
-        and plan.policy.get("transition") == expected_transition
-        and expected_transition
-        in {"v1-to-v2-bootstrap", "commitment.rebind", "change.identity-repair"}
-        and git_effect_from_plan(plan) == effect
-        and attestation.commitment_digest == plan.policy.get("old_commitment_digest")
-        and attestation.facts_digest == plan.inputs.facts
-        and attestation.plan_digest == plan.digest
-        and attestation.policy_digest == plan.inputs.policy
-        and attestation.effect_digest == plan.inputs.effect
-        and plan_values.get("lease_generation") == old
-        and plan_successor == planned_new
-        and plan_values.get("index_tree") == statement.get("index_tree")
-        and plan_values.get("working_overlay_sha256") == statement.get("working_overlay_sha256")
-        and plan_values.get("new_commitment_path") == new_commitment.get("base_commitment_path")
-        and plan_values.get("new_commitment_bytes_sha256")
-        == new_commitment.get("base_commitment_bytes_sha256")
-        and plan_values.get("new_commitment_digest") == new_commitment.get("base_commitment_digest")
-        and statement.get("repository") == repository_id
-        and statement.get("target_commit") == generation_head
-        and statement.get("index_tree") == new.get("expected_tree")
-        and result
-        in (
-            {"git": "applied", "lease": "epoch_advanced"},
-            {"git": "recovered", "lease": "epoch_advanced"},
-        )
-        and statement.get("old_commitment")
-        == {"head": previous_head, "digest": old.get("base_commitment_digest")}
-        and statement.get("input_digest")
-        == canonical_json_digest(
-            {
-                "lease": old,
-                "head": previous_head,
-                "index_tree": statement.get("index_tree"),
-                "old_commitment_digest": old.get("base_commitment_digest"),
-            }
-        )
-        and statement.get("output_digest")
-        == canonical_json_digest(
-            {
-                "lease": new,
-                "head": generation_head,
-                "new_commitment": new_commitment,
-            }
-        )
-        and freshness
-        == {
-            "mode": "semantic_scope",
-            "repository": repository_id,
-            "head": generation_head,
-            "lease_generation": new,
-            "working_overlay_sha256": statement.get("working_overlay_sha256"),
-        }
-        and valid_from == attestation.issued_at
-        and valid_from is not None
-        and valid_from <= now
-        and (attestation.valid_until is None or now <= attestation.valid_until)
-        and bool(generation_base)
-        and mutable_json(new_commitment) == binding
-        and all(
-            new.get(name) == current.get(name)
-            for name in (
-                "branch",
-                "lane_incarnation_id",
-                "lease_id",
-                "holder_ref",
-                "epoch",
-                "issued_at",
-                "renewed_at",
-                "expires_at",
-                "path_scope",
-                "base_commitment_path",
-                "base_commitment_bytes_sha256",
-                "base_commitment_digest",
-            )
-        )
-        and all(
-            old.get(name) == new.get(name)
-            for name in ("branch", "lane_incarnation_id", "lease_id", "holder_ref")
-        )
-        and integer(old.get("epoch"), default=-1) + 1 == integer(new.get("epoch"), default=-1)
-        and attestation.commitment_digest == old.get("base_commitment_digest")
-        and commitment_digest == current.get("base_commitment_digest")
-        and ref_head(repo, branch) == head
-        and current_tree(repo, head) == current.get("expected_tree")
-        and current_tree(repo, generation_head) == new.get("expected_tree")
-        and git_stdout(repo, "rev-parse", f"{generation_head}^") == previous_head
-        and is_ancestor(repo, generation_head, head)
     )
     return (
         {
             "predicate": attestation.predicate,
             "attestation_id": attestation.id,
-            "claim": statement["claim"],
+            "claim": claim,
             "previous_head": generation_base,
             "source": "rebind_generation",
         }

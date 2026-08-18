@@ -1,0 +1,35 @@
+schema_version = 2
+id = "change:openspec-19-lock"
+intent = "Use the official stable OpenSpec 1.9.0 package as the sole project lifecycle dependency authority."
+subjects = ["repository:ethos"]
+scope = [
+  "docs/architecture/runner-and-mutation.md",
+  "openspec/changes/openspec-19-lock/**",
+  "openspec/specs/repository-governance/spec.md",
+  "package-lock.json",
+  "package.json",
+  "tests/unit/cli/test_openspec_archive_transition.py",
+]
+invariants = [
+  "current_contracts_and_tests_match_the_locked_package",
+  "historical_archives_remain_historical_records",
+  "official_openspec_owns_change_artifact_lifecycle",
+  "project_package_and_lockfile_pin_one_exact_openspec_version",
+]
+acceptance = [
+  "archive_transition_contract_test_passes_with_1_9_0",
+  "npm_ci_resolves_openspec_1_9_0_from_the_official_registry",
+  "openspec_1_9_strict_validation_and_doctor_pass",
+]
+risks = ["official_1_9_behavior_differs_from_previous_locked_version"]
+authority_refs = [
+  "AGENTS.md",
+  "docs/governance/product-design-contract.md",
+  "openspec/config.yaml",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

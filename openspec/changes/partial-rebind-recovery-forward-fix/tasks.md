@@ -9,7 +9,7 @@
 - [x] **3. Reconstruct only the original effect.** Recreate the sole receipt-
   bound intent, reuse the existing Git-effect executor in recovery mode, and
   advance the Lease through its existing exact CAS.
-- [ ] **4. Prove fail-closed recovery.** Cover plan collision, ref/tree/Lease/
+- [x] **4. Prove fail-closed recovery.** Cover plan collision, ref/tree/Lease/
   index/overlay drift, checkpoint recovery, and terminal Attestation emission.
 
 ## Requirement To Task To Proof

@@ -33,7 +33,6 @@ scope = [
   "tests/unit/admission/test_identity_public_reconciliation.py",
   "tests/unit/admission/test_ref_move_policy_public_resolution.py",
   "tests/unit/cli/land/test_publication.py",
-  "tests/unit/cli/land/test_remote_publication_observability.py",
   "tests/unit/cli/test_hook_runtime.py",
   "tests/unit/cli/test_hook_runtime_failure_branches.py",
   "tests/unit/cli/test_lifecycle_hardening.py",

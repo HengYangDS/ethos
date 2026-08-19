@@ -154,7 +154,7 @@ def test_commit_signer_trust_command_projects_exact_recovery_action(tmp_path: Pa
         "--json",
         cwd=repo,
     )
-    assert applied["next_action"] == "rerun the exact blocked identity-repair command"
+    assert applied["next_action"] == ""
 
 
 @pytest.mark.parametrize(

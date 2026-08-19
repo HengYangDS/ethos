@@ -509,34 +509,6 @@ def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dic
     return result
 
 
-def publication_remote_syncs(root: Path, branch: str, remotes: dict[str, str]) -> dict[str, object]:
-    """Project declared peer branches without granting any peer authority."""
-    records: dict[str, dict[str, object]] = {}
-    configured = set(git_stdout(root, "remote").splitlines())
-    for peer_id, remote in remotes.items():
-        if remote not in configured:
-            continue
-        records[peer_id] = remote_tracking_sync(root, branch, remote)
-    states = {str(record.get("state") or "not_checked") for record in records.values()}
-    synchronized = bool(records) and states == {"synchronized"}
-    reconciliation_required = any(
-        state in {"diverged", "local_behind", "remote_tracking_missing"} for state in states
-    )
-    return {
-        "remotes": records,
-        "state": "synchronized"
-        if synchronized
-        else "reconciliation_required"
-        if reconciliation_required
-        else "pending",
-        "advisory_gaps": [
-            f"remote_reconciliation_required:{name}:{record.get('state')}"
-            for name, record in records.items()
-            if record.get("state") != "synchronized"
-        ],
-    }
-
-
 def git_common_dir(root: Path) -> str:
     """Return the resolved git common dir (shared across worktrees), or ''."""
     common_dir = git_stdout(root, "rev-parse", "--git-common-dir")

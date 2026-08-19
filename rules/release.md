@@ -16,6 +16,8 @@ Purpose: define release and version-bump discipline.
 - Version carriers must be updated from one declared release configuration.
 - Distribution adapters remain thin and must not duplicate product semantics.
 - Publish readiness must separate local readiness from remote publication.
-- Proposal publication must use the command-derived immutable request and live
-  peer-local exact CAS. It must report partial effects rather than claim
-  cross-provider atomicity.
+- Remote Git object publication must use the exact locally created and signed
+  commit or annotated tag, a command-derived immutable request, and live
+  peer-local exact CAS. Transport credentials never create, rewrite, or sign
+  product objects. Partial peer effects must be reported rather than described
+  as cross-peer atomicity.

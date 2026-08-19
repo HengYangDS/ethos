@@ -17,5 +17,5 @@
 
 - [x] 3.1 Run focused proof-selection, control-replacement, publication, and
   closeout regressions.
-- [x] 3.2 Prove repository-wide reference closure and run lint, architecture,
-  size, source-budget, and full proof gates.
+- [x] 3.2 Prove repository-wide reference closure and run focused/full tests,
+  lint, architecture, size, and source-budget gates.

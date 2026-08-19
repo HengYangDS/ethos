@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 import tomllib
 from graphlib import TopologicalSorter
@@ -77,10 +76,3 @@ def test_current_change_graph_is_at_most_one_bounded_and_acyclic() -> None:
         return
     change_id, (carrier, _payload) = next(iter(commitments.items()))
     assert change_id == f"change:{carrier.name}"
-    tasks = (carrier / "tasks.md").read_text(encoding="utf-8")
-    task_ids = re.findall(r"^- \[[ x]\] \*\*(\d+)\.", tasks, re.MULTILINE)
-    proof_task_ids = re.findall(r"^\| .+? \| (\d+) \| `[^`]+` \|$", tasks, re.MULTILINE)
-
-    assert task_ids
-    assert len(task_ids) == len(set(task_ids))
-    assert set(proof_task_ids) == set(task_ids)

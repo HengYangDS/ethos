@@ -355,7 +355,7 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
         if args[:2] == ("publish", "--proposal"):
             plan = payload.get("data", {}).get("transition_plan", {})
             gaps = tuple(str(gap) for gap in payload.get("required_gaps", ()))
-            if plan.get("effect", {}).get("operation") != "proposal.create" or any(
+            if plan.get("effect", {}).get("operation") != "git.ref.compare-and-swap" or any(
                 gap.startswith("publication_topology_") for gap in gaps
             ):
                 message = "installed proposal publication plan is unavailable"

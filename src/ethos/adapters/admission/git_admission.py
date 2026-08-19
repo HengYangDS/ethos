@@ -32,7 +32,7 @@ from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.configuration import release_config
-from ethos.repository.release.publication import publication_branch_admission
+from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 
 if TYPE_CHECKING:
@@ -148,16 +148,22 @@ def push_admission_report(
     )
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
-    branch = target_ref.removeprefix("refs/heads/")
-    role = policy.role_for_branch(branch)
-    topology = publication_topology(repo, release_config(repo))
-    branch_admission = publication_branch_admission(
+    branch = target_ref.removeprefix("refs/heads/") if target_ref.startswith("refs/heads/") else ""
+    config = release_config(repo)
+    protected_refs = config.get("protected_refs")
+    raw_tags = protected_refs.get("tags") if isinstance(protected_refs, dict) else ()
+    release_tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, list) else ()
+    topology = publication_topology(repo, config)
+    ref_admission = publication_ref_admission(
         topology,
-        branch=branch,
-        role=role,
+        policy=policy,
+        target_ref=target_ref,
+        release_tags=release_tags,
         remote_name=remote_name,
     )
-    branch_gaps = list(cast("list[str]", branch_admission["enforcement_gaps"]))
+    role = str(ref_admission["role"])
+    ref_kind = str(ref_admission["ref_kind"])
+    ref_gaps = list(cast("list[str]", ref_admission["enforcement_gaps"]))
     reconcile = (
         replace(
             reconciliation,
@@ -178,14 +184,20 @@ def push_admission_report(
     )
     identity_gaps = list(cast("list[str]", identity["required_gaps"]))
     base: dict[str, object] = {"verdict": "pass", "state": "admitted", "hook": "pre-push"}
-    base.update(target_ref=target_ref, target_branch=branch, role=role, remote_name=remote_name)
+    base.update(
+        target_ref=target_ref,
+        target_branch=branch,
+        ref_kind=ref_kind,
+        role=role,
+        remote_name=remote_name,
+    )
     base.update(pushed_head=pushed_head, remote_head=remote_head)
     base.update(
-        publication_branch_admission=branch_admission,
+        publication_ref_admission=ref_admission,
         identity_policy=identity,
     )
     base.update(decision={"action": "allow", "reason": "push_admitted"}, required_gaps=[])
-    if role in PROTECTED_WRITE_ROLES and not branch_gaps:
+    if role in PROTECTED_WRITE_ROLES and not ref_gaps:
         proof_gap_list = proof_gaps(repo, pushed_head)
     else:
         proof_gap_list = []
@@ -207,7 +219,7 @@ def push_admission_report(
     gaps = list(
         dict.fromkeys(
             (
-                *branch_gaps,
+                *ref_gaps,
                 *identity_gaps,
                 *proof_gap_list,
                 *topology_gaps,
@@ -218,12 +230,12 @@ def push_admission_report(
     if not gaps:
         return base
     reason = (
-        "publication_remote_role_unavailable"
-        if any(gap.startswith("publication_remote_role_unavailable:") for gap in branch_gaps)
+        "publication_ref_unavailable"
+        if any(gap.startswith("publication_ref_unavailable:") for gap in ref_gaps)
         else "publication_remote_name_missing"
-        if "publication_remote_name_missing" in branch_gaps
+        if "publication_remote_name_missing" in ref_gaps
         else "publication_remote_target_unknown"
-        if any(gap.startswith("publication_remote_target_unknown:") for gap in branch_gaps)
+        if any(gap.startswith("publication_remote_target_unknown:") for gap in ref_gaps)
         else "push_to_protected_role_not_proven"
         if proof_gap_list or topology_gaps or local_closeout_gaps
         else "pushed_commit_identity_not_allowed"

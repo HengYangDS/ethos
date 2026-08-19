@@ -7,13 +7,16 @@ import re
 import shlex
 import shutil
 from collections.abc import Mapping
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 from typing import cast
 
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import ROLE_OTHER
 from ethos.contracts.branch.roles import ROLE_PROPOSAL_LANE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
+from ethos.contracts.branch.roles import BranchRolePolicy
 
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -22,7 +25,8 @@ _DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers"))
 _PEER_FIELDS = frozenset(("id", "provider", "role", "git_remote", "capabilities", "ci_surface"))
 _REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
 _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
-_REMOTE_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_PROPOSAL_LANE, ROLE_RELEASE_ROOT))
+_BRANCH_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_PROPOSAL_LANE, ROLE_RELEASE_ROOT))
+_RELEASE_PUBLICATION = "release_publication"
 
 
 def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
@@ -46,22 +50,41 @@ def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, obj
     return _topology(local=local, peers=tuple(peers), gaps=tuple(dict.fromkeys(gaps)))
 
 
-def publication_branch_admission(
-    topology: Mapping[str, object], *, branch: str, role: str, remote_name: str
+def publication_ref_admission(
+    topology: Mapping[str, object],
+    *,
+    policy: BranchRolePolicy,
+    target_ref: str,
+    release_tags: tuple[str, ...],
+    remote_name: str,
 ) -> dict[str, object]:
-    """Admit a declared target only for roles with remote publication capability."""
+    """Resolve and admit one complete remote ref through the positive topology."""
     gaps = _strings(topology.get("required_gaps"))
-    if role not in _REMOTE_PUBLICATION_ROLES:
-        gaps.append(f"publication_remote_role_unavailable:{role}:{branch}")
+    if target_ref.startswith("refs/heads/"):
+        ref_kind = "branch"
+        role = policy.role_for_branch(target_ref.removeprefix("refs/heads/"))
+        allowed = role in _BRANCH_PUBLICATION_ROLES
+    elif target_ref.startswith("refs/tags/"):
+        ref_kind = "tag"
+        tag = target_ref.removeprefix("refs/tags/")
+        allowed = any(fnmatchcase(tag, pattern) for pattern in release_tags)
+        role = _RELEASE_PUBLICATION if allowed else ROLE_OTHER
+    else:
+        ref_kind = "unknown"
+        role = ROLE_OTHER
+        allowed = False
+    if not allowed:
+        gaps.append(f"publication_ref_unavailable:{ref_kind}:{role}:{target_ref}")
     elif not remote_name:
         gaps.append("publication_remote_name_missing")
     elif not gaps and remote_name not in topology_remotes(topology).values():
         gaps.append(f"publication_remote_target_unknown:{remote_name}")
     gaps = list(dict.fromkeys(gaps))
     return {
-        "branch": branch,
+        "target_ref": target_ref,
+        "ref_kind": ref_kind,
         "role": role,
-        "remote_publication_roles": sorted(_REMOTE_PUBLICATION_ROLES),
+        "allowed_effect": "git.ref.compare-and-swap" if allowed else "",
         "remote_name": remote_name,
         "declared_remote_names": sorted(set(topology_remotes(topology).values())),
         "remote_mutation_allowed": not gaps,
@@ -210,8 +233,10 @@ def _topology(
             "verification_command": local.get("local_verification_command", ""),
             "installation_command": local.get("local_installation_command", ""),
         },
-        "branch_admission": {
-            "remote_publication_roles": sorted(_REMOTE_PUBLICATION_ROLES),
+        "ref_admission": {
+            "branch_roles": sorted(_BRANCH_PUBLICATION_ROLES),
+            "tag_role": _RELEASE_PUBLICATION,
+            "allowed_effect": "git.ref.compare-and-swap",
         },
         "remotes": list(peers),
         "required_gaps": list(gaps),

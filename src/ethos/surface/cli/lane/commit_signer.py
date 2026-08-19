@@ -7,8 +7,8 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.adapters.repo.commit_identity import authorize_configured_commit_signer
-from ethos.adapters.repo.commit_identity import commit_trust_setup_action
+from ethos.adapters.repo.git_object import authorize_configured_commit_signer
+from ethos.adapters.repo.git_object import commit_trust_setup_action
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
 from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result

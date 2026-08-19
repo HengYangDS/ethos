@@ -7,6 +7,7 @@ import pytest
 import ethos.repository.release.configuration as release_core
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.publication import PublicationEffect
+from ethos.contracts.publication import PublicationSource
 from ethos.contracts.publication import PublicationTarget
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
@@ -313,12 +314,25 @@ def test_publication_effect_owns_exact_full_ref_cas() -> None:
 
     effect = PublicationEffect.compile(
         repository_common_dir="/repo/.git",
-        source_object="1" * 40,
+        source=PublicationSource(
+            kind="annotated-tag",
+            object_oid="1" * 40,
+            peeled_commit="2" * 40,
+            tree_oid="3" * 40,
+            signature={
+                "verdict": "pass",
+                "principal": "release@example.invalid",
+                "fingerprint": "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "trust_anchor_sha256": "4" * 64,
+                "verifier": "git verify-tag",
+                "verifier_version": "git version 2.55.0",
+            },
+        ),
         targets=(target,),
     )
 
     assert effect.operation == "git.ref.compare-and-swap"
-    assert effect.source_object == "1" * 40
+    assert effect.source.object_oid == "1" * 40
     assert effect.targets == (target,)
 
 

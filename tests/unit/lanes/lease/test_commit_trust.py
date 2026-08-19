@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.repo.commit_identity import authorize_configured_commit_signer
-from ethos.adapters.repo.commit_identity import commit_trust_setup_action
-from ethos.adapters.repo.commit_identity import verify_commit_trust
+from ethos.adapters.repo.git_object import authorize_configured_commit_signer
+from ethos.adapters.repo.git_object import commit_trust_setup_action
+from ethos.adapters.repo.git_object import verify_commit_trust
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git

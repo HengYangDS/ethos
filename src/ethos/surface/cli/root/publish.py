@@ -220,7 +220,7 @@ def _proposal_effect_observation(
     target_ref = f"refs/heads/{proposal_branch}"
     effect, observations, effect_gaps = observe_remote_publication_effect(
         root=repo,
-        source_object=current_head,
+        source_ref=current_head,
         target_ref=target_ref,
         remotes=remotes,
     )
@@ -230,7 +230,7 @@ def _proposal_effect_observation(
         current_head=current_head,
         remotes=remotes,
         observed_heads={
-            peer_id: str(observation.get("head") or "0" * 40)
+            peer_id: str(observation.get("object_oid") or git.zero_oid(repo))
             for peer_id, observation in observations.items()
         },
         effect_gaps=effect_gaps,
@@ -310,7 +310,7 @@ def _publish_proposal(
             if plan.verdict == "pass":
                 request = persist_remote_publication_request(repo, plan)
 
-    if effect is not None and effect.source_object != current_head:
+    if effect is not None and effect.source.peeled_commit != current_head:
         gaps.append("remote_publication_receipt_head_mismatch")
     gaps = list(dict.fromkeys(gaps))
     verdict: Verdict = "block" if gaps or local_verdict != "pass" else "pass"

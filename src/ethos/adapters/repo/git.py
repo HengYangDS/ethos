@@ -303,6 +303,23 @@ def current_tree(
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
+def object_format(root: Path) -> str:
+    """Return the repository object format reported by Git."""
+    completed = run_git(root, "rev-parse", "--show-object-format", check=False)
+    value = completed.stdout.strip() if completed.returncode == 0 else ""
+    return value if value in {"sha1", "sha256"} else ""
+
+
+def zero_oid(root: Path) -> str:
+    """Return the null object ID at the repository's native hash width."""
+    widths = {"sha1": 40, "sha256": 64}
+    width = widths.get(object_format(root))
+    if width is None:
+        message = "git_object_format_unavailable"
+        raise ValueError(message)
+    return "0" * width
+
+
 def git_stdout_checked(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stdout, raising on failure."""
     completed = run_git(root, *args)

@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.repo.commit_identity import verify_commit_trust
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import effective_git_config_value
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import verify_commit_trust
 
 if TYPE_CHECKING:
     from collections.abc import Callable

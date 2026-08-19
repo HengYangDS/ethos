@@ -1,8 +1,8 @@
 ## 1. Establish the failing public contract
 
-- [ ] 1.1 Add full-ref admission tests proving an annotated release tag is
+- [x] 1.1 Add full-ref admission tests proving an annotated release tag is
   classified positively and candidate or Work Lane refs remain local only.
-- [ ] 1.2 Add bare-peer E2E proving one local commit and annotated tag retain
+- [x] 1.2 Add bare-peer E2E proving one local commit and annotated tag retain
   exact object, peeled commit, and tree OIDs across two independent peers.
 - [ ] 1.3 Add zero-peer, one-peer, zero-OID creation, already-current,
   divergent-peer, peer-local atomic, and partial-effect replay cases.
@@ -11,11 +11,11 @@
 
 ## 2. Replace branch-only publication ownership
 
-- [ ] 2.1 Introduce one typed local Git object and full-ref target contract for
+- [x] 2.1 Introduce one typed local Git object and full-ref target contract for
   accepted, release, proposal, and annotated release-tag publication.
-- [ ] 2.2 Replace `publication_branch_admission` with one ref-kind to lifecycle
+- [x] 2.2 Replace `publication_branch_admission` with one ref-kind to lifecycle
   role to allowed-effect resolver and remove branch-only output fields.
-- [ ] 2.3 Replace the proposal-only publication effect and plan with the generic
+- [x] 2.3 Replace the proposal-only publication effect and plan with the generic
   exact-object target set without aliases, fallback readers, or dual schemas.
 
 ## 3. Execute and verify exact peer effects
@@ -23,9 +23,9 @@
 - [ ] 3.1 Derive repository object format and zero OID, compile explicit
   force-with-lease coordinates, and use peer-local atomic push for a declared
   multi-ref target set.
-- [ ] 3.2 Verify the local source signature through Git/OpenSSH before effect
+- [x] 3.2 Verify the local source signature through Git/OpenSSH before effect
   compilation and bind verifier principal, fingerprint, and trust-root digest.
-- [ ] 3.3 Re-read each peer and verify commit OID or tag object OID, peeled
+- [x] 3.3 Re-read each peer and verify commit OID or tag object OID, peeled
   commit, and tree before recording complete or partial publication evidence.
 - [ ] 3.4 Bind the selected exact proof Attestation into the TransitionPlan and
   project one executable proof command from both CLI and hook failures.

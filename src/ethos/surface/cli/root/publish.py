@@ -16,8 +16,7 @@ from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.proof import proof_for_repository_transition
-from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.remote_publication import apply_remote_publication_effect
 from ethos.adapters.mutation.remote_publication import compile_remote_publication_request
 from ethos.adapters.mutation.remote_publication import load_remote_publication_request
@@ -40,6 +39,7 @@ from ethos.domain.land.publication import publication_with_remote_matrix
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
+from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
@@ -138,6 +138,7 @@ def _publication_admission_gaps(
     remotes: Mapping[str, str],
     observed_heads: Mapping[str, str],
     effect_gaps: tuple[str, ...],
+    proof_admission: Mapping[str, object],
 ) -> tuple[tuple[str, ...], dict[str, dict[str, object]]]:
     reports = {
         peer_id: push_admission_report(
@@ -146,15 +147,17 @@ def _publication_admission_gaps(
             pushed_head=current_head,
             remote_head=observed_heads.get(peer_id, "0" * 40),
             remote_name=remote,
+            proof_admission=proof_admission,
         )
         for peer_id, remote in remotes.items()
     }
+    proof_gaps = set(string_sequence(proof_admission.get("required_gaps")))
     gaps = tuple(
         dict.fromkeys(
             (
                 *effect_gaps,
                 *(
-                    f"{gap}:{peer_id}"
+                    gap if gap in proof_gaps else f"{gap}:{peer_id}"
                     for peer_id, report in reports.items()
                     for gap in string_sequence(report.get("required_gaps"))
                 ),
@@ -212,6 +215,7 @@ def _publication_effect_observation(
     target_ref: str,
     current_head: str,
     remotes: dict[str, str],
+    proof_admission: Mapping[str, object],
 ) -> tuple[
     PublicationEffect | None,
     dict[str, dict[str, object]],
@@ -238,6 +242,7 @@ def _publication_effect_observation(
             for peer_id, observation in observations.items()
         },
         effect_gaps=effect_gaps,
+        proof_admission=proof_admission,
     )
     return effect, observations, reports, admission_gaps
 
@@ -257,6 +262,7 @@ def _publish_projection(
     target_ref: str,
     audit: Mapping[str, object],
     independent_verification: Mapping[str, object],
+    proof_admission: Mapping[str, object],
     json_output: bool,
 ) -> None:
     """Derive or replay one full-ref plan through the sole execution path."""
@@ -307,10 +313,17 @@ def _publish_projection(
             target_ref=target_ref,
             current_head=current_head,
             remotes=remotes,
+            proof_admission=proof_admission,
         )
         gaps.extend(admission_gaps)
         if effect is not None:
-            plan = compile_remote_publication_request(root=repo, effect=effect)
+            proof = _object_mapping(proof_admission.get("attestation"))
+            if proof:
+                proof = {
+                    **proof,
+                    "selection": str(proof_admission.get("selection") or ""),
+                }
+            plan = compile_remote_publication_request(root=repo, effect=effect, proof=proof)
             gaps.extend(plan.required_gaps)
             if plan.verdict == "pass":
                 request = persist_remote_publication_request(repo, plan)
@@ -337,13 +350,15 @@ def _publish_projection(
         if verdict == "pass"
         else "blocked"
     )
+    proof_next_action = str(proof_admission.get("next_action") or "")
     next_action = (
         f"ethos publish --receipt {request['path']} --receipt-sha256 {request['sha256']} "
         f"--apply --authorize --expect-head {current_head} --json"
         if not options.apply and verdict == "pass"
         else ""
         if options.apply and verdict == "pass"
-        else "ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json"
+        else proof_next_action
+        or "ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json"
     )
     effect_digest = effect.digest() if effect is not None else ""
     plan_digest = plan.digest if plan is not None else ""
@@ -393,6 +408,7 @@ def _publish_projection(
             data={
                 "repository_audit": dict(audit),
                 "independent_verification": dict(independent_verification),
+                "proof_admission": dict(proof_admission),
                 "remote_topology": dict(remote_topology),
                 "remote_observations": observations,
                 "push_admission": push_admission,
@@ -444,12 +460,32 @@ def publish(
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
-    terminal_gaps: tuple[str, ...] = ()
-    if decision.verdict != "block":
-        if status_payload["role"] == "accepted_root":
-            terminal_gaps = tuple(proof_for_repository_transition(repo, current_head)[1])
-        else:
-            terminal_gaps = tuple(proof_gaps(repo, current_head))
+    policy = load_branch_role_policy(repo)
+    target_role = (
+        policy.role_for_branch(options.target_ref.removeprefix("refs/heads/"))
+        if options.target_ref and options.target_ref.startswith("refs/heads/")
+        else "release_publication"
+        if options.target_ref and options.target_ref.startswith("refs/tags/")
+        else str(status_payload["role"])
+    )
+    proof_admission = (
+        proof_admission_report(
+            repo,
+            current_head,
+            repository_transition=publication_proof_selection(target_role)
+            == "repository_transition",
+        )
+        if decision.verdict != "block"
+        else {
+            "verdict": "block",
+            "state": "unavailable",
+            "selection": "",
+            "attestation": {},
+            "required_gaps": [],
+            "next_action": "",
+        }
+    )
+    terminal_gaps = tuple(string_sequence(proof_admission.get("required_gaps")))
     gaps = tuple(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
@@ -474,7 +510,6 @@ def publish(
     )
     gaps = tuple(dict.fromkeys((*gaps, *topology_gaps)))
     local_verdict = reduce_verdicts(local_verdict, required_gaps=gaps)
-    policy = load_branch_role_policy(repo)
     configured_remotes = topology_remotes(remote_topology)
     if projection_mode:
         _publish_projection(
@@ -491,6 +526,7 @@ def publish(
             target_ref=options.target_ref or "",
             audit=audit,
             independent_verification=independent_verification,
+            proof_admission=proof_admission,
             json_output=json_output,
         )
         return

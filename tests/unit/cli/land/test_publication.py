@@ -158,18 +158,13 @@ def test_publish_observes_gitlab_and_github_independently_without_push(
 
 
 def test_publish_local_only_does_not_observe_or_require_a_remote(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     _write_local_only_publication(repo)
     head = commit_fixture(repo, "declare local-only publication")
     seed_executed_proof(repo, head)
-    monkeypatch.setattr(publication_cli, "proof_gaps", lambda *_args: ["stale"])
-    monkeypatch.setattr(
-        publication_cli, "proof_for_repository_transition", lambda *_a: (object(), [])
-    )
-
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 
     assert payload["verdict"] == "pass"
@@ -437,7 +432,15 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
     }
     assert all(observation["object_oid"] == "0" * 40 for observation in observations.values())
 
-    plan = remote_publication.compile_remote_publication_request(root=repo, effect=effect)
+    seed_executed_proof(repo, commit)
+    proof = publication_cli.proof_admission_report(repo, commit, repository_transition=True)[
+        "attestation"
+    ]
+    plan = remote_publication.compile_remote_publication_request(
+        root=repo,
+        effect=effect,
+        proof={**proof, "selection": "repository_transition"},
+    )
     applied = remote_publication.apply_remote_publication_effect(root=repo, plan=plan)
 
     assert applied["state"] == "applied"
@@ -490,7 +493,15 @@ def test_publication_apply_rechecks_bound_local_object_trust_before_any_push(
     )
     assert gaps == ()
     assert effect is not None
-    plan = remote_publication.compile_remote_publication_request(root=repo, effect=effect)
+    seed_executed_proof(repo, effect.source.peeled_commit)
+    proof = publication_cli.proof_admission_report(
+        repo, effect.source.peeled_commit, repository_transition=True
+    )["attestation"]
+    plan = remote_publication.compile_remote_publication_request(
+        root=repo,
+        effect=effect,
+        proof={**proof, "selection": "repository_transition"},
+    )
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
     anchor.write_text("", encoding="utf-8")
 
@@ -589,6 +600,41 @@ def test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation(
     assert {_proposal_ref(remote) for remote in remotes.values()} == {head}
 
 
+def test_publish_and_pre_push_bind_the_same_exact_proof_attestation(tmp_path: Path) -> None:
+    repo, _remotes, head = _branch_publication_fixture(tmp_path)
+
+    payload = _branch_publication(repo, head)
+    plan = TransitionPlan.model_validate(payload["data"]["transition_plan"])
+    reports = payload["data"]["push_admission"]
+    selected = {report["proof_admission"]["attestation"]["id"] for report in reports.values()}
+
+    assert len(selected) == 1
+    proof = plan.prior_attestations["proof"]
+    assert proof["id"] == selected.pop()
+    assert proof["commit"] == head
+    assert proof["tree"] == git(repo, "rev-parse", f"{head}^{{tree}}")
+    assert proof["verdict"] == "pass"
+    assert proof["policy_digest"]
+    assert proof["gate_ids"]
+    assert all(report["next_action"] == "" for report in reports.values())
+
+
+def test_publish_and_pre_push_report_the_same_exact_missing_proof_action(tmp_path: Path) -> None:
+    repo, _remotes, head = _branch_publication_fixture(tmp_path)
+    attestation_root = git(repo, "rev-parse", "--verify", "refs/ethos/attestations-set")
+    git(repo, "update-ref", "-d", "refs/ethos/attestations-set", attestation_root)
+
+    payload = _branch_publication(repo, head, blocked=True)
+    action = f"ethos prove --execute --expect-head {head} --json"
+
+    assert payload["required_gaps"] == ["proof_not_proven"]
+    assert payload["next_action"] == action
+    assert payload["data"]["proof_admission"]["next_action"] == action
+    assert {report["next_action"] for report in payload["data"]["push_admission"].values()} == {
+        action
+    }
+
+
 def test_publish_branch_retry_records_one_terminal_attestation_after_interruption(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -663,6 +709,21 @@ def test_publish_branch_receipt_rejects_remote_drift_before_any_push(tmp_path: P
     blocked = _receipt(repo, receipt, head, blocked=True)
     assert blocked["required_gaps"] == [f"publication_target_drift:gitlab:proposal/{_PROPOSAL}"]
     assert (_proposal_ref(remotes["gitlab"]), _proposal_ref(remotes["github"])) == (drift, "")
+
+
+def test_publish_branch_receipt_rejects_selected_proof_drift_before_any_push(
+    tmp_path: Path,
+) -> None:
+    repo, remotes, head = _branch_publication_fixture(tmp_path)
+    receipt = _branch_publication(repo, head)["data"]["request_receipt"]
+    selected = git(repo, "rev-parse", "--verify", "refs/ethos/attestations-set")
+    git(repo, "update-ref", "-d", "refs/ethos/attestations-set", selected)
+    seed_executed_proof(repo, head)
+
+    blocked = _receipt(repo, receipt, head, blocked=True)
+
+    assert blocked["required_gaps"] == ["publication_proof_drift"]
+    assert {_proposal_ref(remote) for remote in remotes.values()} == {""}
 
 
 def test_publish_branch_supports_one_declared_gitlab_peer(tmp_path: Path) -> None:

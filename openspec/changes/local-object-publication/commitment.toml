@@ -22,6 +22,7 @@ scope = [
   "src/ethos/adapters/admission/ref_move_policy.py",
   "src/ethos/adapters/mutation/lane_lifecycle/identity_repair.py",
   "src/ethos/adapters/mutation/lane_lifecycle/work_lane_refresh.py",
+  "src/ethos/adapters/mutation/proof.py",
   "src/ethos/adapters/mutation/remote_publication.py",
   "src/ethos/adapters/repo/git.py",
   "src/ethos/adapters/repo/git_object.py",

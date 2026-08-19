@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -18,6 +19,7 @@ from ethos.adapters.admission.ref_move_policy import prepared_ref_intent_gaps
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
+from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.repo.git import git_stdout
@@ -32,6 +34,7 @@ from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.configuration import release_config
+from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 
@@ -197,10 +200,32 @@ def push_admission_report(
         identity_policy=identity,
     )
     base.update(decision={"action": "allow", "reason": "push_admitted"}, required_gaps=[])
-    if role in PROTECTED_WRITE_ROLES and not ref_gaps:
-        proof_gap_list = proof_gaps(repo, pushed_head)
-    else:
-        proof_gap_list = []
+    proof_head = (
+        git_stdout(repo, "rev-parse", "--verify", f"{pushed_head}^{{commit}}")
+        if ref_kind == "tag"
+        else pushed_head
+    )
+    supplied_proof = options.get("proof_admission")
+    proof_admission = (
+        dict(supplied_proof)
+        if isinstance(supplied_proof, Mapping)
+        else proof_admission_report(
+            repo,
+            proof_head,
+            repository_transition=publication_proof_selection(role) == "repository_transition",
+        )
+        if not ref_gaps and proof_head
+        else {
+            "verdict": "block",
+            "state": "unavailable",
+            "selection": "",
+            "attestation": {},
+            "required_gaps": [],
+            "next_action": "",
+        }
+    )
+    proof_gap_list = list(cast("list[str]", proof_admission["required_gaps"]))
+    base["proof_admission"] = proof_admission
     topology_gaps = (
         accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
         if branch == policy.accepted_branch
@@ -227,6 +252,7 @@ def push_admission_report(
             )
         )
     )
+    base["next_action"] = str(proof_admission.get("next_action") or "")
     if not gaps:
         return base
     reason = (

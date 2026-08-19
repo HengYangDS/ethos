@@ -27,6 +27,12 @@ _REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
 _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
 _BRANCH_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_PROPOSAL_LANE, ROLE_RELEASE_ROOT))
 _RELEASE_PUBLICATION = "release_publication"
+_REPOSITORY_PROOF_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_RELEASE_ROOT, _RELEASE_PUBLICATION))
+
+
+def publication_proof_selection(role: str) -> str:
+    """Return the sole proof selection mode for one publication lifecycle role."""
+    return "repository_transition" if role in _REPOSITORY_PROOF_ROLES else "current_commitment"
 
 
 def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
@@ -84,6 +90,7 @@ def publication_ref_admission(
         "target_ref": target_ref,
         "ref_kind": ref_kind,
         "role": role,
+        "proof_selection": publication_proof_selection(role),
         "allowed_effect": "git.ref.compare-and-swap" if allowed else "",
         "remote_name": remote_name,
         "declared_remote_names": sorted(set(topology_remotes(topology).values())),

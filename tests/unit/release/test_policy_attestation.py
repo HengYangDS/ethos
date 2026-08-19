@@ -255,15 +255,21 @@ def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
 
 
 @pytest.mark.parametrize(
-    ("target_ref", "ref_kind", "role", "state"),
+    ("target_ref", "ref_kind", "role", "proof_selection", "state"),
     [
-        ("refs/heads/dev", "branch", "accepted_root", "eligible"),
-        ("refs/heads/main", "branch", "release_root", "eligible"),
-        ("refs/heads/proposal/topic", "branch", "proposal_lane", "eligible"),
-        ("refs/tags/v1.2.3", "tag", "release_publication", "eligible"),
-        ("refs/heads/candidate/dev", "branch", "candidate", "unavailable"),
-        ("refs/heads/work/topic", "branch", "work_lane", "unavailable"),
-        ("refs/tags/nightly", "tag", "other", "unavailable"),
+        ("refs/heads/dev", "branch", "accepted_root", "repository_transition", "eligible"),
+        ("refs/heads/main", "branch", "release_root", "repository_transition", "eligible"),
+        (
+            "refs/heads/proposal/topic",
+            "branch",
+            "proposal_lane",
+            "current_commitment",
+            "eligible",
+        ),
+        ("refs/tags/v1.2.3", "tag", "release_publication", "repository_transition", "eligible"),
+        ("refs/heads/candidate/dev", "branch", "candidate", "current_commitment", "unavailable"),
+        ("refs/heads/work/topic", "branch", "work_lane", "current_commitment", "unavailable"),
+        ("refs/tags/nightly", "tag", "other", "current_commitment", "unavailable"),
     ],
 )
 def test_release_topology_admits_only_positive_full_ref_roles(
@@ -271,6 +277,7 @@ def test_release_topology_admits_only_positive_full_ref_roles(
     target_ref: str,
     ref_kind: str,
     role: str,
+    proof_selection: str,
     state: str,
 ) -> None:
     for path in ("dev/verify", "dev/install"):
@@ -291,6 +298,7 @@ def test_release_topology_admits_only_positive_full_ref_roles(
     assert admission["target_ref"] == target_ref
     assert admission["ref_kind"] == ref_kind
     assert admission["role"] == role
+    assert admission["proof_selection"] == proof_selection
     assert admission["allowed_effect"] == (
         "git.ref.compare-and-swap" if state == "eligible" else ""
     )

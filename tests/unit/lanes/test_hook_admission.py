@@ -509,7 +509,7 @@ def test_push_topology_and_proof_state_matrix(tmp_path: Path) -> None:
     write_publication_topology(repo)
     head = git(repo, "rev-parse", "HEAD")
     for ref, gap in (
-        ("refs/heads/dev", "proof"),
+        ("refs/heads/dev", "repository_commitment_missing"),
         (
             "refs/heads/work/feature",
             "publication_ref_unavailable:branch:work_lane:refs/heads/work/feature",

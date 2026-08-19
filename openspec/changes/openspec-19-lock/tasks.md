@@ -14,4 +14,3 @@
 - [x] 3.1 Run `npm ci` with the locked dependency.
 - [x] 3.2 Run OpenSpec 1.9 strict validation and doctor.
 - [x] 3.3 Run the focused archive-transition contract test.
-- [ ] 3.4 Archive this Change through the governed lifecycle with the resulting evidence.

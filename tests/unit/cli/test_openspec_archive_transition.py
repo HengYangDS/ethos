@@ -76,7 +76,7 @@ def test_archive_change_owns_official_archive_commit_and_lease_transition(
     assert report["previous_head"] == completed_head
     assert report["head"] == archived_head
     assert report["archive_path"].endswith("-fixture-change")
-    assert report["tool_version"] == "1.8.0"
+    assert report["tool_version"] == "1.9.0"
     assert report["required_gaps"] == []
     assert not (worktree / "openspec/changes/fixture-change").exists()
     assert (worktree / report["archive_path"] / "commitment.toml").is_file()

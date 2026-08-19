@@ -4,7 +4,7 @@
   classified positively and candidate or Work Lane refs remain local only.
 - [x] 1.2 Add bare-peer E2E proving one local commit and annotated tag retain
   exact object, peeled commit, and tree OIDs across two independent peers.
-- [ ] 1.3 Add zero-peer, one-peer, zero-OID creation, already-current,
+- [x] 1.3 Add zero-peer, one-peer, zero-OID creation, already-current,
   divergent-peer, peer-local atomic, and partial-effect replay cases.
 - [x] 1.4 Add a proof-admission regression proving public publish and pre-push
   consume the same exact commit, tree, gate-set, and Attestation authority.
@@ -20,7 +20,7 @@
 
 ## 3. Execute and verify exact peer effects
 
-- [ ] 3.1 Derive repository object format and zero OID, compile explicit
+- [x] 3.1 Derive repository object format and zero OID, compile explicit
   force-with-lease coordinates, and use peer-local atomic push for a declared
   multi-ref target set.
 - [x] 3.2 Verify the local source signature through Git/OpenSSH before effect

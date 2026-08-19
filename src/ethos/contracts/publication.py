@@ -56,16 +56,32 @@ class PublicationSource(BaseModel):
         return self
 
 
+class PublicationUpdate(BaseModel):
+    """One exact-CAS full-ref update within a peer transaction."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    target_ref: str = Field(pattern=r"^refs/(?:heads|tags)/.+")
+    expected: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    desired: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+
+
 class PublicationTarget(BaseModel):
-    """One peer-local exact-CAS full-ref target."""
+    """One peer-local atomic transaction containing one or more ref updates."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     id: str = Field(min_length=1)
     remote: str = Field(min_length=1)
-    target_ref: str = Field(pattern=r"^refs/(?:heads|tags)/.+")
-    expected: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    desired: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    updates: tuple[PublicationUpdate, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_updates(self) -> Self:
+        refs = tuple(update.target_ref for update in self.updates)
+        if len(refs) != len(set(refs)):
+            message = "publication_target_ref_duplicate"
+            raise ValueError(message)
+        return self
 
 
 class PublicationEffect(BaseModel):
@@ -82,16 +98,17 @@ class PublicationEffect(BaseModel):
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
-        identities = tuple((target.id, target.remote, target.target_ref) for target in self.targets)
+        identities = tuple((target.id, target.remote) for target in self.targets)
         if len(identities) != len(set(identities)):
             message = "publication_target_duplicate"
             raise ValueError(message)
-        if any(target.desired != self.source.object_oid for target in self.targets):
+        updates = tuple(update for target in self.targets for update in target.updates)
+        if any(update.desired != self.source.object_oid for update in updates):
             message = "publication_target_source_mismatch"
             raise ValueError(message)
         ref_kinds = {
-            "annotated-tag" if target.target_ref.startswith("refs/tags/") else "commit"
-            for target in self.targets
+            "annotated-tag" if update.target_ref.startswith("refs/tags/") else "commit"
+            for update in updates
         }
         if ref_kinds != {self.source.kind}:
             message = "publication_target_source_kind_mismatch"
@@ -111,21 +128,17 @@ class PublicationEffect(BaseModel):
         targets: tuple[PublicationTarget, ...],
     ) -> PublicationEffect:
         source_kinds = {
-            "annotated-tag" if target.target_ref.startswith("refs/tags/") else "commit"
+            "annotated-tag" if update.target_ref.startswith("refs/tags/") else "commit"
             for target in targets
+            for update in target.updates
         }
         if len(source_kinds) != 1:
             message = "publication_target_ref_kind_mismatch"
             raise ValueError(message)
-        return cls.model_validate(
-            {
-                "schema_version": 1,
-                "kind": "publication-effect",
-                "operation": "git.ref.compare-and-swap",
-                "repository_common_dir": repository_common_dir,
-                "source": source.model_dump(mode="json"),
-                "targets": tuple(target.model_dump(mode="json") for target in targets),
-            }
+        return cls(
+            repository_common_dir=repository_common_dir,
+            source=source,
+            targets=targets,
         )
 
 

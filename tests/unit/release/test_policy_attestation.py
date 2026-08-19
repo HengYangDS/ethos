@@ -9,6 +9,7 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.publication import PublicationSource
 from ethos.contracts.publication import PublicationTarget
+from ethos.contracts.publication import PublicationUpdate
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
 from ethos.repository.release.publication import publication_ref_admission
@@ -315,9 +316,13 @@ def test_publication_effect_owns_exact_full_ref_cas() -> None:
     target = PublicationTarget(
         id="gitlab",
         remote="origin",
-        target_ref="refs/tags/v1.2.3",
-        expected="0" * 40,
-        desired="1" * 40,
+        updates=(
+            PublicationUpdate(
+                target_ref="refs/tags/v1.2.3",
+                expected="0" * 40,
+                desired="1" * 40,
+            ),
+        ),
     )
 
     effect = PublicationEffect.compile(

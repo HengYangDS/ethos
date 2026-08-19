@@ -6,7 +6,7 @@
   exact object, peeled commit, and tree OIDs across two independent peers.
 - [ ] 1.3 Add zero-peer, one-peer, zero-OID creation, already-current,
   divergent-peer, peer-local atomic, and partial-effect replay cases.
-- [ ] 1.4 Add a proof-admission regression proving public publish and pre-push
+- [x] 1.4 Add a proof-admission regression proving public publish and pre-push
   consume the same exact commit, tree, gate-set, and Attestation authority.
 
 ## 2. Replace branch-only publication ownership
@@ -27,7 +27,7 @@
   compilation and bind verifier principal, fingerprint, and trust-root digest.
 - [x] 3.3 Re-read each peer and verify commit OID or tag object OID, peeled
   commit, and tree before recording complete or partial publication evidence.
-- [ ] 3.4 Bind the selected exact proof Attestation into the TransitionPlan and
+- [x] 3.4 Bind the selected exact proof Attestation into the TransitionPlan and
   project one executable proof command from both CLI and hook failures.
 
 ## 4. Delete competing product-object paths

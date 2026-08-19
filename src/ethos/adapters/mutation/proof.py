@@ -13,6 +13,7 @@ from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
@@ -394,3 +395,52 @@ def proof_gaps(root: Path, head: str) -> list[str]:
         root, head, store=proof_artifact_root(root)
     )
     return gaps
+
+
+def proof_admission_report(
+    root: Path,
+    head: str,
+    *,
+    repository_transition: bool = False,
+) -> dict[str, object]:
+    """Project the one exact proof authority consumed by guarded transitions."""
+    attestation, gaps = (
+        proof_for_repository_transition(root, head)
+        if repository_transition
+        else ethos.adapters.mutation.proof_admission.proof_attestation(
+            root,
+            head,
+            store=proof_artifact_root(root),
+        )
+    )
+    next_action = f"ethos prove --execute --expect-head {head} --json" if gaps else ""
+    if attestation is None:
+        return {
+            "verdict": "block",
+            "state": "missing",
+            "selection": "repository_transition" if repository_transition else "current_commitment",
+            "attestation": {},
+            "required_gaps": gaps or ["proof_not_proven"],
+            "next_action": next_action,
+        }
+    plan = plan_from_statement(attestation)
+    return {
+        "verdict": "pass",
+        "state": "admitted",
+        "selection": "repository_transition" if repository_transition else "current_commitment",
+        "attestation": {
+            "id": attestation.id,
+            "predicate": attestation.predicate,
+            "verdict": attestation.verdict,
+            "commit": head,
+            "tree": str(plan.facts.get("tree") or ""),
+            "commitment_digest": attestation.commitment_digest,
+            "facts_digest": attestation.facts_digest,
+            "plan_digest": attestation.plan_digest,
+            "policy_digest": attestation.policy_digest,
+            "effect_digest": attestation.effect_digest,
+            "gate_ids": tuple(node.id for node in plan.nodes),
+        },
+        "required_gaps": [],
+        "next_action": "",
+    }

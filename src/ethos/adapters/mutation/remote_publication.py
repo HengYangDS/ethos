@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git as git
+from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git_object import observe_git_object
@@ -234,7 +236,9 @@ def load_remote_publication_request(
     return plan
 
 
-def compile_remote_publication_request(*, root: Path, effect: PublicationEffect) -> TransitionPlan:
+def compile_remote_publication_request(
+    *, root: Path, effect: PublicationEffect, proof: dict[str, object]
+) -> TransitionPlan:
     """Compile fresh remote observations into the common TransitionPlan."""
     commitment = load_repository_commitment(root, tree_ref=effect.source.peeled_commit)
     facts = Facts(
@@ -256,13 +260,14 @@ def compile_remote_publication_request(*, root: Path, effect: PublicationEffect)
         commitment=commitment,
         facts=facts,
         effect=effect,
-        prior_attestations={},
+        prior_attestations={"proof": proof},
     )
 
 
 def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict[str, object]:
     """Execute peer-local CAS pushes after a complete fresh preflight."""
     effect = publication_effect_from_plan(plan)
+    proof_gaps = _proof_drift_gaps(root, plan=plan, effect=effect)
     source_observation = observe_git_object(
         root,
         effect.source.object_oid,
@@ -274,6 +279,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         for target in effect.targets
     }
     gaps = (
+        *proof_gaps,
         *source_gaps,
         *tuple(
             f"publication_remote_unavailable:{target.id}:{target.remote}"
@@ -357,6 +363,33 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         failed="",
         pending=(),
         attempts=tuple(attempts),
+    )
+
+
+def _proof_drift_gaps(
+    root: Path,
+    *,
+    plan: TransitionPlan,
+    effect: PublicationEffect,
+) -> tuple[str, ...]:
+    """Re-select and compare the exact proof bound into the request."""
+    carried = plan.prior_attestations.get("proof")
+    if not isinstance(carried, Mapping) or not carried:
+        return ("publication_proof_binding_missing",)
+    selection = str(carried.get("selection") or "")
+    report = proof_admission_report(
+        root,
+        effect.source.peeled_commit,
+        repository_transition=selection == "repository_transition",
+    )
+    gaps = tuple(str(gap) for gap in report.get("required_gaps", ()))
+    if gaps:
+        return gaps
+    current = report.get("attestation")
+    if not isinstance(current, Mapping):
+        return ("publication_proof_binding_missing",)
+    return (
+        () if {**current, "selection": selection} == dict(carried) else ("publication_proof_drift",)
     )
 
 

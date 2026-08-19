@@ -194,7 +194,9 @@ def pre_push(
             "remote": str(report.get("remote_name", options.remote)),
             "decision": _decision_action(report),
         },
-        lambda verdict: _HEAD_BOUND_PROOF_ACTION if verdict != "pass" else "",
+        lambda verdict: (
+            str(report.get("next_action") or _HEAD_BOUND_PROOF_ACTION) if verdict != "pass" else ""
+        ),
     )
     emit(result, json_output=options.json_output, enforce=True)
 

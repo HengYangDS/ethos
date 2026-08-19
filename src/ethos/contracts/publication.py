@@ -20,6 +20,42 @@ from ethos.contracts.value import JsonObject
 from ethos.contracts.value import mutable_json
 
 
+class GitObjectSignature(BaseModel):
+    """Trusted Git/OpenSSH verification facts for one exact local object."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    verdict: Literal["pass"] = "pass"
+    principal: str = Field(min_length=1)
+    fingerprint: str = Field(pattern=r"^SHA256:[A-Za-z0-9+/=]+$")
+    trust_anchor_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    verifier: Literal["git verify-commit", "git verify-tag"]
+    verifier_version: str = Field(min_length=1)
+
+
+class PublicationSource(BaseModel):
+    """One already-created, trusted local Git publication object."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    kind: Literal["commit", "annotated-tag"]
+    object_oid: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    peeled_commit: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    tree_oid: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    signature: GitObjectSignature
+
+    @model_validator(mode="after")
+    def validate_verifier(self) -> Self:
+        expected = "git verify-tag" if self.kind == "annotated-tag" else "git verify-commit"
+        if self.signature.verifier != expected:
+            message = "publication_source_verifier_mismatch"
+            raise ValueError(message)
+        if self.kind == "commit" and self.peeled_commit != self.object_oid:
+            message = "publication_commit_peel_mismatch"
+            raise ValueError(message)
+        return self
+
+
 class PublicationTarget(BaseModel):
     """One peer-local exact-CAS full-ref target."""
 
@@ -41,8 +77,7 @@ class PublicationEffect(BaseModel):
     kind: Literal["publication-effect"] = "publication-effect"
     operation: Literal["git.ref.compare-and-swap"] = "git.ref.compare-and-swap"
     repository_common_dir: str = Field(min_length=1)
-    source_kind: Literal["commit", "annotated-tag"]
-    source_object: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    source: PublicationSource
     targets: tuple[PublicationTarget, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -51,14 +86,14 @@ class PublicationEffect(BaseModel):
         if len(identities) != len(set(identities)):
             message = "publication_target_duplicate"
             raise ValueError(message)
-        if any(target.desired != self.source_object for target in self.targets):
+        if any(target.desired != self.source.object_oid for target in self.targets):
             message = "publication_target_source_mismatch"
             raise ValueError(message)
         ref_kinds = {
             "annotated-tag" if target.target_ref.startswith("refs/tags/") else "commit"
             for target in self.targets
         }
-        if ref_kinds != {self.source_kind}:
+        if ref_kinds != {self.source.kind}:
             message = "publication_target_source_kind_mismatch"
             raise ValueError(message)
         return self
@@ -72,7 +107,7 @@ class PublicationEffect(BaseModel):
         cls,
         *,
         repository_common_dir: str,
-        source_object: str,
+        source: PublicationSource,
         targets: tuple[PublicationTarget, ...],
     ) -> PublicationEffect:
         source_kinds = {
@@ -88,8 +123,7 @@ class PublicationEffect(BaseModel):
                 "kind": "publication-effect",
                 "operation": "git.ref.compare-and-swap",
                 "repository_common_dir": repository_common_dir,
-                "source_kind": next(iter(source_kinds)),
-                "source_object": source_object,
+                "source": source.model_dump(mode="json"),
                 "targets": tuple(target.model_dump(mode="json") for target in targets),
             }
         )

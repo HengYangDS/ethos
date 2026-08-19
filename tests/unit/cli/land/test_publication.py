@@ -290,6 +290,10 @@ def _proposal_fixture(
 ) -> tuple[Path, dict[str, Path], str]:
     repo = init_git_repo(tmp_path / "proposal-repo")
     adopt_and_commit(repo)
+    _configure_publication_signer(repo, tmp_path)
+    (repo / "proposal.txt").write_text("signed proposal source\n", encoding="utf-8")
+    git(repo, "add", "proposal.txt")
+    git(repo, "commit", "-m", "feat: sign proposal source")
     head = git(repo, "rev-parse", "HEAD")
     if source_branch != "dev":
         git(repo, "branch", source_branch, head)
@@ -351,7 +355,7 @@ def _configure_publication_signer(repo: Path, root: Path) -> tuple[Path, str]:
     ).stdout.split()[1]
     anchor = root / "allowed-signers"
     anchor.write_text(
-        f'test@example.invalid namespaces="git" {public.read_text(encoding="utf-8").strip()}\n',
+        f'test@example.com namespaces="git" {public.read_text(encoding="utf-8").strip()}\n',
         encoding="utf-8",
     )
     anchor.chmod(0o600)
@@ -360,7 +364,7 @@ def _configure_publication_signer(repo: Path, root: Path) -> tuple[Path, str]:
         ("gpg.ssh.program", "/usr/bin/ssh-keygen"),
         ("gpg.ssh.allowedSignersFile", anchor.as_posix()),
         ("user.signingkey", public.as_posix()),
-        ("user.email", "test@example.invalid"),
+        ("user.email", "test@example.com"),
         ("commit.gpgsign", "true"),
     ):
         git(repo, "config", name, value)
@@ -400,8 +404,8 @@ def _signed_publication_fixture(
 def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
     tmp_path: Path,
 ) -> None:
-    repo, remotes, commit, tag, tree, fingerprint, anchor_sha256 = (
-        _signed_publication_fixture(tmp_path)
+    repo, remotes, commit, tag, tree, fingerprint, anchor_sha256 = _signed_publication_fixture(
+        tmp_path
     )
 
     effect, observations, gaps = remote_publication.observe_remote_publication_effect(
@@ -420,10 +424,11 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
         "tree_oid": tree,
         "signature": {
             "verdict": "pass",
-            "principal": "test@example.invalid",
+            "principal": "test@example.com",
             "fingerprint": fingerprint,
             "trust_anchor_sha256": anchor_sha256,
             "verifier": "git verify-tag",
+            "verifier_version": git(repo, "version"),
         },
     }
     assert all(observation["object_oid"] == "0" * 40 for observation in observations.values())
@@ -439,8 +444,8 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
 
 
 def test_publication_rejects_lightweight_or_untrusted_release_tags(tmp_path: Path) -> None:
-    repo, _remotes, commit, _tag, _tree, _fingerprint, _anchor_sha256 = (
-        _signed_publication_fixture(tmp_path)
+    repo, _remotes, commit, _tag, _tree, _fingerprint, _anchor_sha256 = _signed_publication_fixture(
+        tmp_path
     )
     git(repo, "tag", "lightweight", commit)
 
@@ -465,6 +470,32 @@ def test_publication_rejects_lightweight_or_untrusted_release_tags(tmp_path: Pat
     assert lightweight_gaps == ("publication_source_not_annotated_tag:refs/tags/lightweight",)
     assert untrusted is None
     assert untrusted_gaps == ("publication_source_signature_untrusted:refs/tags/v1.2.3",)
+
+
+def test_publication_apply_rechecks_bound_local_object_trust_before_any_push(
+    tmp_path: Path,
+) -> None:
+    repo, remotes, _commit, _tag, _tree, _fingerprint, _anchor_sha256 = _signed_publication_fixture(
+        tmp_path
+    )
+    effect, _observations, gaps = remote_publication.observe_remote_publication_effect(
+        root=repo,
+        source_ref="refs/tags/v1.2.3",
+        target_ref="refs/tags/v1.2.3",
+        remotes={"gitlab": "origin", "github": "github"},
+    )
+    assert gaps == ()
+    assert effect is not None
+    plan = remote_publication.compile_remote_publication_request(root=repo, effect=effect)
+    anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+    anchor.write_text("", encoding="utf-8")
+
+    blocked = remote_publication.apply_remote_publication_effect(root=repo, plan=plan)
+
+    assert blocked["state"] == "preflight_blocked"
+    assert blocked["required_gaps"] == ["publication_source_signature_drift"]
+    for remote in remotes.values():
+        assert git(remote, "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
 
 
 def test_publish_proposal_uses_git_ref_grammar_as_the_positive_name_authority(

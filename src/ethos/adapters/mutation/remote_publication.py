@@ -11,10 +11,12 @@ from typing import TYPE_CHECKING
 import ethos.adapters.repo.git as git
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.publication import PublicationEffect
+from ethos.contracts.publication import PublicationSource
 from ethos.contracts.publication import PublicationTarget
 from ethos.contracts.publication import compile_publication_plan
 from ethos.contracts.publication import publication_effect_from_plan
@@ -24,18 +26,26 @@ from ethos.contracts.semantic import Facts
 if TYPE_CHECKING:
     from ethos.contracts.verdict import Verdict
 
-_ZERO_OID = "0" * 40
-
 
 def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
-    completed = git.run_network_git(root, "ls-remote", remote, ref)
+    zero = git.zero_oid(root)
+    peeled_ref = f"{ref}^{{}}" if ref.startswith("refs/tags/") else ""
+    completed = git.run_network_git(
+        root,
+        "ls-remote",
+        remote,
+        ref,
+        *((peeled_ref,) if peeled_ref else ()),
+    )
     if completed.returncode != 0:
         return {
             "kind": "git_remote_ref_observation",
             "remote": remote,
             "ref": ref,
             "state": "unavailable",
-            "head": "",
+            "object_oid": "",
+            "peeled_commit": "",
+            "tree_oid": "",
             "exit_code": completed.returncode,
             "stderr": completed.stderr.strip(),
         }
@@ -46,17 +56,22 @@ def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
             "remote": remote,
             "ref": ref,
             "state": "absent",
-            "head": _ZERO_OID,
+            "object_oid": zero,
+            "peeled_commit": zero,
+            "tree_oid": zero,
             "exit_code": 0,
             "stderr": "",
         }
-    if len(rows) != 1 or len(rows[0]) != 2 or rows[0][1] != ref:
+    values = {row[1]: row[0] for row in rows if len(row) == 2}
+    if len(values) != len(rows) or ref not in values or set(values) - {ref, peeled_ref}:
         return {
             "kind": "git_remote_ref_observation",
             "remote": remote,
             "ref": ref,
             "state": "unavailable",
-            "head": "",
+            "object_oid": "",
+            "peeled_commit": "",
+            "tree_oid": "",
             "exit_code": 1,
             "stderr": "remote_ref_observation_ambiguous",
         }
@@ -65,7 +80,9 @@ def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
         "remote": remote,
         "ref": ref,
         "state": "present",
-        "head": rows[0][0],
+        "object_oid": values[ref],
+        "peeled_commit": values.get(peeled_ref, values[ref]),
+        "tree_oid": git.current_tree(root, values.get(peeled_ref, values[ref])),
         "exit_code": 0,
         "stderr": "",
     }
@@ -79,7 +96,7 @@ def _push_remote_ref_exact(
     expected: str,
     desired: str,
 ) -> dict[str, object]:
-    lease = f"--force-with-lease={target_ref}:{'' if expected == _ZERO_OID else expected}"
+    lease = f"--force-with-lease={target_ref}:{'' if expected == git.zero_oid(root) else expected}"
     completed = git.run_network_git(
         root,
         "push",
@@ -99,11 +116,44 @@ def _push_remote_ref_exact(
 def observe_remote_publication_effect(
     *,
     root: Path,
-    source_object: str,
+    source_ref: str,
     target_ref: str,
     remotes: dict[str, str],
 ) -> tuple[PublicationEffect | None, dict[str, dict[str, object]], tuple[str, ...]]:
     """Observe every declared target before compiling one immutable effect."""
+    kind = "annotated-tag" if target_ref.startswith("refs/tags/") else "commit"
+    source_observation = observe_git_object(root, source_ref, kind)
+    source_gaps = tuple(str(gap) for gap in source_observation.get("required_gaps", ()))
+    if source_gaps:
+        mapped = tuple(
+            f"publication_source_not_annotated_tag:{source_ref}"
+            if gap == "git_object_kind_mismatch" and kind == "annotated-tag"
+            else f"publication_source_signature_untrusted:{source_ref}"
+            if gap.startswith("git_object_signature_")
+            else f"publication_source_invalid:{source_ref}:{gap}"
+            for gap in source_gaps
+        )
+        return None, {}, mapped
+    signature = source_observation.get("signature")
+    if not isinstance(signature, dict):
+        return None, {}, (f"publication_source_signature_untrusted:{source_ref}",)
+    source = PublicationSource.model_validate(
+        {
+            "kind": kind,
+            "object_oid": source_observation["object_oid"],
+            "peeled_commit": source_observation["peeled_commit"],
+            "tree_oid": source_observation["tree_oid"],
+            "signature": {
+                "verdict": signature["verdict"],
+                "principal": signature["principal"],
+                "fingerprint": signature["fingerprint"],
+                "trust_anchor_sha256": signature["trust_anchor_sha256"],
+                "verifier": signature["verifier"],
+                "verifier_version": signature["verifier_version"],
+            },
+        }
+    )
+    zero = git.zero_oid(root)
     observations: dict[str, dict[str, object]] = {}
     targets: list[PublicationTarget] = []
     gaps: list[str] = []
@@ -114,8 +164,8 @@ def observe_remote_publication_effect(
         if state == "unavailable":
             gaps.append(f"publication_proposal_remote_unavailable:{peer_id}:{remote}")
             continue
-        observed = str(observation.get("head") or _ZERO_OID)
-        if observed != _ZERO_OID and observed != source_object:
+        observed = str(observation.get("object_oid") or zero)
+        if observed != zero and observed != source.object_oid:
             gaps.append(
                 f"publication_proposal_target_drift:{peer_id}:"
                 f"{target_ref.removeprefix('refs/heads/')}"
@@ -126,13 +176,13 @@ def observe_remote_publication_effect(
                 remote=remote,
                 target_ref=target_ref,
                 expected=observed,
-                desired=source_object,
+                desired=source.object_oid,
             )
         )
     effect = (
         PublicationEffect.compile(
             repository_common_dir=git.git_common_dir(root),
-            source_object=source_object,
+            source=source,
             targets=tuple(targets),
         )
         if targets and len(targets) == len(remotes)
@@ -187,13 +237,14 @@ def load_remote_publication_request(
 
 def compile_remote_publication_request(*, root: Path, effect: PublicationEffect) -> TransitionPlan:
     """Compile fresh remote observations into the common TransitionPlan."""
-    commitment = load_repository_commitment(root, tree_ref=effect.source_object)
+    commitment = load_repository_commitment(root, tree_ref=effect.source.peeled_commit)
     facts = Facts(
         repository=commitment.id,
-        head=effect.source_object,
-        tree=git.current_tree(root, effect.source_object),
+        head=effect.source.peeled_commit,
+        tree=effect.source.tree_oid,
         observed_at=datetime.now(UTC),
         values={
+            "publication_source": effect.source.model_dump(mode="json"),
             "remote_targets": tuple(target.model_dump(mode="json") for target in effect.targets),
         },
         source_refs=(
@@ -213,18 +264,27 @@ def compile_remote_publication_request(*, root: Path, effect: PublicationEffect)
 def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict[str, object]:
     """Execute peer-local CAS pushes after a complete fresh preflight."""
     effect = publication_effect_from_plan(plan)
+    source_observation = observe_git_object(
+        root,
+        effect.source.object_oid,
+        effect.source.kind,
+    )
+    source_gaps = _source_drift_gaps(effect.source, source_observation)
     observations = {
         target.id: _observe_remote_ref(root, target.remote, target.target_ref)
         for target in effect.targets
     }
-    gaps = tuple(
-        f"publication_proposal_remote_unavailable:{target.id}:{target.remote}"
-        if observations[target.id].get("state") == "unavailable"
-        else f"publication_proposal_target_drift:{target.id}:"
-        f"{target.target_ref.removeprefix('refs/heads/')}"
-        for target in effect.targets
-        if observations[target.id].get("state") == "unavailable"
-        or observations[target.id].get("head") not in {target.expected, target.desired}
+    gaps = (
+        *source_gaps,
+        *tuple(
+            f"publication_proposal_remote_unavailable:{target.id}:{target.remote}"
+            if observations[target.id].get("state") == "unavailable"
+            else f"publication_proposal_target_drift:{target.id}:"
+            f"{target.target_ref.removeprefix('refs/heads/')}"
+            for target in effect.targets
+            if observations[target.id].get("state") == "unavailable"
+            or observations[target.id].get("object_oid") not in {target.expected, target.desired}
+        ),
     )
     if gaps:
         return _terminal_result(
@@ -243,7 +303,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
     applied: list[str] = []
     attempts: list[dict[str, object]] = []
     for index, target in enumerate(effect.targets):
-        if observations[target.id].get("head") == target.desired:
+        if observations[target.id].get("object_oid") == target.desired:
             applied.append(target.id)
             attempts.append(
                 {
@@ -264,7 +324,12 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         )
         attempts.append({"id": target.id, "remote": target.remote, **result})
         observed = _observe_remote_ref(root, target.remote, target.target_ref)
-        if result["state"] != "applied" or observed.get("head") != target.desired:
+        parity = (
+            observed.get("object_oid") == effect.source.object_oid
+            and observed.get("peeled_commit") == effect.source.peeled_commit
+            and observed.get("tree_oid") == effect.source.tree_oid
+        )
+        if result["state"] != "applied" or not parity:
             gap = f"publication_proposal_push_failed:{target.id}:{target.remote}"
             return _terminal_result(
                 root=root,
@@ -294,6 +359,35 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         pending=(),
         attempts=tuple(attempts),
     )
+
+
+def _source_drift_gaps(
+    expected: PublicationSource,
+    observed: dict[str, object],
+) -> tuple[str, ...]:
+    """Return exact local object or trust drift before any remote effect."""
+    if observed.get("required_gaps"):
+        return ("publication_source_signature_drift",)
+    signature = observed.get("signature")
+    if not isinstance(signature, dict):
+        return ("publication_source_signature_drift",)
+    actual = PublicationSource.model_validate(
+        {
+            "kind": observed["kind"],
+            "object_oid": observed["object_oid"],
+            "peeled_commit": observed["peeled_commit"],
+            "tree_oid": observed["tree_oid"],
+            "signature": {
+                "verdict": signature["verdict"],
+                "principal": signature["principal"],
+                "fingerprint": signature["fingerprint"],
+                "trust_anchor_sha256": signature["trust_anchor_sha256"],
+                "verifier": signature["verifier"],
+                "verifier_version": signature["verifier_version"],
+            },
+        }
+    )
+    return () if actual == expected else ("publication_source_identity_drift",)
 
 
 def _terminal_result(
@@ -331,7 +425,7 @@ def _terminal_result(
             "schema_version": 2,
             "predicate": "publication:remote-effect",
             "verifier": "ethos:remote-publication-executor",
-            "subject": f"git:commit:{effect.source_object}",
+            "subject": f"git:{effect.source.kind}:{effect.source.object_oid}",
             "issued_at": datetime.now(UTC),
             "valid_from": None,
             "valid_until": None,

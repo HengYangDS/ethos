@@ -26,6 +26,7 @@ from ethos.adapters.openspec.profile import protected_branch_active_change_requi
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.publication import publication_effect_from_plan
@@ -62,7 +63,7 @@ class _PublishOptions:
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     probe_remote: Annotated[bool, Parameter(name="--probe-remote")] = False
-    target_ref: Annotated[str | None, Parameter(name="--ref")] = None
+    target_refs: Annotated[tuple[str, ...], Parameter(name="--ref")] = ()
     receipt: Annotated[str | None, Parameter(name="--receipt")] = None
     receipt_sha256: Annotated[str | None, Parameter(name="--receipt-sha256")] = None
 
@@ -80,6 +81,15 @@ def _publish_next_action(*, verdict: Verdict, publication: dict[str, object]) ->
 def _object_mapping(value: object) -> dict[str, object]:
     """Return a JSON object mapping or a safe empty projection."""
     return cast("dict[str, object]", value) if isinstance(value, dict) else {}
+
+
+def _remote_ref_observation(
+    observations: Mapping[str, Mapping[str, object]], peer_id: str, target_ref: str
+) -> dict[str, object]:
+    """Return one nested peer ref observation without leaking storage shape."""
+    peer = _object_mapping(observations.get(peer_id))
+    refs = _object_mapping(peer.get("refs"))
+    return _object_mapping(refs.get(target_ref))
 
 
 def _publish_expected_state(
@@ -133,23 +143,28 @@ def _remote_observations(
 def _publication_admission_gaps(
     *,
     repo: Path,
-    target_ref: str,
+    target_refs: tuple[str, ...],
     current_head: str,
     remotes: Mapping[str, str],
-    observed_heads: Mapping[str, str],
+    observations: Mapping[str, Mapping[str, object]],
     effect_gaps: tuple[str, ...],
     proof_admission: Mapping[str, object],
 ) -> tuple[tuple[str, ...], dict[str, dict[str, object]]]:
     reports = {
-        peer_id: push_admission_report(
+        f"{peer_id}:{target_ref}": push_admission_report(
             root=repo,
             target_ref=target_ref,
             pushed_head=current_head,
-            remote_head=observed_heads.get(peer_id, "0" * 40),
+            remote_head=str(
+                _remote_ref_observation(observations, peer_id, target_ref).get(
+                    "object_oid", git.zero_oid(repo)
+                )
+            ),
             remote_name=remote,
             proof_admission=proof_admission,
         )
         for peer_id, remote in remotes.items()
+        for target_ref in target_refs
     }
     proof_gaps = set(string_sequence(proof_admission.get("required_gaps")))
     gaps = tuple(
@@ -174,26 +189,18 @@ def _publication_request_gaps(
     source_branch: str,
     candidate_branch: str,
     current_head: str,
-    target_ref: str,
+    target_refs: tuple[str, ...],
     remotes: Mapping[str, str],
+    ref_admissions: Mapping[str, Mapping[str, object]],
 ) -> list[str]:
     """Return invocation and source facts required before publication effects."""
-    ref_valid = bool(
-        target_ref
-        and git.run_git(repo, "check-ref-format", target_ref, check=False).returncode == 0
-    )
-    policy = load_branch_role_policy(repo)
-    role = (
-        policy.role_for_branch(target_ref.removeprefix("refs/heads/"))
-        if target_ref.startswith("refs/heads/")
-        else "release_publication"
-        if target_ref.startswith("refs/tags/")
-        else "other"
+    roles = tuple(
+        str(ref_admissions.get(target_ref, {}).get("role") or "other") for target_ref in target_refs
     )
     conditions = (
         (options.expect_head is None, "expect_head_required"),
         (
-            role == "proposal_lane" and source_branch != candidate_branch,
+            "proposal_lane" in roles and source_branch != candidate_branch,
             f"publication_source_role_mismatch:{source_branch}:proposal_lane",
         ),
         (options.apply and not options.authorize, "authorization_required"),
@@ -202,20 +209,49 @@ def _publication_request_gaps(
             "expect_head_mismatch",
         ),
         (not options.probe_remote, "publication_remote_probe_required"),
-        (not ref_valid, f"publication_target_ref_invalid:{target_ref}"),
+        (not target_refs, "publication_target_ref_required"),
+        (len(target_refs) != len(set(target_refs)), "publication_target_ref_duplicate"),
         (not remotes, "publication_peers_missing"),
     )
-    return [gap for blocked, gap in conditions if blocked]
+    gaps = [gap for blocked, gap in conditions if blocked]
+    gaps.extend(
+        f"publication_target_ref_invalid:{target_ref}"
+        for target_ref in target_refs
+        if git.run_git(repo, "check-ref-format", target_ref, check=False).returncode != 0
+    )
+    return gaps
+
+
+def _publication_ref_admissions(
+    *,
+    topology: Mapping[str, object],
+    policy: BranchRolePolicy,
+    target_refs: tuple[str, ...],
+    release_tags: tuple[str, ...],
+    remotes: Mapping[str, str],
+) -> dict[str, dict[str, object]]:
+    """Resolve each target through the sole full-ref admission owner."""
+    return {
+        target_ref: publication_ref_admission(
+            topology,
+            policy=policy,
+            target_ref=target_ref,
+            release_tags=release_tags,
+            remote_name=next(iter(remotes.values()), ""),
+        )
+        for target_ref in target_refs
+    }
 
 
 def _publication_effect_observation(
     *,
     repo: Path,
     options: _PublishOptions,
-    target_ref: str,
+    target_refs: tuple[str, ...],
     current_head: str,
     remotes: dict[str, str],
     proof_admission: Mapping[str, object],
+    ref_admissions: dict[str, dict[str, object]],
 ) -> tuple[
     PublicationEffect | None,
     dict[str, dict[str, object]],
@@ -223,24 +259,22 @@ def _publication_effect_observation(
     tuple[str, ...],
 ]:
     """Compile one effect and its admission reports from live peer facts."""
-    if not (options.probe_remote and target_ref and remotes):
+    if not (options.probe_remote and target_refs and remotes):
         return None, {}, {}, ()
-    source_ref = target_ref if target_ref.startswith("refs/tags/") else current_head
+    source_ref = target_refs[0] if target_refs[0].startswith("refs/tags/") else current_head
     effect, observations, effect_gaps = observe_remote_publication_effect(
         root=repo,
         source_ref=source_ref,
-        target_ref=target_ref,
+        target_refs=target_refs,
         remotes=remotes,
+        ref_admissions=ref_admissions,
     )
     admission_gaps, reports = _publication_admission_gaps(
         repo=repo,
-        target_ref=target_ref,
+        target_refs=target_refs,
         current_head=current_head,
         remotes=remotes,
-        observed_heads={
-            peer_id: str(observation.get("object_oid") or git.zero_oid(repo))
-            for peer_id, observation in observations.items()
-        },
+        observations=observations,
         effect_gaps=effect_gaps,
         proof_admission=proof_admission,
     )
@@ -259,10 +293,11 @@ def _publish_projection(
     current_head: str,
     source_branch: str,
     candidate_branch: str,
-    target_ref: str,
+    target_refs: tuple[str, ...],
     audit: Mapping[str, object],
     independent_verification: Mapping[str, object],
     proof_admission: Mapping[str, object],
+    ref_admissions: dict[str, dict[str, object]],
     json_output: bool,
 ) -> None:
     """Derive or replay one full-ref plan through the sole execution path."""
@@ -303,17 +338,19 @@ def _publish_projection(
                 source_branch=source_branch,
                 candidate_branch=candidate_branch,
                 current_head=current_head,
-                target_ref=target_ref,
+                target_refs=target_refs,
                 remotes=remotes,
+                ref_admissions=ref_admissions,
             )
         )
         effect, observations, push_admission, admission_gaps = _publication_effect_observation(
             repo=repo,
             options=options,
-            target_ref=target_ref,
+            target_refs=target_refs,
             current_head=current_head,
             remotes=remotes,
             proof_admission=proof_admission,
+            ref_admissions=ref_admissions,
         )
         gaps.extend(admission_gaps)
         if effect is not None:
@@ -342,7 +379,11 @@ def _publish_projection(
         execution = apply_remote_publication_effect(root=repo, plan=admitted)
         gaps = list(dict.fromkeys((*gaps, *string_sequence(execution.get("required_gaps")))))
         verdict = "block" if gaps else "pass"
-    target_ref = effect.targets[0].target_ref if effect is not None else target_ref
+    target_refs = (
+        tuple(update.target_ref for update in effect.targets[0].updates)
+        if effect is not None
+        else target_refs
+    )
     state = (
         "published"
         if options.apply and verdict == "pass"
@@ -365,11 +406,11 @@ def _publish_projection(
     decision = admission_decision(
         subject=MutationSubject(
             action="remote.publish",
-            resource=target_ref or "refs/<kind>/<name>",
+            resource=",".join(target_refs) or "refs/<kind>/<name>",
             expected_state={
                 "root": repo.resolve().as_posix(),
                 "source_head": current_head,
-                "target_ref": target_ref,
+                "target_refs": target_refs,
                 "effect_digest": effect_digest,
                 "plan_digest": plan_digest,
             },
@@ -378,7 +419,7 @@ def _publish_projection(
         basis=DecisionBasis(
             enforcement_boundary="remote_ref_transition",
             identity_basis="immutable_request_receipt" if replay else "configured_push_identity",
-            state_bindings=("root", "source_head", "target_ref", "plan_digest", "effect_digest"),
+            state_bindings=("root", "source_head", "target_refs", "plan_digest", "effect_digest"),
             evidence_boundary="exact_head_proof_and_live_remote_ref_observation",
             verifier_provenance="current_runner",
             time_basis="evaluation_time",
@@ -396,7 +437,7 @@ def _publish_projection(
             state=state,
             summary={
                 "mode": "publication_receipt_apply" if replay else "publication",
-                "target_ref": target_ref,
+                "target_refs": target_refs,
                 "source_head": current_head,
                 "remote_push": "applied" if state == "published" else "not_performed",
                 "declared_peer_count": len(effect.targets) if effect is not None else len(remotes),
@@ -441,7 +482,7 @@ def publish(
     repo = resolve_root(root)
     governance = repository_context(repo)
     current_head = git.current_head(repo)
-    projection_mode = options.target_ref is not None or options.receipt is not None
+    projection_mode = bool(options.target_refs) or options.receipt is not None
     decision = evaluate_mutation(
         command="publish",
         apply=options.apply and not projection_mode,
@@ -461,19 +502,28 @@ def publish(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
     policy = load_branch_role_policy(repo)
-    target_role = (
-        policy.role_for_branch(options.target_ref.removeprefix("refs/heads/"))
-        if options.target_ref and options.target_ref.startswith("refs/heads/")
-        else "release_publication"
-        if options.target_ref and options.target_ref.startswith("refs/tags/")
-        else str(status_payload["role"])
+    config = release_config(repo)
+    remote_topology = publication_topology(repo, config)
+    configured_remotes = topology_remotes(remote_topology)
+    protected_refs = config.get("protected_refs")
+    raw_tags = protected_refs.get("tags") if isinstance(protected_refs, dict) else ()
+    release_tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, list) else ()
+    ref_admissions = _publication_ref_admissions(
+        topology=remote_topology,
+        policy=policy,
+        target_refs=options.target_refs,
+        release_tags=release_tags,
+        remotes=configured_remotes,
     )
+    target_roles = tuple(str(item.get("role") or "other") for item in ref_admissions.values())
+    proof_selections = {publication_proof_selection(role) for role in target_roles} or {
+        publication_proof_selection(str(status_payload["role"]))
+    }
     proof_admission = (
         proof_admission_report(
             repo,
             current_head,
-            repository_transition=publication_proof_selection(target_role)
-            == "repository_transition",
+            repository_transition=proof_selections == {"repository_transition"},
         )
         if decision.verdict != "block"
         else {
@@ -501,7 +551,6 @@ def publish(
         report_verdict(independent_verification),
         required_gaps=gaps,
     )
-    remote_topology = publication_topology(repo, release_config(repo))
     local_topology = _object_mapping(remote_topology.get("local"))
     local_verification_command = str(local_topology.get("verification_command") or "")
     raw_topology_gaps = remote_topology.get("required_gaps", [])
@@ -510,7 +559,6 @@ def publish(
     )
     gaps = tuple(dict.fromkeys((*gaps, *topology_gaps)))
     local_verdict = reduce_verdicts(local_verdict, required_gaps=gaps)
-    configured_remotes = topology_remotes(remote_topology)
     if projection_mode:
         _publish_projection(
             repo=repo,
@@ -523,17 +571,14 @@ def publish(
             current_head=current_head,
             source_branch=str(branch),
             candidate_branch=policy.candidate_branch,
-            target_ref=options.target_ref or "",
+            target_refs=options.target_refs,
             audit=audit,
             independent_verification=independent_verification,
             proof_admission=proof_admission,
+            ref_admissions=ref_admissions,
             json_output=json_output,
         )
         return
-    config = release_config(repo)
-    protected_refs = config.get("protected_refs")
-    raw_tags = protected_refs.get("tags") if isinstance(protected_refs, dict) else ()
-    release_tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, list) else ()
     ref_admissions = {
         peer_id: publication_ref_admission(
             remote_topology,

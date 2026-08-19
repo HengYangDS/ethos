@@ -279,9 +279,12 @@ _PROPOSAL_REF = f"refs/heads/proposal/{_PROPOSAL}"
 
 
 def _branch_publication_fixture(
-    tmp_path: Path, *, source_branch: str = "candidate/dev"
+    tmp_path: Path,
+    *,
+    source_branch: str = "candidate/dev",
+    object_format: str = "sha1",
 ) -> tuple[Path, dict[str, Path], str]:
-    repo = init_git_repo(tmp_path / "proposal-repo")
+    repo = init_git_repo(tmp_path / "proposal-repo", object_format=object_format)
     adopt_and_commit(repo)
     _configure_publication_signer(repo, tmp_path)
     (repo / "proposal.txt").write_text("signed proposal source\n", encoding="utf-8")
@@ -295,7 +298,7 @@ def _branch_publication_fixture(
     remotes: dict[str, Path] = {}
     for peer_id, remote in (("gitlab", "origin"), ("github", "github")):
         target = tmp_path / f"{peer_id}.git"
-        git(tmp_path, "init", "--bare", target.as_posix())
+        git(tmp_path, "init", "--bare", f"--object-format={object_format}", target.as_posix())
         git(repo, "remote", "add", remote, target.as_posix())
         git(repo, "push", remote, "HEAD:refs/heads/dev")
         remotes[peer_id] = target
@@ -410,8 +413,16 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
     effect, observations, gaps = remote_publication.observe_remote_publication_effect(
         root=repo,
         source_ref="refs/tags/v1.2.3",
-        target_ref="refs/tags/v1.2.3",
+        target_refs=("refs/tags/v1.2.3",),
         remotes={"gitlab": "origin", "github": "github"},
+        ref_admissions={
+            "refs/tags/v1.2.3": {
+                "target_ref": "refs/tags/v1.2.3",
+                "ref_kind": "tag",
+                "role": "release_publication",
+                "remote_mutation_allowed": True,
+            }
+        },
     )
 
     assert gaps == ()
@@ -430,7 +441,10 @@ def test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers(
             "verifier_version": git(repo, "version"),
         },
     }
-    assert all(observation["object_oid"] == "0" * 40 for observation in observations.values())
+    assert all(
+        observation["refs"]["refs/tags/v1.2.3"]["object_oid"] == "0" * 40
+        for observation in observations.values()
+    )
 
     seed_executed_proof(repo, commit)
     proof = publication_cli.proof_admission_report(repo, commit, repository_transition=True)[
@@ -460,8 +474,9 @@ def test_publication_rejects_lightweight_or_untrusted_release_tags(tmp_path: Pat
         remote_publication.observe_remote_publication_effect(
             root=repo,
             source_ref="refs/tags/lightweight",
-            target_ref="refs/tags/lightweight",
+            target_refs=("refs/tags/lightweight",),
             remotes={"gitlab": "origin"},
+            ref_admissions={},
         )
     )
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
@@ -469,8 +484,9 @@ def test_publication_rejects_lightweight_or_untrusted_release_tags(tmp_path: Pat
     untrusted, _observations, untrusted_gaps = remote_publication.observe_remote_publication_effect(
         root=repo,
         source_ref="refs/tags/v1.2.3",
-        target_ref="refs/tags/v1.2.3",
+        target_refs=("refs/tags/v1.2.3",),
         remotes={"gitlab": "origin"},
+        ref_admissions={},
     )
 
     assert lightweight is None
@@ -488,8 +504,16 @@ def test_publication_apply_rechecks_bound_local_object_trust_before_any_push(
     effect, _observations, gaps = remote_publication.observe_remote_publication_effect(
         root=repo,
         source_ref="refs/tags/v1.2.3",
-        target_ref="refs/tags/v1.2.3",
+        target_refs=("refs/tags/v1.2.3",),
         remotes={"gitlab": "origin", "github": "github"},
+        ref_admissions={
+            "refs/tags/v1.2.3": {
+                "target_ref": "refs/tags/v1.2.3",
+                "ref_kind": "tag",
+                "role": "release_publication",
+                "remote_mutation_allowed": True,
+            }
+        },
     )
     assert gaps == ()
     assert effect is not None
@@ -698,6 +722,80 @@ def test_publish_branch_preflights_all_peers_and_retry_converges(tmp_path: Path)
     assert _proposal_ref(remotes["github"]) == head
 
 
+def test_publish_applies_each_peers_multi_ref_set_atomically(tmp_path: Path) -> None:
+    repo, remotes, old = _branch_publication_fixture(tmp_path)
+    (repo / "accepted.txt").write_text("accepted projection\n", encoding="utf-8")
+    git(repo, "add", "accepted.txt")
+    git(repo, "commit", "-m", "feat: prepare accepted projection")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/heads/dev", head)
+    git(repo, "update-ref", "refs/heads/main", head)
+    seed_executed_proof(repo, head)
+
+    dry_run = run_ethos(
+        "publish",
+        "--ref",
+        "refs/heads/main",
+        "--ref",
+        "refs/heads/dev",
+        "--probe-remote",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+    receipt = dry_run["data"]["request_receipt"]
+    targets = dry_run["data"]["remote_effect"]["targets"]
+    assert {target["id"] for target in targets} == {"gitlab", "github"}
+    assert all(
+        {update["target_ref"] for update in target["updates"]}
+        == {"refs/heads/main", "refs/heads/dev"}
+        for target in targets
+    )
+
+    hook = remotes["github"] / "hooks/pre-receive"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text(
+        '#!/bin/sh\nwhile read old new ref; do [ "$ref" = refs/heads/main ] && exit 1; done\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+
+    blocked = _receipt(repo, receipt, head, blocked=True)
+    assert blocked["data"]["remote_effect"]["partial_effects"] == {
+        "applied_peers": ["gitlab"],
+        "failed_peer": "github",
+        "pending_peers": [],
+    }
+    assert git(remotes["github"], "rev-parse", "refs/heads/dev") == old
+    assert git(remotes["github"], "for-each-ref", "--format=%(objectname)", "refs/heads/main") == ""
+
+    hook.unlink()
+    recovered = _receipt(repo, receipt, head)
+    assert recovered["state"] == "published"
+    for remote in remotes.values():
+        assert git(remote, "rev-parse", "refs/heads/dev") == head
+        assert git(remote, "rev-parse", "refs/heads/main") == head
+
+
+def test_publish_sha256_ref_creation_uses_native_exact_cas(tmp_path: Path) -> None:
+    repo, remotes, head = _branch_publication_fixture(tmp_path, object_format="sha256")
+
+    dry_run = _branch_publication(repo, head)
+
+    effect = dry_run["data"]["remote_effect"]
+    assert len(effect["source"]["object_oid"]) == 64
+    assert {update["expected"] for target in effect["targets"] for update in target["updates"]} == {
+        "0" * 64
+    }
+    receipt = dry_run["data"]["request_receipt"]
+
+    applied = _receipt(repo, receipt, head)
+
+    assert applied["state"] == "published"
+    assert {_proposal_ref(remote) for remote in remotes.values()} == {head}
+
+
 def test_publish_branch_receipt_rejects_remote_drift_before_any_push(tmp_path: Path) -> None:
     repo, remotes, head = _branch_publication_fixture(tmp_path)
     receipt = _branch_publication(repo, head)["data"]["request_receipt"]
@@ -705,7 +803,6 @@ def test_publish_branch_receipt_rejects_remote_drift_before_any_push(tmp_path: P
     drift = commit_fixture(repo, "remote drift")
     git(repo, "push", "origin", f"{drift}:{_PROPOSAL_REF}")
     git(repo, "reset", "--hard", head)
-    seed_executed_proof(repo, head)
     blocked = _receipt(repo, receipt, head, blocked=True)
     assert blocked["required_gaps"] == [f"publication_target_drift:gitlab:proposal/{_PROPOSAL}"]
     assert (_proposal_ref(remotes["gitlab"]), _proposal_ref(remotes["github"])) == (drift, "")

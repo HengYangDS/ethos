@@ -14,9 +14,7 @@ from typing import cast
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
-from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
-from ethos.adapters.admission.ref_intent import claim_identity_repair_intent
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.repo.config_effects import set_worktree_config
@@ -32,11 +30,7 @@ from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.verdict import report_verdict
-from ethos.repository.release.configuration import release_config
-from ethos.repository.release.publication import publication_topology
-from ethos.repository.release.publication import topology_remotes
 
 HookName = Literal["pre-commit", "pre-push", "reference-transaction"]
 _ZERO_OIDS = {"0" * 40, "0" * 64}
@@ -177,15 +171,6 @@ def _check_staged_python_format(root: Path, staged: tuple[str, ...]) -> None:
 
 def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[str, object], ...]:
     remote = args[0] if args else "origin"
-    receipt = os.environ.get("ETHOS_RECONCILIATION_RECEIPT", "")
-    observations = (
-        ReconciliationObservation(
-            receipt_path=receipt,
-            peer_heads=_declared_peer_heads(root),
-        )
-        if receipt
-        else ReconciliationObservation()
-    )
     reports = []
     for line in stdin:
         fields = line.split()
@@ -202,27 +187,9 @@ def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[s
                 pushed_head=local_sha,
                 remote_head=remote_sha,
                 remote_name=remote,
-                reconciliation=observations,
             )
         )
     return tuple(reports) or (_passed("pre-push", "no_push_updates"),)
-
-
-def _remote_head(root: Path, remote: str, ref: str) -> str:
-    completed = run_git(root, "ls-remote", "--exit-code", remote, ref, check=False)
-    return completed.stdout.partition("\t")[0].strip() if completed.returncode == 0 else ""
-
-
-def _declared_peer_heads(root: Path) -> tuple[tuple[str, str, str], ...]:
-    remotes = topology_remotes(publication_topology(root, release_config(root)))
-    return tuple(
-        (
-            peer_id,
-            _remote_head(root, remote, "refs/heads/dev"),
-            _remote_head(root, remote, "refs/heads/main"),
-        )
-        for peer_id, remote in remotes.items()
-    )
 
 
 def _reference_transaction(
@@ -257,15 +224,7 @@ def _reference_transition_report(
     protected = branch == policy.accepted_branch or (
         branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     )
-    identity_intent = claim_identity_repair_intent(
-        root=root,
-        ref_name=ref_name,
-        update=GitRefUpdate(expected=old_value, desired=new_value),
-        phase=cast("Literal['prepared', 'committed', 'aborted']", phase),
-    )
-    if identity_intent.get("present") and not identity_intent.get("gap"):
-        report = _passed("reference-transaction", f"identity_repair_ref_intent_{phase}")
-    elif phase == "prepared" and protected:
+    if phase == "prepared" and protected:
         report = _candidate_report(
             root, policy.candidate_branch, ref_name, old_value, new_value, phase
         )

@@ -67,14 +67,21 @@ See also: [Documentation Index](../index.md), [Command Plane](../reference/comma
 ## Publication Boundary
 
 `candidate/dev` and every `work/*` branch are local-only integration state and
-MUST NOT be pushed to any declared remote. Remote admission is explicit by
-remote name and permits only `dev`, `main`, and `proposal/*`. `ethos publish`
-observes each declared remote independently and never pushes or claims hosted
-CI success. With zero peers it reports local-only readiness and performs no
-remote observation. Local proof, candidate landing, accepted closeout, and each
-remote publication remain separate evidence states.
+MUST NOT be pushed to any declared peer. Remote admission resolves the complete
+ref and permits only accepted `dev`, release `main`, `proposal/*`, and signed
+annotated tags matching the declared release-tag policy.
 
-When local closeout is complete, a non-force push of accepted `dev`, release
-`main`, or a `proposal/*` branch may target any explicitly declared peer after
-that peer's ordinary dry-run and hook admission. The existence or availability
-of another provider does not affect this authority.
+The local Git object is the only publication source. A commit or annotated tag
+is created and signed once locally; `ethos publish` verifies that exact object,
+binds live peer observations into one immutable request, and projects the same
+OID to each peer with explicit exact-CAS coordinates. A peer's SSH key, PAT,
+OIDC token, account email, or `Verified` presentation is transport or hosted
+observation only and cannot rewrite author, committer, tagger, timestamp,
+signature, parents, message, or object identity.
+
+Each peer is independently observed, updated, verified, retried, and attested.
+One peer's absence or failure does not invalidate local completion or another
+peer, and ETHOS never claims cross-peer atomicity. With zero peers it reports
+local-only readiness and performs no remote observation. Local proof, candidate
+landing, accepted closeout, exact object publication, and hosted CI remain
+separate evidence states.

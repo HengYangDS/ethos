@@ -9,7 +9,6 @@ from typing import cast
 
 from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_gap
 from ethos.adapters.admission.commitment_rebind_transition import commitment_rebind_operation
-from ethos.adapters.admission.ref_intent import claim_identity_repair_intent
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.remediation.guidance import commitment_rebind_remediation
@@ -192,20 +191,6 @@ def _early_transition_report(
 ) -> dict[str, object] | None:
     if immediate_reason:
         return _admit(phase, ref_name, old_value, new_value, immediate_reason)
-    identity_intent = claim_identity_repair_intent(
-        root=repo,
-        ref_name=ref_name,
-        update=GitRefUpdate(expected=old_value, desired=new_value),
-        phase=cast("Literal['prepared', 'committed', 'aborted']", phase),
-    )
-    if identity_intent.get("present") and not identity_intent.get("gap"):
-        return _admit(
-            phase,
-            ref_name,
-            old_value,
-            new_value,
-            f"identity_repair_ref_intent_{phase}",
-        )
     guard = local_state_mutation_guard(repo) if phase == "prepared" else {"required_gaps": []}
     gaps = cast("list[str]", guard["required_gaps"])
     if not gaps:

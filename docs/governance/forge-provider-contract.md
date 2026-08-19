@@ -45,6 +45,14 @@ provider runtimes. A hosted forge may provide review UI, branch protection,
 runner status, artifacts, or remote publication observations; it does not own
 ETHOS lifecycle state.
 
+For Git publication, local Git is the sole product-object authority. ETHOS
+creates no provider-specific commit or tag: one locally signed commit or
+annotated tag is transported unchanged to zero or more peers, and exact object
+OID equality is required after publication. Provider-specific SSH keys, PATs,
+OIDC identities, account-email mappings, and `Verified` badges belong to
+transport or presentation. They cannot trigger replay, re-signing, identity
+rewrite, tag recreation, history mapping, or tree-only parity.
+
 ## Required Provider Invariants
 
 1. **Homomorphic semantics**: GitHub and GitLab SHALL cover the same required
@@ -69,6 +77,10 @@ ETHOS lifecycle state.
 1. **No provider ontology**: GitHub and GitLab profiles may add adapters,
    variables, templates, emulators, and publication checks; they SHALL NOT alter
    `status -> plan -> prove -> land -> publish` semantics.
+1. **Exact object projection**: peer adapters may authenticate transport, push
+   an already existing local object under exact CAS, and observe the result.
+   They SHALL NOT construct, rewrite, sign, or select a different product Git
+   object.
 
 ## Provider Surfaces
 

@@ -79,25 +79,6 @@ def test_hook_admit_projects_report_action_before_fallback(
     assert payload["next_action"] == expected_action
 
 
-def test_reconciliation_receipt_local_only_needs_no_tracking_refs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    results = _capture(monkeypatch)
-    monkeypatch.setattr(commands, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(commands, "git_stdout", lambda *_args: "")
-    target = tmp_path.parent / "receipt.json"
-
-    commands.reconciliation_receipt_command(
-        "proposal/example", "a" * 40, target, root=tmp_path, json_output=True
-    )
-
-    result = results.pop()
-    assert result.verdict == "pass"
-    assert result.required_gaps == ()
-    assert result.data["receipt"]["peer_heads"] == ()
-    assert target.is_file()
-
-
 def test_ref_transaction_policy_failure_emits_actionable_block(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

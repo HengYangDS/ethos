@@ -182,6 +182,36 @@ def test_retired_lane_resolution_surface_is_rejected_by_cyclopts(command: str) -
     assert "Unknown command" in f"{completed.stdout}{completed.stderr}"
 
 
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ("lane", "repair-identity"),
+        ("hook", "reconciliation-receipt"),
+    ],
+)
+def test_retired_git_object_reconstruction_commands_are_absent(
+    arguments: tuple[str, ...],
+) -> None:
+    completed = run_ethos_raw(*arguments)
+
+    assert completed.returncode != 0
+    assert "Unknown command" in f"{completed.stdout}{completed.stderr}"
+
+
+def test_pre_push_rejects_retired_reconciliation_inputs() -> None:
+    completed = run_ethos_raw(
+        "hook",
+        "pre-push",
+        "refs/heads/dev",
+        "a" * 40,
+        "--reconciliation-receipt",
+        "/tmp/retired.json",
+    )
+
+    assert completed.returncode != 0
+    assert "Unknown option" in f"{completed.stdout}{completed.stderr}"
+
+
 def test_archive_change_rejects_the_retired_history_rebuild_option() -> None:
     completed = run_ethos_raw(
         "lane",

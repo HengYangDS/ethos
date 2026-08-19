@@ -36,7 +36,6 @@ from ethos.contracts.verdict import report_verdict
 from ethos.domain.land.closeout import repository_audit_after_admission
 from ethos.domain.land.publication import local_ci_fallback_package
 from ethos.domain.land.publication import publication_readiness
-from ethos.domain.land.publication import publication_with_remote_matrix
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
@@ -595,7 +594,6 @@ def publish(
         remotes=configured_remotes,
         probe_remote=options.probe_remote,
     )
-    remote_matrix = git.publication_remote_syncs(repo, str(branch), configured_remotes)
     local_ci_fallback = local_ci_fallback_package(
         root=repo,
         current_head=current_head,
@@ -610,14 +608,6 @@ def publish(
         remote_observations=remote_observations,
         local_verification_command=local_verification_command,
     )
-    publication = publication_with_remote_matrix(
-        publication,
-        remote_matrix,
-        remote_available=any(
-            _object_mapping(item.get("availability")).get("available") is True
-            for item in remote_observations.values()
-        ),
-    )
     remote_state = str(publication.get("remote_state") or "deferred")
     remote_push = str(publication.get("remote_push") or "not_performed")
     publish_summary = {
@@ -625,7 +615,6 @@ def publish(
         "local_readiness": local_verdict == "pass",
         "remote_push": remote_push,
         "remote_publication_state": remote_state,
-        "remote_reconciliation_state": str(remote_matrix.get("state") or "pending"),
         "remote_states": {
             key: str(_object_mapping(value.get("availability")).get("state") or "not_probed")
             for key, value in remote_observations.items()
@@ -701,7 +690,6 @@ def publish(
             },
             "independent_verification": independent_verification,
             "remote_push": remote_push,
-            "remote_matrix": remote_matrix,
             "remote_topology": remote_topology,
             "publication_ref_admissions": ref_admissions,
             "remote_observations": remote_observations,

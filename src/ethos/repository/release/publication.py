@@ -100,6 +100,43 @@ def publication_ref_admission(
     }
 
 
+def publication_ref_transition(
+    admission: Mapping[str, object],
+    *,
+    observed: str,
+    desired: str,
+    zero: str,
+    fast_forward: bool,
+) -> dict[str, object]:
+    """Resolve one observed ref into the sole admitted exact-CAS transition."""
+    ref_kind = str(admission.get("ref_kind") or "unknown")
+    admitted = admission.get("remote_mutation_allowed") is True
+    current = observed == desired
+    create = observed == zero
+    advance = ref_kind == "branch" and fast_forward
+    eligible = admitted and (current or create or advance)
+    state = (
+        "current"
+        if admitted and current
+        else "create"
+        if admitted and create
+        else "advance"
+        if admitted and advance
+        else "divergent"
+        if admitted
+        else "unavailable"
+    )
+    return {
+        "target_ref": str(admission.get("target_ref") or ""),
+        "ref_kind": ref_kind,
+        "role": str(admission.get("role") or ROLE_OTHER),
+        "observed": observed,
+        "desired": desired,
+        "state": state,
+        "effect_allowed": eligible,
+    }
+
+
 def topology_remotes(topology: Mapping[str, object]) -> dict[str, str]:
     """Return peer IDs and their explicitly declared Git remote names."""
     remotes = topology.get("remotes")

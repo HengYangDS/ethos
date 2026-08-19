@@ -8,11 +8,13 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
@@ -20,10 +22,12 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.publication import PublicationSource
 from ethos.contracts.publication import PublicationTarget
+from ethos.contracts.publication import PublicationUpdate
 from ethos.contracts.publication import compile_publication_plan
 from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
+from ethos.repository.release.publication import publication_ref_transition
 
 if TYPE_CHECKING:
     from ethos.contracts.verdict import Verdict
@@ -90,22 +94,37 @@ def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
     }
 
 
-def _push_remote_ref_exact(
+def _transaction_refs(observation: Mapping[str, object]) -> dict[str, dict[str, object]]:
+    """Return one typed peer observation's full-ref mapping."""
+    refs = observation.get("refs")
+    return cast("dict[str, dict[str, object]]", refs) if isinstance(refs, dict) else {}
+
+
+def _transaction_unavailable(observation: Mapping[str, object]) -> bool:
+    """Return whether any ref in one peer transaction is unavailable."""
+    return any(
+        item.get("state") == "unavailable" for item in _transaction_refs(observation).values()
+    )
+
+
+def _push_remote_ref_set_exact(
     root: Path,
     *,
     remote: str,
-    target_ref: str,
-    expected: str,
-    desired: str,
+    updates: tuple[PublicationUpdate, ...],
 ) -> dict[str, object]:
-    lease = f"--force-with-lease={target_ref}:{'' if expected == git.zero_oid(root) else expected}"
+    leases = tuple(
+        f"--force-with-lease={update.target_ref}:{update.expected}" for update in updates
+    )
+    refspecs = tuple(f"{update.desired}:{update.target_ref}" for update in updates)
     completed = git.run_network_git(
         root,
         "push",
         "--porcelain",
-        lease,
+        "--atomic",
+        *leases,
         remote,
-        f"{desired}:{target_ref}",
+        *refspecs,
     )
     return {
         "state": "applied" if completed.returncode == 0 else "failed",
@@ -119,13 +138,25 @@ def observe_remote_publication_effect(
     *,
     root: Path,
     source_ref: str,
-    target_ref: str,
+    target_refs: tuple[str, ...],
     remotes: dict[str, str],
+    ref_admissions: dict[str, dict[str, object]],
 ) -> tuple[PublicationEffect | None, dict[str, dict[str, object]], tuple[str, ...]]:
     """Observe every declared target before compiling one immutable effect."""
-    kind = "annotated-tag" if target_ref.startswith("refs/tags/") else "commit"
+    ref_kinds = {
+        "annotated-tag" if target_ref.startswith("refs/tags/") else "commit"
+        for target_ref in target_refs
+    }
+    if not target_refs or len(ref_kinds) != 1:
+        return None, {}, ("publication_target_ref_kind_mismatch",)
+    kind: GitObjectKind = "annotated-tag" if ref_kinds == {"annotated-tag"} else "commit"
     source_observation = observe_git_object(root, source_ref, kind)
-    source_gaps = tuple(str(gap) for gap in source_observation.get("required_gaps", ()))
+    raw_source_gaps = source_observation.get("required_gaps")
+    source_gaps = (
+        tuple(str(gap) for gap in raw_source_gaps)
+        if isinstance(raw_source_gaps, (list, tuple))
+        else ()
+    )
     if source_gaps:
         mapped = tuple(
             f"publication_source_not_annotated_tag:{source_ref}"
@@ -160,24 +191,51 @@ def observe_remote_publication_effect(
     targets: list[PublicationTarget] = []
     gaps: list[str] = []
     for peer_id, remote in remotes.items():
-        observation = _observe_remote_ref(root, remote, target_ref)
-        observations[peer_id] = observation
-        state = str(observation.get("state") or "unavailable")
-        if state == "unavailable":
+        ref_observations = {
+            target_ref: _observe_remote_ref(root, remote, target_ref) for target_ref in target_refs
+        }
+        unavailable = any(
+            str(observation.get("state") or "unavailable") == "unavailable"
+            for observation in ref_observations.values()
+        )
+        observations[peer_id] = {
+            "kind": "git_remote_transaction_observation",
+            "remote": remote,
+            "state": "unavailable" if unavailable else "observed",
+            "refs": ref_observations,
+        }
+        if unavailable:
             gaps.append(f"publication_remote_unavailable:{peer_id}:{remote}")
             continue
-        observed = str(observation.get("object_oid") or zero)
-        if observed != zero and observed != source.object_oid:
-            gaps.append(
-                f"publication_target_drift:{peer_id}:{target_ref.removeprefix('refs/heads/')}"
+        updates = []
+        for target_ref, observation in ref_observations.items():
+            observed = str(observation.get("object_oid") or zero)
+            transition = publication_ref_transition(
+                ref_admissions.get(target_ref, {}),
+                observed=observed,
+                desired=source.object_oid,
+                zero=zero,
+                fast_forward=(
+                    observed not in {zero, source.object_oid}
+                    and git.is_ancestor(root, observed, source.peeled_commit)
+                ),
+            )
+            if transition["effect_allowed"] is not True:
+                gaps.append(
+                    f"publication_target_drift:{peer_id}:{target_ref.removeprefix('refs/heads/')}"
+                )
+            updates.append(
+                PublicationUpdate(
+                    target_ref=target_ref,
+                    expected=observed,
+                    desired=source.object_oid,
+                )
             )
         targets.append(
             PublicationTarget(
                 id=peer_id,
                 remote=remote,
-                target_ref=target_ref,
-                expected=observed,
-                desired=source.object_oid,
+                updates=tuple(updates),
             )
         )
     effect = (
@@ -253,7 +311,11 @@ def compile_remote_publication_request(
         source_refs=(
             "git:HEAD",
             "git:HEAD^{tree}",
-            *(f"git:{target.remote}:{target.target_ref}" for target in effect.targets),
+            *(
+                f"git:{target.remote}:{update.target_ref}"
+                for target in effect.targets
+                for update in target.updates
+            ),
         ),
     )
     return compile_publication_plan(
@@ -274,8 +336,16 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         effect.source.kind,
     )
     source_gaps = _source_drift_gaps(effect.source, source_observation)
-    observations = {
-        target.id: _observe_remote_ref(root, target.remote, target.target_ref)
+    observations: dict[str, dict[str, object]] = {
+        target.id: {
+            "kind": "git_remote_transaction_observation",
+            "remote": target.remote,
+            "state": "observed",
+            "refs": {
+                update.target_ref: _observe_remote_ref(root, target.remote, update.target_ref)
+                for update in target.updates
+            },
+        }
         for target in effect.targets
     }
     gaps = (
@@ -283,12 +353,14 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         *source_gaps,
         *tuple(
             f"publication_remote_unavailable:{target.id}:{target.remote}"
-            if observations[target.id].get("state") == "unavailable"
+            if _transaction_unavailable(observations[target.id])
             else f"publication_target_drift:{target.id}:"
-            f"{target.target_ref.removeprefix('refs/heads/')}"
+            f"{update.target_ref.removeprefix('refs/heads/')}"
             for target in effect.targets
-            if observations[target.id].get("state") == "unavailable"
-            or observations[target.id].get("object_oid") not in {target.expected, target.desired}
+            for update in target.updates
+            if _transaction_unavailable(observations[target.id])
+            or _transaction_refs(observations[target.id])[update.target_ref].get("object_oid")
+            not in {update.expected, update.desired}
         ),
     )
     if gaps:
@@ -308,7 +380,11 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
     applied: list[str] = []
     attempts: list[dict[str, object]] = []
     for index, target in enumerate(effect.targets):
-        if observations[target.id].get("object_oid") == target.desired:
+        current_refs = _transaction_refs(observations[target.id])
+        if all(
+            current_refs[update.target_ref].get("object_oid") == update.desired
+            for update in target.updates
+        ):
             applied.append(target.id)
             attempts.append(
                 {
@@ -320,19 +396,27 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
                 }
             )
             continue
-        result = _push_remote_ref_exact(
+        result = _push_remote_ref_set_exact(
             root,
             remote=target.remote,
-            target_ref=target.target_ref,
-            expected=target.expected,
-            desired=target.desired,
+            updates=target.updates,
         )
         attempts.append({"id": target.id, "remote": target.remote, **result})
-        observed = _observe_remote_ref(root, target.remote, target.target_ref)
-        parity = (
-            observed.get("object_oid") == effect.source.object_oid
-            and observed.get("peeled_commit") == effect.source.peeled_commit
-            and observed.get("tree_oid") == effect.source.tree_oid
+        observed_refs = {
+            update.target_ref: _observe_remote_ref(root, target.remote, update.target_ref)
+            for update in target.updates
+        }
+        observed: dict[str, object] = {
+            "kind": "git_remote_transaction_observation",
+            "remote": target.remote,
+            "state": "observed",
+            "refs": observed_refs,
+        }
+        parity = all(
+            item.get("object_oid") == effect.source.object_oid
+            and item.get("peeled_commit") == effect.source.peeled_commit
+            and item.get("tree_oid") == effect.source.tree_oid
+            for item in observed_refs.values()
         )
         if result["state"] != "applied" or not parity:
             gap = f"publication_push_failed:{target.id}:{target.remote}"
@@ -382,7 +466,8 @@ def _proof_drift_gaps(
         effect.source.peeled_commit,
         repository_transition=selection == "repository_transition",
     )
-    gaps = tuple(str(gap) for gap in report.get("required_gaps", ()))
+    raw_gaps = report.get("required_gaps")
+    gaps = tuple(str(gap) for gap in raw_gaps) if isinstance(raw_gaps, (list, tuple)) else ()
     if gaps:
         return gaps
     current = report.get("attestation")
@@ -472,8 +557,9 @@ def _terminal_result(
             "effect_digest": effect_digest,
             "evidence_refs": tuple(
                 sorted(
-                    f"git:{target.remote}:{target.target_ref}:{target.desired}"
+                    f"git:{target.remote}:{update.target_ref}:{update.desired}"
                     for target in effect.targets
+                    for update in target.updates
                 )
             ),
             "mints_authority": False,

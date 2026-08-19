@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
+from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -63,7 +64,10 @@ def _closeout_candidate_gaps(
     if not is_ancestor(root, current_head, candidate_head):
         return ["candidate_diverged_from_accepted"]
     gaps = openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
-    return [*gaps, *proof_gaps(candidate_path, candidate_head)] if require_proof else gaps
+    if not require_proof:
+        return gaps
+    _proof, proof_gaps = proof_for_repository_transition(candidate_path, candidate_head)
+    return [*gaps, *proof_gaps]
 
 
 def _request_gaps(
@@ -193,7 +197,7 @@ def evaluate_closeout_mutation(
                 root,
                 candidate,
                 current_head,
-                require_proof=apply and candidate_head != current_head,
+                require_proof=candidate_head != current_head and not gaps,
             ),
         )
     )

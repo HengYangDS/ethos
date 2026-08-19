@@ -16,7 +16,7 @@ from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.proof import proof_for_authority
+from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remote_publication import apply_remote_publication_effect
 from ethos.adapters.mutation.remote_publication import compile_remote_publication_request
@@ -24,7 +24,6 @@ from ethos.adapters.mutation.remote_publication import load_remote_publication_r
 from ethos.adapters.mutation.remote_publication import observe_remote_publication_effect
 from ethos.adapters.mutation.remote_publication import persist_remote_publication_request
 from ethos.adapters.openspec.profile import protected_branch_active_change_required_gaps
-from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -445,11 +444,7 @@ def publish(
     terminal_gaps: tuple[str, ...] = ()
     if decision.verdict != "block":
         if status_payload["role"] == "accepted_root":
-            try:
-                authority = load_repository_commitment(repo, tree_ref=current_head)
-                terminal_gaps = tuple(proof_for_authority(repo, current_head, authority)[1])
-            except (TypeError, ValueError) as error:
-                terminal_gaps = (str(error),)
+            terminal_gaps = tuple(proof_for_repository_transition(repo, current_head)[1])
         else:
             terminal_gaps = tuple(proof_gaps(repo, current_head))
     gaps = tuple(

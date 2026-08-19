@@ -39,11 +39,11 @@ def proof_attestation(
     root: Path,
     head: str,
     *,
-    authority: Commitment | None = None,
+    repository: Commitment | None = None,
     store: Path,
 ) -> tuple[Attestation | None, list[str]]:
     """Return one deterministic member of the current exact proof set."""
-    admitted, gaps = _admitted_proofs(root, head, authority=authority, store=store)
+    admitted, gaps = _admitted_proofs(root, head, repository=repository, store=store)
     return (min(admitted, key=lambda item: item.id), []) if admitted else (None, gaps)
 
 
@@ -51,34 +51,16 @@ def _admitted_proofs(
     root: Path,
     head: str,
     *,
-    authority: Commitment | None,
+    repository: Commitment | None,
     store: Path,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
-    try:
-        _selected_root, attestations = read_attestation_set(root)
-    except ValueError as error:
-        return (), [str(error)]
-    candidates = tuple(
-        item
-        for item in attestations
-        if item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
+    matching, archive_fallback, gaps = _selected_candidates(root, head, repository)
+    if gaps:
+        return (), gaps
+    evaluated = tuple(
+        (item, *_candidate_evaluation(root, head, store, item, ignore_lease=archive_fallback))
+        for item in matching
     )
-    if not candidates:
-        return (), ["proof_not_proven"]
-    authority_gap = ""
-    if authority is not None:
-        candidates = tuple(
-            item for item in candidates if item.commitment_digest == authority.digest()
-        )
-        authority_gap = "" if candidates else "proof_attestation_commitment_mismatch"
-    instant = datetime.now(UTC)
-    current = tuple(item for item in candidates if _current_at(item, instant))
-    if authority_gap or not current:
-        return (), [authority_gap or "unknown_required_fact"]
-    matching = tuple(item for item in current if not _query_gaps(item))
-    if not matching:
-        return (), list(dict.fromkeys(gap for item in current for gap in _query_gaps(item)))
-    evaluated = tuple((item, *_candidate_evaluation(root, head, store, item)) for item in matching)
     integrity = _integrity_gaps(evaluated)
     if integrity:
         return (), integrity
@@ -108,12 +90,65 @@ def _admitted_proofs(
             )
         )
     elif len({_bindings(item) for item in valid}) > 1:
-        set_gaps = ["stale_binding"]
+        set_gaps = [
+            f"proof_attestation_binding_conflict:{repository.id}"
+            if repository is not None
+            else "stale_binding"
+        ]
     elif len({_assertion_digest(item) for item in valid}) > 1:
-        set_gaps = ["contradiction"]
+        set_gaps = [
+            f"proof_attestation_assertion_conflict:{repository.id}"
+            if repository is not None
+            else "contradiction"
+        ]
     else:
         set_gaps = []
     return ((), set_gaps) if set_gaps else (valid, [])
+
+
+def _selected_candidates(
+    root: Path, head: str, repository: Commitment | None
+) -> tuple[tuple[Attestation, ...], bool, list[str]]:
+    try:
+        _selected_root, attestations = read_attestation_set(root)
+    except ValueError as error:
+        return (), False, [str(error)]
+    candidates = tuple(
+        item
+        for item in attestations
+        if item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
+    )
+    if not candidates:
+        return (), False, ["proof_not_proven"]
+    archive_fallback = False
+    if repository is not None:
+        candidates, archive_fallback, gaps = _repository_selection(candidates, repository)
+        if gaps:
+            return (), False, gaps
+    current = tuple(item for item in candidates if _current_at(item, datetime.now(UTC)))
+    if not current:
+        return (), False, ["unknown_required_fact"]
+    matching = tuple(item for item in current if not _query_gaps(item))
+    if matching:
+        return matching, archive_fallback, []
+    return (), False, list(dict.fromkeys(gap for item in current for gap in _query_gaps(item)))
+
+
+def _repository_selection(
+    candidates: tuple[Attestation, ...], repository: Commitment
+) -> tuple[tuple[Attestation, ...], bool, list[str]]:
+    exact = tuple(item for item in candidates if item.commitment_digest == repository.digest())
+    related = tuple(item for item in candidates if _repository_id(item) == repository.id)
+    selected = exact or tuple(item for item in related if _archive_bound(item))
+    if selected:
+        return selected, not exact, []
+    if not related:
+        return (), False, [f"proof_attestation_repository_mismatch:{repository.id}"]
+    observed = ",".join(sorted(filter(None, (item.commitment_digest for item in related))))
+    gap = (
+        f"proof_attestation_commitment_mismatch:expected={repository.digest()}:observed={observed}"
+    )
+    return (), False, [gap]
 
 
 def _integrity_gaps(evaluated: tuple[tuple[Attestation, str, list[str]], ...]) -> list[str]:
@@ -162,6 +197,21 @@ def _bindings(attestation: Attestation) -> tuple[str, ...]:
     return tuple(getattr(attestation, name) for name in _BINDINGS)
 
 
+def _repository_id(attestation: Attestation) -> str:
+    try:
+        return str(plan_from_statement(attestation).facts.get("repository") or "")
+    except (TypeError, ValueError):
+        return ""
+
+
+def _archive_bound(attestation: Attestation) -> bool:
+    try:
+        archive = plan_from_statement(attestation).prior_attestations.get("openspec_archive")
+    except (TypeError, ValueError):
+        return False
+    return isinstance(archive, Mapping)
+
+
 def _assertion_digest(attestation: Attestation) -> str:
     statement = attestation.payload.body
     return canonical_json_digest(
@@ -178,7 +228,12 @@ def _assertion_digest(attestation: Attestation) -> str:
 
 
 def _candidate_evaluation(
-    root: Path, head: str, store: Path, attestation: Attestation
+    root: Path,
+    head: str,
+    store: Path,
+    attestation: Attestation,
+    *,
+    ignore_lease: bool,
 ) -> tuple[str, list[str]]:
     if attestation.subject != f"git:commit:{head}":
         return "", ["proof_attestation_head_mismatch"]
@@ -197,7 +252,7 @@ def _candidate_evaluation(
     values = plan.facts.get("values")
     fact_values = values if isinstance(values, Mapping) else {}
     generation = fact_values.get("lease_generation")
-    if isinstance(generation, Mapping):
+    if isinstance(generation, Mapping) and not ignore_lease:
         branch = str(generation.get("branch") or "")
         current_lease = leases_by_branch(root).get(branch, {})
         if (

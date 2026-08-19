@@ -28,6 +28,8 @@ scope = [
   "src/ethos/surface/cli/lane/identity.py",
   "src/ethos/surface/cli/lane/lifecycle.py",
   "src/ethos/surface/cli/root/publish.py",
+  "system/surfaces.toml",
+  "tests/fixtures/hook-admission/cases.json",
   "tests/unit/admission/test_identity_public_reconciliation.py",
   "tests/unit/admission/test_ref_move_policy_public_resolution.py",
   "tests/unit/cli/land/test_publication.py",
@@ -38,9 +40,11 @@ scope = [
   "tests/unit/coverage_closure/test_ref_intent_public_cas_matrix.py",
   "tests/unit/lanes/lease/test_commitment_rebind.py",
   "tests/unit/lanes/lifecycle/test_work_lane_refresh_public_recovery.py",
+  "tests/unit/lanes/test_accepted_ref_admission.py",
   "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/lanes/test_hook_publication_admission.py",
   "tests/unit/release/test_policy_attestation.py",
+  "tools/ci/local_install_smoke.py",
 ]
 invariants = [
   "hook_and_publish_consume_one_exact_commit_tree_gate_attestation",

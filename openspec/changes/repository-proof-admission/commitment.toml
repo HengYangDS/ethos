@@ -1,0 +1,31 @@
+schema_version = 2
+id = "change:repository-proof-admission"
+intent = "Select the one proof that authorizes a repository role transition and make closeout readiness and apply evaluate the same proof query."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/repository-proof-admission/**",
+  "openspec/specs/repository-governance/spec.md",
+  "src/ethos/adapters/admission/control/replacement.py",
+  "src/ethos/adapters/mutation/accepted.py",
+  "src/ethos/adapters/mutation/decision.py",
+  "src/ethos/adapters/mutation/proof.py",
+  "src/ethos/adapters/mutation/proof_admission.py",
+  "src/ethos/surface/cli/root/publish.py",
+  "tests/unit/admission/test_control_replacement.py",
+  "tests/unit/cli/test_contracts_closeout.py",
+  "tests/unit/kernel/test_proof_plan_binding.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "00ea43d54b0a3edcbf6b9141f741bbe62e459dcd73f8338e2852e86ef6825fcf",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

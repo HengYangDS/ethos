@@ -163,47 +163,23 @@ def publication_readiness(
     action = (
         "remote tracking ref is synchronized; no push was performed"
         if synchronized
-        else "create configured proposal branch when remote publication is available"
+        else "run ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json"
         if available
         else str(evidence.get("next_action") or _fallback_action(fallback_command))
         if isinstance(evidence, dict)
         else _fallback_action(fallback_command)
     )
-    proposal = policy.proposal_branch_for_source(branch)
     return {
         "mode": "local_readiness",
+        "source_branch": branch,
+        "source_role": policy.role_for_branch(branch),
         "remote_push": "not_performed",
         "remote_state": state,
         "remote_topology": topology if isinstance(topology, dict) else {"state": "unspecified"},
         "remote_observations": observations,
         "fallback_evidence": fallback,
-        "proposal_branch": proposal,
-        "local_proposal_package": _proposal_package(branch, proposal, fallback),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_action": action if local_ok else "resolve local publish readiness gaps",
-    }
-
-
-def _proposal_package(
-    branch: str,
-    proposal: str,
-    fallback: dict[str, object],
-) -> dict[str, object]:
-    """Return the local plan for a future configured proposal branch."""
-    return {
-        "kind": "proposal_branch_plan",
-        "source_branch": branch,
-        "proposal_branch": proposal,
-        "remote_push": "not_performed",
-        "remote_state": "deferred",
-        "blocking": False,
-        "local_ci_fallback": fallback,
-        "required_steps": [
-            "land work lane to candidate role",
-            "fast-forward accepted root from candidate role",
-            "run local-ci fallback when remote publication is unavailable",
-            "create configured proposal branch when remote publication is available",
-        ],
     }
 
 

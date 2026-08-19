@@ -62,7 +62,7 @@ class _PublishOptions:
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     probe_remote: Annotated[bool, Parameter(name="--probe-remote")] = False
-    proposal: Annotated[str | None, Parameter(name="--proposal")] = None
+    target_ref: Annotated[str | None, Parameter(name="--ref")] = None
     receipt: Annotated[str | None, Parameter(name="--receipt")] = None
     receipt_sha256: Annotated[str | None, Parameter(name="--receipt-sha256")] = None
 
@@ -130,13 +130,7 @@ def _remote_observations(
     }
 
 
-def _proposal_branch(root: Path, prefix: str, slug: str) -> str:
-    """Return the declared proposal branch only when Git admits its grammar."""
-    branch = f"{prefix}{slug}"
-    return branch if slug and git.branch_ref_is_valid(root, branch) else ""
-
-
-def _proposal_admission_gaps(
+def _publication_admission_gaps(
     *,
     repo: Path,
     target_ref: str,
@@ -170,42 +164,52 @@ def _proposal_admission_gaps(
     return gaps, reports
 
 
-def _proposal_request_gaps(
+def _publication_request_gaps(
     *,
+    repo: Path,
     options: _PublishOptions,
     source_branch: str,
     candidate_branch: str,
     current_head: str,
-    proposal_branch: str,
+    target_ref: str,
     remotes: Mapping[str, str],
 ) -> list[str]:
-    """Return invocation and source facts required before proposal effects."""
+    """Return invocation and source facts required before publication effects."""
+    ref_valid = bool(
+        target_ref
+        and git.run_git(repo, "check-ref-format", target_ref, check=False).returncode == 0
+    )
+    policy = load_branch_role_policy(repo)
+    role = (
+        policy.role_for_branch(target_ref.removeprefix("refs/heads/"))
+        if target_ref.startswith("refs/heads/")
+        else "release_publication"
+        if target_ref.startswith("refs/tags/")
+        else "other"
+    )
     conditions = (
         (options.expect_head is None, "expect_head_required"),
         (
-            source_branch != candidate_branch,
-            f"publication_proposal_source_branch_required:{source_branch}:{candidate_branch}",
+            role == "proposal_lane" and source_branch != candidate_branch,
+            f"publication_source_role_mismatch:{source_branch}:proposal_lane",
         ),
         (options.apply and not options.authorize, "authorization_required"),
         (
             options.expect_head is not None and options.expect_head != current_head,
             "expect_head_mismatch",
         ),
-        (not options.probe_remote, "publication_proposal_remote_probe_required"),
-        (
-            not proposal_branch,
-            f"publication_proposal_identifier_invalid:{options.proposal or ''}",
-        ),
-        (not remotes, "publication_proposal_peers_missing"),
+        (not options.probe_remote, "publication_remote_probe_required"),
+        (not ref_valid, f"publication_target_ref_invalid:{target_ref}"),
+        (not remotes, "publication_peers_missing"),
     )
     return [gap for blocked, gap in conditions if blocked]
 
 
-def _proposal_effect_observation(
+def _publication_effect_observation(
     *,
     repo: Path,
     options: _PublishOptions,
-    proposal_branch: str,
+    target_ref: str,
     current_head: str,
     remotes: dict[str, str],
 ) -> tuple[
@@ -215,16 +219,16 @@ def _proposal_effect_observation(
     tuple[str, ...],
 ]:
     """Compile one effect and its admission reports from live peer facts."""
-    if not (options.probe_remote and proposal_branch and remotes):
+    if not (options.probe_remote and target_ref and remotes):
         return None, {}, {}, ()
-    target_ref = f"refs/heads/{proposal_branch}"
+    source_ref = target_ref if target_ref.startswith("refs/tags/") else current_head
     effect, observations, effect_gaps = observe_remote_publication_effect(
         root=repo,
-        source_ref=current_head,
+        source_ref=source_ref,
         target_ref=target_ref,
         remotes=remotes,
     )
-    admission_gaps, reports = _proposal_admission_gaps(
+    admission_gaps, reports = _publication_admission_gaps(
         repo=repo,
         target_ref=target_ref,
         current_head=current_head,
@@ -238,7 +242,7 @@ def _proposal_effect_observation(
     return effect, observations, reports, admission_gaps
 
 
-def _publish_proposal(
+def _publish_projection(
     *,
     repo: Path,
     governance: Mapping[str, object],
@@ -250,12 +254,12 @@ def _publish_proposal(
     current_head: str,
     source_branch: str,
     candidate_branch: str,
-    proposal_branch: str,
+    target_ref: str,
     audit: Mapping[str, object],
     independent_verification: Mapping[str, object],
     json_output: bool,
 ) -> None:
-    """Derive or replay one proposal plan, then share one execution path."""
+    """Derive or replay one full-ref plan through the sole execution path."""
     gaps = list(base_gaps)
     observations: dict[str, dict[str, object]] = {}
     push_admission: dict[str, dict[str, object]] = {}
@@ -287,19 +291,20 @@ def _publish_proposal(
             gaps.append(str(error))
     else:
         gaps.extend(
-            _proposal_request_gaps(
+            _publication_request_gaps(
+                repo=repo,
                 options=options,
                 source_branch=source_branch,
                 candidate_branch=candidate_branch,
                 current_head=current_head,
-                proposal_branch=proposal_branch,
+                target_ref=target_ref,
                 remotes=remotes,
             )
         )
-        effect, observations, push_admission, admission_gaps = _proposal_effect_observation(
+        effect, observations, push_admission, admission_gaps = _publication_effect_observation(
             repo=repo,
             options=options,
-            proposal_branch=proposal_branch,
+            target_ref=target_ref,
             current_head=current_head,
             remotes=remotes,
         )
@@ -324,13 +329,11 @@ def _publish_proposal(
         execution = apply_remote_publication_effect(root=repo, plan=admitted)
         gaps = list(dict.fromkeys((*gaps, *string_sequence(execution.get("required_gaps")))))
         verdict = "block" if gaps else "pass"
-    if effect is not None:
-        proposal_branch = effect.targets[0].target_ref.removeprefix("refs/heads/")
-    target_ref = effect.targets[0].target_ref if effect is not None else ""
+    target_ref = effect.targets[0].target_ref if effect is not None else target_ref
     state = (
-        "proposal_published"
+        "published"
         if options.apply and verdict == "pass"
-        else "ready_to_publish_proposal"
+        else "ready_to_publish"
         if verdict == "pass"
         else "blocked"
     )
@@ -340,14 +343,14 @@ def _publish_proposal(
         if not options.apply and verdict == "pass"
         else ""
         if options.apply and verdict == "pass"
-        else "ethos publish --proposal <slug> --probe-remote --expect-head <head> --json"
+        else "ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json"
     )
     effect_digest = effect.digest() if effect is not None else ""
     plan_digest = plan.digest if plan is not None else ""
     decision = admission_decision(
         subject=MutationSubject(
             action="remote.publish",
-            resource=target_ref or "refs/heads/proposal/<slug>",
+            resource=target_ref or "refs/<kind>/<name>",
             expected_state={
                 "root": repo.resolve().as_posix(),
                 "source_head": current_head,
@@ -377,10 +380,10 @@ def _publish_proposal(
             verdict=verdict,
             state=state,
             summary={
-                "mode": "proposal_publication_receipt_apply" if replay else "proposal_publication",
-                "proposal_branch": proposal_branch,
+                "mode": "publication_receipt_apply" if replay else "publication",
+                "target_ref": target_ref,
                 "source_head": current_head,
-                "remote_push": "applied" if state == "proposal_published" else "not_performed",
+                "remote_push": "applied" if state == "published" else "not_performed",
                 "declared_peer_count": len(effect.targets) if effect is not None else len(remotes),
                 "cross_provider_atomicity_claimed": False,
             },
@@ -422,10 +425,10 @@ def publish(
     repo = resolve_root(root)
     governance = repository_context(repo)
     current_head = git.current_head(repo)
-    proposal_mode = options.proposal is not None or options.receipt is not None
+    projection_mode = options.target_ref is not None or options.receipt is not None
     decision = evaluate_mutation(
         command="publish",
-        apply=options.apply and not proposal_mode,
+        apply=options.apply and not projection_mode,
         authorized=options.authorize,
         expect_head=options.expect_head,
         root=repo,
@@ -473,13 +476,8 @@ def publish(
     local_verdict = reduce_verdicts(local_verdict, required_gaps=gaps)
     policy = load_branch_role_policy(repo)
     configured_remotes = topology_remotes(remote_topology)
-    if proposal_mode:
-        proposal_branch = (
-            ""
-            if options.receipt is not None
-            else _proposal_branch(repo, policy.proposal_branch_prefix, options.proposal or "")
-        )
-        _publish_proposal(
+    if projection_mode:
+        _publish_projection(
             repo=repo,
             governance=governance,
             options=options,
@@ -490,7 +488,7 @@ def publish(
             current_head=current_head,
             source_branch=str(branch),
             candidate_branch=policy.candidate_branch,
-            proposal_branch=proposal_branch,
+            target_ref=options.target_ref or "",
             audit=audit,
             independent_verification=independent_verification,
             json_output=json_output,
@@ -563,7 +561,6 @@ def publish(
         "independent_verification": str(
             independent_verification.get("evidence_class") or "local_readiness"
         ),
-        "proposal_branch": str(publication.get("proposal_branch") or ""),
         "next_publication_action": str(publication.get("next_action") or ""),
     }
     publish_next_action = _publish_next_action(verdict=local_verdict, publication=publication)

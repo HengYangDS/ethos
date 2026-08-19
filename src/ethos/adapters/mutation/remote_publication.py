@@ -162,13 +162,12 @@ def observe_remote_publication_effect(
         observations[peer_id] = observation
         state = str(observation.get("state") or "unavailable")
         if state == "unavailable":
-            gaps.append(f"publication_proposal_remote_unavailable:{peer_id}:{remote}")
+            gaps.append(f"publication_remote_unavailable:{peer_id}:{remote}")
             continue
         observed = str(observation.get("object_oid") or zero)
         if observed != zero and observed != source.object_oid:
             gaps.append(
-                f"publication_proposal_target_drift:{peer_id}:"
-                f"{target_ref.removeprefix('refs/heads/')}"
+                f"publication_target_drift:{peer_id}:{target_ref.removeprefix('refs/heads/')}"
             )
         targets.append(
             PublicationTarget(
@@ -277,9 +276,9 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
     gaps = (
         *source_gaps,
         *tuple(
-            f"publication_proposal_remote_unavailable:{target.id}:{target.remote}"
+            f"publication_remote_unavailable:{target.id}:{target.remote}"
             if observations[target.id].get("state") == "unavailable"
-            else f"publication_proposal_target_drift:{target.id}:"
+            else f"publication_target_drift:{target.id}:"
             f"{target.target_ref.removeprefix('refs/heads/')}"
             for target in effect.targets
             if observations[target.id].get("state") == "unavailable"
@@ -330,7 +329,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
             and observed.get("tree_oid") == effect.source.tree_oid
         )
         if result["state"] != "applied" or not parity:
-            gap = f"publication_proposal_push_failed:{target.id}:{target.remote}"
+            gap = f"publication_push_failed:{target.id}:{target.remote}"
             return _terminal_result(
                 root=root,
                 plan=plan,

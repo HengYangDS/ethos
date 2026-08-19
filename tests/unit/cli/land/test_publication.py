@@ -63,7 +63,6 @@ def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
 def test_publish_reports_local_readiness_without_remote_push() -> None:
     payload = run_ethos("publish", "--json")
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
-    proposal_branch = load_branch_role_policy(Path.cwd()).proposal_branch_for_source(branch)
 
     assert payload["summary"]["remote_push"] == "not_performed"
     assert (
@@ -75,13 +74,10 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     )
 
     publication = payload["data"]["publication"]
-    assert publication["proposal_branch"] == proposal_branch
-    assert publication["local_proposal_package"]["source_branch"] == branch
-    assert publication["local_proposal_package"]["proposal_branch"] == proposal_branch
-    assert (
-        "run local-ci fallback when remote publication is unavailable"
-        in publication["local_proposal_package"]["required_steps"]
-    )
+    assert publication["source_branch"] == branch
+    assert publication["source_role"] == load_branch_role_policy(Path.cwd()).role_for_branch(branch)
+    assert "proposal_branch" not in publication
+    assert "local_proposal_package" not in publication
     assert payload["next_action"]
 
 
@@ -269,7 +265,7 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
         assert publication["next_action"] == f"run {command} as local fallback evidence"
 
 
-def test_publish_uses_configured_proposal_branch_role_policy(tmp_path: Path) -> None:
+def test_publish_local_readiness_does_not_project_a_proposal_only_plan(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_role_policy(repo)
     git(repo, "checkout", "-b", "lane/topic")
@@ -277,15 +273,17 @@ def test_publish_uses_configured_proposal_branch_role_policy(tmp_path: Path) -> 
     payload = run_ethos("publish", "--root", repo.as_posix(), "--json", cwd=repo)
 
     publication = payload["data"]["publication"]
-    assert publication["local_proposal_package"]["source_branch"] == "lane/topic"
-    assert publication["local_proposal_package"]["proposal_branch"] == "review/topic"
+    assert publication["source_branch"] == "lane/topic"
+    assert publication["source_role"] == "work_lane"
+    assert "proposal_branch" not in publication
+    assert "local_proposal_package" not in publication
 
 
 _PROPOSAL = "terminal-convergence"
 _PROPOSAL_REF = f"refs/heads/proposal/{_PROPOSAL}"
 
 
-def _proposal_fixture(
+def _branch_publication_fixture(
     tmp_path: Path, *, source_branch: str = "candidate/dev"
 ) -> tuple[Path, dict[str, Path], str]:
     repo = init_git_repo(tmp_path / "proposal-repo")
@@ -309,8 +307,8 @@ def _proposal_fixture(
     return repo, remotes, head
 
 
-def _proposal(repo: Path, head: str | None, *args: str, blocked: bool = False):
-    command = ["publish", "--proposal", _PROPOSAL, "--probe-remote", *args]
+def _branch_publication(repo: Path, head: str | None, *args: str, blocked: bool = False):
+    command = ["publish", "--ref", _PROPOSAL_REF, "--probe-remote", *args]
     if head is not None:
         command += ["--expect-head", head]
     runner = run_ethos_blocked if blocked or head is None else run_ethos
@@ -377,6 +375,12 @@ def _signed_publication_fixture(
     repo = init_git_repo(tmp_path / "publication-repo")
     adopt_and_commit(repo)
     anchor, fingerprint = _configure_publication_signer(repo, tmp_path)
+    release = repo / ".ethos/release.toml"
+    release.write_text(
+        '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n'
+        + release.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     (repo / "release.txt").write_text("release\n", encoding="utf-8")
     git(repo, "add", "release.txt")
     git(repo, "commit", "-m", "feat: publish exact local object")
@@ -498,36 +502,69 @@ def test_publication_apply_rechecks_bound_local_object_trust_before_any_push(
         assert git(remote, "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
 
 
-def test_publish_proposal_uses_git_ref_grammar_as_the_positive_name_authority(
+def test_publish_projects_one_signed_release_tag_through_the_full_ref_command(
     tmp_path: Path,
 ) -> None:
-    repo, _remotes, head = _proposal_fixture(tmp_path)
+    repo, remotes, commit, tag, tree, _fingerprint, _anchor_sha256 = _signed_publication_fixture(
+        tmp_path
+    )
+    seed_executed_proof(repo, commit)
+
+    dry_run = run_ethos(
+        "publish",
+        "--ref",
+        "refs/tags/v1.2.3",
+        "--probe-remote",
+        "--expect-head",
+        commit,
+        "--json",
+        cwd=repo,
+    )
+    receipt = dry_run["data"]["request_receipt"]
+    assert dry_run["state"] == "ready_to_publish"
+    assert dry_run["data"]["remote_effect"]["source"]["object_oid"] == tag
+
+    applied = _receipt(repo, receipt, commit)
+
+    assert applied["state"] == "published"
+    for remote in remotes.values():
+        assert git(remote, "rev-parse", "refs/tags/v1.2.3") == tag
+        assert git(remote, "rev-parse", "refs/tags/v1.2.3^{}") == commit
+        assert git(remote, "rev-parse", "refs/tags/v1.2.3^{tree}") == tree
+
+
+def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(
+    tmp_path: Path,
+) -> None:
+    repo, _remotes, head = _branch_publication_fixture(tmp_path)
     payload = run_ethos_blocked(
         "publish",
-        "--proposal",
-        "topic~1",
+        "--ref",
+        "refs/heads/proposal/topic~1",
         "--probe-remote",
         "--expect-head",
         head,
         "--json",
         cwd=repo,
     )
-    assert payload["required_gaps"] == ["publication_proposal_identifier_invalid:topic~1"]
-
-
-def test_publish_proposal_requires_the_local_candidate_source(tmp_path: Path) -> None:
-    repo, _remotes, head = _proposal_fixture(tmp_path, source_branch="dev")
-
-    assert _proposal(repo, head, blocked=True)["required_gaps"] == [
-        "publication_proposal_source_branch_required:dev:candidate/dev"
+    assert payload["required_gaps"] == [
+        "publication_target_ref_invalid:refs/heads/proposal/topic~1"
     ]
 
 
-def test_publish_proposal_dry_run_and_apply_share_one_plan_and_attestation(
+def test_publish_proposal_target_requires_the_local_candidate_source(tmp_path: Path) -> None:
+    repo, _remotes, head = _branch_publication_fixture(tmp_path, source_branch="dev")
+
+    assert _branch_publication(repo, head, blocked=True)["required_gaps"] == [
+        "publication_source_role_mismatch:dev:proposal_lane"
+    ]
+
+
+def test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation(
     tmp_path: Path,
 ) -> None:
-    repo, remotes, head = _proposal_fixture(tmp_path)
-    dry_run = _proposal(repo, head)
+    repo, remotes, head = _branch_publication_fixture(tmp_path)
+    dry_run = _branch_publication(repo, head)
     receipt = dry_run["data"]["request_receipt"]
     assert Path(receipt["path"]).parent == local_state_root(repo) / "requests" / "publication"
     plan = TransitionPlan.model_validate_json(Path(receipt["path"]).read_bytes())
@@ -538,7 +575,7 @@ def test_publish_proposal_dry_run_and_apply_share_one_plan_and_attestation(
     )
     assert {_proposal_ref(remote) for remote in remotes.values()} == {""}
 
-    direct = _proposal(repo, head, "--apply", "--authorize")
+    direct = _branch_publication(repo, head, "--apply", "--authorize")
     assert direct["data"]["transition_plan"] == dry_run["data"]["transition_plan"]
     for remote in remotes.values():
         git(remote, "update-ref", "-d", _PROPOSAL_REF)
@@ -546,18 +583,18 @@ def test_publish_proposal_dry_run_and_apply_share_one_plan_and_attestation(
     applied = _receipt(repo, receipt, head)
     set_root, selected = read_attestation_set(repo)
     attestation = next(item for item in selected if item.predicate == "publication:remote-effect")
-    assert applied["state"] == "proposal_published"
+    assert applied["state"] == "published"
     assert applied["data"]["remote_effect"]["attestation"]["set_root"] == set_root
     assert mutable_json(attestation.payload.body["plan"]) == applied["data"]["transition_plan"]
     assert {_proposal_ref(remote) for remote in remotes.values()} == {head}
 
 
-def test_publish_proposal_retry_records_one_terminal_attestation_after_interruption(
+def test_publish_branch_retry_records_one_terminal_attestation_after_interruption(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A retry records the one terminal effect after remote refs already moved."""
-    repo, remotes, head = _proposal_fixture(tmp_path)
-    receipt = _proposal(repo, head)["data"]["request_receipt"]
+    repo, remotes, head = _branch_publication_fixture(tmp_path)
+    receipt = _branch_publication(repo, head)["data"]["request_receipt"]
 
     with monkeypatch.context() as interrupted:
         interrupted.setattr(
@@ -578,7 +615,7 @@ def test_publish_proposal_retry_records_one_terminal_attestation_after_interrupt
         if attestation.predicate == "publication:remote-effect"
     ]
 
-    assert recovered["state"] == "proposal_published"
+    assert recovered["state"] == "published"
     assert root == git(repo, "rev-parse", "refs/ethos/attestations-set")
     assert recovered["data"]["remote_effect"]["attempts"] == [
         {
@@ -600,9 +637,9 @@ def test_publish_proposal_retry_records_one_terminal_attestation_after_interrupt
     assert remote_effects[0].payload.body["state"] == "applied"
 
 
-def test_publish_proposal_preflights_all_peers_and_retry_converges(tmp_path: Path) -> None:
-    repo, remotes, head = _proposal_fixture(tmp_path)
-    receipt = _proposal(repo, head)["data"]["request_receipt"]
+def test_publish_branch_preflights_all_peers_and_retry_converges(tmp_path: Path) -> None:
+    repo, remotes, head = _branch_publication_fixture(tmp_path)
+    receipt = _branch_publication(repo, head)["data"]["request_receipt"]
     hook = remotes["github"] / "hooks/pre-receive"
     hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text("#!/bin/sh\nexit 1\n")
@@ -615,37 +652,35 @@ def test_publish_proposal_preflights_all_peers_and_retry_converges(tmp_path: Pat
     assert _proposal_ref(remotes["github"]) == head
 
 
-def test_publish_proposal_receipt_rejects_remote_drift_before_any_push(tmp_path: Path) -> None:
-    repo, remotes, head = _proposal_fixture(tmp_path)
-    receipt = _proposal(repo, head)["data"]["request_receipt"]
+def test_publish_branch_receipt_rejects_remote_drift_before_any_push(tmp_path: Path) -> None:
+    repo, remotes, head = _branch_publication_fixture(tmp_path)
+    receipt = _branch_publication(repo, head)["data"]["request_receipt"]
     (repo / "drift.txt").write_text("remote drift\n", encoding="utf-8")
     drift = commit_fixture(repo, "remote drift")
     git(repo, "push", "origin", f"{drift}:{_PROPOSAL_REF}")
     git(repo, "reset", "--hard", head)
     seed_executed_proof(repo, head)
     blocked = _receipt(repo, receipt, head, blocked=True)
-    assert blocked["required_gaps"] == [
-        f"publication_proposal_target_drift:gitlab:proposal/{_PROPOSAL}"
-    ]
+    assert blocked["required_gaps"] == [f"publication_target_drift:gitlab:proposal/{_PROPOSAL}"]
     assert (_proposal_ref(remotes["gitlab"]), _proposal_ref(remotes["github"])) == (drift, "")
 
 
-def test_publish_proposal_supports_one_declared_gitlab_peer(tmp_path: Path) -> None:
-    repo, remotes, _head = _proposal_fixture(tmp_path)
+def test_publish_branch_supports_one_declared_gitlab_peer(tmp_path: Path) -> None:
+    repo, remotes, _head = _branch_publication_fixture(tmp_path)
     release = repo / ".ethos/release.toml"
     parts = release.read_text(encoding="utf-8").split("[[publication.peers]]", 2)
     release.write_text(parts[0] + "[[publication.peers]]" + parts[1], encoding="utf-8")
     head = commit_fixture(repo, "declare GitLab-only publication")
     seed_executed_proof(repo, head)
-    request = _proposal(repo, head)["data"]["request_receipt"]
+    request = _branch_publication(repo, head)["data"]["request_receipt"]
     payload = _receipt(repo, request, head)
     assert [target["id"] for target in payload["data"]["remote_effect"]["targets"]] == ["gitlab"]
     assert _proposal_ref(remotes["gitlab"]) == head
 
 
-def test_publish_proposal_honors_human_output_mode(tmp_path: Path) -> None:
-    repo, _remotes, head = _proposal_fixture(tmp_path)
+def test_publish_branch_honors_human_output_mode(tmp_path: Path) -> None:
+    repo, _remotes, head = _branch_publication_fixture(tmp_path)
     output = run_ethos_raw(
-        "publish", "--proposal", _PROPOSAL, "--probe-remote", "--expect-head", head, cwd=repo
+        "publish", "--ref", _PROPOSAL_REF, "--probe-remote", "--expect-head", head, cwd=repo
     ).stdout
-    assert output.startswith("publish: ready_to_publish_proposal")
+    assert output.startswith("publish: ready_to_publish")

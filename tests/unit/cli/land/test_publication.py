@@ -168,7 +168,9 @@ def test_publish_local_only_does_not_observe_or_require_a_remote(
     head = commit_fixture(repo, "declare local-only publication")
     seed_executed_proof(repo, head)
     monkeypatch.setattr(publication_cli, "proof_gaps", lambda *_args: ["stale"])
-    monkeypatch.setattr(publication_cli, "proof_for_authority", lambda *_args: (object(), []))
+    monkeypatch.setattr(
+        publication_cli, "proof_for_repository_transition", lambda *_a: (object(), [])
+    )
 
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 

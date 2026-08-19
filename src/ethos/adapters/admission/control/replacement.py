@@ -14,8 +14,7 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.admission.evidence.external import load_independent_verification_provider
 from ethos.adapters.admission.evidence.external import path_is_within
 from ethos.adapters.admission.evidence.external import verify_independent_receipt_signature
-from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.contracts.rules import stable_digest
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import report_verdict
@@ -127,11 +126,11 @@ def _verification_subject(
     candidate_tree = git.git_stdout(root, "rev-parse", f"{candidate_head}^{{tree}}")
     accepted_digest = _control_digest(root, accepted_head, control_paths)
     candidate_digest = _control_digest(root, candidate_head, control_paths)
-    proof = proof_attestation(root, candidate_head)
+    proof, gaps = proof_for_repository_transition(root, candidate_head)
     if not accepted_tree or not candidate_tree or not accepted_digest or not candidate_digest:
         return {}, {}, ["control_replacement_control_snapshot_unavailable"]
     if proof is None:
-        return {}, {}, proof_gaps(root, candidate_head)
+        return {}, {}, gaps
     subject = {
         "schema_version": 1,
         "kind": "control-replacement",

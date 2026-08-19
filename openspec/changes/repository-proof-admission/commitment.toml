@@ -14,8 +14,10 @@ scope = [
   "src/ethos/adapters/mutation/proof_admission.py",
   "src/ethos/surface/cli/root/publish.py",
   "tests/unit/admission/test_control_replacement.py",
+  "tests/unit/cli/land/test_publication.py",
   "tests/unit/cli/test_contracts_closeout.py",
   "tests/unit/kernel/test_proof_plan_binding.py",
+  "tests/unit/mutation/test_accepted_failure_matrix.py",
 ]
 invariants = [
   "archive_authority_does_not_require_a_retired_lease_generation",

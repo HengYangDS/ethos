@@ -372,12 +372,19 @@ def proof_attestation(root: Path, head: str) -> Attestation | None:
     return attestation if not gaps else None
 
 
-def proof_for_authority(
-    root: Path, head: str, authority: Commitment
+def proof_for_repository_transition(
+    root: Path, head: str, *, repository: Commitment | None = None
 ) -> tuple[Attestation | None, list[str]]:
-    """Resolve one proof bound to an exact repository Commitment."""
+    """Resolve the proof authority applicable to one repository transition."""
+    try:
+        repository = repository or load_repository_commitment(root, tree_ref=head)
+    except (TypeError, ValueError) as error:
+        return None, [str(error)]
     return ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, authority=authority, store=proof_artifact_root(root)
+        root,
+        head,
+        repository=repository,
+        store=proof_artifact_root(root),
     )
 
 

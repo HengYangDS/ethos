@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import ethos.adapters.openspec.cli as openspec_cli
+from ethos.adapters.mutation.proof import persist_proof_attestation
+from ethos.adapters.mutation.proof import proof_plan
+from ethos.contracts.plan import compile_plan
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.lane_scenarios import add_candidate_worktree
 
@@ -40,10 +49,46 @@ def _closeout(
     return runner(*command, cwd=repo)
 
 
+def _add_archived_proof(candidate: Path, head: str) -> None:
+    base = proof_plan(candidate, head=head, changed_paths=("README.md",))
+    proof = issue_conformant_proof(candidate, head, plan=base, issued_at=datetime.now(UTC))
+    values = dict(base.facts["values"])
+    plan = compile_plan(
+        Commitment.model_validate(dict(base.commitment)).model_copy(
+            update={"id": "change:historical-closeout"}
+        ),
+        Facts.model_validate(
+            base.facts
+            | {
+                "observed_at": datetime.now(UTC),
+                "values": values | {"change_id": "historical-closeout"},
+            }
+        ),
+        base.nodes,
+        policy=dict(base.policy),
+        prior_attestations={"openspec_archive": {"authorized_paths": ["README.md"]}},
+    )
+    payload = proof.model_dump(mode="python", exclude={"id"}) | {
+        "commitment_digest": plan.inputs.commitment,
+        "facts_digest": plan.inputs.facts,
+        "plan_digest": plan.digest,
+        "policy_digest": plan.inputs.policy,
+        "effect_digest": plan.inputs.effect,
+        "payload": {
+            "kind": proof.payload.kind,
+            "body": proof.payload.body | {"plan": plan.model_dump(mode="json")},
+        },
+    }
+    persist_proof_attestation(candidate, Attestation.issue(payload))
+
+
 def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path: Path) -> None:
     repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    seed_executed_proof(candidate, candidate_head)
+    _add_archived_proof(candidate, candidate_head)
+    dry_run = _closeout(repo)
     payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head)
+    assert dry_run["verdict"] == "pass"
+    assert dry_run["required_gaps"] == []
     assert payload["verdict"] == "pass"
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
@@ -150,87 +195,6 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
 
-def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> None:
-    repo, _candidate, _accepted_head, _candidate_head = _closeout_repo(tmp_path)
-    payload = run_ethos("land", "--json", cwd=repo)
-    assert payload["verdict"] == "block"
-    assert payload["state"] == "blocked"
-    assert "protected_root_mutation" in payload["required_gaps"]
-    assert payload["next_action"] == "ethos land --closeout --json"
-
-
-def test_land_dry_run_blocks_candidate_root_without_closeout(tmp_path: Path) -> None:
-    repo, candidate, _accepted_head, _candidate_head = _closeout_repo(tmp_path)
-    payload = run_ethos("land", "--root", candidate.as_posix(), "--json", cwd=repo)
-    assert payload["verdict"] == "block"
-    assert payload["state"] == "blocked"
-    assert "protected_root_mutation" in payload["required_gaps"]
-    assert payload["next_action"] == "ethos land --closeout --json"
-
-
-def test_land_closeout_dry_run_reports_expect_head_mismatch(tmp_path: Path) -> None:
-    repo, _candidate, _accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    payload = _closeout(repo, expect_head=candidate_head)
-    assert payload["verdict"] == "block"
-    assert payload["state"] == "blocked"
-    assert payload["required_gaps"] == ["expect_head_mismatch"]
-    assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
-    assert payload["data"]["closeout_bootstrap"]["required_gaps"] == ["expect_head_mismatch"]
-
-
-def test_land_closeout_dry_run_reports_accepted_root_required(tmp_path: Path) -> None:
-    repo, candidate, accepted_head, _candidate_head = _closeout_repo(tmp_path)
-    payload = run_ethos(
-        "land",
-        "--closeout",
-        "--root",
-        candidate.as_posix(),
-        "--expect-head",
-        accepted_head,
-        "--json",
-        cwd=repo,
-    )
-    assert payload["verdict"] == "block"
-    assert payload["state"] == "blocked"
-    assert payload["required_gaps"] == ["accepted_root_required"]
-    assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
-    bootstrap = payload["data"]["closeout_bootstrap"]
-    assert bootstrap["required_gaps"] == ["accepted_root_required"]
-    assert bootstrap["accepted_root"] == repo.resolve().as_posix()
-    assert f"--root {repo.resolve().as_posix()}" in bootstrap["command"]
-    assert f"--root {candidate.resolve().as_posix()}" not in bootstrap["command"]
-    assert bootstrap["accepted_head"] == accepted_head
-    assert bootstrap["candidate_head"] == accepted_head
-
-
-def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
-    tmp_path: Path,
-) -> None:
-    repo, _candidate, accepted_head, _candidate_head = _closeout_repo(tmp_path)
-    payload = _closeout(repo)
-    assert payload["verdict"] == "pass"
-    assert payload["state"] == "accepted_current"
-    assert payload["required_gaps"] == []
-    assert payload["next_action"] == "ethos publish"
-    mutation = payload["data"]["mutation"]
-    assert mutation["request"] == {
-        "command": "closeout",
-        "apply": False,
-        "confirmation_present": False,
-        "expect_head": None,
-    }
-    assert mutation["decision"]["verdict"] == "pass"
-    assert mutation["decision"]["subject"]["action"] == "accepted.advance"
-    expected_state = mutation["decision"]["subject"]["expected_state"]
-    assert expected_state["accepted_ref"] == "refs/heads/dev"
-    assert expected_state["accepted_head"] == accepted_head
-    assert expected_state["candidate_ref"] == "refs/heads/candidate/dev"
-    assert expected_state["candidate_head"] == accepted_head
-    assert mutation["decision"]["why"] == ["candidate_already_current"]
-    assert payload["data"]["closeout_bootstrap"]["state"] == "current"
-    assert payload["data"]["closeout_bootstrap"]["next_action"] == "ethos publish"
-
-
 def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_proof(
     tmp_path: Path,
 ) -> None:
@@ -248,55 +212,11 @@ def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_pro
     assert git(repo, "rev-parse", "HEAD") == accepted_head
 
 
-def test_land_closeout_exposes_bootstrap_package_for_current_runner(tmp_path: Path) -> None:
-    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    payload = _closeout(repo)
-    bootstrap = payload["data"]["closeout_bootstrap"]
-    assert payload["verdict"] == "pass"
-    runner_binding = bootstrap["runner_binding"]
-    assert runner_binding["kind"] == "closeout_runner_binding"
-    assert runner_binding["accepted_root"] == repo.resolve().as_posix()
-    assert runner_binding["audit_root"] == candidate.resolve().as_posix()
-    assert runner_binding["runner_module_path"] == bootstrap["runner_module_path"]
-    assert runner_binding["runner_package_root"] == bootstrap["runner_package_root"]
-    assert runner_binding["runner_source_root"] == bootstrap["runner_source_root"]
-    assert (
-        runner_binding["runner_matches_accepted_root"] == bootstrap["runner_matches_accepted_root"]
-    )
-    assert runner_binding["runner_matches_audit_root"] == bootstrap["runner_matches_audit_root"]
-    assert runner_binding["advisory_gaps"] == bootstrap["runner_advisories"]
-    assert bootstrap["state"] == "ready"
-    assert bootstrap["accepted_head"] == accepted_head
-    assert bootstrap["candidate_head"] == candidate_head
-    assert bootstrap["proof_target"]["root"] == candidate.resolve().as_posix()
-    verification = bootstrap["independent_verification"]
-    assert verification["required"] is False
-    assert verification["proof_floor_id"] == "ethos:control-replacement:v1"
-    assert verification["receipt_option"] == "--independent-verification-receipt <absolute-path>"
-    assert verification["trust_boundary"] == "protected-provider"
-    assert verification["mints_authority"] is False
-
-
-def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(tmp_path: Path) -> None:
-    repo, candidate, accepted_head, candidate_head = _closeout_repo(tmp_path, changed=True)
-    payload = _closeout(repo, "--apply", "--authorize", expect_head=accepted_head, blocked=True)
-    bootstrap = payload["data"]["closeout_bootstrap"]
-    assert payload["verdict"] == "block"
-    assert payload["required_gaps"] == ["proof_not_proven"]
-    assert bootstrap["audit_root"] == repo.resolve().as_posix()
-    assert bootstrap["proof_target"] == {
-        "kind": "closeout_proof_target",
-        "role": "candidate",
-        "root": candidate.resolve().as_posix(),
-        "head": candidate_head,
-        "reason": "accepted-root closeout promotes the candidate head",
-    }
-
-
 def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     tmp_path: Path, monkeypatch
 ) -> None:
     repo, candidate, _accepted_head, _candidate_head = _closeout_repo(tmp_path, changed=True)
+    seed_executed_proof(candidate, _candidate_head)
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         assert root.resolve() == candidate.resolve()

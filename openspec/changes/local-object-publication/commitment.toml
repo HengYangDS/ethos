@@ -1,0 +1,73 @@
+schema_version = 2
+id = "change:local-object-publication"
+intent = "Make the locally created and signed Git object the sole publication source, then project that exact object to zero or more independent peers through one ref-kind, proof, and exact-CAS authority."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  ".ethos/release.toml",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/governance/forge-provider-contract.md",
+  "docs/governance/release-governance.md",
+  "docs/reference/command-plane.md",
+  "openspec/changes/local-object-publication/**",
+  "openspec/specs/command-plane/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "rules/mutation.md",
+  "rules/release.md",
+  "src/ethos/adapters/admission/git_admission.py",
+  "src/ethos/adapters/admission/identity.py",
+  "src/ethos/adapters/admission/ref_move_policy.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/identity_repair.py",
+  "src/ethos/adapters/mutation/remote_publication.py",
+  "src/ethos/adapters/repo/hook_runtime.py",
+  "src/ethos/contracts/publication.py",
+  "src/ethos/repository/release/publication.py",
+  "src/ethos/surface/cli/lane/identity.py",
+  "src/ethos/surface/cli/root/publish.py",
+  "tests/unit/admission/test_identity_public_reconciliation.py",
+  "tests/unit/admission/test_ref_move_policy_public_resolution.py",
+  "tests/unit/cli/land/test_publication.py",
+  "tests/unit/cli/land/test_remote_publication_observability.py",
+  "tests/unit/cli/test_hook_runtime.py",
+  "tests/unit/cli/test_lifecycle_hardening.py",
+  "tests/unit/coverage_closure/test_ref_intent_public_cas_matrix.py",
+  "tests/unit/lanes/test_hook_publication_admission.py",
+  "tests/unit/release/test_policy_attestation.py",
+]
+invariants = [
+  "hook_and_publish_consume_one_exact_commit_tree_gate_attestation",
+  "local_git_object_is_the_sole_product_publication_source",
+  "peer_transport_authentication_does_not_change_object_identity",
+  "provider_replay_resign_identity_rewrite_and_tree_only_parity_are_not_publication_paths",
+  "ref_kind_role_and_effect_are_resolved_by_one_provider_neutral_contract",
+  "release_tags_use_exact_zero_oid_or_idempotent_cas_and_verify_tag_object_and_peeled_commit",
+  "zero_one_or_two_peers_are_independent_optional_projections",
+]
+acceptance = [
+  "different_peer_transport_credentials_do_not_change_commit_or_tag_oid",
+  "divergent_peer_ref_fails_exact_cas_and_same_oid_is_idempotent",
+  "local_only_and_single_peer_publication_complete_without_remote_dependency",
+  "one_signed_commit_and_annotated_tag_project_to_two_independent_bare_peers_with_exact_oid_parity",
+  "pre_push_reports_one_executable_proof_admission_command_and_consumes_the_exact_attestation",
+  "release_tag_is_admitted_as_release_publication_and_never_as_role_other",
+  "remote_publication_receipt_reports_each_peer_independently_without_cross_provider_atomicity",
+]
+risks = [
+  "branch_only_hook_assumptions_could_survive_outside_the_selected_ref_resolver",
+  "legacy_proposal_only_effect_fields_could_remain_as_a_second_publication_owner",
+  "proof_binding_could_admit_a_different_commit_or_gate_set",
+]
+authority_refs = [
+  "docs/governance/forge-provider-contract.md",
+  "docs/governance/product-design-contract.md",
+  "docs/governance/release-governance.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "openspec/specs/repository-governance/spec.md",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

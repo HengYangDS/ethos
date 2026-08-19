@@ -32,9 +32,9 @@
 
 ## 4. Delete competing product-object paths
 
-- [ ] 4.1 Delete the public identity-repair command, suffix reconstruction,
+- [x] 4.1 Delete the public identity-repair command, suffix reconstruction,
   receipts, schemas, rules, documentation, fixtures, and tests.
-- [ ] 4.2 Delete peer-head reconciliation observations, environment receipts,
+- [x] 4.2 Delete peer-head reconciliation observations, environment receipts,
   remote-history merge semantics, continuation requirements, and tests.
 - [ ] 4.3 Remove provider publication identity and proposal-only aliases while
   preserving provider labels solely for transport or observation adapters.

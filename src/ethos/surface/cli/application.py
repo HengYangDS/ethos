@@ -38,7 +38,6 @@ def load_command_groups(argv: list[str]) -> None:
         if module == _COMMAND_MODULES["lane"]:
             importlib.import_module("ethos.surface.cli.lane.change")
             importlib.import_module("ethos.surface.cli.lane.commit_signer")
-            importlib.import_module("ethos.surface.cli.lane.identity")
             importlib.import_module("ethos.surface.cli.lane.rebind")
             importlib.import_module("ethos.surface.cli.lane.lease")
             importlib.import_module("ethos.surface.cli.lane.handoff")

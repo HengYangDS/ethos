@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Literal
 from typing import cast
 
-from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.admission.ref_intent import claim_identity_repair_intent
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.admission.ref_move_policy import prepared_ref_intent_gaps
@@ -23,7 +19,6 @@ from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -52,7 +47,6 @@ HOOK_LAYERS = {
         ("ci", "hosted_pipeline", "integration_and_release_proof", True),
     )
 }
-_NO_RECONCILIATION = ReconciliationObservation()
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
@@ -145,10 +139,6 @@ def push_admission_report(
     """Admit a push only when its branch, identity, proof, and topology agree."""
     remote_head = str(options.get("remote_head") or "")
     remote_name = str(options.get("remote_name") or "origin")
-    supplied = options.get("reconciliation", _NO_RECONCILIATION)
-    reconciliation = (
-        supplied if isinstance(supplied, ReconciliationObservation) else _NO_RECONCILIATION
-    )
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/") if target_ref.startswith("refs/heads/") else ""
@@ -167,15 +157,6 @@ def push_admission_report(
     role = str(ref_admission["role"])
     ref_kind = str(ref_admission["ref_kind"])
     ref_gaps = list(cast("list[str]", ref_admission["enforcement_gaps"]))
-    reconcile = (
-        replace(
-            reconciliation,
-            proposal_branch=branch if role == "proposal_lane" else reconciliation.proposal_branch,
-        )
-        if (role == "proposal_lane" and remote_head in _ZERO_OIDS)
-        or (role in PROTECTED_WRITE_ROLES and reconciliation.receipt_path)
-        else _NO_RECONCILIATION
-    )
     identity = push_identity_policy_report(
         repo,
         pushed_head,
@@ -183,7 +164,6 @@ def push_admission_report(
         f"{remote_name}/{policy.accepted_branch}"
         if role == "proposal_lane" and remote_head in _ZERO_OIDS
         else "",
-        reconciliation=reconcile,
     )
     identity_gaps = list(cast("list[str]", identity["required_gaps"]))
     base: dict[str, object] = {"verdict": "pass", "state": "admitted", "hook": "pre-push"}
@@ -299,22 +279,11 @@ def ref_move_admission_report(
     base.update(hook="reference-transaction", ref=ref_name, branch=branch)
     base.update(phase=phase, old_value=old_value, new_value=new_value)
     base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
-    early = _early_ref_move_report(
-        repo=repo,
-        base=base,
-        ref_name=ref_name,
-        old_value=old_value,
-        new_value=new_value,
-        phase=phase,
-    )
-    if early is not None:
-        return early
+    if new_value == old_value:
+        return base
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     operation = (
-        "commit.identity-replace"
-        if branch in {policy.candidate_branch, policy.accepted_branch}
-        and equivalent_commit_identity(repo, old_value, new_value)
-        else "release.mirror"
+        "release.mirror"
         if mirror
         else "candidate.accept"
         if branch == policy.accepted_branch
@@ -393,32 +362,6 @@ def ref_move_admission_report(
     else:
         return base
     return _verdict(base, "block", "blocked", "block", reason, gaps) if gaps else base
-
-
-def _early_ref_move_report(
-    *,
-    repo: Path,
-    base: dict[str, object],
-    ref_name: str,
-    old_value: str,
-    new_value: str,
-    phase: str,
-) -> dict[str, object] | None:
-    if new_value == old_value:
-        return base
-    intent = claim_identity_repair_intent(
-        root=repo,
-        ref_name=ref_name,
-        update=GitRefUpdate(expected=old_value, desired=new_value),
-        phase=cast("Literal['prepared', 'committed', 'aborted']", phase),
-    )
-    if not intent.get("present") or intent.get("gap"):
-        return None
-    base["decision"] = {
-        "action": "allow",
-        "reason": f"identity_repair_ref_intent_{phase}",
-    }
-    return base
 
 
 def _prewrite_report(

@@ -19,7 +19,6 @@ from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
-from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -115,16 +114,6 @@ def refresh_work_lane_base(
         return _report(context, current_head, "blocked", gaps)
     if is_ancestor(root, candidate_head, current_head):
         result = _report(context, current_head, "base_current", [])
-    elif equivalent_commit_identity(root, candidate_head, current_head):
-        result = _report(
-            context,
-            current_head,
-            "blocked",
-            ["commit_identity_replacement_required"],
-            next_action=(
-                f"ethos lane repair-identity derive --base-commit {candidate_head} --json"
-            ),
-        )
     elif not apply:
         result = _report(context, current_head, "ready_to_refresh_base", [])
     else:

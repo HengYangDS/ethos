@@ -84,16 +84,10 @@ Lease-bound Commitment only when continuation is explicitly requested. It
 creates the lane and binds the new Lease to the resulting HEAD, tree, carrier
 path, carrier-byte SHA-256, and semantic digest. Missing, ambiguous, or
 mismatched Commitment coordinates block before any ref, worktree, or SQLite
-effect. `ethos lane
-refresh-base` replays a stale lane onto the configured candidate branch, `ethos
-lane repair-identity` handles the narrower case where a trusted re-sign changes
-only the commit signature headers and OID: it binds the current holder, Lease,
-exact HEAD/tree, fresh proof, repository-external signature trust, and unchanged
-unsigned commit payload, then advances candidate, accepted, and any configured
-release mirror through exact CAS. It never authorizes a general non-fast-forward
-rewrite; an interrupted post-CAS worktree projection is completed by an
-identical retry. `ethos
-land` advances the configured candidate branch, and `ethos lane retire landed`
+effect. `ethos lane refresh-base` replays a stale lane onto the configured candidate
+branch. It creates ordinary new local commits when Git requires them; it never
+reconstructs an existing product object merely to change identity or signature.
+`ethos land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
 Lane HEAD. `ethos lane retire superseded` also lets the current clean, leased
 successor retire one clean, ownerless source whose exact HEAD is its ancestor;
@@ -195,7 +189,7 @@ failed, and pending peers; rerunning the same public receipt path converges peer
 that already match without rewriting them. Hosted CI remains a subsequent
 independent evidence state rather than an implication of push success.
 
-Local readiness carries no proposal-only package or implicit target. The caller
+Local readiness carries no publication effect or implicit target. The caller
 selects one admitted full ref explicitly. In local-first mode, candidate closes
 into accepted `dev`/`main` before those exact accepted objects are projected. In
 proposal/MR mode, the proved candidate object is projected to an explicit

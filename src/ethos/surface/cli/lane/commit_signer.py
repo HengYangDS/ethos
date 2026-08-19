@@ -31,7 +31,7 @@ def _trust_action(
     root: Path, target_commit: str, report: dict[str, object], verdict: Verdict
 ) -> str:
     if verdict == "pass" and report.get("state") == "signer_authorized":
-        return "rerun the exact blocked identity-repair command"
+        return ""
     return commit_trust_setup_action(root, target_commit)
 
 

@@ -37,11 +37,6 @@ Purpose: define tracked write admission and Work Lane discipline.
   carrier bytes, branch/ref, holder, Lease ID,
   lane incarnation, epoch successor, HEAD/tree/index, and overlay must all
   match. Any mismatch fails closed.
-- Replace a same-payload commit OID only with `ethos lane repair-identity`; the
-  command requires exact old/new commit observations, the current holder and
-  Lease, fresh proof, verified external signature trust, and exact-CAS train
-  advancement. Never use refresh/rebase, direct ref edits, or a general
-  non-fast-forward exception for signature-only identity repair.
 - Write-capable tools must carry an explicit target root or working directory
   matching the admitted Work Lane. Do not rely on the host launch context's default
   filesystem path for tracked writes.

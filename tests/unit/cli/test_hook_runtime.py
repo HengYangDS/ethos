@@ -613,25 +613,11 @@ def test_pre_commit_fails_closed_when_a_selected_capability_cannot_prove_clean(
     assert gap in capsys.readouterr().err
 
 
-def test_pre_push_binds_remote_and_reconciliation_observations(
+def test_pre_push_binds_named_remote_and_observed_remote_head(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     calls: list[dict[str, object]] = []
-    monkeypatch.setenv("ETHOS_RECONCILIATION_RECEIPT", "/receipt.json")
-    monkeypatch.setattr(
-        hook_runtime,
-        "_remote_head",
-        lambda _root, remote, ref: f"{remote}:{ref}",
-    )
-    monkeypatch.setattr(
-        hook_runtime,
-        "_declared_peer_heads",
-        lambda _root: (
-            ("gitlab", "origin:refs/heads/dev", "origin:refs/heads/main"),
-            ("github", "github:refs/heads/dev", "github:refs/heads/main"),
-        ),
-    )
     monkeypatch.setattr(
         hook_runtime,
         "push_admission_report",
@@ -644,12 +630,8 @@ def test_pre_push_binds_remote_and_reconciliation_observations(
     assert execute_hook(tmp_path, "pre-push", ("github",), stdin=StringIO(update)) == 0
 
     assert calls[0]["remote_name"] == "github"
-    observation = calls[0]["reconciliation"]
-    assert observation.receipt_path == "/receipt.json"
-    assert observation.peer_heads == (
-        ("gitlab", "origin:refs/heads/dev", "origin:refs/heads/main"),
-        ("github", "github:refs/heads/dev", "github:refs/heads/main"),
-    )
+    assert calls[0]["remote_head"] == "b" * 40
+    assert "reconciliation" not in calls[0]
 
 
 @pytest.mark.parametrize(

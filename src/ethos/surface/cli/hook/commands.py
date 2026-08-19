@@ -1,11 +1,9 @@
 """Hook command group — hook-time write admission and hook installation."""
 
-import json
 import pathlib
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import partial
 from typing import Annotated
 
 from cyclopts import App
@@ -15,21 +13,15 @@ from cyclopts import Parameter
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
-from ethos.adapters.admission.identity import ReconciliationObservation
-from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
-from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.release.configuration import release_config
-from ethos.repository.release.publication import publication_topology
-from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app as root_app
 from ethos.surface.cli.output import JsonFlag
@@ -43,7 +35,7 @@ root_app.command(_app)
 _LANE_PREWRITE_ACTION = "ethos lane prewrite <path>"
 _HEAD_BOUND_PROOF_ACTION = "ethos prove --execute --expect-head <head>"
 _ADMISSION_OPTIONS = Group("Admission")
-_RECONCILIATION_OPTIONS = Group("Reconciliation")
+_PUSH_OPTIONS = Group("Push")
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,23 +55,17 @@ class _HookAdmissionOptions:
 
 
 @dataclass(frozen=True, slots=True)
-class PushReconciliationOptions:
-    """CLI-only fields for one hook push reconciliation observation."""
+class PushOptions:
+    """CLI-only fields for one push admission observation."""
 
-    remote_head: Annotated[str, Parameter(name="--remote-head", group=_RECONCILIATION_OPTIONS)] = ""
-    remote: Annotated[str, Parameter(name="--remote", group=_RECONCILIATION_OPTIONS)] = "origin"
-    reconciliation_receipt_path: Annotated[
-        str, Parameter(name="--reconciliation-receipt", group=_RECONCILIATION_OPTIONS)
-    ] = ""
-    observed_peer_head: Annotated[
-        tuple[str, ...], Parameter(name="--observed-peer-head", group=_RECONCILIATION_OPTIONS)
-    ] = ()
+    remote_head: Annotated[str, Parameter(name="--remote-head", group=_PUSH_OPTIONS)] = ""
+    remote: Annotated[str, Parameter(name="--remote", group=_PUSH_OPTIONS)] = "origin"
     root: RootOption | None = None
     json_output: JsonFlag = False
 
 
 _DEFAULT_HOOK_ADMISSION_OPTIONS = _HookAdmissionOptions()
-_DEFAULT_PUSH_RECONCILIATION_OPTIONS = PushReconciliationOptions(remote_head="")
+_DEFAULT_PUSH_OPTIONS = PushOptions(remote_head="")
 
 
 def _report_result(
@@ -160,9 +146,7 @@ def pre_push(
     target_ref: str,
     pushed_head: str,
     *,
-    options: Annotated[PushReconciliationOptions, Parameter(name="*")] = (
-        _DEFAULT_PUSH_RECONCILIATION_OPTIONS
-    ),
+    options: Annotated[PushOptions, Parameter(name="*")] = _DEFAULT_PUSH_OPTIONS,
 ) -> None:
     """Evaluate push admission before a ref is pushed to a protected role.
 
@@ -171,20 +155,13 @@ def pre_push(
     a raw `git push` cannot move a protected ref unproven. Called by the installed pre-push hook.
     """
     repo = resolve_root(options.root)
-    reconciliation = ReconciliationObservation(
-        receipt_path=options.reconciliation_receipt_path,
-        peer_heads=_parse_peer_heads(options.observed_peer_head),
-    )
-    admission = partial(
-        push_admission_report,
+    report = push_admission_report(
         root=repo,
         target_ref=target_ref,
         pushed_head=pushed_head,
         remote_head=options.remote_head,
         remote_name=options.remote,
-        reconciliation=reconciliation,
     )
-    report = admission()
     result = _report_result(
         "hook pre-push",
         report,
@@ -199,65 +176,6 @@ def pre_push(
         ),
     )
     emit(result, json_output=options.json_output, enforce=True)
-
-
-@_app.command(name="reconciliation-receipt")
-def reconciliation_receipt_command(
-    proposal_branch: str,
-    source_head: str,
-    write_receipt: Annotated[pathlib.Path, Parameter(name="--write-receipt")],
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Record exact local observations before a declared-peer proposal push."""
-    repo = resolve_root(root)
-    target = write_receipt.expanduser().resolve()
-    if target.is_relative_to(repo):
-        error = "reconciliation receipt must be outside the repository root"
-        raise ValueError(error)
-    remotes = topology_remotes(publication_topology(repo, release_config(repo)))
-    refs = {
-        peer_id: (
-            git_stdout(repo, "rev-parse", "--verify", f"{remote}/dev"),
-            git_stdout(repo, "rev-parse", "--verify", f"{remote}/main"),
-        )
-        for peer_id, remote in remotes.items()
-    }
-    gaps = tuple(
-        f"reconciliation_peer_tracking_missing:{peer_id}:{branch}"
-        for peer_id, heads in refs.items()
-        for branch, head in zip(("dev", "main"), heads, strict=True)
-        if not head
-    )
-    receipt = reconciliation_receipt_payload(
-        proposal_branch=proposal_branch,
-        source_head=source_head,
-        peer_heads=tuple((peer_id, *heads) for peer_id, heads in refs.items()),
-    )
-    if not gaps:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    result = EthosResult(
-        command="hook reconciliation-receipt",
-        verdict="block" if gaps else "pass",
-        state="observed" if not gaps else "blocked",
-        summary={"proposal_branch": proposal_branch, "source_head": source_head},
-        required_gaps=gaps,
-        next_action="",
-        data={"receipt": receipt, "path": str(target)},
-    )
-    emit(result, json_output=json_output, enforce=True)
-
-
-def _parse_peer_heads(values: tuple[str, ...]) -> tuple[tuple[str, str, str], ...]:
-    rows = []
-    for value in values:
-        fields = value.split("=", 1)
-        heads = fields[1].split(",", 1) if len(fields) == 2 else []
-        if len(heads) == 2:
-            rows.append((fields[0], heads[0], heads[1]))
-    return tuple(rows)
 
 
 @_app.command

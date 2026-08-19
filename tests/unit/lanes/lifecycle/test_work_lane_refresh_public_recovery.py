@@ -97,7 +97,6 @@ def test_refresh_public_reader_distinguishes_current_and_ready(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: True)
     current = refresh.refresh_work_lane_base(root=tmp_path)
     assert current["state"] == "base_current"
@@ -132,25 +131,11 @@ def test_refresh_public_reader_reports_candidate_failures(
     assert refresh.refresh_work_lane_base(root=tmp_path)["required_gaps"] == [gap]
 
 
-def test_refresh_public_reader_exposes_identity_repair_route(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _common(monkeypatch)
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: True)
-
-    report = refresh.refresh_work_lane_base(root=tmp_path)
-
-    assert report["required_gaps"] == ["commit_identity_replacement_required"]
-    assert "repair-identity" in str(report["next_action"])
-
-
 def test_refresh_rejects_snapshot_drift_before_rebase(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: "drift")
 
     report = refresh.refresh_work_lane_base(
@@ -165,7 +150,6 @@ def test_refresh_conflict_reports_failed_restore(
 ) -> None:
     _common(monkeypatch)
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: HEAD)
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
@@ -195,7 +179,6 @@ def test_refresh_rejects_rebase_postcondition_and_restores_branch(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     ancestry = iter((False, False))
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, HEAD))
@@ -275,7 +258,6 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     case: str,
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
     heads = iter((HEAD, REBASED, REBASED if case == "effect-fails" else HEAD, HEAD, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
@@ -324,7 +306,6 @@ def test_refresh_public_attachment_failure_is_reported(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch)
-    monkeypatch.setattr(refresh, "equivalent_commit_identity", lambda *_args: False)
     ancestry = iter((False, True))
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, REBASED, REBASED, HEAD, HEAD))

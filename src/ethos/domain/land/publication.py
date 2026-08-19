@@ -202,17 +202,3 @@ def _refresh_action(command: str) -> str:
         if command
         else _fallback_action(command)
     )
-
-
-def publication_with_remote_matrix(
-    publication: dict[str, object], matrix: dict[str, object], *, remote_available: bool
-) -> dict[str, object]:
-    """Refine the no-push next action for a reconciliation requirement."""
-    return (
-        {
-            **publication,
-            "next_action": "reconcile diverged remotes before creating a proposal branch",
-        }
-        if remote_available and matrix.get("state") == "reconciliation_required"
-        else publication
-    )

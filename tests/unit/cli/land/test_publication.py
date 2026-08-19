@@ -187,7 +187,6 @@ def test_publish_gitlab_only_observes_only_the_declared_peer(tmp_path: Path) -> 
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 
     assert set(payload["data"]["remote_observations"]) == {"gitlab"}
-    assert set(payload["data"]["remote_matrix"]["remotes"]) == {"gitlab"}
     assert payload["data"]["remote_topology"]["state"] == "ready"
 
 
@@ -260,7 +259,7 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
         assert publication["next_action"] == f"run {command} as local fallback evidence"
 
 
-def test_publish_local_readiness_does_not_project_a_proposal_only_plan(tmp_path: Path) -> None:
+def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_role_policy(repo)
     git(repo, "checkout", "-b", "lane/topic")

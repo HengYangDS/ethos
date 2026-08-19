@@ -5,9 +5,12 @@ from pathlib import Path
 import pytest
 
 import ethos.repository.release.configuration as release_core
+from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.contracts.publication import PublicationEffect
+from ethos.contracts.publication import PublicationTarget
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
-from ethos.repository.release.publication import publication_branch_admission
+from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 from tests.support.literal_cases import literal_case
@@ -240,27 +243,34 @@ def test_release_topology_rejects_invalid_declarations(
 
 def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
     topology = publication_topology(Path.cwd(), {"publication": {"remotes": ["origin", "github"]}})
-    admission = publication_branch_admission(
+    admission = publication_ref_admission(
         topology,
-        branch="dev",
-        role="accepted_root",
+        policy=BranchRolePolicy(),
+        target_ref="refs/heads/dev",
+        release_tags=("v*",),
         remote_name="origin",
     )
     assert admission["enforcement_gaps"] == ["publication_topology_declaration_invalid"]
 
 
 @pytest.mark.parametrize(
-    ("role", "branch", "state"),
+    ("target_ref", "ref_kind", "role", "state"),
     [
-        ("accepted_root", "dev", "eligible"),
-        ("release_root", "main", "eligible"),
-        ("proposal_lane", "proposal/topic", "eligible"),
-        ("candidate", "candidate/dev", "unavailable"),
-        ("work_lane", "work/topic", "unavailable"),
+        ("refs/heads/dev", "branch", "accepted_root", "eligible"),
+        ("refs/heads/main", "branch", "release_root", "eligible"),
+        ("refs/heads/proposal/topic", "branch", "proposal_lane", "eligible"),
+        ("refs/tags/v1.2.3", "tag", "release_publication", "eligible"),
+        ("refs/heads/candidate/dev", "branch", "candidate", "unavailable"),
+        ("refs/heads/work/topic", "branch", "work_lane", "unavailable"),
+        ("refs/tags/nightly", "tag", "other", "unavailable"),
     ],
 )
-def test_release_topology_admits_only_positive_remote_publication_roles(
-    tmp_path: Path, role: str, branch: str, state: str
+def test_release_topology_admits_only_positive_full_ref_roles(
+    tmp_path: Path,
+    target_ref: str,
+    ref_kind: str,
+    role: str,
+    state: str,
 ) -> None:
     for path in ("dev/verify", "dev/install"):
         _write(tmp_path, path, "#!/bin/sh\n", executable=True)
@@ -269,23 +279,47 @@ def test_release_topology_admits_only_positive_remote_publication_roles(
         _declared_publication(_peer("gitlab", "gitlab", "origin")),
     )
 
-    admission = publication_branch_admission(
+    admission = publication_ref_admission(
         topology,
-        branch=branch,
-        role=role,
+        policy=BranchRolePolicy(),
+        target_ref=target_ref,
+        release_tags=("v*",),
         remote_name="origin",
     )
 
-    assert admission["remote_publication_roles"] == [
-        "accepted_root",
-        "proposal_lane",
-        "release_root",
-    ]
+    assert admission["target_ref"] == target_ref
+    assert admission["ref_kind"] == ref_kind
+    assert admission["role"] == role
+    assert admission["allowed_effect"] == (
+        "git.ref.compare-and-swap" if state == "eligible" else ""
+    )
     assert admission["state"] == state
     assert admission["remote_mutation_allowed"] is (state == "eligible")
     assert admission["enforcement_gaps"] == (
-        [] if state == "eligible" else [f"publication_remote_role_unavailable:{role}:{branch}"]
+        []
+        if state == "eligible"
+        else [f"publication_ref_unavailable:{ref_kind}:{role}:{target_ref}"]
     )
+
+
+def test_publication_effect_owns_exact_full_ref_cas() -> None:
+    target = PublicationTarget(
+        id="gitlab",
+        remote="origin",
+        target_ref="refs/tags/v1.2.3",
+        expected="0" * 40,
+        desired="1" * 40,
+    )
+
+    effect = PublicationEffect.compile(
+        repository_common_dir="/repo/.git",
+        source_object="1" * 40,
+        targets=(target,),
+    )
+
+    assert effect.operation == "git.ref.compare-and-swap"
+    assert effect.source_object == "1" * 40
+    assert effect.targets == (target,)
 
 
 def test_release_topology_uses_declared_repository_native_commands_and_ci_surfaces(

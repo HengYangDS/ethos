@@ -22,6 +22,8 @@ scope = [
   "src/ethos/adapters/admission/ref_intent.py",
   "src/ethos/adapters/admission/ref_move_policy.py",
   "src/ethos/adapters/admission/transitions.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/commitment_rebind_admission.py",
   "src/ethos/adapters/mutation/lane_lifecycle/identity_repair.py",
   "src/ethos/adapters/mutation/lane_lifecycle/work_lane_refresh.py",
   "src/ethos/adapters/mutation/proof.py",

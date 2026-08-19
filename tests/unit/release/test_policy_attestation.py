@@ -335,7 +335,7 @@ def test_publication_effect_owns_exact_full_ref_cas() -> None:
             signature={
                 "verdict": "pass",
                 "principal": "release@example.invalid",
-                "fingerprint": "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "fingerprint": "SHA256:" + "A" * 43,
                 "trust_anchor_sha256": "4" * 64,
                 "verifier": "git verify-tag",
                 "verifier_version": "git version 2.55.0",

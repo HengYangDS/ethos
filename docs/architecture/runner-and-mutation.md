@@ -176,15 +176,17 @@ still requires `--authorize` and `--expect-head` as mutation-safety intent, but
 it does not require a new candidate proof because no new candidate head is being
 promoted.
 
-`ethos publish --json` remains the local readiness boundary. In proposal/MR
-mode, from a clean proved candidate branch, `ethos publish --proposal <slug>
---probe-remote --expect-head
-<head> --json` observes every declared peer with live `ls-remote`, compiles one
-content-addressed remote publication request, and performs no push. The guarded
-apply form internally consumes that request; the explicit receipt form provides
-restartable execution. Both recheck the exact source HEAD, request digest,
-repository common directory, push admission, and every target ref before their
-first effect.
+`ethos publish --json` remains the local readiness boundary. Remote projection
+has one explicit entry point: `ethos publish --ref <full-ref> --probe-remote
+--expect-head <head> --json`. The full ref is resolved through the positive ref
+topology, so accepted branches, release branches, proposal branches, and
+annotated release tags share one object, proof, request, and executor contract.
+The dry-run observes every declared peer with live `ls-remote`, compiles one
+content-addressed request, and performs no push. The guarded apply form consumes
+that request internally; the explicit receipt form provides restartable
+execution. Both recheck the exact local object and signature trust, request
+digest, repository common directory, push admission, and every target ref
+before their first effect.
 
 Each declared peer push uses provider-local exact CAS. Git cannot make multiple
 providers one atomic transaction, so ETHOS never claims cross-provider
@@ -193,14 +195,12 @@ failed, and pending peers; rerunning the same public receipt path converges peer
 that already match without rewriting them. Hosted CI remains a subsequent
 independent evidence state rather than an implication of push success.
 
-The publication payload also carries `publication.local_proposal_package`, a
-non-blocking package that records the source branch, planned proposal branch,
-deferred remote state, and the two MECE continuations after Work Lane land. In
-local-first mode, candidate closes into accepted `dev`/`main` before remote
-synchronization. In proposal/MR mode, the proved candidate becomes
-`proposal/*`; the forge merges it into accepted `dev`/`main`, then local refs
-re-observe and synchronize that accepted result. A proposal never starts from
-accepted. Actual mutation still requires the command's guarded options.
+Local readiness carries no proposal-only package or implicit target. The caller
+selects one admitted full ref explicitly. In local-first mode, candidate closes
+into accepted `dev`/`main` before those exact accepted objects are projected. In
+proposal/MR mode, the proved candidate object is projected to an explicit
+`refs/heads/proposal/*` target; candidate and Work Lane refs remain local-only.
+Actual mutation still requires the command's guarded options.
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

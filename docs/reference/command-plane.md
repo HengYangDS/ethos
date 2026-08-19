@@ -30,9 +30,9 @@ ETHOS exposes exactly these public roots:
 | `ethos prove --json` | Check proof readiness. | Read-only unless `--execute` is explicit. |
 | `ethos land --json` | Report landing readiness. | Effects require the command's explicit guarded options. |
 | `ethos publish --json` | Report local publication readiness. | Read-only. |
-| `ethos publish --proposal <slug> --probe-remote --expect-head <head> --json` | Derive an immutable exact-CAS proposal publication request from the proved local candidate and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state. |
-| `ethos publish --proposal <slug> --probe-remote --apply --authorize --expect-head <head> --json` | Derive and consume an immutable proposal publication request. | Uses the same receipt-bound exact-CAS executor as explicit receipt apply. |
-| `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Publish the candidate HEAD to the proposal ref on every declared peer. | Rechecks all peers before the first push; returns attested peer-local partial effects if a later provider fails. |
+| `ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json` | Derive an immutable exact-CAS request for one positively admitted branch or annotated release-tag ref from the exact local object and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state. |
+| `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json` | Derive and consume the same full-ref publication request. | Uses the same receipt-bound exact-CAS executor as explicit receipt apply. |
+| `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers. | Rechecks the local object, trust binding, and all peers before the first push; returns attested peer-local partial effects if a later peer fails. |
 | `ethos adopt --root <repo> --json` | Plan adoption for one repository. | Applying requires explicit authorization and an expected head. |
 | `ethos migrate-local-state --root <repo> --json` | Inspect misplaced legacy checkout state. | Applying requires authorization, exact HEAD, and the reviewed plan digest. |
 

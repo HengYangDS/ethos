@@ -5,6 +5,8 @@ subjects = [
   "repository:ethos",
 ]
 scope = [
+  ".agents/skills/ethos-change-lifecycle/SKILL.md",
+  ".agents/skills/ethos-change-lifecycle/references/verdicts-and-gaps.md",
   ".ethos/release.toml",
   "docs/architecture/runner-and-mutation.md",
   "docs/governance/forge-provider-contract.md",
@@ -26,6 +28,7 @@ scope = [
   "src/ethos/adapters/repo/git_signing.py",
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/contracts/publication.py",
+  "src/ethos/domain/land/publication.py",
   "src/ethos/repository/release/publication.py",
   "src/ethos/surface/cli/hook/commands.py",
   "src/ethos/surface/cli/lane/commit_signer.py",
@@ -33,6 +36,7 @@ scope = [
   "src/ethos/surface/cli/lane/lifecycle.py",
   "src/ethos/surface/cli/root/publish.py",
   "system/surfaces.toml",
+  "tests/architecture/test_local_install_smoke.py",
   "tests/fixtures/hook-admission/cases.json",
   "tests/unit/adapters/repo/test_git_object_public_recovery.py",
   "tests/unit/admission/test_identity_public_reconciliation.py",

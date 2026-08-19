@@ -14,10 +14,10 @@ from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.publication import RemotePublicationEffect
-from ethos.contracts.publication import RemotePublicationTarget
-from ethos.contracts.publication import compile_remote_publication_plan
-from ethos.contracts.publication import remote_publication_effect_from_plan
+from ethos.contracts.publication import PublicationEffect
+from ethos.contracts.publication import PublicationTarget
+from ethos.contracts.publication import compile_publication_plan
+from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
 
@@ -99,13 +99,13 @@ def _push_remote_ref_exact(
 def observe_remote_publication_effect(
     *,
     root: Path,
-    source_head: str,
+    source_object: str,
     target_ref: str,
     remotes: dict[str, str],
-) -> tuple[RemotePublicationEffect | None, dict[str, dict[str, object]], tuple[str, ...]]:
+) -> tuple[PublicationEffect | None, dict[str, dict[str, object]], tuple[str, ...]]:
     """Observe every declared target before compiling one immutable effect."""
     observations: dict[str, dict[str, object]] = {}
-    targets: list[RemotePublicationTarget] = []
+    targets: list[PublicationTarget] = []
     gaps: list[str] = []
     for peer_id, remote in remotes.items():
         observation = _observe_remote_ref(root, remote, target_ref)
@@ -115,24 +115,24 @@ def observe_remote_publication_effect(
             gaps.append(f"publication_proposal_remote_unavailable:{peer_id}:{remote}")
             continue
         observed = str(observation.get("head") or _ZERO_OID)
-        if observed != _ZERO_OID and observed != source_head:
+        if observed != _ZERO_OID and observed != source_object:
             gaps.append(
                 f"publication_proposal_target_drift:{peer_id}:"
                 f"{target_ref.removeprefix('refs/heads/')}"
             )
         targets.append(
-            RemotePublicationTarget(
+            PublicationTarget(
                 id=peer_id,
                 remote=remote,
                 target_ref=target_ref,
                 expected=observed,
-                desired=source_head,
+                desired=source_object,
             )
         )
     effect = (
-        RemotePublicationEffect.compile(
+        PublicationEffect.compile(
             repository_common_dir=git.git_common_dir(root),
-            source_head=source_head,
+            source_object=source_object,
             targets=tuple(targets),
         )
         if targets and len(targets) == len(remotes)
@@ -175,7 +175,7 @@ def load_remote_publication_request(
         raise ValueError(message)
     try:
         plan = TransitionPlan.model_validate_json(payload)
-        effect = remote_publication_effect_from_plan(plan)
+        effect = publication_effect_from_plan(plan)
     except ValueError as error:
         message = "remote_publication_receipt_invalid"
         raise ValueError(message) from error
@@ -185,15 +185,13 @@ def load_remote_publication_request(
     return plan
 
 
-def compile_remote_publication_request(
-    *, root: Path, effect: RemotePublicationEffect
-) -> TransitionPlan:
+def compile_remote_publication_request(*, root: Path, effect: PublicationEffect) -> TransitionPlan:
     """Compile fresh remote observations into the common TransitionPlan."""
-    commitment = load_repository_commitment(root, tree_ref=effect.source_head)
+    commitment = load_repository_commitment(root, tree_ref=effect.source_object)
     facts = Facts(
         repository=commitment.id,
-        head=effect.source_head,
-        tree=git.current_tree(root, effect.source_head),
+        head=effect.source_object,
+        tree=git.current_tree(root, effect.source_object),
         observed_at=datetime.now(UTC),
         values={
             "remote_targets": tuple(target.model_dump(mode="json") for target in effect.targets),
@@ -204,7 +202,7 @@ def compile_remote_publication_request(
             *(f"git:{target.remote}:{target.target_ref}" for target in effect.targets),
         ),
     )
-    return compile_remote_publication_plan(
+    return compile_publication_plan(
         commitment=commitment,
         facts=facts,
         effect=effect,
@@ -214,7 +212,7 @@ def compile_remote_publication_request(
 
 def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict[str, object]:
     """Execute peer-local CAS pushes after a complete fresh preflight."""
-    effect = remote_publication_effect_from_plan(plan)
+    effect = publication_effect_from_plan(plan)
     observations = {
         target.id: _observe_remote_ref(root, target.remote, target.target_ref)
         for target in effect.targets
@@ -302,7 +300,7 @@ def _terminal_result(
     *,
     root: Path,
     plan: TransitionPlan,
-    effect: RemotePublicationEffect,
+    effect: PublicationEffect,
     verdict: Verdict,
     state: str,
     required_gaps: tuple[str, ...],
@@ -333,7 +331,7 @@ def _terminal_result(
             "schema_version": 2,
             "predicate": "publication:remote-effect",
             "verifier": "ethos:remote-publication-executor",
-            "subject": f"git:commit:{effect.source_head}",
+            "subject": f"git:commit:{effect.source_object}",
             "issued_at": datetime.now(UTC),
             "valid_from": None,
             "valid_until": None,

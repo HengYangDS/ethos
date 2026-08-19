@@ -28,8 +28,8 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.publication import RemotePublicationEffect
-from ethos.contracts.publication import remote_publication_effect_from_plan
+from ethos.contracts.publication import PublicationEffect
+from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -40,7 +40,7 @@ from ethos.domain.land.publication import publication_with_remote_matrix
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
-from ethos.repository.release.publication import publication_branch_admission
+from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
@@ -89,7 +89,7 @@ def _publish_expected_state(
     current_head: str,
     publication: Mapping[str, object],
     remote_observations: Mapping[str, object],
-    branch_admissions: Mapping[str, object],
+    ref_admissions: Mapping[str, object],
 ) -> dict[str, object]:
     target_branch = str(publication.get("proposal_branch") or branch)
     observations = {key: _object_mapping(value) for key, value in remote_observations.items()}
@@ -112,7 +112,7 @@ def _publish_expected_state(
         "source_head": current_head,
         "target_ref": f"refs/heads/{target_branch}",
         "remote_targets": targets,
-        "branch_admissions": dict(branch_admissions),
+        "ref_admissions": dict(ref_admissions),
     }
 
 
@@ -209,7 +209,7 @@ def _proposal_effect_observation(
     current_head: str,
     remotes: dict[str, str],
 ) -> tuple[
-    RemotePublicationEffect | None,
+    PublicationEffect | None,
     dict[str, dict[str, object]],
     dict[str, dict[str, object]],
     tuple[str, ...],
@@ -220,7 +220,7 @@ def _proposal_effect_observation(
     target_ref = f"refs/heads/{proposal_branch}"
     effect, observations, effect_gaps = observe_remote_publication_effect(
         root=repo,
-        source_head=current_head,
+        source_object=current_head,
         target_ref=target_ref,
         remotes=remotes,
     )
@@ -261,7 +261,7 @@ def _publish_proposal(
     push_admission: dict[str, dict[str, object]] = {}
     request: dict[str, object] = {}
     plan: TransitionPlan | None = None
-    effect: RemotePublicationEffect | None = None
+    effect: PublicationEffect | None = None
     replay = options.receipt is not None
     if replay:
         gaps.extend(
@@ -282,7 +282,7 @@ def _publish_proposal(
             plan = load_remote_publication_request(
                 repo, str(request["path"]), str(request["sha256"])
             )
-            effect = remote_publication_effect_from_plan(plan)
+            effect = publication_effect_from_plan(plan)
         except ValueError as error:
             gaps.append(str(error))
     else:
@@ -310,7 +310,7 @@ def _publish_proposal(
             if plan.verdict == "pass":
                 request = persist_remote_publication_request(repo, plan)
 
-    if effect is not None and effect.source_head != current_head:
+    if effect is not None and effect.source_object != current_head:
         gaps.append("remote_publication_receipt_head_mismatch")
     gaps = list(dict.fromkeys(gaps))
     verdict: Verdict = "block" if gaps or local_verdict != "pass" else "pass"
@@ -496,11 +496,16 @@ def publish(
             json_output=json_output,
         )
         return
-    branch_admissions = {
-        peer_id: publication_branch_admission(
+    config = release_config(repo)
+    protected_refs = config.get("protected_refs")
+    raw_tags = protected_refs.get("tags") if isinstance(protected_refs, dict) else ()
+    release_tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, list) else ()
+    ref_admissions = {
+        peer_id: publication_ref_admission(
             remote_topology,
-            branch=str(branch),
-            role=policy.role_for_branch(str(branch)),
+            policy=policy,
+            target_ref=f"refs/heads/{branch}",
+            release_tags=release_tags,
             remote_name=remote,
         )
         for peer_id, remote in configured_remotes.items()
@@ -552,7 +557,7 @@ def publish(
         },
         "remote_mutation_allowed": all(
             admission.get("remote_mutation_allowed") is True
-            for admission in branch_admissions.values()
+            for admission in ref_admissions.values()
         ),
         "hosted_ci_status_claimed": False,
         "independent_verification": str(
@@ -572,7 +577,7 @@ def publish(
         current_head=current_head,
         publication=publication,
         remote_observations=remote_observations,
-        branch_admissions=branch_admissions,
+        ref_admissions=ref_admissions,
     )
     publish_decision = admission_decision(
         subject=MutationSubject(
@@ -620,7 +625,7 @@ def publish(
             "remote_push": remote_push,
             "remote_matrix": remote_matrix,
             "remote_topology": remote_topology,
-            "publication_branch_admissions": branch_admissions,
+            "publication_ref_admissions": ref_admissions,
             "remote_observations": remote_observations,
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,

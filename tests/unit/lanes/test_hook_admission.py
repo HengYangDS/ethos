@@ -502,7 +502,7 @@ def test_push_topology_and_proof_state_matrix(tmp_path: Path) -> None:
         pushed_head=git(repo, "rev-parse", "HEAD"),
         remote_name="origin",
     )
-    assert report["publication_branch_admission"]["enforcement_gaps"] == [
+    assert report["publication_ref_admission"]["enforcement_gaps"] == [
         "publication_topology_declaration_invalid"
     ]
     assert "publication_topology_declaration_invalid" in report["required_gaps"]
@@ -512,7 +512,7 @@ def test_push_topology_and_proof_state_matrix(tmp_path: Path) -> None:
         ("refs/heads/dev", "proof"),
         (
             "refs/heads/work/feature",
-            "publication_remote_role_unavailable:work_lane:work/feature",
+            "publication_ref_unavailable:branch:work_lane:refs/heads/work/feature",
         ),
     ):
         report = push_admission_report(root=repo, target_ref=ref, pushed_head=head)
@@ -537,7 +537,10 @@ def test_identity_state_matrix(
     )
     _assert(policy, {"verdict": verdict, "checked_commit_count": 1})
     assert report["identity_policy"] == policy
-    assert "publication_remote_role_unavailable:work_lane:work/identity" in report["required_gaps"]
+    assert (
+        "publication_ref_unavailable:branch:work_lane:refs/heads/work/identity"
+        in report["required_gaps"]
+    )
     for kind, identity in (("author", author), ("committer", committer)):
         assert (
             f"pushed_commit_{kind}_not_configured_identity:{pushed_head}" in report["required_gaps"]

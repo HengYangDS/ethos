@@ -5,7 +5,7 @@
       "values": [
         "refs/heads/candidate/dev",
         "origin",
-        "publication_remote_role_unavailable:candidate:candidate/dev",
+        "publication_ref_unavailable:branch:candidate:refs/heads/candidate/dev",
         "any"
       ]
     },
@@ -23,7 +23,7 @@
       "values": [
         "refs/heads/work/dual-remote",
         "github",
-        "publication_remote_role_unavailable:work_lane:work/dual-remote",
+        "publication_ref_unavailable:branch:work_lane:refs/heads/work/dual-remote",
         "absent"
       ]
     }

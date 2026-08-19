@@ -36,7 +36,6 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     recognized_rebind_attestation,
 )
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.repo.commit_identity import commit_trust_setup_action
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
@@ -44,6 +43,7 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_object import commit_trust_setup_action
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import rebind_lease_commitment

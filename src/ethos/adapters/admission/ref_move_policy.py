@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.ref_intent import claim_ref_intent
-from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import BranchRolePolicy

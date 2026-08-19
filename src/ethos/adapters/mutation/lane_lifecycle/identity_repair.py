@@ -10,8 +10,6 @@ from typing import cast
 
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
-from ethos.adapters.repo.commit_identity import equivalent_commit_identity
-from ethos.adapters.repo.commit_identity import verify_commit_trust
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -22,6 +20,8 @@ from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_object import equivalent_commit_identity
+from ethos.adapters.repo.git_object import verify_commit_trust
 from ethos.adapters.repo.git_ref_worktrees import ref_worktree_paths
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap

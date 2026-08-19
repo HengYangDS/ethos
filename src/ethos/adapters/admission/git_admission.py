@@ -20,8 +20,8 @@ from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
-from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF

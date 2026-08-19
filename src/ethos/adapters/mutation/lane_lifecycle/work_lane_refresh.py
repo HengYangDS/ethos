@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo.commit_identity import equivalent_commit_identity
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
@@ -20,6 +19,7 @@ from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status

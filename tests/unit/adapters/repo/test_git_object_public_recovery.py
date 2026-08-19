@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import ethos.adapters.repo.commit_identity as identity
+import ethos.adapters.repo.git_object as identity
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 

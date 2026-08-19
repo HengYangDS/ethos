@@ -368,7 +368,7 @@ def test_publish_proposal_dry_run_and_apply_share_one_plan_and_attestation(
     assert (dry_run["verdict"], plan.verdict, plan.effect["operation"]) == (
         "pass",
         "pass",
-        "proposal.create",
+        "git.ref.compare-and-swap",
     )
     assert {_proposal_ref(remote) for remote in remotes.values()} == {""}
 

@@ -36,26 +36,26 @@
   receipts, schemas, rules, documentation, fixtures, and tests.
 - [x] 4.2 Delete peer-head reconciliation observations, environment receipts,
   remote-history merge semantics, continuation requirements, and tests.
-- [ ] 4.3 Remove provider publication identity and proposal-only aliases while
+- [x] 4.3 Remove provider publication identity and proposal-only aliases while
   preserving provider labels solely for transport or observation adapters.
-- [ ] 4.4 Prove repository-wide reference and wording closure for all retired
+- [x] 4.4 Prove repository-wide reference and wording closure for all retired
   symbols and semantics before adding further behavior.
 
 ## 5. Converge public commands and projections
 
-- [ ] 5.1 Make `ethos publish` compile readiness, immutable request, receipt
+- [x] 5.1 Make `ethos publish` compile readiness, immutable request, receipt
   apply, and exact parity projection from the replacement contract.
-- [ ] 5.2 Make pre-push forward the Git update envelope to the same target and
+- [x] 5.2 Make pre-push forward the Git update envelope to the same target and
   proof admission owner without branch parsing or peer reconciliation.
-- [ ] 5.3 Update release declarations, rules, command reference, architecture,
+- [x] 5.3 Update release declarations, rules, command reference, architecture,
   and Forge contract to distinguish object signing, transport authentication,
   provider presentation, and publication receipt.
 
 ## 6. Verify the bounded change
 
-- [ ] 6.1 Run focused contract, executor, hook, CLI, and bare-peer E2E tests and
+- [x] 6.1 Run focused contract, executor, hook, CLI, and bare-peer E2E tests and
   prove every initially failing scenario is green.
-- [ ] 6.2 Run official OpenSpec 1.9 strict validation, repository-wide retired
+- [x] 6.2 Run official OpenSpec 1.9 strict validation, repository-wide retired
   reference searches, lint, type, architecture, source-budget, and full tests.
 - [ ] 6.3 Run exact-HEAD ETHOS proof and record the requirement-to-task-to-proof
   mapping before the public archive, land, accepted closeout, and lane retire.

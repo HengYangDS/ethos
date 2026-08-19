@@ -17,10 +17,26 @@ scope = [
   "tests/unit/cli/test_contracts_closeout.py",
   "tests/unit/kernel/test_proof_plan_binding.py",
 ]
-invariants = []
-acceptance = []
-risks = []
-authority_refs = []
+invariants = [
+  "archive_authority_does_not_require_a_retired_lease_generation",
+  "closeout_readiness_and_apply_use_one_proof_query",
+  "conflicts_fail_closed_inside_the_selected_authority",
+  "one_repository_transition_query_owns_role_movement_proof_selection",
+]
+acceptance = [
+  "archive_bound_proof_remains_usable_after_lane_retirement_when_no_repository_proof_exists",
+  "closeout_dry_run_and_apply_return_the_same_proof_admission_verdict",
+  "repository_proof_wins_when_repository_and_archived_change_proofs_share_a_head",
+]
+risks = [
+  "overbroad_selection_could_admit_a_proof_from_another_repository",
+  "underbroad_conflict_detection_could_hide_contradictory_proofs",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "openspec/specs/repository-governance/spec.md",
+]
 predecessors = [
   "00ea43d54b0a3edcbf6b9141f741bbe62e459dcd73f8338e2852e86ef6825fcf",
 ]

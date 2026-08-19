@@ -13,6 +13,7 @@ scope = [
   "src/ethos/adapters/mutation/proof.py",
   "src/ethos/adapters/mutation/proof_admission.py",
   "src/ethos/surface/cli/root/publish.py",
+  "tests/architecture/test_product_design_contract.py",
   "tests/unit/admission/test_control_replacement.py",
   "tests/unit/cli/land/test_publication.py",
   "tests/unit/cli/test_contracts_closeout.py",

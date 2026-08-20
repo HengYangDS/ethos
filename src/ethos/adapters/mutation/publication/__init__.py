@@ -1,0 +1,1 @@
+"""Remote publication effect helpers."""

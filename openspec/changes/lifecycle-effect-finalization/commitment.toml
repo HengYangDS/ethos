@@ -10,6 +10,7 @@ scope = [
   "src/ethos/adapters/admission/prewrite.py",
   "src/ethos/adapters/admission/transitions.py",
   "src/ethos/adapters/mutation/lane_lifecycle/archive_change.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/archive_recovery.py",
   "src/ethos/adapters/mutation/lane_lifecycle/change_overlay.py",
   "src/ethos/adapters/mutation/lane_lifecycle/change_rollover.py",
   "src/ethos/adapters/mutation/local_state.py",

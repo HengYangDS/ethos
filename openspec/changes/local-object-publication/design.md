@@ -80,6 +80,14 @@ cryptography.
    release-asset trust and in-toto/DSSE for build provenance. This Change adds
    no home-grown trust-bundle format and no online Sigstore dependency.
 
+8. **Keep prepared ref intent valid until transaction closeout.**
+   The short intent expiry applies only before Git enters the transaction. Once
+   the exact ref, old and new OIDs, operation, and plan digest have advanced to
+   `prepared`, wall-clock expiry cannot invalidate that active transaction
+   while its hook is evaluating. Git `committed` or `aborted`, or the existing
+   exact recovery path, owns terminal closeout; housekeeping removes only
+   expired `issued` intents.
+
 ## Risks / Trade-offs
 
 - **Large deletion surface** -> prove whole-repository reference closure
@@ -92,6 +100,8 @@ cryptography.
   machine-relevant fields and bind raw verifier status as evidence.
 - **SHA-256 repositories use a different zero width** -> derive object format
   and zero OID from Git instead of retaining a SHA-1 constant.
+- **Hook evaluation outlives issued-intent TTL** -> distinguish pre-transaction
+  expiry from prepared transaction lifetime instead of increasing a timeout.
 
 ## Migration Plan
 

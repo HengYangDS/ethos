@@ -6,6 +6,7 @@ subjects = [
 ]
 scope = [
   ".agents/skills/ethos-change-lifecycle/SKILL.md",
+  ".agents/skills/ethos-change-lifecycle/package.toml",
   ".agents/skills/ethos-change-lifecycle/references/verdicts-and-gaps.md",
   ".ethos/release.toml",
   "docs/architecture/runner-and-mutation.md",

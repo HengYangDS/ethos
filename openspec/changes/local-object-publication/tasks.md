@@ -54,8 +54,24 @@
 ## 6. Verify the bounded change
 
 - [x] 6.1 Run focused contract, executor, hook, CLI, and bare-peer E2E tests and
-  prove every initially failing scenario is green.
+  prove every initially failing scenario is green, including prepared ref
+  intent validity until transaction closeout.
 - [x] 6.2 Run official OpenSpec 1.9 strict validation, repository-wide retired
   reference searches, lint, type, architecture, source-budget, and full tests.
 - [ ] 6.3 Run exact-HEAD ETHOS proof and record the requirement-to-task-to-proof
   mapping before the public archive, land, accepted closeout, and lane retire.
+
+## Requirement To Task To Proof
+
+| Requirement | Task | Proof |
+| --- | --- | --- |
+| `command-plane:Publish is the sole remote Git object projection command` | `5.1` | `test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation`, `test_publish_projects_one_signed_release_tag_through_the_full_ref_command` |
+| `command-plane:Identity repair supports one receipt-bound linear suffix` | `4.1` | `test_retired_git_object_reconstruction_commands_are_absent` |
+| `repository-governance:Declared publication peer topology` | `1.3` | `test_release_topology_supports_every_declared_peer_cardinality`, `test_release_topology_allows_multiple_peers_from_one_provider` |
+| `repository-governance:Strict remote publication admission` | `1.1` | `test_release_topology_admits_only_positive_full_ref_roles`, `test_publication_rejects_lightweight_or_untrusted_release_tags` |
+| `repository-governance:Independent peer effects remain recoverable` | `3.3` | `test_publish_branch_preflights_all_peers_and_retry_converges`, `test_publish_branch_retry_records_one_terminal_attestation_after_interruption` |
+| `repository-governance:Publication semantics have one owner per layer` | `5.2` | `test_publish_and_pre_push_bind_the_same_exact_proof_attestation`, `test_publish_projects_declared_peer_collections_without_single_remote_aliases` |
+| `repository-governance:Exact local Git object projection` | `1.2` | `test_publication_projects_one_trusted_annotated_tag_exactly_to_two_peers`, `test_publication_effect_owns_exact_full_ref_cas` |
+| `repository-governance:Proposal publication is receipt-bound exact CAS` | `2.3` | `test_publish_proposal_target_requires_the_local_candidate_source`, `test_publish_branch_dry_run_and_apply_share_one_plan_and_attestation` |
+| `repository-governance:Maintainer remote reconciliation preserves observed protected history` | `4.2` | `test_pre_push_rejects_retired_reconciliation_inputs` |
+| `repository-governance:Remote reconciliation continuation preserves historical carrier boundaries` | `4.2` | `test_pre_push_rejects_retired_reconciliation_inputs`, repository-wide retired-reference closure |

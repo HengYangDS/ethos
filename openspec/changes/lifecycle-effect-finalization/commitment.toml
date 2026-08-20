@@ -1,0 +1,31 @@
+schema_version = 2
+id = "change:lifecycle-effect-finalization"
+intent = "Make OpenSpec start and archive effects remain the sole exact authority through commit finalization and recoverable partial lifecycle states."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "openspec/changes/lifecycle-effect-finalization/**",
+  "openspec/specs/repository-governance/spec.md",
+  "src/ethos/adapters/admission/prewrite.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/archive_change.py",
+  "src/ethos/adapters/mutation/lane_lifecycle/change_rollover.py",
+  "src/ethos/adapters/openspec/generation/attestation.py",
+  "src/ethos/surface/cli/lane/change.py",
+  "tests/unit/cli/test_openspec_archive_transition.py",
+  "tests/unit/cli/test_openspec_change_rollover.py",
+  "tests/unit/lanes/lifecycle/test_change_rollover_public_recovery.py",
+  "tests/unit/lanes/test_hook_admission.py",
+]
+invariants = []
+acceptance = []
+risks = []
+authority_refs = []
+predecessors = [
+  "9822da1063aab416c806510f78ede8996da13e626f2dfdc366aba848c3f9837e",
+]
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

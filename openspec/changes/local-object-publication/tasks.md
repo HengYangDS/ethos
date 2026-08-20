@@ -58,7 +58,7 @@
   intent validity until transaction closeout.
 - [x] 6.2 Run official OpenSpec 1.9 strict validation, repository-wide retired
   reference searches, lint, type, architecture, source-budget, and full tests.
-- [ ] 6.3 Run exact-HEAD ETHOS proof and record the requirement-to-task-to-proof
+- [x] 6.3 Run exact-HEAD ETHOS proof and record the requirement-to-task-to-proof
   mapping before the public archive, land, accepted closeout, and lane retire.
 
 ## Requirement To Task To Proof

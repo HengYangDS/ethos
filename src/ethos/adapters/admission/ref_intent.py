@@ -198,9 +198,7 @@ def _select_intent(
         ):
             mismatch = gap
             continue
-        if now >= intent.expires_at and not (
-            phase == "recover" and intent.phase in {"prepared", "committed"}
-        ):
+        if now >= intent.expires_at and intent.phase == "issued":
             return match, mismatch, _reclaim_expired(path, intent)
         if match:
             return match, mismatch, _claim(present=True, gap="ref_intent_ambiguous")

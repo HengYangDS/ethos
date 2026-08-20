@@ -7,12 +7,11 @@ from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.proof import proof_admission_report
-from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.mutation.publication.attestation import terminal_publication_result
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
@@ -25,12 +24,8 @@ from ethos.contracts.publication import PublicationTarget
 from ethos.contracts.publication import PublicationUpdate
 from ethos.contracts.publication import compile_publication_plan
 from ethos.contracts.publication import publication_effect_from_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
 from ethos.repository.release.publication import publication_ref_transition
-
-if TYPE_CHECKING:
-    from ethos.contracts.verdict import Verdict
 
 
 def _observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
@@ -364,7 +359,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         ),
     )
     if gaps:
-        return _terminal_result(
+        return terminal_publication_result(
             root=root,
             plan=plan,
             effect=effect,
@@ -420,7 +415,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
         )
         if result["state"] != "applied" or not parity:
             gap = f"publication_push_failed:{target.id}:{target.remote}"
-            return _terminal_result(
+            return terminal_publication_result(
                 root=root,
                 plan=plan,
                 effect=effect,
@@ -435,7 +430,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
             )
         applied.append(target.id)
         observations[target.id] = observed
-    return _terminal_result(
+    return terminal_publication_result(
         root=root,
         plan=plan,
         effect=effect,
@@ -505,75 +500,3 @@ def _source_drift_gaps(
         }
     )
     return () if actual == expected else ("publication_source_identity_drift",)
-
-
-def _terminal_result(
-    *,
-    root: Path,
-    plan: TransitionPlan,
-    effect: PublicationEffect,
-    verdict: Verdict,
-    state: str,
-    required_gaps: tuple[str, ...],
-    observations: dict[str, dict[str, object]],
-    applied: tuple[str, ...],
-    failed: str,
-    pending: tuple[str, ...],
-    attempts: tuple[dict[str, object], ...],
-) -> dict[str, object]:
-    statement = {
-        "claim": {"operation": effect.operation, "verdict": verdict},
-        "plan": plan.model_dump(mode="json"),
-        "effect": effect.model_dump(mode="json"),
-        "state": state,
-        "required_gaps": list(required_gaps),
-        "observations": observations,
-        "partial_effects": {
-            "applied_peers": list(applied),
-            "failed_peer": failed,
-            "pending_peers": list(pending),
-        },
-        "attempts": list(attempts),
-        "cross_provider_atomicity_claimed": False,
-    }
-    effect_digest = effect.digest()
-    attestation = Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "publication:remote-effect",
-            "verifier": "ethos:remote-publication-executor",
-            "subject": f"git:{effect.source.kind}:{effect.source.object_oid}",
-            "issued_at": datetime.now(UTC),
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": verdict,
-            "payload": {"kind": "publication:remote-effect", "body": statement},
-            "relations": (),
-            "advisories": (),
-            "commitment_digest": plan.inputs.commitment,
-            "facts_digest": plan.inputs.facts,
-            "plan_digest": plan.digest,
-            "policy_digest": plan.inputs.policy,
-            "effect_digest": effect_digest,
-            "evidence_refs": tuple(
-                sorted(
-                    f"git:{target.remote}:{update.target_ref}:{update.desired}"
-                    for target in effect.targets
-                    for update in target.updates
-                )
-            ),
-            "mints_authority": False,
-        }
-    )
-    selected = record_attestations(root, (attestation,))
-    return {
-        "state": state,
-        "required_gaps": list(required_gaps),
-        "observations": observations,
-        "partial_effects": statement["partial_effects"],
-        "attempts": list(attempts),
-        "attestation": {
-            "id": attestation.id,
-            "set_root": selected["root"],
-        },
-    }

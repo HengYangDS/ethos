@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import tools.ci.delivery.pipeline as delivery_pipeline
-import tools.ci.local_install_smoke as local_install_smoke
 from ethos.contracts.semantic import load_commitment_file
+from tools.ci.delivery.adopter_fixture import commitment_carrier
 from tools.ci.delivery.pipeline import DeliveryPipeline
 
 if TYPE_CHECKING:
@@ -62,21 +62,19 @@ def test_install_smoke_prepares_frozen_supply_before_offline_install(
 
 
 def test_packaged_vector_derives_a_complete_strict_v2_commitment(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     vectors = (ROOT / "tests/fixtures/semantic-v2/vectors.json").read_text(encoding="utf-8")
-    monkeypatch.setattr(local_install_smoke, "_run", lambda *_args, **_kwargs: vectors)
-
     carrier = tmp_path / "commitment.toml"
     carrier.write_text(
-        local_install_smoke.commitment_carrier_from_packaged_vector(
+        commitment_carrier(
             Path("ethos.whl"),
             Path("python"),
             commitment_id="change:install-smoke",
             intent="Prove the installed package carrier.",
             subjects=("repository:install-smoke",),
             scope=("README.md",),
+            run=lambda *_args, **_kwargs: vectors,
         ),
         encoding="utf-8",
     )

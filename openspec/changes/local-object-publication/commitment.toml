@@ -28,6 +28,7 @@ scope = [
   "src/ethos/adapters/mutation/lane_lifecycle/identity_repair.py",
   "src/ethos/adapters/mutation/lane_lifecycle/work_lane_refresh.py",
   "src/ethos/adapters/mutation/proof.py",
+  "src/ethos/adapters/mutation/publication/**",
   "src/ethos/adapters/mutation/remote_publication.py",
   "src/ethos/adapters/repo/git.py",
   "src/ethos/adapters/repo/git_object.py",
@@ -62,6 +63,7 @@ scope = [
   "tests/unit/lanes/test_hook_admission.py",
   "tests/unit/lanes/test_hook_publication_admission.py",
   "tests/unit/release/test_policy_attestation.py",
+  "tools/ci/delivery/adopter_fixture.py",
   "tools/ci/local_install_smoke.py",
 ]
 invariants = [

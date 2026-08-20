@@ -104,6 +104,21 @@ def test_expired_intent_is_reclaimed_and_removed(tmp_path: Path) -> None:
     assert not _path(tmp_path, written).exists()
 
 
+def test_prepared_intent_remains_valid_until_transaction_closeout(tmp_path: Path) -> None:
+    written = _write(tmp_path)
+    assert _claim(tmp_path)["gap"] == ""
+    _store(
+        tmp_path,
+        written,
+        expires_at=(datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+    )
+
+    report = _claim(tmp_path)
+
+    assert report["gap"] == ""
+    assert _payload(tmp_path, written)["phase"] == "prepared"
+
+
 def test_committed_lookup_removes_invalid_and_reports_ambiguity(tmp_path: Path) -> None:
     directory = intent.ref_intent_dir(tmp_path)
     directory.mkdir(parents=True)

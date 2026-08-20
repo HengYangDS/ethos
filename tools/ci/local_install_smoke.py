@@ -15,11 +15,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import tomli_w
-
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_command
 from tools.ci.adopter_reader_smoke import check as check_adopted_reader
+from tools.ci.delivery.adopter_fixture import line_ending_conformance
+from tools.ci.delivery.adopter_fixture import materialize_adopter
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -108,163 +108,6 @@ def _single_wheel() -> Path:
         message = "local install smoke requires exactly one ETHOS wheel"
         raise RuntimeError(message)
     return wheels[0]
-
-
-def commitment_carrier_from_packaged_vector(
-    wheel: Path,
-    python: Path,
-    *,
-    commitment_id: str,
-    intent: str,
-    subjects: tuple[str, ...],
-    scope: tuple[str, ...],
-) -> str:
-    vector = json.loads(
-        _run(
-            str(python),
-            "-I",
-            "-c",
-            "import importlib.resources,sys; "
-            "sys.path.insert(0, sys.argv[1]); "
-            "print(importlib.resources.files('ethos').joinpath("
-            "'data/semantic-v2/vectors.json').read_text())",
-            str(wheel),
-        )
-    )
-    payload = tomllib.loads(vector["commitment"]["carrier_toml"])
-    if not all(key in payload for key in ("id", "intent", "subjects", "scope", "dependencies")):
-        message = "packaged semantic-v2 vector has no structured commitment fields"
-        raise RuntimeError(message)
-    payload.update(id=commitment_id, intent=intent, subjects=list(subjects), scope=list(scope))
-    for key, value in payload.items():
-        if (
-            key not in {"subjects", "scope"}
-            and isinstance(value, list)
-            and all(isinstance(item, str) for item in value)
-        ):
-            payload[key] = []
-    return tomli_w.dumps(payload)
-
-
-def _initialize_adopter(root: Path, wheel: Path, python: Path) -> str:
-    git = _executable("git")
-    ssh_keygen = _executable("ssh-keygen")
-    _run(git, "init", "--quiet", "--initial-branch=dev", str(root))
-    _run(git, "config", "user.name", "ETHOS Install Smoke", cwd=root)
-    _run(git, "config", "user.email", "ethos-install-smoke@example.invalid", cwd=root)
-    signer = root.parent / "product-signer"
-    trust_anchor = root.parent / "allowed-signers"
-    _run(ssh_keygen, "-q", "-t", "ed25519", "-N", "", "-f", str(signer))
-    public_key = signer.with_suffix(".pub").read_text(encoding="utf-8").strip()
-    trust_anchor.write_text(
-        f'ethos-install-smoke@example.invalid namespaces="git" {public_key}\n',
-        encoding="utf-8",
-    )
-    trust_anchor.chmod(0o600)
-    for name, value in (
-        ("gpg.format", "ssh"),
-        ("gpg.ssh.program", ssh_keygen),
-        ("gpg.ssh.allowedSignersFile", str(trust_anchor)),
-        ("user.signingkey", str(signer)),
-        ("commit.gpgsign", "true"),
-    ):
-        _run(git, "config", name, value, cwd=root)
-    (root / ".ethos").mkdir()
-    change = root / "openspec/changes/smoke-change"
-    change.mkdir(parents=True)
-    (root / ".ethos/profile.toml").write_text(
-        """profile_id = "installed-cli-adopter"
-
-[openspec]
-material_paths = ["**"]
-""",
-        encoding="utf-8",
-    )
-    (root / ".ethos/commitment.toml").write_text(
-        commitment_carrier_from_packaged_vector(
-            wheel,
-            python,
-            commitment_id="repository:installed-cli-adopter",
-            intent="Govern the installed CLI adopter.",
-            subjects=("repository:installed-cli-adopter",),
-            scope=("**",),
-        ),
-        encoding="utf-8",
-    )
-    dev = root / "dev"
-    dev.mkdir()
-    for name in ("verify", "install"):
-        command = dev / name
-        command.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-        command.chmod(0o755)
-    (root / ".ethos/release.toml").write_text(
-        """[publication]
-local_verification_command = "dev/verify"
-local_installation_command = "dev/install"
-
-[[publication.peers]]
-id = "file"
-provider = "git"
-role = "package_smoke"
-git_remote = "origin"
-capabilities = ["repository", "publication"]
-""",
-        encoding="utf-8",
-    )
-    shutil.copy2(ROOT / "openspec/config.yaml", root / "openspec/config.yaml")
-    (change / "commitment.toml").write_text(
-        commitment_carrier_from_packaged_vector(
-            wheel,
-            python,
-            commitment_id="change:smoke-change",
-            intent="Exercise installed CLI repository binding.",
-            subjects=("repository:installed-cli-adopter",),
-            scope=("README.md",),
-        ),
-        encoding="utf-8",
-    )
-    (root / "README.md").write_text("# installed CLI adopter\n", encoding="utf-8")
-    peer = root.parent / "publication-peer.git"
-    _run(git, "init", "--quiet", "--bare", str(peer))
-    _run(git, "remote", "add", "origin", str(peer), cwd=root)
-    _run(git, "add", ".", cwd=root)
-    _run(git, "commit", "--quiet", "-m", "initialize installed CLI adopter", cwd=root)
-    return _run(git, "rev-parse", "HEAD", cwd=root)
-
-
-def _line_ending_conformance(adopter: Path) -> list[str]:
-    """Round-trip LF, CRLF, and UTF-8 through Git without text-mode inference."""
-    fixtures = {
-        "lf": b"portable UTF-8: \xe9\x81\x93\n",
-        "crlf": b"portable UTF-8: \xe9\x81\x93\r\n",
-    }
-    observed: list[str] = []
-    for style, payload in fixtures.items():
-        relative = f"line-ending-{style}.txt"
-        path = adopter / relative
-        path.write_bytes(payload)
-        _run(_executable("git"), "add", "--", relative, cwd=adopter)
-        git_blob = run_command(
-            adopter,
-            (_executable("git"), "show", f":{relative}"),
-            text=False,
-            check=True,
-        ).stdout
-        if git_blob != payload or path.read_bytes() != payload:
-            message = f"portable line-ending round-trip failed: {style}"
-            raise RuntimeError(message)
-        observed.append(style)
-    _run(
-        _executable("git"),
-        "reset",
-        "--quiet",
-        "--",
-        *[f"line-ending-{s}.txt" for s in observed],
-        cwd=adopter,
-    )
-    for style in observed:
-        (adopter / f"line-ending-{style}.txt").unlink()
-    return observed
 
 
 def _independent_host_environment() -> tuple[dict[str, str], str]:
@@ -496,8 +339,14 @@ def run(session: nox.Session) -> None:
         str(_venv_executable(smoke, "python")),
         str(wheel),
     )
-    adopter_head = _initialize_adopter(adopter, wheel, _venv_executable(smoke, "python"))
-    line_endings = _line_ending_conformance(adopter)
+    adopter_head = materialize_adopter(
+        adopter,
+        wheel,
+        _venv_executable(smoke, "python"),
+        openspec_config=ROOT / "openspec/config.yaml",
+        run=_run,
+    )
+    line_endings = line_ending_conformance(adopter, run=_run)
     origin, version, sdk_digest = _installed_cli_checks(smoke, adopter, adopter_head)
     installed_ethos = _venv_executable(smoke, "ethos")
     independent_host = _independent_cli_checks(installed_ethos, adopter)

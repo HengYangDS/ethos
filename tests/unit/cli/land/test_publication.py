@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.mutation.publication.attestation as publication_attestation
 import ethos.adapters.mutation.remote_publication as remote_publication
 import ethos.surface.cli.root.publish as publication_cli
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -667,7 +668,7 @@ def test_publish_branch_retry_records_one_terminal_attestation_after_interruptio
 
     with monkeypatch.context() as interrupted:
         interrupted.setattr(
-            remote_publication,
+            publication_attestation,
             "record_attestations",
             lambda _root, _attestation: (_ for _ in ()).throw(RuntimeError("interrupted")),
         )

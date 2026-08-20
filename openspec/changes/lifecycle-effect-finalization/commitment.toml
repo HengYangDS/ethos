@@ -10,12 +10,19 @@ scope = [
   "src/ethos/adapters/admission/prewrite.py",
   "src/ethos/adapters/mutation/lane_lifecycle/archive_change.py",
   "src/ethos/adapters/mutation/lane_lifecycle/change_rollover.py",
+  "src/ethos/adapters/mutation/local_state.py",
   "src/ethos/adapters/openspec/generation/attestation.py",
+  "src/ethos/adapters/openspec/lifecycle/archive_binding.py",
+  "src/ethos/adapters/openspec/lifecycle/archive_transition.py",
+  "src/ethos/adapters/repo/git.py",
   "src/ethos/surface/cli/lane/change.py",
+  "tests/unit/adoption/test_local_state_public_fail_closed.py",
   "tests/unit/cli/test_openspec_archive_transition.py",
   "tests/unit/cli/test_openspec_change_rollover.py",
   "tests/unit/lanes/lifecycle/test_change_rollover_public_recovery.py",
   "tests/unit/lanes/test_hook_admission.py",
+  "tests/unit/lanes/test_reference_transaction_hook_runtime.py",
+  "tests/unit/openspec/lifecycle/test_archive_transition_public_recovery.py",
 ]
 invariants = []
 acceptance = []

@@ -151,7 +151,6 @@ def claim_ref_intent(
         ref_name=ref_name,
         update=update,
         operation=operation,
-        phase=phase,
         plan_digest=plan_digest,
     )
     if terminal or not match:
@@ -180,7 +179,6 @@ def _select_intent(
     ref_name: str,
     update: GitRefUpdate,
     operation: str,
-    phase: str,
     plan_digest: str | None,
 ) -> tuple[tuple[Path, _RefIntent] | None, str, dict[str, object] | None]:
     match = None

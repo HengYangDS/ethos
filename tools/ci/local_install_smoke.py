@@ -148,9 +148,27 @@ def commitment_carrier_from_packaged_vector(
 
 def _initialize_adopter(root: Path, wheel: Path, python: Path) -> str:
     git = _executable("git")
+    ssh_keygen = _executable("ssh-keygen")
     _run(git, "init", "--quiet", "--initial-branch=dev", str(root))
     _run(git, "config", "user.name", "ETHOS Install Smoke", cwd=root)
     _run(git, "config", "user.email", "ethos-install-smoke@example.invalid", cwd=root)
+    signer = root.parent / "product-signer"
+    trust_anchor = root.parent / "allowed-signers"
+    _run(ssh_keygen, "-q", "-t", "ed25519", "-N", "", "-f", str(signer))
+    public_key = signer.with_suffix(".pub").read_text(encoding="utf-8").strip()
+    trust_anchor.write_text(
+        f'ethos-install-smoke@example.invalid namespaces="git" {public_key}\n',
+        encoding="utf-8",
+    )
+    trust_anchor.chmod(0o600)
+    for name, value in (
+        ("gpg.format", "ssh"),
+        ("gpg.ssh.program", ssh_keygen),
+        ("gpg.ssh.allowedSignersFile", str(trust_anchor)),
+        ("user.signingkey", str(signer)),
+        ("commit.gpgsign", "true"),
+    ):
+        _run(git, "config", name, value, cwd=root)
     (root / ".ethos").mkdir()
     change = root / "openspec/changes/smoke-change"
     change.mkdir(parents=True)
@@ -356,7 +374,8 @@ def _independent_cli_checks(ethos: Path, adopter: Path) -> dict[str, object]:
             plan = payload.get("data", {}).get("transition_plan", {})
             gaps = tuple(str(gap) for gap in payload.get("required_gaps", ()))
             if plan.get("effect", {}).get("operation") != "git.ref.compare-and-swap" or any(
-                gap.startswith("publication_topology_") for gap in gaps
+                gap.startswith(("publication_topology_", "publication_source_invalid:"))
+                for gap in gaps
             ):
                 message = "installed full-ref publication plan is unavailable"
                 raise RuntimeError(message)

@@ -23,6 +23,7 @@ scope = [
   "src/ethos/adapters/openspec/lifecycle/archive_effect.py",
   "src/ethos/adapters/openspec/lifecycle/archive_transition.py",
   "src/ethos/adapters/openspec/lifecycle/intent.py",
+  "src/ethos/adapters/openspec/start_effect.py",
   "src/ethos/adapters/repo/git.py",
   "src/ethos/adapters/repo/git_effects.py",
   "src/ethos/adapters/repo/worktree_postimage.py",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shlex
+import subprocess
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -34,7 +35,7 @@ def runtime_source_identity(source: Path) -> RuntimeSourceIdentity:
     if (source / "pyproject.toml").is_file():
         try:
             root = repository_root(source)
-        except (OSError, RuntimeError, ValueError):
+        except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError):
             pass
         else:
             commit = git_stdout(root, "rev-parse", "HEAD")
@@ -76,7 +77,7 @@ def expected_runtime_source(root: Path) -> tuple[RuntimeSourceIdentity, Path | N
     package_source = Path(__file__).resolve().parents[5]
     try:
         repo = repository_root(root)
-    except (OSError, RuntimeError, ValueError):
+    except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError):
         return runtime_source_identity(package_source), None
     profile = load_repository_profile(repo)
     if profile.declaration is not None and profile.declaration.profile_id == "ethos":
@@ -95,7 +96,7 @@ def expected_runtime_source(root: Path) -> tuple[RuntimeSourceIdentity, Path | N
 
 def hook_runtime_repair_action(root: Path, source_root: Path | None) -> str:
     """Render the one fully bound hook repair command for this repository."""
-    repo = repository_root(root)
+    repo = root.resolve()
     prefix = (
         f"cd {shlex.quote(source_root.as_posix())} && uv run " if source_root is not None else ""
     )

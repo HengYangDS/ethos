@@ -12,6 +12,8 @@ from typing import Any
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
+_SOURCE_IDENTITY_PATH = Path("src/ethos/data/build/source-identity.json")
+
 
 class OpenSpecRuntimeHook(BuildHookInterface):
     """Compile the npm production closure into wheel build data."""
@@ -29,6 +31,9 @@ class OpenSpecRuntimeHook(BuildHookInterface):
             json.dumps(identity, sort_keys=True, separators=(",", ":")) + "\n",
             encoding="utf-8",
         )
+        if self.target_name == "sdist":
+            build_data["force_include"][str(identity_file)] = _SOURCE_IDENTITY_PATH.as_posix()
+            return
         build_data["force_include"][str(identity_file)] = "ethos/data/build/source-identity.json"
         for relative in ("package.json", "package-lock.json"):
             shutil.copy2(root / relative, supply / relative)
@@ -63,13 +68,16 @@ def get_build_hook() -> type[OpenSpecRuntimeHook]:
 
 
 def _source_identity(root: Path) -> dict[str, object]:
-    commit = subprocess.run(
+    observed = subprocess.run(
         ("git", "rev-parse", "HEAD"),
         cwd=root,
         capture_output=True,
         text=True,
-        check=True,
-    ).stdout.strip()
+        check=False,
+    )
+    if observed.returncode:
+        return _carried_source_identity(root)
+    commit = observed.stdout.strip()
     with tempfile.TemporaryDirectory(prefix="ethos-source-index-") as directory:
         environment = {**os.environ, "GIT_INDEX_FILE": str(Path(directory) / "index")}
         subprocess.run(("git", "read-tree", "HEAD"), cwd=root, env=environment, check=True)
@@ -82,10 +90,36 @@ def _source_identity(root: Path) -> dict[str, object]:
             text=True,
             check=True,
         ).stdout.strip()
-    if any(
-        len(value) not in {40, 64} or set(value) - set("0123456789abcdef")
-        for value in (commit, tree)
-    ):
+    identity: dict[str, object] = {
+        "schema_version": 1,
+        "source_commit": commit,
+        "source_tree": tree,
+    }
+    if not _valid_source_identity(identity):
         message = "hook_runtime_build_source_identity_invalid"
         raise RuntimeError(message)
-    return {"schema_version": 1, "source_commit": commit, "source_tree": tree}
+    return identity
+
+
+def _carried_source_identity(root: Path) -> dict[str, object]:
+    try:
+        identity = json.loads((root / _SOURCE_IDENTITY_PATH).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as error:
+        message = "hook_runtime_build_source_identity_missing"
+        raise RuntimeError(message) from error
+    if _valid_source_identity(identity):
+        return identity
+    message = "hook_runtime_build_source_identity_invalid"
+    raise RuntimeError(message)
+
+
+def _valid_source_identity(identity: object) -> bool:
+    if not isinstance(identity, dict) or identity.get("schema_version") != 1:
+        return False
+    values = (identity.get("source_commit"), identity.get("source_tree"))
+    return all(
+        isinstance(value, str)
+        and len(value) in {40, 64}
+        and not set(value) - set("0123456789abcdef")
+        for value in values
+    )

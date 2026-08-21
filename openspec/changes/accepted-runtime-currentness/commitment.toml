@@ -20,6 +20,7 @@ scope = [
   "tests/architecture/test_local_install_smoke.py",
   "tests/unit/cli/test_hook_runtime.py",
   "tests/unit/cli/test_hook_runtime_failure_branches.py",
+  "tests/unit/coverage_closure/test_hook_runtime_install_public_resolution.py",
   "tests/unit/lanes/retirement/test_effect_public_boundaries.py",
   "tools/ci/openspec_runtime_hook.py",
 ]

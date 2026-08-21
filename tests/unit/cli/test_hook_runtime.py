@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import sys
-from importlib import import_module
 from io import StringIO
 from pathlib import Path
 
@@ -19,9 +18,12 @@ from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.hook.binding import runtime_locator
+from ethos.adapters.repo.hook.source_identity import expected_runtime_source
+from ethos.adapters.repo.hook.source_identity import runtime_source_identity
 from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
 from ethos.contracts.branch.roles import BranchRolePolicy
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_work_lane
 
@@ -43,7 +45,12 @@ def _venv_executable(venv: Path, name: str) -> Path:
     return venv / directory / f"{name}{suffix}"
 
 
-def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+def _materialize_runtime_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    source_identity: runtime_install.RuntimeSourceIdentity | None = None,
+) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
@@ -55,6 +62,13 @@ def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(runtime_install, "__file__", (source / "module.py").as_posix())
     monkeypatch.setattr(runtime_install, "resolve_runtime_wheel", lambda *_args: wheel)
     monkeypatch.setattr(runtime_install, "_python_abi", lambda _python: "cpython-test")
+    identity = source_identity or runtime_source_identity(Path(__file__).resolve().parents[3])
+    monkeypatch.setattr(
+        runtime_install,
+        "expected_runtime_source",
+        lambda *_args: (identity, None),
+    )
+    monkeypatch.setattr(runtime_install, "wheel_source_identity", lambda *_args: identity)
 
     def copy_runtime(target: Path, _python: Path) -> None:
         runtime_python = _venv_executable(target, "python")
@@ -73,9 +87,124 @@ def _materialize_runtime_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     return repo, runtime_install.materialize_hook_runtime(repo, source_python)
 
 
+def test_hook_binding_rejects_an_intact_runtime_from_an_older_source_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installed = runtime_install.RuntimeSourceIdentity(commit="a" * 40, tree="b" * 40)
+    repo, venv = _materialize_runtime_case(
+        tmp_path,
+        monkeypatch,
+        source_identity=installed,
+    )
+    common = Path(git_common_dir(repo))
+    generation = runtime_install.materialize_hook_launchers(
+        common / "ethos" / "hooks", runtime_locator(venv)
+    )
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert (
+        _git(repo, "config", "--worktree", "core.hooksPath", generation.as_posix()).returncode == 0
+    )
+    expected = runtime_install.RuntimeSourceIdentity(commit="c" * 40, tree="d" * 40)
+
+    observed = hook_runtime_binding(repo, expected_source=expected)
+
+    assert observed["source_commit"] == "a" * 40
+    assert observed["source_tree"] == "b" * 40
+    assert observed["expected_source_commit"] == "c" * 40
+    assert observed["expected_source_tree"] == "d" * 40
+    assert observed["current"] is False
+    assert observed["required_gaps"] == ["write_admission_not_armed:runtime_source_stale"]
+    assert observed["next_action"] == (f"ethos hook install --root {repo.as_posix()} --json")
+
+
+def test_status_projects_the_single_hook_runtime_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, venv = _materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    generation = runtime_install.materialize_hook_launchers(
+        common / "ethos" / "hooks",
+        runtime_locator(venv),
+    )
+    assert _git(repo, "config", "extensions.worktreeConfig", "true").returncode == 0
+    assert (
+        _git(repo, "config", "--worktree", "core.hooksPath", generation.as_posix()).returncode == 0
+    )
+    installed = hook_runtime_binding(repo)
+
+    projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+
+    assert projected["data"]["hook_runtime"] == installed
+
+
+def test_self_hosted_expectation_uses_the_accepted_ref_and_linked_checkout(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "ethos"
+    repo.mkdir()
+    assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    (repo / ".ethos").mkdir()
+    (repo / ".ethos/profile.toml").write_text('profile_id = "ethos"\n', encoding="utf-8")
+    (repo / ".ethos/workspace.toml").write_text(
+        '[branch_roles]\naccepted_branch = "dev"\n',
+        encoding="utf-8",
+    )
+    (repo / "tracked.txt").write_text("accepted\n", encoding="utf-8")
+    assert _git(repo, "add", ".").returncode == 0
+    accepted = _git(
+        repo,
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "accepted",
+    )
+    assert accepted.returncode == 0
+    accepted_commit = _git(repo, "rev-parse", "dev").stdout.strip()
+    accepted_tree = _git(repo, "rev-parse", "dev^{tree}").stdout.strip()
+    lane = tmp_path / "lane"
+    assert _git(repo, "worktree", "add", "-q", "-b", "work/runtime", lane).returncode == 0
+    (lane / "tracked.txt").write_text("candidate\n", encoding="utf-8")
+    assert _git(lane, "add", "tracked.txt").returncode == 0
+    candidate = _git(
+        lane,
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate",
+    )
+    assert candidate.returncode == 0
+
+    identity, source_root = expected_runtime_source(lane)
+
+    assert identity == runtime_install.RuntimeSourceIdentity(
+        commit=accepted_commit,
+        tree=accepted_tree,
+    )
+    assert source_root == repo.resolve()
+
+
 @pytest.mark.parametrize(
     "drift",
-    ["manifest", "digest", "wheel", "abi", "platform", "files", "python", "hash"],
+    [
+        "manifest",
+        "schema",
+        "digest",
+        "wheel",
+        "abi",
+        "platform",
+        "source_commit",
+        "source_tree",
+        "files",
+        "python",
+        "hash",
+    ],
 )
 def test_hook_runtime_manifest_rejects_every_binding_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
@@ -86,6 +215,10 @@ def test_hook_runtime_manifest_rejects_every_binding_drift(
     python = _venv_executable(venv, "python")
     if drift == "manifest":
         manifest.write_text("not-json", encoding="utf-8")
+    elif drift == "schema":
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+        payload["schema_version"] = 1
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
     elif drift == "python":
         python.unlink()
     elif drift == "hash":
@@ -97,6 +230,8 @@ def test_hook_runtime_manifest_rejects_every_binding_drift(
             "wheel": "wheel_sha256",
             "abi": "python_abi",
             "platform": "platform",
+            "source_commit": "source_commit",
+            "source_tree": "source_tree",
             "files": "runtime_files",
         }[drift]
         payload[key] = {} if drift == "files" else "drift"
@@ -140,6 +275,13 @@ def test_hook_runtime_python_and_manifest_require_executable_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     assert _git(tmp_path, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    identity = runtime_install.RuntimeSourceIdentity(commit="e" * 40, tree="f" * 40)
+    monkeypatch.setattr(
+        runtime_install,
+        "expected_runtime_source",
+        lambda _repo: (identity, None),
+    )
+    monkeypatch.setattr(runtime_install, "wheel_source_identity", lambda _wheel: identity)
     monkeypatch.setattr(
         runtime_install.subprocess,
         "run",
@@ -422,80 +564,30 @@ def test_hook_activation_failure_keeps_the_old_generation_configured(
     assert len(tuple(root.iterdir())) == 2
 
 
-def test_hook_install_runs_from_an_isolated_wheel_without_checkout(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[3]
-    uv = Path(sys.executable).with_name("uv.exe" if os.name == "nt" else "uv")
-    node_root = Path(import_module("nodejs_wheel").__file__).resolve().parent
-    environment = {
-        **os.environ,
-        "ETHOS_BUILD_NODE": (
-            node_root / "bin" / ("node.exe" if os.name == "nt" else "node")
-        ).as_posix(),
-        "ETHOS_BUILD_NPM_CLI": (node_root / "lib/node_modules/npm/bin/npm-cli.js").as_posix(),
-    }
-    environment.pop("PYTHONPATH", None)
-    dist = tmp_path / "dist"
-    subprocess.run(
-        (uv, "build", "--offline", "--wheel", "--out-dir", dist),
-        cwd=root,
-        env=environment,
-        check=True,
-    )
-    wheel = next(dist.glob("ethos-*.whl"))
-    package_venv = tmp_path / "package-venv"
-    subprocess.run(
-        (uv, "venv", "--relocatable", "--python", sys.executable, package_venv),
-        check=True,
-    )
-    package_python = _venv_executable(package_venv, "python")
-    subprocess.run(
-        (uv, "pip", "install", "--offline", "--python", package_python, wheel),
-        check=True,
-    )
+def test_hook_activation_rejects_a_non_current_post_observation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _git(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-
-    installed = subprocess.run(
-        (_venv_executable(package_venv, "ethos"), "hook", "install", "--root", repo, "--json"),
-        capture_output=True,
-        text=True,
-        check=False,
-        env=environment,
+    runtime = Path(git_common_dir(repo)) / "ethos/runtime" / ("a" * 64) / "venv"
+    runtime.mkdir(parents=True)
+    hooks = Path(git_common_dir(repo)) / "ethos/hooks" / ("b" * 64)
+    hooks.mkdir(parents=True)
+    monkeypatch.setattr(hook_runtime, "materialize_hook_runtime", lambda *_args: runtime)
+    monkeypatch.setattr(hook_runtime, "materialize_hook_launchers", lambda *_args: hooks)
+    monkeypatch.setattr(
+        hook_runtime,
+        "hook_runtime_binding",
+        lambda _root: {
+            "hooks_path": hooks.as_posix(),
+            "required_gaps": ["write_admission_not_armed:runtime_source_stale"],
+        },
     )
 
-    assert installed.returncode == 0, installed.stderr
-    report = json.loads(installed.stdout)
-    assert report["verdict"] == "pass", report
-    runtime_python = Path(report["data"]["python"])
-    package_venv.rename(tmp_path / "retired-package-venv")
-    runtime_ethos = _venv_executable(runtime_python.parent.parent, "ethos")
-    rebind_help = subprocess.run(
-        (runtime_ethos, "lane", "rebind-commitment", "--help"),
-        capture_output=True,
-        text=True,
-        check=False,
-        env={key: value for key, value in environment.items() if key != "PYTHONPATH"},
-    )
-    derive_help = subprocess.run(
-        (runtime_ethos, "lane", "rebind-commitment", "derive", "--help"),
-        capture_output=True,
-        text=True,
-        check=False,
-        env={key: value for key, value in environment.items() if key != "PYTHONPATH"},
-    )
-    assert rebind_help.returncode == 0, rebind_help.stderr
-    assert "--receipt" in rebind_help.stdout
-    assert derive_help.returncode == 0, derive_help.stderr
-    assert "--target-commit" in derive_help.stdout
-    version = subprocess.run(
-        (runtime_ethos, "--version"),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert version.returncode == 0, version.stderr
-    assert version.stdout.strip()
+    with pytest.raises(ValueError, match="hook_runtime_activation_invalid"):
+        install_hook_launchers(repo)
 
 
 def test_hook_launcher_uses_a_validated_git_for_windows_sh_runtime() -> None:

@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import uuid
+from dataclasses import dataclass
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
@@ -22,12 +23,22 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_generation_digest
 from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
+from ethos.adapters.repo.hook.source_identity import expected_runtime_source
+from ethos.adapters.repo.hook.source_identity import wheel_source_identity
 from ethos.adapters.store.content_addressed import write_content_addressed
+
+
+@dataclass(frozen=True, slots=True)
+class _RuntimeWheel:
+    path: Path
+    sha256: str
+    source: RuntimeSourceIdentity
 
 
 def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
     """Build and atomically install one wheel-qualified common-dir runtime."""
-    source = Path(__file__).resolve().parents[4]
+    source, expected_source_identity = _runtime_source(repo)
     common = Path(git_common_dir(repo))
     ethos_root = common / "ethos"
     if ethos_root.is_symlink():
@@ -38,17 +49,16 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
     wheel_dir = work / "wheel"
     try:
         python_abi = _python_abi(source_python)
-        wheel = resolve_runtime_wheel(source, wheel_dir)
-        wheel_sha256 = _sha256(wheel)
-        wheel = write_content_addressed(
-            common / "ethos" / "packages" / wheel_sha256 / wheel.name,
-            wheel.read_bytes(),
-            collision="hook_runtime_wheel_digest_collision",
+        wheel = _runtime_wheel(
+            source,
+            wheel_dir,
+            common=common,
+            expected_source=expected_source_identity,
         )
-        digest = _runtime_digest(wheel_sha256, python_abi)
+        digest = _runtime_digest(wheel.sha256, python_abi, wheel.source)
         target = runtime_root / digest
         if target.is_dir():
-            require_runtime(target, digest, wheel_sha256, python_abi)
+            require_runtime(target, digest, wheel.sha256, python_abi, wheel.source)
             return target / "venv"
         staging = runtime_root / f".runtime-{digest[:12]}-{uuid.uuid4().hex}"
         try:
@@ -89,26 +99,66 @@ def materialize_hook_runtime(repo: Path, source_python: Path) -> Path:
                     runtime_python.as_posix(),
                     "--requirements",
                     requirements.as_posix(),
-                    wheel.as_posix(),
+                    wheel.path.as_posix(),
                 )
-            write_runtime_manifest(staging, digest, wheel_sha256, python_abi, runtime_python)
+            write_runtime_manifest(
+                staging,
+                digest,
+                wheel.sha256,
+                python_abi,
+                wheel.source,
+                runtime_python,
+            )
             runtime_root.mkdir(parents=True, exist_ok=True)
             try:
                 staging.rename(target)
             except FileExistsError:
-                require_runtime(target, digest, wheel_sha256, python_abi)
+                require_runtime(target, digest, wheel.sha256, python_abi, wheel.source)
             else:
                 try:
-                    finalize_runtime(target, digest, wheel_sha256, python_abi)
+                    finalize_runtime(
+                        target,
+                        digest,
+                        wheel.sha256,
+                        python_abi,
+                        wheel.source,
+                    )
                 except (OSError, ValueError):
                     shutil.rmtree(target, ignore_errors=True)
                     raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
-        require_runtime(target, digest, wheel_sha256, python_abi)
+        require_runtime(target, digest, wheel.sha256, python_abi, wheel.source)
         return target / "venv"
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def _runtime_source(repo: Path) -> tuple[Path, RuntimeSourceIdentity]:
+    package_source = Path(__file__).resolve().parents[4]
+    expected_source_identity, _ = expected_runtime_source(repo)
+    return package_source, expected_source_identity
+
+
+def _runtime_wheel(
+    source: Path,
+    wheel_dir: Path,
+    *,
+    common: Path,
+    expected_source: RuntimeSourceIdentity,
+) -> _RuntimeWheel:
+    wheel = resolve_runtime_wheel(source, wheel_dir)
+    sha256 = _sha256(wheel)
+    source_identity = wheel_source_identity(wheel)
+    if source_identity != expected_source:
+        message = "hook_runtime_wheel_source_identity_stale"
+        raise ValueError(message)
+    durable = write_content_addressed(
+        common / "ethos" / "packages" / sha256 / wheel.name,
+        wheel.read_bytes(),
+        collision="hook_runtime_wheel_digest_collision",
+    )
+    return _RuntimeWheel(path=durable, sha256=sha256, source=source_identity)
 
 
 def require_runtime_wheel_provenance() -> None:
@@ -201,14 +251,20 @@ def _python_abi(python: Path) -> str:
     return abi
 
 
-def _runtime_digest(wheel_sha256: str, python_abi: str) -> str:
+def _runtime_digest(
+    wheel_sha256: str,
+    python_abi: str,
+    source_identity: RuntimeSourceIdentity,
+) -> str:
     return hashlib.sha256(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "wheel_sha256": wheel_sha256,
                 "python_abi": python_abi,
                 "platform": platform.system().lower(),
+                "source_commit": source_identity.commit,
+                "source_tree": source_identity.tree,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -225,6 +281,7 @@ def write_runtime_manifest(
     digest: str,
     wheel_sha256: str,
     python_abi: str,
+    source_identity: RuntimeSourceIdentity,
     python: Path,
 ) -> None:
     if not python.is_file():
@@ -235,11 +292,13 @@ def write_runtime_manifest(
         message = "hook_runtime_entrypoint_missing"
         raise ValueError(message)
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "runtime_digest": digest,
         "wheel_sha256": wheel_sha256,
         "python_abi": python_abi,
         "platform": platform.system().lower(),
+        "source_commit": source_identity.commit,
+        "source_tree": source_identity.tree,
         "runtime_files": {
             path.relative_to(runtime).as_posix(): _sha256(path) for path in (python, entrypoint)
         },
@@ -249,7 +308,13 @@ def write_runtime_manifest(
     )
 
 
-def require_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
+def require_runtime(
+    runtime: Path,
+    digest: str,
+    wheel_sha256: str,
+    python_abi: str,
+    source_identity: RuntimeSourceIdentity,
+) -> None:
     manifest = runtime / "manifest.json"
     python = _venv_python(runtime / "venv")
     entrypoint = _runtime_entrypoint(runtime / "venv")
@@ -265,10 +330,13 @@ def require_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: s
         if path.is_file()
     }
     if (
-        payload.get("runtime_digest") != digest
+        payload.get("schema_version") != 2
+        or payload.get("runtime_digest") != digest
         or payload.get("wheel_sha256") != wheel_sha256
         or payload.get("python_abi") != python_abi
         or payload.get("platform") != platform.system().lower()
+        or payload.get("source_commit") != source_identity.commit
+        or payload.get("source_tree") != source_identity.tree
         or not isinstance(files, dict)
         or expected.keys()
         != {
@@ -315,11 +383,17 @@ def _rewrite_runtime_entrypoint(runtime: Path) -> None:
     entrypoint.chmod(0o755)
 
 
-def finalize_runtime(runtime: Path, digest: str, wheel_sha256: str, python_abi: str) -> None:
+def finalize_runtime(
+    runtime: Path,
+    digest: str,
+    wheel_sha256: str,
+    python_abi: str,
+    source_identity: RuntimeSourceIdentity,
+) -> None:
     _rewrite_runtime_entrypoint(runtime)
     python = _venv_python(runtime / "venv")
-    write_runtime_manifest(runtime, digest, wheel_sha256, python_abi, python)
-    require_runtime(runtime, digest, wheel_sha256, python_abi)
+    write_runtime_manifest(runtime, digest, wheel_sha256, python_abi, source_identity, python)
+    require_runtime(runtime, digest, wheel_sha256, python_abi, source_identity)
     completed = subprocess.run(
         (_runtime_entrypoint(runtime / "venv"), "--version"),
         capture_output=True,

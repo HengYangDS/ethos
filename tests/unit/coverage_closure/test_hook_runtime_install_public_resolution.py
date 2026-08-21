@@ -12,6 +12,17 @@ import pytest
 
 import ethos.adapters.repo.hook_runtime_install as install
 
+_SOURCE_IDENTITY = install.RuntimeSourceIdentity(commit="a" * 40, tree="b" * 40)
+
+
+def _bind_source_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        install,
+        "expected_runtime_source",
+        lambda _repo: (_SOURCE_IDENTITY, None),
+    )
+    monkeypatch.setattr(install, "wheel_source_identity", lambda _wheel: _SOURCE_IDENTITY)
+
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
     return subprocess.CompletedProcess((), code, stdout, stderr)
@@ -78,6 +89,7 @@ def test_installed_wheel_resolution_accepts_exact_file_url(
 def test_installed_runtime_copy_rejects_python_outside_prefix(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    _bind_source_identity(monkeypatch)
     source = tmp_path / "installed/a/b/c/d"
     source.mkdir(parents=True)
     wheel = tmp_path / "ethos.whl"
@@ -124,6 +136,7 @@ def test_runtime_tool_reports_missing_executable_and_stderr(
 def test_python_abi_and_manifest_fail_closed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    _bind_source_identity(monkeypatch)
     source = tmp_path / "installed/a/b/c/d"
     source.mkdir(parents=True)
     wheel = tmp_path / "ethos.whl"
@@ -159,6 +172,7 @@ def test_python_abi_and_manifest_fail_closed(
 def test_materialize_installed_runtime_copies_exact_python_prefix(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    _bind_source_identity(monkeypatch)
     source = tmp_path / "installed/lib/ethos/adapters/repo/hook_runtime_install.py"
     source.parent.mkdir(parents=True)
     source.write_text("installed", encoding="utf-8")
@@ -195,6 +209,7 @@ def test_materialize_installed_runtime_copies_exact_python_prefix(
 def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    _bind_source_identity(monkeypatch)
     source = tmp_path / "source"
     module = source / "a/b/c/d/module.py"
     module.parent.mkdir(parents=True)
@@ -245,6 +260,7 @@ def test_materialize_runtime_installs_from_durable_content_addressed_wheel(
 def test_materialize_runtime_rejects_durable_wheel_digest_collision(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    _bind_source_identity(monkeypatch)
     source = tmp_path / "installed/a/b/c/d"
     source.mkdir(parents=True)
     wheel = tmp_path / "ethos-test.whl"
@@ -281,10 +297,23 @@ def test_final_runtime_rejects_console_entrypoint_bound_to_staging(
         encoding="utf-8",
     )
     entrypoint.chmod(0o755)
-    install.write_runtime_manifest(runtime, "a" * 64, "b" * 64, "cpython-test", python)
+    install.write_runtime_manifest(
+        runtime,
+        "a" * 64,
+        "b" * 64,
+        "cpython-test",
+        _SOURCE_IDENTITY,
+        python,
+    )
 
     with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-        install.require_runtime(runtime, "a" * 64, "b" * 64, "cpython-test")
+        install.require_runtime(
+            runtime,
+            "a" * 64,
+            "b" * 64,
+            "cpython-test",
+            _SOURCE_IDENTITY,
+        )
 
 
 def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
@@ -298,7 +327,14 @@ def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
     python.write_bytes(b"python")
     entrypoint.write_text("#!/staging/venv/bin/python\n", encoding="utf-8")
     entrypoint.chmod(0o755)
-    install.write_runtime_manifest(runtime, runtime.name, "b" * 64, "cpython-test", python)
+    install.write_runtime_manifest(
+        runtime,
+        runtime.name,
+        "b" * 64,
+        "cpython-test",
+        _SOURCE_IDENTITY,
+        python,
+    )
     observed: list[Path] = []
     monkeypatch.setattr(
         install.subprocess,
@@ -308,7 +344,13 @@ def test_finalize_runtime_rewrites_staging_entrypoint_before_smoke(
         ),
     )
 
-    install.finalize_runtime(runtime, runtime.name, "b" * 64, "cpython-test")
+    install.finalize_runtime(
+        runtime,
+        runtime.name,
+        "b" * 64,
+        "cpython-test",
+        _SOURCE_IDENTITY,
+    )
 
     assert entrypoint.read_text(encoding="utf-8").splitlines()[0] == f"#!{python}"
     assert observed == [entrypoint]

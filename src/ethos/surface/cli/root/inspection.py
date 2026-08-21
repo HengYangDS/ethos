@@ -7,6 +7,7 @@ from typing import cast
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
 from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
+from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
@@ -85,6 +86,7 @@ def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> 
             "required_gaps": string_sequence(landing.get("required_gaps")),
             "next_action": landing.get("next_action", ""),
         },
+        "hook_runtime": hook_runtime_binding(repo),
         "coordination": {
             "detail_state": "deferred",
             "blocking": any(gap.startswith("coordination_gap:") for gap in gaps),

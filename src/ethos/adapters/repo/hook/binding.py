@@ -11,6 +11,9 @@ from typing import TypedDict
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.hook.source_identity import RuntimeSourceIdentity
+from ethos.adapters.repo.hook.source_identity import expected_runtime_source
+from ethos.adapters.repo.hook.source_identity import hook_runtime_repair_action
 
 HOOK_NAMES = ("pre-commit", "pre-push", "reference-transaction")
 _RUNTIME_LOCATOR = (
@@ -27,6 +30,12 @@ class HookRuntimeBinding(TypedDict):
     runtime_manifest_path: str
     runtime_digest: str
     wheel_sha256: str
+    source_commit: str
+    source_tree: str
+    expected_source_commit: str
+    expected_source_tree: str
+    current: bool
+    next_action: str
     python: str
     scripts: list[str]
     required_gaps: list[str]
@@ -68,7 +77,11 @@ def hook_generation_digest(launchers: dict[str, str]) -> str:
     ).hexdigest()
 
 
-def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
+def hook_runtime_binding(
+    root: Path,
+    *,
+    expected_source: RuntimeSourceIdentity | None = None,
+) -> HookRuntimeBinding:
     """Observe the configured common-dir runtime and its generated launchers."""
     repo = root.resolve()
     common = Path(git_common_dir(repo))
@@ -84,11 +97,12 @@ def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
         and len(configured.name) == 64
         and not (set(configured.name) - set("0123456789abcdef"))
     )
-    runtime, manifest, digest, wheel = (
+    runtime, manifest, digest, wheel, source = (
         _runtime_from_launcher(hooks / "pre-commit", common / "ethos" / "runtime")
         if valid_generation
-        else (None, None, "", "")
+        else (None, None, "", "", None)
     )
+    expected_source_identity, source_root = _expected_source(repo, expected_source)
     gaps: list[str] = []
     if not valid_generation:
         gaps.append("write_admission_not_armed:core.hooksPath")
@@ -96,18 +110,30 @@ def hook_runtime_binding(root: Path) -> HookRuntimeBinding:
         gaps.append("write_admission_not_armed:runtime_manifest")
     if runtime is None:
         gaps.append("write_admission_not_armed:runtime_python")
+    if expected_source_identity is None:
+        gaps.append("write_admission_not_armed:runtime_expected_source_unavailable")
+    elif source is not None and source != expected_source_identity:
+        gaps.append("write_admission_not_armed:runtime_source_stale")
     gaps.extend(gap for name in HOOK_NAMES if (gap := _launcher_gap(hooks / name, name, runtime)))
     if runtime is not None:
-        expected = {
+        expected_launchers = {
             name: hook_launcher(runtime_locator(runtime.parent.parent), name) for name in HOOK_NAMES
         }
-        if hooks.name != hook_generation_digest(expected):
+        if hooks.name != hook_generation_digest(expected_launchers):
             gaps.append("write_admission_not_armed:hook_generation_digest")
     return {
         "hooks_path": hooks.as_posix(),
         "runtime_manifest_path": manifest.as_posix() if manifest else "",
         "runtime_digest": digest,
         "wheel_sha256": wheel,
+        "source_commit": source.commit if source else "",
+        "source_tree": source.tree if source else "",
+        "expected_source_commit": (
+            expected_source_identity.commit if expected_source_identity else ""
+        ),
+        "expected_source_tree": expected_source_identity.tree if expected_source_identity else "",
+        "current": not gaps,
+        "next_action": hook_runtime_repair_action(repo, source_root) if gaps else "",
         "python": runtime.as_posix() if runtime else "",
         "scripts": list(HOOK_NAMES),
         "required_gaps": gaps,
@@ -129,28 +155,29 @@ def _launcher_gap(launcher: Path, name: str, runtime: Path | None) -> str:
 
 def _runtime_from_launcher(
     launcher: Path, runtime_root: Path
-) -> tuple[Path | None, Path | None, str, str]:
+) -> tuple[Path | None, Path | None, str, str, RuntimeSourceIdentity | None]:
     if not launcher.is_file():
-        return None, None, "", ""
+        return None, None, "", "", None
     try:
         content = launcher.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
-        return None, None, "", ""
+        return None, None, "", "", None
     match = _RUNTIME_IN_LAUNCHER.search(content)
     if match is None:
-        return None, None, "", ""
+        return None, None, "", "", None
     digest = match["digest"]
     runtime = runtime_root / digest / "venv" / match["python"]
     manifest = runtime.parents[2] / "manifest.json"
     try:
         payload = json.loads(manifest.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return None, manifest, "", ""
+        return None, manifest, "", "", None
     wheel = str(payload.get("wheel_sha256") or "")
     files = payload.get("runtime_files")
+    source = _manifest_source(payload)
     relative_runtime = runtime.relative_to(manifest.parent).as_posix()
     valid = (
-        payload.get("schema_version") == 1
+        payload.get("schema_version") == 2
         and payload.get("runtime_digest") == digest
         and len(wheel) == 64
         and not (set(wheel) - set("0123456789abcdef"))
@@ -159,10 +186,33 @@ def _runtime_from_launcher(
         and isinstance(payload.get("platform"), str)
         and bool(payload["platform"])
         and isinstance(files, dict)
+        and source is not None
         and runtime.is_file()
         and files.get(relative_runtime) == _sha256(runtime)
     )
-    return (runtime, manifest, digest, wheel) if valid else (None, manifest, "", "")
+    return (runtime, manifest, digest, wheel, source) if valid else (None, manifest, "", "", None)
+
+
+def _manifest_source(payload: dict[str, object]) -> RuntimeSourceIdentity | None:
+    commit = str(payload.get("source_commit") or "")
+    tree = str(payload.get("source_tree") or "")
+    valid = all(
+        len(value) in {40, 64} and not set(value) - set("0123456789abcdef")
+        for value in (commit, tree)
+    )
+    return RuntimeSourceIdentity(commit=commit, tree=tree) if valid else None
+
+
+def _expected_source(
+    repo: Path,
+    selected: RuntimeSourceIdentity | None,
+) -> tuple[RuntimeSourceIdentity | None, Path | None]:
+    if selected is not None:
+        return selected, None
+    try:
+        return expected_runtime_source(repo)
+    except (OSError, RuntimeError, ValueError):
+        return None, None
 
 
 def _sha256(path: Path) -> str:

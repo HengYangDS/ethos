@@ -70,7 +70,7 @@ def test_run_json_rejects_hostile_inherited_shell_locations(tmp_path, monkeypatc
     probe = tmp_path / "environment.py"
     probe.write_text(
         "import json, os\n"
-        "print(json.dumps({key: os.environ.get(key) for key in ('PWD', 'OLDPWD')}))\n",
+        "print(json.dumps({key: os.environ.get(key) for key in ('PWD', 'OLDPWD', 'TZ')}))\n",
         encoding="utf-8",
     )
     monkeypatch.setenv("PWD", "/hostile/pwd")
@@ -79,7 +79,11 @@ def test_run_json_rejects_hostile_inherited_shell_locations(tmp_path, monkeypatc
     report = cli.run_json(tmp_path, (sys.executable, probe.as_posix()), ())
 
     assert report["exit_code"] == 0
-    assert report["json"] == {"PWD": tmp_path.as_posix(), "OLDPWD": tmp_path.as_posix()}
+    assert report["json"] == {
+        "PWD": tmp_path.as_posix(),
+        "OLDPWD": tmp_path.as_posix(),
+        "TZ": "UTC",
+    }
     assert os.environ["PWD"] == "/hostile/pwd"
     assert os.environ["OLDPWD"] == "/hostile/oldpwd"
 

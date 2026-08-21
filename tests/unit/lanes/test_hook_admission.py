@@ -13,7 +13,6 @@ import ethos.adapters.admission.identity as admission_identity
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import push_admission_report
 from ethos.adapters.admission.identity import push_identity_policy_report
-from ethos.adapters.admission.prewrite import runtime_binding_check
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import issue_proof_attestation
@@ -25,6 +24,7 @@ from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.runtime.binding import runtime_binding
+from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.governed_repository import adopt_and_commit
@@ -443,7 +443,7 @@ def test_runtime_state_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     )
     assert runtime_binding(repo)["state"] == "bound_to_common_runtime"
     monkeypatch.setattr(
-        "ethos.adapters.admission.prewrite.profile_gate_registry",
+        "ethos.adapters.repo.runtime.binding.profile_gate_registry",
         lambda _root: {"quality": object()},
     )
     common = {

@@ -18,9 +18,6 @@ _MAX_CAS_ATTEMPTS = 16
 
 
 def _attestation_member_path(identity: str) -> str:
-    if len(identity) != 64 or any(char not in "0123456789abcdef" for char in identity):
-        message = "attestation_set_identity_invalid"
-        raise ValueError(message)
     return f"{_MEMBER_ROOT}/{identity[:2]}/{identity}.json"
 
 
@@ -77,9 +74,7 @@ def _selected_root(repo: Path) -> str:
     raise ValueError(message)
 
 
-def _tree_entries(repo: Path, root: str) -> tuple[tuple[str, str, str], ...]:
-    if not root:
-        return ()
+def _tree_entries(repo: Path, root: str) -> tuple[tuple[str, str, str, str], ...]:
     listed_result = run_git(
         repo,
         "ls-tree",
@@ -95,24 +90,61 @@ def _tree_entries(repo: Path, root: str) -> tuple[tuple[str, str, str], ...]:
         message = "attestation_set_root_invalid"
         raise ValueError(message)
     listed = listed_result.stdout
-    entries: list[tuple[str, str, str]] = []
+    entries: list[tuple[str, str, str, str]] = []
     paths: set[bytes] = set()
     try:
         for record in (item for item in listed.split(b"\0") if item):
             metadata, raw_path = record.split(b"\t", maxsplit=1)
             _require_entry(valid=raw_path not in paths)
             paths.add(raw_path)
-            mode, kind, _object_id = metadata.decode().split(" ", maxsplit=2)
-            entries.append((mode, kind, raw_path.decode()))
+            mode, kind, object_id = metadata.decode().split(" ", maxsplit=2)
+            entries.append((mode, kind, object_id, raw_path.decode()))
     except (UnicodeError, ValueError) as error:
         message = "attestation_set_root_invalid"
         raise ValueError(message) from error
     return tuple(entries)
 
 
-def _validated_members(repo: Path, root: str) -> dict[str, bytes]:
+def _batch_blobs(repo: Path, object_ids: tuple[str, ...]) -> tuple[bytes, ...]:
+    result = run_git(
+        repo,
+        "cat-file",
+        "--batch",
+        stdin=b"".join(f"{object_id}\n".encode() for object_id in object_ids),
+        text=False,
+        check=False,
+        observation=True,
+    )
+    if result.returncode != 0:
+        message = "attestation_set_root_invalid"
+        raise ValueError(message)
+    payload, offset = result.stdout, 0
+    blobs: list[bytes] = []
+    try:
+        for expected in object_ids:
+            header_end = payload.index(b"\n", offset)
+            object_id, kind, raw_size = payload[offset:header_end].decode().split(" ")
+            size = int(raw_size)
+            content_start, content_end = header_end + 1, header_end + 1 + size
+            _require_entry(
+                valid=(
+                    object_id == expected
+                    and kind == "blob"
+                    and payload[content_end : content_end + 1] == b"\n"
+                )
+            )
+            blobs.append(payload[content_start:content_end])
+            offset = content_end + 1
+    except (UnicodeError, ValueError) as error:
+        message = "attestation_set_root_invalid"
+        raise ValueError(message) from error
+    _require_entry(valid=offset == len(payload))
+    return tuple(blobs)
+
+
+def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[Attestation, ...]]:
     if not root:
-        return {}
+        return {}, ()
     tree_result = run_git(
         repo,
         "rev-parse",
@@ -127,26 +159,22 @@ def _validated_members(repo: Path, root: str) -> dict[str, bytes]:
     if root != _root_identity(repo, tree, write=False):
         message = "attestation_set_root_invalid"
         raise ValueError(message)
-    members: dict[str, bytes] = {}
     tree_paths: set[str] = set()
-    for mode, kind, path in _tree_entries(repo, root):
+    files: list[tuple[str, str]] = []
+    for mode, kind, object_id, path in _tree_entries(repo, root):
         if kind == "tree":
             _require_entry(valid=mode == "040000")
             tree_paths.add(path)
-            continue
-        _require_entry(valid=mode == "100644" and kind == "blob")
-        raw_result = run_git(
-            repo,
-            "show",
-            f"{root}:{path}",
-            text=False,
-            check=False,
-            observation=True,
-        )
-        if raw_result.returncode != 0:
-            message = "attestation_set_root_invalid"
-            raise ValueError(message)
-        raw = raw_result.stdout
+        else:
+            _require_entry(valid=mode == "100644" and kind == "blob")
+            files.append((object_id, path))
+    members: dict[str, bytes] = {}
+    attestations: list[Attestation] = []
+    for (_object_id, path), raw in zip(
+        files,
+        _batch_blobs(repo, tuple(object_id for object_id, _path in files)),
+        strict=True,
+    ):
         try:
             attestation = Attestation.model_validate_json(raw)
         except ValueError as error:
@@ -154,8 +182,9 @@ def _validated_members(repo: Path, root: str) -> dict[str, bytes]:
             raise ValueError(message) from error
         _require_entry(valid=path == _attestation_member_path(attestation.id))
         members[attestation.id] = raw
+        attestations.append(attestation)
     _require_entry(valid=tree_paths == _member_tree_paths(members))
-    return members
+    return members, tuple(attestations)
 
 
 def _require_entry(*, valid: bool) -> None:
@@ -264,8 +293,9 @@ def _compare_and_swap_root(repo: Path, *, desired: str, observed: str) -> bool:
 def read_attestation_set(repo: Path) -> tuple[str, tuple[Attestation, ...]]:
     """Read and validate the selected immutable Attestation set."""
     root = _selected_root(repo)
-    members = _validated_members(repo, root)
-    return root, tuple(Attestation.model_validate_json(members[key]) for key in sorted(members))
+    members, attestations = _validated_members(repo, root)
+    by_identity = {attestation.id: attestation for attestation in attestations}
+    return root, tuple(by_identity[key] for key in sorted(members))
 
 
 def record_attestations(
@@ -276,7 +306,7 @@ def record_attestations(
     incoming = _canonical_inputs(attestations)
     for _attempt in range(_MAX_CAS_ATTEMPTS):
         observed = _selected_root(repo)
-        current = _validated_members(repo, observed)
+        current, _attestations = _validated_members(repo, observed)
         for identity, raw in incoming.items():
             if identity in current and current[identity] != raw:
                 message = f"attestation_set_identity_collision:{identity}"
@@ -296,8 +326,7 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
     """Select exactly one Attestation for a predicate and subject."""
     for _attempt in range(_MAX_CAS_ATTEMPTS):
         observed = _selected_root(repo)
-        current = _validated_members(repo, observed)
-        members = tuple(Attestation.model_validate_json(raw) for raw in current.values())
+        current, members = _validated_members(repo, observed)
         matches = tuple(
             item
             for item in members

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
@@ -29,6 +30,8 @@ from tests.support.openspec_lifecycle import completed_lifecycle
 if TYPE_CHECKING:
     import pytest
 
+    from ethos.adapters.openspec.start_effect import CurrentGenerationScope
+
 
 def _clear_selected_attestations(root: Path) -> None:
     existing = run_git(root, "show-ref", "--verify", "--hash", ATTESTATION_SET_REF, check=False)
@@ -51,6 +54,26 @@ def _advance_current_generation(worktree: Path, overlay: Path) -> None:
         new_value=implemented_head,
     )
     assert advanced["state"] == "lease_ref_advanced"
+
+
+def _generation_scope(
+    worktree: Path,
+    *,
+    head: str,
+    fallback_paths: tuple[str, ...],
+    lease: dict[str, object] | None = None,
+    change: str = "fixture-change",
+) -> CurrentGenerationScope:
+    bound_lease = lease or next(iter(leases_by_branch(worktree).values()))
+    carrier = str(bound_lease["base_commitment_path"])
+    return current_generation_scope(
+        worktree,
+        head=head,
+        repository_id=load_repository_commitment(worktree).id,
+        commitment=load_commitment(worktree, carrier=carrier, change_id=change, tree_ref=head),
+        lease=bound_lease,
+        fallback_paths=fallback_paths,
+    )
 
 
 def _archive_skip_specs_fixture(
@@ -110,7 +133,7 @@ def _archive_skip_specs_fixture(
     assert archived["verdict"] == "pass", json.dumps(archived, indent=2, default=str)
     assert archived["no_op"] is True
     archived_head = str(archived["head"])
-    archive_paths = tuple(str(path) for path in archived["changed_paths"])
+    archive_paths = tuple(str(path) for path in cast("list[object]", archived["changed_paths"]))
     _clear_selected_attestations(worktree)
     return (
         worktree,
@@ -127,17 +150,9 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
         monkeypatch, tmp_path
     )
 
-    scope = current_generation_scope(
+    scope = _generation_scope(
         worktree,
         head=archived_head,
-        repository_id=load_repository_commitment(worktree).id,
-        commitment=load_commitment(
-            worktree,
-            carrier=str(leases_by_branch(worktree)["work/feature"]["base_commitment_path"]),
-            change_id="fixture-change",
-            tree_ref=archived_head,
-        ),
-        lease=leases_by_branch(worktree)["work/feature"],
         fallback_paths=("openspec/specs/contracts/spec.md", *archive_paths),
     )
 
@@ -145,17 +160,9 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     assert scope.paths == ()
     assert {item.state for item in scope.attributions} == {"unknown"}
     record_attestations(worktree, (receipt,))
-    selected = current_generation_scope(
+    selected = _generation_scope(
         worktree,
         head=archived_head,
-        repository_id=load_repository_commitment(worktree).id,
-        commitment=load_commitment(
-            worktree,
-            carrier=str(leases_by_branch(worktree)["work/feature"]["base_commitment_path"]),
-            change_id="fixture-change",
-            tree_ref=archived_head,
-        ),
-        lease=leases_by_branch(worktree)["work/feature"],
         fallback_paths=("openspec/specs/contracts/spec.md", *archive_paths),
     )
 
@@ -184,17 +191,9 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
     poison = proof_artifact_root(worktree) / f"{forged.id}.json"
     poison.parent.mkdir(parents=True, exist_ok=True)
     poison.write_text(forged.canonical_json(), encoding="utf-8")
-    tampered = current_generation_scope(
+    tampered = _generation_scope(
         worktree,
         head=archived_head,
-        repository_id=load_repository_commitment(worktree).id,
-        commitment=load_commitment(
-            worktree,
-            carrier=str(leases_by_branch(worktree)["work/feature"]["base_commitment_path"]),
-            change_id="fixture-change",
-            tree_ref=archived_head,
-        ),
-        lease=leases_by_branch(worktree)["work/feature"],
         fallback_paths=("README.md", *archive_paths),
     )
     assert tampered.archive_authority["attestation_id"] == receipt.id
@@ -207,7 +206,7 @@ def test_skip_specs_archive_binds_current_generation_to_the_exact_archive_effect
 
 def _start_forward_fix_generation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> tuple[Path, str, object]:
+) -> tuple[Path, str]:
     """Archive the fixture and start one exact successor generation."""
     lifecycle = completed_lifecycle(
         tmp_path, monkeypatch, scope=("openspec/changes/fixture-change/**",)
@@ -245,13 +244,13 @@ def _start_forward_fix_generation(
         worktree, carrier=carrier, change_id="hosted-verification-fix"
     )
     assert after_commitment.digest() != before_commitment.digest()
-    return worktree, carrier, after_commitment
+    return worktree, carrier
 
 
 def test_plan_and_prove_bind_only_the_current_post_start_generation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    worktree, carrier, after_commitment = _start_forward_fix_generation(monkeypatch, tmp_path)
+    worktree, carrier = _start_forward_fix_generation(monkeypatch, tmp_path)
     expected = {
         "README.md",
         "openspec/changes/hosted-verification-fix/.openspec.yaml",
@@ -287,13 +286,12 @@ def test_plan_and_prove_bind_only_the_current_post_start_generation(
     branch = git(worktree, "branch", "--show-current")
     lease = leases_by_branch(worktree)[branch]
     wrong_generation = dict(lease) | {"lease_id": "lease:other-generation"}
-    rejected = current_generation_scope(
+    rejected = _generation_scope(
         worktree,
         head=git(worktree, "rev-parse", "HEAD"),
-        repository_id=load_repository_commitment(worktree).id,
-        commitment=after_commitment,
         lease=wrong_generation,
         fallback_paths=("archive-history",),
+        change="hosted-verification-fix",
     )
     assert rejected.paths == ()
     assert rejected.start_authority == {}

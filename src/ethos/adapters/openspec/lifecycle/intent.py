@@ -16,7 +16,7 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git import first_parent_successor
 from ethos.contracts.semantic import Commitment
 
 if TYPE_CHECKING:
@@ -257,10 +257,17 @@ def committed_successor_mismatch(
 ) -> bool:
     """Return whether a committed successor differs from the requested semantics."""
     head = current_tracked_head(root)
-    if (
-        head == previous_head
-        or run_git(root, "rev-parse", f"{head}^").stdout.strip() != previous_head
-    ):
+    successor = first_parent_successor(root, previous_head, head)
+    if not successor:
+        return False
+    try:
+        started = load_commitment(
+            root,
+            carrier=f"openspec/changes/{change}/commitment.toml",
+            change_id=change,
+            tree_ref=successor,
+        )
+    except ValueError:
         return False
     try:
         current = load_commitment(
@@ -270,11 +277,12 @@ def committed_successor_mismatch(
             tree_ref=head,
         )
     except ValueError:
-        return False
+        return True
     return (
-        current.intent != intent.strip()
-        or current.scope != _successor_scope(change, scope)
-        or current.selected_attestations != tuple(sorted(set(selected_attestations)))
+        current.digest() != started.digest()
+        or started.intent != intent.strip()
+        or started.scope != _successor_scope(change, scope)
+        or started.selected_attestations != tuple(sorted(set(selected_attestations)))
     )
 
 

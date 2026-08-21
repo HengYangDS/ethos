@@ -80,7 +80,7 @@ def _canonical_value(value: object) -> object:
     raise TypeError(_SEMANTIC_JSON_VALUE_INVALID)
 
 
-def _canonical_json_v2(value: object) -> str:
+def _canonical_json(value: object) -> str:
     return json.dumps(
         _canonical_value(value),
         ensure_ascii=False,
@@ -101,7 +101,7 @@ def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return result
 
 
-def _parse_json_v2(data: str | bytes | bytearray) -> object:
+def _parse_json(data: str | bytes | bytearray) -> object:
     return json.loads(
         data,
         object_pairs_hook=_unique_json_object,
@@ -148,7 +148,7 @@ class _SemanticModel(BaseModel):
     )
 
 
-class _SemanticModelV2(_SemanticModel):
+class _CanonicalSemanticModel(_SemanticModel):
     @classmethod
     def model_validate_json(
         cls,
@@ -163,7 +163,7 @@ class _SemanticModelV2(_SemanticModel):
         del strict, extra, by_alias, by_name
         try:
             value = cls.model_validate(
-                _parse_json_v2(json_data),
+                _parse_json(json_data),
                 strict=True,
                 extra="forbid",
                 context=context,
@@ -204,7 +204,7 @@ class _DependencyValue(_SemanticModel):
 
     @model_validator(mode="after")
     def validate_attributes(self) -> Self:
-        _canonical_json_v2(self.attributes)
+        _canonical_json(self.attributes)
         return self
 
 
@@ -215,7 +215,7 @@ class _HypothesisValue(_SemanticModel):
 
     @model_validator(mode="after")
     def validate_body(self) -> Self:
-        _canonical_json_v2(self.body)
+        _canonical_json(self.body)
         return self
 
 
@@ -227,7 +227,7 @@ class _FalsifierValue(_SemanticModel):
 
     @model_validator(mode="after")
     def validate_body(self) -> Self:
-        _canonical_json_v2(self.body)
+        _canonical_json(self.body)
         return self
 
 
@@ -240,15 +240,15 @@ class _ExperimentProtocolValue(_SemanticModel):
     @field_validator("hypothesis_ids")
     @classmethod
     def validate_hypothesis_ids(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        return _canonical_set(values, identity=lambda value: _canonical_json_v2(value).encode())
+        return _canonical_set(values, identity=lambda value: _canonical_json(value).encode())
 
     @model_validator(mode="after")
     def validate_body(self) -> Self:
-        _canonical_json_v2(self.body)
+        _canonical_json(self.body)
         return self
 
 
-class Commitment(_SemanticModelV2):
+class Commitment(_CanonicalSemanticModel):
     """Immutable normative promise for one bounded transition."""
 
     schema_version: Literal[2]
@@ -285,7 +285,7 @@ class Commitment(_SemanticModelV2):
             raise ValueError(_COMMITMENT_STRING_VALUE_INVALID)
         return _canonical_set(
             values,
-            identity=lambda value: _canonical_json_v2(value).encode(),
+            identity=lambda value: _canonical_json(value).encode(),
         )
 
     @field_validator("predecessors", "selected_attestations")
@@ -312,7 +312,7 @@ class Commitment(_SemanticModelV2):
                 raise ValueError(msg)
         return _canonical_set(
             scope,
-            identity=lambda value: _canonical_json_v2(value).encode(),
+            identity=lambda value: _canonical_json(value).encode(),
         )
 
     @field_validator("dependencies")
@@ -328,7 +328,7 @@ class Commitment(_SemanticModelV2):
             identity=lambda value: (
                 value.kind,
                 value.target,
-                _canonical_json_v2(value.attributes),
+                _canonical_json(value.attributes),
             ),
         )
 
@@ -342,7 +342,7 @@ class Commitment(_SemanticModelV2):
             raise ValueError(_COMMITMENT_HYPOTHESIS_ID_DUPLICATE)
         return _canonical_set(
             values,
-            identity=lambda value: (value.id, value.kind, _canonical_json_v2(value.body)),
+            identity=lambda value: (value.id, value.kind, _canonical_json(value.body)),
         )
 
     @field_validator("falsifiers")
@@ -359,7 +359,7 @@ class Commitment(_SemanticModelV2):
                 value.hypothesis_id,
                 value.id,
                 value.kind,
-                _canonical_json_v2(value.body),
+                _canonical_json(value.body),
             ),
         )
 
@@ -376,8 +376,8 @@ class Commitment(_SemanticModelV2):
             identity=lambda value: (
                 value.id,
                 value.kind,
-                _canonical_json_v2(value.hypothesis_ids),
-                _canonical_json_v2(value.body),
+                _canonical_json(value.hypothesis_ids),
+                _canonical_json(value.body),
             ),
         )
 
@@ -401,7 +401,7 @@ class Commitment(_SemanticModelV2):
         return hashlib.sha256(b"ethos.commitment.v2\0" + self.canonical_json().encode()).hexdigest()
 
     def canonical_json(self) -> str:
-        return _canonical_json_v2(self.identity_projection())
+        return _canonical_json(self.identity_projection())
 
 
 def load_commitment_file(path: Path) -> Commitment:
@@ -415,7 +415,7 @@ class _AttestationPayload(_SemanticModel):
 
     @model_validator(mode="after")
     def validate_body(self) -> Self:
-        _canonical_json_v2(self.body)
+        _canonical_json(self.body)
         return self
 
 
@@ -427,11 +427,11 @@ class _AttestationRelation(_SemanticModel):
 
     @model_validator(mode="after")
     def validate_attributes(self) -> Self:
-        _canonical_json_v2(self.attributes)
+        _canonical_json(self.attributes)
         return self
 
 
-class Attestation(_SemanticModelV2):
+class Attestation(_CanonicalSemanticModel):
     """Immutable open-predicate input that never mints authority."""
 
     schema_version: Literal[2]
@@ -471,7 +471,7 @@ class Attestation(_SemanticModelV2):
             raise ValueError(_COMMITMENT_STRING_VALUE_INVALID)
         return _canonical_set(
             values,
-            identity=lambda value: _canonical_json_v2(value).encode(),
+            identity=lambda value: _canonical_json(value).encode(),
         )
 
     @field_validator("relations")
@@ -488,7 +488,7 @@ class Attestation(_SemanticModelV2):
                 value.kind,
                 value.target_kind,
                 value.target_id,
-                _canonical_json_v2(value.attributes),
+                _canonical_json(value.attributes),
             ),
         )
 
@@ -552,7 +552,7 @@ class Attestation(_SemanticModelV2):
         projection = self.identity_projection()
         if not exclude_id:
             projection = {"id": self.id, **projection}
-        return _canonical_json_v2(projection)
+        return _canonical_json(projection)
 
     def digest(self) -> str:
         return self.id

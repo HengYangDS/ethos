@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tools.ci import sessions
+
+if TYPE_CHECKING:
+    import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -45,6 +49,26 @@ def test_project_runtime_is_the_only_executable_resolution_owner() -> None:
     )
     for relative in consumers:
         assert "tools.ci.toolchain.environment" in (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_lint_inventory_excludes_deleted_worktree_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    alive = tmp_path / "alive.py"
+    alive.write_text("value = 1\n", encoding="utf-8")
+    calls: list[tuple[object, ...]] = []
+
+    class Session:
+        def run(self, *args, **_kwargs):
+            calls.append(args)
+            return "alive.py\0deleted.py\0" if args[:2] == ("git", "ls-files") else ""
+
+    monkeypatch.setattr(sessions, "ROOT", tmp_path)
+    monkeypatch.setattr(sessions, "RUFF_CACHE", tmp_path / ".ruff-cache")
+    sessions.lint(Session())
+
+    assert all("alive.py" in call for call in calls[1:])
+    assert all("deleted.py" not in call for call in calls[1:])
 
 
 def test_prose_executor_consumes_only_declared_policy_paths() -> None:

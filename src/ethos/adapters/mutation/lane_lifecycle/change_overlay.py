@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import Literal
 from typing import TypedDict
 
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -25,6 +26,75 @@ class ChangeOverlay(TypedDict):
     paths: tuple[str, ...]
     digest: str
     required_gaps: list[str]
+
+
+EffectState = Literal["zero_effect", "mutated", "committed"]
+CompensationState = Literal["not_required", "not_attempted", "completed", "failed"]
+ResidueState = Literal[
+    "absent",
+    "retained",
+    "lease_finalization_pending",
+    "terminal_attestation_pending",
+]
+LifecycleOutcomeKind = Literal[
+    "zero_effect",
+    "mutation_uncompensated",
+    "mutation_compensated",
+    "compensation_failed",
+    "committed_complete",
+    "committed_residue",
+    "lease_finalization_pending",
+    "terminal_attestation_pending",
+]
+_OUTCOME_STATES: dict[
+    LifecycleOutcomeKind,
+    tuple[EffectState, CompensationState, ResidueState],
+] = {
+    "zero_effect": ("zero_effect", "not_required", "absent"),
+    "mutation_uncompensated": ("mutated", "not_attempted", "retained"),
+    "mutation_compensated": ("mutated", "completed", "absent"),
+    "compensation_failed": ("mutated", "failed", "retained"),
+    "committed_complete": ("committed", "not_required", "absent"),
+    "committed_residue": ("committed", "not_required", "retained"),
+    "lease_finalization_pending": (
+        "committed",
+        "not_required",
+        "lease_finalization_pending",
+    ),
+    "terminal_attestation_pending": (
+        "committed",
+        "not_required",
+        "terminal_attestation_pending",
+    ),
+}
+
+
+class LifecycleEffectOutcome(TypedDict):
+    """Closed effect-boundary projection shared by lifecycle mutations."""
+
+    effect_state: EffectState
+    compensation_state: CompensationState
+    residue_state: ResidueState
+    next_action: str
+    user_decision_required: bool
+
+
+def lifecycle_effect_outcome(
+    *,
+    kind: LifecycleOutcomeKind,
+    next_action: str = "",
+    user_decision_required: bool = False,
+) -> LifecycleEffectOutcome:
+    """Project one valid lifecycle effect outcome from a closed state algebra."""
+    states = _OUTCOME_STATES[kind]
+    effect_state, compensation_state, residue_state = states
+    return {
+        "effect_state": effect_state,
+        "compensation_state": compensation_state,
+        "residue_state": residue_state,
+        "next_action": next_action,
+        "user_decision_required": user_decision_required,
+    }
 
 
 def lifecycle_report(
@@ -57,11 +127,18 @@ def work_lane_transition_gaps(
     require_clean: bool = False,
 ) -> list[str]:
     """Validate the coordinates shared by OpenSpec lifecycle transitions."""
+    lease_state = str(lease.get("lease_state") or "missing")
+    if lease_state != "valid":
+        return [
+            {
+                "unknown": f"work_lane_lease_unknown:{branch}",
+                "expired": f"work_lane_lease_expired:{branch}",
+            }.get(lease_state, f"work_lane_missing_lease:{branch}")
+        ]
     checks = (
         (load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE, role_gap),
         (head == expect_head, "expect_head_mismatch"),
         (not require_clean or not git_stdout(root, "status", "--short"), "work_lane_dirty"),
-        (lease.get("lease_state") == "valid", f"work_lane_lease_invalid:{branch}"),
         (lease.get("holder_ref") == actor, "lease_actor_mismatch"),
         (lease.get("expected_head") == head, "lease_head_stale"),
         (lease.get("expected_tree") == current_tree(root, head), "lease_tree_stale"),

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
+import os
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.openspec.lifecycle.archive_effect as effect
 import ethos.adapters.openspec.lifecycle.archive_transition as archive
 from ethos.repository.profile import INVALID_PROFILE_ERROR
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -22,7 +25,7 @@ ACTIVE = "openspec/changes/change/commitment.toml"
 
 
 def _commitment(*, change_identity: bool = True) -> Commitment:
-    commitment = commitment_v2(
+    commitment = commitment_fixture(
         id="change:change",
         intent="Archive exact governed work.",
         subjects=("repository:test",),
@@ -117,31 +120,168 @@ def test_archive_scope_rejects_non_change_identity_and_invalid_archived_carrier(
 def test_archive_transition_fields_require_valid_lease_and_exact_target(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(archive, "git_stdout", lambda *_args, **_kwargs: "work/feature")
-    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {"work/feature": {}})
-    assert archive.lease_bound_archive_transition_fields(tmp_path, target_head=HEAD) is None
+    monkeypatch.setattr(effect, "git_stdout", lambda *_args, **_kwargs: "work/feature")
+    monkeypatch.setattr(effect, "leases_by_branch", lambda _root: {"work/feature": {}})
+    assert effect.lease_bound_archive_transition_fields(tmp_path, target_head=HEAD) is None
 
     source = _commitment()
     target = {
         "base_commitment_path": CARRIER,
         "base_commitment_digest": source.digest(),
         "base_commitment_bytes_sha256": "bytes",
+        "expected_head": HEAD,
         "expected_tree": TREE,
     }
 
     def git_stdout(_root: Path, *args: str) -> str:
-        return "work/feature" if args == ("branch", "--show-current") else ""
+        if args == ("branch", "--show-current"):
+            return "work/feature"
+        if args == ("diff", "--name-only", f"{HEAD}..{HEAD}"):
+            return CARRIER
+        return ""
 
-    monkeypatch.setattr(archive, "git_stdout", git_stdout)
-    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {"work/feature": _lease()})
-    monkeypatch.setattr(archive, "load_lease_bound_commitment", lambda *_args, **_kwargs: source)
-    monkeypatch.setattr(archive, "current_tree", lambda *_args: TREE)
-    monkeypatch.setattr(archive, "staged_archive_carrier", lambda *_args, **_kwargs: CARRIER)
-    monkeypatch.setattr(archive, "exact_commitment_fields", lambda *_args, **_kwargs: target)
-    monkeypatch.setattr(archive, "load_commitment", lambda *_args, **_kwargs: source)
-    monkeypatch.setattr(archive, "active_commitments", lambda *_args: ())
+    monkeypatch.setattr(effect, "git_stdout", git_stdout)
+    monkeypatch.setattr(effect, "leases_by_branch", lambda _root: {"work/feature": _lease()})
+    monkeypatch.setattr(effect, "load_lease_bound_commitment", lambda *_args, **_kwargs: source)
+    monkeypatch.setattr(effect, "current_tree", lambda *_args: TREE)
+    monkeypatch.setattr(
+        effect,
+        "run_git",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=f"{TREE}\n", returncode=0),
+    )
+    monkeypatch.setattr(
+        effect,
+        "archive_postimage_scope_report",
+        lambda *_args, **_kwargs: {
+            "verdict": "pass",
+            "archive_path": CARRIER.removesuffix("/commitment.toml"),
+        },
+    )
+    monkeypatch.setattr(effect, "exact_commitment_fields", lambda *_args, **_kwargs: target)
+    monkeypatch.setenv(
+        "ETHOS_ARCHIVE_TRANSITION",
+        effect.archive_transition_environment(
+            tmp_path,
+            change="change",
+            head=HEAD,
+            changed_paths=(CARRIER,),
+            official_change_complete=True,
+            completion_artifacts=("tasks.md",),
+        )["ETHOS_ARCHIVE_TRANSITION"],
+    )
 
-    assert archive.lease_bound_archive_transition_fields(tmp_path, target_head=HEAD) == target
+    assert effect.lease_bound_archive_transition_fields(tmp_path, target_head=HEAD) == target
+    monkeypatch.delenv("ETHOS_ARCHIVE_TRANSITION")
+    assert effect.lease_bound_archive_transition_fields(tmp_path, target_head=HEAD) is None
+
+
+def _prepared_effect_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> tuple[str, str]:
+    holder = "agent:owner"
+    branch = "work/feature"
+    generation = _lease(
+        holder_ref=holder,
+        lane_ref=branch,
+        lease_id="lease:archive",
+        epoch=7,
+    )
+    monkeypatch.setattr(effect, "current_tracked_head", lambda _root: HEAD)
+    monkeypatch.setattr(effect, "current_tree", lambda *_args: TREE)
+    monkeypatch.setattr(
+        effect,
+        "run_git",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=f"{TREE}\n", returncode=0),
+    )
+    monkeypatch.setattr(
+        effect,
+        "archive_context",
+        lambda _root: (HEAD, generation, _commitment()),
+    )
+    monkeypatch.setattr(
+        effect,
+        "archive_postimage_scope_report",
+        lambda *_args, **_kwargs: {"verdict": "pass"},
+    )
+    environment = effect.archive_transition_environment(
+        tmp_path,
+        change="change",
+        head=HEAD,
+        changed_paths=(CARRIER,),
+        official_change_complete=True,
+        completion_artifacts=("tasks.md",),
+    )
+    monkeypatch.setenv("ETHOS_ARCHIVE_TRANSITION", environment["ETHOS_ARCHIVE_TRANSITION"])
+    return branch, holder
+
+
+def test_prepared_archive_authority_rejects_actor_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    branch, holder = _prepared_effect_dependencies(monkeypatch, tmp_path)
+
+    admitted = effect.archive_prewrite_authority(
+        tmp_path,
+        changed_paths=(CARRIER,),
+        branch=branch,
+        actor=holder,
+    )
+    rejected = effect.archive_prewrite_authority(
+        tmp_path,
+        changed_paths=(CARRIER,),
+        branch=branch,
+        actor="agent:other",
+    )
+
+    assert admitted is not None
+    assert admitted["authority_kind"] == "prepared_effect"
+    assert admitted["material_scope"] == {"verdict": "pass"}
+    assert rejected is None
+
+
+@pytest.mark.parametrize("tamper", ["effect_identity", "changed_paths"])
+def test_prepared_archive_authority_rejects_envelope_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    tamper: str,
+) -> None:
+    branch, holder = _prepared_effect_dependencies(monkeypatch, tmp_path)
+    payload = json.loads(os.environ["ETHOS_ARCHIVE_TRANSITION"])
+    payload[tamper] = "0" * 64 if tamper == "effect_identity" else [ACTIVE]
+    monkeypatch.setenv("ETHOS_ARCHIVE_TRANSITION", json.dumps(payload))
+
+    assert (
+        effect.archive_prewrite_authority(
+            tmp_path,
+            changed_paths=(CARRIER,),
+            branch=branch,
+            actor=holder,
+        )
+        is None
+    )
+
+
+def test_prepared_archive_ref_authority_rejects_wrong_parent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    desired = "c" * 40
+    monkeypatch.setattr(
+        effect,
+        "git_stdout",
+        lambda *_args, **_kwargs: f"{desired} {'d' * 40}",
+    )
+
+    assert (
+        effect.prepared_archive_ref_authority(
+            tmp_path,
+            branch="work/feature",
+            old_value=HEAD,
+            new_value=desired,
+            actor="agent:owner",
+        )
+        is None
+    )
 
 
 def test_archive_scope_observes_completion_and_collision_preservation(

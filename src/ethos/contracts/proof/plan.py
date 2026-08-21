@@ -25,35 +25,61 @@ _FACT_FIELDS = {
 }
 
 
+def archive_authority_valid(value: object) -> bool:
+    """Return whether one proof carries a complete selected archive effect projection."""
+    if not isinstance(value, Mapping):
+        return False
+    authorized = value.get("authorized_paths")
+    before = value.get("input")
+    output = value.get("output")
+    effect_identity = value.get("effect_identity")
+    digests = (
+        value.get("attestation_id"),
+        value.get("commitment_digest"),
+        value.get("effect_digest"),
+        effect_identity,
+    )
+    return (
+        value.get("predicate") == "effect:openspec-archive"
+        and all(
+            isinstance(digest, str) and len(digest) == 64 and set(digest) <= set("0123456789abcdef")
+            for digest in digests
+        )
+        and isinstance(before, Mapping)
+        and before.get("effect_identity") == effect_identity
+        and isinstance(output, Mapping)
+        and isinstance(authorized, tuple | list)
+        and bool(authorized)
+        and all(isinstance(path, str) and path for path in authorized)
+        and len(set(authorized)) == len(authorized)
+        and tuple(output.get("changed_paths", ())) == tuple(authorized)
+    )
+
+
 def archive_scope_gaps(
     facts: Mapping[str, object], prior_attestations: Mapping[str, object]
 ) -> tuple[str, ...]:
-    """Require archive authority to name a unique subset of changed paths."""
+    """Require one exact archive effect identity to authorize changed paths."""
     archive = prior_attestations.get("openspec_archive")
-    if not isinstance(archive, Mapping):
+    if archive is None:
         return ()
-    authorized = archive.get("authorized_paths")
+    if not archive_authority_valid(archive) or not isinstance(archive, Mapping):
+        return ("proof_archive_scope_stale",)
+    authorized_value = archive.get("authorized_paths")
+    authorized = (
+        tuple(str(path) for path in authorized_value)
+        if isinstance(authorized_value, tuple | list)
+        else ()
+    )
     values = facts.get("values")
     fact_values = values if isinstance(values, Mapping) else {}
     changed = fact_values.get("changed_paths")
-    authorized_paths = (
-        tuple(str(path) for path in authorized)
-        if isinstance(authorized, tuple | list)
-        and all(isinstance(path, str) for path in authorized)
-        else ()
-    )
     changed_paths = (
         tuple(str(path) for path in changed)
         if isinstance(changed, tuple | list) and all(isinstance(path, str) for path in changed)
         else ()
     )
-    return (
-        ()
-        if authorized_paths
-        and len(set(authorized_paths)) == len(authorized_paths)
-        and set(authorized_paths).issubset(changed_paths)
-        else ("proof_archive_scope_stale",)
-    )
+    return () if set(authorized).issubset(changed_paths) else ("proof_archive_scope_stale",)
 
 
 def commitment_fact_gaps(

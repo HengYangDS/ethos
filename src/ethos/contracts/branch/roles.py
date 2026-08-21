@@ -21,7 +21,6 @@ _STRICT_BRANCH_ROLE_TABLE_ERROR = "branch_roles table must be complete and exact
 _STRICT_BRANCH_ROLE_TEXT_ERROR = "branch_roles text fields must be canonical strings"
 _STRICT_BRANCH_ROLE_MIRROR_ERROR = "branch_roles release_mirror is invalid"
 _STRICT_BRANCH_ROLE_SIBLING_ERROR = "branch_roles canonical_sibling_worktrees must be boolean"
-_LEGACY_BRANCH_ROLE_MIGRATION_ERROR = "branch_roles legacy schema requires migration"
 _UNKNOWN_BRANCH_ROLE_FIELDS_ERROR = "branch_roles contains unknown fields"
 _UNKNOWN_BRANCH_ROLE_TRANSITION_FIELDS_ERROR = "branch_roles transition contains unknown fields"
 _STRICT_BRANCH_ROLE_FIELDS = {
@@ -42,11 +41,6 @@ _ADOPTED_TRANSITION = {
     "required_evidence": ["proof:execution"],
     "coupled_with": "",
 }
-_LEGACY_SIBLING_FIELD = "repository_family_worktrees"
-_LEGACY_BRANCH_ROLE_FIELDS = (_STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}) | {
-    _LEGACY_SIBLING_FIELD
-}
-
 PROTECTED_WRITE_ROLES = frozenset(
     {
         ROLE_RELEASE_ROOT,
@@ -160,12 +154,10 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     raw_policy = payload.get("branch_roles")
     if not isinstance(raw_policy, dict):
         return BranchRolePolicy()
-    if set(raw_policy) - (_STRICT_BRANCH_ROLE_FIELDS | {_LEGACY_SIBLING_FIELD, "transitions"}):
+    if set(raw_policy) - (_STRICT_BRANCH_ROLE_FIELDS | {"transitions"}):
         raise ValueError(_UNKNOWN_BRANCH_ROLE_FIELDS_ERROR)
     if "transitions" in raw_policy:
         _validate_adopted_transition_rows(raw_policy["transitions"])
-    if _LEGACY_SIBLING_FIELD in raw_policy:
-        return _legacy_branch_role_policy(raw_policy)
     default = BranchRolePolicy()
     return BranchRolePolicy(
         release_branch=_string_value(raw_policy.get("release_branch"), default.release_branch),
@@ -190,8 +182,6 @@ def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     """Parse one complete branch-role table without fallback or coercion."""
     payload = tomllib.loads(text)
     raw_policy = payload.get("branch_roles")
-    if type(raw_policy) is dict and _LEGACY_SIBLING_FIELD in raw_policy:
-        return _legacy_branch_role_policy(raw_policy)
     if type(raw_policy) is not dict or set(raw_policy) != _STRICT_BRANCH_ROLE_FIELDS:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
     text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}
@@ -207,28 +197,6 @@ def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     if type(raw_policy["canonical_sibling_worktrees"]) is not bool:
         raise ValueError(_STRICT_BRANCH_ROLE_SIBLING_ERROR)
     return BranchRolePolicy(**raw_policy)
-
-
-def _legacy_branch_role_policy(raw_policy: dict[str, Any]) -> BranchRolePolicy:
-    """Map the one retired complete schema without weakening strict admission."""
-    if set(raw_policy) != _LEGACY_BRANCH_ROLE_FIELDS:
-        raise ValueError(_LEGACY_BRANCH_ROLE_MIGRATION_ERROR)
-    migrated = dict(raw_policy)
-    sibling = migrated.pop(_LEGACY_SIBLING_FIELD)
-    migrated["canonical_sibling_worktrees"] = sibling
-    text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}
-    if any(
-        type(migrated[field]) is not str
-        or not migrated[field]
-        or migrated[field] != migrated[field].strip()
-        for field in text_fields
-    ):
-        raise ValueError(_STRICT_BRANCH_ROLE_TEXT_ERROR)
-    if migrated["release_mirror"] not in {"independent", RELEASE_MIRROR_ACCEPTED_FF}:
-        raise ValueError(_STRICT_BRANCH_ROLE_MIRROR_ERROR)
-    if type(migrated["canonical_sibling_worktrees"]) is not bool:
-        raise ValueError(_STRICT_BRANCH_ROLE_SIBLING_ERROR)
-    return BranchRolePolicy(**migrated)
 
 
 def load_branch_role_policy(root: Path) -> BranchRolePolicy:

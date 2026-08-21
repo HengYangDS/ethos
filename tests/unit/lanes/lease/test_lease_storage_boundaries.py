@@ -242,9 +242,15 @@ def test_resume_public_boundary_distinguishes_valid_and_expired_rows(
         "lease_resume_blocked_by_decision",
     } <= set(not_expired["required_gaps"])
 
-    expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    renewed_at = datetime.now(UTC) - timedelta(seconds=2)
+    issued_at = renewed_at - timedelta(seconds=1)
+    expires_at = renewed_at + timedelta(seconds=1)
     payload = dict(current["payload"])
-    payload.update(expires_at=expires_at.isoformat())
+    payload.update(
+        issued_at=issued_at.isoformat(),
+        renewed_at=renewed_at.isoformat(),
+        expires_at=expires_at.isoformat(),
+    )
     with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute(
             "update leases set expires_at = ?, payload_json = ? where subject = ?",

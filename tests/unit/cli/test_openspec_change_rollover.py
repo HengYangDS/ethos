@@ -490,6 +490,86 @@ def test_start_change_cli_recognizes_the_same_committed_generation(
     assert os.environ["ETHOS_ACTOR"] == "agent:test:case:agent-test"
 
 
+@pytest.mark.parametrize(
+    ("later_path", "expected_state"),
+    [("tests/later.txt", "recovered"), ("src/later.py", "blocked")],
+)
+def test_start_change_recovery_requires_later_commits_to_remain_in_scope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    later_path: str,
+    expected_state: str,
+) -> None:
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree = lifecycle.worktree
+    archived_head = current_tracked_head(worktree)
+    commit = rollover.commit_git_worktree
+    advance = rollover.advance_committed_lease
+    monkeypatch.setattr(
+        rollover,
+        "commit_git_worktree",
+        lambda root, *, previous, message: (
+            previous
+            and {
+                "verdict": (
+                    "pass"
+                    if git(root, "-c", "core.hooksPath=/dev/null", "commit", "-m", message)
+                    is not None
+                    else "block"
+                ),
+                "error": "",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        rollover,
+        "advance_committed_lease",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("interrupted")),
+    )
+    interrupted = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Repair hosted verification.",
+        scope=("tests/**",),
+        expect_head=archived_head,
+        apply=True,
+    )
+    assert interrupted["state"] == "repair_required"
+    assert leases_by_branch(worktree)[lifecycle.branch]["expected_head"] == archived_head
+
+    later = worktree / later_path
+    later.parent.mkdir(exist_ok=True)
+    later.write_text("later in-scope work\n", encoding="utf-8")
+    git(worktree, "add", later.relative_to(worktree).as_posix())
+    git(
+        worktree,
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "test: continue started change",
+    )
+    monkeypatch.setattr(rollover, "commit_git_worktree", commit)
+    monkeypatch.setattr(rollover, "advance_committed_lease", advance)
+
+    recovered = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Repair hosted verification.",
+        scope=("tests/**",),
+        expect_head=archived_head,
+        apply=True,
+    )
+
+    assert recovered["state"] == expected_state
+    lease_head = leases_by_branch(worktree)[lifecycle.branch]["expected_head"]
+    if expected_state == "recovered":
+        assert recovered["head"] == current_tracked_head(worktree)
+        assert lease_head == recovered["head"]
+    else:
+        assert lease_head == archived_head
+
+
 def test_start_change_rejects_request_drift_for_an_existing_generation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -5,6 +5,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 import pytest
 
@@ -14,9 +15,10 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -72,7 +74,7 @@ def _recovery_plan(
         assertions={"refs/heads/candidate/dev": CANDIDATE},
     )
     return compile_git_effect_plan(
-        commitment_v2(
+        commitment_fixture(
             id="authority:test:refresh",
             intent="Recover one refresh effect.",
             subjects=("repository:test",),
@@ -90,6 +92,26 @@ def _recovery_plan(
         prior_attestations={},
         policy={"operation": "lane.refresh", "execution_branch": execution_branch},
         effect=effect,
+    )
+
+
+def _stub_refresh_effect(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        refresh,
+        "load_repository_commitment",
+        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "d" * 64),
+    )
+    monkeypatch.setattr(refresh, "lease_generation", lambda _lease: {})
+    monkeypatch.setattr(refresh, "leases_by_branch", lambda _root: {BRANCH: {}})
+    monkeypatch.setattr(
+        refresh,
+        "compile_observed_git_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(digest="plan-digest"),
+    )
+    monkeypatch.setattr(
+        refresh,
+        "issue_native_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
     )
 
 
@@ -229,8 +251,7 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
     )
 
     def execute(_root: Path, _plan: object, **kwargs: object) -> SimpleNamespace:
-        projection = kwargs["projection"]
-        assert callable(projection)
+        projection = cast("Callable[[], object]", kwargs["projection"])
         projection()
         return SimpleNamespace()
 
@@ -261,23 +282,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
     heads = iter((HEAD, REBASED, REBASED if case == "effect-fails" else HEAD, HEAD, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
-    monkeypatch.setattr(
-        refresh,
-        "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "d" * 64),
-    )
-    monkeypatch.setattr(refresh, "lease_generation", lambda _lease: {})
-    monkeypatch.setattr(refresh, "leases_by_branch", lambda _root: {BRANCH: {}})
-    monkeypatch.setattr(
-        refresh,
-        "compile_observed_git_effect",
-        lambda *_args, **_kwargs: SimpleNamespace(digest="plan-digest"),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "issue_native_effect",
-        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
-    )
+    _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(
         refresh, "ref_head", lambda *_args: "other" if case == "ref-drift" else REBASED
     )
@@ -310,28 +315,11 @@ def test_refresh_public_attachment_failure_is_reported(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, REBASED, REBASED, HEAD, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
-    monkeypatch.setattr(
-        refresh,
-        "load_repository_commitment",
-        lambda *_args, **_kwargs: SimpleNamespace(id="repository:self", digest=lambda: "d" * 64),
-    )
-    monkeypatch.setattr(refresh, "lease_generation", lambda _lease: {})
-    monkeypatch.setattr(refresh, "leases_by_branch", lambda _root: {BRANCH: {}})
-    monkeypatch.setattr(
-        refresh,
-        "compile_observed_git_effect",
-        lambda *_args, **_kwargs: SimpleNamespace(digest="plan-digest"),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "issue_native_effect",
-        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
-    )
+    _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "ref_head", lambda *_args: "other")
 
     def execute(_root: Path, _plan: object, **kwargs: object) -> None:
-        projection = kwargs["projection"]
-        assert callable(projection)
+        projection = cast("Callable[[], object]", kwargs["projection"])
         projection()
 
     monkeypatch.setattr(refresh, "execute_git_effect", execute)

@@ -14,14 +14,14 @@ from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def _plan(*, gap: str = ""):
-    commitment = commitment_v2(
+    commitment = commitment_fixture(
         id="repository:proof-command",
         intent="Exercise the proof command.",
         subjects=("repository:proof-command",),
@@ -364,7 +364,7 @@ def test_prove_execute_stops_at_the_exact_local_state_migration(
 def test_resolve_generation_uses_the_shared_active_carrier_selector(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, invalid: bool
 ) -> None:
-    commitment = commitment_v2(
+    commitment = commitment_fixture(
         id="repository:proof-command",
         intent="Exercise the proof command.",
         subjects=("repository:proof-command",),
@@ -397,7 +397,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
 ) -> None:
     emitted = []
     scope = CurrentGenerationScope(("a.py",), {})
-    commitment = commitment_v2(
+    commitment = commitment_fixture(
         id="change:proof-command",
         intent="Exercise the proof command.",
         subjects=("repository:proof-command",),

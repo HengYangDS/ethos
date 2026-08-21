@@ -8,7 +8,6 @@ import pytest
 
 import ethos.adapters.mutation.accepted as accepted_mutation
 import ethos.adapters.mutation.landing as landing_mutation
-import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.cli import openspec_base_command
@@ -33,6 +32,7 @@ from tests.support.governed_repository import seed_executed_proof
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.literal_cases import literal_case
+from tests.support.openspec_lifecycle import stub_official_archive_state
 
 FIXTURE_ROOT = Path(__file__).parents[2] / "fixtures/contracts-land"
 FULL_GATES = (FIXTURE_ROOT / "full-gates.toml").read_text()
@@ -95,51 +95,6 @@ def _land(root: Path, head: str | None = None, *, blocked: bool = False) -> dict
     return (run_ethos_blocked if blocked else run_ethos)(*args, cwd=root)
 
 
-def test_candidate_transition_carries_exact_terminal_v1_repository_prestate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
-    candidate_head = commit_fixture_file(
-        fixture.candidate,
-        ".ethos/commitment.toml",
-        'schema_version = 1\nid = "repository:fixture"\n'
-        'intent = "fixture"\nsubjects = ["repository:fixture"]\n'
-        'scope = ["**"]\ninvariants = []\nacceptance = []\n'
-        'authority_refs = []\npermissions = ["repository.read"]\ndependencies = []\n',
-        "terminal repository v1",
-    )
-    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "# v2\n", "repository v2 work")
-    seed_executed_proof(fixture.worktree, head)
-    monkeypatch.setattr(landing_mutation, "is_ancestor", lambda *_args: True)
-
-    report = landing_mutation.candidate_transition_readiness(root=fixture.worktree)
-
-    assert (report["verdict"], report["state"], report["candidate_head"]) == (
-        "pass",
-        "candidate_transition_admitted",
-        candidate_head,
-    )
-
-
-def test_candidate_transition_rejects_malformed_repository_prestate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    fixture = start_adopted_work_lane(tmp_path)
-    commit_fixture_file(
-        fixture.candidate,
-        ".ethos/commitment.toml",
-        "schema_version = 2\n",
-        "malformed repository commitment",
-    )
-    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "# v2\n", "repository v2 work")
-    seed_executed_proof(fixture.worktree, head)
-    monkeypatch.setattr(landing_mutation, "is_ancestor", lambda *_args: True)
-
-    report = landing_mutation.candidate_transition_readiness(root=fixture.worktree)
-
-    assert report["required_gaps"] == ["candidate_update_failed"]
-
-
 def _proved_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, full: bool = False):
     fixture = start_adopted_work_lane(tmp_path)
     commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
@@ -173,28 +128,7 @@ def _assert_completed_change_is_blocked(monkeypatch: pytest.MonkeyPatch, tmp_pat
             else pytest.fail("land readiness requested a non-shape OpenSpec audit")
         ),
     )
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda *_: {
-            "command": ["openspec", "list", "--json"],
-            "exit_code": 0,
-            "stdout": "",
-            "stderr": "",
-            "json": {
-                "changes": [
-                    {
-                        "name": "sample-change",
-                        "completedTasks": 1,
-                        "totalTasks": 1,
-                        "status": "complete",
-                    }
-                ]
-            },
-            "parse_error": "",
-        },
-    )
+    stub_official_archive_state(monkeypatch, completed=True, change_name="sample-change")
     payload = _land(root)
     assert (payload["verdict"], payload["state"]) == ("block", "blocked")
     assert "openspec_completed_change_unarchived:sample-change" in payload["required_gaps"]

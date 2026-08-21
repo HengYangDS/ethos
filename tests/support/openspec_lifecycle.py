@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
+from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -21,6 +22,34 @@ if TYPE_CHECKING:
     import pytest
 
 HOLDER = "agent:test:case:agent-test"
+OUTCOME_FIELDS = (
+    "effect_state",
+    "compensation_state",
+    "residue_state",
+    "next_action",
+    "user_decision_required",
+)
+
+
+def assert_lifecycle_outcome(
+    report: dict[str, object],
+    effect: str,
+    compensation: str,
+    residue: str,
+    next_action: str = "",
+    *,
+    user_decision_required: bool = False,
+) -> None:
+    """Assert one complete lifecycle outcome value."""
+    actual = tuple(report[field] for field in OUTCOME_FIELDS)
+    expected = (
+        effect,
+        compensation,
+        residue,
+        next_action,
+        user_decision_required,
+    )
+    assert actual == expected, (actual, expected)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +86,19 @@ class OpenSpecLifecycle:
             apply=True,
             **updates,
         )
+
+    def stage_official_archive(self, change: str = "fixture-change") -> str:
+        """Apply official OpenSpec archive output without ETHOS finalization."""
+        command = openspec_cli.openspec_base_command()
+        assert command is not None
+        result = openspec_cli.run_json(
+            self.worktree,
+            command,
+            openspec_cli.archive_command(self.worktree, change)[1:],
+        )
+        gaps, archive_path = openspec_cli.archive_result(self.worktree, change, result)
+        assert gaps == []
+        return archive_path
 
     def archive(self) -> dict[str, object]:
         """Apply the exact archive and require its terminal success contract."""
@@ -110,7 +152,7 @@ def add_archive_collision(
     distinct: bool = False,
 ) -> tuple[Path, str, str]:
     """Commit one immutable archive at the official target path."""
-    archive_date = datetime.now().astimezone().date().isoformat()
+    archive_date = datetime.now(UTC).date().isoformat()
     collision = lifecycle.worktree / f"openspec/changes/archive/{archive_date}-fixture-change"
     collision.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(lifecycle.active, collision)
@@ -163,6 +205,7 @@ def stub_official_archive_state(
     monkeypatch: pytest.MonkeyPatch,
     *,
     completed: bool = False,
+    change_name: str = "fixture-change",
     completion_artifact: str = "tasks.md",
 ) -> None:
     """Project only the official OpenSpec observations relevant to archive state."""
@@ -175,7 +218,7 @@ def stub_official_archive_state(
             payload = {
                 "changes": [
                     {
-                        "name": "fixture-change",
+                        "name": change_name,
                         "completedTasks": 1,
                         "totalTasks": 1,
                         "status": "complete",
@@ -186,11 +229,11 @@ def stub_official_archive_state(
             }
         elif args[0] == "status":
             payload = {
-                "changeName": "fixture-change",
+                "changeName": change_name,
                 "artifactPaths": {
                     "completion": {
                         "existingOutputPaths": [
-                            str(root / "openspec/changes/fixture-change" / completion_artifact)
+                            str(root / "openspec/changes" / change_name / completion_artifact)
                         ]
                     }
                 },

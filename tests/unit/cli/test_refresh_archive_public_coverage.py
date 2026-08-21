@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -7,15 +8,18 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive_change as archive
+import ethos.adapters.mutation.lane_lifecycle.archive_recovery as recovery
 import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
+import ethos.adapters.openspec.lifecycle.archive_effect as archive_effect
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
+from tests.support.openspec_lifecycle import assert_lifecycle_outcome
 
 BRANCH = "work/feature"
 HEAD = "old-head"
 NEW_HEAD = "new-head"
 CHANGE = "fixture-change"
-ARCHIVE_DATE = datetime.now().astimezone().date().isoformat()
+ARCHIVE_DATE = datetime.now(UTC).date().isoformat()
 ARCHIVE_PATH = f"openspec/changes/archive/{ARCHIVE_DATE}-fixture-change"
 
 
@@ -109,6 +113,7 @@ def _stub_archive_public(
             ("diff", "--cached", "--name-only", "--diff-filter=ACMRTD"): (
                 f"{ARCHIVE_PATH}/commitment.toml"
             ),
+            ("write-tree",): "archive-tree",
             ("show", "-s", "--format=%ct", NEW_HEAD): "0",
         }.get(args, "")
 
@@ -124,7 +129,33 @@ def _stub_archive_public(
         return archive.ArchiveCollision(ARCHIVE_PATH, "archive-tree", f"{ARCHIVE_PATH}.preserved")
 
     monkeypatch.setattr(archive, "archive_collision", collision_report)
-    monkeypatch.setattr(archive, "artifact_output_paths", lambda *_args: ())
+    postimage_observations = 0
+
+    def observe_archive_postimage(
+        *_args: object, **_kwargs: object
+    ) -> archive_effect.ArchivePostimage:
+        nonlocal postimage_observations
+        postimage_observations += 1
+        if postimage_observations == 1:
+            return archive_effect.ArchivePostimage(
+                change=CHANGE,
+                head=HEAD,
+                scope=None,
+                active_present=True,
+            )
+        return archive_effect.ArchivePostimage(
+            change=CHANGE,
+            head=HEAD,
+            scope={
+                "archive_path": ARCHIVE_PATH,
+                "changed_paths": (f"{ARCHIVE_PATH}/commitment.toml",),
+                "completion_artifacts": (),
+                "tree": "archive-tree",
+            },
+            active_present=False,
+        )
+
+    monkeypatch.setattr(archive, "archive_postimage", observe_archive_postimage)
     monkeypatch.setattr(archive.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
         archive.openspec_cli,
@@ -134,11 +165,6 @@ def _stub_archive_public(
     monkeypatch.setattr(archive, "dirty_changed_paths", lambda _root: ("spec.md",))
     monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(archive, "stage_git_worktree", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(
-        archive,
-        "lease_bound_archive_scope_report",
-        lambda *_args, **_kwargs: {"verdict": "pass", "state": "archive_transition"},
-    )
     monkeypatch.setattr(archive, "archive_transition_environment", lambda *_args, **_kwargs: {})
     monkeypatch.setattr(
         archive,
@@ -153,6 +179,13 @@ def test_archive_public_dry_run_and_local_state_guard(
     _stub_archive_public(monkeypatch, tmp_path)
     ready = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
     assert ready["state"] == "ready_to_archive"
+    assert_lifecycle_outcome(
+        ready,
+        "zero_effect",
+        "not_required",
+        "absent",
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
+    )
 
     _stub_archive_public(
         monkeypatch,
@@ -178,6 +211,14 @@ def test_archive_public_rejects_an_existing_collision_preservation(
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["openspec_archive_collision_preservation_conflict"]
+    assert_lifecycle_outcome(
+        report,
+        "zero_effect",
+        "not_required",
+        "absent",
+        "ethos lane status --json",
+        user_decision_required=True,
+    )
 
 
 def test_archive_public_preserves_an_untracked_collision_target(
@@ -226,6 +267,14 @@ def test_archive_public_missing_native_command_does_not_mutate(
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["required_gaps"] == ["openspec_official_cli_missing"]
+    assert_lifecycle_outcome(
+        report,
+        "zero_effect",
+        "not_required",
+        "absent",
+        "ethos lane status --json",
+        user_decision_required=True,
+    )
 
 
 def test_archive_public_exception_compensates_exact_tree(
@@ -246,8 +295,15 @@ def test_archive_public_exception_compensates_exact_tree(
 
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
-    assert report["state"] == "repair_required"
+    assert report["state"] == "blocked"
     assert report["required_gaps"] == ["archive_failed"]
+    assert_lifecycle_outcome(
+        report,
+        "mutated",
+        "completed",
+        "absent",
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
+    )
     assert compensated == [{"head": HEAD, "untracked_path": ""}]
 
 
@@ -273,6 +329,13 @@ def test_archive_public_commit_failure_compensates_native_delta(
 
     assert report["required_gaps"] == ["openspec_archive_commit_failed"]
     assert report["stderr"] == "hook rejected"
+    assert_lifecycle_outcome(
+        report,
+        "mutated",
+        "completed",
+        "absent",
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
+    )
     assert compensated == [f"{ARCHIVE_PATH}.preserved" if collision else ARCHIVE_PATH]
 
 
@@ -328,7 +391,49 @@ def test_archive_public_rejects_invalid_native_receipt(
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["required_gaps"] == ["openspec_archive_result_invalid"]
+    assert_lifecycle_outcome(
+        report,
+        "mutated",
+        "completed",
+        "absent",
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json",
+    )
     assert compensated == [compensated_path]
+
+
+def test_archive_public_reports_failed_compensation_and_retained_residue(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub_archive_public(
+        monkeypatch,
+        tmp_path,
+        result={
+            "exit_code": 0,
+            "parse_error": "",
+            "json": {"archive": {"change": "other", "path": ""}},
+        },
+    )
+    monkeypatch.setattr(
+        archive,
+        "compensate_git_worktree",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("restore_failed")),
+    )
+
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
+
+    assert report["required_gaps"] == [
+        "openspec_archive_result_invalid",
+        "openspec_archive_compensation_failed",
+    ]
+    assert_lifecycle_outcome(
+        report,
+        "mutated",
+        "failed",
+        "retained",
+        "ethos lane status --json",
+        user_decision_required=True,
+    )
+    assert report["compensation_error"] == "restore_failed"
 
 
 def test_archive_public_retries_committed_transition_before_preflight(
@@ -352,14 +457,20 @@ def test_archive_public_retries_committed_transition_before_preflight(
             ),
         }.get(args, ""),
     )
+    monkeypatch.setattr(recovery, "current_tracked_head", lambda _root: NEW_HEAD)
+    monkeypatch.setattr(recovery, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
+    monkeypatch.setattr(recovery, "git_stdout", archive.git_stdout)
+    monkeypatch.setattr(recovery, "work_lane_transition_gaps", lambda *_args, **_kwargs: [])
     transitions: list[dict[str, object]] = []
     monkeypatch.setattr(
-        archive, "issue_archive_effect", lambda *_args, **_kwargs: _Dumpable(id="archive-receipt")
+        recovery,
+        "issue_archive_effect",
+        lambda *_args, **_kwargs: _Dumpable(id="archive-receipt"),
     )
-    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: True)
-    monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ("", ()))
-    monkeypatch.setattr(archive, "record_attestations", lambda *_args: {})
-    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
+    monkeypatch.setattr(recovery, "exact_archive_paths", lambda *_args: True)
+    monkeypatch.setattr(recovery, "read_attestation_set", lambda _root: ("", ()))
+    monkeypatch.setattr(recovery, "record_attestation_once", lambda _root, receipt: receipt)
+    monkeypatch.setattr(recovery, "exact_carrier_relocation", lambda *_args: True)
 
     def transition(**kwargs: object) -> dict[str, object]:
         transitions.append(kwargs)
@@ -384,62 +495,6 @@ def test_archive_public_retries_committed_transition_before_preflight(
             "new_value": NEW_HEAD,
         }
     ]
-
-
-def test_archive_public_dry_run_does_not_advance_committed_lease(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
-    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
-    lease = {"expected_head": HEAD}
-    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: lease})
-    monkeypatch.setattr(
-        archive,
-        "git_stdout",
-        lambda _root, *args: {
-            ("branch", "--show-current"): BRANCH,
-            ("rev-parse", f"{NEW_HEAD}^"): HEAD,
-            ("diff", "--name-only", "--diff-filter=ACMRTD", HEAD, NEW_HEAD): (
-                f"{ARCHIVE_PATH}/commitment.toml"
-            ),
-        }.get(args, ""),
-    )
-    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
-    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: True)
-    transitions: list[object] = []
-    monkeypatch.setattr(
-        archive,
-        "work_lane_ref_transition_report",
-        lambda **kwargs: transitions.append(kwargs),
-    )
-
-    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
-
-    assert report["state"] == "ready_to_recover_archive_lease"
-    assert transitions == []
-
-
-def test_archive_public_rejects_mixed_committed_delta_before_lease_advance(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
-    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(
-        archive, "leases_by_branch", lambda _root: {BRANCH: {"expected_head": HEAD}}
-    )
-    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
-    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: False)
-    transitions: list[object] = []
-    monkeypatch.setattr(
-        archive,
-        "work_lane_ref_transition_report",
-        lambda **kwargs: transitions.append(kwargs),
-    )
-
-    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
-
-    assert report["state"] == "blocked"
-    assert transitions == []
 
 
 def _stub_archive_attestation_recovery(
@@ -473,6 +528,7 @@ def _stub_archive_attestation_recovery(
             ("diff", "--cached", "--name-only", "--diff-filter=ACMRTD"): (
                 f"{ARCHIVE_PATH}/commitment.toml"
             ),
+            ("write-tree",): "archive-tree",
             ("rev-parse", f"{NEW_HEAD}^"): HEAD,
             ("diff", "--name-only", "--diff-filter=ACMRTD", HEAD, NEW_HEAD): (
                 f"{ARCHIVE_PATH}/commitment.toml"
@@ -480,6 +536,10 @@ def _stub_archive_attestation_recovery(
             ("show", "-s", "--format=%ct", NEW_HEAD): "0",
         }.get(args, ""),
     )
+    monkeypatch.setattr(recovery, "current_tracked_head", lambda _root: state["head"])
+    monkeypatch.setattr(recovery, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
+    monkeypatch.setattr(recovery, "git_stdout", archive.git_stdout)
+    monkeypatch.setattr(recovery, "work_lane_transition_gaps", lambda *_args, **_kwargs: [])
 
     def commit(*_args: object, **_kwargs: object) -> dict[str, object]:
         state["head"] = NEW_HEAD
@@ -490,30 +550,21 @@ def _stub_archive_attestation_recovery(
         return {"verdict": "pass"}
 
     monkeypatch.setattr(archive, "commit_git_worktree", commit)
+    monkeypatch.setattr(recovery, "exact_carrier_relocation", lambda *_args: True)
+    monkeypatch.setattr(recovery, "exact_archive_paths", lambda *_args: True)
     monkeypatch.setattr(
-        archive,
-        "lease_bound_archive_scope_report",
-        lambda *_args, **_kwargs: {
-            "verdict": "pass",
-            "state": ("archive_transition" if state["head"] == HEAD else "post_archive_closeout"),
-        },
-    )
-    monkeypatch.setattr(archive, "exact_carrier_relocation", lambda *_args: True)
-    monkeypatch.setattr(archive, "exact_archive_paths", lambda *_args: True)
-    monkeypatch.setattr(
-        archive,
+        recovery,
         "issue_archive_effect",
         lambda *_args, **_kwargs: state["receipt"],
     )
     monkeypatch.setattr(
-        archive, "read_attestation_set", lambda _root: ("", tuple(state["selected"]))
+        recovery, "read_attestation_set", lambda _root: ("", tuple(state["selected"]))
     )
 
-    def record(_root: Path, attestations: tuple[object, ...]) -> dict[str, object]:
+    def record(_root: Path, receipt: object) -> object:
         state["record_attempts"] = int(state["record_attempts"]) + 1
         record_ids = state["record_ids"]
         assert isinstance(record_ids, list)
-        receipt = attestations[0]
         assert isinstance(receipt, _Dumpable)
         record_ids.append(receipt.payload["id"])
         if state["record_attempts"] == 1:
@@ -522,9 +573,9 @@ def _stub_archive_attestation_recovery(
         selected = state["selected"]
         assert isinstance(selected, list)
         selected.append(receipt)
-        return {"root": "set-root", "added": (receipt.payload["id"],)}
+        return receipt
 
-    monkeypatch.setattr(archive, "record_attestations", record)
+    monkeypatch.setattr(recovery, "record_attestation_once", record)
     return state
 
 
@@ -560,16 +611,48 @@ def test_archive_public_recovers_attestation_after_the_git_effect_completed(
     assert isinstance(attestation, dict)
     assert attestation["id"] == state["record_ids"][0]
 
-    recognized = archive.archive_change(
+    replayed = archive.archive_change(
         root=tmp_path,
         change=CHANGE,
         expect_head=NEW_HEAD,
         apply=True,
     )
-    assert recognized["state"] == "blocked"
-    assert recognized["required_gaps"] == [f"openspec_active_change_missing:{CHANGE}"]
-    assert recognized["attestation"] == attestation
+    assert replayed["verdict"] == "pass"
+    assert replayed["state"] == "archive_attestation_recovered"
+    assert replayed["required_gaps"] == []
+    assert replayed["attestation"] == attestation
     assert state["record_attempts"] == 2
+
+
+def test_archive_lease_recovery_dry_run_projects_the_exact_retry_command(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _stub_archive_public(monkeypatch, tmp_path)
+    stale_lease = {
+        "lease_state": "valid",
+        "holder_ref": "agent:test",
+        "expected_head": HEAD,
+        "expected_tree": "tree",
+        "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
+    }
+    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
+    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: stale_lease})
+    monkeypatch.setattr(recovery, "git_stdout", lambda *_args: f"{ARCHIVE_PATH}/commitment.toml")
+    monkeypatch.setattr(recovery, "exact_carrier_relocation", lambda *_args: True)
+    monkeypatch.setattr(recovery, "exact_archive_paths", lambda *_args: True)
+
+    report = archive.archive_change(
+        root=tmp_path,
+        change=CHANGE,
+        expect_head=HEAD,
+        apply=False,
+    )
+
+    assert report["state"] == "ready_to_recover_archive_lease"
+    assert report["next_action"] == (
+        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json"
+    )
 
 
 @pytest.mark.parametrize(
@@ -593,7 +676,7 @@ def test_archive_recovery_fails_closed_when_the_attestation_set_is_damaged(
     def damaged_set(_root: Path) -> object:
         raise ValueError(gap)
 
-    monkeypatch.setattr(archive, "read_attestation_set", damaged_set)
+    monkeypatch.setattr(recovery, "read_attestation_set", damaged_set)
 
     report = archive.archive_change(
         root=tmp_path,
@@ -605,3 +688,125 @@ def test_archive_recovery_fails_closed_when_the_attestation_set_is_damaged(
     assert report["verdict"] == "block"
     assert report["state"] == "blocked"
     assert report["required_gaps"] == [gap]
+
+
+class _WorkLanePolicy:
+    def role_for_branch(self, _branch: str) -> str:
+        return "work_lane"
+
+
+@pytest.mark.parametrize(
+    ("lease", "actor", "expected_gap", "expected_state", "expected_action"),
+    [
+        (
+            {},
+            "agent:test",
+            f"work_lane_missing_lease:{BRANCH}",
+            "lease_missing",
+            "ethos lane status --json",
+        ),
+        (
+            {
+                "lease_state": "expired",
+                "holder_ref": "agent:test",
+                "lease_id": "lease:test",
+                "epoch": 7,
+                "expected_head": HEAD,
+                "expected_tree": "tree",
+                "expires_at": "2026-08-20T00:00:00Z",
+                "payload_sha256": "a" * 64,
+            },
+            "agent:test",
+            f"work_lane_lease_expired:{BRANCH}",
+            "lease_expired",
+            (
+                "ethos lane lease resume --lease-id lease:test --epoch 7 "
+                f"--expect-head {HEAD} --expires-at 2026-08-20T00:00:00Z "
+                f"--payload-sha256 {'a' * 64} --branch {BRANCH} "
+                "--holder-ref agent:test --apply --json"
+            ),
+        ),
+        (
+            {
+                "lease_state": "valid",
+                "holder_ref": "agent:other",
+                "expected_head": HEAD,
+                "expected_tree": "tree",
+            },
+            "agent:test",
+            "lease_actor_mismatch",
+            "different_holder",
+            (
+                "ethos attestation query --predicate lane-resolution:takeover "
+                f"--subject git:branch:{BRANCH} --json"
+            ),
+        ),
+    ],
+)
+def test_work_lane_transition_reports_the_first_exact_lease_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    lease: dict[str, object],
+    actor: str,
+    expected_gap: str,
+    expected_state: str,
+    expected_action: str,
+) -> None:
+    monkeypatch.setattr(overlay, "load_branch_role_policy", lambda _root: _WorkLanePolicy())
+    monkeypatch.setattr(overlay, "current_tree", lambda _root, _head: "tree")
+    monkeypatch.setattr(overlay, "git_stdout", lambda *_args: "")
+
+    gaps = overlay.work_lane_transition_gaps(
+        tmp_path,
+        branch=BRANCH,
+        head=HEAD,
+        expect_head=HEAD,
+        lease=lease,
+        actor=actor,
+        role_gap="archive_requires_work_lane",
+    )
+
+    assert gaps == [expected_gap]
+    report = recovery.archive_preflight_report(BRANCH, HEAD, CHANGE, gaps, lease=lease)
+    assert report["state"] == expected_state
+    assert report["next_action"] == expected_action
+
+
+def test_archive_zero_effect_preflight_has_no_compensation_gap(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub_archive_public(monkeypatch, tmp_path)
+    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {})
+    monkeypatch.setattr(
+        archive,
+        "work_lane_transition_gaps",
+        lambda *_args, **_kwargs: [f"work_lane_missing_lease:{BRANCH}"],
+    )
+    compensated: list[object] = []
+    monkeypatch.setattr(
+        archive,
+        "compensate_git_worktree",
+        lambda *_args, **kwargs: compensated.append(kwargs),
+    )
+
+    report = archive.archive_change(
+        root=tmp_path,
+        change=CHANGE,
+        expect_head=HEAD,
+        apply=True,
+    )
+
+    assert report["state"] == "lease_missing"
+    assert report["required_gaps"] == [f"work_lane_missing_lease:{BRANCH}"]
+    assert_lifecycle_outcome(
+        report,
+        "zero_effect",
+        "not_required",
+        "absent",
+        "ethos lane status --json",
+        user_decision_required=True,
+    )
+    assert compensated == []
+    required_gaps = report["required_gaps"]
+    assert isinstance(required_gaps, list)
+    assert not any("compensation" in gap or "cleanup" in gap for gap in required_gaps)

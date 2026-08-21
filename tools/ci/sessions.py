@@ -75,7 +75,7 @@ def _python_paths(session) -> tuple[str, ...]:
             silent=True,
         ),
     )
-    paths = tuple(path for path in output.split("\0") if path)
+    paths = tuple(path for path in output.split("\0") if path and (ROOT / path).is_file())
     if not paths:
         message = "no candidate Python files found for Ruff"
         raise RuntimeError(message)

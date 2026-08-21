@@ -1,7 +1,0 @@
-id = "repository:installed-cli-adopter"
-intent = "Govern the installed CLI adopter."
-subjects = ["repository:installed-cli-adopter"]
-scope = ["**"]
-invariants = ["repository_identity_is_stable"]
-acceptance = ["repository_contract_valid"]
-authority_refs = ["user_instruction", "AGENTS.md", ".ethos/profile.toml"]

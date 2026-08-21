@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_command
-from tools.ci.adopter_reader_smoke import check as check_adopted_reader
 from tools.ci.delivery.adopter_fixture import line_ending_conformance
 from tools.ci.delivery.adopter_fixture import materialize_adopter
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -295,7 +294,7 @@ def _installed_cli_checks(smoke: Path, adopter: Path, head: str) -> tuple[str, s
         "result=EthosResult.from_payload(json.loads(sys.argv[1])); "
         "assert result.command=='status' and result.verdict in {'pass','block','unknown'}; "
         "vectors=json.loads(importlib.resources.files('ethos').joinpath("
-        "'data/semantic-v2/vectors.json').read_text()); "
+        "'data/semantic-contract/vectors.json').read_text()); "
         "carrier=Path(tempfile.mkdtemp())/'commitment.toml'; "
         "carrier.write_text(vectors['commitment']['carrier_toml']); "
         "commitment=load_commitment_file(carrier); "
@@ -350,7 +349,6 @@ def run(session: nox.Session) -> None:
     origin, version, sdk_digest = _installed_cli_checks(smoke, adopter, adopter_head)
     installed_ethos = _venv_executable(smoke, "ethos")
     independent_host = _independent_cli_checks(installed_ethos, adopter)
-    adopted_reader_result = check_adopted_reader(installed_ethos, adopter, _executable("git"))
     _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
     resources = _verify_resources(wheel)
     if current_tracked_head(ROOT) != head:
@@ -379,7 +377,6 @@ def run(session: nox.Session) -> None:
             "python_sdk": True,
             "openspec": True,
             "sdk_commitment_digest": sdk_digest,
-            "adopted_reader_compatibility": adopted_reader_result,
         },
         "dependencies": "locked_project_environment_projection",
         "module_origins": {"ethos": origin},
@@ -390,7 +387,7 @@ def run(session: nox.Session) -> None:
                 "status, plan, prewrite, lane start, prove, land, publish proposal, retire"
             ),
             "installed archive-change and rebuild dry-runs",
-            "installed status/plan read current terminal-v1 adopter schema without v2 authority",
+            "installed status and plan read the strict semantic-contract adopter",
             "repository-declared OpenSpec package identity",
             "declared wheel resources match canonical sources",
         ],

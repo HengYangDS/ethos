@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.mutation.accepted as accepted
 from ethos.contracts.branch.roles import BranchRolePolicy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 CURRENT = "a" * 40
 CANDIDATE = "b" * 40
@@ -21,8 +25,18 @@ class _EffectAttestation:
         return {"predicate": "effect:git-ref", "verdict": "pass"}
 
 
-def _status(path="/tmp/candidate", worktrees=()):
+def _status(path: str = "/tmp/candidate", worktrees: tuple[object, ...] = ()) -> dict[str, object]:
     return {"candidate": {"worktree_path": path}, "worktrees": list(worktrees)}
+
+
+def _promote(root: Path, *, status: dict[str, object] | None = None) -> dict[str, object]:
+    return accepted.promote_candidate(
+        root=root,
+        policy=BranchRolePolicy(),
+        current_head=CURRENT,
+        candidate_head=CANDIDATE,
+        status=_status() if status is None else status,
+    )
 
 
 def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
@@ -31,7 +45,6 @@ def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(accepted, "proof_for_repository_transition", lambda *_a: (_Proof(), []))
     monkeypatch.setattr(accepted, "sweep_stale_ref_intents", lambda *_args: [])
     monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_args, **_kwargs: object())
-    monkeypatch.setattr(accepted, "committed_file_bytes", lambda *_args: b"commitment")
     monkeypatch.setattr(accepted, "worktree_sync_gap", lambda *_args: "")
     monkeypatch.setattr(accepted, "ref_worktree_paths", lambda *_args: ())
 
@@ -65,13 +78,7 @@ def test_candidate_promotion_rejects_divergence_before_proof_lookup(
         accepted, "proof_for_repository_transition", lambda *_a: proof_calls.append(True)
     )
 
-    report = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-    )
+    report = _promote(tmp_path)
 
     assert report["required_gaps"] == ["candidate_diverged_from_accepted"]
     assert proof_calls == []
@@ -86,13 +93,7 @@ def test_candidate_promotion_preserves_exact_proof_gaps(
     )
     monkeypatch.setattr(accepted, "load_repository_commitment", lambda *_a, **_k: object())
 
-    report = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-    )
+    report = _promote(tmp_path)
 
     assert report["required_gaps"] == ["proof_head_stale"]
 
@@ -101,13 +102,7 @@ def test_candidate_promotion_requires_candidate_worktree_binding(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _prime(monkeypatch)
-    report = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(path=""),
-    )
+    report = _promote(tmp_path, status=_status(path=""))
     assert report["required_gaps"] == ["candidate_worktree_binding_stale"]
 
 
@@ -128,55 +123,10 @@ def test_candidate_promotion_preflights_accepted_worktree_before_effect(
         accepted, "execute_git_effect", lambda *_args, **_kwargs: effects.append(True)
     )
 
-    report = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-    )
+    report = _promote(tmp_path)
 
     assert report["required_gaps"] == [expected]
     assert effects == []
-
-
-def test_candidate_promotion_falls_back_to_candidate_bootstrap_authority(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    captured = _prime(monkeypatch)
-    refs = []
-    prestate = {
-        "id": "repository:ethos",
-        "subjects": ("repository:ethos",),
-        "bytes_sha256": "d" * 64,
-    }
-
-    def load(_root, *, tree_ref):
-        refs.append(tree_ref)
-        if tree_ref == CURRENT:
-            message = "repository_commitment_missing:.ethos/commitment.toml"
-            raise ValueError(message)
-        return object()
-
-    monkeypatch.setattr(accepted, "load_repository_commitment", load)
-    monkeypatch.setattr(accepted, "terminal_v1_binding", lambda *_args, **_kwargs: prestate)
-    monkeypatch.setattr(accepted, "committed_file_bytes", lambda *_args: b"terminal-v1")
-
-    report = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-        control_replacement_receipt={"predicate": "effect:control-replacement"},
-    )
-
-    assert report["verdict"] == "pass"
-    assert refs == [CURRENT, CANDIDATE]
-    assert captured["kwargs"]["policy"]["repository_commitment_bootstrap"] is True
-    assert captured["kwargs"]["policy"]["prestate_repository_id"] == "repository:ethos"
-    assert captured["kwargs"]["policy"]["prestate_repository_bytes_sha256"] == "d" * 64
-    assert "control_replacement_receipt" in captured["kwargs"]["prior_attestations"]
 
 
 def test_candidate_promotion_reports_transition_and_git_effect_failures(
@@ -192,13 +142,7 @@ def test_candidate_promotion_reports_transition_and_git_effect_failures(
             else (_ for _ in ()).throw(ValueError("commitment_invalid"))
         ),
     )
-    transition = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-    )
+    transition = _promote(tmp_path)
     assert transition["required_gaps"] == ["accepted_transition_invalid"]
     assert transition["stderr"] == "commitment_invalid"
 
@@ -208,13 +152,7 @@ def test_candidate_promotion_reports_transition_and_git_effect_failures(
         "execute_git_effect",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("git_effect_cas_rejected")),
     )
-    effect = accepted.promote_candidate(
-        root=tmp_path,
-        policy=BranchRolePolicy(),
-        current_head=CURRENT,
-        candidate_head=CANDIDATE,
-        status=_status(),
-    )
+    effect = _promote(tmp_path)
     assert effect["required_gaps"] == ["accepted_atomic_update_rejected"]
     assert effect["stderr"] == "git_effect_cas_rejected"
 

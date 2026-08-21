@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ethos.adapters.repo.git as git
+from ethos.adapters.mutation.decision import request_gaps
 from ethos.adapters.mutation.local_state import local_state_migration
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
@@ -25,13 +26,12 @@ def _local_state_result(
 ) -> EthosResult:
     target = resolve_root(root)
     current_head = git.current_head(target)
-    gaps = []
-    if apply and not authorize:
-        gaps.append("authorization_required")
-    if apply and expect_head is None:
-        gaps.append("expect_head_required")
-    if expect_head is not None and expect_head != current_head:
-        gaps.append("expected_head_mismatch")
+    gaps = request_gaps(
+        apply=apply,
+        authorized=authorize,
+        expect_head=expect_head,
+        current_head=current_head,
+    )
     migration = local_state_migration(
         target,
         apply=apply and not gaps,
@@ -67,13 +67,12 @@ def _adoption_result(
 ) -> EthosResult:
     target = resolve_root(root)
     current_head = git.current_head(target)
-    gaps = []
-    if apply and not authorize:
-        gaps.append("authorization_required")
-    if apply and expect_head is None:
-        gaps.append("expect_head_required")
-    if expect_head is not None and expect_head != current_head:
-        gaps.append("expected_head_mismatch")
+    gaps = request_gaps(
+        apply=apply,
+        authorized=authorize,
+        expect_head=expect_head,
+        current_head=current_head,
+    )
     do_apply = apply and not gaps
     plan_payload = adoption_plan(
         target,

@@ -25,12 +25,10 @@ def add_candidate_worktree(repo: Path, path: Path) -> Path:
 
 def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:case:agent-a") -> Path:
     """Create one owned worktree with a matching lease for admission tests."""
-    carrier = ".ethos/commitment.toml"
-    change_id = None
+    carrier = "openspec/changes/fixture-change/commitment.toml"
+    change_id = "fixture-change"
     if not (repo / carrier).exists():
         commit_active_commitment(repo)
-        carrier = "openspec/changes/fixture-change/commitment.toml"
-        change_id = "fixture-change"
     git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
     head = git(path, "rev-parse", "HEAD")
     acquire_lease(

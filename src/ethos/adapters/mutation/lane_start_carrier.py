@@ -27,14 +27,14 @@ from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import ref_head
-from ethos.adapters.repo.git_effect_attestation import NativeEffect
-from ethos.adapters.repo.git_effect_attestation import issue_native_effect
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import stage_git_paths
 from ethos.adapters.repo.git_signing import commit_metadata
 from ethos.adapters.repo.git_signing import create_git_commit
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import attach_worktree

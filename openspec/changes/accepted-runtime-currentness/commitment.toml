@@ -21,6 +21,7 @@ scope = [
   "tests/unit/cli/test_hook_runtime.py",
   "tests/unit/cli/test_hook_runtime_failure_branches.py",
   "tests/unit/lanes/retirement/test_effect_public_boundaries.py",
+  "tools/ci/openspec_runtime_hook.py",
 ]
 invariants = [
   "hook_runtime_integrity_does_not_imply_accepted_source_currentness",

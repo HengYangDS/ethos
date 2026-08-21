@@ -7,30 +7,31 @@ from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
-from typing import cast
 
-import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestation_once
-from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import first_parent_successor
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
-from ethos.adapters.repo.git_effect_attestation import NativeEffect
-from ethos.adapters.repo.git_effect_attestation import issue_native_effect
-from ethos.adapters.repo.git_effect_attestation import native_effect_result
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.native_effect_attestation import native_effect_components
+from ethos.adapters.repo.native_effect_attestation import native_effect_digest
+from ethos.adapters.repo.native_effect_attestation import native_effect_projection
+from ethos.adapters.repo.native_effect_attestation import native_effect_result
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import integer
-from ethos.normalization.coercion import string_sequence
+from ethos.normalization.coercion import repository_path_matches
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -49,18 +50,10 @@ def start_effect_authority(
     commitment: Commitment,
     lease: dict[str, object],
 ) -> JsonObject:
-    if not recognized_operation_attestation(attestation, "effect:openspec-change-start"):
+    components = native_effect_components(attestation, "effect:openspec-change-start")
+    if components is None:
         return {}
-    statement = attestation.payload.body
-    values = tuple(
-        semantic_mapping(statement.get(name))
-        for name in ("input", "output", "claim", "result", "freshness")
-    )
-    if any(value is None for value in values):
-        return {}
-    before, output, claim, result, freshness = cast(
-        "tuple[JsonObject, JsonObject, JsonObject, JsonObject, JsonObject]", values
-    )
+    statement, before, output, claim, result, freshness = components
     previous_head = str(before.get("head") or "")
     start_head = str(output.get("head") or "")
     change = commitment.id.removeprefix("change:")
@@ -111,176 +104,14 @@ def start_effect_authority(
         and statement.get("output_digest")
         == canonical_json_digest({"result": result, "output": output})
         and attestation.effect_digest
-        == operation_effect_digest(attestation, claim, freshness, before, output)
+        == native_effect_digest(attestation, claim, freshness, before, output)
     )
     return (
-        operation_projection(attestation, statement, claim, result, freshness, before, output)
+        native_effect_projection(attestation, statement, claim, result, freshness, before, output)
         | {"previous_head": previous_head}
         if valid
         else {}
     )
-
-
-def archive_effect_authority(
-    root: Path,
-    attestation: Attestation,
-    head: str,
-    repository_id: str,
-    commitment: Commitment,
-    lease: dict[str, object],
-) -> JsonObject:
-    """Return exact archive authority projected from one valid Attestation."""
-    if not recognized_operation_attestation(attestation, "effect:openspec-archive"):
-        return {}
-    statement = attestation.payload.body
-    values = tuple(
-        semantic_mapping(statement.get(name)) for name in ("output", "claim", "result", "freshness")
-    )
-    if any(value is None for value in values):
-        return {}
-    output, claim, result, freshness = cast(
-        "tuple[JsonObject, JsonObject, JsonObject, JsonObject]", values
-    )
-    archive_path = str(output.get("archive_path") or "")
-    paths = tuple(string_sequence(output.get("changed_paths")))
-    before = statement.get("input")
-    valid = (
-        attestation.commitment_digest == commitment.digest()
-        and statement.get("repository") == repository_id
-        and claim == {"operation": "openspec.archive", "effect": attestation.effect_digest}
-        and result == native_effect_result("applied")
-        and output.get("head") == head
-        and output.get("tree") == current_tree(root, head)
-        and lease_binding(output.get("lease")) == lease_binding(lease)
-        and freshness.get("output_digest") == canonical_json_digest(output)
-        and statement.get("input_digest") == canonical_json_digest(before)
-        and statement.get("output_digest")
-        == canonical_json_digest({"result": result, "output": output})
-        and attestation.effect_digest
-        == operation_effect_digest(attestation, claim, freshness, before, output)
-        and exact_archive_paths(root, head, archive_path, paths)
-    )
-    return (
-        operation_projection(attestation, statement, claim, result, freshness, before, output)
-        | {"authorized_paths": list(paths)}
-        if valid
-        else {}
-    )
-
-
-def issue_archive_effect(
-    root: Path,
-    *,
-    change: str,
-    previous_head: str,
-    head: str,
-    archive_path: str,
-    changed_paths: tuple[str, ...],
-    lease: dict[str, object],
-) -> Attestation:
-    """Issue one exact committed archive effect Attestation."""
-    repository = load_repository_commitment(root, tree_ref=head)
-    commitment = load_commitment(
-        root, carrier=f"{archive_path}/commitment.toml", change_id=change, tree_ref=head
-    )
-    return issue_native_effect(
-        root,
-        effect=NativeEffect(
-            predicate="effect:openspec-archive",
-            operation="openspec.archive",
-            command=openspec_cli.archive_command(
-                root, change, tree_ref=head, archive_path=archive_path
-            ),
-            subject={
-                "change": change,
-                "archive_path": archive_path,
-                "tool_version": openspec_cli.OFFICIAL_VERSION,
-            },
-            before={
-                "head": previous_head,
-                "tree": current_tree(root, previous_head),
-                "commitment_digest": commitment.digest(),
-            },
-            after={
-                "head": head,
-                "tree": current_tree(root, head),
-                "archive_path": archive_path,
-                "changed_paths": changed_paths,
-                "lease": lease_binding(lease),
-            },
-        ),
-        state="applied",
-        commitment_digest=commitment.digest(),
-        repository_id=repository.id,
-        issued_at=datetime.fromtimestamp(
-            int(git_stdout(root, "show", "-s", "--format=%ct", head)), UTC
-        ),
-    )
-
-
-def operation_projection(
-    attestation: Attestation,
-    statement: JsonObject,
-    claim: JsonObject,
-    result: JsonObject,
-    freshness: JsonObject,
-    before: object,
-    output: JsonObject,
-) -> JsonObject:
-    """Project one validated native operation Attestation."""
-    return {
-        "predicate": attestation.predicate,
-        "attestation_id": attestation.id,
-        "commitment_digest": attestation.commitment_digest,
-        "effect_digest": attestation.effect_digest,
-        "repository": statement.get("repository"),
-        "claim": claim,
-        "result": result,
-        "input": before,
-        "output": output,
-        "freshness": freshness,
-    }
-
-
-def recognized_operation_attestation(attestation: Attestation, predicate: str) -> bool:
-    """Return whether one native operation Attestation is current and structurally valid."""
-    now = datetime.now(UTC)
-    return (
-        attestation.verdict == "pass"
-        and attestation.predicate == predicate
-        and attestation.payload.kind == "effect:native"
-        and attestation.verifier == "git"
-        and (attestation.valid_from or attestation.issued_at) <= now
-        and (attestation.valid_until is None or now <= attestation.valid_until)
-        and attestation.commitment_digest is not None
-        and attestation.effect_digest is not None
-    )
-
-
-def operation_effect_digest(
-    attestation: Attestation,
-    claim: JsonObject,
-    freshness: JsonObject,
-    before: object,
-    output: JsonObject,
-) -> str:
-    """Return the canonical digest of one native operation effect."""
-    return canonical_json_digest(
-        {
-            "predicate": attestation.predicate,
-            "operation": claim.get("operation"),
-            "command": attestation.payload.body.get("command"),
-            "subject": freshness.get("subject"),
-            "before": before,
-            "after": output,
-        }
-    )
-
-
-def semantic_mapping(value: object) -> JsonObject | None:
-    """Normalize one semantic value to a JSON object when possible."""
-    normalized = mutable_json(value)
-    return normalized if isinstance(normalized, dict) else None
 
 
 def _generation(value: object) -> JsonObject | None:
@@ -373,14 +204,6 @@ def committed_start_attestation(
 ) -> Attestation:
     """Return the unique committed start Attestation, recording it if absent."""
     subject = {"change": change, "previous_head": previous_head, "head": head}
-    candidates = tuple(
-        item
-        for item in read_attestation_set(root)[1]
-        if item.predicate == "effect:openspec-change-start"
-        and item.payload.body.get("freshness", {}).get("subject") == subject
-    )
-    if len(candidates) > 1:
-        raise ValueError(_START_ATTESTATION_COLLISION)
     expected = issue_native_effect(
         root,
         effect=NativeEffect(
@@ -398,11 +221,10 @@ def committed_start_attestation(
             int(git_stdout(root, "show", "-s", "--format=%ct", head)), UTC
         ),
     )
-    if candidates and candidates[0] != expected:
+    selected = record_attestation_once(root, expected)
+    if selected != expected:
         raise ValueError(_START_ATTESTATION_COLLISION)
-    if not candidates:
-        record_attestations(root, (expected,))
-    return candidates[0] if candidates else expected
+    return selected
 
 
 def recoverable_start_effect(
@@ -412,25 +234,39 @@ def recoverable_start_effect(
     previous_head: str,
     lease: dict[str, object],
     command: tuple[str, ...],
-) -> tuple[dict[str, object], tuple[str, ...]] | None:
+) -> tuple[dict[str, object], tuple[str, ...], str] | None:
     """Recognize a committed start awaiting Lease or Attestation completion."""
     head = current_tracked_head(root)
+    start_head = first_parent_successor(root, previous_head, head)
     carrier = f"openspec/changes/{change}/commitment.toml"
     if (
-        head == previous_head
+        not start_head
         or lease.get("lease_state") != "valid"
         or lease.get("holder_ref") != os.environ.get("ETHOS_ACTOR", "").strip()
         or lease.get("expected_head") not in {previous_head, head}
         or not str(lease.get("base_commitment_path") or "").startswith("openspec/changes/archive/")
-        or git_stdout(root, "rev-parse", f"{head}^") != previous_head
         or git_stdout(root, "status", "--short")
     ):
         return None
     try:
-        target = exact_commitment_fields(root, head=head, carrier=carrier, change_id=change)
-        commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)
-        repository = load_repository_commitment(root, tree_ref=head)
+        target = exact_commitment_fields(root, head=start_head, carrier=carrier, change_id=change)
+        commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=start_head)
+        current = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)
+        repository = load_repository_commitment(root, tree_ref=start_head)
+        current_repository = load_repository_commitment(root, tree_ref=head)
     except ValueError:
+        return None
+    later_paths = tuple(
+        filter(None, git_stdout(root, "diff", "--name-only", f"{start_head}..{head}").splitlines())
+    )
+    if (
+        current.digest() != commitment.digest()
+        or current_repository.id != repository.id
+        or any(
+            not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
+            for path in later_paths
+        )
+    ):
         return None
     old = prepare_start_effect(
         root,
@@ -443,7 +279,7 @@ def recoverable_start_effect(
         command=command,
         create=False,
     )
-    return old, command
+    return old, command, start_head
 
 
 def recognized_start_effect(
@@ -519,17 +355,3 @@ def lease_binding(value: object) -> dict[str, object]:
             "base_commitment_digest",
         )
     }
-
-
-def exact_archive_paths(root: Path, head: str, archive_path: str, paths: tuple[str, ...]) -> bool:
-    """Recognize the exact archive-only path set for one commit."""
-    parent = git_stdout(root, "rev-parse", f"{head}^")
-    actual = tuple(
-        git_stdout(root, "diff", "--name-only", "--diff-filter=ACMRTD", parent, head).splitlines()
-    )
-    return (
-        archive_path.startswith("openspec/changes/archive/")
-        and bool(parent and actual)
-        and actual == paths
-        and all(path.startswith((f"{archive_path}/", "openspec/specs/")) for path in paths)
-    )

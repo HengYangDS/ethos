@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import ClassVar
 from typing import Literal
 from typing import cast
 
@@ -25,6 +26,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from ethos.contracts.verdict import Verdict
@@ -33,7 +35,7 @@ if TYPE_CHECKING:
 class LinkedRetirementRequest(BaseModel):
     """Exact request for one linked Work Lane retirement transition."""
 
-    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     branch: str | None = None
     path: str | None = None
@@ -174,21 +176,20 @@ def retire_linked_work_lane(
         "branch": branch,
         "mutation": mutation(required_gaps),
         "required_gaps": required_gaps,
+        **({"lanes": lanes} if mode == "landed" else {"lane": lane}),
     }
-    if mode == "landed":
-        report["lanes"] = lanes
-    else:
-        report["lane"] = lane
     if required_gaps:
-        if "foreign_work_lane_retire_authority_required" in required_gaps:
-            report["next_action"] = "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
-        return report
+        return report | (
+            {"next_action": "set ETHOS_ACTOR to the current holder_ref or obtain handoff"}
+            if "foreign_work_lane_retire_authority_required" in required_gaps
+            else {}
+        )
     if not request.apply:
         return report
 
     recovery = _apply_recovery(cast("Path", control_root), lane, mutation=mutation)
     if recovery:
-        report.update(recovery)
+        report |= recovery
         if report.get("verdict") == "block":
             return report
 
@@ -202,17 +203,20 @@ def retire_linked_work_lane(
     )
     effect_gaps = string_sequence(effect.get("required_gaps"))
     if effect_gaps:
-        report.update(effect)
-        report["verdict"] = "block"
-        report["mutation"] = mutation(effect_gaps)
-        report["required_gaps"] = effect_gaps
-        return report
+        return (
+            report
+            | effect
+            | {
+                "verdict": "block",
+                "mutation": mutation(effect_gaps),
+                "required_gaps": effect_gaps,
+            }
+        )
     observed = cast("dict[str, object]", effect["observed"])
-    report.update(
-        state="retired" if mode == "landed" else "retired_superseded",
-        retired=observed,
-    )
-    return report
+    return report | {
+        "state": "retired" if mode == "landed" else "retired_superseded",
+        "retired": observed,
+    }
 
 
 def _retirement_target(
@@ -271,7 +275,7 @@ def _apply_recovery(
     control_root: Path,
     lane: dict[str, object],
     *,
-    mutation,
+    mutation: Callable[[list[str]], dict[str, object]],
 ) -> dict[str, object]:
     if not lane.get("recovery_required"):
         return {}

@@ -4,51 +4,16 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
-import tomli_w
 
 import ethos.adapters.repo.commitment as commitment
-from tests.support.semantic import commitment_v2
+from tests.support.governed_repository import write_repository_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _repository_commitment(root: Path) -> str:
-    repository_id = "repository:test"
-    path = root / ".ethos/commitment.toml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        tomli_w.dumps(
-            commitment_v2(
-                id=repository_id,
-                intent="Govern.",
-                subjects=(repository_id,),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    return repository_id
-
-
-def _change(root: Path, change_id: str) -> str:
-    relative = f"openspec/changes/{change_id}/commitment.toml"
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        tomli_w.dumps(
-            commitment_v2(
-                id=f"change:{change_id}",
-                intent="Change.",
-                subjects=(commitment.load_repository_commitment(root).id,),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    return relative
-
-
 def test_profile_selected_commitment_rejects_invalid_profile(tmp_path: Path) -> None:
-    _repository_commitment(tmp_path)
+    write_repository_commitment(tmp_path)
     (tmp_path / ".ethos/profile.toml").write_text("profile_id = [\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="repository_profile_invalid"):

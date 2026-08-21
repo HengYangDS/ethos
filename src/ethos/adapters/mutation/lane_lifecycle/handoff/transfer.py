@@ -117,7 +117,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
     report = _handoff_report(branch=request.branch, gaps=required_gaps, apply=request.apply)
     if request.apply and not required_gaps:
         output_root = Path(request.output_root) if request.output_root else None
-        _apply_report(
+        report = _apply_report(
             report,
             "handoff_export_failed",
             lambda: handoff_package.write_handoff_package(
@@ -186,7 +186,7 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
     required_gaps = _guarded(tuple(gaps), checks=checks)
     report = _handoff_report(branch=branch, gaps=required_gaps, apply=request.apply)
     if request.apply and not required_gaps:
-        _apply_report(
+        report = _apply_report(
             report,
             "handoff_import_failed",
             lambda: apply_handoff_import(
@@ -382,33 +382,32 @@ def revoke_cross_host_source(
     required_gaps = _guarded(tuple(gaps), checks=checks)
     report = _handoff_report(branch=branch, gaps=required_gaps, apply=request.apply)
     if request.apply and not required_gaps:
-        try:
-            revoked = revoke_lease(
-                state_database(repo),
-                request=LeaseOperationRequest(
-                    operation="handoff_source_revoke",
-                    branch=branch,
-                    holder_ref=request.holder_ref,
-                    lease_id=request.lease_id,
-                    expected_epoch=request.epoch,
-                    expect_head=request.expect_head,
-                    expected_expires_at=request.expected_expires_at,
-                    expected_payload_sha256=request.expected_payload_sha256,
-                    apply=True,
-                ),
-            )
-        except (sqlite3.Error, ValueError) as exc:
-            report.update(verdict="block", state="blocked", required_gaps=[str(exc)])
-        else:
-            report.update(
-                state="source_revoked",
-                receipt={
+        report = _apply_report(
+            report,
+            "",
+            lambda: {
+                "state": "source_revoked",
+                "receipt": {
                     "operation": "cross-host-source-revoke",
                     "package_id": str(manifest["package_id"]),
                     "acknowledgement_id": str(ack["acknowledgement_id"]),
-                    **revoked,
+                    **revoke_lease(
+                        state_database(repo),
+                        request=LeaseOperationRequest(
+                            operation="handoff_source_revoke",
+                            branch=branch,
+                            holder_ref=request.holder_ref,
+                            lease_id=request.lease_id,
+                            expected_epoch=request.epoch,
+                            expect_head=request.expect_head,
+                            expected_expires_at=request.expected_expires_at,
+                            expected_payload_sha256=request.expected_payload_sha256,
+                            apply=True,
+                        ),
+                    ),
                 },
-            )
+            },
+        )
     return _finish_report(
         report,
         ("lane-handoff-revoke-source", "lane.handoff.revoke_source", branch),
@@ -471,10 +470,13 @@ def _handoff_report(*, branch: str, gaps: tuple[str, ...], apply: bool) -> dict[
 
 
 def _apply_report(
-    report: dict[str, object], gap: str, effect: Callable[[], dict[str, object]]
-) -> None:
+    report: dict[str, object],
+    gap: str,
+    effect: Callable[[], dict[str, object]],
+) -> dict[str, object]:
+    """Interpret one handoff effect and return its immutable public projection."""
     try:
-        report.update(effect())
+        return report | effect()
     except (
         OSError,
         RuntimeError,
@@ -482,7 +484,12 @@ def _apply_report(
         subprocess.SubprocessError,
         ValueError,
     ) as exc:
-        report.update(verdict="block", state="blocked", required_gaps=[f"{gap}:{exc}"])
+        failure = f"{gap}:{exc}" if gap else str(exc)
+        return report | {
+            "verdict": "block",
+            "state": "blocked",
+            "required_gaps": [failure],
+        }
 
 
 def _finish_report(

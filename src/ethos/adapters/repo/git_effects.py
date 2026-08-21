@@ -63,6 +63,13 @@ def stage_git_worktree(root: Path, *, previous: str) -> None:
         raise ValueError(completed.stderr.strip() or "git_effect_stage_failed")
 
 
+def restore_git_index(root: Path, *, tree: str) -> None:
+    """Restore only the real index to one previously observed tree."""
+    completed = run_git(root, "read-tree", tree, check=False)
+    if completed.returncode:
+        raise ValueError(completed.stderr.strip() or "git_effect_index_restore_failed")
+
+
 def move_tracked_tree(root: Path, source: str, target: str) -> None:
     """Move one tracked directory without overwriting another filesystem entry."""
     source_path = (root / source).resolve()
@@ -365,11 +372,7 @@ def _admit_git_effect(
         effect,
         observed,
         environment=environment,
-        allow_missing_prestate=(plan.policy.get("repository_commitment_bootstrap") is True),
-        prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
-        prestate_repository_bytes_sha256=str(
-            plan.policy.get("prestate_repository_bytes_sha256") or ""
-        ),
+        allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
     )
     if refs != expected:
         message = "git_effect_cas_mismatch"

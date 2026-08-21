@@ -471,12 +471,24 @@ def _archive_bound_work_proof(tmp_path: Path) -> tuple[object, str, Attestation]
     fixture = start_adopted_work_lane(tmp_path)
     head = commit_fixture_file(fixture.worktree, "FEATURE.md", "feature\n", "feature")
     base = proof_plan(fixture.worktree, head=head, changed_paths=("FEATURE.md",))
+    effect_identity = "d" * 64
     archived = compile_plan(
         Commitment.model_validate(dict(base.commitment)),
         Facts.model_validate(base.facts | {"observed_at": datetime.now(UTC)}),
         base.nodes,
         policy=dict(base.policy),
-        prior_attestations={"openspec_archive": {"authorized_paths": ["FEATURE.md"]}},
+        prior_attestations={
+            "openspec_archive": {
+                "predicate": "effect:openspec-archive",
+                "attestation_id": "a" * 64,
+                "commitment_digest": "b" * 64,
+                "effect_digest": "c" * 64,
+                "effect_identity": effect_identity,
+                "input": {"effect_identity": effect_identity},
+                "output": {"changed_paths": ["FEATURE.md"]},
+                "authorized_paths": ["FEATURE.md"],
+            }
+        },
     )
     proof = _issue(fixture.worktree, head, plan=archived)
     persist_proof_attestation(fixture.worktree, proof)

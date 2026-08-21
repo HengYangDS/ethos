@@ -2,15 +2,26 @@
 
 from __future__ import annotations
 
+import io
 import os
+import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.local_state as local_state
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
+from ethos.adapters.repo.hook_runtime import execute_hook
 from ethos.adapters.repo.hook_runtime import install_hook_launchers
+from ethos.adapters.store.state.schema import initialize_state_connection
+from ethos.adapters.store.state.schema import state_database
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import render_branch_policy
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def _unavailable_runtime_repo(tmp_path: Path):
@@ -141,3 +152,52 @@ def test_reference_transaction_hook_uses_the_candidate_project_environment() -> 
     assert '"-I",' in text
     assert '"ethos.cli",' in text
     assert '"ref-transaction",' in text
+
+
+def test_reference_transaction_does_not_inventory_git_common_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A prepared ref decision reads Lease state without walking runtime generations."""
+    repo = init_git_repo(tmp_path / "repo")
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.write_text(
+        render_branch_policy(
+            release_branch="main",
+            accepted_branch="dev",
+            candidate_branch="candidate/dev",
+            work_branch_prefix="work/",
+            proposal_branch_prefix="proposal/",
+            release_mirror="independent",
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", workspace.as_posix())
+    git(repo, "commit", "-m", "declare branch roles")
+    git(repo, "branch", "work/x")
+    database = state_database(repo)
+    database.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("begin immediate")
+        initialize_state_connection(connection)
+        connection.commit()
+    old = git(repo, "rev-parse", "work/x")
+    new = git(repo, "commit-tree", git(repo, "rev-parse", "HEAD^{tree}"), "-p", old, "-m", "next")
+    monkeypatch.setattr(
+        local_state,
+        "_manifest",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("reference transaction inventoried local state")
+        ),
+    )
+
+    status = execute_hook(
+        repo,
+        "reference-transaction",
+        ("prepared",),
+        stdin=io.StringIO(f"{old} {new} refs/heads/work/x\n"),
+    )
+
+    assert status == 1
+    assert "work_lane_missing_lease:work/x" in capsys.readouterr().err

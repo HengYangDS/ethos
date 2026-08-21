@@ -39,7 +39,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 from tests.support.literal_cases import literal_case
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -325,7 +325,7 @@ ZERO_OID, ZERO_DIGEST = "0" * 40, "0" * 64
 def fixture(root: Path, identity: str = "repository:repo") -> SimpleNamespace:
     repo = init_git_repo(root / "repo")
     carrier = tomli_w.dumps(
-        commitment_v2(
+        commitment_fixture(
             id=identity,
             intent="Govern.",
             subjects=(identity,),
@@ -360,7 +360,7 @@ def plan(
             **(values or {}),
         },
     )
-    authority = commitment_v2(
+    authority = commitment_fixture(
         id="authority:test:git-effect",
         intent="Apply CAS.",
         subjects=(identity,),

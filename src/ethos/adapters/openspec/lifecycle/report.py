@@ -300,7 +300,7 @@ def lifecycle_report(
     binding = scope.material_change_scope_report(
         root, changed_paths=request.changed_paths, active_change_names=unarchived_names
     )
-    required_gaps.extend(map(str, binding["required_gaps"]))
+    required_gaps.extend(string_sequence(binding.get("required_gaps")))
     return {
         "required_gaps": required_gaps,
         "changes": changes,

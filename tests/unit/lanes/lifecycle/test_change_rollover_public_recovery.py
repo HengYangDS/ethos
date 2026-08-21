@@ -8,8 +8,8 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
 import ethos.adapters.openspec.generation.attestation as generation_attestation
 import ethos.adapters.openspec.lifecycle.intent as lifecycle_intent
-from ethos.adapters.repo.git_effect_attestation import NativeEffect
-from ethos.adapters.repo.git_effect_attestation import issue_native_effect
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.store.state.lease.projection import project_lease
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
@@ -53,11 +53,14 @@ def _common(monkeypatch: pytest.MonkeyPatch, lease: dict[str, object] | None = N
     monkeypatch.setattr(generation_attestation, "git_stdout", lambda *_args, **_kwargs: BRANCH)
     for module in (rollover, generation_attestation, lifecycle_intent):
         monkeypatch.setattr(module, "current_tracked_head", lambda _root: HEAD)
-    monkeypatch.setattr(
-        lifecycle_intent,
-        "run_git",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=f"{HEAD}\n"),
-    )
+    for module in (generation_attestation, lifecycle_intent):
+        monkeypatch.setattr(
+            module,
+            "first_parent_successor",
+            lambda _root, ancestor, descendant: (
+                NEW_HEAD if (ancestor, descendant) == (HEAD, NEW_HEAD) else ""
+            ),
+        )
     monkeypatch.setattr(rollover, "leases_by_branch", lambda _root: {BRANCH: lease or _lease()})
     monkeypatch.setattr(generation_attestation, "read_attestation_set", lambda _root: ("", ()))
     monkeypatch.setattr(rollover, "work_lane_transition_gaps", lambda *_args, **_kwargs: [])
@@ -82,7 +85,6 @@ def _common(monkeypatch: pytest.MonkeyPatch, lease: dict[str, object] | None = N
             module, "load_commitment", lambda *_args, **_kwargs: _change_commitment()
         )
     monkeypatch.setattr(generation_attestation, "record_attestation_once", lambda _root, item: item)
-    monkeypatch.setattr(generation_attestation, "record_attestations", lambda *_args: {})
     monkeypatch.setattr(rollover, "state_database", lambda root: root / "state.sqlite")
     monkeypatch.setattr(rollover.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(

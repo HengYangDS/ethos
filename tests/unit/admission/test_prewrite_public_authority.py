@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.prewrite as prewrite
-from tests.support.semantic import commitment_v2
+import ethos.adapters.repo.runtime.binding as runtime_binding_adapter
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -31,7 +32,7 @@ def _status(root: Path, *, role: str = "work_lane") -> dict[str, object]:
 
 def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "work_lane") -> None:
     monkeypatch.setattr(prewrite, "_prewrite_status", lambda _root: _status(root, role=role))
-    monkeypatch.setattr(prewrite, "profile_gate_registry", lambda _root: False)
+    monkeypatch.setattr(runtime_binding_adapter, "profile_gate_registry", lambda _root: False)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
     monkeypatch.setattr(
         prewrite, "patch_admission", lambda **_kwargs: {"verdict": "pass", "reason": "matched"}
@@ -40,7 +41,7 @@ def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "wo
 
 
 def _commitment(*scope: str) -> Commitment:
-    return commitment_v2(
+    return commitment_fixture(
         id="change:example",
         intent="Govern exact paths.",
         subjects=("repository:example",),
@@ -53,7 +54,7 @@ def test_prewrite_fails_closed_on_non_repository_root(
 ) -> None:
     monkeypatch.setattr(prewrite, "git_stdout", lambda *_args: "")
     monkeypatch.setattr(prewrite, "runtime_binding", lambda root: {"audit_root": str(root)})
-    monkeypatch.setattr(prewrite, "profile_gate_registry", lambda _root: True)
+    monkeypatch.setattr(runtime_binding_adapter, "profile_gate_registry", lambda _root: True)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
     monkeypatch.setattr(prewrite, "load_commitment", lambda _root: _commitment("**"))
     monkeypatch.setattr(
@@ -143,6 +144,96 @@ def test_prewrite_projects_unknown_openspec_scope_fail_closed(
     assert report["material_scope"]["state"] == "not_available"
     assert report["material_scope"]["required_gaps"] == ["openspec_scope_unavailable"]
     assert report["required_gaps"] == ["openspec_scope_unavailable"]
+
+
+def test_prewrite_uses_lease_commitment_without_full_openspec_governance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_common(monkeypatch, tmp_path)
+    lease = {
+        "verdict": "pass",
+        "required": True,
+        "reason": "matched",
+        "holder_ref": "agent:test:case:owner",
+        "lease_id": "lease:test",
+        "epoch": 1,
+        "expected_head": "a" * 40,
+    }
+    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
+    monkeypatch.setattr(prewrite, "_work_lane_lease_check", lambda **_kwargs: lease)
+    monkeypatch.setattr(
+        prewrite,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("prewrite_must_not_run_full_openspec_governance")
+        ),
+    )
+    monkeypatch.setattr(
+        prewrite, "load_lease_bound_commitment", lambda *_args, **_kwargs: _commitment("README.md")
+    )
+    monkeypatch.setattr(prewrite, "archive_prewrite_authority", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        prewrite, "prepared_start_prewrite_authority", lambda *_args, **_kwargs: None
+    )
+
+    report = prewrite.prewrite_guard(
+        root=tmp_path,
+        paths=[tmp_path / "README.md"],
+        editor_root=tmp_path,
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["material_scope"]["state"] == "covered"
+
+
+def test_prewrite_preserves_exact_lease_commitment_coordinates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_common(monkeypatch, tmp_path)
+    lease = {
+        "lease_state": "valid",
+        "commitment_binding": "bound",
+        "holder_ref": "agent:test:case:owner",
+        "lease_id": "lease:test",
+        "epoch": 1,
+        "expected_head": "a" * 40,
+        "expected_tree": "b" * 40,
+        "base_commitment_path": "openspec/changes/example/commitment.toml",
+        "base_commitment_bytes_sha256": "c" * 64,
+        "base_commitment_digest": "d" * 64,
+    }
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
+    monkeypatch.setattr(prewrite, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        prewrite, "leases_by_branch", lambda *_args, **_kwargs: {"work/example": lease}
+    )
+    monkeypatch.setattr(prewrite, "lease_binding_reason", lambda **_kwargs: "")
+    monkeypatch.setattr(
+        prewrite, "load_lease_bound_commitment", lambda *_args, **_kwargs: _commitment("README.md")
+    )
+
+    report = prewrite.prewrite_guard(
+        root=tmp_path,
+        paths=[tmp_path / "README.md"],
+        editor_root=tmp_path,
+    )
+
+    projected = report["work_lane_lease"]
+    assert isinstance(projected, dict)
+    coordinates = {
+        name: lease[name]
+        for name in (
+            "holder_ref",
+            "lease_id",
+            "epoch",
+            "expected_head",
+            "expected_tree",
+            "base_commitment_path",
+            "base_commitment_bytes_sha256",
+            "base_commitment_digest",
+        )
+    }
+    assert {name: projected[name] for name in coordinates} == coordinates
 
 
 def test_prewrite_surfaces_lease_commitment_binding_failure(

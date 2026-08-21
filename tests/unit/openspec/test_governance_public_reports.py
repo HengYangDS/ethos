@@ -176,7 +176,6 @@ def test_governance_reports_invalid_commitment_and_artifact_paths(monkeypatch, t
     monkeypatch.setattr(
         governance, "protected_branch_active_change_report", lambda *_a, **_k: _residue()
     )
-    monkeypatch.setattr(governance, "_selection_required", lambda *_a, **_k: False)
     monkeypatch.setattr(
         governance,
         "official_change_rows",

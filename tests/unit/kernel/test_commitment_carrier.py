@@ -17,7 +17,7 @@ from ethos.adapters.repo.commitment import relocated_commitment_fields
 from ethos.adapters.repo.commitment import relocated_commitment_fields_to
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,7 +28,7 @@ def _repository_commitment(root: Path, *, subject: str | None = None) -> str:
     (root / ".ethos").mkdir(exist_ok=True)
     (root / ".ethos" / "commitment.toml").write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id=repository_id,
                 intent="Govern the repository.",
                 subjects=(subject or repository_id,),
@@ -49,7 +49,7 @@ def test_generic_commitment_loader_uses_profile_selected_carrier(tmp_path: Path)
     carrier.mkdir(parents=True)
     (carrier / "commitment.toml").write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id="change:terminal-convergence",
                 intent="Converge the repository.",
                 subjects=(repository_id,),
@@ -76,7 +76,7 @@ def test_explicit_commitment_carrier_does_not_require_openspec(
     carrier.mkdir(parents=True)
     (carrier / "commitment.toml").write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id="change:semantic-kernel",
                 intent="Converge the kernel.",
                 subjects=(repository_id,),
@@ -97,7 +97,7 @@ def test_generic_commitment_loader_ignores_openspec_inventory_and_tasks(tmp_path
         carrier.mkdir(parents=True)
         (carrier / "commitment.toml").write_text(
             tomli_w.dumps(
-                commitment_v2(
+                commitment_fixture(
                     id=f"change:{change_id}",
                     intent=f"Change {change_id}.",
                     subjects=(repository_id,),
@@ -121,7 +121,7 @@ def test_native_commitment_selection_treats_unarchived_changes_as_active(
         carrier.mkdir(parents=True)
         (carrier / "commitment.toml").write_text(
             tomli_w.dumps(
-                commitment_v2(
+                commitment_fixture(
                     id=f"change:{change_id}",
                     intent=f"{change_id}.",
                     subjects=(repository_id,),
@@ -208,7 +208,7 @@ def test_unselected_scope_file_does_not_override_commitment(tmp_path: Path) -> N
     carrier.mkdir(parents=True)
     (carrier / "commitment.toml").write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id="change:terminal-convergence",
                 intent="Converge the repository.",
                 subjects=(repository_id,),
@@ -257,7 +257,7 @@ def _change_carrier(root: Path, relative: str, change_id: str) -> Path:
     carrier.mkdir(parents=True)
     (carrier / "commitment.toml").write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id=f"change:{change_id}",
                 intent="Change.",
                 subjects=(load_repository_commitment(root).id,),

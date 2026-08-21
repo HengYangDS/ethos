@@ -1,20 +1,24 @@
 from __future__ import annotations
 
 import os
-from fnmatch import fnmatchcase
 from pathlib import Path
 
 from ethos.adapters.admission.lease_binding import lease_binding_reason
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.mutation.remediation.guidance import prewrite_next_action
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.generation.prewrite import prepared_start_prewrite_authority
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.lifecycle.archive_effect import archive_prewrite_authority
+from ethos.adapters.openspec.lifecycle.archive_effect import archive_prewrite_recovery
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.binding import runtime_binding
+from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -30,8 +34,8 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_mapping
-from ethos.repository.profile import profile_gate_registry
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "lease_id", "epoch", "head")
 _SCOPE_LIST_FIELDS = (
@@ -61,9 +65,8 @@ def prewrite_guard(
     status = _prewrite_status(root)
     status_role, status_branch = str(status["role"]), str(status["branch"])
     effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
-    role = effective["role"]
     runtime_check = runtime_binding_check(status)
-    checked = [_check_path(root=root, path=path, role=role) for path in paths]
+    checked = [_check_path(root=root, path=path, role=effective["role"]) for path in paths]
     tracked = any(path["tracked_candidate"] for path in checked)
     requested = tuple(
         str(path["relative_path"])
@@ -73,8 +76,39 @@ def prewrite_guard(
     lease = _work_lane_lease_check(
         root=root, status=status, effective=effective, tracked_write_requested=tracked
     )
+    profile_enabled = openspec_profile_enabled(root)
+    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    prepared_authority = None
+    if tracked and profile_enabled:
+        prepared_authority = archive_prewrite_authority(
+            root, changed_paths=requested, branch=effective["branch"], actor=actor
+        )
+    if prepared_authority is None and tracked and profile_enabled:
+        prepared_authority = prepared_start_prewrite_authority(
+            root, changed_paths=requested, branch=effective["branch"], actor=actor
+        )
+    archive_recovery = (
+        archive_prewrite_recovery(
+            root,
+            changed_paths=requested,
+            branch=effective["branch"],
+        )
+        if prepared_authority is None
+        and tracked
+        and profile_enabled
+        and lease.get("verdict") != "pass"
+        else None
+    )
+    authority = prepared_authority or lease
     profile_adapter: dict[str, object] = {}
-    if openspec_profile_enabled(root):
+    prepared_scope = authority.get("material_scope")
+    if isinstance(prepared_scope, dict):
+        scope = string_mapping(prepared_scope)
+    elif lease.get("required") is True:
+        scope = _commitment_scope(root, requested, lease)
+    elif archive_recovery is not None:
+        scope = dict(archive_recovery.material_scope)
+    elif profile_enabled:
         profile_adapter = openspec_governance_report(
             root,
             lifecycle=True,
@@ -92,36 +126,42 @@ def prewrite_guard(
     patch_report = patch_admission(
         root=root,
         requested_paths=requested,
-        baseline_head=str(lease.get("expected_head") or ""),
+        baseline_head=str(authority.get("expected_head") or ""),
         patch=patch,
     )
     blocked = [path for path in checked if path["allowed"] is False]
-    gaps = _gaps(runtime_check, lease, editor, patch_report, scope, blocked)
+    gaps = _gaps(runtime_check, authority, editor, patch_report, scope, blocked)
     verdict = reduce_verdicts(
         report_verdict(runtime_check),
         "block" if blocked else "pass",
-        report_verdict(lease),
+        report_verdict(authority),
         report_verdict(editor),
         report_verdict(patch_report),
         report_verdict(scope),
         required_gaps=tuple(gaps),
     )
-    decision = _prewrite_decision(root, effective, checked, lease, verdict, tuple(gaps))
+    decision = _prewrite_decision(root, effective, checked, authority, verdict, tuple(gaps))
     next_action = (
         ""
         if verdict == "pass"
+        else archive_recovery_command(
+            archive_recovery.change,
+            archive_recovery.expected_head,
+        )
+        if archive_recovery is not None
         else prewrite_next_action({"work_lane_lease": lease, "editor_root": editor})
     )
     return {
         "verdict": decision.verdict,
         "error": gaps[0] if gaps else "",
-        "role": role,
+        "role": effective["role"],
         "branch": effective["branch"],
         "status_role": status_role,
         "status_branch": status_branch,
         "effective_context": effective,
         "runtime_binding": runtime_check,
         "work_lane_lease": lease,
+        "mutation_authority": authority,
         "editor_root": editor,
         "patch_admission": patch_report,
         **({"profile_adapter": profile_adapter} if profile_adapter else {}),
@@ -137,21 +177,21 @@ def prewrite_guard(
 
 def _prewrite_status(root: Path) -> dict[str, object]:
     top = git_stdout(root, "rev-parse", "--show-toplevel")
+    repo = Path(top).resolve() if top else root
     if not top:
         return {
             "root": str(root),
             "branch": "untracked",
             "role": "other",
-            "runtime_binding": runtime_binding(root),
+            "runtime_binding": runtime_binding(repo),
             "worktrees": [],
         }
-    policy = load_branch_role_policy(repo := Path(top).resolve())
+    policy = load_branch_role_policy(repo)
     branch = current_branch(repo)
-    role = policy.role_for_branch(branch) if branch else ROLE_DETACHED
     return {
         "root": str(root),
         "branch": branch,
-        "role": role,
+        "role": policy.role_for_branch(branch) if branch else ROLE_DETACHED,
         "runtime_binding": runtime_binding(repo),
         "worktrees": worktree_records(repo, current_path=repo, policy=policy),
     }
@@ -197,8 +237,7 @@ def _work_lane_lease_check(
         return _lease_report(branch, actor, {}, ("pass", False, "not_required"))
     lease = _work_lane_lease(root=root, status=status, branch=branch)
     lease_state = str(lease.get("lease_state") or "missing")
-    holder = str(lease.get("holder_ref") or "")
-    if lease_state != "valid" or not holder:
+    if lease_state != "valid" or not lease.get("holder_ref"):
         reason = {
             "unknown": f"work_lane_lease_unknown:{branch}",
             "expired": f"work_lane_lease_expired:{branch}",
@@ -210,13 +249,10 @@ def _work_lane_lease_check(
             ("unknown" if lease_state == "unknown" else "block", True, reason),
         )
     current = git_stdout(root, "rev-parse", "HEAD")
-    binding, binding_source = (
-        (
-            git_stdout(root, "rev-parse", "--verify", f"refs/heads/{branch}"),
-            "rebase_branch_ref",
-        )
+    binding = (
+        git_stdout(root, "rev-parse", "--verify", f"refs/heads/{branch}")
         if source == "git_rebase_head_name"
-        else (current, "head")
+        else current
     )
     reason = lease_binding_reason(
         root=root,
@@ -231,7 +267,11 @@ def _work_lane_lease_check(
         actor,
         lease,
         ("block" if reason else "pass", True, reason or "matched"),
-        observed=(current, binding, binding_source),
+        observed=(
+            current,
+            binding,
+            "rebase_branch_ref" if source == "git_rebase_head_name" else "head",
+        ),
     )
 
 
@@ -253,6 +293,9 @@ def _lease_report(
         "lease_id": str(lease.get("lease_id") or ""),
         "epoch": integer_value(lease.get("epoch")),
         "expected_head": str(lease.get("expected_head") or ""),
+        "expected_tree": str(lease.get("expected_tree") or ""),
+        "base_commitment_path": str(lease.get("base_commitment_path") or ""),
+        "base_commitment_bytes_sha256": str(lease.get("base_commitment_bytes_sha256") or ""),
         "base_commitment_digest": str(lease.get("base_commitment_digest") or ""),
     }
     if observed:
@@ -316,59 +359,23 @@ def _prewrite_decision(
     )
 
 
-def runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
-    binding = status.get("runtime_binding")
-    available = isinstance(binding, dict)
-    binding = binding if available else {}
-    audit = str(binding.get("audit_root") or "")
-    runner = str(binding.get("runner_source_root") or "")
-    schema = str(binding.get("schema_source_root") or "")
-    checkout_binding_required = bool(audit and profile_gate_registry(Path(audit)))
-    runner_matches = binding.get("runner_matches_audit_root") is True
-    schema_matches = binding.get("schema_matches_audit_root") is True
-    common_runtime = binding.get("state") == "bound_to_common_runtime"
-    verdict: Verdict = (
-        "unknown"
-        if not available
-        else "pass"
-        if not checkout_binding_required or (schema_matches and (runner_matches or common_runtime))
-        else "block"
-    )
-    return {
-        "verdict": verdict,
-        "reason": (
-            "runtime_binding_unavailable"
-            if not available
-            else "matched"
-            if verdict == "pass"
-            else "root_binding_mismatch"
-        ),
-        "audit_root": audit,
-        "runner_source_root": runner,
-        "schema_source_root": schema,
-        "checkout_binding_required": checkout_binding_required,
-        "runner_matches_audit_root": runner_matches,
-        "schema_matches_audit_root": schema_matches,
-        "runner_matches_common_runtime": common_runtime,
-    }
-
-
 def _editor_root_check(
     *, root: Path, editor_root: Path | None, require_editor_root: bool
 ) -> dict[str, object]:
     expected = root.resolve()
     actual = editor_root.resolve() if editor_root else None
-    verdict: Verdict = (
-        "pass" if actual == expected or (actual is None and not require_editor_root) else "block"
+    matched = actual == expected or (actual is None and not require_editor_root)
+    reason = (
+        "matched"
+        if actual == expected
+        else "editor_root_mismatch"
+        if actual
+        else "editor_root_missing"
+        if require_editor_root
+        else "not_checked"
     )
-    if actual == expected:
-        reason = "matched"
-    elif actual:
-        reason = "editor_root_mismatch"
-    else:
-        reason = "editor_root_missing" if require_editor_root else "not_checked"
     return {
-        "verdict": verdict,
+        "verdict": "pass" if matched else "block",
         "required": require_editor_root,
         "expected": expected.as_posix(),
         "actual": actual.as_posix() if actual else "",
@@ -455,19 +462,15 @@ def _gaps(
 
 
 def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
-    reasons = [str(path["reason"]) for path in blocked_paths]
+    reasons = {str(path["reason"]) for path in blocked_paths}
     priority = (
         ("path_invalid_control_character", "prewrite_path_invalid_control_character"),
         ("path_invalid_whitespace", "prewrite_path_invalid_whitespace"),
         ("path_outside_worktree", "prewrite_path_outside_worktree"),
     )
-    return next(
-        (gap for reason, gap in priority if reason in reasons),
-        next(
-            (reason for reason in reasons if reason != "protected_lane_tracked_write"),
-            "protected_lane_prewrite_blocked" if blocked_paths else "",
-        ),
-    )
+    explicit = next((gap for reason, gap in priority if reason in reasons), "")
+    residual = next((reason for reason in reasons if reason != "protected_lane_tracked_write"), "")
+    return explicit or residual or ("protected_lane_prewrite_blocked" if blocked_paths else "")
 
 
 def _openspec_scope(report: dict[str, object]) -> dict[str, object]:
@@ -506,7 +509,7 @@ def _commitment_scope(
     uncovered = [
         path
         for path in requested
-        if not any(_scope_matches(path, pattern) for pattern in commitment.scope)
+        if not any(repository_path_matches(path, pattern) for pattern in commitment.scope)
     ]
     return {
         "verdict": "block" if uncovered else "pass",
@@ -517,10 +520,3 @@ def _commitment_scope(
         "uncovered_paths": uncovered,
         "required_gaps": [f"commitment_scope_uncovered:{path}" for path in uncovered],
     }
-
-
-def _scope_matches(path: str, pattern: str) -> bool:
-    if pattern.endswith("/**"):
-        prefix = pattern[:-3]
-        return path == prefix or path.startswith(f"{prefix}/")
-    return pattern == "**" or fnmatchcase(path, pattern)

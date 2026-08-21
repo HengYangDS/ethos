@@ -9,7 +9,6 @@ from typing import cast
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -85,21 +84,14 @@ def _apply_candidate_promotion(
     try:
         try:
             authority = load_repository_commitment(root, tree_ref=current_head)
-            prestate = {}
+            repository_prestate = "present"
         except ValueError as error:
-            if not str(error).startswith("repository_commitment_missing:"):
+            if not str(error).startswith("repository_commitment_missing:") or committed_file_bytes(
+                root, current_head, ".ethos/commitment.toml"
+            ):
                 raise
             authority = load_repository_commitment(root, tree_ref=candidate_head)
-            prestate = (
-                terminal_v1_binding(
-                    root,
-                    tree_ref=current_head,
-                    carrier=".ethos/commitment.toml",
-                    repository=True,
-                )
-                if committed_file_bytes(root, current_head, ".ethos/commitment.toml")
-                else {}
-            )
+            repository_prestate = "absent"
         prior_attestations = {
             "proof": proof.model_dump(mode="json"),
             **(
@@ -148,7 +140,7 @@ def _apply_candidate_promotion(
             head=current_head,
             candidate_worktree_path=candidate_worktree_path,
             prior_attestations=prior_attestations,
-            prestate=prestate,
+            repository_prestate=repository_prestate,
         )
     except (TypeError, ValueError) as error:
         return _accepted_block(
@@ -242,7 +234,7 @@ def _accepted_transition_plan(
     head: str,
     candidate_worktree_path: str,
     prior_attestations: JsonObject,
-    prestate: dict[str, object],
+    repository_prestate: str,
 ) -> TransitionPlan:
     effect_policy = {
         "operation": "candidate.accept",
@@ -250,18 +242,7 @@ def _accepted_transition_plan(
         "accepted_branch": role_policy.accepted_branch,
         "candidate_branch": role_policy.candidate_branch,
         "release_mirror": role_policy.release_mirror,
-        "repository_commitment_bootstrap": not committed_file_bytes(
-            root, head, ".ethos/commitment.toml"
-        )
-        or bool(prestate),
-        **(
-            {
-                "prestate_repository_id": str(prestate["id"]),
-                "prestate_repository_bytes_sha256": str(prestate["bytes_sha256"]),
-            }
-            if prestate
-            else {}
-        ),
+        "repository_prestate": repository_prestate,
     }
     return compile_observed_git_effect(
         root,

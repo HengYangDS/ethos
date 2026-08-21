@@ -61,10 +61,10 @@ def test_install_smoke_prepares_frozen_supply_before_offline_install(
     assert events == ["supply", ("install", session)]
 
 
-def test_packaged_vector_derives_a_complete_strict_v2_commitment(
+def test_packaged_vector_derives_a_complete_strict_commitment(
     tmp_path: Path,
 ) -> None:
-    vectors = (ROOT / "tests/fixtures/semantic-v2/vectors.json").read_text(encoding="utf-8")
+    vectors = (ROOT / "tests/fixtures/semantic-contract/vectors.json").read_text(encoding="utf-8")
     carrier = tmp_path / "commitment.toml"
     carrier.write_text(
         commitment_carrier(

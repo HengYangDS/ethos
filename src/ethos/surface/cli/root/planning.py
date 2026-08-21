@@ -14,7 +14,6 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.start_effect import current_generation_binding
 from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
@@ -73,34 +72,18 @@ def plan(
     head = str(status_payload.get("head") or "")
     try:
         repository = load_repository_commitment(repo)
-    except ValueError:
-        legacy = terminal_v1_binding(
-            repo,
-            tree_ref=head,
-            carrier=".ethos/commitment.toml",
-            repository=True,
-        )
+    except ValueError as exc:
+        gap = str(exc)
         emit(
             EthosResult(
                 command="plan",
-                verdict="pass",
-                state="planned",
-                summary={"changed": changed, "compatibility_mode": "terminal_v1_read_only"},
-                next_action="ethos status --json",
-                data={
-                    "commitment_compatibility": {
-                        "carrier": ".ethos/commitment.toml",
-                        "carrier_bytes_sha256": legacy["bytes_sha256"],
-                        "mode": "terminal_v1_read_only",
-                        "mutation_authority": False,
-                        "proof_authority": False,
-                    },
-                    "transition_plan_available": False,
-                },
+                verdict="block",
+                state="gapped",
+                required_gaps=(gap,),
+                next_action="install or repair the current repository Commitment",
             ),
             json_output=json_output,
             enforce=False,
-            artifact_root=repo,
         )
         return
     try:

@@ -70,6 +70,7 @@ class _FinishRequest(NamedTuple):
     branch: str
     change: str
     previous_head: str
+    start_head: str
     head: str
     old_generation: dict[str, object]
     command: tuple[str, ...]
@@ -173,9 +174,9 @@ def start_change(
 def _recover(
     root: Path,
     request: _StartRequest,
-    recovery: tuple[dict[str, object], tuple[str, ...]],
+    recovery: tuple[dict[str, object], tuple[str, ...], str],
 ) -> dict[str, object] | None:
-    branch, head, change, _, _, previous_head, _, _, apply, lease = request
+    branch, head, change, _, _, previous_head, _, _, apply, _lease = request
     guard = local_state_mutation_guard(root) if apply else {"required_gaps": []}
     if guard["required_gaps"]:
         return None
@@ -189,20 +190,13 @@ def _recover(
             previous_head=previous_head,
         )
     try:
-        if lease.get("expected_head") == previous_head:
-            advance_committed_lease(
-                root,
-                branch=branch,
-                previous_head=previous_head,
-                head=head,
-                failure_gap="openspec_change_lease_head_transition_failed",
-            )
         return _finish(
             root,
             _FinishRequest(
                 branch,
                 change,
                 previous_head,
+                recovery[2],
                 head,
                 recovery[0],
                 recovery[1],
@@ -381,7 +375,7 @@ def _apply(
             paths=created_paths,
             untracked_root=change_root,
         )
-        msg = "openspec_change_commit_failed"
+        msg = str(committed.get("error") or "openspec_change_commit_failed")
         raise ValueError(msg)
     head = current_tracked_head(root)
     advance_committed_lease(
@@ -398,6 +392,7 @@ def _apply(
             change,
             previous_head,
             head,
+            head,
             lease_generation(old_lease),
             command,
             "started",
@@ -409,20 +404,23 @@ def _finish(
     root: Path,
     request: _FinishRequest,
 ) -> dict[str, object]:
-    branch, change, previous_head, head, old_generation, command, state = request
+    branch, change, previous_head, start_head, head, old_generation, command, state = request
     carrier = f"openspec/changes/{change}/commitment.toml"
     current_lease = leases_by_branch(root).get(branch, {})
     target = exact_commitment_fields(root, head=head, carrier=carrier, change_id=change)
+    start_target = exact_commitment_fields(root, head=start_head, carrier=carrier, change_id=change)
     current = LaneLease.from_payload(dict(cast("Mapping[str, object]", current_lease["payload"])))
-    successor = commitment_rebind_successor(current, binding=target)
-    successor_record = project_lease(successor)
+    successor_record = project_lease(commitment_rebind_successor(current, binding=target))
+    start_successor_record = project_lease(
+        commitment_rebind_successor(current, binding=start_target)
+    )
     commitment = load_commitment(root, carrier=carrier, change_id=change, tree_ref=head)
     repository = load_repository_commitment(root, tree_ref=head)
     prepared_old = prepare_start_effect(
         root,
         change=change,
         previous_head=previous_head,
-        target_tree=str(target["expected_tree"]),
+        target_tree=str(start_target["expected_tree"]),
         current_lease=current_lease,
         commitment=commitment,
         repository_id=repository.id,
@@ -437,15 +435,17 @@ def _finish(
         change=change,
         command=command,
         previous_head=previous_head,
-        head=head,
+        head=start_head,
         old_generation=old_generation,
-        new_generation=lease_generation(successor_record),
+        new_generation=lease_generation(start_successor_record),
         commitment=commitment,
         repository_id=repository.id,
     )
     updated = rebind_lease_commitment(
         state_database(root),
-        request=_lease_request(branch, current_lease, head),
+        request=_lease_request(
+            branch, current_lease, str(current_lease.get("expected_head") or "")
+        ),
         binding=target,
     )
     if lease_generation(updated) != lease_generation(successor_record):

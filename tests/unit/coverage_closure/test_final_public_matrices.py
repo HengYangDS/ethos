@@ -36,7 +36,6 @@ proposal_branch_prefix = "proposal/"
 release_mirror = "independent"
 canonical_sibling_worktrees = false
 """
-LEGACY = STRICT.replace("canonical_sibling_worktrees", "repository_family_worktrees")
 
 
 @pytest.mark.parametrize(
@@ -53,6 +52,12 @@ def test_branch_role_lenient_parser_fail_closed(text: str, error: str | None) ->
             branch_role_policy_from_text(text)
     else:
         assert branch_role_policy_from_text(text) == BranchRolePolicy()
+
+
+def test_branch_role_current_schema_maps_exactly() -> None:
+    assert strict_branch_role_policy_from_text(STRICT) == BranchRolePolicy(
+        canonical_sibling_worktrees=False
+    )
 
 
 @pytest.mark.parametrize(
@@ -72,26 +77,14 @@ def test_branch_role_lenient_parser_fail_closed(text: str, error: str | None) ->
             ),
             "must be boolean",
         ),
-        (LEGACY.replace('release_branch = "main"', 'release_branch = ""'), "canonical strings"),
-        (
-            LEGACY.replace('release_mirror = "independent"', 'release_mirror = "mirror"'),
-            "mirror is invalid",
-        ),
-        (
-            LEGACY.replace(
-                "repository_family_worktrees = false", 'repository_family_worktrees = "false"'
-            ),
-            "must be boolean",
-        ),
     ],
 )
-def test_branch_role_strict_and_legacy_rejections(text: str, error: str) -> None:
+def test_branch_role_strict_value_contract(text: str, error: str) -> None:
     with pytest.raises(ValueError, match=error):
         strict_branch_role_policy_from_text(text)
 
 
-def test_branch_role_legacy_migration_and_lenient_fallbacks() -> None:
-    assert strict_branch_role_policy_from_text(LEGACY).canonical_sibling_worktrees is False
+def test_branch_role_lenient_value_defaults() -> None:
     report = branch_role_policy_from_text(
         "[branch_roles]\n"
         "release_branch = 1\n"

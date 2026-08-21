@@ -32,6 +32,11 @@ def prewrite_next_action(admission: dict[str, object]) -> str:
     return "ethos lane prewrite <path>"
 
 
+def archive_recovery_command(change: str, expect_head: str) -> str:
+    """Return the sole public continuation for an observed archive effect."""
+    return f"ethos lane archive-change --change {change} --expect-head {expect_head} --apply --json"
+
+
 def commitment_rebind_remediation(target_commit: str) -> dict[str, object]:
     """Project the dedicated hook recovery for one valid dangling target."""
     next_command = f"ethos lane rebind-commitment derive --target-commit {target_commit} --json"

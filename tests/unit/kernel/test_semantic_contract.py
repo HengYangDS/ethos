@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import load_commitment_file
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
 
@@ -81,7 +81,7 @@ def _attestation_payload() -> dict[str, object]:
 
 
 def _commitment_payload() -> dict[str, object]:
-    return commitment_v2(
+    return commitment_fixture(
         id="change:model-promotion-successor",
         intent="Adopt one selected input.",
         subjects=("repository:ethos",),
@@ -112,7 +112,7 @@ def _commitment_payload() -> dict[str, object]:
     ).model_dump(mode="python")
 
 
-def test_commitment_v2_runtime_validation_matrix(tmp_path: Path) -> None:
+def test_commitment_fixture_runtime_validation_matrix(tmp_path: Path) -> None:
     payload = _commitment_payload()
     repository_id = "repository:2454ddfb-3395-497b-b07c-416ac2e3a0ad"
     assert (
@@ -169,7 +169,7 @@ def test_commitment_v2_runtime_validation_matrix(tmp_path: Path) -> None:
         Commitment.model_validate(payload | {"subjects": list(reversed(subjects))})
 
 
-def test_attestation_v2_invalid_field_and_relation_matrix() -> None:
+def test_attestation_invalid_field_and_relation_matrix() -> None:
     payload = _attestation_payload()
     missing = {key: value for key, value in payload.items() if key != "facts_digest"}
     duplicate = dict(payload["relations"][0], attributes={"different": True})
@@ -211,7 +211,7 @@ def test_semantic_json_reader_negative_matrix(raw, strict, error: str) -> None:
 
 @settings(max_examples=40, deadline=None)
 @given(body=_JSON_OBJECT)
-def test_attestation_v2_unknown_payload_round_trips_without_authority(body: object) -> None:
+def test_attestation_unknown_payload_round_trips_without_authority(body: object) -> None:
     issued = Attestation.issue(
         _attestation_payload() | {"payload": {"kind": "input:future-feedback", "body": body}}
     )
@@ -224,9 +224,11 @@ def test_attestation_v2_unknown_payload_round_trips_without_authority(body: obje
     assert restored.mints_authority is False
 
 
-def test_semantic_v2_golden_vectors_are_exact_in_source_wheel_and_sdist(tmp_path: Path) -> None:
+def test_semantic_contract_golden_vectors_are_exact_in_source_wheel_and_sdist(
+    tmp_path: Path,
+) -> None:
     root = Path(__file__).parents[3]
-    vector_path = root / "tests/fixtures/semantic-v2/vectors.json"
+    vector_path = root / "tests/fixtures/semantic-contract/vectors.json"
     source_bytes = vector_path.read_bytes()
     vectors = json.loads(source_bytes)
     assert vectors["schema_version"] == 1
@@ -246,8 +248,8 @@ def test_semantic_v2_golden_vectors_are_exact_in_source_wheel_and_sdist(tmp_path
     )
     build = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     force_include = build["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
-    assert force_include["tests/fixtures/semantic-v2/vectors.json"] == (
-        "ethos/data/semantic-v2/vectors.json"
+    assert force_include["tests/fixtures/semantic-contract/vectors.json"] == (
+        "ethos/data/semantic-contract/vectors.json"
     )
 
     runtime = ProjectRuntime.discover(root)
@@ -273,12 +275,12 @@ def test_semantic_v2_golden_vectors_are_exact_in_source_wheel_and_sdist(tmp_path
     )
     wheel, sdist = next(artifacts.glob("ethos-*.whl")), next(artifacts.glob("ethos-*.tar.gz"))
     with zipfile.ZipFile(wheel) as archive:
-        wheel_bytes = archive.read("ethos/data/semantic-v2/vectors.json")
+        wheel_bytes = archive.read("ethos/data/semantic-contract/vectors.json")
     with tarfile.open(sdist, "r:gz") as archive:
         member = next(
             item
             for item in archive.getmembers()
-            if item.name.endswith("tests/fixtures/semantic-v2/vectors.json")
+            if item.name.endswith("tests/fixtures/semantic-contract/vectors.json")
         )
         extracted = archive.extractfile(member)
         assert extracted is not None
@@ -298,7 +300,7 @@ from ethos.contracts.semantic import Attestation, load_commitment_file
 assert str(ethos.__file__).startswith(wheel)
 vectors = json.loads(
     importlib.resources.files("ethos")
-    .joinpath("data/semantic-v2/vectors.json")
+    .joinpath("data/semantic-contract/vectors.json")
     .read_text()
 )
 with tempfile.TemporaryDirectory() as directory:

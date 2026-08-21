@@ -57,9 +57,6 @@ def lane_rebind_commitment_derive(
     *,
     root: RootOption | None = None,
     repair_change_identity: Annotated[bool, Parameter(name="--repair-change-identity")] = False,
-    operation: Annotated[
-        str, Parameter(name="--operation", help="Exact rebind operation discriminator.")
-    ] = "commitment-rebind",
     json_output: Annotated[bool, Parameter(name="--json")] = False,
 ) -> None:
     """Derive and persist one exact request receipt without mutation."""
@@ -67,7 +64,6 @@ def lane_rebind_commitment_derive(
         root=resolve_root(root),
         target_commit=target_commit,
         repair_change_identity=repair_change_identity,
-        operation=operation,
     )
     project_lane_result(
         "lane rebind-commitment derive",

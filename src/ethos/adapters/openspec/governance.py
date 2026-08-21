@@ -7,7 +7,7 @@ from typing import cast
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
-from ethos.adapters.openspec.lifecycle.archive_transition import archive_transition_facts
+from ethos.adapters.openspec.lifecycle.archive_effect import archive_transition_facts
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.lifecycle.report import OpenSpecReportContext
@@ -24,9 +24,6 @@ from ethos.adapters.openspec.lifecycle.report import selected_change
 from ethos.adapters.openspec.lifecycle.report import selection_gaps
 from ethos.adapters.openspec.observation import protected_branch_active_change_report
 from ethos.adapters.repo.git import current_branch as git_current_branch
-from ethos.adapters.repo.git import git_stdout
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
@@ -130,30 +127,6 @@ def _completed_change(rows: list[dict[str, str]] | None) -> str | None:
         rows[0]["name"]
         if rows is not None and len(rows) == 1 and rows[0]["status"] == "complete"
         else None
-    )
-
-
-def _completion_transition_gap(
-    root: Path,
-    completed_change: str | None,
-    changed_paths: tuple[str, ...],
-    archive_scope: dict[str, object] | None,
-) -> list[str]:
-    staged = git_stdout(root, "diff", "--cached", "--name-only")
-    return (
-        ["openspec_active_change_missing"]
-        if completed_change is not None and bool(staged) and changed_paths and archive_scope is None
-        else []
-    )
-
-
-def _selection_required(request: OpenSpecRequest, root: Path) -> bool:
-    branch = git_current_branch(root)
-    return (
-        load_branch_role_policy(root).role_for_branch(branch) == ROLE_WORK_LANE
-        or request.change is not None
-        or bool(request.changed_paths)
-        or bool(git_stdout(root, "diff", "--cached", "--name-only"))
     )
 
 
@@ -271,12 +244,6 @@ def _openspec_governance_report(
         if archive_scope is None and rows == []
         else None
     )
-    required_gaps += _completion_transition_gap(
-        root,
-        completed_change,
-        request.changed_paths,
-        post_archive_scope or archive_scope,
-    )
     archive_scope = post_archive_scope or archive_scope
     archived_change = (
         str(archive_scope["changes"][0]["name"])
@@ -321,7 +288,7 @@ def _openspec_governance_report(
         required_gaps.extend(openspec_cli.status_contract_gaps(status["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("apply", apply["json"]))
         required_gaps.extend(openspec_cli.instructions_contract_gaps("archive", archive["json"]))
-    if archive_scope is None and (rows is None or rows or _selection_required(request, root)):
+    if archive_scope is None and (rows is None or rows or request.change is not None):
         required_gaps.extend(
             ["openspec_list_unreadable"] if rows is None else selection_gaps(rows, request.change)
         )
@@ -339,13 +306,6 @@ def _openspec_governance_report(
             list_payload=list_result["json"],
             status_payload=status.get("json", {}),
             apply_payload=apply.get("json", {}),
-            protected_branch_residue=protected_branch_residue,
-        )
-        if selected is not None or not request.lifecycle
-        else lifecycle_report(
-            root,
-            request=request._replace(lifecycle=False),
-            list_payload={},
             protected_branch_residue=protected_branch_residue,
         )
     )

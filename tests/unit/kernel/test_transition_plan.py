@@ -24,9 +24,9 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import Verdict
 from tests.support.literal_cases import literal_case
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
-_COMMITMENT = commitment_v2(
+_COMMITMENT = commitment_fixture(
     id="change:test", intent="Exercise one transition plan.", subjects=("repository:test",)
 )
 _FACTS = Facts(
@@ -75,7 +75,7 @@ def _facts(*paths: object, repository: str = "repository:test") -> Facts:
 def _commitment(
     *, subjects: tuple[str, ...] = ("repository:test",), scope: tuple[str, ...] = ("**",)
 ) -> Commitment:
-    return commitment_v2(id="change:test", intent="test", subjects=subjects, scope=scope)
+    return commitment_fixture(id="change:test", intent="test", subjects=subjects, scope=scope)
 
 
 def _compile(
@@ -397,7 +397,19 @@ def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
     product_path = "src/ethos/product.py"
     commitment = _commitment(scope=(product_path,))
     facts = _facts(archive_path, spec_path, product_path)
-    authority = {"openspec_archive": {"authorized_paths": [archive_path, spec_path]}}
+    effect_identity = "d" * 64
+    authority = {
+        "openspec_archive": {
+            "predicate": "effect:openspec-archive",
+            "attestation_id": "a" * 64,
+            "commitment_digest": "b" * 64,
+            "effect_digest": "c" * 64,
+            "effect_identity": effect_identity,
+            "input": {"effect_identity": effect_identity},
+            "output": {"changed_paths": [archive_path, spec_path]},
+            "authorized_paths": [archive_path, spec_path],
+        }
+    }
     ready = _compile(commitment=commitment, facts=facts, policy={}, prior=authority)
     rehydrated = TransitionPlan.model_validate(ready.model_dump(mode="json"))
     assert (
@@ -416,18 +428,26 @@ def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
         prior=dict(rehydrated.prior_attestations),
     )
     assert tampered.required_gaps == ("proof_archive_scope_stale",)
+    weak = {
+        "openspec_archive": {
+            "authorized_paths": [archive_path, spec_path],
+        }
+    }
     uncovered = _compile(
         archive_path,
         spec_path,
         "outside.py",
         commitment=commitment,
-        prior=authority,
+        prior=weak,
     )
-    assert uncovered.required_gaps == ("change_scope_exceeded",)
+    assert uncovered.required_gaps == (
+        "proof_archive_scope_stale",
+        "change_scope_exceeded",
+    )
 
 
 def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
-    commitment = commitment_v2(
+    commitment = commitment_fixture(
         id="change:test",
         intent="Preserve",
         subjects=("repository:test",),

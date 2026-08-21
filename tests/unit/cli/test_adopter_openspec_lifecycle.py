@@ -80,7 +80,7 @@ from ethos.adapters.openspec.profile import completed_active_changes_report
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.openspec.audit import official_config_report
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 ROOT = Path(__file__).resolve().parents[3]
 MATRIX, _ = json.JSONDecoder().raw_decode(__doc__[__doc__.index("{") :])
@@ -170,7 +170,7 @@ def test_package_intent_claim_matrix(tmp_path):
     _write(spec, "## ADDED Requirements\n\n### Requirement: Portable result\n")
     context, gaps = compile_intent_context(
         tmp_path,
-        commitment=commitment_v2(
+        commitment=commitment_fixture(
             id="change:example",
             intent="Prove portable results.",
             subjects=("repository:example",),
@@ -217,7 +217,7 @@ def test_package_intent_accepts_prettier_aligned_traceability_table(tmp_path):
 
     context, gaps = compile_intent_context(
         tmp_path,
-        commitment=commitment_v2(
+        commitment=commitment_fixture(
             id="change:example", intent="Prove portable results.", subjects=("repository:example",)
         ),
         config={},
@@ -263,7 +263,7 @@ def test_package_intent_expands_capability_traceability_to_coarse_task(tmp_path)
 
     context, gaps = compile_intent_context(
         tmp_path,
-        commitment=commitment_v2(
+        commitment=commitment_fixture(
             id="change:example", intent="Prove portable results.", subjects=("repository:example",)
         ),
         config={},

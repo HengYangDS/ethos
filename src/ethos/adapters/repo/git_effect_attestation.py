@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
-from typing import NamedTuple
 
 from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -25,84 +24,6 @@ from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.contracts.value import JsonObject
-
-
-class NativeEffect(NamedTuple):
-    """Exact subject and observations for one non-CAS effect."""
-
-    predicate: str
-    operation: str
-    command: tuple[str, ...]
-    subject: JsonObject
-    before: JsonObject
-    after: JsonObject
-
-
-def issue_native_effect(
-    _root: Path,
-    *,
-    effect: NativeEffect,
-    state: str,
-    commitment_digest: str,
-    repository_id: str,
-    issued_at: datetime | None = None,
-) -> Attestation:
-    """Issue one digest-bound effect Attestation from exact pre/post facts."""
-    payload = effect._asdict()
-    effect_digest = canonical_json_digest(payload)
-    result = native_effect_result(state)
-    issued = issued_at or datetime.now(UTC)
-    return Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": effect.predicate,
-            "verifier": "git",
-            "subject": f"{effect.predicate}:{effect_digest}",
-            "issued_at": issued,
-            "valid_from": issued,
-            "valid_until": None,
-            "verdict": "pass",
-            "payload": {
-                "kind": "effect:native",
-                "body": {
-                    "claim": {"operation": effect.operation, "effect": effect_digest},
-                    "repository": repository_id,
-                    "command": effect.command,
-                    "input": effect.before,
-                    "result": result,
-                    "output": effect.after,
-                    "input_digest": canonical_json_digest(effect.before),
-                    "output_digest": canonical_json_digest(
-                        {"result": result, "output": effect.after}
-                    ),
-                    "freshness": {
-                        "mode": "semantic_scope",
-                        "repository": repository_id,
-                        "subject": effect.subject,
-                        **effect.subject,
-                        "output_digest": canonical_json_digest(effect.after),
-                    },
-                },
-            },
-            "relations": (),
-            "advisories": (),
-            "evidence_refs": (),
-            "commitment_digest": commitment_digest,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": effect_digest,
-            "mints_authority": False,
-        }
-    )
-
-
-def native_effect_result(state: str) -> dict[str, object]:
-    """Return the canonical result envelope for one native effect state."""
-    executed = state in {"applied", "recognized"}
-    return {"state": state, "executed": executed, "exit_code": 0 if executed else None}
 
 
 Evidence = tuple[str, str, dict[str, object], dict[str, object]]
@@ -265,7 +186,6 @@ def validate(
         attestation.valid_until and now > attestation.valid_until
     ):
         raise ValueError(_STALE)
-    allow_missing_prestate = plan.policy.get("repository_commitment_bootstrap") is True
     repository = (
         str(plan.facts.get("repository") or "")
         if state == "recovered"
@@ -274,11 +194,7 @@ def validate(
             effect,
             before,
             environment=environment,
-            allow_missing_prestate=allow_missing_prestate,
-            prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
-            prestate_repository_bytes_sha256=str(
-                plan.policy.get("prestate_repository_bytes_sha256") or ""
-            ),
+            allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
         )
     )
     evidence = (
@@ -301,7 +217,7 @@ def validate(
         _object_mapping(statement.get("freshness")),
         plan=plan,
         environment=environment,
-        allow_missing_prestate=allow_missing_prestate,
+        allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
     ):
         raise ValueError(_CONTENT_MISMATCH)
 
@@ -318,15 +234,21 @@ def plan_from_attestation(attestation: Attestation) -> TransitionPlan:
     return plan
 
 
-def _matching_plan_attestations(root: Path, plan_digest: str) -> tuple[Attestation, ...]:
-    try:
-        _root_identity, members = read_attestation_set(root)
-    except ValueError as error:
-        message = "git_effect_attestation_invalid"
-        raise ValueError(message) from error
+def _matching_plan_attestations(
+    root: Path,
+    plan_digest: str,
+    *,
+    attestations: tuple[Attestation, ...] | None = None,
+) -> tuple[Attestation, ...]:
+    if attestations is None:
+        try:
+            _root_identity, attestations = read_attestation_set(root)
+        except ValueError as error:
+            message = "git_effect_attestation_invalid"
+            raise ValueError(message) from error
     matches = tuple(
         attestation
-        for attestation in members
+        for attestation in attestations
         if attestation.predicate == "effect:git-ref-update"
         and attestation.plan_digest == plan_digest
     )
@@ -342,9 +264,14 @@ def validated_plan_attestation(
     *,
     issuer: str,
     environment: Mapping[str, str] | None = None,
+    attestations: tuple[Attestation, ...] | None = None,
 ) -> tuple[TransitionPlan, Attestation] | None:
     """Return the sole validated plan and its exact Git-effect Attestation."""
-    matches = _matching_plan_attestations(root, plan_digest)
+    matches = _matching_plan_attestations(
+        root,
+        plan_digest,
+        attestations=attestations,
+    )
     if not matches:
         return None
     attestation = matches[0]
@@ -462,7 +389,7 @@ def _matches(
     *,
     plan: TransitionPlan,
     environment: Mapping[str, str] | None = None,
-    allow_missing_prestate: bool = False,
+    allow_absent_prestate: bool = False,
 ) -> bool:
     repository, state, before, after = evidence
     current_refs = {
@@ -495,11 +422,7 @@ def _matches(
                 effect,
                 before,
                 environment=environment,
-                allow_missing_prestate=allow_missing_prestate,
-                prestate_repository_id=str(plan.policy.get("prestate_repository_id") or ""),
-                prestate_repository_bytes_sha256=str(
-                    plan.policy.get("prestate_repository_bytes_sha256") or ""
-                ),
+                allow_absent_prestate=allow_absent_prestate,
             )
         )
     except ValueError:

@@ -7,8 +7,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.commitment import terminal_v1_binding
-from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_head
@@ -57,51 +55,32 @@ def resolve_git_effect_repository(
     before: dict[str, object],
     *,
     environment: Mapping[str, str] | None = None,
-    allow_missing_prestate: bool = False,
-    prestate_repository_id: str = "",
-    prestate_repository_bytes_sha256: str = "",
+    allow_absent_prestate: bool = False,
 ) -> str:
     """Resolve one repository identity across every revision touched by an effect."""
     env = dict(environment or {})
-    expected = {update.expected for update in effect.updates.values()}
     revisions = {
         str(before["head"]),
+        *(update.expected for update in effect.updates.values()),
         *(update.desired for update in effect.updates.values()),
         *effect.assertions.values(),
     } - _ZERO_OIDS
+    expected = {update.expected for update in effect.updates.values()}
     try:
         identities = set()
         for revision in revisions:
-            raw = committed_file_bytes(root, revision, ".ethos/commitment.toml", environment=env)
-            if not raw and allow_missing_prestate and revision in expected:
-                continue
-            if revision in expected and prestate_repository_id:
-                binding = terminal_v1_binding(
-                    root,
-                    tree_ref=revision,
-                    carrier=".ethos/commitment.toml",
-                    repository=True,
-                    environment=env,
+            try:
+                identities.add(
+                    load_repository_commitment(root, tree_ref=revision, environment=env).id
                 )
-                mismatch = (
-                    binding["id"] != prestate_repository_id
-                    or binding["bytes_sha256"] != prestate_repository_bytes_sha256
-                )
-                if mismatch:
-                    identities.add("")
+            except ValueError as error:
+                if (
+                    allow_absent_prestate
+                    and revision in expected
+                    and str(error).startswith("repository_commitment_missing:")
+                ):
                     continue
-                identities.add(prestate_repository_id)
-            else:
-                identities.add(
-                    load_repository_commitment(root, tree_ref=revision, environment=env).id
-                )
-        for revision in expected - _ZERO_OIDS:
-            if prestate_repository_id:
-                continue
-            if committed_file_bytes(root, revision, ".ethos/commitment.toml", environment=env):
-                identities.add(
-                    load_repository_commitment(root, tree_ref=revision, environment=env).id
-                )
+                raise
     except ValueError as error:
         raise ValueError(_MISMATCH) from error
     if len(identities) != 1:

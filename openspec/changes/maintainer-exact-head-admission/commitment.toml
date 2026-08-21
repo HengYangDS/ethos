@@ -1,0 +1,60 @@
+schema_version = 2
+id = "change:maintainer-exact-head-admission"
+intent = "Admit one exact signed repository head into accepted or release roles through a public Forge-neutral transaction that binds reusable local or external proof, prepares one ref intent, applies exact Git CAS, post-observes the result, and emits one executable next action."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "docs/governance/product-design-contract.md",
+  "docs/reference/command-plane.md",
+  "openspec/changes/maintainer-exact-head-admission/**",
+  "openspec/specs/adapters/spec.md",
+  "openspec/specs/command-plane/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "src/ethos/adapters/admission/**",
+  "src/ethos/adapters/mutation/proof_admission.py",
+  "src/ethos/adapters/repo/git_effect*.py",
+  "src/ethos/adapters/repo/status/**",
+  "src/ethos/contracts/evidence/external.py",
+  "src/ethos/contracts/publication.py",
+  "src/ethos/repository/profile.py",
+  "src/ethos/surface/cli/application.py",
+  "src/ethos/surface/cli/hook/**",
+  "src/ethos/surface/cli/root/**",
+  "system/schemas/**",
+  "tests/support/**",
+  "tests/unit/admission/**",
+  "tests/unit/cli/**",
+  "tests/unit/lanes/**",
+  "tests/unit/release/**",
+]
+invariants = [
+  "every_block_projects_one_copyable_command_bound_to_fresh_repository_coordinates",
+  "external_forge_evidence_is_an_attestation_input_and_never_a_parallel_authority_or_truth_store",
+  "hooks_consume_the_same_prepared_ref_intent_as_the_public_admission_command",
+  "local_only_profiles_can_admit_exact_heads_without_fabricating_forge_facts",
+  "one_exact_subject_identity_binds_commit_tree_proof_plane_role_transition_ref_cas_and_post_image",
+]
+acceptance = [
+  "a_package_only_cli_can_validate_and_bind_exact_external_forge_evidence_before_role_admission",
+  "an_archived_signed_exact_head_with_admitted_proof_can_fast_forward_accepted_without_hook_bypass",
+  "stale_wrong_subject_wrong_verifier_and_wrong_role_evidence_fail_closed",
+  "status_plan_and_hook_failures_project_the_same_executable_next_action",
+  "zero_forge_local_only_topology_completes_the_same_admission_transaction_with_local_proof",
+]
+risks = [
+  "admission_must_not_allow_external_receipts_to_mint_repository_authority",
+  "developer_proposal_mode_must_remain_fail_closed_and_unchanged",
+  "the_new_public_surface_must_replace_not_duplicate_land_and_hook_transition_policy",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

@@ -10,6 +10,7 @@ scope = [
   "openspec/specs/command-plane/spec.md",
   "openspec/specs/distribution/spec.md",
   "openspec/specs/repository-governance/spec.md",
+  "pyproject.toml",
   "src/ethos/adapters/repo/hook/**",
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/adapters/repo/hook_runtime_install.py",
@@ -21,7 +22,9 @@ scope = [
   "tests/architecture/test_local_install_smoke.py",
   "tests/unit/cli/test_hook_runtime.py",
   "tests/unit/cli/test_hook_runtime_failure_branches.py",
+  "tests/unit/coverage_closure/test_final_public_matrices.py",
   "tests/unit/coverage_closure/test_hook_runtime_install_public_resolution.py",
+  "tests/unit/kernel/test_semantic_contract.py",
   "tests/unit/lanes/retirement/test_effect_public_boundaries.py",
   "tools/ci/openspec_runtime_hook.py",
 ]

@@ -13,6 +13,7 @@ scope = [
   "src/ethos/adapters/repo/hook/**",
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/adapters/repo/hook_runtime_install.py",
+  "src/ethos/adapters/repo/runtime/binding.py",
   "src/ethos/adapters/repo/status/**",
   "src/ethos/surface/cli/hook/**",
   "src/ethos/surface/cli/root/inspection.py",

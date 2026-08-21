@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -22,6 +23,13 @@ class OpenSpecRuntimeHook(BuildHookInterface):
             return
         root = Path(self.root)
         supply = Path(tempfile.mkdtemp(prefix="ethos-openspec-supply-"))
+        identity = _source_identity(root)
+        identity_file = supply / "source-identity.json"
+        identity_file.write_text(
+            json.dumps(identity, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        build_data["force_include"][str(identity_file)] = "ethos/data/build/source-identity.json"
         for relative in ("package.json", "package-lock.json"):
             shutil.copy2(root / relative, supply / relative)
         node = os.environ.get("ETHOS_BUILD_NODE", "")
@@ -52,3 +60,32 @@ class OpenSpecRuntimeHook(BuildHookInterface):
 def get_build_hook() -> type[OpenSpecRuntimeHook]:
     """Expose the single custom hook class to Hatchling."""
     return OpenSpecRuntimeHook
+
+
+def _source_identity(root: Path) -> dict[str, object]:
+    commit = subprocess.run(
+        ("git", "rev-parse", "HEAD"),
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    with tempfile.TemporaryDirectory(prefix="ethos-source-index-") as directory:
+        environment = {**os.environ, "GIT_INDEX_FILE": str(Path(directory) / "index")}
+        subprocess.run(("git", "read-tree", "HEAD"), cwd=root, env=environment, check=True)
+        subprocess.run(("git", "add", "-A"), cwd=root, env=environment, check=True)
+        tree = subprocess.run(
+            ("git", "write-tree"),
+            cwd=root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    if any(
+        len(value) not in {40, 64} or set(value) - set("0123456789abcdef")
+        for value in (commit, tree)
+    ):
+        message = "hook_runtime_build_source_identity_invalid"
+        raise RuntimeError(message)
+    return {"schema_version": 1, "source_commit": commit, "source_tree": tree}

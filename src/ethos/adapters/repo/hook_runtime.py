@@ -54,7 +54,8 @@ def install_hook_launchers(root: Path, *, python: Path | None = None) -> HookRun
         message = "hook_runtime_activation_drift"
         raise ValueError(message)
     if binding["required_gaps"]:
-        return binding
+        message = "hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"])
+        raise ValueError(message)
     common = Path(git_common_dir(repo))
     legacy = common / "ethos-runtime-python"
     present = legacy.exists() or legacy.is_symlink()

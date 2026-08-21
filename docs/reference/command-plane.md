@@ -40,6 +40,11 @@ The public root anchors are `status`, `plan`, `prove`, `land`, `publish`,
 `adopt`, and the bounded recovery transition `migrate-local-state`. No reader,
 report, provider, or historical projection adds another public root.
 
+`status.data.hook_runtime` is the single hook-runtime
+inspection surface. It reports installed and expected source commit/tree,
+currentness, stable gaps, and the complete `ethos hook install` repair command;
+status does not derive a parallel runtime verdict.
+
 The normal repository loop is:
 
 ```text

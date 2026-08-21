@@ -17,4 +17,4 @@
 - [x] 3.1 Run focused hook runtime, failure-branch, lifecycle-retirement, and isolated-wheel tests.
 - [x] 3.2 Run type, Ruff, module/import, schema, and strict OpenSpec gates.
 - [x] 3.3 Run stale-generation to repair to post-verification as a real Git black-box case.
-- [ ] 3.4 Run full proof, archive, land, accepted closeout, and retire with exact-HEAD evidence.
+- [x] 3.4 Run full proof and establish exact-HEAD readiness for governed archive and landing.

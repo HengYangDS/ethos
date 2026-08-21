@@ -1,52 +1,10 @@
 schema_version = 2
 id = "change:lifecycle-effect-finalization"
-intent = "Make OpenSpec start and archive effects remain the sole exact authority through commit finalization and recoverable partial lifecycle states."
+intent = "Finalize lifecycle effect identity while compressing repository-wide duplicate owners, parallel semantics, dead residue, broad types, oversized carriers, duplicate tests, and configuration authority without weakening exact Git, Lease, recovery, or Attestation invariants."
 subjects = [
   "repository:ethos",
 ]
-scope = [
-  "openspec/changes/lifecycle-effect-finalization/**",
-  "openspec/specs/repository-governance/spec.md",
-  "src/ethos/adapters/admission/prewrite.py",
-  "src/ethos/adapters/admission/transitions.py",
-  "src/ethos/adapters/mutation/lane_lifecycle/archive_change.py",
-  "src/ethos/adapters/mutation/lane_lifecycle/archive_recovery.py",
-  "src/ethos/adapters/mutation/lane_lifecycle/change_overlay.py",
-  "src/ethos/adapters/mutation/lane_lifecycle/change_rollover.py",
-  "src/ethos/adapters/mutation/local_state.py",
-  "src/ethos/adapters/mutation/proof_admission.py",
-  "src/ethos/adapters/openspec/cli.py",
-  "src/ethos/adapters/openspec/generation/archive_attestation.py",
-  "src/ethos/adapters/openspec/generation/attestation.py",
-  "src/ethos/adapters/openspec/governance.py",
-  "src/ethos/adapters/openspec/lifecycle/archive_binding.py",
-  "src/ethos/adapters/openspec/lifecycle/archive_effect.py",
-  "src/ethos/adapters/openspec/lifecycle/archive_transition.py",
-  "src/ethos/adapters/openspec/lifecycle/intent.py",
-  "src/ethos/adapters/openspec/start_effect.py",
-  "src/ethos/adapters/repo/git.py",
-  "src/ethos/adapters/repo/git_effects.py",
-  "src/ethos/adapters/repo/worktree_postimage.py",
-  "src/ethos/contracts/proof/plan.py",
-  "src/ethos/surface/cli/lane/change.py",
-  "tests/support/openspec_lifecycle.py",
-  "tests/unit/adoption/test_local_state_public_fail_closed.py",
-  "tests/unit/cli/openspec/test_generation_observation.py",
-  "tests/unit/cli/test_contracts_closeout.py",
-  "tests/unit/cli/test_openspec_archive_transition.py",
-  "tests/unit/cli/test_openspec_change_rollover.py",
-  "tests/unit/cli/test_openspec_lifecycle_public_branches.py",
-  "tests/unit/cli/test_refresh_archive_public_coverage.py",
-  "tests/unit/kernel/test_proof_plan_binding.py",
-  "tests/unit/kernel/test_transition_plan.py",
-  "tests/unit/lanes/lifecycle/test_change_rollover_public_recovery.py",
-  "tests/unit/lanes/test_hook_admission.py",
-  "tests/unit/lanes/test_reference_transaction_hook_runtime.py",
-  "tests/unit/mutation/test_git_effect_operations.py",
-  "tests/unit/openspec/lifecycle/test_archive_transition_public_recovery.py",
-  "tests/unit/openspec/test_cli_public_reports.py",
-  "tests/unit/openspec/test_governance_public_reports.py",
-]
+scope = ["**"]
 invariants = []
 acceptance = []
 risks = []

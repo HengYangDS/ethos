@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-import tomli_w
 
 from ethos.adapters.repo.commitment import changed_commitment_fields
 from ethos.adapters.repo.commitment import exact_commitment_fields
@@ -12,45 +11,11 @@ from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.semantic import commitment_v2
+from tests.support.governed_repository import write_change_commitment
+from tests.support.governed_repository import write_repository_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _repository_commitment(root: Path) -> str:
-    repository_id = "repository:test"
-    path = root / ".ethos/commitment.toml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        tomli_w.dumps(
-            commitment_v2(
-                id=repository_id,
-                intent="Govern.",
-                subjects=(repository_id,),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    return repository_id
-
-
-def _change_commitment(root: Path, change_id: str, *, intent: str = "Change.") -> str:
-    relative = f"openspec/changes/{change_id}/commitment.toml"
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        tomli_w.dumps(
-            commitment_v2(
-                id=f"change:{change_id}",
-                intent=intent,
-                subjects=(load_repository_commitment(root).id,),
-                scope=("src/**",),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    return relative
 
 
 def _commit(repo: Path, message: str) -> str:
@@ -64,7 +29,7 @@ def _commit(repo: Path, message: str) -> str:
     ["", "/absolute", "./relative", "../escape", "path\\windows", "path\x00nul"],
 )
 def test_commitment_carrier_malformed_paths_fail_closed(tmp_path: Path, carrier: str) -> None:
-    _repository_commitment(tmp_path)
+    write_repository_commitment(tmp_path)
     with pytest.raises(ValueError, match="commitment_carrier_invalid"):
         load_commitment(tmp_path, carrier=carrier)
 
@@ -73,19 +38,19 @@ def test_commitment_missing_malformed_and_canonical_public_boundaries(tmp_path: 
     with pytest.raises(ValueError, match="repository_commitment_missing"):
         load_repository_commitment(tmp_path)
 
-    _repository_commitment(tmp_path)
+    write_repository_commitment(tmp_path)
     (tmp_path / ".ethos/commitment.toml").write_bytes(b"\xff")
     with pytest.raises(ValueError, match="repository_commitment_missing"):
         load_repository_commitment(tmp_path)
 
-    repository_id = _repository_commitment(tmp_path)
+    repository_id = write_repository_commitment(tmp_path)
     assert load_repository_commitment(tmp_path).id == repository_id
 
 
 def test_commitment_exact_fields_and_digest_boundary(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    _repository_commitment(repo)
-    carrier = _change_commitment(repo, "canonical")
+    write_repository_commitment(repo)
+    carrier = write_change_commitment(repo, "canonical", scope=("src/**",))
     head = _commit(repo, "canonical")
 
     fields = exact_commitment_fields(repo, head=head, carrier=carrier, change_id="canonical")
@@ -110,12 +75,12 @@ def test_commitment_exact_fields_and_digest_boundary(tmp_path: Path) -> None:
 
 def test_commitment_changed_carrier_is_unique_and_readable(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    _repository_commitment(repo)
-    carrier = _change_commitment(repo, "refine")
+    write_repository_commitment(repo)
+    carrier = write_change_commitment(repo, "refine", scope=("src/**",))
     old_head = _commit(repo, "old")
     old_digest = load_commitment(repo, carrier=carrier, tree_ref=old_head).digest()
 
-    _change_commitment(repo, "refine", intent="Refined.")
+    write_change_commitment(repo, "refine", intent="Refined.", scope=("src/**",))
     new_head = _commit(repo, "new")
     fields = changed_commitment_fields(
         repo,
@@ -146,8 +111,8 @@ def test_commitment_changed_carrier_is_unique_and_readable(tmp_path: Path) -> No
 
 def test_lease_bound_commitment_missing_and_canonical_coordinates(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    _repository_commitment(repo)
-    carrier = _change_commitment(repo, "lease")
+    write_repository_commitment(repo)
+    carrier = write_change_commitment(repo, "lease", scope=("src/**",))
     head = _commit(repo, "lease")
     fields = exact_commitment_fields(repo, head=head, carrier=carrier, change_id="lease")
 

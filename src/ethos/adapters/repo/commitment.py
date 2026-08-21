@@ -24,6 +24,10 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 _REPOSITORY_COMMITMENT = ".ethos/commitment.toml"
+_COMMITMENT_BINDING_FIELDS = (
+    "base_commitment_bytes_sha256",
+    "base_commitment_digest",
+)
 _TUPLE_FIELDS = {
     "subjects",
     "scope",
@@ -195,6 +199,20 @@ def exact_commitment_fields(
     }
 
 
+def commitment_binding_mismatch(
+    actual: Mapping[str, object], expected: Mapping[str, object]
+) -> str:
+    """Return the first mismatched exact Commitment binding coordinate."""
+    return next(
+        (
+            field
+            for field in _COMMITMENT_BINDING_FIELDS
+            if str(actual.get(field) or "") != str(expected.get(field) or "")
+        ),
+        "",
+    )
+
+
 def commitment_generation_origin(
     repo: Path,
     *,
@@ -225,55 +243,9 @@ def commitment_generation_origin(
         try:
             load_commitment(repo, carrier=path, change_id=change_id, tree_ref=parent)
         except ValueError:
-            try:
-                identifier = terminal_v1_binding(
-                    repo,
-                    tree_ref=parent,
-                    carrier=path,
-                    repository=False,
-                )["id"]
-            except ValueError:
-                return ""
-            if identifier != f"change:{change_id}":
-                return ""
+            return parent
         commit = parent
     return ""
-
-
-def terminal_v1_binding(
-    repo: Path,
-    *,
-    tree_ref: str,
-    carrier: str,
-    repository: bool,
-    environment: dict[str, str] | None = None,
-) -> dict[str, object]:
-    """Read only the identity and exact bytes of one terminal v1 carrier."""
-    try:
-        relative = _relative_carrier(carrier)
-        raw = committed_file_bytes(repo, tree_ref, relative, environment=environment)
-        payload = tomllib.loads(raw.decode("utf-8"))
-    except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValueError) as error:
-        message = "commitment_v1_terminal_invalid"
-        raise ValueError(message) from error
-    identifier = payload.get("id")
-    subjects = payload.get("subjects")
-    if (
-        not raw
-        or payload.get("schema_version", 1) != 1
-        or not isinstance(identifier, str)
-        or not identifier
-        or not isinstance(subjects, list)
-        or any(not isinstance(subject, str) or not subject for subject in subjects)
-        or (repository and (not identifier.startswith("repository:") or subjects != [identifier]))
-    ):
-        message = "commitment_v1_terminal_invalid"
-        raise ValueError(message)
-    return {
-        "id": identifier,
-        "subjects": tuple(subjects),
-        "bytes_sha256": hashlib.sha256(raw).hexdigest(),
-    }
 
 
 def relocated_commitment_fields(

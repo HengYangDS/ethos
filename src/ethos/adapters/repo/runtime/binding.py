@@ -9,6 +9,7 @@ from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import hook_runtime_binding
 from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_gate_registry
 
 
 def runner_source_root(module_path: Path) -> Path:
@@ -96,4 +97,30 @@ def runtime_binding(root: Path) -> dict[str, object]:
         "schema_matches_audit_root": schema_matches_audit_root,
         "advisory_gaps": advisory_gaps,
         "next_action": next_action,
+    }
+
+
+def runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
+    """Reduce one runtime-binding observation to tracked-write admission."""
+    binding = status.get("runtime_binding")
+    if not isinstance(binding, dict):
+        return {"verdict": "unknown", "reason": "runtime_binding_unavailable"}
+    audit = str(binding.get("audit_root") or "")
+    runner = str(binding.get("runner_source_root") or "")
+    schema = str(binding.get("schema_source_root") or "")
+    required = bool(audit and profile_gate_registry(Path(audit)))
+    runner_matches = binding.get("runner_matches_audit_root") is True
+    schema_matches = binding.get("schema_matches_audit_root") is True
+    common_runtime = binding.get("state") == "bound_to_common_runtime"
+    matched = not required or (schema_matches and (runner_matches or common_runtime))
+    return {
+        "verdict": "pass" if matched else "block",
+        "reason": "matched" if matched else "root_binding_mismatch",
+        "audit_root": audit,
+        "runner_source_root": runner,
+        "schema_source_root": schema,
+        "checkout_binding_required": required,
+        "runner_matches_audit_root": runner_matches,
+        "schema_matches_audit_root": schema_matches,
+        "runner_matches_common_runtime": common_runtime,
     }

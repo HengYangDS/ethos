@@ -59,8 +59,12 @@ product commit.
 - **WHEN** a finalization request observes no Lease, an expired same-holder
   Lease, a different-holder Lease, or an ownerless effect
 - **THEN** ETHOS reports distinct machine-readable states
-- **AND** same-holder resume, authorized takeover, or ownerless recovery is the
-  sole next action respectively
+- **AND** an expired same-holder Lease reports the exact public resume command
+- **AND** a different-holder Lease reports the public query for an already
+  accepted takeover authorization before any takeover command can be formed
+- **AND** an ownerless exact effect reports the exact archive recovery command
+- **AND** a truly missing Lease with no exact effect fails closed, reports the
+  public status command, and marks that a user authority decision is required
 - **AND** no command silently assumes holder identity or edits SQLite directly.
 
 #### Scenario: Zero-effect failure has no compensation gap

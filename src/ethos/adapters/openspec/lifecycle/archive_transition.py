@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import os
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -14,98 +12,21 @@ from ethos.adapters.openspec.lifecycle.archive_binding import archive_context
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_binding import exact_carrier_relocation
 from ethos.adapters.openspec.lifecycle.archive_binding import staged_archive_carrier
+from ethos.adapters.repo.commitment import commitment_binding_mismatch
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import load_lease_bound_commitment
-from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.contracts.semantic import canonical_json_digest
 from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.contracts.semantic import Commitment
-
-_ARCHIVE_TRANSITION_ENV = "ETHOS_ARCHIVE_TRANSITION"
-_ARCHIVE_TRANSITION_KEYS = frozenset(
-    {
-        "schema_version",
-        "change",
-        "head",
-        "head_tree",
-        "index_tree",
-        "changed_paths",
-        "completion_artifacts",
-        "official_change_complete",
-        "nonce",
-    }
-)
-
-
-def archive_transition_environment(
-    root: Path,
-    *,
-    change: str,
-    head: str,
-    changed_paths: tuple[str, ...],
-    official_change_complete: bool,
-    completion_artifacts: tuple[str, ...],
-) -> dict[str, str]:
-    """Bind one hook invocation to the exact admitted official archive delta."""
-    payload: dict[str, object] = {
-        "schema_version": 1,
-        "change": change,
-        "head": head,
-        "head_tree": current_tree(root, head),
-        "index_tree": run_git(root, "write-tree").stdout.strip(),
-        "changed_paths": list(changed_paths),
-        "completion_artifacts": list(completion_artifacts),
-        "official_change_complete": official_change_complete,
-    }
-    payload["nonce"] = canonical_json_digest(payload)
-    return {_ARCHIVE_TRANSITION_ENV: json.dumps(payload, sort_keys=True, separators=(",", ":"))}
-
-
-def archive_transition_facts(
-    root: Path,
-    *,
-    changed_paths: tuple[str, ...],
-    requested_change: str | None,
-) -> tuple[bool, tuple[str, ...]] | None:
-    """Read exact, process-local archive facts only for their bound staged tree."""
-    raw = os.environ.get(_ARCHIVE_TRANSITION_ENV, "")
-    try:
-        payload = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(payload, dict) or set(payload) != _ARCHIVE_TRANSITION_KEYS:
-        return None
-    identity = {key: value for key, value in payload.items() if key != "nonce"}
-    change = payload.get("change")
-    artifacts = payload.get("completion_artifacts")
-    paths = payload.get("changed_paths")
-    head = current_tracked_head(root)
-    valid = (
-        payload.get("schema_version") == 1
-        and isinstance(change, str)
-        and bool(change)
-        and requested_change in {None, change}
-        and payload.get("head") == head
-        and payload.get("head_tree") == current_tree(root, head)
-        and payload.get("index_tree") == run_git(root, "write-tree").stdout.strip()
-        and paths == list(changed_paths)
-        and isinstance(artifacts, list)
-        and all(isinstance(path, str) and path for path in artifacts)
-        and payload.get("official_change_complete") is True
-        and payload.get("nonce") == canonical_json_digest(identity)
-    )
-    return (True, tuple(artifacts)) if valid else None
 
 
 def lease_bound_archive_scope_report(
@@ -183,55 +104,119 @@ def lease_bound_archive_scope_report(
     )
 
 
-def lease_bound_archive_transition_fields(
+def archive_postimage_scope_report(
     root: Path,
     *,
-    target_head: str,
-) -> dict[str, str] | None:
-    """Return the exact Lease-bound archive target from immutable Git facts."""
-    branch = git_stdout(root, "branch", "--show-current")
-    lease = leases_by_branch(root).get(branch, {})
-    old_head = str(lease.get("expected_head") or "")
-    if lease.get("lease_state") != "valid" or not old_head:
+    changed_paths: tuple[str, ...],
+    requested_change: str,
+    tree: str,
+    source_head: str | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, Any] | None:
+    """Select one exact official archive post-image without mutating the real index."""
+    context = (
+        archive_context(root, source_head=source_head)
+        if source_head is not None
+        else archive_context(root)
+    )
+    if context is None or not _requested_archive_context(context, requested_change):
         return None
+    head, lease, source = context
+    change = source.id.removeprefix("change:")
     try:
-        source = load_lease_bound_commitment(root, lease=lease)
-        change = source.id.removeprefix("change:")
-        target_tree = current_tree(root, target_head)
         carrier = staged_archive_carrier(
             root,
-            head=old_head,
-            tree=target_tree,
+            head=head,
+            tree=tree,
             lease=lease,
             change=change,
+            environment=environment,
         )
         target = exact_commitment_fields(
             root,
-            head=target_head,
+            head=tree,
             carrier=carrier,
             change_id=change,
+            environment=dict(environment or {}),
         )
         archived = load_commitment(
             root,
             carrier=carrier,
             change_id=change,
-            tree_ref=target_tree,
+            tree_ref=tree,
+            expected_digest=str(lease.get("base_commitment_digest") or ""),
+            environment=dict(environment or {}),
         )
     except ValueError:
         return None
-    preservation_valid, _binding = _preserved_archive_binding(
+
+    def object_id(specification: str) -> str:
+        observed = run_git(
+            root,
+            "rev-parse",
+            specification,
+            check=False,
+            env=environment,
+        )
+        return observed.stdout.strip() if observed.returncode == 0 else ""
+
+    active_root = f"openspec/changes/{change}"
+    archive_root = carrier.removesuffix("/commitment.toml")
+    source_tree = git_stdout(root, "rev-parse", f"{head}:{active_root}")
+    archive_tree = object_id(f"{tree}:{archive_root}")
+    previous_archive_tree = git_stdout(root, "rev-parse", f"{head}:{archive_root}")
+    preservation = ""
+    if previous_archive_tree:
+        preservation = collision_preservation_path(archive_root, previous_archive_tree, head)
+        if object_id(f"{tree}:{preservation}") != previous_archive_tree:
+            return None
+    allowed = (f"{active_root}/", f"{archive_root}/", "openspec/specs/") + (
+        (f"{preservation}/",) if preservation else ()
+    )
+    if (
+        archived.digest() != source.digest()
+        or archive_tree != source_tree
+        or active_commitments(root, tree, environment=environment) != ()
+        or commitment_binding_mismatch(target, lease)
+        or not changed_paths
+        or any(not path.startswith(allowed) for path in changed_paths)
+    ):
+        return None
+    listed = run_git(
         root,
-        head=old_head,
-        tree=target_tree,
+        "ls-tree",
+        "-r",
+        "--name-only",
+        head,
+        "--",
+        active_root,
+        check=False,
+    )
+    if listed.returncode:
+        return None
+    completion_artifacts = tuple(listed.stdout.splitlines())
+    return _scope_report(
+        root,
+        commitment=archived,
+        change=change,
         carrier=carrier,
-    )
-    return (
-        target
-        if archived.digest() == source.digest()
-        and active_commitments(root, target_tree) == ()
-        and preservation_valid
-        else None
-    )
+        state="archive_transition",
+        changed_paths=changed_paths,
+        completion_artifacts=completion_artifacts,
+    ) | {
+        "tree": tree,
+        "archive_path": archive_root,
+        "completion_artifacts": list(completion_artifacts),
+        **({"preserved_archive_path": preservation} if preservation else {}),
+    }
+
+
+def _requested_archive_context(
+    context: tuple[str, dict[str, object], Commitment], requested_change: str
+) -> bool:
+    _head, _lease, source = context
+    change = source.id.removeprefix("change:")
+    return source.id != change and requested_change == change
 
 
 def _archive_preservation_binding(
@@ -246,10 +231,10 @@ def _archive_preservation_binding(
         return True, None
     if state == "post_archive_closeout":
         return _post_archive_preservation_binding(root, head=head, carrier=carrier)
-    return _preserved_archive_binding(root, head=head, tree=tree, carrier=carrier)
+    return preserved_archive_binding(root, head=head, tree=tree, carrier=carrier)
 
 
-def _preserved_archive_binding(
+def preserved_archive_binding(
     root: Path,
     *,
     head: str,

@@ -9,17 +9,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-import tomli_w
 
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind as rebind
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission as rebind_admission
 import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_derivation as rebind_derivation
-import ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence as rebind_evidence
 import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.admission.ref_intent import ref_intent_dir
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.openspec.start_effect import current_generation_scope
-from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import exact_commitment_fields
@@ -37,7 +34,6 @@ from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lifecycle_cases import rebind_effect
 from tests.support.lifecycle_cases import tamper_attestation
 from tests.support.literal_cases import literal_case
-from tests.support.semantic import commitment_v2
 
 
 def _replace_lease(worktree: Path, branch: str, **updates: object) -> None:
@@ -693,6 +689,46 @@ def test_rebind_derive_emits_receipt_for_exact_target(
     }
 
 
+def test_rebind_receipt_loader_rejects_untrusted_or_corrupt_carriers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    derived = rebind_derivation.derive_commitment_rebind(
+        root=case.worktree,
+        target_commit=case.request.target_commit,
+        repair_change_identity=False,
+    )
+    reference = derived["receipt"]
+    path = Path(str(reference["path"]))
+
+    with pytest.raises(ValueError, match="commitment_rebind_receipt_path_invalid"):
+        rebind_derivation.load_commitment_rebind_receipt(case.worktree, __file__)
+    with pytest.raises(ValueError, match="commitment_rebind_receipt_missing"):
+        rebind_derivation.load_commitment_rebind_receipt(
+            case.worktree, (path.parent / ("0" * 64 + ".json")).as_posix()
+        )
+    with pytest.raises(ValueError, match="commitment_rebind_receipt_sha256_mismatch"):
+        rebind_derivation.load_commitment_rebind_receipt(
+            case.worktree, path.as_posix(), "sha256:" + "f" * 64
+        )
+
+    invalid = b"{}"
+    invalid_digest = hashlib.sha256(invalid).hexdigest()
+    invalid_path = path.parent / f"{invalid_digest}.json"
+    invalid_path.write_bytes(invalid)
+    with pytest.raises(ValueError, match="commitment_rebind_receipt_invalid"):
+        rebind_derivation.load_commitment_rebind_receipt(case.worktree, invalid_path.as_posix())
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["digest"] = "0" * 64
+    corrupt = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    corrupt_digest = hashlib.sha256(corrupt).hexdigest()
+    corrupt_path = path.parent / f"{corrupt_digest}.json"
+    corrupt_path.write_bytes(corrupt)
+    with pytest.raises(ValueError, match="commitment_rebind_receipt_invalid"):
+        rebind_derivation.load_commitment_rebind_receipt(case.worktree, corrupt_path.as_posix())
+
+
 def test_rebind_derive_constructs_the_exact_signed_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -836,199 +872,3 @@ def test_rebind_exact_old_generation_matrix(
         report = case.execute(**updates)
     assert report["required_gaps"] == [gap]
     assert git(case.worktree, "rev-parse", "HEAD") == case.request.expect_head
-
-
-def _v1_commitment_text(
-    *,
-    identifier: str,
-    intent: str,
-    subjects: tuple[str, ...],
-    scope: tuple[str, ...] = (),
-) -> str:
-    return tomli_w.dumps(
-        {
-            "schema_version": 1,
-            "id": identifier,
-            "intent": intent,
-            "subjects": list(subjects),
-            "scope": list(scope),
-            "invariants": [],
-            "acceptance": [],
-            "authority_refs": [],
-            "dependencies": [],
-        }
-    )
-
-
-def _bootstrap_case(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> tuple[RebindCase, dict[str, object], dict[str, object], str, str]:
-    case = _case(tmp_path, monkeypatch)
-    repository_carrier = case.worktree / ".ethos/commitment.toml"
-    lane_carrier = case.worktree / str(case.lease["base_commitment_path"])
-    repository_carrier.write_text(
-        _v1_commitment_text(
-            identifier="repository:test",
-            intent="Legacy repository authority.",
-            subjects=("repository:test",),
-        ),
-        encoding="utf-8",
-    )
-    lane_carrier.write_text(
-        _v1_commitment_text(
-            identifier="change:fixture-change",
-            intent="Legacy lane authority.",
-            subjects=("repository:test",),
-            scope=("**",),
-        ),
-        encoding="utf-8",
-    )
-    git(case.worktree, "add", repository_carrier.as_posix(), lane_carrier.as_posix())
-    old_head = git(
-        case.worktree,
-        "commit-tree",
-        git(case.worktree, "write-tree"),
-        "-p",
-        case.request.expect_head,
-        "-m",
-        "bind opaque v1 carriers",
-    )
-    git(case.worktree, "config", "--worktree", "--unset-all", "core.hooksPath")
-    git(case.worktree, "update-ref", f"refs/heads/{case.branch}", old_head)
-    git(case.worktree, "reset", "--hard", old_head)
-    install_hook_launchers(case.worktree)
-    repository_hash = hashlib.sha256(repository_carrier.read_bytes()).hexdigest()
-    lane_hash = hashlib.sha256(lane_carrier.read_bytes()).hexdigest()
-    _replace_lease(
-        case.worktree,
-        case.branch,
-        expected_head=old_head,
-        expected_tree=git(case.worktree, "rev-parse", f"{old_head}^{{tree}}"),
-        base_commitment_bytes_sha256=lane_hash,
-        base_commitment_digest="1" * 64,
-    )
-    repository_carrier.write_text(
-        tomli_w.dumps(
-            commitment_v2(
-                id="repository:test",
-                intent="Terminal repository authority.",
-                subjects=("repository:test",),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    lane_carrier.write_text(
-        tomli_w.dumps(
-            commitment_v2(
-                id="change:fixture-change",
-                intent="Terminal lane authority.",
-                subjects=("repository:test",),
-                scope=("**",),
-            ).model_dump(mode="python")
-        ),
-        encoding="utf-8",
-    )
-    git(case.worktree, "add", repository_carrier.as_posix(), lane_carrier.as_posix())
-    _configure_signing(case.worktree, tmp_path, "bootstrap-signing-key")
-    before_lease = leases_by_branch(case.worktree)[case.branch]
-    before_set = git(case.worktree, "rev-parse", "--verify", ATTESTATION_SET_REF)
-    report = rebind_derivation.derive_commitment_rebind(
-        root=case.worktree,
-        target_commit="",
-        repair_change_identity=False,
-        operation="v1-to-v2-bootstrap",
-    )
-    return case, report, before_lease, before_set, repository_hash
-
-
-def test_v1_to_v2_bootstrap_derive_owns_target_and_keeps_old_bytes_opaque(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case, report, before_lease, before_set, repository_hash = _bootstrap_case(tmp_path, monkeypatch)
-    before_ref = git(case.worktree, "rev-parse", f"refs/heads/{case.branch}")
-
-    assert report["verdict"] == "pass", report["required_gaps"]
-    request = report["request"]
-    index_tree = git(case.worktree, "write-tree")
-    assert request["operation"] == "v1-to-v2-bootstrap"
-    assert request["expect_head"] == before_ref
-    assert request["expect_index_tree"] == index_tree
-    assert request["old_repository_commitment_bytes_sha256"] == repository_hash
-    assert request["old_repository_id"] == "repository:test"
-    assert (
-        request["new_repository_commitment_digest"]
-        == load_repository_commitment(case.worktree).digest()
-    )
-    assert request["target_commit"] != before_ref
-    assert git(case.worktree, "rev-parse", f"{request['target_commit']}^") == before_ref
-    assert git(case.worktree, "rev-parse", f"{request['target_commit']}^{{tree}}") == index_tree
-    assert "gpgsig " in git(case.worktree, "cat-file", "commit", request["target_commit"])
-    assert git(case.worktree, "rev-parse", f"refs/heads/{case.branch}") == before_ref
-    assert leases_by_branch(case.worktree)[case.branch] == before_lease
-    assert git(case.worktree, "rev-parse", "--verify", ATTESTATION_SET_REF) == before_set
-
-    applied = rebind.execute_commitment_rebind_receipt(
-        root=case.worktree,
-        receipt_path=str(report["receipt"]["path"]),
-        receipt_sha256=str(report["receipt"]["sha256"]),
-        apply=True,
-    )
-
-    assert (applied["verdict"], applied["required_gaps"]) == (
-        "pass",
-        [],
-    ), applied["required_gaps"]
-    assert applied["state"] == "applied"
-    assert git(case.worktree, "rev-parse", f"refs/heads/{case.branch}") == request["target_commit"]
-    updated = leases_by_branch(case.worktree)[case.branch]
-    assert updated["epoch"] == int(before_lease["epoch"]) + 1
-    assert updated["base_commitment_digest"] == request["new_commitment_digest"]
-    assert updated["expected_head"] == request["target_commit"]
-    set_root, attestations = read_attestation_set(case.worktree)
-    assert set_root != before_set
-    bootstrap = next(
-        item
-        for item in attestations
-        if item.predicate == "effect:commitment-rebind"
-        and item.payload.body["claim"]["operation"] == "v1-to-v2-bootstrap"
-    )
-    lane_commitment = load_lease_bound_commitment(
-        case.worktree,
-        lease=updated,
-        change_id="fixture-change",
-    )
-    repository = load_repository_commitment(case.worktree)
-    scope = current_generation_scope(
-        case.worktree,
-        head=str(updated["expected_head"]),
-        repository_id=repository.id,
-        commitment=lane_commitment,
-        lease=updated,
-        fallback_paths=(),
-    )
-
-    assert scope.gaps == ()
-    assert scope.start_authority["predicate"] == "effect:commitment-rebind"
-    assert scope.start_authority["claim"]["operation"] == "v1-to-v2-bootstrap"
-    assert {item.source for item in scope.attributions if item.state == "authorized"} == {
-        "rebind_generation",
-        "dirty_overlay",
-    }
-    forged = tamper_attestation(
-        bootstrap.model_dump(mode="json"),
-        location="new_lease_generation",
-        field="lease_id",
-        replacement="lease:forged",
-    )
-    assert (
-        rebind_evidence.rebind_generation_authority(
-            case.worktree,
-            forged,
-            repository_id=repository.id,
-            commitment_digest=lane_commitment.digest(),
-            lease=updated,
-        )
-        == {}
-    )

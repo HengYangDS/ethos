@@ -18,11 +18,11 @@ from ethos.contracts.proof.plan import validate_proof_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 
 def _commitment(*, scope: tuple[str, ...] = ("src/**",)) -> Commitment:
-    return commitment_v2(
+    return commitment_fixture(
         id="change:contract-matrix",
         intent="Keep public contract validation fail-closed.",
         subjects=("repository:test",),

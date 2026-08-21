@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 from typing import TYPE_CHECKING
 
@@ -11,9 +10,7 @@ from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.repo.commitment import exact_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_repository_commitment
-from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
-from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_head
@@ -71,7 +68,7 @@ def admit_rebind_state(
             "lease_commitment_digest_stale",
         ),
         (
-            request.operation == "v1-to-v2-bootstrap" or lease.get("commitment_binding") == "bound",
+            lease.get("commitment_binding") == "bound",
             "lease_commitment_binding_mismatch",
         ),
         (
@@ -212,134 +209,6 @@ def rebind_target_binding(
                 load_repository_commitment(repo, tree_ref=request.expect_head).id
                 == load_repository_commitment(repo, tree_ref=request.target_commit).id,
                 "commitment_rebind_repository_identity_mismatch",
-            ),
-        )
-    )
-    return target
-
-
-def bootstrap_v1_binding(
-    repo: Path,
-    *,
-    tree_ref: str,
-    carrier: str,
-    repository: bool,
-) -> dict[str, object]:
-    """Read only the identity and exact bytes of one terminal v1 carrier."""
-    return terminal_v1_binding(
-        repo,
-        tree_ref=tree_ref,
-        carrier=carrier,
-        repository=repository,
-    )
-
-
-def bootstrap_v2_binding(
-    repo: Path,
-    *,
-    tree_ref: str,
-    carrier: str,
-    repository: bool,
-) -> dict[str, str]:
-    """Read one exact target v2 carrier through the terminal reader."""
-    raw = committed_file_bytes(repo, tree_ref, carrier)
-    commitment = (
-        load_repository_commitment(repo, tree_ref=tree_ref)
-        if repository
-        else load_commitment(repo, carrier=carrier, tree_ref=tree_ref)
-    )
-    return {
-        "id": commitment.id,
-        "bytes_sha256": hashlib.sha256(raw).hexdigest(),
-        "digest": commitment.digest(),
-    }
-
-
-def bootstrap_target_binding(
-    repo: Path,
-    request: CommitmentRebindRequest,
-) -> dict[str, str]:
-    """Admit one exact opaque-v1 to strict-v2 target without a compatibility read."""
-    old_repository = bootstrap_v1_binding(
-        repo,
-        tree_ref=request.expect_head,
-        carrier=request.old_repository_commitment_path,
-        repository=True,
-    )
-    old_lane = bootstrap_v1_binding(
-        repo,
-        tree_ref=request.expect_head,
-        carrier=request.expected_commitment_path,
-        repository=False,
-    )
-    new_repository = bootstrap_v2_binding(
-        repo,
-        tree_ref=request.target_commit,
-        carrier=request.new_repository_commitment_path,
-        repository=True,
-    )
-    target = exact_commitment_fields(
-        repo,
-        head=request.target_commit,
-        carrier=request.new_commitment_path,
-    )
-    new_lane = load_commitment(
-        repo,
-        carrier=request.new_commitment_path,
-        tree_ref=request.target_commit,
-        expected_digest=request.new_commitment_digest,
-    )
-    parents = run_git(
-        repo, "rev-list", "--parents", "-n", "1", request.target_commit
-    ).stdout.split()
-    declared_target = {
-        "base_commitment_path": request.new_commitment_path,
-        "base_commitment_bytes_sha256": request.new_commitment_bytes_sha256,
-        "base_commitment_digest": request.new_commitment_digest,
-    }
-    _require(
-        (
-            (
-                old_repository["id"] == request.old_repository_id,
-                "commitment_rebind_repository_identity_mismatch",
-            ),
-            (
-                old_repository["bytes_sha256"] == request.old_repository_commitment_bytes_sha256,
-                "commitment_rebind_repository_bytes_stale",
-            ),
-            (
-                old_lane["bytes_sha256"] == request.expected_commitment_bytes_sha256,
-                "lease_commitment_bytes_stale",
-            ),
-            (
-                old_lane["subjects"] == (request.old_repository_id,),
-                "commitment_rebind_repository_identity_mismatch",
-            ),
-            (
-                new_repository
-                == {
-                    "id": request.old_repository_id,
-                    "bytes_sha256": request.new_repository_commitment_bytes_sha256,
-                    "digest": request.new_repository_commitment_digest,
-                },
-                "commitment_rebind_repository_binding_mismatch",
-            ),
-            (new_lane.id == old_lane["id"], "commitment_rebind_identity_mismatch"),
-            (
-                new_lane.subjects == (request.old_repository_id,),
-                "commitment_rebind_repository_identity_mismatch",
-            ),
-            (
-                parents == [request.target_commit, request.expect_head],
-                "commitment_rebind_target_parent_mismatch",
-            ),
-            (
-                current_tree(repo, request.target_commit) == request.expect_index_tree,
-                "commitment_rebind_target_tree_mismatch",
-            ),
-            (
-                all(target[name] == value for name, value in declared_target.items()),
-                "commitment_rebind_target_binding_mismatch",
             ),
         )
     )

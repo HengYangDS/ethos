@@ -281,6 +281,9 @@ def local_state_migration(
 
 def local_state_mutation_guard(root: Path) -> dict[str, object]:
     """Require one reviewed migration before any legacy-backed mutation."""
+    current = local_state_root(repository_root(root)) / "state.sqlite"
+    if current.is_file() and current.stat().st_size:
+        return {"required_gaps": [], "plan_digest": "", "next_action": ""}
     migration = _Migration.plan(root)
     if migration.source_database_digest and not migration.target_database_digest:
         resolved = root.resolve()

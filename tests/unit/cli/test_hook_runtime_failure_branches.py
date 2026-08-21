@@ -10,6 +10,41 @@ import pytest
 import ethos.adapters.repo.hook_runtime as runtime
 
 
+def _candidate_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    status: str,
+) -> Path:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    policy = type(
+        "Policy",
+        (),
+        {
+            "candidate_branch": "candidate/dev",
+            "accepted_branch": "dev",
+            "release_branch": "main",
+            "release_mirror": "independent",
+            "role_for_branch": lambda _self, _branch: "accepted",
+        },
+    )()
+    monkeypatch.setattr(runtime, "resolve_ref_move_policy", lambda *_args: policy)
+    monkeypatch.setattr(
+        runtime,
+        "worktree_records",
+        lambda *_args, **_kwargs: [
+            {"branch": "candidate/dev", "path": candidate, "head": "b" * 40}
+        ],
+    )
+    monkeypatch.setattr(
+        runtime,
+        "run_git",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, status, ""),
+    )
+    return candidate
+
+
 def test_install_rejects_nonexistent_and_relative_python(tmp_path: Path) -> None:
     for python in (Path("python"), tmp_path / "missing-python"):
         with pytest.raises(ValueError, match="hook_runtime_python_invalid"):
@@ -38,32 +73,7 @@ def test_candidate_report_rejects_dirty_or_unbound_candidate(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    candidate = tmp_path / "candidate"
-    candidate.mkdir()
-    policy = type(
-        "Policy",
-        (),
-        {
-            "candidate_branch": "candidate/dev",
-            "accepted_branch": "dev",
-            "release_branch": "main",
-            "release_mirror": "independent",
-            "role_for_branch": lambda _self, _branch: "accepted",
-        },
-    )()
-    monkeypatch.setattr(runtime, "resolve_ref_move_policy", lambda *_args: policy)
-    monkeypatch.setattr(
-        runtime,
-        "worktree_records",
-        lambda *_args, **_kwargs: [
-            {"branch": "candidate/dev", "path": candidate, "head": "b" * 40}
-        ],
-    )
-    monkeypatch.setattr(
-        runtime,
-        "run_git",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, "dirty\n", ""),
-    )
+    _candidate_runtime(monkeypatch, tmp_path, status="dirty\n")
     result = runtime.execute_hook(
         tmp_path,
         "reference-transaction",
@@ -90,40 +100,14 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
     capsys: pytest.CaptureFixture[str],
     binding: dict[str, object],
 ) -> None:
-    candidate = tmp_path / "candidate"
-    candidate.mkdir()
+    _candidate_runtime(monkeypatch, tmp_path, status="")
     if binding["python"]:
         binding["python"] = str(tmp_path / str(binding["python"]))
-    policy = type(
-        "Policy",
-        (),
-        {
-            "candidate_branch": "candidate/dev",
-            "accepted_branch": "dev",
-            "release_branch": "main",
-            "release_mirror": "independent",
-            "role_for_branch": lambda _self, _branch: "accepted",
-        },
-    )()
-    monkeypatch.setattr(runtime, "resolve_ref_move_policy", lambda *_args: policy)
-    monkeypatch.setattr(
-        runtime,
-        "worktree_records",
-        lambda *_args, **_kwargs: [
-            {"branch": "candidate/dev", "path": candidate, "head": "b" * 40}
-        ],
-    )
     monkeypatch.setattr(
         runtime,
         "hook_runtime_binding",
         lambda _root: binding,
     )
-    monkeypatch.setattr(
-        runtime,
-        "run_git",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, "", ""),
-    )
-
     result = runtime.execute_hook(
         tmp_path,
         "reference-transaction",

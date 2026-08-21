@@ -1,4 +1,4 @@
-"""Explicit semantic-v2 values shared by tests."""
+"""Explicit semantic-contract values shared by tests."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 
-def attestation_v2(
+def attestation_fixture(
     *,
     predicate: str,
     verifier: str,
@@ -59,7 +59,7 @@ def attestation_v2(
     )
 
 
-def commitment_v2(**fields: object) -> Commitment:
+def commitment_fixture(**fields: object) -> Commitment:
     """Build one complete Commitment v2 without adding production defaults."""
     required = {"schema_version", "id", "intent", "subjects"}
     empty_collections = dict.fromkeys(Commitment.model_fields.keys() - required, ())

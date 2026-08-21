@@ -4,7 +4,7 @@ import hashlib
 import subprocess
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import tomli_w
@@ -26,9 +26,6 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.contracts.branch.roles import branch_role_policy_from_text
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.governed_repository import commit_fixture_file
@@ -36,24 +33,14 @@ from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import init_repo_with_candidate
-from tests.support.governed_repository import start_adopted_candidate
 from tests.support.lifecycle_cases import LaneStartCase
 from tests.support.literal_cases import literal_case
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _HOLDER = "agent:test:case:agent-test"
-_LEGACY_POLICY = """[branch_roles]
-release_branch = "main"
-accepted_branch = "dev"
-candidate_branch = "candidate/dev"
-release_mirror = "accepted_ff"
-work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-repository_family_worktrees = true
-"""
-_ADOPTED_TRANSITION_POLICY = (
-    Path(__file__).parents[2] / "fixtures/adopter-terminal-v1/workspace.toml"
-).read_text()
 _LEASE_COORDINATES = literal_case("lanes.test_lane_family_profile:assign:_LEASE_COORDINATES:0")
 
 
@@ -171,79 +158,6 @@ def test_canonical_sibling_profile_uses_date_bound_identity(
     lane_id = "20260722-retired-lane-admission"
     assert report["branch"] == f"work/{lane_id}"
     assert report["path"] == (tmp_path / "repo-worktrees" / lane_id).as_posix()
-
-
-def test_legacy_complete_branch_policy_preserves_canonical_sibling_authority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, _candidate = start_adopted_candidate(tmp_path)
-    (repo / ".ethos/workspace.toml").write_text(_LEGACY_POLICY, encoding="utf-8")
-    git(repo, "add", ".ethos/workspace.toml")
-    git(repo, "commit", "-m", "adopt legacy complete branch policy")
-    source = create_change_source_lane(
-        repo,
-        tmp_path / "repo-work-source",
-        branch="work/source-repository-record-publication",
-        holder_ref=_HOLDER,
-    )
-    assert branch_role_policy_from_text(_LEGACY_POLICY).canonical_sibling_worktrees
-    assert strict_branch_role_policy_from_text(_LEGACY_POLICY).canonical_sibling_worktrees
-    blocked = start_work_lane(
-        root=repo,
-        name="repository record publication",
-        source_root=source,
-        path=tmp_path / "intentionally-noncanonical",
-        holder_ref=_HOLDER,
-    )
-    assert blocked["required_gaps"] == ["work_lane_path_not_canonical"]
-    monkeypatch.setattr(lanes, "utc_now", lambda: datetime(2026, 8, 9, tzinfo=UTC))
-    canonical = start_work_lane(
-        root=repo,
-        name="repository record publication",
-        source_root=source,
-        holder_ref=_HOLDER,
-    )
-    lane_id = "20260809-repository-record-publication"
-    assert (canonical["verdict"], canonical["required_gaps"]) == ("pass", [])
-    assert canonical["branch"] == f"work/{lane_id}"
-    assert canonical["path"] == (tmp_path / "repo-worktrees" / lane_id).as_posix()
-
-
-@pytest.mark.parametrize(
-    ("text", "loose_error", "strict_error"),
-    [
-        pytest.param(
-            "[branch_roles]\nrepository_family_worktrees = true\n",
-            "branch_roles legacy schema requires migration",
-            "branch_roles legacy schema requires migration",
-            id="incomplete_retired_branch_policy_key_fails_closed",
-        ),
-        pytest.param(
-            _LEGACY_POLICY.replace("repository_family_worktrees", "repository_family_worktree"),
-            "branch_roles contains unknown fields",
-            "branch_roles table must be complete and exact",
-            id="unknown_retired_branch_policy_key_fails_closed",
-        ),
-    ],
-)
-def test_retired_branch_policy_claims(text: str, loose_error: str, strict_error: str) -> None:
-    with pytest.raises(ValueError, match=loose_error):
-        branch_role_policy_from_text(text)
-    with pytest.raises(ValueError, match=strict_error):
-        strict_branch_role_policy_from_text(text)
-
-
-def test_adopted_transition_profile_is_read_only_and_exact() -> None:
-    assert branch_role_policy_from_text(_ADOPTED_TRANSITION_POLICY) == BranchRolePolicy()
-    with pytest.raises(ValueError, match="branch_roles table must be complete and exact"):
-        strict_branch_role_policy_from_text(_ADOPTED_TRANSITION_POLICY)
-    for invalid in (
-        _ADOPTED_TRANSITION_POLICY + 'authority = "implicit"\n',
-        _ADOPTED_TRANSITION_POLICY.replace('["proof:execution"]', '"proof:execution"'),
-    ):
-        with pytest.raises(ValueError, match="branch_roles transition contains unknown fields"):
-            branch_role_policy_from_text(invalid)
 
 
 def test_start_work_lane_returns_the_bound_actor_lease_and_carrier_receipt(
@@ -631,7 +545,7 @@ def _mutate_blocked_start(
         repository = load_repository_commitment(case.candidate)
         carrier.write_text(
             tomli_w.dumps(
-                commitment_v2(
+                commitment_fixture(
                     id="change:stale",
                     intent="Stale.",
                     subjects=(repository.id,),
@@ -673,7 +587,7 @@ def _mutate_blocked_start(
         repository = load_repository_commitment(case.source)
         (second / "commitment.toml").write_text(
             tomli_w.dumps(
-                commitment_v2(
+                commitment_fixture(
                     id="change:second",
                     intent="Second.",
                     subjects=(repository.id,),

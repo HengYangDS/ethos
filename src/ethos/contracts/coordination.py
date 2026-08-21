@@ -404,7 +404,6 @@ class CommitmentRebindRequest(BaseModel):
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
-    operation: Literal["commitment-rebind", "v1-to-v2-bootstrap"] = "commitment-rebind"
     branch: str = Field(min_length=1)
     holder_ref: str = Field(min_length=1)
     lease_id: str = Field(min_length=1)
@@ -426,11 +425,5 @@ class CommitmentRebindRequest(BaseModel):
     new_commitment_path: RepositoryRelativePath
     new_commitment_bytes_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     new_commitment_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    old_repository_commitment_path: RepositoryRelativePath = ".ethos/commitment.toml"
-    old_repository_commitment_bytes_sha256: str = Field(default="0" * 64, pattern=r"^[a-f0-9]{64}$")
-    old_repository_id: str = ""
-    new_repository_commitment_path: RepositoryRelativePath = ".ethos/commitment.toml"
-    new_repository_commitment_bytes_sha256: str = Field(default="0" * 64, pattern=r"^[a-f0-9]{64}$")
-    new_repository_commitment_digest: str = Field(default="0" * 64, pattern=r"^[a-f0-9]{64}$")
     repair_change_identity: bool = False
     apply: bool = False

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 import ethos.repository.openspec.audit as audit
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
-from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
+from ethos.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,6 +16,11 @@ if TYPE_CHECKING:
 def _write(path: Path, content: str = "") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _protected_policy(monkeypatch) -> None:
+    policy = BranchRolePolicy(release_branch="release")
+    monkeypatch.setattr(audit, "load_branch_role_policy", lambda _root: policy)
 
 
 def test_official_config_reports_malformed_unavailable_and_invalid_shapes(monkeypatch, tmp_path):
@@ -78,22 +84,8 @@ def test_active_change_reports_ignore_archives_and_reject_invalid_identifiers(tm
 def test_protected_branch_report_preserves_unknown_and_unreadable_observations(
     monkeypatch, tmp_path
 ):
-    policy = type(
-        "Policy",
-        (),
-        {
-            "release_branch": "release",
-            "accepted_branch": "dev",
-            "candidate_branch": "candidate/dev",
-            "role_for_branch": lambda _self, branch: {
-                "release": ROLE_RELEASE_ROOT,
-                "dev": ROLE_ACCEPTED_ROOT,
-                "candidate/dev": "candidate",
-            }[branch],
-        },
-    )()
-    monkeypatch.setattr(audit, "load_branch_role_policy", lambda _root: policy)
-    observations = {
+    _protected_policy(monkeypatch)
+    observations: dict[str, tuple[dict[str, object], dict[str, object] | None]] = {
         "release": (
             {"verdict": "unknown", "state": "unknown", "required_gaps": ["release-unavailable"]},
             None,
@@ -116,23 +108,9 @@ def test_protected_branch_report_preserves_unknown_and_unreadable_observations(
 
 
 def test_protected_branch_report_deduplicates_and_promotes_selected_roles(monkeypatch, tmp_path):
-    policy = type(
-        "Policy",
-        (),
-        {
-            "release_branch": "release",
-            "accepted_branch": "dev",
-            "candidate_branch": "candidate/dev",
-            "role_for_branch": lambda _self, branch: {
-                "release": ROLE_RELEASE_ROOT,
-                "dev": ROLE_ACCEPTED_ROOT,
-                "candidate/dev": "candidate",
-            }[branch],
-        },
-    )()
-    monkeypatch.setattr(audit, "load_branch_role_policy", lambda _root: policy)
-    present = {"verdict": "pass", "state": "present", "required_gaps": []}
-    observations = {
+    _protected_policy(monkeypatch)
+    present: dict[str, object] = {"verdict": "pass", "state": "present", "required_gaps": []}
+    observations: dict[str, tuple[dict[str, object], dict[str, object] | None]] = {
         "release": (
             present,
             {"verdict": "pass", "changes": ["active", "active"], "required_gaps": []},
@@ -213,17 +191,20 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
         "load_branch_role_policy",
         lambda _root: type("Policy", (), {"role_for_branch": lambda *_args: "work_lane"})(),
     )
-    residue = {
+    residue: dict[str, object] = {
         "verdict": "pass",
         "advisory_gaps": [],
         "required_gaps": [],
     }
-    gaps = audit.openspec_shape_report(
-        tmp_path,
-        current_branch="work/change",
-        protected_branch_residue=residue,
-        spec_diff="",
-    )["required_gaps"]
+    gaps = cast(
+        "list[str]",
+        audit.openspec_shape_report(
+            tmp_path,
+            current_branch="work/change",
+            protected_branch_residue=residue,
+            spec_diff="",
+        )["required_gaps"],
+    )
 
     assert set(gaps) == {
         "openspec_specs_root_entry_unexpected:linked",
@@ -234,10 +215,13 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
     absent = tmp_path / "absent"
     _write(absent / "openspec/config.yaml", "schema: spec-driven\n")
     (absent / "openspec/specs").write_text("not a directory", encoding="utf-8")
-    absent_gaps = audit.openspec_shape_report(
-        absent,
-        current_branch="work/change",
-        protected_branch_residue=residue,
-        spec_diff="",
-    )["required_gaps"]
+    absent_gaps = cast(
+        "list[str]",
+        audit.openspec_shape_report(
+            absent,
+            current_branch="work/change",
+            protected_branch_residue=residue,
+            spec_diff="",
+        )["required_gaps"],
+    )
     assert "openspec_specs_not_directory" in absent_gaps

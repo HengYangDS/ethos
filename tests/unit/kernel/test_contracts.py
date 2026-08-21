@@ -25,9 +25,9 @@ from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.value import mutable_json
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
-_PLAN_COMMITMENT = commitment_v2(
+_PLAN_COMMITMENT = commitment_fixture(
     id="change:test-plan",
     intent="Exercise one transition plan.",
     subjects=("repository:test",),
@@ -90,7 +90,7 @@ def _attestation(
 
 
 def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
-    commitment = commitment_v2(
+    commitment = commitment_fixture(
         id="change:terminal-kernel",
         intent="Base",
         subjects=("repository:test",),
@@ -142,7 +142,7 @@ def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -
     }
     assert (
         commitment.digest()
-        != commitment_v2(
+        != commitment_fixture(
             id="change:terminal-kernel",
             intent="Base",
             subjects=("repository:test",),
@@ -203,7 +203,7 @@ def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path:
 def test_commitment_rejects_process_and_distribution_fields(field: str) -> None:
     with pytest.raises(ValidationError):
         Commitment.model_validate(
-            commitment_v2(
+            commitment_fixture(
                 id="change:terminal-kernel",
                 intent="Base",
                 subjects=("repository:test",),
@@ -215,7 +215,7 @@ def test_commitment_rejects_process_and_distribution_fields(field: str) -> None:
 def test_commitment_rejects_reusable_permissions() -> None:
     with pytest.raises(ValidationError):
         Commitment.model_validate(
-            commitment_v2(
+            commitment_fixture(
                 id="change:terminal-kernel",
                 intent="Base",
                 subjects=("repository:test",),
@@ -229,7 +229,7 @@ def test_commitment_rejects_reusable_permissions() -> None:
 )
 def test_commitment_rejects_ambiguous_scope(scope: tuple[str, ...]) -> None:
     with pytest.raises(ValueError, match=r"change_scope_invalid|semantic_collection_duplicate"):
-        commitment_v2(
+        commitment_fixture(
             id="change:invalid-scope",
             intent="Reject ambiguous scope.",
             subjects=("repository:test",),
@@ -384,7 +384,7 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
     ("factory", "expected_digest"),
     [
         pytest.param(
-            lambda value: commitment_v2(
+            lambda value: commitment_fixture(
                 id="change:digest-matrix",
                 intent="Bind commitment identity.",
                 subjects=("repository:test",),
@@ -507,7 +507,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
     assert not {"campaign", "collaboration", "compatibility", "publication"} & set(
         commitment["properties"]
     )
-    structurally_valid = commitment_v2(
+    structurally_valid = commitment_fixture(
         id="change:schema-projection",
         intent="Prove the schema boundary.",
         subjects=("repository:test",),

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import subprocess
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,6 +8,7 @@ import pytest
 import ethos.adapters.mutation.lane_start_rollback as rollback
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -33,13 +33,36 @@ def _run_worktree_list(
     branch: str = "work/example",
     head: str = "a" * 40,
     returncode: int = 0,
-):
+) -> Callable[..., subprocess.CompletedProcess[str]]:
     output = f"worktree {target}\nHEAD {head}\nbranch refs/heads/{branch}\n"
 
     def run(*_args, **_kwargs):
         return subprocess.CompletedProcess(("git",), returncode, output, "")
 
     return run
+
+
+def _rollback_context(
+    tmp_path: Path,
+    *,
+    target: Path | None = None,
+    completed: subprocess.CompletedProcess[str] | None = None,
+    run: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+    lease: dict[str, object] | None = None,
+    failure_gap: str = "lane_start_failed",
+) -> rollback.LaneStartRollback:
+    lane = target or tmp_path / "lane"
+    return rollback.LaneStartRollback(
+        repo=tmp_path,
+        target=lane,
+        branch="work/example",
+        ownership=("work/example", "a" * 40, "a" * 40),
+        completed=completed or _completed(),
+        run=run or _run_worktree_list(lane),
+        lease=lease,
+        source_lease={},
+        failure_gap=failure_gap,
+    )
 
 
 def test_worktree_head_rejects_failed_or_mismatched_observation(tmp_path: Path) -> None:
@@ -113,19 +136,7 @@ def test_rollback_reports_cleanup_failure_without_deleting_ref(
     )
     monkeypatch.setattr(rollback, "state_database", lambda _repo: tmp_path / "state.sqlite")
     monkeypatch.setattr(rollback, "revoke_lease", lambda *_args, **_kwargs: {})
-    context = rollback.LaneStartRollback(
-        repo=tmp_path,
-        target=target,
-        branch="work/example",
-        ownership=("work/example", "a" * 40, "a" * 40),
-        completed=_completed(),
-        run=_run_worktree_list(target),
-        lease=_lease(),
-        source_lease={},
-        failure_gap="lane_start_failed",
-    )
-
-    report = rollback.rollback_lane_start(context)
+    report = rollback.rollback_lane_start(_rollback_context(tmp_path, lease=_lease()))
 
     assert report["carrier_cleanup"] == {"worktree_removed": False, "ref_removed": False}
     assert report["required_gaps"] == [
@@ -142,19 +153,7 @@ def test_rollback_reports_ref_drift_before_delete(
     monkeypatch.setattr(rollback, "remove_lane_start_worktree", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(rollback, "state_database", lambda _repo: tmp_path / "state.sqlite")
     monkeypatch.setattr(rollback, "revoke_lease", lambda *_args, **_kwargs: {})
-    context = rollback.LaneStartRollback(
-        repo=tmp_path,
-        target=tmp_path / "lane",
-        branch="work/example",
-        ownership=("work/example", "a" * 40, "a" * 40),
-        completed=_completed(),
-        run=_run_worktree_list(tmp_path / "lane"),
-        lease=_lease(),
-        source_lease={},
-        failure_gap="lane_start_failed",
-    )
-
-    report = rollback.rollback_lane_start(context)
+    report = rollback.rollback_lane_start(_rollback_context(tmp_path, lease=_lease()))
 
     assert report["required_gaps"] == [
         "lane_creation_compensation_failed",
@@ -178,19 +177,7 @@ def test_rollback_translates_ref_delete_and_lease_revoke_failures(
     monkeypatch.setattr(rollback, "delete_lane_start_ref", fail_delete)
     monkeypatch.setattr(rollback, "state_database", lambda _repo: tmp_path / "state.sqlite")
     monkeypatch.setattr(rollback, "revoke_lease", lambda *_args, **_kwargs: {})
-    context = rollback.LaneStartRollback(
-        repo=tmp_path,
-        target=target,
-        branch="work/example",
-        ownership=("work/example", "a" * 40, "a" * 40),
-        completed=_completed(),
-        run=_run_worktree_list(target),
-        lease=_lease(),
-        source_lease={},
-        failure_gap="lane_start_failed",
-    )
-
-    report = rollback.rollback_lane_start(context)
+    report = rollback.rollback_lane_start(_rollback_context(tmp_path, lease=_lease()))
 
     assert report["required_gaps"] == [
         "lane_creation_compensation_failed",
@@ -215,19 +202,14 @@ def test_successful_rollback_revokes_exact_lease(
         "revoke_lease",
         lambda _database, request: revoked.append(request) or {},
     )
-    context = rollback.LaneStartRollback(
-        repo=tmp_path,
-        target=target,
-        branch="work/example",
-        ownership=("work/example", "a" * 40, "a" * 40),
-        completed=_completed(""),
-        run=_run_worktree_list(target),
-        lease=lease,
-        source_lease={},
-        failure_gap="lane_start_postcondition_failed",
+    report = rollback.rollback_lane_start(
+        _rollback_context(
+            tmp_path,
+            completed=_completed(""),
+            lease=lease,
+            failure_gap="lane_start_postcondition_failed",
+        )
     )
-
-    report = rollback.rollback_lane_start(context)
 
     assert report["carrier_cleanup"] == {"worktree_removed": True, "ref_removed": True}
     assert report["lease_state"] == "revoked"
@@ -242,7 +224,7 @@ def test_rollback_preserves_child_process_diagnostics_after_cleanup(
     target = tmp_path / "lane"
     target.mkdir()
     completed = subprocess.CompletedProcess(("openspec", "new"), 7, "partial", "rejected")
-    completed.parse_error = "unexpected eof"
+    completed.__dict__["parse_error"] = "unexpected eof"
     monkeypatch.setattr(rollback, "ref_head", lambda *_args: "")
     monkeypatch.setattr(rollback, "remove_lane_start_worktree", lambda *_args, **_kwargs: True)
     context = rollback.LaneStartRollback(
@@ -284,5 +266,5 @@ def test_delete_ref_requires_lease_and_remove_worktree_is_fail_closed(
         target=tmp_path / "lane",
         branch="work/example",
         head="a" * 40,
-        run=lambda *_args, **_kwargs: SimpleNamespace(returncode=0),
+        run=lambda *_args, **_kwargs: subprocess.CompletedProcess(("git",), 0, "", ""),
     )

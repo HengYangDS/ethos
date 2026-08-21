@@ -35,7 +35,7 @@ from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 
 class WorkLaneFixture(NamedTuple):
@@ -253,7 +253,7 @@ def write_active_commitment(
         repository_commitment.parent.mkdir(parents=True, exist_ok=True)
         repository_commitment.write_text(
             tomli_w.dumps(
-                commitment_v2(
+                commitment_fixture(
                     id=repository_id,
                     intent="Govern the fixture repository.",
                     subjects=(repository_id,),
@@ -263,6 +263,48 @@ def write_active_commitment(
         )
     _write_openspec_baseline(repo)
     _write_active_change_carrier(repo, change_id=change_id, scope=scope)
+
+
+def write_repository_commitment(repo: Path, *, repository_id: str = "repository:test") -> str:
+    """Write one minimal repository Commitment and return its identity."""
+    path = repo / ".ethos/commitment.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        tomli_w.dumps(
+            commitment_fixture(
+                id=repository_id,
+                intent="Govern.",
+                subjects=(repository_id,),
+            ).model_dump(mode="python")
+        ),
+        encoding="utf-8",
+    )
+    return repository_id
+
+
+def write_change_commitment(
+    repo: Path,
+    change_id: str,
+    *,
+    intent: str = "Change.",
+    scope: tuple[str, ...] = (),
+) -> str:
+    """Write one minimal Change Commitment and return its relative carrier."""
+    relative = f"openspec/changes/{change_id}/commitment.toml"
+    path = repo / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        tomli_w.dumps(
+            commitment_fixture(
+                id=f"change:{change_id}",
+                intent=intent,
+                subjects=(load_repository_commitment(repo).id,),
+                scope=scope,
+            ).model_dump(mode="python")
+        ),
+        encoding="utf-8",
+    )
+    return relative
 
 
 def _write_openspec_baseline(repo: Path) -> None:
@@ -345,7 +387,7 @@ def _write_active_change_carrier(
     )
     (carrier / "commitment.toml").write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id=f"change:{change_id}",
                 intent="Exercise the governed fixture lifecycle.",
                 subjects=(repository_id,),

@@ -51,7 +51,7 @@ from tests.support.lifecycle_cases import assert_public_decision
 from tests.support.lifecycle_cases import insert_lease_row
 from tests.support.lifecycle_cases import strict_lease
 from tests.support.literal_cases import literal_case
-from tests.support.semantic import attestation_v2
+from tests.support.semantic import attestation_fixture
 
 SOURCE = "agent:test:case:source"
 TARGET = "agent:test:case:target"
@@ -1019,7 +1019,7 @@ def _takeover_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str):
         "target_holder_ref": TARGET,
         "source_state": state,
     }
-    auth = attestation_v2(
+    auth = attestation_fixture(
         predicate="lane-resolution:takeover",
         verifier="maintainer:test:case:reviewer",
         subject=f"git:branch:{case.branch}",

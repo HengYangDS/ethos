@@ -12,9 +12,6 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import a
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_request
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import admit_rebind_state
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import (
-    bootstrap_target_binding,
-)
-from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import (
     is_old_generation_lease,
 )
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_admission import is_partial_target
@@ -36,7 +33,6 @@ from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     recognized_rebind_attestation,
 )
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
-from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import ref_head
@@ -374,7 +370,7 @@ def _plan(
     old_commitment_digest: str,
     overlay_sha256: str,
 ):
-    authority = _plan_authority(repo, request, lease)
+    authority = _plan_authority(repo, lease)
     return compile_observed_git_effect(
         repo,
         authority,
@@ -383,15 +379,8 @@ def _plan(
         prior_attestations={},
         policy={
             "operation": (
-                request.operation
-                if request.operation == "v1-to-v2-bootstrap"
-                else "change.identity-repair"
-                if request.repair_change_identity
-                else "commitment.rebind"
+                "change.identity-repair" if request.repair_change_identity else "commitment.rebind"
             ),
-            "repository_commitment_bootstrap": request.operation == "v1-to-v2-bootstrap",
-            "prestate_repository_id": request.old_repository_id,
-            "prestate_repository_bytes_sha256": (request.old_repository_commitment_bytes_sha256),
             "old_commitment_digest": old_commitment_digest,
             "new_commitment_digest": request.new_commitment_digest,
         },
@@ -499,26 +488,16 @@ def _target_binding(
     request: CommitmentRebindRequest,
     lease: dict[str, object],
 ) -> dict[str, str]:
-    """Return the exact target binding for one declared operation."""
-    if request.operation == "v1-to-v2-bootstrap":
-        return bootstrap_target_binding(repo, request)
+    """Return the exact target binding for the current strict Commitment."""
     old = load_lease_bound_commitment(repo, lease=lease)
     return rebind_target_binding(repo, request, old)
 
 
 def _plan_authority(
     repo: Path,
-    request: CommitmentRebindRequest,
     lease: dict[str, object],
 ) -> Commitment:
-    """Select strict current authority without interpreting terminal v1 bytes."""
-    if request.operation == "v1-to-v2-bootstrap":
-        return load_commitment(
-            repo,
-            carrier=request.new_commitment_path,
-            tree_ref=request.target_commit,
-            expected_digest=request.new_commitment_digest,
-        )
+    """Select strict current authority."""
     return load_lease_bound_commitment(repo, lease=lease)
 
 

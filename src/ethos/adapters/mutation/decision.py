@@ -45,6 +45,36 @@ def admission_decision(
     )
 
 
+def _local_process_decision(
+    *,
+    action: str,
+    resource: str,
+    expected_state: dict[str, object],
+    policy_ref: str,
+    required_gaps: tuple[str, ...] = (),
+    why: tuple[str, ...] = (),
+) -> AdmissionDecision:
+    return admission_decision(
+        subject=MutationSubject(
+            action=action,
+            resource=resource,
+            expected_state=expected_state,
+        ),
+        verdict="block" if required_gaps else "pass",
+        basis=DecisionBasis(
+            enforcement_boundary="local_process_guard",
+            identity_basis="not_evaluated",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="current_local_observation",
+            verifier_provenance="current_runner",
+            time_basis="evaluation_time",
+        ),
+        policy_ref=policy_ref,
+        required_gaps=required_gaps,
+        why=why,
+    )
+
+
 def _closeout_candidate_gaps(
     root: Path,
     candidate: dict[str, object],
@@ -70,9 +100,10 @@ def _closeout_candidate_gaps(
     return [*gaps, *proof_gaps]
 
 
-def _request_gaps(
+def request_gaps(
     *, apply: bool, authorized: bool, expect_head: str | None, current_head: str
 ) -> list[str]:
+    """Return the shared exact-HEAD mutation request gaps."""
     gaps = []
     if apply and not authorized:
         gaps.append("authorization_required")
@@ -103,25 +134,16 @@ def evaluate_mutation(
         "expect_head": expect_head or "",
     }
     if not apply and command != "land":
-        return admission_decision(
-            subject=MutationSubject(
-                action=action, resource=root.resolve().as_posix(), expected_state=base_state
-            ),
-            verdict="pass",
-            basis=DecisionBasis(
-                enforcement_boundary="local_process_guard",
-                identity_basis="not_evaluated",
-                state_bindings=tuple(base_state),
-                evidence_boundary="current_local_observation",
-                verifier_provenance="current_runner",
-                time_basis="evaluation_time",
-            ),
+        return _local_process_decision(
+            action=action,
+            resource=root.resolve().as_posix(),
+            expected_state=base_state,
             policy_ref=f"commitment:{command}-admission",
             why=("readiness_only",),
         )
     status = status if status is not None else workspace_status(root)
     closeout = cast("dict[str, object]", status.get("closeout_support", {}))
-    gaps = _request_gaps(
+    gaps = request_gaps(
         apply=apply,
         authorized=authorized,
         expect_head=expect_head,
@@ -146,21 +168,12 @@ def evaluate_mutation(
         gaps.extend(proof_gaps(root, current_head))
     required_gaps = tuple(dict.fromkeys(gaps))
     expected_state = {**base_state, "role": role, "dirty": bool(status["dirty"])}
-    return admission_decision(
-        subject=MutationSubject(
-            action=action, resource=root.resolve().as_posix(), expected_state=expected_state
-        ),
-        verdict="block" if required_gaps else "pass",
-        basis=DecisionBasis(
-            enforcement_boundary="local_process_guard",
-            identity_basis="not_evaluated",
-            state_bindings=tuple(expected_state),
-            evidence_boundary="current_local_observation",
-            verifier_provenance="current_runner",
-            time_basis="evaluation_time",
-        ),
-        required_gaps=required_gaps,
+    return _local_process_decision(
+        action=action,
+        resource=root.resolve().as_posix(),
+        expected_state=expected_state,
         policy_ref=f"commitment:{command}-admission",
+        required_gaps=required_gaps,
     )
 
 
@@ -176,7 +189,7 @@ def evaluate_closeout_mutation(
     status = workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
-    gaps = _request_gaps(
+    gaps = request_gaps(
         apply=apply,
         authorized=authorized,
         expect_head=expect_head,
@@ -212,23 +225,12 @@ def evaluate_closeout_mutation(
         "confirmation_present": authorized,
         "expect_head": expect_head or "",
     }
-    return admission_decision(
-        subject=MutationSubject(
-            action="accepted.advance",
-            resource=root.resolve().as_posix(),
-            expected_state=expected_state,
-        ),
-        verdict="block" if required_gaps else "pass",
-        basis=DecisionBasis(
-            enforcement_boundary="local_process_guard",
-            identity_basis="not_evaluated",
-            state_bindings=tuple(expected_state),
-            evidence_boundary="current_local_observation",
-            verifier_provenance="current_runner",
-            time_basis="evaluation_time",
-        ),
-        required_gaps=required_gaps,
+    return _local_process_decision(
+        action="accepted.advance",
+        resource=root.resolve().as_posix(),
+        expected_state=expected_state,
         policy_ref="commitment:land-admission",
+        required_gaps=required_gaps,
     )
 
 

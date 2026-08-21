@@ -392,7 +392,7 @@ def _prewrite_report(
         reason,
         gaps,
     )
-    blocked["next_action"] = prewrite_next_action(admission)
+    blocked["next_action"] = str(admission.get("next_action") or prewrite_next_action(admission))
     return blocked
 
 

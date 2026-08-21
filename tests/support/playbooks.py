@@ -34,7 +34,7 @@ Repository source, tests, schemas, docs, claims, evidence, and command JSON are 
 """
 
 
-def write_v2_playbook_package(skills_root: Path, skill_id: str) -> str:
+def write_playbook_package(skills_root: Path, skill_id: str) -> str:
     package_dir = skills_root / skill_id
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(

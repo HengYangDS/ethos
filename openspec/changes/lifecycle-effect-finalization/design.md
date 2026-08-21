@@ -61,9 +61,12 @@ alone cannot prove which Change produced it.
 Apply recovery by re-reading all coordinates, reconstructing or validating the
 original effect witness, and performing one exact successor Lease CAS. The
 operation is idempotent: if the successor Lease and terminal Attestation are
-already present, it returns the same receipt. Missing or different-holder
-states route to the existing resume/takeover authority; no implicit same-holder
-assumption is made.
+already present, it returns the same receipt. An expired same-holder Lease
+routes to exact resume. A different-holder Lease first queries the accepted
+takeover authorization needed to form an exact takeover command. A truly
+missing Lease without an exact committed effect has no reconstructable current
+generation, so it fails closed with a public status command and an explicit
+user-decision marker. No path silently assumes holder identity.
 
 ### Scope attribution maps projections back to the source Change
 
@@ -82,6 +85,21 @@ transaction lock. If an observation is unavailable, the hook reports a stable
 `effect_observation_unavailable` gap and the public lifecycle command supplies
 the next action.
 
+### Official lifecycle commands use UTC and own their returned path
+
+ETHOS invokes the official OpenSpec command with `TZ=UTC` so date-bearing
+archive identities do not depend on the host-local day boundary. The official
+JSON result remains the authority for the resulting archive path. ETHOS only
+computes the same UTC destination before invocation when it must preserve an
+already tracked immutable generation that OpenSpec 1.9 would otherwise reject
+as a collision.
+
+## Requirement To Task To Proof
+
+| Requirement | Task | Proof |
+| --- | --- | --- |
+| `repository-governance:Lifecycle effect finalization authorizes exact transition paths` | `2.4` | `tests/unit/cli/test_openspec_archive_transition.py`, `tests/unit/cli/test_openspec_change_rollover.py`, `tests/unit/openspec/lifecycle/test_archive_transition_public_recovery.py`, `tests/unit/lanes/test_reference_transaction_hook_runtime.py` |
+
 ## Risks / Trade-offs
 
 - [Risk] A later commit is incorrectly attributed to an earlier Change →
@@ -95,6 +113,12 @@ the next action.
 - [Risk] Historical archive artifacts are mistaken for current authority →
   Mitigation: accept only effect-bound paths and retain archive bytes as
   historical evidence, not selectors.
+- [Trade-off] Closing the crash/recovery boundary adds distinct effect,
+  post-image, recovery, prewrite, and native-Attestation owners after deleting
+  the command-specific compensation paths. The repository source budget is
+  therefore recalibrated from 40k/85k to 41k/87k product/global ELOC; per-module
+  limits and the test budget remain unchanged, so the adjustment cannot hide a
+  mixed owner or weaker verification.
 
 ## Migration Plan
 

@@ -11,7 +11,7 @@ import ethos.adapters.mutation.landing as landing
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
-from tests.support.semantic import attestation_v2
+from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,7 +24,7 @@ def _pass_decision() -> SimpleNamespace:
 
 
 def _attestation() -> Attestation:
-    return attestation_v2(
+    return attestation_fixture(
         predicate="effect:git-ref-transaction",
         verifier="agent:test:case:landing",
         subject="git:ref:candidate/dev",

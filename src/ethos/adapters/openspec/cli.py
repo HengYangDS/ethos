@@ -194,6 +194,9 @@ def run_json(
                 "PATH": os.environ.get("PATH", os.defpath),
                 "PWD": str(root),
                 "OLDPWD": str(root),
+                "TZ": "UTC",
+                "OPENSPEC_TELEMETRY": "0",
+                "OPENSPEC_NO_UPDATE_CHECK": "1",
             },
         )
     except subprocess.TimeoutExpired as exc:

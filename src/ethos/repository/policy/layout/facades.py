@@ -7,6 +7,7 @@ from typing import Any
 from ethos.repository.policy.layout.policy import semantic_python_files
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -34,18 +35,14 @@ def package_init_facade_findings(
     files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
     """Find package `__init__.py` files that act as runtime facades."""
-    findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy, files=files):
-        if path.name != "__init__.py":
-            continue
-        rel = path.relative_to(root).as_posix()
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-        reasons = package_init_facade_reasons(tree)
-        if not reasons:
-            continue
-        gap = f"module_layout_package_init_facade:{rel}"
-        findings.append({"gap": gap, "path": rel, "reasons": reasons})
-    return findings
+    return _facade_findings(
+        root,
+        policy,
+        files,
+        include=lambda path: path.name == "__init__.py",
+        reasons=package_init_facade_reasons,
+        gap="module_layout_package_init_facade",
+    )
 
 
 def module_facade_findings(
@@ -54,18 +51,14 @@ def module_facade_findings(
     files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
     """Find ordinary modules that only re-export imported symbols."""
-    findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy, files=files):
-        if path.name == "__init__.py":
-            continue
-        rel = path.relative_to(root).as_posix()
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-        reasons = module_facade_reasons(tree)
-        if not reasons:
-            continue
-        gap = f"module_layout_module_facade:{rel}"
-        findings.append({"gap": gap, "path": rel, "reasons": reasons})
-    return findings
+    return _facade_findings(
+        root,
+        policy,
+        files,
+        include=lambda path: path.name != "__init__.py",
+        reasons=module_facade_reasons,
+        gap="module_layout_module_facade",
+    )
 
 
 def dynamic_compat_facade_findings(
@@ -74,17 +67,35 @@ def dynamic_compat_facade_findings(
     files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
     """Find modules that hide compatibility exports behind module `__getattr__`."""
+    return _facade_findings(
+        root,
+        policy,
+        files,
+        include=lambda path: path.name != "__init__.py",
+        reasons=dynamic_compat_facade_reasons,
+        gap="module_layout_dynamic_compat_facade",
+    )
+
+
+def _facade_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None,
+    *,
+    include: Callable[[Path], bool],
+    reasons: Callable[[ast.Module], list[str]],
+    gap: str,
+) -> list[dict[str, object]]:
     findings: list[dict[str, object]] = []
     for path in semantic_python_files(root, policy, files=files):
-        if path.name == "__init__.py":
+        if not include(path):
             continue
         rel = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-        reasons = dynamic_compat_facade_reasons(tree)
-        if not reasons:
+        found = reasons(tree)
+        if not found:
             continue
-        gap = f"module_layout_dynamic_compat_facade:{rel}"
-        findings.append({"gap": gap, "path": rel, "reasons": reasons})
+        findings.append({"gap": f"{gap}:{rel}", "path": rel, "reasons": found})
     return findings
 
 

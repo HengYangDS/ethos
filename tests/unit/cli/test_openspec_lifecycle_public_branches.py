@@ -11,11 +11,12 @@ if TYPE_CHECKING:
 
 import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.archive_binding as binding
+import ethos.adapters.openspec.lifecycle.archive_effect as effect
 import ethos.adapters.openspec.lifecycle.archive_transition as transition
 import ethos.adapters.openspec.lifecycle.report as report
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Commitment
@@ -30,7 +31,7 @@ def _result(*, returncode: int = 0, stdout: str = "") -> SimpleNamespace:
 
 
 def _commitment(scope: tuple[str, ...] = ("openspec/changes/change/**",)) -> Commitment:
-    return commitment_v2(
+    return commitment_fixture(
         id="change:change", intent="Archive exactly.", subjects=("repository:test",), scope=scope
     )
 
@@ -145,10 +146,10 @@ def test_public_lifecycle_filters_capability_escape_and_governance_rejects_inval
 def test_archive_transition_environment_rejects_extra_keys_and_stale_bindings(
     monkeypatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(transition, "current_tree", lambda *_a: "head-tree")
-    monkeypatch.setattr(transition, "current_tracked_head", lambda _root: "head")
-    monkeypatch.setattr(transition, "run_git", lambda *_a, **_k: _result(stdout="index-tree\n"))
-    raw = transition.archive_transition_environment(
+    monkeypatch.setattr(effect, "current_tree", lambda *_a: "head-tree")
+    monkeypatch.setattr(effect, "current_tracked_head", lambda _root: "head")
+    monkeypatch.setattr(effect, "run_git", lambda *_a, **_k: _result(stdout="index-tree\n"))
+    raw = effect.archive_transition_environment(
         tmp_path,
         change="change",
         head="head",
@@ -160,14 +161,14 @@ def test_archive_transition_environment_rejects_extra_keys_and_stale_bindings(
     payload["unexpected"] = True
     monkeypatch.setenv("ETHOS_ARCHIVE_TRANSITION", json.dumps(payload))
     assert (
-        transition.archive_transition_facts(
+        effect.archive_transition_facts(
             tmp_path, changed_paths=("archive",), requested_change="change"
         )
         is None
     )
     monkeypatch.setenv("ETHOS_ARCHIVE_TRANSITION", raw)
     assert (
-        transition.archive_transition_facts(
+        effect.archive_transition_facts(
             tmp_path, changed_paths=("different",), requested_change="change"
         )
         is None
@@ -197,10 +198,12 @@ def test_archive_context_and_binding_fail_closed_on_role_lease_and_commitment_er
     )
     assert binding.archive_context(tmp_path) is None
 
-    monkeypatch.setattr(binding, "current_tree", lambda *_a: "head-tree")
+    monkeypatch.setattr(binding, "current_tree", lambda *_a, **_k: "head-tree")
     monkeypatch.setattr(binding, "run_git", lambda *_a, **_k: _result(stdout="index-tree\n"))
     monkeypatch.setattr(
-        binding, "active_commitments", lambda *_a: ("openspec/changes/change/commitment.toml",)
+        binding,
+        "active_commitments",
+        lambda *_a, **_k: ("openspec/changes/change/commitment.toml",),
     )
     monkeypatch.setattr(
         binding,

@@ -252,6 +252,21 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     )
 
 
+def first_parent_successor(root: Path, ancestor: str, descendant: str) -> str:
+    """Return the unique first-parent child of ``ancestor`` leading to ``descendant``."""
+    if ancestor == descendant or not is_ancestor(root, ancestor, descendant):
+        return ""
+    commits = git_stdout(
+        root,
+        "rev-list",
+        "--first-parent",
+        "--reverse",
+        f"{ancestor}..{descendant}",
+    ).splitlines()
+    successor = next(iter(commits), "")
+    return successor if git_stdout(root, "rev-parse", f"{successor}^") == ancestor else ""
+
+
 def current_branch(root: Path) -> str:
     """Return the current branch, or an empty string when HEAD is detached."""
     return git_stdout(root, "branch", "--show-current")

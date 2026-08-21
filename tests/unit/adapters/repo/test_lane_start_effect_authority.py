@@ -17,7 +17,7 @@ from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 ZERO_OID = "0" * 40
 HOLDER = "agent:test:lane-start"
@@ -30,7 +30,7 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
         repo,
         ".ethos/commitment.toml",
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id=repository_id,
                 intent="Govern.",
                 subjects=(repository_id,),
@@ -98,7 +98,7 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
             "lease_generation": generation,
         },
     )
-    commitment = commitment_v2(
+    commitment = commitment_fixture(
         id="authority:test:lane-start",
         intent="Create one leased work lane.",
         subjects=(repository_id,),

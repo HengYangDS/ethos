@@ -16,7 +16,7 @@ from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -37,7 +37,7 @@ def _fresh_commitment(
     repository_id = load_repository_commitment(repo).id
     path.write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id=f"change:{change}",
                 intent="Exercise atomic fresh Change bootstrap.",
                 subjects=(repository_id,),

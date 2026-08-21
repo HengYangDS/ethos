@@ -15,6 +15,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.proof.plan import archive_authority_valid
 from ethos.contracts.proof.plan import archive_scope_gaps
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
@@ -209,7 +210,7 @@ def _archive_bound(attestation: Attestation) -> bool:
         archive = plan_from_statement(attestation).prior_attestations.get("openspec_archive")
     except (TypeError, ValueError):
         return False
-    return isinstance(archive, Mapping)
+    return archive_authority_valid(archive)
 
 
 def _assertion_digest(attestation: Attestation) -> str:

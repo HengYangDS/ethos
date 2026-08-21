@@ -3,12 +3,13 @@ from __future__ import annotations
 import subprocess
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 import tomli_w
 
 import ethos.adapters.repo.git_effects as git_effects
+from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
@@ -16,10 +17,7 @@ from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.semantic import commitment_v2
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from tests.support.semantic import commitment_fixture
 
 
 def _cas_plan(repo: Path, old: str, new: str):
@@ -31,7 +29,7 @@ def _cas_plan(repo: Path, old: str, new: str):
         observed_at=datetime(2026, 8, 10, tzinfo=UTC),
         values={"refs": {"refs/heads/dev": old}, "assertions": {}},
     )
-    authority = commitment_v2(
+    authority = commitment_fixture(
         id="authority:test:git-effect",
         intent="Apply exact ref CAS.",
         subjects=(facts.repository,),
@@ -62,6 +60,36 @@ def test_stage_effects_reject_missing_paths_stale_heads_and_git_failures(
     commit_fixture_file(repo, "next.txt", "next\n", "advance")
     with pytest.raises(ValueError, match="git_effect_head_stale"):
         git_effects.stage_git_worktree(repo, previous=head)
+
+
+def test_worktree_postimage_is_exact_and_does_not_mutate_the_real_index(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    index_tree = git(repo, "write-tree")
+    readme = repo / "README.md"
+    readme.write_text("changed\n", encoding="utf-8")
+    created = repo / "created.txt"
+    created.write_text("created\n", encoding="utf-8")
+    status = git(repo, "status", "--short")
+
+    with observe_worktree_postimage(repo, previous=head) as observed:
+        temporary_index = Path(observed.environment["GIT_INDEX_FILE"])
+        temporary_objects = Path(observed.environment["GIT_OBJECT_DIRECTORY"])
+        assert observed.tree != index_tree
+        assert observed.changed_paths == ("README.md", "created.txt")
+        assert git(repo, "write-tree") == index_tree
+        assert git(repo, "status", "--short") == status
+        assert readme.read_text(encoding="utf-8") == "changed\n"
+        assert created.read_text(encoding="utf-8") == "created\n"
+        assert temporary_index.is_file()
+        assert temporary_objects.is_dir()
+
+    assert not temporary_index.exists()
+    assert not temporary_objects.exists()
+    assert git(repo, "write-tree") == index_tree
+    assert git(repo, "status", "--short") == status
 
 
 def test_move_and_compensation_refuse_unsafe_paths_and_restore_exact_tree(
@@ -122,7 +150,7 @@ def test_exact_ref_cas_compensates_a_failed_postcondition(
     repository.parent.mkdir(parents=True, exist_ok=True)
     repository.write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id="repository:repo",
                 intent="Govern.",
                 subjects=("repository:repo",),

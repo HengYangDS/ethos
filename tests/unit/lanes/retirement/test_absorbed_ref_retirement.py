@@ -300,7 +300,7 @@ def test_absorbed_ref_retires_through_installed_reference_transaction_hook(
     assert git(repo, "rev-parse", "work/wrong-operation") == source
 
 
-def test_absorbed_ref_retires_legacy_source_without_branch_policy_through_current_policy(
+def test_absorbed_ref_retires_source_without_branch_policy_through_current_policy(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -316,12 +316,12 @@ def test_absorbed_ref_retires_legacy_source_without_branch_policy_through_curren
     assert missing_policy.returncode != 0
     adopt_and_commit(repo)
     accepted = git(repo, "rev-parse", "HEAD")
-    git(repo, "branch", "work/legacy-absorbed", source)
+    git(repo, "branch", "work/absorbed", source)
     install_hook_launchers(repo)
 
     applied = _retire(
         repo,
-        branch="work/legacy-absorbed",
+        branch="work/absorbed",
         source=source,
         accepted=accepted,
     )
@@ -331,7 +331,7 @@ def test_absorbed_ref_retires_legacy_source_without_branch_policy_through_curren
         "retired_absorbed_ref",
         [],
     )
-    assert git(repo, "branch", "--list", "work/legacy-absorbed") == ""
+    assert git(repo, "branch", "--list", "work/absorbed") == ""
 
 
 def test_installed_hook_compensates_legacy_retirement_when_attestation_fails(
@@ -373,27 +373,27 @@ def test_legacy_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked
     assert git(repo, "rev-parse", "work/legacy-unintended") == source
 
 
-def test_installed_hook_retires_two_legacy_refs_under_exact_legacy_accepted_policy(
+def test_installed_hook_retires_two_refs_under_exact_accepted_policy(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     source = git(repo, "rev-parse", "HEAD")
     adopt_and_commit(repo)
-    legacy_policy = """[branch_roles]
+    accepted_policy = """[branch_roles]
 release_branch = "main"
 accepted_branch = "dev"
 candidate_branch = "candidate/dev"
 release_mirror = "accepted_ff"
 work_branch_prefix = "work/"
 proposal_branch_prefix = "proposal/"
-repository_family_worktrees = true
+canonical_sibling_worktrees = true
 """
     workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text(legacy_policy, encoding="utf-8")
+    workspace.write_text(accepted_policy, encoding="utf-8")
     git(repo, "add", workspace.relative_to(repo).as_posix())
-    git(repo, "commit", "-m", "adopt legacy branch-role policy")
+    git(repo, "commit", "-m", "adopt accepted branch-role policy")
     accepted = git(repo, "rev-parse", "HEAD")
-    branches = ("work/legacy-one", "work/legacy-two")
+    branches = ("work/absorbed-one", "work/absorbed-two")
     for branch in branches:
         git(repo, "branch", branch, source)
     install_hook_launchers(repo)

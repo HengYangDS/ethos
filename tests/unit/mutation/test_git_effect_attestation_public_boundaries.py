@@ -16,7 +16,7 @@ from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -40,7 +40,7 @@ def _case(tmp_path: Path) -> tuple[Path, GitEffect, Any, dict[str, object], dict
         values={"refs": {"refs/heads/dev": old}, "assertions": {}},
     )
     plan = compile_git_effect_plan(
-        commitment_v2(
+        commitment_fixture(
             id="authority:test:attestation",
             intent="Exercise attestation boundaries.",
             subjects=("repository:repo",),

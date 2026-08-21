@@ -45,14 +45,14 @@ def commitment_carrier(
             "import importlib.resources,sys; "
             "sys.path.insert(0, sys.argv[1]); "
             "print(importlib.resources.files('ethos').joinpath("
-            "'data/semantic-v2/vectors.json').read_text())",
+            "'data/semantic-contract/vectors.json').read_text())",
             str(wheel),
         )
     )
     payload = tomllib.loads(vector["commitment"]["carrier_toml"])
     required = ("id", "intent", "subjects", "scope", "dependencies")
     if not all(key in payload for key in required):
-        message = "packaged semantic-v2 vector has no structured commitment fields"
+        message = "packaged semantic contract vector has no structured commitment fields"
         raise RuntimeError(message)
     payload.update(id=commitment_id, intent=intent, subjects=list(subjects), scope=list(scope))
     for key, value in payload.items():

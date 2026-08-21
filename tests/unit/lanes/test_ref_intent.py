@@ -31,8 +31,8 @@ from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
-from tests.support.semantic import attestation_v2
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import attestation_fixture
+from tests.support.semantic import commitment_fixture
 
 
 def _oid(label: str) -> str:
@@ -97,7 +97,7 @@ def _proof():
         "operation": "git.ref.compare-and-swap",
         "effect_digest": GitEffect(updates={"refs/heads/dev": _update()}).digest(),
     }
-    return attestation_v2(
+    return attestation_fixture(
         predicate="proof:execution",
         verifier="agent:test:case:ref-effect",
         subject=f"git:commit:{_oid('new')}",
@@ -114,7 +114,7 @@ def _effect_plan(proof):
     old, new = _oid("old"), _oid("new")
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=old, desired=new)})
     return compile_git_effect_plan(
-        commitment_v2(
+        commitment_fixture(
             id="commitment:test:ref-effect",
             intent="Test one exact proof-bound ref effect.",
             subjects=("repository:test",),

@@ -9,7 +9,7 @@ import tomli_w
 from ethos.adapters.repo.commitment import commitment_generation_origin
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
-from tests.support.semantic import commitment_v2
+from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -20,7 +20,7 @@ def _write_change_carrier(root: Path, path: str, *, intent: str = "Track one ori
     carrier.parent.mkdir(parents=True, exist_ok=True)
     carrier.write_text(
         tomli_w.dumps(
-            commitment_v2(
+            commitment_fixture(
                 id="change:origin-change",
                 intent=intent,
                 subjects=("repository:test",),

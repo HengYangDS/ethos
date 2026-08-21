@@ -13,7 +13,7 @@ from ethos.surface.cli.lane.lease import TakeoverOptions
 from ethos.surface.cli.lane.lease import emit_lease_result
 from ethos.surface.cli.lane.lease import lane_lease_takeover
 from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.semantic import attestation_v2
+from tests.support.semantic import attestation_fixture
 
 
 @pytest.mark.parametrize(
@@ -111,7 +111,7 @@ def test_takeover_cli_loads_authorization_and_projects_exact_request(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     now = datetime.now(UTC)
-    authorization = attestation_v2(
+    authorization = attestation_fixture(
         predicate="lane-resolution:takeover",
         verifier="maintainer:test:case:reviewer",
         subject="git:branch:work/example",

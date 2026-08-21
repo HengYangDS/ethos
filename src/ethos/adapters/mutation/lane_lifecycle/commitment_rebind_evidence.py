@@ -11,7 +11,6 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commitment import commitment_generation_origin
 from ethos.adapters.repo.commitment import load_commitment
-from ethos.adapters.repo.commitment import terminal_v1_binding
 from ethos.adapters.repo.dirty.change_provenance import working_overlay_sha256
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -80,7 +79,7 @@ def issue_rebind_attestation(
         message = "commitment_rebind_plan_lease_generation_invalid"
         raise TypeError(message)
     statement = {
-        "claim": {"operation": request.operation, "branch": request.branch},
+        "claim": {"operation": "commitment-rebind", "branch": request.branch},
         "old_lease_generation": dict(old_lease),
         "new_lease_generation": lease_generation(new_lease),
         "result": {"git": git_state, "lease": "epoch_advanced"},
@@ -212,6 +211,7 @@ def rebind_generation_authority(
     repository_id: str,
     commitment_digest: str,
     lease: dict[str, object],
+    attestations: tuple[Attestation, ...] | None = None,
 ) -> dict[str, object]:
     """Project one exact completed rebind as current Change continuity."""
     statement = mutable_json(attestation.payload.body)
@@ -222,21 +222,38 @@ def rebind_generation_authority(
     result = statement.get("result")
     if not isinstance(old, dict) or not isinstance(new, dict) or not isinstance(result, dict):
         return {}
+
+    current = lease_generation(lease)
+    generation_identity = (
+        "branch",
+        "lane_incarnation_id",
+        "lease_id",
+        "holder_ref",
+        "base_commitment_path",
+        "base_commitment_digest",
+    )
+    if any(new.get(name) != current.get(name) for name in generation_identity):
+        return {}
+
     try:
         validated = (
-            validated_plan_attestation(repo, attestation.plan_digest, issuer=attestation.verifier)
+            validated_plan_attestation(
+                repo,
+                attestation.plan_digest,
+                issuer=attestation.verifier,
+                attestations=attestations,
+            )
             if attestation.plan_digest
             else None
         )
     except ValueError:
-        return {}
+        validated = None
     if validated is None:
         return {}
     plan, _git_attestation = validated
     values = mutable_json(plan.facts.get("values"))
     if not isinstance(values, dict):
         return {}
-    current = lease_generation(lease)
     branch = str(current.get("branch") or "")
     previous_head = str(old.get("expected_head") or "")
     generation_head = str(new.get("expected_head") or "")
@@ -248,25 +265,11 @@ def rebind_generation_authority(
     )
     claim = statement.get("claim")
     transition = (
-        "v1-to-v2-bootstrap"
-        if claim == {"operation": "v1-to-v2-bootstrap", "branch": branch}
-        else "change.identity-repair"
+        "change.identity-repair"
         if plan.policy.get("transition") == "change.identity-repair"
         else "commitment.rebind"
     )
     try:
-        bootstrap = transition == "v1-to-v2-bootstrap"
-        origin = new if bootstrap else old
-        origin_id = (
-            terminal_v1_binding(
-                repo,
-                tree_ref=previous_head,
-                carrier=str(old.get("base_commitment_path") or ""),
-                repository=False,
-            )["id"]
-            if bootstrap
-            else plan.commitment.get("id")
-        )
         load_commitment(
             repo,
             carrier=str(new.get("base_commitment_path") or ""),
@@ -275,9 +278,9 @@ def rebind_generation_authority(
         )
         generation_base = commitment_generation_origin(
             repo,
-            head=generation_head if bootstrap else previous_head,
-            carrier=str(origin.get("base_commitment_path") or ""),
-            change_id=str(origin_id or "").removeprefix("change:"),
+            head=previous_head,
+            carrier=str(old.get("base_commitment_path") or ""),
+            change_id=str(plan.commitment.get("id") or "").removeprefix("change:"),
         )
     except ValueError:
         return {}
@@ -304,14 +307,10 @@ def rebind_generation_authority(
             attestation.verifier == current.get("holder_ref"),
             attestation.subject == f"commitment-rebind:{effect.digest()}",
             attestation.effect_digest == effect.digest() == plan.inputs.effect,
-            claim
-            in (
-                {"operation": "commitment-rebind", "branch": branch},
-                {"operation": "v1-to-v2-bootstrap", "branch": branch},
-            ),
+            claim == {"operation": "commitment-rebind", "branch": branch},
             plan.policy.get("operation") == "git.ref.compare-and-swap",
             plan.policy.get("transition") == transition,
-            transition in {"v1-to-v2-bootstrap", "commitment.rebind", "change.identity-repair"},
+            transition in {"commitment.rebind", "change.identity-repair"},
             git_effect_from_plan(plan) == effect,
             attestation.commitment_digest
             == plan.policy.get("old_commitment_digest")

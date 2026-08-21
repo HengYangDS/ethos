@@ -4,7 +4,6 @@ from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.contracts.plan import compile_plan
@@ -20,6 +19,7 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import issue_conformant_proof
 from tests.support.governed_repository import seed_executed_proof
 from tests.support.lane_scenarios import add_candidate_worktree
+from tests.support.openspec_lifecycle import stub_official_archive_state
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,6 +53,7 @@ def _add_archived_proof(candidate: Path, head: str) -> None:
     base = proof_plan(candidate, head=head, changed_paths=("README.md",))
     proof = issue_conformant_proof(candidate, head, plan=base, issued_at=datetime.now(UTC))
     values = dict(base.facts["values"])
+    effect_identity = "d" * 64
     plan = compile_plan(
         Commitment.model_validate(dict(base.commitment)).model_copy(
             update={"id": "change:historical-closeout"}
@@ -66,7 +67,18 @@ def _add_archived_proof(candidate: Path, head: str) -> None:
         ),
         base.nodes,
         policy=dict(base.policy),
-        prior_attestations={"openspec_archive": {"authorized_paths": ["README.md"]}},
+        prior_attestations={
+            "openspec_archive": {
+                "predicate": "effect:openspec-archive",
+                "attestation_id": "a" * 64,
+                "commitment_digest": "b" * 64,
+                "effect_digest": "c" * 64,
+                "effect_identity": effect_identity,
+                "input": {"effect_identity": effect_identity},
+                "output": {"changed_paths": ["README.md"]},
+                "authorized_paths": ["README.md"],
+            }
+        },
     )
     payload = proof.model_dump(mode="python", exclude={"id"}) | {
         "commitment_digest": plan.inputs.commitment,
@@ -224,28 +236,7 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
         return {"verdict": "pass", "required_gaps": [], "root": root.as_posix()}
 
     monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda *_args: {
-            "command": ["openspec", "list", "--json"],
-            "exit_code": 0,
-            "stdout": "",
-            "stderr": "",
-            "json": {
-                "changes": [
-                    {
-                        "name": "sample-change",
-                        "completedTasks": 1,
-                        "totalTasks": 1,
-                        "status": "complete",
-                    }
-                ]
-            },
-            "parse_error": "",
-        },
-    )
+    stub_official_archive_state(monkeypatch, completed=True, change_name="sample-change")
     payload = _closeout(repo)
     assert payload["verdict"] == "block"
     assert payload["state"] == "blocked"

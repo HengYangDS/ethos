@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 from ethos.adapters.mutation.lane_lifecycle.commitment_rebind_evidence import (
     rebind_generation_authority,
 )
-from ethos.adapters.openspec.generation.attestation import archive_effect_authority
 from ethos.adapters.openspec.generation.attestation import start_effect_authority
+from ethos.adapters.openspec.lifecycle.archive_effect import archive_effect_authority
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.profile import load_work_lane_commitment
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -275,6 +275,7 @@ def _effect_authorities(
                 repository_id=repository_id,
                 commitment_digest=commitment.digest(),
                 lease=lease,
+                attestations=attestations,
             )
             if projection:
                 start.append(projection)

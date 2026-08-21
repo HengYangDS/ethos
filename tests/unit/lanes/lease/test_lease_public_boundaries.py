@@ -7,6 +7,7 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
@@ -15,40 +16,19 @@ import ethos.adapters.store.state.lease.lifecycle.transitions as transitions
 import ethos.adapters.store.state.lease.projection as projection
 import ethos.surface.cli.lane.lease as lease_cli
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.coordination import LeaseOperationRequest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import start_adopted_work_lane
 from tests.support.lifecycle_cases import strict_lease
-from tests.support.semantic import attestation_v2
+from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.result import EthosResult
+
 HOLDER = "agent:test:case:owner"
 TARGET = "agent:test:case:target"
-
-
-def _request(
-    lease: dict[str, object],
-    operation: str,
-    *,
-    apply: bool = True,
-    **updates: object,
-) -> LeaseOperationRequest:
-    values: dict[str, object] = {
-        "operation": operation,
-        "branch": lease["lane_ref"],
-        "holder_ref": lease["holder_ref"],
-        "lease_id": lease["lease_id"],
-        "expected_epoch": lease["epoch"],
-        "expect_head": lease["expected_head"],
-        "expected_expires_at": lease["expires_at"],
-        "expected_payload_sha256": lease["payload_sha256"],
-        "apply": apply,
-        **updates,
-    }
-    return LeaseOperationRequest.model_validate(values)
 
 
 def _expire_lease(database: Path, branch: str) -> dict[str, object]:
@@ -68,21 +48,15 @@ def _expire_lease(database: Path, branch: str) -> dict[str, object]:
     return projection.observe_lease(database, branch).record()
 
 
-def test_resume_public_command_requires_expired_generation_and_preserves_identity(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    fixture = start_adopted_work_lane(tmp_path / "resume-cli", name="resume-cli", holder_ref=HOLDER)
-    database = state_database(fixture.worktree)
-    branch = "work/resume-cli"
-    expired = _expire_lease(database, branch)
-    monkeypatch.setenv("ETHOS_ACTOR", HOLDER)
-
-    payload = run_ethos(
+def _resume_args(
+    root: Path, branch: str, expired: dict[str, object], *extra: str
+) -> tuple[str, ...]:
+    return (
         "lane",
         "lease",
         "resume",
         "--root",
-        fixture.worktree.as_posix(),
+        root.as_posix(),
         "--branch",
         branch,
         "--holder-ref",
@@ -97,10 +71,23 @@ def test_resume_public_command_requires_expired_generation_and_preserves_identit
         str(expired["expires_at"]),
         "--payload-sha256",
         str(expired["payload_sha256"]),
-        "--ttl-seconds",
-        "120",
+        *extra,
         "--apply",
         "--json",
+    )
+
+
+def test_resume_public_command_requires_expired_generation_and_preserves_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = start_adopted_work_lane(tmp_path / "resume-cli", name="resume-cli", holder_ref=HOLDER)
+    database = state_database(fixture.worktree)
+    branch = "work/resume-cli"
+    expired = _expire_lease(database, branch)
+    monkeypatch.setenv("ETHOS_ACTOR", HOLDER)
+
+    payload = run_ethos(
+        *_resume_args(fixture.worktree, branch, expired, "--ttl-seconds", "120"),
         cwd=fixture.worktree,
     )
 
@@ -128,28 +115,7 @@ def test_resume_public_command_blocks_contrary_decision_without_mutation(
     monkeypatch.setenv("ETHOS_ACTOR", HOLDER)
 
     payload = run_ethos_blocked(
-        "lane",
-        "lease",
-        "resume",
-        "--root",
-        fixture.worktree.as_posix(),
-        "--branch",
-        branch,
-        "--holder-ref",
-        HOLDER,
-        "--lease-id",
-        str(expired["lease_id"]),
-        "--epoch",
-        str(expired["epoch"]),
-        "--expect-head",
-        str(expired["expected_head"]),
-        "--expires-at",
-        str(expired["expires_at"]),
-        "--payload-sha256",
-        str(expired["payload_sha256"]),
-        "--contrary-decision-present",
-        "--apply",
-        "--json",
+        *_resume_args(fixture.worktree, branch, expired, "--contrary-decision-present"),
         cwd=fixture.worktree,
     )
 
@@ -184,7 +150,7 @@ def test_takeover_storage_rechecks_incarnation_tree_and_repository_after_cas(
             "expected_payload_sha256": stored["payload_sha256"],
             "expected_dirty_content_sha256": expected_repository[2],
             "source_state": "source_lost",
-            "authorization": attestation_v2(
+            "authorization": attestation_fixture(
                 subject="git:branch:work/takeover",
                 predicate="lane-resolution:takeover",
                 verifier="maintainer:test:case:reviewer",
@@ -316,6 +282,7 @@ def test_cli_result_projection_prefers_lease_then_offer_and_preserves_diagnostic
         json_output=True,
     )
     result, json_output = emitted.pop()
+    result = cast("EthosResult", result)
     assert json_output is True
     assert result.summary == {
         "branch": "work/example",
@@ -339,6 +306,7 @@ def test_cli_result_projection_prefers_lease_then_offer_and_preserves_diagnostic
         json_output=False,
     )
     result, _json_output = emitted.pop()
+    result = cast("EthosResult", result)
     assert result.summary["lease_id"] == "lease:offer"
     assert result.required_gaps == ("lease_unknown",)
     assert result.next_action == ""

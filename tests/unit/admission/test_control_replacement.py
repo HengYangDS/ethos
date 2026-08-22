@@ -211,46 +211,32 @@ def test_receipt_and_proof_negative_matrix_fails_closed(
     assert _report(candidate, accepted, head, custom)["required_gaps"] == [
         "independent_verification_receipt_invalid"
     ]
-    mismatch = _trusted_receipt(tmp_path, monkeypatch, request, proof_floor_digest="0" * 64)
-    assert _report(candidate, accepted, head, mismatch)["required_gaps"] == [
-        "independent_verification_receipt_binding_mismatch"
-    ]
+    for field, wrong in (
+        ("commit", "0" * 40),
+        ("tree", "0" * 40),
+        ("action", "release"),
+        ("proof_floor_id", "ethos:wrong:v1"),
+        ("proof_floor_digest", "0" * 64),
+        ("policy_digest", "0" * 64),
+        ("implementation_digest", "0" * 64),
+        ("issuer", "provider:wrong"),
+        ("key_id", "provider:wrong"),
+    ):
+        report = _report(
+            candidate,
+            accepted,
+            head,
+            _trusted_receipt(tmp_path, monkeypatch, request, **{field: wrong}),
+        )
+        assert report["required_gaps"] == ["independent_verification_receipt_binding_mismatch"], (
+            field
+        )
     trusted = _trusted_receipt(tmp_path, monkeypatch, request)
     outside = tmp_path / "outside.json"
     outside.write_bytes(trusted.read_bytes())
     assert _report(candidate, accepted, head, outside)["required_gaps"] == [
         "independent_verification_receipt_outside_store"
     ]
-
-
-@pytest.mark.parametrize(
-    "updates",
-    [
-        {"commit": "0" * 40},
-        {"tree": "0" * 40},
-        {"action": "release"},
-        {"proof_floor_id": "ethos:wrong:v1"},
-        {"policy_digest": "0" * 64},
-        {"implementation_digest": "0" * 64},
-        {"issuer": "provider:wrong"},
-        {"key_id": "provider:wrong"},
-    ],
-)
-def test_external_receipt_identity_mismatch_fails_closed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    updates: dict[str, object],
-) -> None:
-    candidate, accepted, head = _control_change(tmp_path)
-    seed_executed_proof(candidate, head)
-    request = cast("dict[str, object]", _report(candidate, accepted, head)["verification_request"])
-    path = _trusted_receipt(tmp_path, monkeypatch, request, **updates)
-
-    report = _report(candidate, accepted, head, path)
-
-    assert report["verdict"] == "block"
-    assert report["mints_authority"] is False
-    assert report["required_gaps"]
 
 
 @pytest.mark.parametrize(

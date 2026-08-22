@@ -387,14 +387,14 @@ def _committed_archive_facts(
 ) -> ArchiveRecovery | None:
     """Recognize one exact direct-child archive post-image from Git facts."""
     previous_head = git_stdout(root, "rev-parse", f"{head}^")
-    if lease and previous_head != expect_head:
+    stale_lease = lease.get("expected_head") == expect_head and head != expect_head
+    if stale_lease and previous_head != expect_head:
         return None
     changed = tuple(
         git_stdout(
             root, "diff", "--name-only", "--diff-filter=ACMRTD", previous_head, head
         ).splitlines()
     )
-    stale_lease = lease.get("expected_head") == expect_head and head != expect_head
     ownerless = not lease
     carrier = next((path for path in changed if valid_archive_carrier(path, change)), "")
     carrier = carrier if stale_lease or ownerless else str(lease.get("base_commitment_path") or "")

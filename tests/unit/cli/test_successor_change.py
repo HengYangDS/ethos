@@ -8,11 +8,12 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+import tomli_w
 
-import ethos.adapters.mutation.lane_lifecycle.change_rollover as rollover
+import ethos.adapters.mutation.lane_lifecycle.successor_change as successor_change
 import ethos.adapters.openspec.lifecycle.intent as lifecycle_intent
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
+from ethos.adapters.mutation.lane_lifecycle.successor_change import start_change
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -25,9 +26,11 @@ from ethos.contracts.semantic import Attestation
 from ethos.normalization.coercion import integer
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import OpenSpecLifecycle
 from tests.support.openspec_lifecycle import completed_lifecycle
+from tests.support.semantic import commitment_fixture
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
 
@@ -197,6 +200,84 @@ def test_start_change_rolls_an_archived_owned_lane_to_a_new_commitment(
     )
 
 
+def test_start_change_cli_joins_the_current_and_additional_predecessors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree = lifecycle.worktree
+    current_predecessor = load_lease_bound_commitment(
+        worktree,
+        lease=lifecycle.lease,
+    ).digest()
+    related = commitment_fixture(
+        id="change:related-change",
+        intent="Preserve one independently governed predecessor.",
+        subjects=(load_repository_commitment(worktree).id,),
+    )
+    carrier = "openspec/changes/archive/2026-08-01-related-change/commitment.toml"
+    archived_head = commit_fixture_file(
+        worktree,
+        carrier,
+        tomli_w.dumps(related.model_dump(mode="python")),
+        "record related predecessor",
+    )
+
+    arguments = _start_change_arguments(
+        worktree,
+        archived_head,
+        "--predecessor",
+        related.digest(),
+    )
+    payload = run_ethos(*arguments, cwd=worktree)
+    recognized = run_ethos(*arguments, cwd=worktree)
+
+    committed = tomllib.loads(
+        (worktree / "openspec/changes/hosted-verification-fix/commitment.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+    expected_predecessors = sorted((current_predecessor, related.digest()))
+    assert payload["state"] == "started"
+    assert recognized["state"] == "recognized"
+    assert recognized["data"]["predecessors"] == expected_predecessors
+    assert committed["predecessors"] == expected_predecessors
+    assert payload["data"]["predecessors"] == committed["predecessors"]
+
+
+@pytest.mark.parametrize("mode", ["duplicate", "current"])
+def test_start_change_rejects_ambiguous_predecessor_input_before_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+) -> None:
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree = lifecycle.worktree
+    archived_head = current_tracked_head(worktree)
+    current = load_lease_bound_commitment(worktree, lease=lifecycle.lease).digest()
+    predecessor = current if mode == "current" else "a" * 64
+    requested = (predecessor,) if mode == "current" else (predecessor, predecessor)
+
+    report = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Reject ambiguous lineage input.",
+        scope=("tests/**",),
+        predecessors=requested,
+        expect_head=archived_head,
+        apply=True,
+    )
+
+    expected = (
+        "change_lineage_current_predecessor_redeclared"
+        if mode == "current"
+        else "change_lineage_predecessor_duplicate"
+    )
+    assert report["required_gaps"] == [expected]
+    assert current_tracked_head(worktree) == archived_head
+    assert not (worktree / "openspec/changes/hosted-verification-fix").exists()
+
+
 def test_start_change_binds_only_selected_input_disposed_to_the_successor(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -246,14 +327,14 @@ def test_start_change_apply_preserves_selected_set_addition_after_preflight(
         }
     )
     external = Attestation.issue(external.model_dump(mode="python", exclude={"id"}))
-    original = rollover.openspec_cli.run_json
+    original = successor_change.openspec_cli.run_json
 
     def replace_selected_set(root: Path, command: tuple[str, ...], arguments: tuple[str, ...]):
         if arguments[:2] == ("new", "change"):
             record_attestations(worktree, (external,))
         return original(root, command, arguments)
 
-    monkeypatch.setattr(rollover.openspec_cli, "run_json", replace_selected_set)
+    monkeypatch.setattr(successor_change.openspec_cli, "run_json", replace_selected_set)
 
     report = start_change(
         root=worktree,
@@ -503,10 +584,10 @@ def test_start_change_recovery_requires_later_commits_to_remain_in_scope(
     lifecycle = _archived_lane(tmp_path, monkeypatch)
     worktree = lifecycle.worktree
     archived_head = current_tracked_head(worktree)
-    commit = rollover.commit_git_worktree
-    advance = rollover.advance_committed_lease
+    commit = successor_change.commit_git_worktree
+    advance = successor_change.advance_committed_lease
     monkeypatch.setattr(
-        rollover,
+        successor_change,
         "commit_git_worktree",
         lambda root, *, previous, message: (
             previous
@@ -522,7 +603,7 @@ def test_start_change_recovery_requires_later_commits_to_remain_in_scope(
         ),
     )
     monkeypatch.setattr(
-        rollover,
+        successor_change,
         "advance_committed_lease",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("interrupted")),
     )
@@ -549,8 +630,8 @@ def test_start_change_recovery_requires_later_commits_to_remain_in_scope(
         "-m",
         "test: continue started change",
     )
-    monkeypatch.setattr(rollover, "commit_git_worktree", commit)
-    monkeypatch.setattr(rollover, "advance_committed_lease", advance)
+    monkeypatch.setattr(successor_change, "commit_git_worktree", commit)
+    monkeypatch.setattr(successor_change, "advance_committed_lease", advance)
 
     recovered = start_change(
         root=worktree,
@@ -592,6 +673,48 @@ def test_start_change_rejects_request_drift_for_an_existing_generation(
     assert drifted["required_gaps"] == ["openspec_change_request_mismatch"]
 
 
+def test_start_change_recovery_rejects_predecessor_set_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lifecycle = _archived_lane(tmp_path, monkeypatch)
+    worktree = lifecycle.worktree
+    related = commitment_fixture(
+        id="change:related-change",
+        intent="Preserve one independently governed predecessor.",
+        subjects=(load_repository_commitment(worktree).id,),
+    )
+    archived_head = commit_fixture_file(
+        worktree,
+        "openspec/changes/archive/2026-08-01-related-change/commitment.toml",
+        tomli_w.dumps(related.model_dump(mode="python")),
+        "record related predecessor",
+    )
+    started = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Repair hosted verification.",
+        scope=("tests/**",),
+        predecessors=(related.digest(),),
+        expect_head=archived_head,
+        apply=True,
+    )
+
+    drifted = start_change(
+        root=worktree,
+        change="hosted-verification-fix",
+        intent="Repair hosted verification.",
+        scope=("tests/**",),
+        predecessors=(),
+        expect_head=archived_head,
+        apply=True,
+    )
+
+    assert started["state"] == "started"
+    assert drifted["verdict"] == "block"
+    assert drifted["required_gaps"] == ["openspec_change_request_mismatch"]
+
+
 def test_start_change_does_not_recognize_a_forged_selected_member(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -611,7 +734,11 @@ def test_start_change_does_not_recognize_a_forged_selected_member(
         git(root, "commit", "-m", message)
         return {"verdict": "pass", "error": ""}
 
-    monkeypatch.setattr(rollover, "commit_git_worktree", commit_without_product_hooks)
+    monkeypatch.setattr(
+        successor_change,
+        "commit_git_worktree",
+        commit_without_product_hooks,
+    )
     started = run_ethos(*arguments, cwd=worktree)
     assert started["state"] == "started"
     _root, selected = read_attestation_set(worktree)

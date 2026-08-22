@@ -6,7 +6,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
+from ethos.adapters.mutation.lane_lifecycle.successor_change import start_change
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
 from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
@@ -17,6 +17,7 @@ class _StartChange(AppliedLaneCommandOptions):
     command = "lane start-change"
     intent: Annotated[str, Parameter(name="--intent")]
     scope: Annotated[tuple[str, ...], Parameter(name="--scope")]
+    predecessors: Annotated[tuple[str, ...], Parameter(name="--predecessor")] = ()
     selected_attestations: Annotated[tuple[str, ...], Parameter(name="--select-attestation")] = ()
     expect_head: Annotated[str, Parameter(name="--expect-head")]
     expected_overlay_digest: Annotated[str, Parameter(name="--expected-overlay-digest")] = ""
@@ -33,6 +34,7 @@ def lane_start_change(
         change=change,
         intent=options.intent,
         scope=options.scope,
+        predecessors=options.predecessors,
         selected_attestations=options.selected_attestations,
         expect_head=options.expect_head,
         expected_overlay_digest=options.expected_overlay_digest,

@@ -340,7 +340,11 @@ def test_start_effect_requires_predecessor_and_current_holder_continuity(
             ("ethos", "lane", "start-change"),
             {"change": "test-change", "previous_head": previous_head, "head": head},
             {"head": previous_head, "lease": old},
-            {"head": head, "lease": new},
+            {
+                "head": head,
+                "lease": new,
+                "predecessors": list(successor.predecessors),
+            },
         ),
         state="applied",
         commitment_digest=successor.digest(),
@@ -385,6 +389,88 @@ def test_start_effect_requires_predecessor_and_current_holder_continuity(
             },
         )
         == {}
+    )
+
+
+def test_start_effect_accepts_additional_predecessors_with_current_continuity(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repository, previous_head, head = "repository:test", "1" * 40, "2" * 40
+    predecessor = "a" * 64
+    successor = commitment_fixture(
+        id="change:test-change",
+        intent="Join exact governed predecessors.",
+        subjects=(repository,),
+        predecessors=tuple(sorted((predecessor, "b" * 64))),
+    )
+    old = lease_generation(
+        {
+            "lane_ref": "work/test-change",
+            "lane_incarnation_id": "lane:test-change",
+            "lease_id": "lease:test-change",
+            "epoch": 1,
+            "holder_ref": "agent:test",
+            "expected_head": previous_head,
+            "expected_tree": "3" * 40,
+            "base_commitment_path": (
+                "openspec/changes/archive/2026-08-14-test-change/commitment.toml"
+            ),
+            "base_commitment_bytes_sha256": "c" * 64,
+            "base_commitment_digest": predecessor,
+            "issued_at": "2026-08-15T00:00:00Z",
+            "renewed_at": "2026-08-15T00:00:00Z",
+            "path_scope": (),
+            "expires_at": "2026-08-16T00:00:00Z",
+            "payload_sha256": "d" * 64,
+        }
+    )
+    new = old | {
+        "epoch": 2,
+        "expected_head": head,
+        "expected_tree": "4" * 40,
+        "base_commitment_path": "openspec/changes/test-change/commitment.toml",
+        "base_commitment_bytes_sha256": "e" * 64,
+        "base_commitment_digest": successor.digest(),
+    }
+    receipt = issue_native_effect(
+        tmp_path,
+        effect=NativeEffect(
+            "effect:openspec-change-start",
+            "openspec.change.start",
+            ("ethos", "lane", "start-change"),
+            {"change": "test-change", "previous_head": previous_head, "head": head},
+            {"head": previous_head, "lease": old},
+            {
+                "head": head,
+                "lease": new,
+                "predecessors": list(successor.predecessors),
+            },
+        ),
+        state="applied",
+        commitment_digest=successor.digest(),
+        repository_id=repository,
+    )
+    monkeypatch.setattr(
+        effect_authority,
+        "load_lease_bound_commitment",
+        lambda *_args, **_kwargs: successor,
+    )
+    monkeypatch.setattr(
+        effect_authority,
+        "current_tree",
+        lambda _root, ref: {previous_head: "3" * 40, head: "4" * 40}[ref],
+    )
+    monkeypatch.setattr(effect_authority, "git_stdout", lambda _root, *_args: previous_head)
+    monkeypatch.setattr(effect_authority, "is_ancestor", lambda *_args: True)
+
+    assert effect_authority.start_effect_authority(
+        tmp_path,
+        receipt,
+        head,
+        repository,
+        successor,
+        {"lane_ref": "work/test-change", **new},
     )
 
 

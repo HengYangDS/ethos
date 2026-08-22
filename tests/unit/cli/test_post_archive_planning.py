@@ -7,7 +7,7 @@ from typing import cast
 
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.lane_lifecycle.archive_change import archive_change
-from ethos.adapters.mutation.lane_lifecycle.change_rollover import start_change
+from ethos.adapters.mutation.lane_lifecycle.successor_change import start_change
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.openspec.start_effect import current_generation_scope

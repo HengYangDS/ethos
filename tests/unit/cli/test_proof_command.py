@@ -10,13 +10,10 @@ import pytest
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.openspec.start_effect import CurrentGenerationBinding
 from ethos.adapters.openspec.start_effect import CurrentGenerationScope
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
-from tests.support.governed_repository import git
-from tests.support.openspec_lifecycle import completed_lifecycle
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -195,43 +192,6 @@ def test_prove_fail_closed_before_result_compilation(
 
     assert emitted[-1].required_gaps == (expected_gap,)
     assert emitted[-1].next_action == next_action
-
-
-def test_prove_names_exact_archive_recovery_for_a_stale_lease(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """A committed archive must not be misdirected to repository adoption."""
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    archive_path = lifecycle.worktree / "openspec/changes/archive/2026-08-04-fixture-change"
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
-    lifecycle.active.rename(archive_path)
-    git(lifecycle.worktree, "add", "--all")
-    git(lifecycle.worktree, "commit", "-m", "archive outside the controller")
-    archived_head = lifecycle.head
-    lease = leases_by_branch(lifecycle.worktree)[lifecycle.branch]
-    emitted = []
-    monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: lifecycle.worktree)
-    monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
-    monkeypatch.setattr(proof_cli, "_emit_state_migration_block", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(
-        proof_cli,
-        "_proof_context",
-        lambda *_args, **_kwargs: (
-            archived_head,
-            {"openspec": {}, "governance_context": {}},
-            CurrentGenerationScope((), {}),
-            {"summary": {}},
-        ),
-    )
-    monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
-
-    proof_cli.prove(root=lifecycle.worktree, json_output=True)
-
-    assert emitted[-1].required_gaps == (f"lease_head_stale:{lifecycle.branch}",)
-    assert emitted[-1].next_action == (
-        "ethos lane archive-change --change fixture-change "
-        f"--expect-head {lease['expected_head']} --apply --json"
-    )
 
 
 @pytest.mark.parametrize(

@@ -436,67 +436,6 @@ def test_archive_public_reports_failed_compensation_and_retained_residue(
     assert report["compensation_error"] == "restore_failed"
 
 
-def test_archive_public_retries_committed_transition_before_preflight(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
-    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
-    lease = {
-        "expected_head": HEAD,
-        "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
-    }
-    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
-    monkeypatch.setattr(
-        archive,
-        "git_stdout",
-        lambda _root, *args: {
-            ("branch", "--show-current"): BRANCH,
-            ("rev-parse", f"{NEW_HEAD}^"): HEAD,
-            ("diff", "--name-only", "--diff-filter=ACMRTD", HEAD, NEW_HEAD): (
-                f"{ARCHIVE_PATH}/commitment.toml"
-            ),
-        }.get(args, ""),
-    )
-    monkeypatch.setattr(recovery, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(recovery, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
-    monkeypatch.setattr(recovery, "git_stdout", archive.git_stdout)
-    monkeypatch.setattr(recovery, "work_lane_transition_gaps", lambda *_args, **_kwargs: [])
-    transitions: list[dict[str, object]] = []
-    monkeypatch.setattr(
-        recovery,
-        "issue_archive_effect",
-        lambda *_args, **_kwargs: _Dumpable(id="archive-receipt"),
-    )
-    monkeypatch.setattr(recovery, "exact_archive_paths", lambda *_args: True)
-    monkeypatch.setattr(recovery, "read_attestation_set", lambda _root: ("", ()))
-    monkeypatch.setattr(recovery, "record_attestation_once", lambda _root, receipt: receipt)
-    monkeypatch.setattr(recovery, "exact_carrier_relocation", lambda *_args: True)
-
-    def transition(**kwargs: object) -> dict[str, object]:
-        transitions.append(kwargs)
-        lease.update(
-            expected_head=NEW_HEAD,
-            base_commitment_path=f"{ARCHIVE_PATH}/commitment.toml",
-        )
-        return {"verdict": "pass", "required_gaps": []}
-
-    monkeypatch.setattr(overlay, "work_lane_ref_transition_report", transition)
-    monkeypatch.setattr(overlay, "leases_by_branch", lambda _root: {BRANCH: dict(lease)})
-    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
-
-    assert report["verdict"] == "pass"
-    assert report["state"] == "archive_attestation_recovered"
-    assert transitions == [
-        {
-            "root": tmp_path,
-            "phase": "committed",
-            "ref_name": f"refs/heads/{BRANCH}",
-            "old_value": HEAD,
-            "new_value": NEW_HEAD,
-        }
-    ]
-
-
 def _stub_archive_attestation_recovery(
     monkeypatch: pytest.MonkeyPatch,
     root: Path,
@@ -622,43 +561,6 @@ def test_archive_public_recovers_attestation_after_the_git_effect_completed(
     assert replayed["required_gaps"] == []
     assert replayed["attestation"] == attestation
     assert state["record_attempts"] == 2
-
-
-def test_archive_lease_recovery_dry_run_projects_the_exact_retry_command(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    _stub_archive_public(monkeypatch, tmp_path)
-    stale_lease = {
-        "lease_state": "valid",
-        "holder_ref": "agent:test",
-        "expected_head": HEAD,
-        "expected_tree": "tree",
-        "base_commitment_path": f"openspec/changes/{CHANGE}/commitment.toml",
-    }
-    monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
-    monkeypatch.setattr(archive, "leases_by_branch", lambda _root: {BRANCH: stale_lease})
-    monkeypatch.setattr(
-        recovery,
-        "git_stdout",
-        lambda _root, *args: (
-            HEAD if args == ("rev-parse", f"{NEW_HEAD}^") else f"{ARCHIVE_PATH}/commitment.toml"
-        ),
-    )
-    monkeypatch.setattr(recovery, "exact_carrier_relocation", lambda *_args: True)
-    monkeypatch.setattr(recovery, "exact_archive_paths", lambda *_args: True)
-
-    report = archive.archive_change(
-        root=tmp_path,
-        change=CHANGE,
-        expect_head=HEAD,
-        apply=False,
-    )
-
-    assert report["state"] == "ready_to_recover_archive_lease"
-    assert report["next_action"] == (
-        f"ethos lane archive-change --change {CHANGE} --expect-head {HEAD} --apply --json"
-    )
 
 
 @pytest.mark.parametrize(

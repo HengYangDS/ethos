@@ -10,7 +10,8 @@ semantics.
 ### Requirement: Public Command Plane
 ETHOS SHALL keep the normal user workflow under six public commands:
 `ethos adopt`, `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
-`ethos publish`.
+`ethos publish`. Accepted-head admission is an exact `ethos land --closeout`
+operation, not a seventh top-level command or a hidden Git-hook procedure.
 
 #### Scenario: Cyclopts exposes the terminal root surface
 - **WHEN** the root CLI help is rendered
@@ -41,6 +42,15 @@ ETHOS SHALL keep the normal user workflow under six public commands:
 - **AND** `missing_facts_or_evidence` derives from `required_gaps` only when
   `verdict=unknown`, while `user_decision_required` names required judgment
 - **AND** Continuation is recomputed rather than stored as lifecycle truth
+
+#### Scenario: accepted closeout remediation is directly executable
+- **WHEN** accepted-head admission is blocked by missing proof, missing external
+  verification, stale coordinates, or an unapplied exact effect
+- **THEN** status, plan, land, and hook projections SHALL expose the same single
+  complete `ethos ...` command
+- **AND** that command SHALL bind the current root, expected accepted HEAD,
+  candidate HEAD, and any required receipt path
+- **AND** it SHALL contain no prose-only instruction or placeholder token.
 
 ### Requirement: Cyclopts And API Own Interface Semantics
 Concrete Cyclopts declarations and the in-process operation API SHALL own command

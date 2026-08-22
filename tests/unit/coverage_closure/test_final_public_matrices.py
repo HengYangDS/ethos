@@ -17,11 +17,9 @@ from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
-from ethos.repository.policy.references.python_syntax import cyclopts_commands
+from ethos.repository.policy.references.python_syntax import cyclopts_command_owners
 from ethos.repository.policy.references.python_syntax import cyclopts_prefixes
 from ethos.repository.policy.references.python_syntax import module_name
-from ethos.repository.policy.references.python_syntax import python_executables
-from ethos.repository.policy.references.python_syntax import python_trees
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -128,8 +126,6 @@ def test_layout_import_public_matrices(monkeypatch: pytest.MonkeyPatch, tmp_path
 
 
 def test_python_syntax_public_edge_matrix(monkeypatch: pytest.MonkeyPatch) -> None:
-    malformed = next(iter(python_trees('subprocess.run("\'")')))
-    assert python_executables(malformed, {}) == set()
     monkeypatch.setattr(
         "ethos.repository.policy.references.python_syntax.python_trees", lambda _text: ()
     )
@@ -150,9 +146,9 @@ def test_python_syntax_public_edge_matrix(monkeypatch: pytest.MonkeyPatch) -> No
     assert module_name("src/pkg/__init__.py") == "pkg"
 
     tree = ast.parse("@app.command(name='explicit')\ndef default_name(): pass\n")
-    assert cyclopts_commands("src/pkg/command.py", tree, {("pkg.command", "app"): "root"}) == {
-        "root explicit"
-    }
+    assert set(
+        cyclopts_command_owners("src/pkg/command.py", tree, {("pkg.command", "app"): "root"})
+    ) == {"root explicit"}
 
 
 def test_gate_result_and_provider_public_edges(

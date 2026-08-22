@@ -8,9 +8,11 @@ import shlex
 import sys
 import tomllib
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import yaml
+from markdown_it import MarkdownIt
 
 import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.python_syntax as python_references
@@ -21,51 +23,73 @@ from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.commands import normalize_command
 
 if TYPE_CHECKING:
+    from ast import AST
     from collections.abc import Iterable
+    from collections.abc import Mapping
     from pathlib import Path
 
-
-def repository_product_references(root: Path) -> dict[str, set[str]]:
-    """Observe typed machine references across active product surfaces."""
-    return product_references_from_files(repository_reference_files(root), root=root)
+    from markdown_it.token import Token
 
 
-def repository_reference_files(root: Path) -> dict[str, str]:
-    """Read active carriers that may declare or consume product references."""
-    files = {}
+@dataclass(frozen=True, slots=True)
+class RepositoryReferenceObservation:
+    """One finite read of current reference carriers and unreadable paths."""
+
+    files: dict[str, str]
+    unreadable_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceConsumption:
+    """Current consumer relation plus carriers whose syntax was not observable."""
+
+    sources: dict[str, dict[str, frozenset[str]]]
+    unknown_paths: tuple[str, ...]
+
+
+def observe_repository_references(root: Path) -> RepositoryReferenceObservation:
+    """Read each selected current carrier once and preserve unreadable provenance."""
+    files: dict[str, str] = {}
+    unreadable_paths: list[str] = []
     for path in reference_paths(root, product_surface_files(root)):
+        relative = path.relative_to(root).as_posix()
         try:
-            files[path.relative_to(root).as_posix()] = path.read_text(encoding="utf-8")
+            files[relative] = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError):
-            continue
-    return files
+            unreadable_paths.append(relative)
+    return RepositoryReferenceObservation(
+        files=files,
+        unreadable_paths=tuple(sorted(unreadable_paths)),
+    )
 
 
 def product_references_from_files(
     files: dict[str, str],
     *,
-    root: Path | None = None,
+    context_files: dict[str, str] | None = None,
     declared_commands: Iterable[str] = (),
     include_declarations: bool = True,
 ) -> dict[str, set[str]]:
     """Observe typed references from complete files."""
     declared_commands = tuple(declared_commands)
-    command_sources = _command_source_files(files, root=root)
+    command_sources = dict(context_files or {})
+    command_sources.update(files)
     prefixes = python_references.cyclopts_prefixes(command_sources)
     known_commands = {
         normalize_command(command) for command in declared_commands if command.strip()
     }
     for path, text in command_sources.items():
         for tree in python_references.python_trees(text):
-            known_commands.update(python_references.cyclopts_commands(path, tree, prefixes))
-    npm_scripts = npm_script_commands(command_sources, root=root)
+            known_commands.update(python_references.cyclopts_command_owners(path, tree, prefixes))
+    command_vocabulary = command_references.CommandVocabulary.compile(known_commands)
+    npm_scripts = npm_script_commands(command_sources)
     observed = {kind: set() for kind in REFERENCE_KINDS}
     for path, text in files.items():
         _file_references(
             path,
             text,
             prefixes,
-            known_commands,
+            command_vocabulary,
             npm_scripts,
             observed,
             include_declarations=include_declarations,
@@ -74,54 +98,188 @@ def product_references_from_files(
     return observed
 
 
-def _command_source_files(files: dict[str, str], *, root: Path | None) -> dict[str, str]:
-    command_sources = dict(files)
-    if root is None:
-        return command_sources
-    for base in (root / "src", root / "tools"):
-        if not base.exists():
+def reference_consumer_sources_from_files(
+    files: dict[str, str],
+    *,
+    declared_commands: Iterable[str] = (),
+    parsed_files: Mapping[str, AST | None] | None = None,
+) -> ReferenceConsumption:
+    """Return consumed identities with current carrier provenance."""
+    known_commands = {
+        normalize_command(command) for command in declared_commands if command.strip()
+    }
+    command_vocabulary = command_references.CommandVocabulary.compile(known_commands)
+    npm_scripts = npm_script_commands(files)
+    consumers = {kind: defaultdict(set) for kind in REFERENCE_KINDS}
+    unknown_paths: list[str] = []
+    for path, text in files.items():
+        observed = {kind: set() for kind in REFERENCE_KINDS}
+        parsed = _file_references(
+            path,
+            text,
+            {},
+            command_vocabulary,
+            npm_scripts,
+            observed,
+            include_declarations=False,
+            require_complete=True,
+            parsed_files=parsed_files,
+        )
+        if not parsed:
+            unknown_paths.append(path)
             continue
-        for path in base.rglob("*.py"):
-            try:
-                text = path.read_text(encoding="utf-8")
-            except (OSError, UnicodeError):
-                continue
-            if "App(" in text:
-                command_sources.setdefault(path.relative_to(root).as_posix(), text)
-    return command_sources
+        observed["import"].difference_update(sys.stdlib_module_names)
+        for kind, identities in observed.items():
+            for identity in identities:
+                consumers[kind][identity].add(path)
+    return ReferenceConsumption(
+        sources={
+            kind: {
+                identity: frozenset(paths) for identity, paths in sorted(consumers[kind].items())
+            }
+            for kind in REFERENCE_KINDS
+        },
+        unknown_paths=tuple(sorted(unknown_paths)),
+    )
 
 
 def _file_references(
     path: str,
     text: str,
     prefixes: dict[tuple[str, str], str],
-    known_commands: set[str],
+    known_commands: command_references.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
     *,
     include_declarations: bool,
-) -> None:
+    require_complete: bool = False,
+    parsed_files: Mapping[str, AST | None] | None = None,
+) -> bool:
     carrier = reference_carrier(path).name
     if carrier == "python":
-        _python_file_references(path, text, prefixes, npm_scripts, observed)
-        return
+        return _python_carrier_references(
+            path=path,
+            text=text,
+            prefixes=prefixes,
+            npm_scripts=npm_scripts,
+            observed=observed,
+            include_declarations=include_declarations,
+            require_complete=require_complete,
+            parsed_files=parsed_files,
+        )
     if carrier == "pyproject":
-        if include_declarations:
-            pyproject_references(text, observed)
-        return
+        return _pyproject_carrier_references(
+            text,
+            observed,
+            include_declarations=include_declarations,
+            require_complete=require_complete,
+        )
     if carrier == "package-json":
-        package_json_references(text, npm_scripts, observed, declarations=include_declarations)
-        return
-    if carrier == "yaml":
-        _yaml_references(path, text, npm_scripts, observed)
-    elif carrier == "shell":
-        observed["executable"].update(command_references.shell_executables(text, npm_scripts))
-    elif carrier == "markdown":
-        _markdown_references(path, text, known_commands, npm_scripts, observed)
+        return _package_json_carrier_references(
+            text,
+            npm_scripts,
+            observed,
+            include_declarations=include_declarations,
+            require_complete=require_complete,
+        )
+    parsed = _text_carrier_references(
+        carrier=carrier,
+        path=path,
+        text=text,
+        known_commands=known_commands,
+        npm_scripts=npm_scripts,
+        observed=observed,
+    )
+    if not parsed and require_complete:
+        return False
     if text.startswith("#!") and (
         executable := command_references.shebang_executable(text.splitlines()[0])
     ):
         observed["executable"].add(executable)
+    return True
+
+
+def _python_carrier_references(
+    *,
+    path: str,
+    text: str,
+    prefixes: dict[tuple[str, str], str],
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+    include_declarations: bool,
+    require_complete: bool,
+    parsed_files: Mapping[str, AST | None] | None,
+) -> bool:
+    tree = (
+        parsed_files.get(path)
+        if parsed_files is not None
+        else python_references.complete_python_tree(text)
+        if require_complete
+        else None
+    )
+    if require_complete and tree is None:
+        return False
+    _python_file_references(
+        path,
+        text,
+        prefixes,
+        npm_scripts,
+        observed,
+        include_declarations=include_declarations,
+        trees=(tree,) if tree is not None else None,
+    )
+    return True
+
+
+def _pyproject_carrier_references(
+    text: str,
+    observed: dict[str, set[str]],
+    *,
+    include_declarations: bool,
+    require_complete: bool,
+) -> bool:
+    if require_complete and not _valid_toml(text):
+        return False
+    if include_declarations:
+        pyproject_references(text, observed)
+    return True
+
+
+def _package_json_carrier_references(
+    text: str,
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+    *,
+    include_declarations: bool,
+    require_complete: bool,
+) -> bool:
+    if require_complete and not _valid_json_object(text):
+        return False
+    package_json_references(
+        text,
+        npm_scripts,
+        observed,
+        declarations=include_declarations,
+    )
+    return True
+
+
+def _text_carrier_references(
+    *,
+    carrier: str,
+    path: str,
+    text: str,
+    known_commands: command_references.CommandVocabulary,
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+) -> bool:
+    if carrier == "yaml":
+        return _yaml_references(path, text, npm_scripts, observed)
+    if carrier == "shell":
+        observed["executable"].update(command_references.shell_executables(text, npm_scripts))
+    elif carrier == "markdown":
+        return _markdown_references(path, text, known_commands, npm_scripts, observed)
+    return True
 
 
 def _python_file_references(
@@ -130,14 +288,21 @@ def _python_file_references(
     prefixes: dict[tuple[str, str], str],
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
+    *,
+    include_declarations: bool,
+    trees: tuple[AST, ...] | None = None,
 ) -> None:
-    for tree in python_references.python_trees(text):
-        observed["import"].update(python_references.import_roots(tree))
+    for tree in trees or python_references.python_trees(text):
+        imports, executables, inputs = python_references.python_references(tree, npm_scripts)
+        observed["import"].update(imports)
         if path.startswith("tests/"):
             continue
-        observed["executable"].update(python_references.python_executables(tree, npm_scripts))
-        observed["value"].update(python_references.runtime_inputs(tree))
-        observed["command"].update(python_references.cyclopts_commands(path, tree, prefixes))
+        observed["executable"].update(executables)
+        observed["value"].update(inputs)
+        if include_declarations:
+            observed["command"].update(
+                python_references.cyclopts_command_owners(path, tree, prefixes)
+            )
 
 
 def pyproject_references(text: str, observed: dict[str, set[str]]) -> None:
@@ -175,23 +340,10 @@ def normalized_distribution(value: str) -> str:
     return re.sub(r"[-_.]+", "-", value).lower()
 
 
-def npm_script_commands(files: dict[str, str], *, root: Path | None) -> dict[str, set[str]]:
-    manifests: dict[str, str] = {}
-    if root is not None:
-        for path in product_surface_files(root):
-            if path.name != "package.json":
-                continue
-            try:
-                manifests[path.relative_to(root).as_posix()] = path.read_text(encoding="utf-8")
-            except (OSError, UnicodeError):
-                continue
-    manifests.update(
-        {
-            path: text
-            for path, text in files.items()
-            if reference_carrier(path).name == "package-json"
-        }
-    )
+def npm_script_commands(files: dict[str, str]) -> dict[str, set[str]]:
+    manifests = {
+        path: text for path, text in files.items() if reference_carrier(path).name == "package-json"
+    }
     scripts: dict[str, set[str]] = defaultdict(set)
     for text in manifests.values():
         try:
@@ -252,7 +404,7 @@ def _yaml_references(
     text: str,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
-) -> None:
+) -> bool:
     if path.startswith(".github/"):
         observed["reference"].add("github")
     elif path == ".gitlab-ci.yml" or path.startswith(".gitlab/"):
@@ -260,7 +412,7 @@ def _yaml_references(
     try:
         stack = [yaml.safe_load(text)]
     except yaml.YAMLError:
-        stack = []
+        return False
     while stack:
         value = stack.pop()
         if isinstance(value, list):
@@ -269,6 +421,22 @@ def _yaml_references(
             stack.extend(value.values())
             for key, item in value.items():
                 _configuration_reference(str(key), item, npm_scripts, observed)
+    return True
+
+
+def _valid_toml(text: str) -> bool:
+    try:
+        tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return False
+    return True
+
+
+def _valid_json_object(text: str) -> bool:
+    try:
+        return isinstance(json.loads(text), dict)
+    except json.JSONDecodeError:
+        return False
 
 
 def _configuration_reference(
@@ -303,48 +471,165 @@ def _github_reference(value: str) -> str:
 def _markdown_references(
     path: str,
     text: str,
-    known_commands: set[str],
+    known_commands: command_references.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
-) -> None:
+) -> bool:
     require_declared = _requires_declared_commands(path)
-    for match in _MARKDOWN_FENCE.finditer(text):
-        language = match.group("language").lower()
-        body = match.group("body")
-        if language in {"bash", "console", "sh", "shell", "zsh"}:
-            shell = (
-                "\n".join(
-                    line.lstrip()[2:]
-                    for line in body.splitlines()
-                    if line.lstrip().startswith(("$ ", "> "))
-                )
-                if language == "console"
-                else body
-            )
-            observed["executable"].update(command_references.shell_executables(shell, npm_scripts))
-            observed["command"].update(
-                command_references.shell_commands(
-                    shell,
-                    known_commands,
-                    require_declared=require_declared,
-                )
-            )
-        elif language in {"yaml", "yml"}:
-            _yaml_references(path, body, npm_scripts, observed)
-    for inline in _MARKDOWN_INLINE_CODE.findall(text):
-        try:
-            tokens = tuple(shlex.split(inline))
-        except ValueError:
+    tokens = markdown_tokens(text)
+    if tokens is None:
+        return False
+    removed_section = False
+    scenario = False
+    openspec = path.startswith(("openspec/specs/", "openspec/changes/"))
+    for index, token in enumerate(tokens):
+        if token.type == "heading_open" and token.tag in {"h2", "h3", "h4"}:
+            heading = tokens[index + 1].content if index + 1 < len(tokens) else ""
+            if token.tag == "h2":
+                removed_section = heading.strip() == "REMOVED Requirements"
+                scenario = False
+            elif token.tag == "h3":
+                scenario = False
+            elif token.tag == "h4":
+                scenario = heading.startswith("Scenario:")
             continue
-        if command := command_references.command_identity(
-            tokens,
+        if removed_section:
+            continue
+        _update_fence_references(
+            path=path,
+            token=token,
+            known_commands=known_commands,
+            npm_scripts=npm_scripts,
+            observed=observed,
+            require_declared=require_declared,
+        )
+        if token.type != "inline" or not token.children or (openspec and not scenario):
+            continue
+        _update_inline_references(
+            children=token.children,
+            openspec=openspec,
+            known_commands=known_commands,
+            npm_scripts=npm_scripts,
+            observed=observed,
+            require_declared=require_declared,
+        )
+    return True
+
+
+def markdown_tokens(text: str) -> tuple[Token, ...] | None:
+    """Parse one Markdown carrier, preserving parser failure as unknown."""
+    try:
+        return tuple(_MARKDOWN.parse(text))
+    except RuntimeError:
+        return None
+
+
+def _update_fence_references(
+    *,
+    path: str,
+    token: Token,
+    known_commands: command_references.CommandVocabulary,
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+    require_declared: bool,
+) -> None:
+    if token.type != "fence":
+        return
+    language = token.info.partition(" ")[0].lower()
+    if language in {"yaml", "yml"}:
+        _yaml_references(path, token.content, npm_scripts, observed)
+        return
+    if language not in {"bash", "console", "sh", "shell", "zsh"}:
+        return
+    shell = (
+        "\n".join(
+            line.lstrip()[2:]
+            for line in token.content.splitlines()
+            if line.lstrip().startswith(("$ ", "> "))
+        )
+        if language == "console"
+        else token.content
+    )
+    observed["executable"].update(command_references.shell_executables(shell, npm_scripts))
+    observed["command"].update(
+        command_references.shell_commands(
+            shell,
             known_commands,
             require_declared=require_declared,
-        ):
-            observed["command"].add(command)
-            observed["executable"].update(
-                command_references.command_executables(tokens, npm_scripts)
-            )
+        )
+    )
+
+
+def _update_inline_references(
+    *,
+    children: list[Token],
+    openspec: bool,
+    known_commands: command_references.CommandVocabulary,
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+    require_declared: bool,
+) -> None:
+    inline_codes = (
+        _openspec_scenario_commands(children)
+        if openspec
+        else tuple(child.content for child in children if child.type == "code_inline")
+    )
+    for inline in inline_codes:
+        _record_inline_command(
+            inline,
+            known_commands=known_commands,
+            npm_scripts=npm_scripts,
+            observed=observed,
+            require_declared=require_declared,
+        )
+
+
+def _openspec_scenario_commands(children: list[Token]) -> tuple[str, ...]:
+    """Return direct GIVEN/WHEN command subjects, not mentioned negative examples."""
+    marker = ""
+    before_code = ""
+    in_strong = False
+    strong_text = ""
+    commands: list[str] = []
+    for child in children:
+        if child.type == "strong_open":
+            in_strong = True
+            strong_text = ""
+        elif child.type == "strong_close":
+            in_strong = False
+            if strong_text.strip() in {"GIVEN", "WHEN"}:
+                marker = strong_text.strip()
+                before_code = ""
+        elif child.type == "text":
+            if in_strong:
+                strong_text += child.content
+            elif marker:
+                before_code += child.content
+        elif child.type == "code_inline" and marker and not before_code.strip():
+            commands.append(child.content)
+            marker = ""
+    return tuple(commands)
+
+
+def _record_inline_command(
+    inline: str,
+    *,
+    known_commands: command_references.CommandVocabulary,
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+    require_declared: bool,
+) -> None:
+    try:
+        tokens = tuple(shlex.split(inline))
+    except ValueError:
+        return
+    if command := command_references.command_identity(
+        tokens,
+        known_commands,
+        require_declared=require_declared,
+    ):
+        observed["command"].add(command)
+        observed["executable"].update(command_references.command_executables(tokens, npm_scripts))
 
 
 def _requires_declared_commands(path: str) -> bool:
@@ -361,26 +646,11 @@ def _requires_declared_commands(path: str) -> bool:
             "docs/governance/",
             "docs/reference/",
             "docs/start/",
+            "openspec/changes/",
+            "openspec/specs/",
             "rules/",
         )
     )
 
 
-def reference_gaps(
-    allowed: dict[str, frozenset[str]],
-    observed: dict[str, set[str]],
-) -> list[str]:
-    gaps = []
-    for kind in REFERENCE_KINDS:
-        for reference in sorted(observed.get(kind, set()) - set(allowed.get(kind, ()))):
-            if kind == "import" and reference in {"ethos", "tests", "tools"}:
-                continue
-            gaps.append(f"product_reference_not_admitted_at_baseline:{kind}:{reference}")
-    return gaps
-
-
-_MARKDOWN_FENCE = re.compile(
-    r"^```(?P<language>[A-Za-z0-9_-]+)[^\n]*\n(?P<body>.*?)^```\s*$",
-    re.IGNORECASE | re.MULTILINE | re.DOTALL,
-)
-_MARKDOWN_INLINE_CODE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
+_MARKDOWN = MarkdownIt("commonmark")

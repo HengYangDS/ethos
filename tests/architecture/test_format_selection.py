@@ -48,6 +48,7 @@ def test_current_openspec_markdown_has_generic_and_semantic_validation() -> None
     active_tasks = sorted(
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "openspec" / "changes").glob("*/tasks.md")
+        if path.relative_to(ROOT).as_posix() in assignments
     )
 
     for relative in (

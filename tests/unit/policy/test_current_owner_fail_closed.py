@@ -13,12 +13,12 @@ from ethos.repository.openspec.audit import protected_branch_active_change_repor
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
+from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.commands import command_executables
 from ethos.repository.policy.references.commands import normalize_command
 from ethos.repository.policy.references.commands import shebang_executable
 from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
-from ethos.repository.policy.references.observation import reference_gaps
 from tests.support.governed_repository import git
 
 if TYPE_CHECKING:
@@ -261,7 +261,7 @@ helper
     assert {"python", "pytest", "bash"} <= observed["executable"]
     assert "printf" not in observed["executable"]
     assert observed["distribution"] == set()
-    assert reference_gaps(
+    assert product_reference_gaps(
         {kind: frozenset() for kind in observed},
         observed | {"import": {"ethos", "tests", "tools", "foreign"}},
     ) == [

@@ -27,6 +27,11 @@ SYSTEM_CONTRACTS = (
     "evidence_boundaries",
 )
 
+_IDENTITY_FIELDS = {
+    "surfaces": ("surface", "name", "surface"),
+    "tools": ("tool", "concern", "tool"),
+}
+
 
 def load_system_contract(root: Path, name: str) -> dict[str, object]:
     """Load one root-owned ``system/<name>.toml`` contract or fail closed."""
@@ -56,6 +61,7 @@ def system_contracts_report(root: Path) -> dict[str, object]:
     """
     loaded: dict[str, bool] = {}
     gaps: list[str] = []
+    declaration_issues: list[dict[str, object]] = []
     for name in SYSTEM_CONTRACTS:
         path = root / "system" / f"{name}.toml"
         if not path.exists():
@@ -69,6 +75,7 @@ def system_contracts_report(root: Path) -> dict[str, object]:
             gaps.append(f"system_contract_invalid:{name}:{exc}")
             continue
         loaded[name] = True
+        declaration_issues.extend(_declaration_identity_issues(name, payload))
         schema_ref = payload.get("schema")
         if isinstance(schema_ref, str) and schema_ref:
             schema_path = root / schema_ref
@@ -76,8 +83,49 @@ def system_contracts_report(root: Path) -> dict[str, object]:
                 gaps.append(f"system_schema_ref_missing:{name}:{schema_ref}")
             else:
                 gaps.extend(schema_validation_gaps(name, payload, schema_path))
+    declaration_issues.sort(
+        key=lambda item: (str(item["category"]), str(item["kind"]), str(item["identity"]))
+    )
+    gaps.extend(_declaration_gap(issue) for issue in declaration_issues)
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "contracts": loaded,
+        "declaration_issues": declaration_issues,
         "required_gaps": gaps,
     }
+
+
+def _declaration_identity_issues(name: str, payload: dict[str, object]) -> list[dict[str, object]]:
+    descriptor = _IDENTITY_FIELDS.get(name)
+    if descriptor is None:
+        return []
+    array, identity_field, kind = descriptor
+    entries = payload.get(array)
+    if not isinstance(entries, list):
+        return []
+    groups: dict[str, list[dict[str, object]]] = {}
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(identity := entry.get(identity_field), str):
+            groups.setdefault(identity, []).append(entry)
+    return [
+        {
+            "category": "duplicate"
+            if all(item == declarations[0] for item in declarations)
+            else "conflict",
+            "relation": "owner",
+            "kind": kind,
+            "identity": identity,
+            "sources": [f"system/{name}.toml"],
+        }
+        for identity, declarations in groups.items()
+        if len(declarations) > 1
+    ]
+
+
+def _declaration_gap(issue: dict[str, object]) -> str:
+    sources = issue.get("sources")
+    source_text = ",".join(str(source) for source in sources) if isinstance(sources, list) else ""
+    return (
+        f"semantic_{issue['relation']}_{issue['category']}:{issue['kind']}:"
+        f"{issue['identity']}:{source_text}"
+    )

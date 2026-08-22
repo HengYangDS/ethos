@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.repository.policy.references.carriers import reference_carrier
-from ethos.repository.policy.references.closure import repository_product_reference_gaps
+from ethos.repository.policy.references.closure import repository_semantic_closure
 from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
@@ -49,9 +49,9 @@ subprocess.run(["wcp", "inspect"], check=True)
         encoding="utf-8",
     )
 
-    assert repository_product_reference_gaps(tmp_path) == [
-        "product_reference_not_admitted_at_baseline:executable:wcp",
-        "product_reference_not_admitted_at_baseline:executable:workstation",
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == [
+        "semantic_consumer_orphan:executable:wcp:src/example/runtime.py",
+        "semantic_consumer_orphan:executable:workstation:src/example/runtime.py",
     ]
 
 
@@ -70,4 +70,4 @@ def test_reference_closure_is_green_without_wcp_or_workstation(tmp_path: Path) -
         encoding="utf-8",
     )
 
-    assert repository_product_reference_gaps(tmp_path) == []
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == []

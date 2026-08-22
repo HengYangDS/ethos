@@ -4,6 +4,40 @@ from __future__ import annotations
 
 import re
 import shlex
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class CommandVocabulary:
+    """One immutable tokenization of declared command identities."""
+
+    identities: tuple[tuple[tuple[str, ...], str], ...]
+    groups: frozenset[str]
+    roots: frozenset[str]
+
+    @classmethod
+    def compile(cls, commands: set[str]) -> CommandVocabulary:
+        """Compile normalized command identities once for repeated matching."""
+        identities = tuple(
+            sorted(
+                ((tokens, command) for command in commands if (tokens := _split_command(command))),
+                key=lambda item: (len(item[0]), item[1]),
+                reverse=True,
+            )
+        )
+        groups = frozenset(
+            identity
+            for tokens, identity in identities
+            if any(
+                other[: len(tokens)] == tokens and len(other) > len(tokens)
+                for other, _ in identities
+            )
+        )
+        return cls(
+            identities=identities,
+            groups=groups,
+            roots=frozenset(tokens[0] for tokens, _ in identities),
+        )
 
 
 def normalize_command(command: str) -> str:
@@ -12,6 +46,13 @@ def normalize_command(command: str) -> str:
         return shlex.join(shlex.split(command))
     except ValueError:
         return command.strip()
+
+
+def _split_command(command: str) -> tuple[str, ...]:
+    try:
+        return tuple(shlex.split(command))
+    except ValueError:
+        return ()
 
 
 def shell_executables(text: str, npm_scripts: dict[str, set[str]]) -> set[str]:
@@ -257,7 +298,7 @@ def shebang_executable(line: str) -> str:
 
 def shell_commands(
     text: str,
-    known_commands: set[str],
+    known_commands: set[str] | CommandVocabulary,
     *,
     require_declared: bool = False,
 ) -> set[str]:
@@ -272,7 +313,7 @@ def shell_commands(
 
 def command_identity(
     tokens: tuple[str, ...],
-    known_commands: set[str],
+    known_commands: set[str] | CommandVocabulary,
     *,
     require_declared: bool = False,
 ) -> str:
@@ -284,18 +325,30 @@ def command_identity(
     child = _wrapped_command_tokens(command, executable)
     if child:
         return command_identity(child, known_commands, require_declared=require_declared)
-    candidates = []
-    for known in known_commands:
-        try:
-            known_tokens = tuple(shlex.split(known))
-        except ValueError:
-            continue
-        if command[: len(known_tokens)] == known_tokens:
-            candidates.append((len(known_tokens), known))
-    if candidates:
-        return max(candidates)[1]
-    roots = {known.partition(" ")[0] for known in known_commands}
-    if not require_declared or executable not in roots:
+    vocabulary = (
+        known_commands
+        if isinstance(known_commands, CommandVocabulary)
+        else CommandVocabulary.compile(known_commands)
+    )
+    match = next(
+        (
+            (identity_tokens, identity)
+            for identity_tokens, identity in vocabulary.identities
+            if command[: len(identity_tokens)] == identity_tokens
+        ),
+        None,
+    )
+    if match is not None:
+        identity_tokens, identity = match
+        remaining = command[len(identity_tokens) :]
+        if (
+            not require_declared
+            or identity not in vocabulary.groups
+            or not remaining
+            or remaining[0].startswith("-")
+        ):
+            return identity
+    if not require_declared or executable not in vocabulary.roots:
         return ""
     path = tuple(
         argument

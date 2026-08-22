@@ -174,6 +174,7 @@ _ACTIONS: dict[str, Action] = {
     "lane start": _start_action,
     "lane refresh-base": _refresh_action,
     "lane rebind-commitment": _report_action,
+    "lane rebind-commitment derive": _report_action,
     "lane retire superseded": _retirement_action,
     "lane retire landed": _retirement_action,
 }

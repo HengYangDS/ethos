@@ -16,6 +16,7 @@ import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import run_gate_waves
+from ethos.adapters.mutation.lane_lifecycle.archive_recovery import archive_recovery_next_action
 from ethos.adapters.mutation.local_state import local_state_mutation_guard
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
@@ -331,6 +332,13 @@ def _proof_next_action(
     return "ethos plan --changed --json"
 
 
+def _proof_plan_error_next_action(repo: Path, gap: str) -> str:
+    """Resolve one exact public recovery command for plan-construction failure."""
+    return archive_recovery_next_action(repo, gap) or (
+        "ethos lane status --json" if gap.startswith("lease_head_stale:") else "ethos adopt"
+    )
+
+
 def _issue_proof_or_emit_gap(
     repo: Path,
     *,
@@ -408,7 +416,7 @@ def prove(
                 verdict="block",
                 state="gapped",
                 required_gaps=(str(exc),),
-                next_action="ethos adopt",
+                next_action=_proof_plan_error_next_action(repo, str(exc)),
             ),
             json_output=json_output,
         )

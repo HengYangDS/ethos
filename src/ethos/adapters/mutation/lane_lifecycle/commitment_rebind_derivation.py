@@ -11,8 +11,8 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
-from ethos.adapters.mutation.lane_lifecycle.archive_recovery import archive_recovery_next_action
-from ethos.adapters.mutation.lane_lifecycle.archive_recovery import archive_transition_candidate
+from ethos.adapters.mutation.lane_lifecycle.archive_recovery import observe_bound_archive_transition
+from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.repo.commitment import changed_commitment_fields
 from ethos.adapters.repo.commitment import load_commitment
 from ethos.adapters.repo.commitment import load_lease_bound_commitment
@@ -75,20 +75,18 @@ def derive_commitment_rebind(
     )
     if actor_gap:
         return _blocked(branch, actor_gap)
-    archive_action = archive_recovery_next_action(
-        repo,
-        f"lease_head_stale:{branch}",
-        target_head=target_commit,
-    )
-    if archive_action:
+    archive = observe_bound_archive_transition(repo, lease=lease, head=target_commit)
+    if archive.state == "exact" and archive.facts is not None:
         return _blocked(
             branch,
             "archive_transition_requires_archive_change",
             observed_targets=[target_commit],
-            next_action=archive_action,
+            next_action=archive_recovery_command(
+                archive.facts.change, str(lease.get("expected_head") or "")
+            ),
             state="archive_recovery_required",
         )
-    if target_commit and archive_transition_candidate(repo, lease=lease, head=target_commit):
+    if target_commit and archive.state == "invalid":
         return _blocked(
             branch,
             "archive_transition_invalid",

@@ -18,6 +18,7 @@ scope = [
   "src/ethos/adapters/repo/hook_runtime.py",
   "src/ethos/surface/cli/hook/**",
   "src/ethos/surface/cli/lane/**",
+  "src/ethos/surface/cli/root/proof.py",
   "tests/support/**",
   "tests/unit/admission/**",
   "tests/unit/cli/**",

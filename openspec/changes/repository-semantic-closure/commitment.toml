@@ -24,6 +24,8 @@ scope = [
   "system/surfaces.toml",
   "system/tools.toml",
   "tests/architecture/**",
+  "tests/unit/admission/test_binding_closure.py",
+  "tests/unit/coverage_closure/test_final_public_matrices.py",
   "tests/unit/domain/**",
   "tests/unit/governance/**",
   "tests/unit/policy/**",

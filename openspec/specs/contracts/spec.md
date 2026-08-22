@@ -5,7 +5,9 @@
 ETHOS SHALL define provider-neutral schemas, result envelopes, adapter
 interfaces, policy records, evidence contracts, and operation or gate contracts
 before provider implementations.
+
 ## Requirements
+
 ### Requirement: Provider-neutral Contracts
 ETHOS SHALL keep JSON schemas, TOML config contracts, public result contracts,
 attestation envelopes, and evidence contracts free of provider-specific
@@ -285,6 +287,12 @@ hypotheses SHALL be `{id,kind,body}`; falsifiers SHALL be
 their declared tuple keys SHALL determine deterministic ordering and duplicate
 rejection.
 
+Predecessors SHALL be a canonical set of Commitment digests defining immutable
+backward lineage edges. A predecessor set MAY be empty, MAY fork one predecessor
+into several successor Commitments, and MAY join several predecessors into one
+successor Commitment. Historical Commitments SHALL NOT be mutated with successor
+links. Lineage SHALL remain distinct from execution `dependencies`.
+
 #### Scenario: A v2 Commitment is loaded
 
 - **WHEN** carrier bytes omit an identity field, contain a duplicate, use a
@@ -305,6 +313,17 @@ rejection.
 - **WHEN** input is accepted for implementation
 - **THEN** a successor Commitment binds predecessor and selection identities
 - **AND** the predecessor Change is not silently expanded
+
+#### Scenario: Governed Changes fork and join
+
+- **GIVEN** immutable predecessor Commitments exist in the selected exact Git
+  tree
+- **WHEN** separate successors select one predecessor or one successor selects
+  several predecessors
+- **THEN** each successor binds its complete canonical predecessor set in its
+  own digest
+- **AND** no historical Commitment or successor index is mutated
+- **AND** execution dependencies remain a separate typed field
 
 ### Requirement: Attestation v2 payload and relations are open and composable
 

@@ -1,0 +1,58 @@
+schema_version = 2
+id = "change:archive-transition-authority"
+intent = "Make archive closeout one exact public transition that owns the official archive delta, normal signed commit, archived carrier attribution, Lease CAS, recovery, and unique rebind derivation without requiring hook bypass or a second Change."
+subjects = ["repository:ethos"]
+scope = [
+  "docs/architecture/runner-and-mutation.md",
+  "docs/reference/command-plane.md",
+  "openspec/changes/archive-transition-authority/**",
+  "openspec/specs/adapters/spec.md",
+  "openspec/specs/command-plane/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "rules/mutation.md",
+  "src/ethos/adapters/admission/**",
+  "src/ethos/adapters/mutation/lane_lifecycle/**",
+  "src/ethos/adapters/openspec/lifecycle/**",
+  "src/ethos/adapters/repo/commitment.py",
+  "src/ethos/adapters/repo/git_effects.py",
+  "src/ethos/adapters/repo/hook_runtime.py",
+  "src/ethos/surface/cli/hook/**",
+  "src/ethos/surface/cli/lane/**",
+  "tests/support/**",
+  "tests/unit/admission/**",
+  "tests/unit/cli/**",
+  "tests/unit/lanes/**",
+  "tests/unit/mutation/**",
+]
+invariants = [
+  "archived_carrier_preserves_the_original_change_scope_and_identity",
+  "one_archive_transition_owns_official_delta_commit_carrier_move_lease_cas_and_attestation",
+  "proof_reports_the_exact_public_recovery_command_and_never_misdirects_lease_staleness_to_adopt",
+  "rebind_derivation_selects_the_unique_active_to_archived_carrier_transition",
+  "stale_foreign_forged_or_ambiguous_state_fails_closed",
+  "successful_hook_mediated_archive_commit_advances_the_same_lease_generation",
+]
+acceptance = [
+  "direct_standalone_archive_then_commit_is_recoverable_through_one_exact_public_command",
+  "hooks_receive_archive_controller_context_without_process_local_user_bypass",
+  "post_archive_prove_passes_without_lease_head_stale",
+  "post_archive_rebind_derivation_resolves_the_unique_archived_carrier",
+  "public_archive_change_commits_validated_delta_and_advances_lease_to_the_signed_postimage",
+]
+risks = [
+  "archive_recovery_could_accept_unrelated_dirty_content",
+  "carrier_selection_could_bind_the_wrong_archived_generation",
+  "lease_advancement_could_race_the_commit_or_replay_a_stale_generation",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "rules/mutation.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

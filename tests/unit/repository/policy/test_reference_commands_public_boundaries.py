@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from ethos.repository.policy.references.commands import CommandVocabulary
 from ethos.repository.policy.references.commands import command_executables
 from ethos.repository.policy.references.commands import command_identity
 from ethos.repository.policy.references.commands import normalize_command
@@ -56,6 +57,29 @@ def test_reference_commands_malformed_public_inputs_fail_closed() -> None:
     assert command_identity(("tool", "unknown"), {"tool run"}, require_declared=True) == (
         "tool unknown"
     )
+
+
+def test_reference_commands_do_not_let_a_group_owner_hide_an_unknown_subcommand() -> None:
+    """A declared command group cannot authorize an undeclared child command."""
+    known = {"ethos", "ethos status", "ethos lane", "ethos lane start"}
+
+    assert command_identity(("ethos", "audit", "--json"), known, require_declared=True) == (
+        "ethos audit"
+    )
+    assert (
+        command_identity(("ethos", "lane", "invented", "--json"), known, require_declared=True)
+        == "ethos lane invented"
+    )
+    assert command_identity(("ethos", "--version"), known, require_declared=True) == "ethos"
+
+
+def test_command_vocabulary_is_reused_across_identity_checks() -> None:
+    vocabulary = CommandVocabulary.compile(
+        {"ethos", "ethos status", "ethos lane", "ethos lane start"}
+    )
+
+    assert command_identity(("ethos", "status", "--json"), vocabulary) == "ethos status"
+    assert command_identity(("ethos", "lane", "start", "x"), vocabulary) == "ethos lane start"
 
 
 @pytest.mark.parametrize(

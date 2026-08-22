@@ -76,9 +76,10 @@ ETHOS SHALL adopt mature standards through adapters with explicit lifecycle,
 input contract, output contract, fallback, and exit strategy.
 
 #### Scenario: Standards are checked
-- **WHEN** `ethos audit --mode deep --json` runs
-- **THEN** every standard adapter declares boundary, lifecycle, contracts,
-  fallback, and retirement behavior
+- **WHEN** `ethos prove --gate repository-audit --json` runs
+- **THEN** the canonical repository audit verifies each current standard adapter
+  against its declared boundary, lifecycle, contracts, fallback, and retirement
+  behavior
 
 ### Requirement: Product Design Contract
 ETHOS SHALL define product truth, adopter boundaries, and transition safety
@@ -91,62 +92,25 @@ before governed change.
 - **AND** a reference-adopter embedded governance implementation is treated as a
   migration oracle and rollback anchor rather than deleted automatically
 
-### Requirement: Intake Status Surface
-ETHOS SHALL expose intake ledger readiness through the public command plane
-without treating an adopter provider as product truth.
-
-#### Scenario: Intake status is read only
-- **WHEN** `ethos intake status --json` runs without an intake provider
-- **THEN** the command reports the adopter-ledger truth boundary and an
-  unconfigured provider
-
-#### Scenario: Invalid intake config is rejected
-- **WHEN** `.ethos/intake.toml` exists without a provider
-- **THEN** the command reports an invalid state and a required gap instead of
-  claiming intake is configured
-
 ### Requirement: Changed Scope Playbook Routing
 
-ETHOS SHALL route changed-scope playbook requests through explicit playbook
+ETHOS SHALL route changed-scope skill requests through explicit activation
 metadata and changed-path evidence rather than subject or identifier substring
 matches.
 
 #### Scenario: Changed scope route is explicit
 
-- **WHEN** `ethos playbooks route --changed --mode v2-strict --json` runs
-- **THEN** every selected playbook has matched changed paths, V2 routing
-  evidence, operation metadata, and runnable closure obligations
+- **WHEN** `ethos plan --changed --json` runs
+- **THEN** every selected skill has matched changed paths, activation metadata,
+  operation metadata, and runnable proof obligations
 - **AND** unmatched changed paths are reported as required gaps
 
-#### Scenario: presence-only playbooks do not close report scoring
+#### Scenario: presence-only skills do not close report scoring
 
-- **GIVEN** a repository only has a placeholder playbook projection
+- **GIVEN** a repository only has a placeholder skill projection
 - **WHEN** `ethos status --json` runs
-- **THEN** ETHOS does not give the playbook capability full score from file
+- **THEN** ETHOS does not give the skill capability full score from file
   presence alone
-
-### Requirement: Executable Capability Parity Ledger
-
-ETHOS SHALL expose product migration parity as machine-readable command output.
-
-#### Scenario: Shadow parity records input identity
-
-- **WHEN** `ethos parity shadow --adopter <adopter> --target <repo> --execute --json` runs
-- **THEN** the shadow parity report includes an `identity` envelope with target
-  root, target HEAD, product HEAD, changed paths, compared command identities,
-  and evidence input digests
-- **AND** tracked parity evidence persists that identity envelope
-- **AND** the shadow parity schema rejects reports that omit the identity
-  envelope.
-
-#### Scenario: Shadow parity rejects external false negatives
-
-- **GIVEN** an embedded fallback command reports a blocking required gap
-- **WHEN** the external ETHOS product omits that required gap or only reports it
-  as advisory
-- **THEN** shadow parity reports a blocking `shadow_false_negative:<command>` gap
-- **AND** tracked parity evidence cannot close adopter retirement parity unless
-  it records zero false negatives
 
 ### Requirement: Parity evidence is committed before Work Lane proof
 
@@ -248,39 +212,6 @@ than by `current`/`future` directory names.
 - **AND** contract and evolution labels do not become mandatory replacement
   roots for the removed `current`/`future` lanes
 
-### Requirement: Fleet Inspection
-ETHOS SHALL inspect an external repository as an adopter through repository
-surfaces rather than product-runtime hardcoded names.
-
-#### Scenario: An adopter is inspected
-- **WHEN** `ethos fleet inspect --target <repo> --json` runs
-- **THEN** ETHOS reports adopter governance surfaces and required gaps without
-  embedding adopter-specific package names into the product runtime
-
-### Requirement: External Retirement Readiness
-ETHOS SHALL determine whether an adopted repository can retire its embedded
-ETHOS backend through generic repository profile, product-boundary, parity,
-shadow, and lifecycle checks rather than product-runtime adopter directories.
-
-#### Scenario: Retirement readiness is inspected
-- **WHEN** `ethos fleet retirement-readiness --target <repo> --json` runs
-- **THEN** ETHOS reads the target repository's `.ethos/profile.toml`
-- **AND** validates declared binding roots such as `.config/`
-- **AND** rejects profile-declared forbidden product-runtime adopter roots in the
-  ETHOS product repository
-- **AND** includes parity and shadow false-negative evidence in the verdict
-- **AND** reports external-default, embedded-freeze, rollback-window evidence,
-  and final retirement lifecycle gaps separately from parity and product-boundary gaps
-- **AND** requires a tracked rollback-window evidence manifest with completed
-  `proof_report`, `work_lane_closeout`, `domain_gate`, and `assistant_playbook`
-  scenarios before accepting a terminal retirement-ready backend state
-- **AND** requires the rollback-window manifest to be repository-local,
-  Git-tracked, parseable, bound to reachable adopter and external-product
-  heads, and backed by per-scenario evidence path, command, digest, target-head,
-  and product-head fields
-- **AND** does not require `adopters/<name>`, `profiles/<name>`, or
-  `tests/fixtures/adopters/<name>` inside the ETHOS product repository.
-
 ### Requirement: Release Policy
 
 ETHOS SHALL expose a release policy report covering version alignment, hosted
@@ -335,17 +266,19 @@ metadata.
 
 ### Requirement: Provider-neutral Repository Audit Composition
 ETHOS repository lifecycle semantics SHALL accept provider reports through
-explicit composition rather than importing provider execution packages.
+explicit proof-gate composition rather than importing provider execution
+packages into the repository audit.
 
-#### Scenario: Deep repository-audit is requested inside repository semantics
-- **WHEN** repository repository-audit runs in deep mode without an injected provider
-- **THEN** it reports `openspec_reporter_not_configured`
-- **AND** it does not import or execute provider-specific OpenSpec adapters
+#### Scenario: Repository audit runs without a provider
+- **WHEN** `ethos prove --gate repository-audit --json` runs
+- **THEN** the repository audit evaluates repository-owned semantics without
+  importing or executing provider-specific OpenSpec adapters
 
-#### Scenario: Deep repository-audit is composed by the command plane
-- **WHEN** `ethos audit --mode deep --json` runs in the product repository
-- **THEN** the CLI composes repository repository-audit with the official OpenSpec
-  adapter and reports no provider-configuration gap
+#### Scenario: Full proof composes official OpenSpec validation
+- **WHEN** `ethos prove --full --execute --expect-head <head> --json` runs
+- **THEN** the proof plan evaluates repository audit and the official OpenSpec
+  gate as separate declared gates
+- **AND** neither gate becomes a second lifecycle command plane
 
 ### Requirement: Proof States Distinguish Planning From Execution
 ETHOS SHALL distinguish planned gate readiness from executed proof.
@@ -2179,46 +2112,6 @@ not the audited checkout, and unchanged at immediate reobservation.
 - **THEN** housekeeping reports a blocking inventory gap
 - **AND** it does not project an empty removable set as successful inspection.
 
-### Requirement: Exceptional unbound Work Lane retirement is exact and accepted-policy-bound
-
-`ethos lane retire unbound` SHALL admit one exact unbound ref only through a
-selected Commitment and target-specific decision Attestation. The command SHALL
-bind target ref/head, accepted relation, Lease observation, actor, reason, and
-irreversible controls; no provider, session, host, Claim, or Chronicle grants
-authority.
-
-#### Scenario: Exact accepted-ancestor residue is inspected
-
-- **WHEN** one unbound ref is an exact accepted ancestor with no linked worktree
-  and its selected evidence matches
-- **THEN** dry-run reports the exact retirement observation without mutation
-- **AND** reports that the result mints no reusable authority
-
-#### Scenario: One carrier does not authorize another target
-
-- **WHEN** a decision Attestation names another ref or head
-- **THEN** ETHOS blocks the target before mutation
-- **AND** requires its own exact evidence and receipt
-
-#### Scenario: A non-exact or non-accepted target is refused
-
-- **WHEN** relation, head, Lease, target evidence, or accepted binding is absent,
-  ambiguous, stale, foreign, or mismatched
-- **THEN** ETHOS preserves the ref and Lease
-- **AND** reports the exact failed binding
-
-#### Scenario: Exceptional controls are incomplete
-
-- **WHEN** authorization, break-glass, or irreversible confirmation is absent
-- **THEN** ETHOS blocks before ref or Lease mutation
-
-#### Scenario: Unavailable source holder is recovered only by exact accepted policy
-
-- **WHEN** an accepted Commitment and decision Attestation bind owner-unavailable
-  recovery, exact Lease generation, absent source path, actor, and target
-- **THEN** ETHOS may revoke only that exact Lease through native CAS
-- **AND** any present path, same holder, drift, or incomplete evidence blocks
-
 ### Requirement: Exceptional unbound effects are compare-and-delete and receipt-bound
 
 Before an exceptional unbound effect, ETHOS SHALL re-observe the exact target,
@@ -2255,26 +2148,6 @@ postconditions, and record the result in the sole Attestation set.
 - **WHEN** exceptional retirement evidence is evaluated
 - **THEN** its authority is limited to the exact branch, head, and operation
 - **AND** vendor, account, session, host, or another target cannot extend it
-
-### Requirement: Ref-absent owner-unavailable partial effects are reconciled only through exact native lease CAS
-
-`ethos lane retire reconcile-ref-absent` SHALL reconcile only an immutable prior
-attempt whose ref and path are absent while its exact foreign Lease remains. A
-selected Commitment and decision Attestation SHALL bind the prior operation,
-accepted head, source Lease tuple, recovery actor, and postconditions.
-
-#### Scenario: Exact ref-absent residue is reconciled
-
-- **WHEN** ref/path absence, protected refs, evidence, and Lease tuple still
-  match the prior attempt
-- **THEN** ETHOS revokes only that exact Lease through native CAS
-- **AND** records success only after ref, path, and Lease absence are proven
-
-#### Scenario: Reconciliation observation or evidence drifts
-
-- **WHEN** a ref or path reappears or any bound fact changes
-- **THEN** ETHOS blocks before Lease mutation
-- **AND** preserves all foreign state
 
 ### Requirement: Versioned local-state schema evolution
 

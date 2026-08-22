@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.closure import repository_product_reference_gaps
-from ethos.repository.policy.references.declarations import native_owned_references
+from ethos.repository.policy.references.closure import product_reference_gaps
+from ethos.repository.policy.references.closure import repository_semantic_closure
+from ethos.repository.policy.references.declarations import native_owned_references_from_files
+from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import product_references_from_files
-from ethos.repository.policy.references.observation import reference_gaps
-from ethos.repository.policy.references.observation import repository_product_references
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -85,7 +85,8 @@ jobs:
         },
     )
 
-    observed = repository_product_references(tmp_path)
+    observation = observe_repository_references(tmp_path)
+    observed = product_references_from_files(observation.files)
 
     assert {"external_sdk", "extension_sdk"} <= observed["import"]
     assert "external-dist" in observed["distribution"]
@@ -108,6 +109,7 @@ app.command(lane_app)
 """,
         },
     )
+    context = observe_repository_references(tmp_path).files
     observed = product_references_from_files(
         {
             "src/ethos/commands.py": """import external_sdk
@@ -123,7 +125,7 @@ version = "0.1.0"
 dependencies = ["external-dist>=1"]
 """,
         },
-        root=tmp_path,
+        context_files=context,
     )
 
     assert observed == {
@@ -139,8 +141,8 @@ dependencies = ["external-dist>=1"]
 def test_native_owner_closure_rejects_an_unowned_reference(tmp_path: Path) -> None:
     _minimal_product(tmp_path, "import external_sdk")
 
-    assert repository_product_reference_gaps(tmp_path) == [
-        "product_reference_not_admitted_at_baseline:import:external_sdk"
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == [
+        "semantic_consumer_orphan:import:external_sdk:src/example/module.py"
     ]
 
 
@@ -181,10 +183,11 @@ def start() -> None:
         },
     )
 
-    owned = native_owned_references(tmp_path)
+    files = observe_repository_references(tmp_path).files
+    owned = native_owned_references_from_files(files)
 
     assert "ethos lane start" in owned["command"]
-    assert repository_product_reference_gaps(tmp_path) == []
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == []
 
 
 def test_native_owner_closure_does_not_promote_observed_consumers(tmp_path: Path) -> None:
@@ -198,15 +201,15 @@ subprocess.run(["rogue-tool"], check=True)
 """,
     )
 
-    allowed = native_owned_references(tmp_path)
+    allowed = native_owned_references_from_files(observe_repository_references(tmp_path).files)
 
     assert "rogue_sdk" not in allowed["import"]
     assert "rogue-tool" not in allowed["executable"]
     assert "ROGUE_HOME" not in allowed["value"]
-    assert repository_product_reference_gaps(tmp_path) == [
-        "product_reference_not_admitted_at_baseline:import:rogue_sdk",
-        "product_reference_not_admitted_at_baseline:executable:rogue-tool",
-        "product_reference_not_admitted_at_baseline:value:ROGUE_HOME",
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == [
+        "semantic_consumer_orphan:executable:rogue-tool:src/example/module.py",
+        "semantic_consumer_orphan:import:rogue_sdk:src/example/module.py",
+        "semantic_consumer_orphan:value:ROGUE_HOME:src/example/module.py",
     ]
 
 
@@ -295,7 +298,7 @@ def test_observation_can_exclude_dependency_declarations_but_keeps_consumers() -
 
 
 def test_reference_gap_report_ignores_native_modules_and_sorts_unknowns() -> None:
-    gaps = reference_gaps(
+    gaps = product_reference_gaps(
         {"import": frozenset({"allowed"})},
         {
             "import": {"tools", "tests", "ethos", "zeta", "allowed"},

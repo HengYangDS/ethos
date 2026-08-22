@@ -49,7 +49,6 @@ def test_design_integrity_uses_supplied_tracked_documents_as_authority(
     report = design_integrity_report(tmp_path, tracked_documents=tracked)
 
     assert report["verdict"] == "pass", report["required_gaps"]
-    assert report["semantic_equivalence"] == "not_evaluated"
     assert "docs/rogue.md" not in report["references"]
 
 

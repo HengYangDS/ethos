@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.repository.policy.references.observation import npm_script_commands
+from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import product_references_from_files
-from ethos.repository.policy.references.observation import reference_gaps
-from ethos.repository.policy.references.observation import repository_product_references
-from ethos.repository.policy.references.observation import repository_reference_files
+from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -31,14 +30,15 @@ def test_repository_public_observation_skips_unreadable_reference_carriers(tmp_p
     (skill / "SKILL.md").write_text("good\n", encoding="utf-8")
     (skill / "bad.md").write_bytes(b"\xff")
 
-    files = repository_reference_files(tmp_path)
-    observed = repository_product_references(tmp_path)
+    observation = observe_repository_references(tmp_path)
+    observed = product_references_from_files(observation.files)
 
-    assert files == {".agents/skills/sample/SKILL.md": "good\n"}
+    assert observation.files == {".agents/skills/sample/SKILL.md": "good\n"}
+    assert observation.unreadable_paths == (".agents/skills/sample/bad.md",)
     assert observed == _observed()
 
 
-def test_repository_public_observation_discovers_command_sources_and_skips_unreadable_python(
+def test_repository_public_observation_skips_unreadable_python(
     tmp_path: Path,
 ) -> None:
     source = tmp_path / "src/ethos"
@@ -46,9 +46,11 @@ def test_repository_public_observation_discovers_command_sources_and_skips_unrea
     (source / "app.py").write_text("App()\n", encoding="utf-8")
     (source / "bad.py").write_bytes(b"\xff")
 
-    observed = product_references_from_files({}, root=tmp_path)
+    observation = observe_repository_references(tmp_path)
+    observed = product_references_from_files(observation.files)
 
     assert observed == _observed()
+    assert observation.unreadable_paths == ("src/ethos/bad.py",)
 
 
 @pytest.mark.parametrize(
@@ -68,22 +70,15 @@ def test_pyproject_public_observation_accepts_only_normalizable_requirements(
 
 
 def test_npm_public_observation_ignores_invalid_and_non_object_scripts() -> None:
-    assert npm_script_commands({"bad.json": "{"}, root=None) == {}
-    assert npm_script_commands({"package.json": '{"scripts": []}'}, root=None) == {}
+    assert npm_script_commands({"bad.json": "{"}) == {}
+    assert npm_script_commands({"package.json": '{"scripts": []}'}) == {}
     assert product_references_from_files({"package.json": "[]"}) == _observed()
 
 
-def test_npm_public_observation_reads_root_manifest_and_skips_unreadable_siblings(
-    tmp_path: Path,
-) -> None:
-    (tmp_path / "package.json").write_text(
-        '{"scripts": {"verify": "python -m pytest"}}', encoding="utf-8"
-    )
-    sibling = tmp_path / "packages/bad/package.json"
-    sibling.parent.mkdir(parents=True)
-    sibling.write_bytes(b"\xff")
+def test_npm_public_observation_reads_explicit_manifests() -> None:
+    files = {"package.json": '{"scripts": {"verify": "python -m pytest"}}'}
 
-    assert npm_script_commands({}, root=tmp_path) == {"verify": {"python -m pytest"}}
+    assert npm_script_commands(files) == {"verify": {"python -m pytest"}}
 
 
 @pytest.mark.parametrize(
@@ -111,14 +106,26 @@ def test_markdown_public_observation_ignores_malformed_inline_shell() -> None:
     assert observed == _observed()
 
 
-def test_reference_gaps_are_sorted_and_ignore_internal_import_roots() -> None:
-    observed = _observed()
-    observed["import"] = {"ethos", "tests", "tools", "zeta", "alpha"}
-    observed["reference"] = {"gitlab", "docker"}
+def test_consumer_observation_does_not_recompute_command_declarations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Consumer extraction consumes declared commands without rediscovering owners."""
+    calls: list[dict[str, str]] = []
 
-    assert reference_gaps({}, observed) == [
-        "product_reference_not_admitted_at_baseline:import:alpha",
-        "product_reference_not_admitted_at_baseline:import:zeta",
-        "product_reference_not_admitted_at_baseline:reference:docker",
-        "product_reference_not_admitted_at_baseline:reference:gitlab",
-    ]
+    def record_prefix_scan(files: dict[str, str]) -> dict[tuple[str, str], str]:
+        calls.append(files)
+        return {}
+
+    monkeypatch.setattr(
+        "ethos.repository.policy.references.python_syntax.cyclopts_prefixes",
+        record_prefix_scan,
+    )
+
+    result = reference_consumer_sources_from_files(
+        {"docs/reference/example.md": "Run `ethos status --json`.\n"},
+        declared_commands=("ethos status",),
+    )
+
+    assert result.sources["command"] == {"ethos status": frozenset({"docs/reference/example.md"})}
+    assert result.unknown_paths == ()
+    assert calls == []

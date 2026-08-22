@@ -24,6 +24,7 @@ scope = [
   "tests/unit/cli/openspec/test_generation_observation.py",
   "tests/unit/cli/test_openspec_change_rollover.py",
   "tests/unit/contracts/change_lineage/**",
+  "tests/unit/lanes/lifecycle/test_change_rollover_public_recovery.py",
   "tests/unit/lanes/test_fresh_lane_start.py",
 ]
 invariants = [

@@ -1,0 +1,53 @@
+schema_version = 2
+id = "change:change-lineage-dag"
+intent = "Make governed Change lineage a validated acyclic DAG across fresh start, successor rollover, recovery, and public CLI projection without introducing a graph ledger or conflating lineage with execution dependencies."
+subjects = [
+  "repository:ethos",
+]
+scope = [
+  "docs/governance/product-design-contract.md",
+  "docs/reference/command-plane.md",
+  "openspec/changes/change-lineage-dag/**",
+  "openspec/specs/command-plane/spec.md",
+  "openspec/specs/contracts/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "src/ethos/adapters/mutation/lane_lifecycle/change_rollover.py",
+  "src/ethos/adapters/mutation/lanes.py",
+  "src/ethos/adapters/openspec/generation/attestation.py",
+  "src/ethos/adapters/openspec/lifecycle/intent.py",
+  "src/ethos/adapters/repo/commitment.py",
+  "src/ethos/surface/cli/lane/change.py",
+  "tests/architecture/test_product_design_contract.py",
+  "tests/unit/cli/openspec/test_generation_observation.py",
+  "tests/unit/cli/test_openspec_change_rollover.py",
+  "tests/unit/lanes/test_fresh_lane_start.py",
+]
+invariants = [
+  "change_lineage_is_derived_from_immutable_commitments_without_a_second_graph_store",
+  "execution_dependencies_remain_distinct_from_lineage_predecessors",
+  "historical_commitments_are_never_backpatched_with_successor_links",
+  "the_current_lane_predecessor_remains_mandatory_during_in_lane_rollover",
+  "unresolvable_duplicate_self_or_cyclic_lineage_fails_before_mutation",
+]
+acceptance = [
+  "fresh_lane_start_accepts_a_valid_historical_predecessor_set_and_rejects_unresolvable_edges_before_effect",
+  "public_start_change_can_construct_a_canonical_multi_predecessor_commitment",
+  "start_effect_recovery_and_attestation_validate_the_exact_predecessor_set",
+  "two_successors_may_share_one_predecessor_and_one_successor_may_join_multiple_predecessors",
+]
+risks = [
+  "digest_resolution_over_history_could_be_ambiguous_or_expensive",
+  "lineage_edges_could_be_confused_with_execution_admission_dependencies",
+  "recovery_could_accept_a_different_predecessor_set_with_the_same_change_identity",
+]
+authority_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "user_instruction",
+]
+predecessors = []
+selected_attestations = []
+dependencies = []
+hypotheses = []
+falsifiers = []
+experiment_protocols = []

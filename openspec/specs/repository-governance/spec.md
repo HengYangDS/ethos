@@ -3285,32 +3285,46 @@ and post-archive closeout. The authority SHALL bind the repository identity,
 source Commitment digest and carrier, previous HEAD/tree, exact index/overlay,
 official OpenSpec result, completion artifacts, changed paths, resulting
 HEAD/tree, Lease generation, and terminal effect Attestation. Status, plan,
-prove, land, prewrite, and Git hooks SHALL consume this same authority rather
-than infer permission from an active Change, an archive path, or a generic Lease
-check. A durable partial effect SHALL be recoverable through the same public
-operation by exact CAS; recovery SHALL never replay OpenSpec or create a second
-product commit.
+prove, land, prewrite, rebind derivation, and Git hooks SHALL consume this same
+authority rather than infer permission from an active Change, an archive path,
+or a generic Lease check. A durable partial effect SHALL be recoverable through
+the same public operation by exact CAS; recovery SHALL never replay OpenSpec or
+create a second product commit.
 
 #### Scenario: Exact archive transition is congruent across readers
 
-- **GIVEN** the official OpenSpec 1.9 archive command completed one Change and
+- **GIVEN** the official OpenSpec archive command completed one Change and
   emitted a valid effect Attestation binding the source Commitment, resulting
   HEAD/tree, Lease generation, and exact changed paths
-- **WHEN** status, plan, prove, land, prewrite, or a protected-ref hook evaluates
-  the resulting finalization commit
+- **WHEN** status, plan, prove, land, prewrite, rebind derivation, or a
+  protected-ref hook evaluates the resulting finalization commit
 - **THEN** every attested archive, canonical-spec, policy, and generated path is
   attributed to the source Change
 - **AND** no reader requires a new active Change merely because the official
   active Change list is empty
 - **AND** all surfaces select the same finalization scope.
 
+#### Scenario: A committed archive is recovered after controller loss
+
+- **GIVEN** the Work Lane Lease still names the proved pre-archive HEAD
+- **AND** the current HEAD is its direct child containing one byte-identical
+  active-to-dated-archive carrier relocation and the exact official archive path
+  set
+- **WHEN** the owner retries the public archive transition
+- **THEN** dry-run reports the recoverable Lease/Attestation boundary
+- **AND** apply advances only that Lease generation to the observed archive HEAD
+  and carrier before recording the terminal Attestation
+- **AND** it does not replay OpenSpec, create another commit, or require a second
+  Change.
+
 #### Scenario: Missing or tampered archive authority fails closed
 
 - **WHEN** the archive result, effect Attestation, source Commitment, Lease
-  generation, or exact path set is absent, ambiguous, stale, or tampered
+  generation, direct-parent relation, carrier bytes, or exact path set is absent,
+  ambiguous, stale, or tampered
 - **THEN** ETHOS does not project archive-finalization authority
 - **AND** it reports the first exact missing coordinate and one public next
-  command
+  command when a mechanical continuation exists
 - **AND** it does not infer permission from an archive path or historical lane.
 
 #### Scenario: Multi-commit Change start recovers its exact successor

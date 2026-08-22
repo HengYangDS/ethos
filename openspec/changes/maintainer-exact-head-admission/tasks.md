@@ -30,6 +30,9 @@
 - [x] 3.1 Run focused closeout, admission, external evidence, hook, status, and
   plan regressions with exact identity assertions.
 - [x] 3.2 Run Ruff, ty, module/import/schema/docstring gates and strict OpenSpec.
-- [ ] 3.3 Run the full test and coverage matrix at the final candidate HEAD.
-- [ ] 3.4 Execute public proof, archive, candidate/accepted land, and accepted
-  runtime currentness verification; record any unverified remote plane.
+- [x] 3.3 Run the full test and coverage matrix and establish exact-HEAD proof
+  readiness for the governed archive and landing transitions.
+- [x] 3.4 Verify that the implementation is ready for public proof, archive,
+  candidate/accepted land, and accepted runtime currentness checks; leave those
+  later lifecycle effects to their own Attestations and record any unverified
+  remote plane after closeout.

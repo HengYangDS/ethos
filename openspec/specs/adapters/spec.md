@@ -5,7 +5,9 @@
 ETHOS SHALL connect repository lifecycle semantics to provider-specific Git,
 SQLite, process, package-manager, hosted CI, and protocol runtimes without
 treating any provider as product truth.
+
 ## Requirements
+
 ### Requirement: Exact-request Mutation Admission
 Only a `pass` verdict may authorize an effect; `block` and `unknown` both fail closed.
 
@@ -274,7 +276,10 @@ lifecycle or semantic roots.
 ETHOS SHALL keep the accepted checkout as the fail-closed shell-hook boundary
 for an accepted-ref transaction. When that transaction promotes a candidate
 head, it SHALL evaluate the semantic ref-admission reducer using a clean linked
-checkout of the configured candidate branch at that exact promoted head.
+checkout of the configured candidate branch at that exact promoted head. The
+hook SHALL consume the exact prepared accepted-head admission decision owned by
+public closeout and SHALL NOT independently reconstruct proof, topology, or a
+precondition that the protected local ref already equals the promoted object.
 
 #### Scenario: candidate control implementation differs from accepted checkout
 
@@ -287,6 +292,8 @@ checkout of the configured candidate branch at that exact promoted head.
   against the candidate head
 - **AND** it SHALL bind runner source, candidate checkout, candidate head, and
   transition fields explicitly
+- **AND** it SHALL consume the same prepared ref intent and proof decision as
+  closeout
 - **AND** it SHALL not reject solely because accepted-old source would compute
   a different policy result.
 
@@ -295,7 +302,9 @@ checkout of the configured candidate branch at that exact promoted head.
 - **WHEN** the configured candidate checkout is missing, dirty, detached,
   stale, or its semantic runtime cannot be bound to that checkout
 - **THEN** the accepted-ref hook SHALL reject the transition
-- **AND** it SHALL not fall back to accepted-old semantic source.
+- **AND** it SHALL not fall back to accepted-old semantic source
+- **AND** it SHALL project the complete public closeout command required to
+  repair or retry the exact transition.
 
 #### Scenario: changed managed shell hook bootstraps an accepted-to-release mirror
 
@@ -312,6 +321,15 @@ checkout of the configured candidate branch at that exact promoted head.
   override
 - **AND** it SHALL report incomplete release-mirror bootstrap residue rather
   than accepted closeout when the second transition cannot complete.
+
+#### Scenario: an exact protected object is pushed after local closeout
+
+- **GIVEN** public closeout admitted and post-observed an exact signed candidate
+  object through its prepared ref intent
+- **WHEN** pre-push evaluates that same object for the declared protected role
+- **THEN** the hook SHALL consume the admitted object and proof identity
+- **AND** it SHALL not demand an additional hook-local role transition or a
+  circular local-ref equality condition.
 
 ### Requirement: Lifecycle mutation has one semantic owner
 

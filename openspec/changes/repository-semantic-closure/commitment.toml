@@ -15,6 +15,7 @@ scope = [
   "openspec/specs/quality/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "src/ethos/adapters/admission/patch_admission.py",
+  "src/ethos/contracts/system/contracts.py",
   "src/ethos/domain/status.py",
   "src/ethos/repository/audit.py",
   "src/ethos/repository/design/**",
@@ -30,6 +31,7 @@ scope = [
   "tests/unit/coverage_closure/test_final_public_matrices.py",
   "tests/unit/domain/**",
   "tests/unit/governance/**",
+  "tests/unit/kernel/test_contracts.py",
   "tests/unit/policy/**",
   "tests/unit/repository/**",
 ]
